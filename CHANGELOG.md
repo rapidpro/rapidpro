@@ -1,3 +1,64 @@
+v7.5.96
+----------
+ * Remove topup credits squash task from celery beat
+
+v7.5.95
+----------
+ * Update API auth classes to set request.org and use that to set X-Temba-Org header
+ * Use dropdown for brand field on org update form
+ * Remove topups
+
+v7.5.94
+----------
+ * Add missing migration
+ * Remove support for orgs with brand as the host
+ * Remove brand tiers
+
+v7.5.93
+----------
+ * Fix new event modal listeners
+ * Re-add org plan and plan end to update form
+ * Add png of rapidpro logo
+ * Update mailroom_db and test_db commands to set org brand as slug
+ * Add data migration to convert org.brand to be the brand slug
+
+v7.5.92
+----------
+ * Create cla.yml
+ * Rework branding to not require modifying what is in the settings
+
+v7.5.91
+----------
+ * Remove outdated contributor files
+
+v7.5.90
+----------
+ * Update flow editor
+ * Remove unused fields from ChannelType
+ * Allow non-beta users to add WeChat channels
+
+v7.5.89
+----------
+ * Properly truncate the channel name when claiming a WAC channel
+ * Fix not saving selected date format to new child org
+ * Add redirect from org_create_child if org has a parent
+ * Remove unused Org.get_account_value
+ * Don't allow creation of child orgs within child orgs
+ * Remove low credit checking code
+
+v7.5.88
+----------
+ * Remove the token refresh tasks for jiochat and wechat channels as courier does this on demand
+ * Remove Stripe and bundles functionality
+
+v7.5.87
+----------
+ * Remove unused segment and intercom dependencies
+ * Remove unused utils code
+ * Update TableExporter to prepare values so individual tasks don't have to
+ * Update versions of mailroom etc that we use for testing
+ * Add configurable group membership columns to message, ticket and results exports (WIP)
+
 v7.5.86
 ----------
  * Remove no-loner used credit alert email templates

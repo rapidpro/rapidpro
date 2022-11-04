@@ -26,7 +26,6 @@ class ChikkaType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = 160
-    attachment_support = False
 
     configuration_blurb = _(
         "To finish configuring your Chikka connection you need to set the following URLs in your "

@@ -184,7 +184,6 @@ TEMPLATES = [
                 "temba.context_processors.branding",
                 "temba.context_processors.config",
                 "temba.orgs.context_processors.user_group_perms_processor",
-                "temba.orgs.context_processors.settings_includer",
                 "temba.orgs.context_processors.user_orgs_for_brand",
             ],
             "loaders": [
@@ -314,34 +313,29 @@ DEFAULT_PLAN = TOPUP_PLAN
 # -----------------------------------------------------------------------------------
 # Branding Configuration
 # -----------------------------------------------------------------------------------
-BRANDING = {
-    "rapidpro.io": {
+BRANDS = [
+    {
         "slug": "rapidpro",
         "name": "RapidPro",
+        "hosts": ["rapidpro.io"],
         "org": "UNICEF",
+        "domain": "app.rapidpro.io",
         "colors": dict(primary="#0c6596"),
         "styles": ["brands/rapidpro/font/style.css"],
         "default_plan": TOPUP_PLAN,
-        "welcome_topup": 1000,
         "email": "join@rapidpro.io",
         "support_email": "support@rapidpro.io",
         "link": "https://app.rapidpro.io",
         "docs_link": "http://docs.rapidpro.io",
-        "domain": "app.rapidpro.io",
         "ticket_domain": "tickets.rapidpro.io",
         "favico": "brands/rapidpro/rapidpro.ico",
         "splash": "brands/rapidpro/splash.jpg",
         "logo": "images/logo-dark.svg",
         "allow_signups": True,
-        "tiers": dict(multi_user=0, multi_org=0),
-        "bundles": [],
-        "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         "title": _("Visually build nationally scalable mobile applications"),
-        "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
-        "credits": "Copyright &copy; 2012-2022 UNICEF, Nyaruka. All Rights Reserved.",
     }
-}
-DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro.io")
+]
+DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro")
 
 FEATURES = {"locations", "ticketers"}
 
@@ -451,10 +445,9 @@ PERMISSIONS = {
         "account",
         "accounts",
         "api",
-        "clear_cache",
         "country",
         "create_login",
-        "create_sub_org",
+        "create_child",
         "dashboard",
         "download",
         "edit_sub_org",
@@ -605,7 +598,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_accounts",
         "orgs.org_api",
         "orgs.org_country",
-        "orgs.org_create_sub_org",
+        "orgs.org_create_child",
         "orgs.org_dashboard",
         "orgs.org_delete",
         "orgs.org_download",
@@ -634,8 +627,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_vonage_account",
         "orgs.org_vonage_connect",
         "orgs.org_workspace",
-        "orgs.topup_list",
-        "orgs.topup_read",
         "request_logs.httplog_list",
         "request_logs.httplog_read",
         "request_logs.httplog_webhooks",
@@ -730,8 +721,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_token",
         "orgs.org_two_factor",
         "orgs.org_workspace",
-        "orgs.topup_list",
-        "orgs.topup_read",
         "request_logs.httplog_webhooks",
         "schedules.schedule.*",
         "templates.template_api",
@@ -805,8 +794,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_spa",
         "orgs.org_two_factor",
         "orgs.org_workspace",
-        "orgs.topup_list",
-        "orgs.topup_read",
         "tickets.ticketer_api",
         "tickets.topic_api",
         "tickets.ticket_export",
@@ -920,8 +907,6 @@ CELERY_BEAT_SCHEDULE = {
     "delete-orgs": {"task": "delete_orgs_task", "schedule": crontab(hour=4, minute=0)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},
     "resolve-twitter-ids-task": {"task": "resolve_twitter_ids_task", "schedule": timedelta(seconds=900)},
-    "refresh-jiochat-access-tokens": {"task": "refresh_jiochat_access_tokens", "schedule": timedelta(seconds=3600)},
-    "refresh-wechat-access-tokens": {"task": "refresh_wechat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": crontab(hour=6, minute=0)},
     "refresh-whatsapp-templates": {"task": "refresh_whatsapp_templates", "schedule": timedelta(seconds=900)},
     "send-notification-emails": {"task": "send_notification_emails", "schedule": timedelta(seconds=60)},
@@ -930,7 +915,6 @@ CELERY_BEAT_SCHEDULE = {
     "squash-flowcounts": {"task": "squash_flowcounts", "schedule": timedelta(seconds=60)},
     "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=60)},
     "squash-notificationcounts": {"task": "squash_notificationcounts", "schedule": timedelta(seconds=60)},
-    "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=60)},
     "squash-ticketcounts": {"task": "squash_ticketcounts", "schedule": timedelta(seconds=60)},
     "sync-classifier-intents": {"task": "sync_classifier_intents", "schedule": timedelta(seconds=300)},
     "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
@@ -989,7 +973,7 @@ COMPRESS_OFFLINE = False
 
 # build up our offline compression context based on available brands
 COMPRESS_OFFLINE_CONTEXT = []
-for brand in BRANDING.values():
+for brand in BRANDS:
     context = dict(STATIC_URL=STATIC_URL, base_template="frame.html", debug=False, testing=False)
     context["brand"] = dict(slug=brand["slug"], styles=brand["styles"])
     COMPRESS_OFFLINE_CONTEXT.append(context)

@@ -25,7 +25,6 @@ class BlackmynaType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
-    attachment_support = False
 
     configuration_blurb = _(
         "To finish configuring your Blackmyna connection you'll need to notify Blackmyna of the following URLs."

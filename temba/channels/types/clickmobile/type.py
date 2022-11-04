@@ -28,7 +28,6 @@ class ClickMobileType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = 459
-    attachment_support = False
 
     configuration_blurb = _(
         "To finish configuring your channel you need to configure Click Mobile to send new messages to the URL below."

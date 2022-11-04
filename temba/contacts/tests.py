@@ -94,7 +94,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         mr_mocks.contact_search('name != ""', contacts=[])
         smart = self.create_group("No Name", query='name = ""')
 
-        with self.assertNumQueries(28):
+        with self.assertNumQueries(20):
             response = self.client.get(list_url)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
@@ -5276,7 +5276,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
             modified_by=self.admin,
         )
 
-        self.org.initialize(topup_size=1000)
+        self.org.initialize()
         self.org.add_user(self.admin, OrgRole.ADMINISTRATOR)
 
         self.client.login(username=self.admin.username, password=self.admin.username)

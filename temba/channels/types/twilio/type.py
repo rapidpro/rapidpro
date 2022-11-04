@@ -31,8 +31,6 @@ class TwilioType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
 
-    ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML
-
     redact_request_keys = (
         "FromCity",
         "FromState",

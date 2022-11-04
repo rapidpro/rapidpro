@@ -25,7 +25,6 @@ class ShaqodoonType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
-    attachment_support = False
 
     configuration_blurb = _(
         "To finish configuring your Shaqodoon connection you'll need to provide Shaqodoon with the following delivery "

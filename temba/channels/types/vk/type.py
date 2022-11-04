@@ -32,5 +32,4 @@ class VKType(ChannelType):
 
     schemes = [URN.VK_SCHEME]
     max_length = 320
-    attachment_support = True
     free_sending = True

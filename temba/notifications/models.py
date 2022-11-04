@@ -318,7 +318,7 @@ class Notification(models.Model):
                 f"[{self.org.name}] {subject}",
                 template,
                 context,
-                self.org.get_branding(),
+                self.org.branding,
             )
         else:  # pragma: no cover
             logger.warning(f"skipping email send for notification type {self.type.slug} not configured for email")

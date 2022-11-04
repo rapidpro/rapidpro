@@ -150,13 +150,13 @@ class Command(BaseCommand):
             name=spec["name"],
             timezone=pytz.timezone("America/Los_Angeles"),
             flow_languages=spec["languages"],
-            brand="rapidpro.io",
+            brand="rapidpro",
             country=country,
             created_on=timezone.now(),
             created_by=superuser,
             modified_by=superuser,
         )
-        org.initialize(topup_size=100_000, sample_flows=False)
+        org.initialize(sample_flows=False)
 
         # set our sequences to make ids stable across orgs
         self.reset_id_sequences(spec["sequence_start"])

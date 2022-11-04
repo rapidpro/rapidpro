@@ -29,7 +29,6 @@ from temba import mailroom
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import analytics, countries, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
-from temba.utils.http import HttpLog
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
 
@@ -78,13 +77,10 @@ class ChannelType(metaclass=ABCMeta):
 
     max_length = -1
     max_tps = None
-    attachment_support = False
     free_sending = False
     quick_reply_text_size = 20
 
     extra_links = None
-
-    ivr_protocol = None
 
     # Whether this channel should be activated in the a celery task, useful to turn off if there's a chance for errors
     # during activation. Channels should make sure their claim view is non-atomic if a callback will be involved
@@ -166,12 +162,6 @@ class ChannelType(metaclass=ABCMeta):
         """
         Called when a trigger that is bound to a channel of this type is being released.
         """
-
-    def has_attachment_support(self, channel):
-        """
-        Whether the given channel instance supports message attachments
-        """
-        return self.attachment_support
 
     def get_configuration_context_dict(self, channel):
         return dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)
@@ -1215,21 +1205,6 @@ class ChannelLog(models.Model):
     elapsed_ms = models.IntegerField(default=0)
     created_on = models.DateTimeField(default=timezone.now)
 
-    @classmethod
-    def from_response(cls, log_type, channel, response, created_on, ended_on, is_error=None):
-        http_log = HttpLog.from_response(response, created_on, ended_on)
-        is_error = is_error if is_error is not None else http_log.status_code >= 400
-
-        return cls.objects.create(
-            uuid=uuid4(),
-            log_type=log_type,
-            channel=channel,
-            http_logs=[http_log.as_json()],
-            errors=[],
-            is_error=is_error,
-            elapsed_ms=http_log.elapsed_ms,
-        )
-
     def _get_display_value(self, user, original, redact_keys=(), redact_values=()):
         """
         Get a part of the log which may or may not have to be redacted to hide sensitive information in anon orgs
@@ -1615,7 +1590,7 @@ class Alert(SmartModel):
         context["unsent_count"] = Msg.objects.filter(channel=self.channel, status__in=["Q", "P"]).count()
         context["subject"] = subject
 
-        send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.get_branding())
+        send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.branding)
 
 
 def get_alert_user():

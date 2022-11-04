@@ -39,7 +39,6 @@ class TwitterType(ChannelType):
     show_config_page = False
     free_sending = True
     async_activation = False
-    attachment_support = True
 
     redact_response_keys = ("urn",)
     redact_request_keys = ("sender_id", "name", "screen_name", "profile_image_url", "profile_image_url_https")

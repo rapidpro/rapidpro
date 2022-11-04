@@ -25,7 +25,6 @@ class DartMediaType(ChannelType):
 
     schemes = [URN.TEL_SCHEME, URN.EXTERNAL_SCHEME]
     max_length = 160
-    attachment_support = False
 
     show_public_addresses = True
 

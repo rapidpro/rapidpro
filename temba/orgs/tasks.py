@@ -13,19 +13,13 @@ from temba.msgs.models import ExportMessagesTask
 from temba.msgs.tasks import export_messages_task
 from temba.utils.celery import nonoverlapping_task
 
-from .models import Invitation, Org, OrgActivity, TopUpCredits
+from .models import Invitation, Org, OrgActivity
 
 
 @shared_task(track_started=True, name="send_invitation_email_task")
 def send_invitation_email_task(invitation_id):
     invitation = Invitation.objects.get(pk=invitation_id)
     invitation.send_email()
-
-
-@shared_task(track_started=True, name="apply_topups_task")
-def apply_topups_task(org_id):
-    org = Org.objects.get(id=org_id)
-    org.apply_topups()
 
 
 @shared_task(track_started=True, name="normalize_contact_tels_task")
@@ -37,11 +31,6 @@ def normalize_contact_tels_task(org_id):
         urns = ContactURN.objects.filter(org=org, scheme=URN.TEL_SCHEME).exclude(path__startswith="+").iterator()
         for urn in urns:
             urn.ensure_number_normalization(org.default_country_code)
-
-
-@nonoverlapping_task(track_started=True, name="squash_topupcredits", lock_key="squash_topupcredits", lock_timeout=7200)
-def squash_topupcredits():
-    TopUpCredits.squash()
 
 
 @nonoverlapping_task(track_started=True, name="resume_failed_tasks", lock_key="resume_failed_tasks", lock_timeout=7200)

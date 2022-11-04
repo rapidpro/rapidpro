@@ -1,21 +1,17 @@
 import io
 import smtplib
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import urlencode
 
 import pytz
-import stripe
-import stripe.error
 from bs4 import BeautifulSoup
-from dateutil.relativedelta import relativedelta
 from smartmin.users.models import FailedLogin, RecoveryToken
 
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core import mail
-from django.core.exceptions import ValidationError
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -48,6 +44,7 @@ from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     CRUDLTestMixin,
     ESMockWithScroll,
+    MigrationTest,
     MockResponse,
     TembaNonAtomicTest,
     TembaTest,
@@ -55,7 +52,6 @@ from temba.tests import (
     mock_mailroom,
 )
 from temba.tests.engine import MockSessionWriter
-from temba.tests.requests import mock_object
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.tickets.models import Ticketer
@@ -64,8 +60,8 @@ from temba.triggers.models import Trigger
 from temba.utils import json, languages
 
 from .context_processors import RolePermsWrapper
-from .models import BackupToken, Debit, Invitation, Org, OrgActivity, OrgMembership, OrgRole, TopUp, TopUpCredits, User
-from .tasks import delete_orgs_task, resume_failed_tasks, squash_topupcredits
+from .models import BackupToken, Invitation, Org, OrgActivity, OrgMembership, OrgRole, User
+from .tasks import delete_orgs_task, resume_failed_tasks, update_org_activity
 
 
 class OrgRoleTest(TembaTest):
@@ -645,7 +641,7 @@ class UserTest(TembaTest):
         branded_org = Org.objects.create(
             name="Other Brand Org",
             timezone=pytz.timezone("Africa/Kigali"),
-            brand="some-other-brand.com",
+            brand="some-other-brand",
             created_by=self.admin,
             modified_by=self.admin,
         )
@@ -661,10 +657,10 @@ class UserTest(TembaTest):
         self.assertEqual("admin@nyaruka.com", self.admin.email)
 
         # but she should be removed from org
-        self.assertFalse(self.admin.get_orgs(brands=[settings.DEFAULT_BRAND]).exists())
+        self.assertFalse(self.admin.get_orgs(brand="rapidpro").exists())
 
         # now lets release her from the branded org
-        self.admin.release(self.customer_support, brand="some-other-brand.com")
+        self.admin.release(self.customer_support, brand="some-other-brand")
 
         # now she gets deactivated and ambiguated and belongs to no orgs
         self.assertFalse(self.admin.is_active)
@@ -673,14 +669,14 @@ class UserTest(TembaTest):
 
     def test_brand_aliases(self):
         # set our brand to our custom org
-        self.org.brand = "custom-brand.io"
-        self.org.save(update_fields=["brand"])
+        self.org.brand = "custom"
+        self.org.save(update_fields=("brand",))
 
         # create a second org on the .org version
         branded_org = Org.objects.create(
             name="Other Brand Org",
             timezone=pytz.timezone("Africa/Kigali"),
-            brand="custom-brand.org",
+            brand="custom",
             created_by=self.admin,
             modified_by=self.admin,
         )
@@ -692,6 +688,7 @@ class UserTest(TembaTest):
 
         # check our choose page
         response = self.client.get(reverse("orgs.org_choose"), SERVER_NAME="custom-brand.org")
+        self.assertEqual("custom", response.context["request"].branding["slug"])
 
         # should contain both orgs
         self.assertContains(response, "Other Brand Org")
@@ -784,12 +781,9 @@ class OrgDeleteTest(TembaNonAtomicTest):
         # our user is a member of two orgs
         self.parent_org = self.org
         self.child_org.add_user(self.user, OrgRole.ADMINISTRATOR)
-        self.child_org.initialize(topup_size=0)
+        self.child_org.initialize()
         self.child_org.parent = self.parent_org
         self.child_org.save()
-
-        # now allocate some credits to our child org
-        self.org.allocate_credits(self.admin, self.child_org, 300)
 
         parent_contact = self.create_contact("Parent Contact", phone="+2345123", org=self.parent_org)
         child_contact = self.create_contact("Child Contact", phone="+3456123", org=self.child_org)
@@ -973,9 +967,6 @@ class OrgDeleteTest(TembaNonAtomicTest):
         ticket = self.create_ticket(ticketer, self.org.contacts.first(), "Help")
         ticket.events.create(org=self.org, contact=ticket.contact, event_type="N", note="spam", created_by=self.admin)
 
-        # make sure we don't have any uncredited topups
-        self.parent_org.apply_topups()
-
     def release_org(self, org, child_org=None, delete=False, expected_files=3):
 
         with patch("temba.utils.s3.client", return_value=self.mock_s3):
@@ -1068,17 +1059,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             self.release_org(self.parent_org, self.child_org, delete=True)
 
     def test_release_child_and_delete(self):
-        # 300 credits were given to our child org and each used one
-        self.assertEqual(695, self.parent_org.get_credits_remaining())
-        self.assertEqual(299, self.child_org.get_credits_remaining())
-
-        # release our child org
         self.release_org(self.child_org, delete=True, expected_files=2)
-
-        # TopUps are on their way out, removing this intermittantly failing test now
-        # our unused credits are returned to the parent
-        # self.parent_org.clear_credit_cache()
-        # self.assertEqual(994, self.parent_org.get_credits_remaining())
 
     def test_delete_task(self):
         # can't delete an unreleased org
@@ -1428,7 +1409,7 @@ class OrgTest(TembaTest):
         Org.objects.create(
             name="Another Org",
             timezone="Africa/Kigali",
-            brand="rapidpro.io",
+            brand="rapidpro",
             created_by=self.user,
             modified_by=self.user,
             surveyor_password="nyaruka",
@@ -2079,302 +2060,6 @@ class OrgTest(TembaTest):
         # and that we have the surveyor role
         self.assertEqual(OrgRole.SURVEYOR, self.org.get_user_role(User.objects.get(username="beastmode@seahawks.com")))
 
-    def test_topup_model(self):
-        topup = TopUp.create(self.org, self.admin, price=None, credits=1000)
-
-        self.assertEqual(topup.get_price_display(), "")
-
-        topup.price = 0
-        topup.save()
-
-        self.assertEqual(topup.get_price_display(), "Free")
-
-        topup.price = 100
-        topup.save()
-
-        self.assertEqual(topup.get_price_display(), "$1.00")
-
-        # ttl should never be negative even if expired
-        topup.expires_on = timezone.now() - timedelta(days=1)
-        topup.save(update_fields=["expires_on"])
-        self.assertEqual(10, self.org.get_topup_ttl(topup))
-
-    def test_topup_expiration(self):
-
-        contact = self.create_contact("Usain Bolt", phone="+250788123123")
-        welcome_topup = self.org.topups.get()
-
-        # send some messages with a valid topup
-        self.create_incoming_msgs(contact, 10)
-        self.assertEqual(10, Msg.objects.filter(org=self.org, topup=welcome_topup).count())
-        self.assertEqual(990, self.org.get_credits_remaining())
-
-        # now expire our topup and try sending more messages
-        welcome_topup.expires_on = timezone.now() - timedelta(hours=1)
-        welcome_topup.save(update_fields=("expires_on",))
-        self.org.clear_credit_cache()
-
-        # we should have no credits remaining since we expired
-        self.assertEqual(0, self.org.get_credits_remaining())
-        self.create_incoming_msgs(contact, 5)
-
-        # those messages are waiting to send
-        self.assertEqual(5, Msg.objects.filter(org=self.org, topup=None).count())
-
-        # so we should report -5 credits
-        self.assertEqual(-5, self.org.get_credits_remaining())
-
-        # our first 10 messages plus our 5 pending a topup
-        self.assertEqual(15, self.org.get_credits_used())
-
-    def test_low_credits_threshold(self):
-        contact = self.create_contact("Usain Bolt", phone="+250788123123")
-
-        # add some more unexpire topup credits
-        TopUp.create(self.org, self.admin, price=0, credits=1000)
-        TopUp.create(self.org, self.admin, price=0, credits=1000)
-        TopUp.create(self.org, self.admin, price=0, credits=1000)
-
-        # send some messages with a valid topup
-        self.create_incoming_msgs(contact, 2200)
-
-        self.assertEqual(300, self.org.get_low_credits_threshold())
-
-    def test_topup_decrementing(self):
-        self.contact = self.create_contact("Joe", phone="+250788123123")
-
-        self.create_incoming_msg(self.contact, "Orange")
-
-        # check our credits
-        self.login(self.admin)
-        response = self.client.get(reverse("orgs.org_home"))
-
-        # We now show org plan
-        # self.assertContains(response, "<b>999</b>")
-
-        # view our topups
-        response = self.client.get(reverse("orgs.topup_list"))
-
-        # and that we have 999 credits left on our topup
-        self.assertContains(response, "999\n")
-
-        # should say we have a 1,000 credits too
-        self.assertContains(response, "1,000 Credits")
-
-        # our receipt should show that the topup was free
-        with patch("stripe.Charge.retrieve") as stripe:
-            stripe.return_value = ""
-            response = self.client.get(
-                reverse("orgs.topup_read", args=[TopUp.objects.filter(org=self.org).first().pk])
-            )
-            self.assertContains(response, "1,000 Credits")
-
-    def test_topups(self):
-
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_user=100_000, multi_org=1_000_000)
-        self.org.is_multi_org = False
-        self.org.is_multi_user = False
-        self.org.save(update_fields=["is_multi_user", "is_multi_org"])
-
-        contact = self.create_contact("Michael Shumaucker", phone="+250788123123")
-        welcome_topup = self.org.topups.get()
-
-        self.create_incoming_msgs(contact, 10)
-
-        with self.assertNumQueries(3):
-            self.assertEqual(150, self.org.get_low_credits_threshold())
-
-        with self.assertNumQueries(0):
-            self.assertEqual(150, self.org.get_low_credits_threshold())
-
-        # we should have 1000 minus 10 credits for this org
-        with self.assertNumQueries(5):
-            self.assertEqual(990, self.org.get_credits_remaining())  # from db
-
-        with self.assertNumQueries(0):
-            self.assertEqual(1000, self.org.get_credits_total())  # from cache
-            self.assertEqual(10, self.org.get_credits_used())
-            self.assertEqual(990, self.org.get_credits_remaining())
-
-        welcome_topup.refresh_from_db()
-        self.assertEqual(10, welcome_topup.msgs.count())
-        self.assertEqual(10, welcome_topup.get_used())
-
-        # at this point we shouldn't have squashed any topup credits, so should have the same number as our used
-        self.assertEqual(10, TopUpCredits.objects.all().count())
-
-        # now squash
-        squash_topupcredits()
-
-        # should only have one remaining
-        self.assertEqual(1, TopUpCredits.objects.all().count())
-
-        # reduce our credits on our topup to 15
-        TopUp.objects.filter(pk=welcome_topup.pk).update(credits=15)
-        self.org.clear_credit_cache()
-
-        self.assertEqual(15, self.org.get_credits_total())
-        self.assertEqual(5, self.org.get_credits_remaining())
-
-        # create 10 more messages, only 5 of which will get a topup
-        self.create_incoming_msgs(contact, 10)
-
-        welcome_topup.refresh_from_db()
-        self.assertEqual(15, welcome_topup.msgs.count())
-        self.assertEqual(15, welcome_topup.get_used())
-
-        (topup, _) = self.org._calculate_active_topup()
-        self.assertFalse(topup)
-
-        # we generate queries for total and used when we are near a boundary
-        with self.assertNumQueries(4):
-            self.assertEqual(15, self.org.get_credits_total())
-            self.assertEqual(20, self.org.get_credits_used())
-            self.assertEqual(-5, self.org.get_credits_remaining())
-
-        # again create 10 more messages, none of which will get a topup
-        self.create_incoming_msgs(contact, 10)
-
-        with self.assertNumQueries(0):
-            self.assertEqual(15, self.org.get_credits_total())
-            self.assertEqual(30, self.org.get_credits_used())
-            self.assertEqual(-15, self.org.get_credits_remaining())
-
-        self.assertEqual(15, TopUp.objects.get(pk=welcome_topup.pk).get_used())
-
-        # raise our topup to take 20 and create another for 5
-        TopUp.objects.filter(pk=welcome_topup.pk).update(credits=20)
-        new_topup = TopUp.create(self.org, self.admin, price=0, credits=5)
-
-        # apply topups which will max out both and reduce debt to 5
-        self.org.apply_topups()
-
-        self.assertEqual(20, welcome_topup.msgs.count())
-        self.assertEqual(20, TopUp.objects.get(pk=welcome_topup.pk).get_used())
-        self.assertEqual(5, new_topup.msgs.count())
-        self.assertEqual(5, TopUp.objects.get(pk=new_topup.pk).get_used())
-        self.assertEqual(25, self.org.get_credits_total())
-        self.assertEqual(30, self.org.get_credits_used())
-        self.assertEqual(-5, self.org.get_credits_remaining())
-
-        # test special status
-        self.assertFalse(self.org.is_multi_user)
-        self.assertFalse(self.org.is_multi_org)
-
-        # add new topup with lots of credits
-        mega_topup = TopUp.create(self.org, self.admin, price=0, credits=100_000)
-
-        # after applying this, no messages should be without a topup
-        self.org.apply_topups()
-        self.assertFalse(Msg.objects.filter(org=self.org, topup=None))
-        self.assertEqual(5, TopUp.objects.get(pk=mega_topup.pk).get_used())
-
-        # we aren't yet multi user since this topup was free
-        self.assertEqual(0, self.org.get_purchased_credits())
-        self.assertFalse(self.org.is_multi_user)
-
-        self.assertEqual(100_025, self.org.get_credits_total())
-        self.assertEqual(99995, self.org.get_credits_remaining())
-        self.assertEqual(30, self.org.get_credits_used())
-
-        # and new messages use the mega topup
-        msg = self.create_incoming_msg(contact, "Test")
-        self.assertEqual(msg.topup, mega_topup)
-        self.assertEqual(6, TopUp.objects.get(pk=mega_topup.pk).get_used())
-
-        # but now it expires
-        yesterday = timezone.now() - relativedelta(days=1)
-        mega_topup.expires_on = yesterday
-        mega_topup.save(update_fields=["expires_on"])
-        self.org.clear_credit_cache()
-
-        # new incoming messages should not be assigned a topup
-        msg = self.create_incoming_msg(contact, "Test")
-        self.assertIsNone(msg.topup)
-
-        # check our totals
-        self.org.clear_credit_cache()
-
-        with self.assertNumQueries(6):
-            self.assertEqual(0, self.org.get_purchased_credits())
-            self.assertEqual(31, self.org.get_credits_total())
-            self.assertEqual(32, self.org.get_credits_used())
-            self.assertEqual(-1, self.org.get_credits_remaining())
-
-        # all top up expired
-        TopUp.objects.all().update(expires_on=yesterday)
-
-        # we have expiring credits, and no more active
-        gift_topup = TopUp.create(self.org, self.admin, price=0, credits=100)
-        next_week = timezone.now() + relativedelta(days=7)
-        gift_topup.expires_on = next_week
-        gift_topup.save(update_fields=["expires_on"])
-        self.org.apply_topups()
-
-        with self.assertNumQueries(3):
-            self.assertEqual(15, self.org.get_low_credits_threshold())
-
-        with self.assertNumQueries(0):
-            self.assertEqual(15, self.org.get_low_credits_threshold())
-
-        # some credits expires but more credits will remain active
-        later_active_topup = TopUp.create(self.org, self.admin, price=0, credits=200)
-        five_week_ahead = timezone.now() + relativedelta(days=35)
-        later_active_topup.expires_on = five_week_ahead
-        later_active_topup.save(update_fields=["expires_on"])
-        self.org.apply_topups()
-
-        with self.assertNumQueries(4):
-            self.assertEqual(45, self.org.get_low_credits_threshold())
-
-        with self.assertNumQueries(0):
-            self.assertEqual(45, self.org.get_low_credits_threshold())
-
-        # no expiring credits
-        gift_topup.expires_on = five_week_ahead
-        gift_topup.save(update_fields=["expires_on"])
-        self.org.clear_credit_cache()
-
-        with self.assertNumQueries(6):
-            self.assertEqual(45, self.org.get_low_credits_threshold())
-
-        with self.assertNumQueries(0):
-            self.assertEqual(45, self.org.get_low_credits_threshold())
-
-        # do not consider expired topup
-        gift_topup.expires_on = yesterday
-        gift_topup.save(update_fields=["expires_on"])
-        self.org.clear_credit_cache()
-
-        with self.assertNumQueries(5):
-            self.assertEqual(30, self.org.get_low_credits_threshold())
-
-        with self.assertNumQueries(0):
-            self.assertEqual(30, self.org.get_low_credits_threshold())
-
-        TopUp.objects.all().update(is_active=False)
-        self.org.clear_credit_cache()
-
-        with self.assertNumQueries(2):
-            self.assertEqual(0, self.org.get_low_credits_threshold())
-
-        with self.assertNumQueries(0):
-            self.assertEqual(0, self.org.get_low_credits_threshold())
-
-        # now buy some credits to make us multi user
-        TopUp.create(self.org, self.admin, price=100, credits=100_000)
-        self.org.clear_credit_cache()
-        self.org.reset_capabilities()
-        self.assertTrue(self.org.is_multi_user)
-        self.assertFalse(self.org.is_multi_org)
-
-        # good deal!
-        TopUp.create(self.org, self.admin, price=100, credits=1_000_000)
-        self.org.clear_credit_cache()
-        self.org.reset_capabilities()
-        self.assertTrue(self.org.is_multi_user)
-        self.assertTrue(self.org.is_multi_org)
-
     @patch("temba.orgs.views.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_twilio_connect(self):
@@ -2977,58 +2662,6 @@ class OrgTest(TembaTest):
 
             self.assertRedirect(response, reverse("channels.types.plivo.claim"))
 
-    def test_tiers(self):
-        # default is no tiers, everything is allowed, go crazy!
-        self.assertTrue(self.org.is_multi_user)
-        self.assertTrue(self.org.is_multi_org)
-
-        del settings.BRANDING[settings.DEFAULT_BRAND]["tiers"]
-        self.org.reset_capabilities()
-        self.assertTrue(self.org.is_multi_user)
-        self.assertTrue(self.org.is_multi_org)
-
-        # not enough credits with tiers enabled
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(
-            import_flows=1, multi_user=100_000, multi_org=1_000_000
-        )
-        self.org.reset_capabilities()
-        self.assertIsNone(self.org.create_sub_org("Sub Org A"))
-        self.assertFalse(self.org.is_multi_user)
-        self.assertFalse(self.org.is_multi_org)
-
-        # not enough credits, but tiers disabled
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(import_flows=0, multi_user=0, multi_org=0)
-        self.org.reset_capabilities()
-        self.assertIsNotNone(self.org.create_sub_org("Sub Org A"))
-        self.assertTrue(self.org.is_multi_user)
-        self.assertTrue(self.org.is_multi_org)
-
-        # tiers enabled, but enough credits
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(
-            import_flows=1, multi_user=100_000, multi_org=1_000_000
-        )
-        TopUp.create(self.org, self.admin, price=100, credits=1_000_000)
-        self.org.clear_credit_cache()
-        self.assertIsNotNone(self.org.create_sub_org("Sub Org B"))
-        self.assertTrue(self.org.is_multi_user)
-        self.assertTrue(self.org.is_multi_org)
-
-        # if we are a shared plan, our sub orgs should be created with the workspace plan
-        settings.BRANDING[settings.DEFAULT_BRAND]["shared_plans"] = ["my_shared_plan"]
-        self.org.plan = "my_shared_plan"
-        self.org.save()
-        sub_org_c = self.org.create_sub_org("Sub Org C")
-        self.assertEqual(sub_org_c.plan, settings.WORKSPACE_PLAN)
-
-        with override_settings(DEFAULT_PLAN="other"):
-            settings.BRANDING[settings.DEFAULT_BRAND]["default_plan"] = "other"
-            self.org.plan = settings.TOPUP_PLAN
-            self.org.save()
-            self.org.reset_capabilities()
-            sub_org_d = self.org.create_sub_org("Sub Org D")
-            self.assertIsNotNone(sub_org_d)
-            self.assertEqual(sub_org_d.plan, settings.TOPUP_PLAN)
-
     def test_org_get_limit(self):
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 250)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
@@ -3049,38 +2682,33 @@ class OrgTest(TembaTest):
 
         self.assertEqual(self.org.api_rates, {"v2.contacts": "10000/hour"})
 
-    def test_sub_orgs_management(self):
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
-        self.org.reset_capabilities()
+    def test_child_management(self):
+        self.org.is_multi_org = False
+        self.org.save(update_fields=("is_multi_org",))
 
-        sub_org = self.org.create_sub_org("Sub Org")
+        # error if a non-multi-org enabled org tries to create a child
+        with self.assertRaises(AssertionError):
+            self.org.create_child(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
 
-        # we won't create sub orgs if the org isn't the proper level
-        self.assertIsNone(sub_org)
+        # enable multi-org and try again
+        self.org.is_multi_org = True
+        self.org.save(update_fields=("is_multi_org",))
 
-        # lower the tier and try again
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
-        self.org.reset_capabilities()
-        sub_org = self.org.create_sub_org("Sub Org")
+        sub_org = self.org.create_child(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
 
         # suborg has been created
         self.assertIsNotNone(sub_org)
 
-        # suborgs can create suborgs
-        self.assertIsNotNone(sub_org.create_sub_org("Grandchild Org"))
-
         # we should be linked to our parent with the same brand
         self.assertEqual(self.org, sub_org.parent)
         self.assertEqual(self.org.brand, sub_org.brand)
+        self.assertEqual(self.admin, sub_org.created_by)
 
         # default values should be the same as parent
         self.assertEqual(self.org.timezone, sub_org.timezone)
-        self.assertEqual(self.org.created_by, sub_org.created_by)
 
-        # our sub account should have zero credits
-        self.assertEqual(0, sub_org.get_credits_remaining())
+        self.login(self.admin, choose_org=self.org)
 
-        self.login(self.admin)
         response = self.client.get(reverse("orgs.org_edit"))
         self.assertEqual(200, response.status_code)
         self.assertEqual(len(response.context["sub_orgs"]), 1)
@@ -3091,206 +2719,6 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse("orgs.org_edit"))
         self.assertEqual(200, response.status_code)
         self.assertEqual(len(response.context["sub_orgs"]), 0)
-
-    def test_sub_orgs(self):
-        # lets start with two topups
-        oldest_topup = TopUp.objects.filter(org=self.org).first()
-
-        expires = timezone.now() + timedelta(days=400)
-        newer_topup = TopUp.create(self.org, self.admin, price=0, credits=1000, expires_on=expires)
-
-        # lower the tier and try again
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
-        sub_org = self.org.create_sub_org("Sub Org")
-
-        # send a message as sub_org
-        self.create_channel(
-            "A",
-            "Test Channel",
-            "+250785551212",
-            secret="12355",
-            config={Channel.CONFIG_FCM_ID: "145"},
-            country="RW",
-            org=sub_org,
-        )
-        contact = self.create_contact("Joe", phone="+250788383444", org=sub_org)
-        msg = self.create_outgoing_msg(contact, "How is it going?")
-
-        # there is no topup on suborg, and this msg won't be credited
-        self.assertFalse(msg.topup)
-
-        # now allocate some credits to our sub org
-        self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 700))
-
-        msg.refresh_from_db()
-        # allocating credits will execute apply_topups_task and assign a topup
-        self.assertTrue(msg.topup)
-
-        self.assertEqual(699, sub_org.get_credits_remaining())
-        self.assertEqual(1300, self.org.get_credits_remaining())
-
-        # we should have a debit to track this transaction
-        debits = Debit.objects.filter(topup__org=self.org)
-        self.assertEqual(1, len(debits))
-
-        debit = debits.first()
-        self.assertEqual(700, debit.amount)
-        self.assertEqual(Debit.TYPE_ALLOCATION, debit.debit_type)
-        # newest topup has been used first
-        self.assertEqual(newer_topup.expires_on, debit.beneficiary.expires_on)
-        self.assertEqual(debit.amount, 700)
-
-        # try allocating more than we have
-        self.assertFalse(self.org.allocate_credits(self.admin, sub_org, 1301))
-
-        self.assertEqual(699, sub_org.get_credits_remaining())
-        self.assertEqual(1300, self.org.get_credits_remaining())
-        self.assertEqual(700, self.org._calculate_credits_used()[0])
-
-        # now allocate across our remaining topups
-        self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 1200))
-        self.assertEqual(1899, sub_org.get_credits_remaining())
-        self.assertEqual(1900, self.org.get_credits_used())
-        self.assertEqual(100, self.org.get_credits_remaining())
-
-        # now clear our cache, we ought to have proper amount still
-        self.org.clear_credit_cache()
-        sub_org.clear_credit_cache()
-
-        self.assertEqual(1899, sub_org.get_credits_remaining())
-        self.assertEqual(100, self.org.get_credits_remaining())
-
-        # this creates two more debits, for a total of three
-        debits = Debit.objects.filter(topup__org=self.org).order_by("id")
-        self.assertEqual(3, len(debits))
-
-        # verify that we used most recent topup first
-        self.assertEqual(newer_topup.expires_on, debits[1].topup.expires_on)
-        self.assertEqual(debits[1].amount, 300)
-        # and debited missing amount from the next topup
-        self.assertEqual(oldest_topup.expires_on, debits[2].topup.expires_on)
-        self.assertEqual(debits[2].amount, 900)
-
-        # allocate the exact number of credits remaining
-        self.org.allocate_credits(self.admin, sub_org, 100)
-
-        self.assertEqual(1999, sub_org.get_credits_remaining())
-        self.assertEqual(0, self.org.get_credits_remaining())
-
-    def test_edit_sub_org(self):
-        self.login(self.admin)
-
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
-        self.org.reset_capabilities()
-
-        # set our org on the session
-        session = self.client.session
-        session["org_id"] = self.org.id
-        session.save()
-
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertNotContains(response, "Manage Workspaces")
-
-        # attempting to manage orgs should redirect
-        response = self.client.get(reverse("orgs.org_sub_orgs"))
-        self.assertRedirect(response, reverse("orgs.org_home"))
-
-        # creating a new sub org should also redirect
-        response = self.client.get(reverse("orgs.org_create_sub_org"))
-        self.assertRedirect(response, reverse("orgs.org_home"))
-
-        # make sure posting is gated too
-        new_org = dict(name="Sub Org", timezone=self.org.timezone, date_format=self.org.date_format)
-        response = self.client.post(reverse("orgs.org_create_sub_org"), new_org)
-        self.assertRedirect(response, reverse("orgs.org_home"))
-
-        # cant manage users either
-        response = self.client.get(reverse("orgs.org_manage_accounts_sub_org"))
-        self.assertRedirect(response, reverse("orgs.org_home"))
-
-        # zero out our tier
-        settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=0)
-        self.org.reset_capabilities()
-        self.assertTrue(self.org.is_multi_org)
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Manage Workspaces")
-
-        # now we can manage our orgs
-        response = self.client.get(reverse("orgs.org_sub_orgs"))
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Workspaces")
-
-        # add a sub org
-        response = self.client.post(reverse("orgs.org_create_sub_org"), new_org)
-        self.assertRedirect(response, reverse("orgs.org_sub_orgs"))
-        sub_org = Org.objects.filter(name="Sub Org").first()
-        self.assertIsNotNone(sub_org)
-        self.assertEqual(OrgRole.ADMINISTRATOR, sub_org.get_user_role(self.admin))
-
-        # create a second org to test sorting
-        new_org = dict(name="A Second Org", timezone=self.org.timezone, date_format=self.org.date_format)
-        response = self.client.post(reverse("orgs.org_create_sub_org"), new_org)
-        self.assertEqual(302, response.status_code)
-
-        # we can reach the manage accounts page too now
-        response = self.client.get("%s?org=%d" % (reverse("orgs.org_manage_accounts_sub_org"), sub_org.id))
-        self.assertEqual(200, response.status_code)
-
-        headers = {"HTTP_TEMBA_SPA": 1}
-        response = self.client.get("%s?org=%d" % (reverse("orgs.org_manage_accounts_sub_org"), sub_org.id), **headers)
-        self.assertContains(response, "Edit Workspace")
-
-        # edit our sub org's details
-        response = self.client.post(
-            f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}",
-            {"name": "New Sub Org Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
-        )
-
-        sub_org.refresh_from_db()
-        self.assertEqual("New Sub Org Name", sub_org.name)
-
-        self.assertEqual(response.url, "/org/sub_orgs/")
-
-        # edit our sub org's details in a spa view
-        response = self.client.post(
-            f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}",
-            {"name": "Spa Sub Org Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
-            **headers,
-        )
-
-        self.assertEqual(response.url, f"/org/manage_accounts_sub_org/?org={sub_org.id}")
-
-        sub_org.refresh_from_db()
-        self.assertEqual("Spa Sub Org Name", sub_org.name)
-        self.assertEqual("Africa/Nairobi", str(sub_org.timezone))
-        self.assertEqual("Y", sub_org.date_format)
-        self.assertEqual("es", sub_org.language)
-
-        # if org doesn't exist, 404
-        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org=3464374")
-        self.assertEqual(404, response.status_code)
-
-        self.login(self.admin2)
-
-        # same if it's not a child of the request org
-        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}")
-        self.assertEqual(404, response.status_code)
-
-    def test_account_value(self):
-
-        # base value
-        self.assertEqual(self.org.account_value(), 0.0)
-
-        # add a topup
-        TopUp.objects.create(
-            org=self.org,
-            price=123,
-            credits=1001,
-            expires_on=timezone.now() + timedelta(days=30),
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-        self.assertAlmostEqual(self.org.account_value(), 1.23)
 
     @patch("temba.msgs.tasks.export_messages_task.delay")
     @patch("temba.flows.tasks.export_flow_results_task.delay")
@@ -3416,14 +2844,32 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(count, len(menu))
 
     def test_home(self):
-        self.login(self.user)
-
         home_url = reverse("orgs.org_home")
 
-        with self.assertNumQueries(21):
+        self.login(self.user)
+
+        with self.assertNumQueries(13):
             response = self.client.get(home_url)
 
+        # not so many options for viewers
         self.assertEqual(200, response.status_code)
+        self.assertEqual(2, len(response.context["formax"].sections))
+
+        self.login(self.admin)
+
+        with self.assertNumQueries(45):
+            response = self.client.get(home_url)
+
+        # more options for admins
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(14, len(response.context["formax"].sections))
+
+        self.org.is_multi_user = True
+        self.org.save(update_fields=("is_multi_user",))
+
+        response = self.client.get(home_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(15, len(response.context["formax"].sections))
 
     def test_menu(self):
         self.login(self.admin)
@@ -3481,12 +2927,23 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContentMenu(read_url, self.customer_support, [])
 
     def test_workspace(self):
-        response = self.assertListFetch(
-            reverse("orgs.org_workspace"), allow_viewers=True, allow_editors=True, allow_agents=False
-        )
+        workspace_url = reverse("orgs.org_workspace")
+
+        response = self.assertListFetch(workspace_url, allow_viewers=True, allow_editors=True, allow_agents=False)
 
         # make sure we have the appropriate number of sections
+        self.assertEqual(7, len(response.context["formax"].sections))
+        self.assertNotContains(response, "New Workspace")
+
+        self.org.is_multi_org = True
+        self.org.is_multi_user = True
+        self.org.save(update_fields=("is_multi_org", "is_multi_user"))
+
+        response = self.assertListFetch(workspace_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+
+        # we now have workspace management
         self.assertEqual(8, len(response.context["formax"].sections))
+        self.assertContains(response, "New Workspace")
 
         # create a child org
         self.child_org = Org.objects.create(
@@ -3538,7 +2995,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "created")
 
         org = Org.objects.get(name="Oculus")
-        self.assertEqual(100_000, org.get_credits_remaining())
         self.assertEqual(org.date_format, Org.DATE_FORMAT_DAY_FIRST)
 
         # check user exists and is admin
@@ -3554,7 +3010,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "created")
 
         org = Org.objects.get(name="id Software")
-        self.assertEqual(100_000, org.get_credits_remaining())
         self.assertEqual(org.date_format, Org.DATE_FORMAT_DAY_FIRST)
 
         self.assertEqual(OrgRole.ADMINISTRATOR, org.get_user_role(User.objects.get(username="john@carmack.com")))
@@ -3568,7 +3023,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "created")
 
         org = Org.objects.get(name="Bulls")
-        self.assertEqual(100_000, org.get_credits_remaining())
         self.assertEqual(Org.DATE_FORMAT_MONTH_FIRST, org.date_format)
         self.assertEqual("en-us", org.language)
         self.assertEqual(["eng"], org.flow_languages)
@@ -3724,26 +3178,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # not the logged in user at the signup time
         self.assertFalse(org.get_admins().filter(pk=self.user.pk))
 
-    @override_settings(DEFAULT_BRAND="no-topups.org")
-    def test_no_topup_signup(self):
-        signup_url = reverse("orgs.org_signup")
-        response = self.client.post(
-            signup_url,
-            {
-                "first_name": "Eugene",
-                "last_name": "Rwagasore",
-                "email": "test@foo.org",
-                "password": "HeyThere123",
-                "name": "No Topups",
-                "timezone": "Africa/Kigali",
-            },
-        )
-        self.assertEqual(response.status_code, 302)
-
-        org = Org.objects.get(name="No Topups")
-        self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
-        self.assertFalse(org.uses_topups)
-
     @override_settings(
         AUTH_PASSWORD_VALIDATORS=[
             {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},
@@ -3822,18 +3256,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         org = Org.objects.get(name="Relieves World")
         self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertEqual(str(org), "Relieves World")
-        self.assertTrue(org.uses_topups)
 
         # of which our user is an administrator
         self.assertTrue(org.get_admins().filter(pk=user.pk))
-
-        # org should have 1000 credits
-        self.assertEqual(org.get_credits_remaining(), 1000)
-
-        # from a single welcome topup
-        topup = TopUp.objects.get(org=org)
-        self.assertEqual(topup.credits, 1000)
-        self.assertEqual(topup.price, 0)
 
         # check default org content was created correctly
         system_fields = set(org.fields.filter(is_system=True).values_list("key", flat=True))
@@ -3929,6 +3354,110 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         user = User.objects.get(username="myal@wr.org")
         self.assertTrue(user.check_password("Password123"))
+
+    def test_create_child(self):
+        home_url = reverse("orgs.org_home")
+        create_child_url = reverse("orgs.org_create_child")
+
+        self.org.is_multi_org = False
+        self.org.save(update_fields=("is_multi_org",))
+
+        self.login(self.admin, choose_org=self.org)
+
+        response = self.client.get(home_url)
+        self.assertNotContains(response, "Manage Workspaces")
+
+        # attempting to manage orgs should redirect
+        response = self.client.get(reverse("orgs.org_sub_orgs"))
+        self.assertRedirect(response, home_url)
+
+        # creating a new sub org should also redirect
+        response = self.client.get(create_child_url)
+        self.assertRedirect(response, home_url)
+
+        # make sure posting is gated too
+        response = self.client.post(
+            create_child_url,
+            {"name": "Sub Org", "timezone": self.org.timezone, "date_format": self.org.date_format},
+        )
+        self.assertRedirect(response, home_url)
+
+        # cant manage users either
+        response = self.client.get(reverse("orgs.org_manage_accounts_sub_org"))
+        self.assertRedirect(response, home_url)
+
+        # enable multi-org
+        self.org.is_multi_org = True
+        self.org.save(update_fields=("is_multi_org",))
+
+        response = self.client.get(home_url)
+        self.assertContains(response, "Manage Workspaces")
+
+        # now we can manage our orgs
+        response = self.client.get(reverse("orgs.org_sub_orgs"))
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "Workspaces")
+
+        # add a sub org
+        response = self.client.post(
+            create_child_url,
+            {"name": "Sub Org", "timezone": self.org.timezone, "date_format": self.org.date_format},
+        )
+        self.assertRedirect(response, reverse("orgs.org_sub_orgs"))
+        sub_org = Org.objects.filter(name="Sub Org").first()
+        self.assertIsNotNone(sub_org)
+        self.assertEqual(OrgRole.ADMINISTRATOR, sub_org.get_user_role(self.admin))
+
+        # create a second org to test sorting
+        response = self.client.post(
+            create_child_url,
+            {"name": "A Second Org", "timezone": self.org.timezone, "date_format": self.org.date_format},
+        )
+        self.assertEqual(302, response.status_code)
+
+        # we can reach the manage accounts page too now
+        response = self.client.get("%s?org=%d" % (reverse("orgs.org_manage_accounts_sub_org"), sub_org.id))
+        self.assertEqual(200, response.status_code)
+
+        headers = {"HTTP_TEMBA_SPA": 1}
+        response = self.client.get("%s?org=%d" % (reverse("orgs.org_manage_accounts_sub_org"), sub_org.id), **headers)
+        self.assertContains(response, "Edit Workspace")
+
+        # edit our sub org's details
+        response = self.client.post(
+            f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}",
+            {"name": "New Sub Org Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
+        )
+
+        sub_org.refresh_from_db()
+        self.assertEqual("New Sub Org Name", sub_org.name)
+
+        self.assertEqual(response.url, "/org/sub_orgs/")
+
+        # edit our sub org's details in a spa view
+        response = self.client.post(
+            f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}",
+            {"name": "Spa Sub Org Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
+            **headers,
+        )
+
+        self.assertEqual(response.url, f"/org/manage_accounts_sub_org/?org={sub_org.id}")
+
+        sub_org.refresh_from_db()
+        self.assertEqual("Spa Sub Org Name", sub_org.name)
+        self.assertEqual("Africa/Nairobi", str(sub_org.timezone))
+        self.assertEqual("Y", sub_org.date_format)
+        self.assertEqual("es", sub_org.language)
+
+        # if org doesn't exist, 404
+        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org=3464374")
+        self.assertEqual(404, response.status_code)
+
+        self.login(self.admin2)
+
+        # same if it's not a child of the request org
+        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}")
+        self.assertEqual(404, response.status_code)
 
     def test_choose(self):
         choose_url = reverse("orgs.org_choose")
@@ -4071,8 +3600,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, created_on.strftime("%H:%M").lower())
 
     def test_delete(self):
-
-        workspace = Org.create_sub_org(self.org, "Child Workspace")
+        self.org.is_multi_org = True
+        self.org.save(update_fields=("is_multi_org",))
+        workspace = self.org.create_child(self.admin, "Child Workspace", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
         delete_workspace = reverse("orgs.org_delete", args=[workspace.id])
 
         # choose the parent org, try to delete the workspace
@@ -4153,6 +3683,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "name",
                 "brand",
                 "parent",
+                "plan",
+                "plan_end",
                 "is_anon",
                 "is_multi_user",
                 "is_multi_org",
@@ -4184,8 +3716,10 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             update_url,
             {
                 "name": "Temba",
-                "brand": "rapidpro.io",
+                "brand": "custom",
                 "parent": parent.id,
+                "plan": "unicef",
+                "plan_end": "2027-12-31T00:00Z",
                 "is_anon": False,
                 "is_multi_user": False,
                 "is_multi_org": False,
@@ -4203,6 +3737,10 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(302, response.status_code)
 
         self.org.refresh_from_db()
+        self.assertEqual("custom", self.org.brand)
+        self.assertEqual(parent, self.org.parent)
+        self.assertEqual("unicef", self.org.plan)
+        self.assertEqual(datetime(2027, 12, 31, 0, 0, 0, 0, timezone.utc), self.org.plan_end)
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)  # uses default
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 400)
@@ -4212,7 +3750,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.client.post(update_url, {"action": "unflag"})
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_flagged)
-        self.assertEqual(parent, self.org.parent)
 
         # verify
         self.client.post(update_url, {"action": "verify"})
@@ -5134,206 +4671,17 @@ class BulkExportTest(TembaTest):
         self.assertNotContains(response, "Register Patient")
 
 
-class StripeCreditsTest(TembaTest):
-    @patch("stripe.Customer.create")
-    @patch("stripe.Charge.create")
-    @override_settings(SEND_EMAILS=True)
-    def test_add_credits(self, charge_create, customer_create):
-        customer_create.return_value = mock_object("Customer", id="stripe-cust-1")
-        charge_create.return_value = mock_object(
-            "Charge",
-            id="stripe-charge-1",
-            card=mock_object("Card", last4="1234", type="Visa", name="Rudolph"),
-        )
-
-        settings.BRANDING[settings.DEFAULT_BRAND]["bundles"] = (dict(cents="2000", credits=1000, feature=""),)
-
-        self.assertTrue(1000, self.org.get_credits_total())
-        self.org.add_credits("2000", "stripe-token", self.admin)
-        self.assertTrue(2000, self.org.get_credits_total())
-
-        # assert we saved our charge info
-        topup = self.org.topups.last()
-        self.assertEqual("stripe-charge-1", topup.stripe_charge)
-
-        # and we saved our stripe customer info
-        org = Org.objects.get(id=self.org.id)
-        self.assertEqual("stripe-cust-1", org.stripe_customer)
-
-        # assert we sent our confirmation emai
-        self.assertEqual(1, len(mail.outbox))
-        email = mail.outbox[0]
-        self.assertEqual("RapidPro Receipt", email.subject)
-        self.assertIn("Rudolph", email.body)
-        self.assertIn("Visa", email.body)
-        self.assertIn("$20", email.body)
-
-        # turn off email receipts and do it again, shouldn't get a receipt
-        with override_settings(SEND_RECEIPTS=False):
-            self.org.add_credits("2000", "stripe-token", self.admin)
-
-            # no new emails
-            self.assertEqual(1, len(mail.outbox))
-
-    @patch("stripe.Customer.create")
-    @patch("stripe.Charge.create")
-    @override_settings(SEND_EMAILS=True)
-    def test_add_btc_credits(self, charge_create, customer_create):
-        customer_create.return_value = mock_object("Customer", id="stripe-cust-1")
-        charge_create.return_value = mock_object(
-            "Charge",
-            id="stripe-charge-1",
-            card=None,
-            source=mock_object("Source", bitcoin=mock_object("Bitcoin", address="abcde")),
-        )
-
-        settings.BRANDING[settings.DEFAULT_BRAND]["bundles"] = (dict(cents="2000", credits=1000, feature=""),)
-
-        self.org.add_credits("2000", "stripe-token", self.admin)
-        self.assertTrue(2000, self.org.get_credits_total())
-
-        # assert we saved our charge info
-        topup = self.org.topups.last()
-        self.assertEqual("stripe-charge-1", topup.stripe_charge)
-
-        # and we saved our stripe customer info
-        org = Org.objects.get(id=self.org.id)
-        self.assertEqual("stripe-cust-1", org.stripe_customer)
-
-        # assert we sent our confirmation emai
-        self.assertEqual(1, len(mail.outbox))
-        email = mail.outbox[0]
-        self.assertEqual("RapidPro Receipt", email.subject)
-        self.assertIn("bitcoin", email.body)
-        self.assertIn("abcde", email.body)
-        self.assertIn("$20", email.body)
-
-    @patch("stripe.Customer.create")
-    def test_add_credits_fail(self, customer_create):
-        customer_create.side_effect = ValueError("Invalid customer token")
-
-        with self.assertRaises(ValidationError):
-            self.org.add_credits("2000", "stripe-token", self.admin)
-
-        # assert no email was sent
-        self.assertEqual(0, len(mail.outbox))
-
-        # and no topups created
-        self.assertEqual(1, self.org.topups.all().count())
-        self.assertEqual(1000, self.org.get_credits_total())
-
-    def test_add_credits_invalid_bundle(self):
-
-        with self.assertRaises(ValidationError):
-            self.org.add_credits("-10", "stripe-token", self.admin)
-
-        # assert no email was sent
-        self.assertEqual(0, len(mail.outbox))
-
-        # and no topups created
-        self.assertEqual(1, self.org.topups.all().count())
-        self.assertEqual(1000, self.org.get_credits_total())
-
-    @patch("stripe.Customer.create")
-    @patch("stripe.Customer.retrieve")
-    @patch("stripe.Charge.create")
-    @override_settings(SEND_EMAILS=True)
-    def test_add_credits_existing_customer(self, charge_create, customer_retrieve, customer_create):
-        self.admin2 = self.create_user("admin2@nyaruka.com")
-        self.org.add_user(self.admin2, OrgRole.ADMINISTRATOR)
-
-        self.org.stripe_customer = "stripe-cust-1"
-        self.org.save()
-
-        class MockCard:
-            def __init__(self):
-                self.id = "stripe-card-1"
-
-            def delete(self):
-                pass
-
-        class MockCards:
-            def __init__(self):
-                self.throw = False
-
-            def list(self):
-                return mock_object("MockCardData", data=[MockCard(), MockCard()])
-
-            def create(self, card):
-                if self.throw:
-                    raise stripe.error.CardError("Card declined", None, 400)
-                else:
-                    return MockCard()
-
-        class MockCustomer:
-            def __init__(self, id, email):
-                self.id = id
-                self.email = email
-                self.cards = MockCards()
-
-            def save(self):
-                pass
-
-        customer_retrieve.return_value = MockCustomer(id="stripe-cust-1", email=self.admin.email)
-        customer_create.return_value = MockCustomer(id="stripe-cust-2", email=self.admin2.email)
-
-        charge_create.return_value = mock_object(
-            "Charge",
-            id="stripe-charge-1",
-            card=mock_object("Card", last4="1234", type="Visa", name="Rudolph"),
-        )
-
-        settings.BRANDING[settings.DEFAULT_BRAND]["bundles"] = (dict(cents="2000", credits=1000, feature=""),)
-
-        self.org.add_credits("2000", "stripe-token", self.admin)
-        self.assertTrue(2000, self.org.get_credits_total())
-
-        # assert we saved our charge info
-        topup = self.org.topups.last()
-        self.assertEqual("stripe-charge-1", topup.stripe_charge)
-
-        # and we saved our stripe customer info
-        org = Org.objects.get(id=self.org.id)
-        self.assertEqual("stripe-cust-1", org.stripe_customer)
-
-        # assert we sent our confirmation email
-        self.assertEqual(1, len(mail.outbox))
-        email = mail.outbox[0]
-        self.assertEqual("RapidPro Receipt", email.subject)
-        self.assertIn("Rudolph", email.body)
-        self.assertIn("Visa", email.body)
-        self.assertIn("$20", email.body)
-
-        # try with an invalid card
-        customer_retrieve.return_value.cards.throw = True
-        try:
-            self.org.add_credits("2000", "stripe-token", self.admin)
-            self.fail("should have thrown")
-        except ValidationError as e:
-            self.assertEqual(
-                "Sorry, your card was declined, please contact your provider or try another card.", e.message
-            )
-
-        # do it again with a different user, should create a new stripe customer
-        self.org.add_credits("2000", "stripe-token", self.admin2)
-        self.assertTrue(4000, self.org.get_credits_total())
-
-        # should have a different customer now
-        org = Org.objects.get(id=self.org.id)
-        self.assertEqual("stripe-cust-2", org.stripe_customer)
-
-
 class OrgActivityTest(TembaTest):
     def test_get_dependencies(self):
-        from temba.orgs.tasks import update_org_activity
-
         now = timezone.now()
 
         # give us a shared plan
-        settings.BRANDING[settings.DEFAULT_BRAND]["shared_plans"] = ["my_shared_plan"]
+        settings.BRANDS[0]["shared_plans"] = ["my_shared_plan"]
         self.org.plan = "my_shared_plan"
-        self.org.save()
-        workspace = self.org.create_sub_org("Workspace")
+        self.org.is_multi_org = True
+        self.org.save(update_fields=("plan", "is_multi_org"))
+
+        workspace = self.org.create_child(self.admin, "Workspace", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
         self.assertEqual(workspace.plan, settings.WORKSPACE_PLAN)
 
         mark = self.create_contact("Mark S", phone="+12065551212", org=workspace)
@@ -5407,3 +4755,36 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
+
+
+class ConvertOrgBrandsToSlugsTest(MigrationTest):
+    app = "orgs"
+    migrate_from = "0102_alter_org_brand_alter_org_plan"
+    migrate_to = "0103_org_brands_to_slugs"
+
+    def setUpBeforeMigration(self, apps):
+        def create_org(name, brand):
+            return Org.objects.create(
+                name=name,
+                timezone=pytz.timezone("Africa/Kigali"),
+                brand=brand,
+                created_by=self.user,
+                modified_by=self.user,
+            )
+
+        self.org1 = create_org("Org 1", "rapidpro")  # org aleady using the default brand slug
+        self.org2 = create_org("Org 2", "custom")  # org aleady using the slug of another brand
+        self.org3 = create_org("Org 3", "rapidpro.io")  # org using the host of the default brand
+        self.org4 = create_org("Org 4", "custom-brand.org")  # org using a host of another brand
+        self.org5 = create_org("Org 5", "example.com")  # org using an unknown host
+
+    def test_migration(self):
+        def assert_brand(o, brand):
+            o.refresh_from_db()
+            self.assertEqual(o.brand, brand)
+
+        assert_brand(self.org1, "rapidpro")
+        assert_brand(self.org2, "custom")
+        assert_brand(self.org3, "rapidpro")
+        assert_brand(self.org4, "custom")
+        assert_brand(self.org5, "rapidpro")

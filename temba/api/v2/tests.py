@@ -511,7 +511,8 @@ class EndpointsTest(TembaTest):
 
         # can fetch campaigns endpoint with valid admin token
         response = request_by_token(campaigns_url, token1.key)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(str(self.org.id), response["X-Temba-Org"])
 
         # but not with surveyor token
         response = request_by_token(campaigns_url, token2.key)
@@ -522,10 +523,11 @@ class EndpointsTest(TembaTest):
 
         # but it can be used to access the contacts endpoint
         response = request_by_token(contacts_url, token2.key)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(200, response.status_code)
 
         response = request_by_basic_auth(contacts_url, self.admin.username, token2.key)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(str(self.org.id), response["X-Temba-Org"])
 
         # simulate the admin user exceeding the rate limit for the v2 scope
         cache.set(f"throttle_v2_{self.org.id}", [time.time() for r in range(10000)])
@@ -3542,7 +3544,7 @@ class EndpointsTest(TembaTest):
                 "primary_language": None,
                 "timezone": "Africa/Kigali",
                 "date_style": "day_first",
-                "credits": {"used": 0, "remaining": 1000},
+                "credits": {"used": -1, "remaining": -1},
                 "anon": False,
             },
         )
@@ -3560,7 +3562,7 @@ class EndpointsTest(TembaTest):
                 "primary_language": "eng",
                 "timezone": "Africa/Kigali",
                 "date_style": "day_first",
-                "credits": {"used": 0, "remaining": 1000},
+                "credits": {"used": -1, "remaining": -1},
                 "anon": False,
             },
         )

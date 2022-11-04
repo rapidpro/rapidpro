@@ -689,7 +689,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "D3")
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "DS")
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "FBA")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-2].code, "VK")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-2].code, "WC")
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-1].code, "ZVW")
 
         self.admin.groups.add(Group.objects.get(name="Beta"))
@@ -791,35 +791,6 @@ class ChannelTest(TembaTest):
 
         android.refresh_from_db()
         self.assertFalse(android.is_active)
-
-    def test_no_topup_quota_exceeded(self):
-        # reduce out credits to 10
-        self.org.topups.all().update(credits=10)
-        self.org.clear_credit_cache()
-
-        self.assertEqual(10, self.org.get_credits_remaining())
-        self.assertEqual(0, self.org.get_credits_used())
-
-        # if we sync should get one message back
-        self.send_message(["250788382382"], "How is it going?")
-
-        response = self.sync(self.tel_channel, cmds=[])
-        self.assertEqual(200, response.status_code)
-        response = response.json()
-        self.assertEqual(1, len(response["cmds"]))
-
-        self.assertEqual(9, self.org.get_credits_remaining())
-        self.assertEqual(1, self.org.get_credits_used())
-
-        # let's create 10 other messages
-        for i in range(10):
-            self.send_message(["250788382%03d" % i], "This is message # %d" % i)
-
-        # should send all the 11 messages that exist
-        response = self.sync(self.tel_channel, cmds=[])
-        self.assertEqual(200, response.status_code)
-        response = response.json()
-        self.assertEqual(11, len(response["cmds"]))
 
     def test_sync_broadcast_multiple_channels(self):
         channel2 = Channel.create(
@@ -1501,9 +1472,9 @@ class ChannelClaimTest(TembaTest):
         self.channel.last_seen = timezone.now() - timedelta(minutes=40)
         self.channel.save()
 
-        branding = copy.deepcopy(settings.BRANDING)
-        branding["rapidpro.io"]["from_email"] = "support@mybrand.com"
-        with self.settings(BRANDING=branding):
+        brands = copy.deepcopy(settings.BRANDS)
+        brands[0]["from_email"] = "support@mybrand.com"
+        with self.settings(BRANDS=brands):
             check_channels_task()
 
             # should have created one alert
@@ -1518,7 +1489,7 @@ class ChannelClaimTest(TembaTest):
                 org=self.channel.org,
                 channel=self.channel,
                 now=timezone.now(),
-                branding=self.channel.org.get_branding(),
+                branding=self.channel.org.branding,
                 last_seen=self.channel.last_seen,
                 sync=alert.sync_event,
             )
@@ -1551,7 +1522,7 @@ class ChannelClaimTest(TembaTest):
             org=self.channel.org,
             channel=self.channel,
             now=timezone.now(),
-            branding=self.channel.org.get_branding(),
+            branding=self.channel.org.branding,
             last_seen=self.channel.last_seen,
             sync=alert.sync_event,
         )
@@ -1994,7 +1965,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             call1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log2, log1]
         )
 
-    def test_views(self):
+    def test_read_and_list(self):
         self.channel.role = "CASR"
         self.channel.save(update_fields=("role",))
 
@@ -2064,6 +2035,24 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         # create failed call with an interaction log
         self.create_incoming_call(ivr_flow, contact, status=Call.STATUS_FAILED)
 
+        # create a non-message, non-call other log
+        other_log = ChannelLog.objects.create(
+            channel=self.channel,
+            log_type=ChannelLog.LOG_TYPE_PAGE_SUBSCRIBE,
+            is_error=False,
+            http_logs=[
+                {
+                    "url": "https://foo.bar/page",
+                    "status_code": 400,
+                    "request": "POST /send?msg=failed+message\r\n\r\n{}",
+                    "response": "HTTP/1.0 200 OK\r\r\r\n",
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
+        )
+
         # create log for other org
         other_org_contact = self.create_contact("Hans", phone="+593979123456")
         other_org_msg = self.create_outgoing_msg(other_org_contact, "hi", status="D")
@@ -2085,8 +2074,9 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             ],
         )
 
-        # can't see the view without logging in
         list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
+
+        # can't see the view without logging in
         response = self.client.get(list_url)
         self.assertLoginRedirect(response)
 
@@ -2097,7 +2087,6 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         # same if logged in as other admin
         self.login(self.admin2)
 
-        list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
         response = self.client.get(list_url)
         self.assertLoginRedirect(response)
 
@@ -2124,6 +2113,10 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContains(response, "failed+message")
         self.assertContains(response, "invalid credentials")
 
+        # check other logs only
+        response = self.client.get(list_url + "?others=1")
+        self.assertEqual([other_log], list(response.context["object_list"]))
+
         # can't view log from other org
         response = self.client.get(reverse("channels.channellog_read", args=[other_org_log.id]))
         self.assertLoginRedirect(response)
@@ -2140,7 +2133,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContains(response, "POST /send?msg=message")
         self.assertContentMenu(reverse("channels.channellog_read", args=[success_log.id]), self.admin, ["Channel Log"])
 
-        self.assertEqual(self.channel.get_success_log_count(), 2)
+        self.assertEqual(self.channel.get_success_log_count(), 3)
         self.assertEqual(self.channel.get_error_log_count(), 4)  # error log count always includes IVR logs
 
         # check that IVR logs are displayed correctly

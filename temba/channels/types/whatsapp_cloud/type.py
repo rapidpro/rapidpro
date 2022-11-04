@@ -40,7 +40,6 @@ class WhatsAppCloudType(ChannelType):
 
     schemes = [URN.WHATSAPP_SCHEME]
     max_length = 4096
-    attachment_support = True
 
     redact_values = (settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN,)
 
