@@ -37,8 +37,7 @@ class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
         return self.http_method_not_allowed(request, *args, **kwargs)
 
     def derive_queryset(self):
-        org = self.request.user.get_org()
-        return getattr(self.model, self.model_manager).filter(org=org)
+        return getattr(self.model, self.model_manager).filter(org=self.request.org)
 
     def get_queryset(self):
         qs = self.derive_queryset()
@@ -92,12 +91,12 @@ class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context["org"] = self.request.user.get_org()
+        context["org"] = self.request.org
         context["user"] = self.request.user
         return context
 
     def normalize_urn(self, value):
-        org = self.request.user.get_org()
+        org = self.request.org
 
         if org.is_anon:
             raise InvalidQueryError("URN lookups not allowed for anonymous organizations")
@@ -197,7 +196,7 @@ class WriteAPIMixin:
             instance = None
 
             if issubclass(self.model, TembaModel):
-                org_count, org_limit = self.model.get_org_limit_progress(request.user.get_org())
+                org_count, org_limit = self.model.get_org_limit_progress(request.org)
                 if org_limit is not None and org_count >= org_limit:
                     return Response(
                         {"detail": f"Cannot create object because workspace has reached limit of {org_limit}."},

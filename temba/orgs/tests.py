@@ -2069,7 +2069,6 @@ class OrgTest(TembaTest):
             connect_url = reverse("orgs.org_twilio_connect")
 
             self.login(self.admin)
-            self.admin.set_org(self.org)
 
             response = self.client.get(connect_url)
             self.assertEqual(200, response.status_code)
@@ -3273,9 +3272,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             sample_flows,
         )
         self.assertEqual("RapidPro Tickets", internal_ticketer.name)
-
-        # fake session set_org to make the test work
-        user.set_org(org)
 
         # should now be able to go to channels page
         response = self.client.get(reverse("channels.channel_claim"))

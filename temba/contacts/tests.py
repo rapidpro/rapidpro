@@ -1986,7 +1986,6 @@ class ContactTest(TembaTest):
             path=Substr("path", 2), identity=Concat(DbValue("tel:"), Substr("path", 2))
         )
 
-        self.admin.set_org(self.org)
         self.login(self.admin)
 
         def omnibox_request(query, version="1"):

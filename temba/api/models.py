@@ -30,7 +30,7 @@ class APIPermission(BasePermission):
             if request.user.is_anonymous:
                 return False
 
-            org = request.user.get_org()
+            org = request.org
 
             if request.auth:
                 # check that user is still allowed to use the token's role

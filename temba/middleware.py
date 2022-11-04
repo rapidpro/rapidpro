@@ -74,10 +74,6 @@ class OrgMiddleware:
 
         request.org = self.determine_org(request)
 
-        if request.user.is_authenticated:
-            # TODO replace code still using .get_org() and remove
-            request.user.set_org(request.org)
-
         # continue the chain, which in the case of the API will set request.org
         response = self.get_response(request)
 

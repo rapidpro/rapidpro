@@ -220,15 +220,6 @@ class User(AuthUser):
     def is_beta(self) -> bool:
         return self.groups.filter(name="Beta").exists()
 
-    def get_org(self):
-        """
-        Gets the request org cached on the user. This should only be used where request.org can't be.
-        """
-        return getattr(self, "_org", None)
-
-    def set_org(self, org):
-        self._org = org
-
     def has_org_perm(self, org, permission: str) -> bool:
         """
         Determines if a user has the given permission in the given org.
