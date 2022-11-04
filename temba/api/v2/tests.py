@@ -601,12 +601,10 @@ class EndpointsTest(TembaTest):
 
         # login as administrator
         self.login(self.admin)
-        token = self.admin.api_token  # generates token for the user
+        token = self.admin.get_api_token(self.org)
         self.assertIsInstance(token, str)
         self.assertEqual(len(token), 40)
-
-        with self.assertNumQueries(0):  # subsequent lookup of token comes from cache
-            self.assertEqual(self.admin.api_token, token)
+        self.assertEqual(token, self.admin.get_api_token(self.org))  # subsequent calls return same token
 
         # browse as HTML
         response = self.fetchHTML(url)

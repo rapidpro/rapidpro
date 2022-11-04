@@ -152,6 +152,9 @@ class DocumentationRenderer(BrowsableAPIRenderer):
         response = renderer_context["response"]
         renderer = self.get_default_renderer(view)
 
+        org = request.org
+        user = request.user
+
         return {
             "content": self.get_content(renderer, data, accepted_media_type, renderer_context),
             "view": view,
@@ -160,6 +163,7 @@ class DocumentationRenderer(BrowsableAPIRenderer):
             "description": view.get_view_description(html=True),
             "name": self.get_name(view),
             "breadcrumblist": self.get_breadcrumbs(request),
+            "api_token": user.get_api_token(org) if (org and user) else None,
         }
 
     def render(self, data, accepted_media_type=None, renderer_context=None):

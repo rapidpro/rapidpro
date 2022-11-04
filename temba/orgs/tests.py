@@ -3165,17 +3165,17 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(user.last_name, "Alexander")
         self.assertEqual(user.email, "kellan@example.com")
         self.assertTrue(user.check_password("HeyThere123"))
-        self.assertTrue(user.api_token)  # should be able to generate an API token
 
         # should have a new org
         org = Org.objects.get(name="AlexCom")
         self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
 
-        # of which our user is an administrator
-        self.assertTrue(org.get_admins().filter(pk=user.pk))
+        # of which our user is an administrator and can generate an API token
+        self.assertIn(user, org.get_admins())
+        self.assertIsNotNone(user.get_api_token(org))
 
         # not the logged in user at the signup time
-        self.assertFalse(org.get_admins().filter(pk=self.user.pk))
+        self.assertNotIn(self.user, org.get_admins())
 
     @override_settings(
         AUTH_PASSWORD_VALIDATORS=[
@@ -3249,15 +3249,15 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(user.last_name, "Rwagasore")
         self.assertEqual(user.email, "myal12345678901234567890@relieves.org")
         self.assertTrue(user.check_password("HelloWorld1"))
-        self.assertTrue(user.api_token)  # should be able to generate an API token
 
         # should have a new org
         org = Org.objects.get(name="Relieves World")
         self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertEqual(str(org), "Relieves World")
 
-        # of which our user is an administrator
-        self.assertTrue(org.get_admins().filter(pk=user.pk))
+        # of which our user is an administrator, and can generate an API token
+        self.assertIn(user, org.get_admins())
+        self.assertIsNotNone(user.get_api_token(org))
 
         # check default org content was created correctly
         system_fields = set(org.fields.filter(is_system=True).values_list("key", flat=True))
