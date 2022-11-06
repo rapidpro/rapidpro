@@ -6,7 +6,6 @@ jobs:
     env:
       python-version: "3.9.x"
       postgis-version: "3.1"
-      redis-version: "5.0.6"
       node-version: "10"
       elastic-version: "7.17.6"
       rpindexer-version: "7.5.0"
@@ -14,7 +13,8 @@ jobs:
       DJANGO_SETTINGS_MODULE: temba.settings_ci
     strategy:
       matrix:
-        pg-version: ["12", "13"]
+        redis-version: ["5.0.6", "6.2"]
+        pg-version: ["13", "14"]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -48,7 +48,7 @@ jobs:
       - name: Install Redis
         uses: zhulik/redis-action@v1.0.0
         with:
-          redis version: ${{ env.redis-version }}
+          redis version: ${{ matrix.redis-version }}
 
       - name: Install ElasticSearch
         uses: nyaruka/elasticsearch-action@master
