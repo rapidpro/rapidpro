@@ -4,7 +4,7 @@ from django.conf import settings
 from django.db import migrations
 
 
-def get_branding(host: str) -> dict:
+def get_branding(host: str) -> dict:  # pragma: no cover
     """
     Returns the branding for the given host
     """
@@ -19,14 +19,14 @@ def get_branding(host: str) -> dict:
     return get_branding(settings.DEFAULT_BRAND)
 
 
-def convert_org_brands_to_slugs(apps, schema_editor):
+def convert_org_brands_to_slugs(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
     for org in Org.objects.all():
         org.brand = get_branding(org.brand)["slug"]
         org.save(update_fields=("brand",))
 
 
-def reverse(apps, schewma_editor):
+def reverse(apps, schewma_editor):  # pragma: no cover
     pass
 
 
