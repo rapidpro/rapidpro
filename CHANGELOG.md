@@ -1,3 +1,7 @@
+v7.5.98
+----------
+ * Drop triggers, indexes and functions related to topups
+
 v7.5.97
 ----------
  * Update mailroom_db command to use postgresql 13
