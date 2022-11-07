@@ -1,3 +1,7 @@
+1.6.6-rapidpro-7.1.27
+----------
+* Add ticketer name input field on twilioflex connect #380
+
 1.6.5-rapidpro-7.1.27
 ----------
 * Env for `refresh_whatsapp_templates` task time schedule
