@@ -1,3 +1,11 @@
+v7.5.97
+----------
+ * Update mailroom_db command to use postgresql 13
+ * Remove User.get_org()
+ * Always explicitly provide org when requesting a user API token
+ * Remove Msg.topup, TopUpCredits, and CreditAlert
+ * Test against latest redis 6.2, elastic 7.17.7 and postgres 13 + 14
+
 v7.5.96
 ----------
  * Remove topup credits squash task from celery beat
