@@ -291,7 +291,6 @@ class Command(BaseCommand):
                     email, email, password, first_name=u["first_name"], last_name=u["last_name"]
                 )
                 org.add_user(user, u["role"])
-                user.set_org(org)
                 org.cache["users"].append(user)
 
         self._log(self.style.SUCCESS("OK") + "\n")

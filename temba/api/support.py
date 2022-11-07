@@ -50,8 +50,6 @@ class APITokenAuthentication(RequestAttributesMixin, TokenAuthentication):
             raise exceptions.AuthenticationFailed("Invalid token")
 
         if token.user.is_active:
-            # set the org on this user
-            token.user.set_org(token.org)
             token.user.using_token = True
 
             return token.user, token
@@ -78,8 +76,6 @@ class APIBasicAuthentication(RequestAttributesMixin, BasicAuthentication):
             raise exceptions.AuthenticationFailed("Invalid token or email")
 
         if token.user.is_active:
-            # set the org on this user
-            token.user.set_org(token.org)
             token.user.using_token = True
 
             return token.user, token
@@ -108,8 +104,7 @@ class OrgUserRateThrottle(ScopedRateThrottle):
         default_rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
         org_rates = {}
         if request.user.is_authenticated and request.user.using_token:
-            org = request.user.get_org()
-            org_rates = org.api_rates
+            org_rates = request.org.api_rates
         return {**default_rates, **org_rates}.get(self.scope)
 
     def allow_request(self, request, view):
@@ -126,11 +121,11 @@ class OrgUserRateThrottle(ScopedRateThrottle):
         return super(ScopedRateThrottle, self).allow_request(request, view)
 
     def get_cache_key(self, request, view):
+        org = request.org
         user = request.user
         ident = None
 
         if user.is_authenticated:
-            org = user.get_org()
             ident = f"{org.id if org else 0}"  # scope to org
 
             # but staff users get their own scope within the org
