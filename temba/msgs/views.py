@@ -556,21 +556,21 @@ class MsgCRUDL(SmartCRUDL):
                         name=_("Inbox"),
                         href=reverse("msgs.msg_inbox"),
                         count=counts[SystemLabel.TYPE_INBOX],
-                        icon=Icon.Inbox,
+                        icon=Icon.inbox,
                     ),
                     self.create_menu_item(
                         name=_("Flows"),
                         verbose_name=_("Flow Messages"),
                         href=reverse("msgs.msg_flow"),
                         count=counts[SystemLabel.TYPE_FLOWS],
-                        icon=Icon.Flow,
+                        icon=Icon.flow,
                     ),
                     self.create_menu_item(
                         name=_("Archived"),
                         verbose_name=_("Archived Messages"),
                         href=reverse("msgs.msg_archived"),
                         count=counts[SystemLabel.TYPE_ARCHIVED],
-                        icon=Icon.Archive,
+                        icon=Icon.archive,
                     ),
                     self.create_divider(),
                     self.create_menu_item(
@@ -604,7 +604,7 @@ class MsgCRUDL(SmartCRUDL):
                 for label in labels:
                     label_items.append(
                         self.create_menu_item(
-                            icon=Icon.Label,
+                            icon=Icon.label,
                             menu_id=label.uuid,
                             name=label.name,
                             count=label_counts[label],

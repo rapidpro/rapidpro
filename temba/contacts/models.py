@@ -1638,7 +1638,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     @property
     def icon(self) -> str:
-        return Icon.SmartGroup if self.group_type == self.TYPE_SMART else Icon.Group
+        return Icon.smart_group if self.group_type == self.TYPE_SMART else Icon.group
 
     def get_attrs(self):
         return {"icon": self.icon}

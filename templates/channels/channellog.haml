@@ -5,6 +5,6 @@
   -for err in log.errors
     .p-4.shadow.bg-white.rounded-lg.my-4
       .entry.flex
-        %temba-icon.ml-2.mr-4(name="{{Icon.Error}}" style="--icon-color:rgb(var(--error-rgb))" size="1.5")
+        %temba-icon.ml-2.mr-4(name="{{Icon.error}}" style="--icon-color:rgb(var(--error-rgb))" size="1.5")
         .msg.flex-grow
           {{ err.message }}

@@ -229,12 +229,12 @@ class FlowCRUDL(SmartCRUDL):
             menu = []
             menu.append(
                 self.create_menu_item(
-                    name=_("Active"), verbose_name=_("Active Flows"), icon=Icon.Active, href="flows.flow_list"
+                    name=_("Active"), verbose_name=_("Active Flows"), icon=Icon.active, href="flows.flow_list"
                 )
             )
             menu.append(
                 self.create_menu_item(
-                    name=_("Archived"), verbose_name=_("Archived Flows"), icon=Icon.Archive, href="flows.flow_archived"
+                    name=_("Archived"), verbose_name=_("Archived Flows"), icon=Icon.archive, href="flows.flow_archived"
                 )
             )
 
@@ -242,7 +242,7 @@ class FlowCRUDL(SmartCRUDL):
             for label in labels:
                 label_items.append(
                     self.create_menu_item(
-                        icon=Icon.Label,
+                        icon=Icon.label,
                         menu_id=label.uuid,
                         name=label.name,
                         href=reverse("flows.flow_filter", args=[label.uuid]),

@@ -223,7 +223,7 @@ class TriggerCRUDL(SmartCRUDL):
                     verbose_name=_("Active Triggers"),
                     count=org_triggers.filter(is_archived=False).count(),
                     href=reverse("triggers.trigger_list"),
-                    icon=Icon.Active,
+                    icon=Icon.active,
                 )
             )
 
@@ -231,7 +231,7 @@ class TriggerCRUDL(SmartCRUDL):
                 self.create_menu_item(
                     name=_("Archived"),
                     verbose_name=_("Archived Triggers"),
-                    icon=Icon.Archive,
+                    icon=Icon.archive,
                     count=org_triggers.filter(is_archived=True).count(),
                     href=reverse("triggers.trigger_archived"),
                 )

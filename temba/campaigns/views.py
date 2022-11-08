@@ -61,7 +61,7 @@ class CampaignCRUDL(SmartCRUDL):
                     menu_id="active",
                     name=_("Active"),
                     verbose_name=_("Active Campaigns"),
-                    icon=Icon.Active,
+                    icon=Icon.active,
                     count=org.campaigns.filter(is_active=True, is_archived=False).count(),
                     href="campaigns.campaign_list",
                 )
@@ -72,7 +72,7 @@ class CampaignCRUDL(SmartCRUDL):
                     menu_id="archived",
                     name=_("Archived"),
                     verbose_name=_("Archived Campaigns"),
-                    icon=Icon.Archive,
+                    icon=Icon.archive,
                     count=org.campaigns.filter(is_active=True, is_archived=True).count(),
                     href="campaigns.campaign_archived",
                 )

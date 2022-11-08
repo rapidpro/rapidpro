@@ -579,7 +579,7 @@ class ContactCRUDL(SmartCRUDL):
                     "name": _("Active"),
                     "verbose_name": _("Active Contacts"),
                     "href": reverse("contacts.contact_list"),
-                    "icon": Icon.Active,
+                    "icon": Icon.active,
                 },
                 {
                     "id": "archived",
@@ -595,7 +595,7 @@ class ContactCRUDL(SmartCRUDL):
                     "name": _("Blocked"),
                     "verbose_name": _("Blocked Contacts"),
                     "href": reverse("contacts.contact_blocked"),
-                    "icon": Icon.ContactBlocked,
+                    "icon": Icon.contact_blocked,
                 },
                 {
                     "id": "stopped",
@@ -603,7 +603,7 @@ class ContactCRUDL(SmartCRUDL):
                     "name": _("Stopped"),
                     "verbose_name": _("Stopped Contacts"),
                     "href": reverse("contacts.contact_stopped"),
-                    "icon": Icon.ContactStopped,
+                    "icon": Icon.contact_stopped,
                 },
             ]
 
@@ -611,7 +611,7 @@ class ContactCRUDL(SmartCRUDL):
             menu.append(
                 {
                     "id": "import",
-                    "icon": Icon.Import,
+                    "icon": Icon.upload,
                     "href": reverse("contacts.contactimport_create"),
                     "name": _("Import"),
                 }
@@ -622,7 +622,7 @@ class ContactCRUDL(SmartCRUDL):
                 menu.append(
                     dict(
                         id="fields",
-                        icon=Icon.Fields,
+                        icon=Icon.fields,
                         count=count,
                         name=_("Fields"),
                         endpoint=reverse("contacts.contactfield_menu"),
