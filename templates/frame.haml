@@ -205,16 +205,20 @@
 
 %body#pageBody.bg-gradient
 
-  -if not use_weni_layout
+  -if not use_weni_layout and user_org.config.date_billing_expired and user_org.config.date_org_will_suspend
     .weni-announcement
-      .weni-announcement-container.flex.flex-row
-        %span.weni-left
-          {{ announcement_left }}
-        %span.weni-divider
-        %span.weni-right
-          {{ announcement_right }}
-        %a.weni-button(href="{{ announcement_link }}" target="_blank" rel="noopener noreferrer")
-          {{ announcement_button }}
+      %span.weni-announcement__content
+        Dear customer, we did not identify the payment of the invoice that was due on day
+        %span.weni-announcement__content--highlight
+          {{user_org.config.date_billing_expired}}.
+        Please contact our finance department at
+        %span.weni-announcement__content--highlight
+          invoice@weni.ai
+        to send proof of payment, otherwise your services will be
+        %span.weni-announcement__content--highlight
+          suspended on day {{user_org.config.date_org_will_suspend}}.
+      %button.weni-announcement__collapse
+        %i.icon-close
 
   -if COMPONENTS_DEV_MODE
     <script type="module">
@@ -566,7 +570,7 @@
           announcementCollapse()
         }
 
-        $(".weni-announcement-collapse").live('click', (event) => {
+        $(".weni-announcement__collapse").live('click', (event) => {
           sessionStorage.setItem('weni-announcement-state', false);
           announcementCollapse()
         })
