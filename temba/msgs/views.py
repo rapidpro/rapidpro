@@ -38,7 +38,7 @@ from temba.orgs.views import (
 )
 from temba.schedules.models import Schedule
 from temba.schedules.views import ScheduleFormMixin
-from temba.utils import analytics, json, on_transaction_commit
+from temba.utils import Icon, analytics, json, on_transaction_commit
 from temba.utils.export.views import BaseExportView
 from temba.utils.fields import CompletionTextarea, InputWidget, JSONField, OmniboxChoice, OmniboxField, SelectWidget
 from temba.utils.models import patch_queryset_count
@@ -556,21 +556,21 @@ class MsgCRUDL(SmartCRUDL):
                         name=_("Inbox"),
                         href=reverse("msgs.msg_inbox"),
                         count=counts[SystemLabel.TYPE_INBOX],
-                        icon="inbox",
+                        icon=Icon.Inbox,
                     ),
                     self.create_menu_item(
                         name=_("Flows"),
                         verbose_name=_("Flow Messages"),
                         href=reverse("msgs.msg_flow"),
                         count=counts[SystemLabel.TYPE_FLOWS],
-                        icon="flow",
+                        icon=Icon.Flow,
                     ),
                     self.create_menu_item(
                         name=_("Archived"),
                         verbose_name=_("Archived Messages"),
                         href=reverse("msgs.msg_archived"),
                         count=counts[SystemLabel.TYPE_ARCHIVED],
-                        icon="archive",
+                        icon=Icon.Archive,
                     ),
                     self.create_divider(),
                     self.create_menu_item(
@@ -604,7 +604,7 @@ class MsgCRUDL(SmartCRUDL):
                 for label in labels:
                     label_items.append(
                         self.create_menu_item(
-                            icon="tag",
+                            icon=Icon.Label,
                             menu_id=label.uuid,
                             name=label.name,
                             count=label_counts[label],

@@ -59,7 +59,7 @@ from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.settings_common import WORKSPACE_PLAN
-from temba.utils import analytics, brands, get_anonymous_user, json, languages
+from temba.utils import Icon, analytics, brands, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address, send_template_email
 from temba.utils.fields import (
     ArbitraryJsonChoiceField,
@@ -1243,7 +1243,7 @@ class OrgCRUDL(SmartCRUDL):
                 menu = []
                 menu.append(
                     self.create_menu_item(
-                        menu_id="workspace", name=self.org.name, icon="layers", href="orgs.org_workspace"
+                        menu_id="workspace", name=self.org.name, icon=Icon.Workspace, href="orgs.org_workspace"
                     )
                 )
 
@@ -1252,7 +1252,7 @@ class OrgCRUDL(SmartCRUDL):
                         self.create_menu_item(
                             menu_id="security",
                             name=_("Security"),
-                            icon="shield",
+                            icon=Icon.TwoFactorEnabled,
                             href=reverse("orgs.user_two_factor_tokens"),
                         )
                     )
@@ -1261,7 +1261,7 @@ class OrgCRUDL(SmartCRUDL):
                         self.create_menu_item(
                             menu_id="authentication",
                             name=_("Enable 2FA"),
-                            icon="shield",
+                            icon=Icon.TwoFactorDisabled,
                             href=reverse("orgs.user_two_factor_enable"),
                         )
                     )
@@ -1269,12 +1269,12 @@ class OrgCRUDL(SmartCRUDL):
                 if self.has_org_perm("orgs.org_account"):
                     menu.append(
                         self.create_menu_item(
-                            menu_id="account", name=_("Account"), icon="user", href=reverse("orgs.user_account")
+                            menu_id="account", name=_("Account"), icon=Icon.Account, href=reverse("orgs.user_account")
                         )
                     )
 
-                menu.append(self.create_menu_item(name=_("Users"), icon="users", href="orgs.org_manage_accounts"))
-                menu.append(self.create_menu_item(name=_("Resthooks"), icon="cloud", href="orgs.org_resthooks"))
+                menu.append(self.create_menu_item(name=_("Users"), icon=Icon.Users, href="orgs.org_manage_accounts"))
+                menu.append(self.create_menu_item(name=_("Resthooks"), icon=Icon.Resthooks, href="orgs.org_resthooks"))
 
                 if self.has_org_perm("channels.channel_read"):
                     from temba.channels.views import get_channel_read_url
@@ -1317,12 +1317,12 @@ class OrgCRUDL(SmartCRUDL):
                     items = [
                         self.create_menu_item(
                             name=_("Messages"),
-                            icon="message-square",
+                            icon=Icon.Message,
                             href=reverse("archives.archive_message"),
                         ),
                         self.create_menu_item(
                             name=_("Flow Runs"),
-                            icon="flow",
+                            icon=Icon.Flow,
                             href=reverse("archives.archive_run"),
                         ),
                     ]
@@ -1339,7 +1339,7 @@ class OrgCRUDL(SmartCRUDL):
                         self.create_menu_item(
                             name=child.name,
                             menu_id=child.pk,
-                            icon="layers",
+                            icon=Icon.Workspace,
                             href=f"{reverse('orgs.org_manage_accounts_sub_org')}?org={child.pk}",
                         )
                     )
@@ -1351,35 +1351,35 @@ class OrgCRUDL(SmartCRUDL):
                     self.create_menu_item(
                         menu_id="workspaces",
                         name=_("Workspaces"),
-                        icon="layers",
+                        icon=Icon.Workspace,
                         href=reverse("orgs.org_manage"),
                     ),
                     self.create_menu_item(
                         menu_id="users",
                         name=_("Users"),
-                        icon="users",
+                        icon=Icon.Users,
                         href=reverse("orgs.user_list"),
                     ),
                 ]
 
             menu = [
                 self.create_menu_item(
-                    menu_id="messages", name=_("Messages"), icon="message-square", endpoint="msgs.msg_menu"
+                    menu_id="messages", name=_("Messages"), icon=Icon.Message, endpoint="msgs.msg_menu"
                 ),
                 self.create_menu_item(
-                    menu_id="contacts", name=_("Contacts"), icon="contact", endpoint="contacts.contact_menu"
+                    menu_id="contacts", name=_("Contacts"), icon=Icon.Contact, endpoint="contacts.contact_menu"
                 ),
-                self.create_menu_item(menu_id="flows", name=_("Flows"), icon="flow", endpoint="flows.flow_menu"),
+                self.create_menu_item(menu_id="flows", name=_("Flows"), icon=Icon.Flow, endpoint="flows.flow_menu"),
                 self.create_menu_item(
-                    menu_id="triggers", name=_("Triggers"), icon="radio", endpoint="triggers.trigger_menu"
+                    menu_id="triggers", name=_("Triggers"), icon=Icon.Trigger, endpoint="triggers.trigger_menu"
                 ),
                 self.create_menu_item(
-                    menu_id="campaigns", name=_("Campaigns"), icon="campaign", endpoint="campaigns.campaign_menu"
+                    menu_id="campaigns", name=_("Campaigns"), icon=Icon.Campaign, endpoint="campaigns.campaign_menu"
                 ),
                 self.create_menu_item(
                     menu_id="tickets",
                     name=_("Tickets"),
-                    icon="agent",
+                    icon=Icon.Tickets,
                     endpoint="tickets.ticket_menu",
                     href="tickets.ticket_list",
                 ),
@@ -1390,7 +1390,7 @@ class OrgCRUDL(SmartCRUDL):
                     {
                         "id": "settings",
                         "name": _("Settings"),
-                        "icon": "settings",
+                        "icon": Icon.Settings,
                         "endpoint": f"{reverse('orgs.org_menu')}settings/",
                         "bottom": True,
                         "show_header": True,
@@ -2083,7 +2083,7 @@ class OrgCRUDL(SmartCRUDL):
             url = reverse("orgs.org_service")
 
             return mark_safe(
-                "<div onclick='goto(event)' href='%s?organization=%d' class='service posterize hover-linked text-gray-400'><div class='icon-wand'></div></div>"
+                f"<div onclick='goto(event)' href='%s?organization=%d' class='service posterize hover-linked text-gray-400'><temba-icon name='{Icon.Service}'></div></div>"
                 % (url, obj.id)
             )
 

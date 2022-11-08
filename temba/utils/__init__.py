@@ -98,3 +98,51 @@ def get_anonymous_user():
 
         _anon_user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
     return _anon_user
+
+
+def as_json(cls):
+    return dict((i.replace(cls.__name__, "").lstrip("_"), value) for i, value in cls.__dict__.items())
+
+
+class Icon:
+    Account = "user-01"
+    Active = "play"
+    Archive = "archive"
+    Campaign = "clock-refresh"
+    Contact = "user-01"
+    ContactBlocked = "message-x-square"
+    ContactStopped = "slash-octagon"
+    Delete = "trash-03"
+    DeleteSmall = "x"
+    Down = "chevron-down"
+    Download = "download-01"
+    Error = "x-circle"
+    Fields = "user-edit"
+    Flow = "flow"
+    FlowIVR = "phone-call-01"
+    FlowMessage = "message-square-02"
+    Group = "users-01"
+    Import = "upload-cloud-01"
+    Inbox = "inbox-01"
+    Label = "tag-01"
+    Left = "chevron-left"
+    Log = "file-02"
+    Right = "chevron-right"
+    Menu = "menu-01"
+    Message = "message-square-02"
+    Resthooks = "share-07"
+    Restore = "play"
+    Settings = "settings-02"
+    Service = "magic-wand-01"
+    SmartGroup = "atom-01"
+    Tickets = "agent"
+    TicketsClosed = "check"
+    TicketsMine = "coffee"
+    TicketsOpen = "inbox-01"
+    TicketsUnassigned = "inbox-01"
+    Trigger = "signal-01"
+    TwoFactorEnabled = "shield-02"
+    TwoFactorDisabled = "shield-01"
+    Up = "chevron-up"
+    Users = "users-01"
+    Workspace = "message-chat-square"

@@ -16,6 +16,7 @@ from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
 from temba.orgs.views import MenuMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.models import Schedule
+from temba.utils import Icon
 from temba.utils.fields import (
     CompletionTextarea,
     InputWidget,
@@ -222,7 +223,7 @@ class TriggerCRUDL(SmartCRUDL):
                     verbose_name=_("Active Triggers"),
                     count=org_triggers.filter(is_archived=False).count(),
                     href=reverse("triggers.trigger_list"),
-                    icon="radio",
+                    icon=Icon.Active,
                 )
             )
 
@@ -230,7 +231,7 @@ class TriggerCRUDL(SmartCRUDL):
                 self.create_menu_item(
                     name=_("Archived"),
                     verbose_name=_("Archived Triggers"),
-                    icon="archive",
+                    icon=Icon.Archive,
                     count=org_triggers.filter(is_archived=True).count(),
                     href=reverse("triggers.trigger_archived"),
                 )

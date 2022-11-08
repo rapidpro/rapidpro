@@ -97,11 +97,11 @@
 -block content
 
   %temba-tabs.flex-grow.mt-4(-temba-context-changed="handleTabChanged" index="{{request.GET.tab}}" collapses="true")
-    %temba-tab(icon="message-square" name='{{_("Chat")|escapejs}}')
+    %temba-tab(icon="{{Icon.Message}}" name='{{_("Chat")|escapejs}}')
       .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
         %temba-contact-chat(contact="{{object.uuid}}" monitor="true")
 
-    %temba-tab(icon="grid" name='{{_("Fields")|escapejs}}')
+    %temba-tab(icon="{{Icon.Fields}}" name='{{_("Fields")|escapejs}}')
       .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
         %temba-contact-fields.pinned-fields.pb-4(timezone="{{object.org.timezone}}" contact="{{object.uuid}}" pinned="true" -temba-button-clicked="handleFieldSearch")
         %temba-contact-fields.all-fields(timezone="{{object.org.timezone}}" contact="{{object.uuid}}" -temba-button-clicked="handleFieldSearch")
@@ -112,7 +112,7 @@
             -blocktrans trimmed
               Nothing to see here yet. Create a new field to save data to your contacts.
 
-    %temba-tab(icon="campaign" name='{{_("Next Up")|escapejs}}')
+    %temba-tab(icon="{{Icon.Campaign}}" name='{{_("Next Up")|escapejs}}')
       .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
         %temba-contact-pending(contact="{{object.uuid}}" -temba-refreshed="handlePendingRefreshed")
 
@@ -123,10 +123,9 @@
             -blocktrans trimmed
               Nothing to see here yet. Any messages or flows scheduled to be sent to this contact in the future will be shown here.  
 
-    %temba-tab(icon="agent" name='{{_("Tickets")|escapejs}}')    
+    %temba-tab(icon="{{Icon.Tickets}}" name='{{_("Tickets")|escapejs}}')    
       .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
         %temba-contact-tickets(contact="{{object.uuid}}" -temba-refreshed="handleTicketsRefreshed")
-
           .no-tickets.p-16.text-center(slot="empty")
             .text-xl.mb-4
               -trans "No Tickets"

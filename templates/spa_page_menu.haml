@@ -125,7 +125,7 @@
     -if content_menu_links
       %temba-dropdown.items-stretch.flex.flex-column(arrowoffset="-12" offsetx="24" offsety="6" arrowsize="8")
         .menu-button.items-center.flex.flex-column.py-2.px-2.ml-2(slot="toggle")
-          %temba-icon( name="menu" size="1.5")
+          %temba-icon( name="{{Icon.Menu}}" size="1.5")
         .dropdown.px-6.py-4.text-gray-800.z-50(slot="dropdown" style="min-width:200px")
           -for link in content_menu_links
             -if link.divider
