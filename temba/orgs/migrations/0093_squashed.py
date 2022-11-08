@@ -153,6 +153,7 @@ class Migration(migrations.Migration):
                     "is_suspended",
                     models.BooleanField(default=False, help_text="Whether this organization is currently suspended."),
                 ),
+                ("uses_topups", models.BooleanField(default=True, help_text="Whether this organization uses topups.")),
                 (
                     "is_multi_org",
                     models.BooleanField(
