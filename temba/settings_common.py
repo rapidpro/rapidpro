@@ -1,5 +1,4 @@
 import os
-import socket
 import sys
 from datetime import timedelta
 
@@ -89,8 +88,6 @@ USE_TZ = True
 TIME_ZONE = "GMT"
 USER_TIME_ZONE = "Africa/Kigali"
 
-MODELTRANSLATION_TRANSLATION_REGISTRY = "translation"
-
 # -----------------------------------------------------------------------------------
 # Default language used for this installation
 # -----------------------------------------------------------------------------------
@@ -119,11 +116,6 @@ USE_I18N = True
 # If you set this to False, Django will not format dates, numbers and
 # calendars according to the current locale
 USE_L10N = True
-
-# URL prefix for admin static files -- CSS, JavaScript and images.
-# Make sure to use a trailing slash.
-# Examples: "http://foo.com/static/admin/", "/static/admin/".
-ADMIN_MEDIA_PREFIX = "/static/admin/"
 
 # List of finder classes that know how to find static files in
 # various locations.
@@ -215,10 +207,6 @@ MIDDLEWARE = (
     "temba.middleware.LanguageMiddleware",
     "temba.middleware.TimezoneMiddleware",
 )
-
-# security middleware configuration
-SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_BROWSER_XSS_FILTER = True
 
 ROOT_URLCONF = "temba.urls"
 
@@ -987,9 +975,6 @@ for brand in BRANDS:
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
 
-# Whether to send receipts on TopUp purchases
-SEND_RECEIPTS = True
-
 INTEGRATION_TYPES = [
     "temba.orgs.integrations.dtone.DTOneType",
 ]
@@ -1178,12 +1163,7 @@ RETENTION_PERIODS = {
 MAILROOM_URL = None
 MAILROOM_AUTH_TOKEN = None
 
-# To allow manage fields to support up to 1000 fields
-DATA_UPLOAD_MAX_NUMBER_FIELDS = 4000
-
-# When reporting metrics we use the hostname of the physical machine, not the hostname of the service
-MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
-
-
-# ElasticSearch configuration (URL RFC-1738)
+# -----------------------------------------------------------------------------------
+# ElasticSearch
+# -----------------------------------------------------------------------------------
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
