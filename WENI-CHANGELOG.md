@@ -1,3 +1,7 @@
+1.6.8-rapidpro-7.1.27
+----------
+* Add weni-rp-apps orgs_api app
+
 1.6.7-rapidpro-7.1.27
 ----------
 * Weni announcement as billing alert
