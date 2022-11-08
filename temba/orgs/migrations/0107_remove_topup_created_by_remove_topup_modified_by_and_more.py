@@ -28,4 +28,8 @@ class Migration(migrations.Migration):
         migrations.DeleteModel(
             name="TopUp",
         ),
+        migrations.RemoveField(
+            model_name="org",
+            name="uses_topups",
+        ),
     ]

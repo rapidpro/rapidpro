@@ -506,9 +506,6 @@ class Org(SmartModel):
     released_on = models.DateTimeField(null=True)
     deleted_on = models.DateTimeField(null=True)
 
-    # TODO drop
-    uses_topups = models.BooleanField(null=True)
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
