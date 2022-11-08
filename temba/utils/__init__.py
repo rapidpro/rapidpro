@@ -100,10 +100,6 @@ def get_anonymous_user():
     return _anon_user
 
 
-def as_json(cls):
-    return dict((i.replace(cls.__name__, "").lstrip("_"), value) for i, value in cls.__dict__.items())
-
-
 class Icon:
     account = "user-01"
     active = "play"
