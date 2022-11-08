@@ -1,3 +1,7 @@
+1.6.7-rapidpro-7.1.27
+----------
+* Weni announcement as billing alert
+
 1.6.6-rapidpro-7.1.27
 ----------
 * Add ticketer name input field on twilioflex connect #380
