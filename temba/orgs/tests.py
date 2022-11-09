@@ -44,6 +44,7 @@ from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     CRUDLTestMixin,
     ESMockWithScroll,
+    MigrationTest,
     MockResponse,
     TembaNonAtomicTest,
     TembaTest,
@@ -4750,3 +4751,47 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
+
+
+class SimplifyOrgHierarchiesTest(MigrationTest):
+    app = "orgs"
+    migrate_from = "0107_remove_topup_created_by_remove_topup_modified_by_and_more"
+    migrate_to = "0108_simplify_org_hierarchies"
+
+    def setUpBeforeMigration(self, apps):
+        def create_org(parent):
+            return Org.objects.create(
+                name="Test",
+                parent=parent,
+                timezone=pytz.timezone("Africa/Kigali"),
+                brand=settings.DEFAULT_BRAND,
+                created_by=self.admin,
+                modified_by=self.admin,
+            )
+
+        self.org1 = create_org(parent=None)
+        self.org1_child1 = create_org(parent=self.org1)
+        self.org1_child1_child1 = create_org(parent=self.org1_child1)
+        self.org1_child1_child1_child1 = create_org(parent=self.org1_child1_child1)
+        self.org1_child1_child1_child2 = create_org(parent=self.org1_child1_child1)
+        self.org1_child1_child2 = create_org(parent=self.org1_child1)
+        self.org1_child2 = create_org(parent=self.org1)
+        self.org2 = create_org(parent=None)
+        self.org2_child1 = create_org(parent=self.org2)
+        self.org3 = create_org(parent=None)
+
+    def test_migration(self):
+        def assert_org(org, expected_parent):
+            org.refresh_from_db()
+            self.assertEqual(expected_parent, org.parent)
+
+        assert_org(self.org1, None)
+        assert_org(self.org1_child1, self.org1)
+        assert_org(self.org1_child1_child1, self.org1)
+        assert_org(self.org1_child1_child1_child1, self.org1)
+        assert_org(self.org1_child1_child1_child2, self.org1)
+        assert_org(self.org1_child1_child2, self.org1)
+        assert_org(self.org1_child2, self.org1)
+        assert_org(self.org2, None)
+        assert_org(self.org2_child1, self.org2)
+        assert_org(self.org3, None)
