@@ -50,8 +50,6 @@ class APITokenAuthentication(RequestAttributesMixin, TokenAuthentication):
             raise exceptions.AuthenticationFailed("Invalid token")
 
         if token.user.is_active:
-            token.user.using_token = True
-
             return token.user, token
 
         raise exceptions.AuthenticationFailed("Invalid token")
@@ -76,8 +74,6 @@ class APIBasicAuthentication(RequestAttributesMixin, BasicAuthentication):
             raise exceptions.AuthenticationFailed("Invalid token or email")
 
         if token.user.is_active:
-            token.user.using_token = True
-
             return token.user, token
 
         raise exceptions.AuthenticationFailed("Invalid token or email")
@@ -88,34 +84,30 @@ class APISessionAuthentication(SessionAuthentication):
     Session authentication as used by the editor, explorer
     """
 
-    def authenticate(self, request):
-        result = super().authenticate(request)
-        if result:
-            result[0].using_token = False
-        return result
-
 
 class OrgUserRateThrottle(ScopedRateThrottle):
     """
     Throttle class which rate limits at an org level or user level for staff users
     """
 
-    def get_org_rate(self, request):
+    def get_org_rate(self, request, by_token: bool):
         default_rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
         org_rates = {}
-        if request.user.is_authenticated and request.user.using_token:
+        if request.user.is_authenticated and by_token:
             org_rates = request.org.api_rates
         return {**default_rates, **org_rates}.get(self.scope)
 
     def allow_request(self, request, view):
+        by_token = isinstance(request.auth, APIToken)
+
         # any request not using a token (e.g. editor, explorer) isn't subject to throttling
-        if request.user.is_authenticated and not request.user.using_token:
+        if request.user.is_authenticated and not by_token:
             return True
 
         self.scope = getattr(view, self.scope_attr, None)
 
         # Determine the allowed request rate considering the org config
-        self.rate = self.get_org_rate(request)
+        self.rate = self.get_org_rate(request, by_token)
         self.num_requests, self.duration = self.parse_rate(self.rate)
 
         return super(ScopedRateThrottle, self).allow_request(request, view)
