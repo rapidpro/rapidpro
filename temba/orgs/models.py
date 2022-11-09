@@ -576,6 +576,9 @@ class Org(SmartModel):
         self.parent.parent = self
         self.parent.save(update_fields=("parent",))
 
+        self.parent = None
+        self.save(update_fields=("parent",))
+
     @cached_property
     def branding(self):
         return brands.get_by_slug(self.brand)
