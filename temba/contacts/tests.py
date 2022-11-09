@@ -45,7 +45,7 @@ from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticket, TicketCount, Ticketer
 from temba.triggers.models import Trigger
-from temba.utils import json
+from temba.utils import Icon, json
 from temba.utils.dates import datetime_to_str, datetime_to_timestamp
 
 from .models import (
@@ -913,7 +913,7 @@ class ContactGroupTest(TembaTest):
         group.save(update_fields=("status",))
 
         # dynamic groups should get their own icon
-        self.assertEqual(group.get_attrs(), {"icon": "atom"})
+        self.assertEqual(group.get_attrs(), {"icon": Icon.smart_group})
 
         # can't update query again while it is in this state
         with self.assertRaises(AssertionError):

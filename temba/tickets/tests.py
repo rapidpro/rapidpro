@@ -12,6 +12,7 @@ from django.utils import timezone
 from temba.contacts.models import Contact, ContactField, ContactURN
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.tests.base import AnonymousOrg
+from temba.utils import Icon
 from temba.utils.dates import datetime_to_timestamp
 
 from .models import (
@@ -274,7 +275,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 {
                     "id": "unassigned",
                     "name": "Unassigned",
-                    "icon": "mail",
+                    "icon": Icon.inbox,
                     "count": 1,
                     "verbose_name": "Unassigned Tickets",
                 },
