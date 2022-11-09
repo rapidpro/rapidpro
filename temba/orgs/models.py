@@ -506,9 +506,6 @@ class Org(SmartModel):
     released_on = models.DateTimeField(null=True)
     deleted_on = models.DateTimeField(null=True)
 
-    # TODO drop
-    uses_topups = models.BooleanField(null=True)
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -1357,9 +1354,6 @@ class Org(SmartModel):
         # release all archives objects and files for this org
         Archive.release_org_archives(self)
 
-        for topup in self.topups.all():  # pragma: no cover
-            topup.release()
-
         self.webhookevent_set.all().delete()
 
         for resthook in self.resthooks.all():
@@ -1482,92 +1476,6 @@ class Invitation(SmartModel):
         context["subject"] = subject
 
         send_template_email(to_email, subject, template, context, self.org.branding)
-
-
-class TopUp(SmartModel):
-    """
-    TODO drop
-    """
-
-    org = models.ForeignKey(
-        Org, on_delete=models.PROTECT, related_name="topups", help_text="The organization that was toppped up"
-    )
-    price = models.IntegerField(
-        null=True,
-        blank=True,
-        verbose_name=_("Price Paid"),
-        help_text=_("The price paid for the messages in this top up (in cents)"),
-    )
-    credits = models.IntegerField(
-        verbose_name=_("Number of Credits"), help_text=_("The number of credits bought in this top up")
-    )
-    expires_on = models.DateTimeField(
-        verbose_name=_("Expiration Date"), help_text=_("The date that this top up will expire")
-    )
-    stripe_charge = models.CharField(
-        verbose_name=_("Stripe Charge Id"),
-        max_length=32,
-        null=True,
-        blank=True,
-        help_text=_("The Stripe charge id for this charge"),
-    )
-    comment = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True,
-        help_text="Any comment associated with this topup, used when we credit accounts",
-    )
-
-    def release(self):  # pragma: no cover
-
-        # clear us off any debits we are connected to
-        Debit.objects.filter(topup=self).update(topup=None)
-
-        # any debits benefitting us are deleted
-        Debit.objects.filter(beneficiary=self).delete()
-
-        self.delete()
-
-
-class Debit(models.Model):
-    """
-    TODO drop
-    """
-
-    TYPE_ALLOCATION = "A"
-
-    DEBIT_TYPES = ((TYPE_ALLOCATION, "Allocation"),)
-
-    id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name="ID")
-
-    topup = models.ForeignKey(
-        TopUp,
-        on_delete=models.PROTECT,
-        null=True,
-        related_name="debits",
-        help_text=_("The topup these credits are applied against"),
-    )
-
-    amount = models.IntegerField(help_text=_("How many credits were debited"))
-
-    beneficiary = models.ForeignKey(
-        TopUp,
-        on_delete=models.PROTECT,
-        null=True,
-        related_name="allocations",
-        help_text=_("Optional topup that was allocated with these credits"),
-    )
-
-    debit_type = models.CharField(max_length=1, choices=DEBIT_TYPES, null=False, help_text=_("What caused this debit"))
-
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        null=True,
-        related_name="debits_created",
-        help_text="The user which originally created this item",
-    )
-    created_on = models.DateTimeField(default=timezone.now, help_text="When this item was originally created")
 
 
 class BackupToken(models.Model):
