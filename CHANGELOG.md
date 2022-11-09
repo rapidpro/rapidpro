@@ -1,3 +1,7 @@
+v7.5.101
+----------
+ * Fix Org.promote
+
 v7.5.100
 ----------
  * Add Org.promote utility method
