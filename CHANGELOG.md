@@ -1,3 +1,9 @@
+v7.5.100
+----------
+ * Add Org.promote utility method
+ * Simplify determining whether to rate limit an API request by looking at request.auth
+ * Data migration to simplify org hierarchies
+
 v7.5.99
 ----------
  * Rename security_settings.py > settings_security.py for consistency
