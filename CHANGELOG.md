@@ -1,3 +1,11 @@
+v7.5.99
+----------
+ * Rename security_settings.py > settings_security.py for consistency
+ * Drop Org.uses_topups, TopUp, and Debit
+ * Update to latest components
+ * Remove unused settings
+ * Remove TopUp, Debit and Org.uses_topups
+
 v7.5.98
 ----------
  * Drop triggers, indexes and functions related to topups
