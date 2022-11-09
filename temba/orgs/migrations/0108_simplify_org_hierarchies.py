@@ -27,6 +27,12 @@ def reverse(apps, schema_editor):
     pass
 
 
+def apply_manual():  # pragma: no cover
+    from django.apps import apps
+
+    simplify_org_hierarchies(apps, None)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
