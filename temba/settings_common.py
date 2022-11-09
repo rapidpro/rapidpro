@@ -1083,9 +1083,6 @@ SESSION_CACHE_ALIAS = "default"
 TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY", "MISSING_TWITTER_API_KEY")
 TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET", "MISSING_TWITTER_API_SECRET")
 
-# Google analytics tracking ID
-GOOGLE_TRACKING_ID = os.environ.get("GOOGLE_TRACKING_ID", "")
-
 MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY", "")
 
 ZENDESK_CLIENT_ID = os.environ.get("ZENDESK_CLIENT_ID", "")
