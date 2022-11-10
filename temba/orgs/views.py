@@ -1369,17 +1369,17 @@ class OrgCRUDL(SmartCRUDL):
 
             menu = [
                 self.create_menu_item(
-                    menu_id="messages", name=_("Messages"), icon="icon.message", endpoint="msgs.msg_menu"
+                    menu_id="messages", name=_("Messages"), icon="icon.messages", endpoint="msgs.msg_menu"
                 ),
                 self.create_menu_item(
-                    menu_id="contacts", name=_("Contacts"), icon="icon.contact", endpoint="contacts.contact_menu"
+                    menu_id="contacts", name=_("Contacts"), icon="icon.contacts", endpoint="contacts.contact_menu"
                 ),
-                self.create_menu_item(menu_id="flows", name=_("Flows"), icon="icon.flow", endpoint="flows.flow_menu"),
+                self.create_menu_item(menu_id="flows", name=_("Flows"), icon="icon.flows", endpoint="flows.flow_menu"),
                 self.create_menu_item(
-                    menu_id="triggers", name=_("Triggers"), icon="icon.trigger", endpoint="triggers.trigger_menu"
+                    menu_id="triggers", name=_("Triggers"), icon="icon.triggers", endpoint="triggers.trigger_menu"
                 ),
                 self.create_menu_item(
-                    menu_id="campaigns", name=_("Campaigns"), icon="icon.campaign", endpoint="campaigns.campaign_menu"
+                    menu_id="campaigns", name=_("Campaigns"), icon="icon.campaigns", endpoint="campaigns.campaign_menu"
                 ),
                 self.create_menu_item(
                     menu_id="tickets",
