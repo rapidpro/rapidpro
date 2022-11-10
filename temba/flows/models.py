@@ -2121,24 +2121,20 @@ class FlowLabel(TembaModel):
     parent = models.ForeignKey("FlowLabel", on_delete=models.PROTECT, null=True, related_name="children")
 
     @classmethod
-    def create(cls, org, user, name: str, parent=None):
+    def create(cls, org, user, name: str):
         assert cls.is_valid_name(name), f"'{name}' is not a valid flow label name"
         assert not org.flow_labels.filter(name__iexact=name).exists()
 
-        return cls.objects.create(org=org, name=name, parent=parent, created_by=user, modified_by=user)
+        return cls.objects.create(org=org, name=name, created_by=user, modified_by=user)
 
-    def get_flows_count(self):
+    def get_flow_count(self):
         """
         Returns the count of flows tagged with this label or one of its children
         """
         return self.get_flows().count()
 
     def get_flows(self):
-        return (
-            Flow.objects.filter(Q(labels=self) | Q(labels__parent=self))
-            .filter(is_active=True, is_archived=False)
-            .distinct()
-        )
+        return self.flows.filter(is_active=True, is_archived=False)
 
     def toggle_label(self, flows, *, add: bool):
         changed = []
@@ -2158,15 +2154,7 @@ class FlowLabel(TembaModel):
 
         return changed
 
-    def delete(self):
-        for child in self.children.all():
-            child.delete()
-
-        super().delete()
-
     def __str__(self):
-        if self.parent:
-            return "%s > %s" % (self.parent, self.name)
         return self.name
 
     class Meta:

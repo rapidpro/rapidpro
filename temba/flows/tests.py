@@ -2308,22 +2308,19 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow2 = self.create_flow("Flow 2")
 
         label1 = FlowLabel.create(self.org, self.admin, "Important")
-        label2 = FlowLabel.create(self.org, self.admin, "Very Important", parent=label1)
+        label2 = FlowLabel.create(self.org, self.admin, "Very Important")
 
-        label1.toggle_label([flow1], add=True)
+        label1.toggle_label([flow1, flow2], add=True)
         label2.toggle_label([flow2], add=True)
 
         self.login(self.admin)
 
         response = self.client.get(reverse("flows.flow_filter", args=[label1.uuid]))
         self.assertEqual([flow2, flow1], list(response.context["object_list"]))
+        self.assertEqual(2, len(response.context["labels"]))
 
         response = self.client.get(reverse("flows.flow_filter", args=[label2.uuid]))
         self.assertEqual([flow2], list(response.context["object_list"]))
-
-        # in the spa view, labels are flattened
-        response = self.client.get(reverse("flows.flow_filter", args=[label1.uuid]), HTTP_TEMBA_SPA="1")
-        self.assertEqual(len(response.context["labels_flat"]), 2)
 
     def test_get_definition(self):
         flow = self.get_flow("color_v13")
