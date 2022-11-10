@@ -1,3 +1,7 @@
+1.6.9-rapidpro-7.1.27
+----------
+* Modify contact history request trigger method to `load`
+
 1.6.8-rapidpro-7.1.27
 ----------
 * Add weni-rp-apps orgs_api app
