@@ -1,3 +1,9 @@
+v7.5.103
+----------
+ * Some people don't care for icon constants
+ * Remove shim for browsers older than IE9
+ * Remove google analytics settings
+
 v7.5.102
 ----------
  * Remove google analytics
