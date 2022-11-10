@@ -17,7 +17,7 @@ from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.contacts.models import Contact
 from temba.orgs.models import DependencyMixin, Org, User, UserSettings
-from temba.utils import Icon, chunk_list
+from temba.utils import chunk_list
 from temba.utils.dates import date_range
 from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport, MultiSheetExporter
 from temba.utils.models import DailyCountModel, DailyTimingModel, SquashableModel, TembaModel
@@ -380,7 +380,7 @@ class MineFolder(TicketFolder):
 
     slug = "mine"
     name = _("My Tickets")
-    icon = Icon.tickets_mine
+    icon = "icon.tickets_mine"
 
     def get_queryset(self, org, user, ordered):
         return super().get_queryset(org, user, ordered).filter(assignee=user)
@@ -394,7 +394,7 @@ class UnassignedFolder(TicketFolder):
     slug = "unassigned"
     name = _("Unassigned")
     verbose_name = _("Unassigned Tickets")
-    icon = Icon.tickets_unassigned
+    icon = "icon.tickets_unassigned"
 
     def get_queryset(self, org, user, ordered):
         return super().get_queryset(org, user, ordered).filter(assignee=None)
@@ -408,7 +408,7 @@ class AllFolder(TicketFolder):
     slug = "all"
     name = _("All")
     verbose_name = _("All Tickets")
-    icon = Icon.archive
+    icon = "icon.tickets_all"
 
     def get_queryset(self, org, user, ordered):
         return super().get_queryset(org, user, ordered)

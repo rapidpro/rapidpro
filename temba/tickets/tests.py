@@ -12,7 +12,6 @@ from django.utils import timezone
 from temba.contacts.models import Contact, ContactField, ContactURN
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.tests.base import AnonymousOrg
-from temba.utils import Icon
 from temba.utils.dates import datetime_to_timestamp
 
 from .models import (
@@ -271,15 +270,15 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         menu = response.json()["results"]
         self.assertEqual(
             [
-                {"id": "mine", "name": "My Tickets", "icon": "coffee", "count": 2, "verbose_name": None},
+                {"id": "mine", "name": "My Tickets", "icon": "icon.tickets_mine", "count": 2, "verbose_name": None},
                 {
                     "id": "unassigned",
                     "name": "Unassigned",
-                    "icon": Icon.inbox,
+                    "icon": "icon.tickets_unassigned",
                     "count": 1,
                     "verbose_name": "Unassigned Tickets",
                 },
-                {"id": "all", "name": "All", "icon": "archive", "count": 3, "verbose_name": "All Tickets"},
+                {"id": "all", "name": "All", "icon": "icon.tickets_all", "count": 3, "verbose_name": "All Tickets"},
             ],
             menu,
         )

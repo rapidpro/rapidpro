@@ -29,7 +29,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Org
-from temba.utils import Icon, chunk_list, format_number, on_transaction_commit
+from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExport, BaseExportAssetStore, MultiSheetExporter
 from temba.utils.models import JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
 from temba.utils.text import decode_stream, unsnakify
@@ -1638,7 +1638,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     @property
     def icon(self) -> str:
-        return Icon.smart_group if self.group_type == self.TYPE_SMART else Icon.group
+        return "icon.group_smart" if self.group_type == self.TYPE_SMART else "icon.group"
 
     def get_attrs(self):
         return {"icon": self.icon}

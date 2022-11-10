@@ -24,22 +24,22 @@
 
     -if contact.status == 'B'
       .lbl-group.linked.inverted.bg-secondary.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_blocked' %}")
-        %temba-icon(name="{{Icon.contact_bocked}}")
+        %temba-icon(name="icon.contact_bocked")
         -trans "Blocked"
   
     -elif contact.status == 'S'
       .lbl-group.linked.inverted.bg-secondary.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_stopped' %}")
-        %temba-icon(name="{{Icon.contact_stopped}}")
+        %temba-icon(name="icon.contact_stopped")
         -trans "Stopped"
 
     -elif contact.status == 'V'
       .lbl-group.linked.inverted.bg-secondary.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_archived' %}")
-        %temba-icon(name="{{Icon.archive}}")
+        %temba-icon(name="icon.archive")
         -trans "Archived"
 
     -if contact.current_flow
       .lbl-group.linked.inverted.bg-tertiary.mr-2.mb-2(onclick="goto(event)" href="{% url 'flows.flow_editor' contact.current_flow.uuid %}")
-        %temba-icon(name="{{Icon.flow}}")
+        %temba-icon(name="icon.flow")
         {{ contact.current_flow.name }}
 
     -for group in contact_groups

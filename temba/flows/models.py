@@ -31,7 +31,7 @@ from temba.msgs.models import Label
 from temba.orgs.models import DependencyMixin, Org
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
-from temba.utils import Icon, analytics, chunk_list, json, on_transaction_commit, s3
+from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
 from temba.utils.models import JSONAsTextField, JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
@@ -457,11 +457,11 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     def get_attrs(self):
         icon = (
-            Icon.flow_message
+            "icon.flow_message"
             if self.flow_type == Flow.TYPE_MESSAGE
-            else Icon.flow_ivr
+            else "icon.flow_ivr"
             if self.flow_type == Flow.TYPE_VOICE
-            else Icon.flow
+            else "icon.flow"
         )
 
         return {"icon": icon, "type": self.flow_type, "uuid": self.uuid}
