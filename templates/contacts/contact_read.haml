@@ -243,7 +243,7 @@
 
     // trigger the first batch of previous messages
     %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?before={{recent_start}}", 
-         ic-trigger-on:"scrolled-into-view", 
+         ic-trigger-on:"load",
          ic-target:"table .previous", 
          ic-indicator:"#indicator" }
 
