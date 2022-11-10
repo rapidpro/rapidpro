@@ -48,7 +48,7 @@ from temba.orgs.views import (
     OrgPermsMixin,
 )
 from temba.triggers.models import Trigger
-from temba.utils import Icon, analytics, gettext, json, languages, on_transaction_commit, str_to_bool
+from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
 from temba.utils.export.views import BaseExportView
 from temba.utils.fields import (
     CheckboxWidget,
@@ -229,12 +229,15 @@ class FlowCRUDL(SmartCRUDL):
             menu = []
             menu.append(
                 self.create_menu_item(
-                    name=_("Active"), verbose_name=_("Active Flows"), icon=Icon.active, href="flows.flow_list"
+                    name=_("Active"), verbose_name=_("Active Flows"), icon="icon.active", href="flows.flow_list"
                 )
             )
             menu.append(
                 self.create_menu_item(
-                    name=_("Archived"), verbose_name=_("Archived Flows"), icon=Icon.archive, href="flows.flow_archived"
+                    name=_("Archived"),
+                    verbose_name=_("Archived Flows"),
+                    icon="icon.archive",
+                    href="flows.flow_archived",
                 )
             )
 
@@ -242,7 +245,7 @@ class FlowCRUDL(SmartCRUDL):
             for label in labels:
                 label_items.append(
                     self.create_menu_item(
-                        icon=Icon.label,
+                        icon="icon.label",
                         menu_id=label.uuid,
                         name=label.name,
                         href=reverse("flows.flow_filter", args=[label.uuid]),

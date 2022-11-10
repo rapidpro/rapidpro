@@ -19,7 +19,7 @@ from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.views import MenuMixin, ModalMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils import Icon, languages
+from temba.utils import languages
 from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget, TembaChoiceField
 from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin
 
@@ -61,7 +61,7 @@ class CampaignCRUDL(SmartCRUDL):
                     menu_id="active",
                     name=_("Active"),
                     verbose_name=_("Active Campaigns"),
-                    icon=Icon.active,
+                    icon="icon.active",
                     count=org.campaigns.filter(is_active=True, is_archived=False).count(),
                     href="campaigns.campaign_list",
                 )
@@ -72,7 +72,7 @@ class CampaignCRUDL(SmartCRUDL):
                     menu_id="archived",
                     name=_("Archived"),
                     verbose_name=_("Archived Campaigns"),
-                    icon=Icon.archive,
+                    icon="icon.archive",
                     count=org.campaigns.filter(is_active=True, is_archived=True).count(),
                     href="campaigns.campaign_archived",
                 )

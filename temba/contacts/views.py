@@ -47,7 +47,7 @@ from temba.orgs.views import (
     OrgPermsMixin,
 )
 from temba.tickets.models import Ticket, Ticketer, Topic
-from temba.utils import Icon, analytics, json, languages, on_transaction_commit
+from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.fields import (
     CheckboxWidget,
@@ -579,11 +579,11 @@ class ContactCRUDL(SmartCRUDL):
                     "name": _("Active"),
                     "verbose_name": _("Active Contacts"),
                     "href": reverse("contacts.contact_list"),
-                    "icon": Icon.active,
+                    "icon": "icon.active",
                 },
                 {
                     "id": "archived",
-                    "icon": "archive",
+                    "icon": "icon.archive",
                     "count": counts[Contact.STATUS_ARCHIVED],
                     "name": _("Archived"),
                     "verbose_name": _("Archived Contacts"),
@@ -595,7 +595,7 @@ class ContactCRUDL(SmartCRUDL):
                     "name": _("Blocked"),
                     "verbose_name": _("Blocked Contacts"),
                     "href": reverse("contacts.contact_blocked"),
-                    "icon": Icon.contact_blocked,
+                    "icon": "icon.contact_blocked",
                 },
                 {
                     "id": "stopped",
@@ -603,7 +603,7 @@ class ContactCRUDL(SmartCRUDL):
                     "name": _("Stopped"),
                     "verbose_name": _("Stopped Contacts"),
                     "href": reverse("contacts.contact_stopped"),
-                    "icon": Icon.contact_stopped,
+                    "icon": "icon.contact_stopped",
                 },
             ]
 
@@ -611,7 +611,7 @@ class ContactCRUDL(SmartCRUDL):
             menu.append(
                 {
                     "id": "import",
-                    "icon": Icon.upload,
+                    "icon": "icon.upload",
                     "href": reverse("contacts.contactimport_create"),
                     "name": _("Import"),
                 }
@@ -622,7 +622,7 @@ class ContactCRUDL(SmartCRUDL):
                 menu.append(
                     dict(
                         id="fields",
-                        icon=Icon.fields,
+                        icon="icon.fields",
                         count=count,
                         name=_("Fields"),
                         endpoint=reverse("contacts.contactfield_menu"),
