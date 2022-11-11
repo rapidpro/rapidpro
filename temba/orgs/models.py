@@ -526,25 +526,27 @@ class Org(SmartModel):
 
             return unique_slug
 
+    @classmethod
+    def get_new_org_plan(cls, branding, parent=None):
+        plan = branding.get("default_plan", settings.DEFAULT_PLAN)
+
+        if parent:
+            # if parent is on topups keep using those
+            if parent.plan == settings.TOPUP_PLAN:
+                plan = settings.TOPUP_PLAN
+
+            # shared usage always uses the workspace plan
+            if parent.has_shared_usage():
+                plan = settings.WORKSPACE_PLAN
+
+        return plan
+
     def create_child(self, user, name: str, timezone, date_format: str):
         """
         Creates a new child workspace with this as its parent
         """
         assert self.is_multi_org, "only multi-org enabled orgs can create children"
         assert not self.parent_id, "child orgs can't create children"
-
-        # generate a unique slug
-        slug = Org.get_unique_slug(name)
-
-        plan = self.branding.get("default_plan", settings.DEFAULT_PLAN)
-
-        # if parent is on topups keep using those
-        if self.plan == settings.TOPUP_PLAN:
-            plan = settings.TOPUP_PLAN
-
-        # shared usage always uses the workspace plan
-        if self.has_shared_usage():
-            plan = settings.WORKSPACE_PLAN
 
         org = Org.objects.create(
             name=name,
@@ -554,10 +556,10 @@ class Org(SmartModel):
             flow_languages=self.flow_languages,
             brand=self.brand,
             parent=self,
-            slug=slug,
+            slug=self.get_unique_slug(name),
             created_by=user,
             modified_by=user,
-            plan=plan,
+            plan=self.get_new_org_plan(self.branding, parent=self),
             is_multi_user=self.is_multi_user,
             is_multi_org=False,
         )
