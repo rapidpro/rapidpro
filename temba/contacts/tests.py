@@ -5605,7 +5605,7 @@ class ContactImportTest(TembaTest):
         with patch("pyexcel.iget_array") as mock_iget_array:
             mock_iget_array.side_effect = xlrd.XLRDError("error")
             with self.assertRaisesRegexp(
-                ValidationError, r"Import file appear so to be corrupted. Try saving is as .xlsx and try again."
+                ValidationError, r"Import file appears to be corrupted. Please save again in Excel and try again."
             ):
                 try_to_parse("simple.csv")
 

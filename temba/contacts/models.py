@@ -2069,7 +2069,7 @@ class ContactImport(SmartModel):
         try:
             data = pyexcel.iget_array(file_stream=file, file_type=file_type)
         except xlrd.XLRDError:
-            raise ValidationError(_("Import file appear so to be corrupted. Try saving is as .xlsx and try again."))
+            raise ValidationError(_("Import file appears to be corrupted. Please save again in Excel and try again."))
 
         try:
             headers = [str(h).strip() for h in next(data)]
