@@ -1928,7 +1928,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         msg1_url = reverse("channels.channellog_msg", args=[self.channel.uuid, msg1.id])
 
         self.assertListFetch(
-            msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log2, log1]
+            msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log1, log2]
         )
 
     def test_call(self):
@@ -1962,7 +1962,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         call1_url = reverse("channels.channellog_call", args=[self.channel.uuid, call1.id])
 
         self.assertListFetch(
-            call1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log2, log1]
+            call1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log1, log2]
         )
 
     def test_read_and_list(self):
