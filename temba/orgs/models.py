@@ -568,19 +568,6 @@ class Org(SmartModel):
         org.initialize(branding=org.branding)
         return org
 
-    def promote(self):  # pragma: no cover
-        """
-        Promotes a child org to be the parent of its family of workspaces
-        """
-        assert self.parent, "can only promote a child org"
-
-        self.parent.children.exclude(id=self.id).update(parent=self)
-        self.parent.parent = self
-        self.parent.save(update_fields=("parent",))
-
-        self.parent = None
-        self.save(update_fields=("parent",))
-
     @cached_property
     def branding(self):
         return brands.get_by_slug(self.brand)
