@@ -48,19 +48,3 @@ if settings.DEBUG:
 # import any additional urls
 for app in settings.APP_URLS:  # pragma: needs cover
     urlpatterns.append(re_path(r"^", include(app)))
-
-
-def handler500(request):
-    """
-    500 error handler which includes ``request`` in the context.
-
-    Templates: `500.html`
-    Context: None
-    """
-    from sentry_sdk import last_event_id
-
-    from django.http import HttpResponseServerError
-    from django.template import loader
-
-    t = loader.get_template("500.html")
-    return HttpResponseServerError(t.render({"request": request, "sentry_id": last_event_id()}))  # pragma: needs cover

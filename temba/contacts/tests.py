@@ -8,6 +8,7 @@ from uuid import UUID
 
 import iso8601
 import pytz
+import xlrd
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -5600,6 +5601,13 @@ class ContactImportTest(TembaTest):
         with patch("temba.contacts.models.ContactImport.MAX_RECORDS", 2):
             with self.assertRaisesRegexp(ValidationError, r"Import files can contain a maximum of 2 records\."):
                 try_to_parse("simple.xlsx")
+
+        with patch("pyexcel.iget_array") as mock_iget_array:
+            mock_iget_array.side_effect = xlrd.XLRDError("error")
+            with self.assertRaisesRegexp(
+                ValidationError, r"Import file appears to be corrupted. Please save again in Excel and try again."
+            ):
+                try_to_parse("simple.csv")
 
         bad_files = [
             ("empty.csv", "Import file doesn't contain any records."),

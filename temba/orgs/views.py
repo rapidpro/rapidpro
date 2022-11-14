@@ -3109,9 +3109,9 @@ class OrgCRUDL(SmartCRUDL):
 
             obj.created_by = self.user
             obj.modified_by = self.user
-            obj.brand = self.request.branding.get("brand", settings.DEFAULT_BRAND)
+            obj.brand = self.request.branding["slug"]
             obj.language = brand_language
-            obj.plan = self.request.branding.get("default_plan", settings.DEFAULT_PLAN)
+            obj.plan = Org.get_new_org_plan(self.request.branding)
 
             if obj.timezone.zone in pytz.country_timezones("US"):
                 obj.date_format = Org.DATE_FORMAT_MONTH_FIRST

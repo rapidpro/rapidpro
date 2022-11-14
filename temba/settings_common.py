@@ -3,27 +3,10 @@ import sys
 from datetime import timedelta
 
 import iptools
-import sentry_sdk
-from sentry_sdk.integrations.celery import CeleryIntegration
-from sentry_sdk.integrations.django import DjangoIntegration
-from sentry_sdk.integrations.logging import LoggingIntegration, ignore_logger
 
 from django.utils.translation import gettext_lazy as _
 
 from celery.schedules import crontab
-
-SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
-
-
-if SENTRY_DSN:  # pragma: no cover
-    sentry_sdk.init(
-        dsn=SENTRY_DSN,
-        integrations=[DjangoIntegration(), CeleryIntegration(), LoggingIntegration()],
-        send_default_pii=True,
-        traces_sample_rate=0,
-    )
-    ignore_logger("django.security.DisallowedHost")
-
 
 # -----------------------------------------------------------------------------------
 # Default to debugging
