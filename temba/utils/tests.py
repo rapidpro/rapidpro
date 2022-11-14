@@ -7,14 +7,13 @@ from decimal import Decimal
 from unittest.mock import patch
 
 import pytz
+from celery.app.task import Task
 
 from django.conf import settings
 from django.forms import ValidationError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone, translation
-
-from celery.app.task import Task
 
 from temba.campaigns.models import Campaign
 from temba.flows.models import Flow

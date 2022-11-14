@@ -1,8 +1,8 @@
 import logging
 
-from django.db.models import Prefetch
-
 from celery import shared_task
+
+from django.db.models import Prefetch
 
 from temba.contacts.models import ContactField, ContactGroup
 from temba.utils import analytics
