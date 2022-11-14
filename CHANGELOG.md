@@ -1,3 +1,7 @@
+v7.5.105
+----------
+ * Display channel logs with earliest at top
+
 v7.5.104
 ----------
  * Remove customized 500 handler
