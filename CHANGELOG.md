@@ -1,3 +1,7 @@
+v7.5.106
+----------
+ * Tweak flow label flatten migration to not allow new names to exceed 64 chars
+
 v7.5.105
 ----------
  * Display channel logs with earliest at top
