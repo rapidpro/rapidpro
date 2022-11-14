@@ -1,3 +1,7 @@
+v7.5.107
+----------
+ * Treat parent and workspace plans as equivalent
+
 v7.5.106
 ----------
  * Tweak flow label flatten migration to not allow new names to exceed 64 chars
