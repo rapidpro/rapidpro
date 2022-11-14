@@ -1,3 +1,11 @@
+v7.5.104
+----------
+ * Remove customized 500 handler
+ * Remove sentry support
+ * Data migration to flatten flow labels
+ * Fix choice of brand for new orgs and move plan selection to classmethod
+ * Catch CSV corrupted errors
+
 v7.5.103
 ----------
  * Some people don't care for icon constants
