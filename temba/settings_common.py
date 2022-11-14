@@ -277,6 +277,7 @@ LOGGING = {
 # the name of our topup plan
 TOPUP_PLAN = "topups"
 WORKSPACE_PLAN = "workspace"
+PARENT_PLAN = "parent"
 
 # Default plan for new orgs
 DEFAULT_PLAN = TOPUP_PLAN
