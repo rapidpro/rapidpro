@@ -537,7 +537,7 @@ class Org(SmartModel):
 
             # shared usage always uses the workspace plan
             if parent.has_shared_usage():
-                plan = settings.WORKSPACE_PLAN
+                plan = settings.PARENT_PLAN
 
         return plan
 
@@ -1572,7 +1572,7 @@ class OrgActivity(models.Model):
             Org.objects.exclude(plan_end=None)
             .exclude(plan_start=None)
             .exclude(plan_end__lt=start)
-            .exclude(plan__in=(settings.PARENT_PLAN, settings.WORKSPACE_PLAN))
+            .exclude(plan=settings.PARENT_PLAN)
             .only("plan_start", "plan_end")
         ):
             plan_end = parent.plan_end if parent.plan_end < end else end
