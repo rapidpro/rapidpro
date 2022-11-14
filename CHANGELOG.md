@@ -1,3 +1,9 @@
+v7.5.108
+----------
+ * Tweak how get_new_org_plan is called
+ * Move isort config to pyproject
+ * Remove no longer used workspace plan
+
 v7.5.107
 ----------
  * Treat parent and workspace plans as equivalent
