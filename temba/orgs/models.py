@@ -553,9 +553,6 @@ class Org(SmartModel):
     def get_brand_domain(self):
         return self.branding["domain"]
 
-    def has_shared_usage(self):
-        return self.plan in self.branding.get("shared_plans", [])
-
     def get_integrations(self, category: IntegrationType.Category) -> list:
         """
         Returns the connected integrations on this org of the given category
