@@ -67,7 +67,7 @@ class TembaTestMixin:
         self.org = Org.objects.create(
             name="Nyaruka",
             timezone=pytz.timezone("Africa/Kigali"),
-            brand=settings.DEFAULT_BRAND,
+            brand="rapidpro",
             created_by=self.user,
             modified_by=self.user,
         )

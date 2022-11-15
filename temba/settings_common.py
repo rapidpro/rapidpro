@@ -273,12 +273,7 @@ LOGGING = {
     },
 }
 
-# the name of our topup plan
-TOPUP_PLAN = "topups"
 PARENT_PLAN = "parent"
-
-# Default plan for new orgs
-DEFAULT_PLAN = TOPUP_PLAN
 
 # -----------------------------------------------------------------------------------
 # Branding Configuration
@@ -292,7 +287,6 @@ BRANDS = [
         "domain": "app.rapidpro.io",
         "colors": dict(primary="#0c6596"),
         "styles": ["brands/rapidpro/font/style.css"],
-        "default_plan": TOPUP_PLAN,
         "email": "join@rapidpro.io",
         "support_email": "support@rapidpro.io",
         "link": "https://app.rapidpro.io",
