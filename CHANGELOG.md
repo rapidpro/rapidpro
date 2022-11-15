@@ -1,3 +1,7 @@
+v7.5.109
+----------
+ * Remove logic for which plan to use for a new org
+
 v7.5.108
 ----------
  * Tweak how get_new_org_plan is called
