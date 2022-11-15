@@ -58,7 +58,6 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.settings_common import WORKSPACE_PLAN
 from temba.utils import analytics, brands, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address, send_template_email
 from temba.utils.fields import (
@@ -1334,7 +1333,9 @@ class OrgCRUDL(SmartCRUDL):
 
                     menu.append(self.create_menu_item(name=_("Archives"), items=items, inline=True))
 
-                child_orgs = Org.objects.filter(parent=self.org, is_active=True, plan=WORKSPACE_PLAN).order_by("name")
+                child_orgs = Org.objects.filter(parent=self.org, is_active=True, plan=settings.PARENT_PLAN).order_by(
+                    "name"
+                )
 
                 if child_orgs:
                     menu.append(self.create_section(_("Workspaces")))
@@ -3401,7 +3402,7 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             org = self.request.org
 
-            if not (org.parent and org.plan == settings.WORKSPACE_PLAN):
+            if not (org.parent and org.plan == settings.PARENT_PLAN):
                 if self.has_org_perm("orgs.org_plan"):
                     formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
 

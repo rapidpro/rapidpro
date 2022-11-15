@@ -3,11 +3,10 @@ import re
 import time
 
 import requests
+from celery import shared_task
 from django_redis import get_redis_connection
 
 from django.utils import timezone
-
-from celery import shared_task
 
 from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactURN

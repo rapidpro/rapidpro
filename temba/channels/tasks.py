@@ -2,12 +2,11 @@ import logging
 from datetime import timedelta
 
 import pytz
+from celery import shared_task
 
 from django.conf import settings
 from django.db.models import Count, Sum
 from django.utils import timezone
-
-from celery import shared_task
 
 from temba import mailroom
 from temba.orgs.models import Org

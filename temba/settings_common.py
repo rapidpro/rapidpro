@@ -3,10 +3,9 @@ import sys
 from datetime import timedelta
 
 import iptools
+from celery.schedules import crontab
 
 from django.utils.translation import gettext_lazy as _
-
-from celery.schedules import crontab
 
 # -----------------------------------------------------------------------------------
 # Default to debugging
@@ -274,12 +273,7 @@ LOGGING = {
     },
 }
 
-# the name of our topup plan
-TOPUP_PLAN = "topups"
-WORKSPACE_PLAN = "workspace"
-
-# Default plan for new orgs
-DEFAULT_PLAN = TOPUP_PLAN
+PARENT_PLAN = "parent"
 
 # -----------------------------------------------------------------------------------
 # Branding Configuration
@@ -293,7 +287,6 @@ BRANDS = [
         "domain": "app.rapidpro.io",
         "colors": dict(primary="#0c6596"),
         "styles": ["brands/rapidpro/font/style.css"],
-        "default_plan": TOPUP_PLAN,
         "email": "join@rapidpro.io",
         "support_email": "support@rapidpro.io",
         "link": "https://app.rapidpro.io",

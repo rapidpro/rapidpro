@@ -14,7 +14,7 @@ def flatten_flow_labels(apps, schema_editor):
         for child in label.children.all():
             label.flows.add(*child.flows.all())
 
-            child.name = f"{label.name} > {child.name}"
+            child.name = f"{label.name} > {child.name}"[:64]
             child.save(update_fields=("name",))
             num_children += 1
 

@@ -1,3 +1,33 @@
+v7.5.109
+----------
+ * Remove logic for which plan to use for a new org
+
+v7.5.108
+----------
+ * Tweak how get_new_org_plan is called
+ * Move isort config to pyproject
+ * Remove no longer used workspace plan
+
+v7.5.107
+----------
+ * Treat parent and workspace plans as equivalent
+
+v7.5.106
+----------
+ * Tweak flow label flatten migration to not allow new names to exceed 64 chars
+
+v7.5.105
+----------
+ * Display channel logs with earliest at top
+
+v7.5.104
+----------
+ * Remove customized 500 handler
+ * Remove sentry support
+ * Data migration to flatten flow labels
+ * Fix choice of brand for new orgs and move plan selection to classmethod
+ * Catch CSV corrupted errors
+
 v7.5.103
 ----------
  * Some people don't care for icon constants

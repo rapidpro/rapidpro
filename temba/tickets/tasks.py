@@ -1,6 +1,6 @@
-from django.db.models import Prefetch
-
 from celery import shared_task
+
+from django.db.models import Prefetch
 
 from temba.contacts.models import ContactField, ContactGroup
 from temba.utils.celery import nonoverlapping_task

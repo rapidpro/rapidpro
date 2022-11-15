@@ -1,9 +1,9 @@
 import logging
 from datetime import timedelta
 
-from django.utils import timezone
-
 from celery import shared_task
+
+from django.utils import timezone
 
 from temba.contacts.models import URN, ContactURN, ExportContactsTask
 from temba.contacts.tasks import export_contacts_task

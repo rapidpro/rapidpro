@@ -2,14 +2,13 @@ import logging
 from datetime import datetime, timedelta
 
 import pytz
+from celery import shared_task
 from django_redis import get_redis_connection
 
 from django.conf import settings
 from django.db.models import F, Prefetch
 from django.utils import timezone
 from django.utils.timesince import timesince
-
-from celery import shared_task
 
 from temba.contacts.models import ContactField, ContactGroup
 from temba.utils import chunk_list

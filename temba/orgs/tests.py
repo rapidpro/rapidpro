@@ -2950,7 +2950,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             timezone=pytz.timezone("Africa/Kigali"),
             country=self.org.country,
             brand=settings.DEFAULT_BRAND,
-            plan=settings.WORKSPACE_PLAN,
+            plan=settings.PARENT_PLAN,
             created_by=self.user,
             modified_by=self.user,
             parent=self.org,
@@ -4678,7 +4678,8 @@ class OrgActivityTest(TembaTest):
         self.org.save(update_fields=("plan", "is_multi_org"))
 
         workspace = self.org.create_child(self.admin, "Workspace", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
-        self.assertEqual(workspace.plan, settings.WORKSPACE_PLAN)
+        workspace.plan = settings.PARENT_PLAN
+        workspace.save(update_fields=("plan",))
 
         mark = self.create_contact("Mark S", phone="+12065551212", org=workspace)
         self.create_incoming_msg(mark, "I'm feeling uneasy")

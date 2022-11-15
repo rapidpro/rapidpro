@@ -1,8 +1,7 @@
 from functools import wraps
 
-from django_redis import get_redis_connection
-
 from celery import shared_task
+from django_redis import get_redis_connection
 
 # for tasks using a redis lock to prevent overlapping this is the default timeout for the lock
 DEFAULT_TASK_LOCK_TIMEOUT = 900
