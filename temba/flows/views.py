@@ -748,12 +748,12 @@ class FlowCRUDL(SmartCRUDL):
             labels = []
             for label in self.request.org.flow_labels.order_by("name"):
                 labels.append(
-                    dict(
-                        id=label.id,
-                        uuid=label.uuid,
-                        name=label.name,
-                        count=label.get_flow_count(),
-                    )
+                    {
+                        "id": label.id,
+                        "uuid": label.uuid,
+                        "name": label.name,
+                        "count": label.get_flow_count(),
+                    }
                 )
             return labels
 
@@ -898,19 +898,9 @@ class FlowCRUDL(SmartCRUDL):
         def label(self):
             return FlowLabel.objects.get(uuid=self.kwargs["label_uuid"], org=self.request.org)
 
-        def get_label_filter(self):
-            children = self.label.children.all()
-            if children:  # pragma: needs cover
-                return [lb for lb in FlowLabel.objects.filter(parent=self.label)] + [self.label]
-            else:
-                return [self.label]
-
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            qs = qs.filter(org=self.request.org).order_by("-created_on")
-            qs = qs.filter(labels__in=self.get_label_filter(), is_archived=False).distinct()
-
-            return qs
+            return qs.filter(org=self.request.org, labels=self.label, is_archived=False).order_by("-created_on")
 
     class Editor(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
@@ -1951,7 +1941,7 @@ class FlowLabelForm(forms.ModelForm):
 
     def clean_name(self):
         name = self.cleaned_data["name"].strip()
-        if self.org.flows_labels.filter(name=name).exclude(id=self.instance.id).exists():
+        if self.org.flow_labels.filter(name=name).exclude(id=self.instance.id).exists():
             raise ValidationError(_("Must be unique."))
         return name
 

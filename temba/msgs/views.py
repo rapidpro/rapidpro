@@ -124,12 +124,7 @@ class MsgListView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Sm
 
         context["org"] = org
         context["folders"] = folders
-
-        context["labels_flat"] = (
-            Label.get_active_for_org(org).exclude(label_type=Label.TYPE_FOLDER).order_by(Lower("name"))
-        )
-
-        context["labels"] = Label.get_hierarchy(org)
+        context["labels"] = Label.get_active_for_org(org).order_by(Lower("name"))
         context["has_messages"] = (
             any(counts.values()) or Archive.objects.filter(org=org, archive_type=Archive.TYPE_MSG).exists()
         )
@@ -534,7 +529,7 @@ class MsgCRUDL(SmartCRUDL):
             counts = SystemLabel.get_counts(org)
 
             if self.request.GET.get("labels"):
-                labels = Label.get_active_for_org(org).exclude(label_type=Label.TYPE_FOLDER).order_by(Lower("name"))
+                labels = Label.get_active_for_org(org).order_by(Lower("name"))
                 label_counts = LabelCount.get_totals([lb for lb in labels])
 
                 menu = []
@@ -857,9 +852,11 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            qs = self.label.filter_messages(qs).filter(visibility=Msg.VISIBILITY_VISIBLE)
-
-            return qs.prefetch_related("labels").select_related("contact", "channel")
+            return (
+                qs.filter(labels=self.label, visibility=Msg.VISIBILITY_VISIBLE)
+                .prefetch_related("labels")
+                .select_related("contact", "channel")
+            )
 
 
 class BaseLabelForm(forms.ModelForm):
@@ -895,27 +892,13 @@ class BaseLabelForm(forms.ModelForm):
 
 
 class LabelForm(BaseLabelForm):
-    folder = forms.ModelChoiceField(
-        Label.objects.none(),
-        required=False,
-        label=_("Folder"),
-        widget=SelectWidget(attrs={"placeholder": _("Select folder")}),
-        help_text=_("Optional folder which can be used to group related labels."),
-    )
-
     messages = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, org, *args, **kwargs):
         super().__init__(org, *args, **kwargs)
 
-        self.fields["folder"].queryset = Label.get_active_for_org(self.org).filter(label_type=Label.TYPE_FOLDER)
-
     class Meta(BaseLabelForm.Meta):
-        fields = ("name", "folder")
-
-
-class FolderForm(BaseLabelForm):
-    pass
+        fields = ("name",)
 
 
 class LabelCRUDL(SmartCRUDL):
@@ -927,7 +910,7 @@ class LabelCRUDL(SmartCRUDL):
         default_order = ("name",)
 
         def derive_queryset(self, **kwargs):
-            return Label.get_active_for_org(self.request.org).exclude(label_type=Label.TYPE_FOLDER)
+            return Label.get_active_for_org(self.request.org)
 
         def render_to_response(self, context, **response_kwargs):
             results = [{"id": str(lb.uuid), "text": lb.name} for lb in context["object_list"]]
@@ -959,28 +942,16 @@ class LabelCRUDL(SmartCRUDL):
             return obj
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+        form = LabelForm
+
         success_url = "uuid@msgs.msg_filter"
         success_message = ""
+        title = _("Update Label")
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.request.org
             return kwargs
-
-        def get_form_class(self):
-            return FolderForm if self.get_object().is_folder() else LabelForm
-
-        def derive_title(self):
-            return _("Update Folder") if self.get_object().is_folder() else _("Update Label")
-
-        def derive_fields(self):
-            obj = self.get_object()
-
-            # only show folder field for labels which already have a folder
-            if obj.is_folder() or not obj.folder:
-                return ("name",)
-            else:
-                return ("name", "folder")
 
     class Usages(DependencyUsagesModal):
         permission = "msgs.label_read"

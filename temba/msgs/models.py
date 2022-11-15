@@ -1041,11 +1041,13 @@ class Label(TembaModel, DependencyMixin):
     TYPE_LABEL = "L"
     TYPE_CHOICES = ((TYPE_FOLDER, "Folder of labels"), (TYPE_LABEL, "Regular label"))
 
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs_labels")
-    folder = models.ForeignKey("Label", on_delete=models.PROTECT, null=True, related_name="children")
-    label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_LABEL)
-
     org_limit_key = Org.LIMIT_LABELS
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs_labels")
+
+    # TODO drop
+    label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_LABEL)
+    folder = models.ForeignKey("Label", on_delete=models.PROTECT, null=True, related_name="children")
 
     @classmethod
     def create(cls, org, user, name: str):
@@ -1058,48 +1060,13 @@ class Label(TembaModel, DependencyMixin):
     def create_from_import_def(cls, org, user, definition: dict):
         return cls.create(org, user, definition["name"])
 
-    @classmethod
-    def get_hierarchy(cls, org):
-        """
-        Gets labels and folders organized into their hierarchy and with their message counts
-        """
-
-        labels_and_folders = list(Label.get_active_for_org(org).order_by(Lower("name")))
-        label_counts = LabelCount.get_totals([lb for lb in labels_and_folders if not lb.is_folder()])
-
-        folder_nodes = {}
-        all_nodes = []
-        for obj in labels_and_folders:
-            node = {"obj": obj, "count": label_counts.get(obj), "children": []}
-            all_nodes.append(node)
-
-            if obj.is_folder():
-                folder_nodes[obj.id] = node
-
-        top_nodes = []
-        for node in all_nodes:
-            if node["obj"].folder_id is None:
-                top_nodes.append(node)
-            else:
-                folder_nodes[node["obj"].folder_id]["children"].append(node)
-
-        return top_nodes
-
-    def filter_messages(self, queryset):
-        if self.is_folder():
-            return queryset.filter(labels__in=self.children.all()).distinct()
-
-        return queryset.filter(labels=self)
-
     def get_messages(self):
-        # TODO: consider purpose built indexes
-        return self.filter_messages(Msg.objects.all())
+        return self.msgs.all()
 
     def get_visible_count(self):
         """
         Returns the count of visible, non-test message tagged with this label
         """
-        assert not self.is_folder()
 
         return LabelCount.get_totals([self])[self]
 
@@ -1107,8 +1074,6 @@ class Label(TembaModel, DependencyMixin):
         """
         Adds or removes this label from the given messages
         """
-
-        assert not self.is_folder(), "can't assign messages to label folders"
 
         changed = set()
 
@@ -1132,20 +1097,11 @@ class Label(TembaModel, DependencyMixin):
 
         return changed
 
-    def has_child_labels(self):
-        return self.children.filter(is_active=True).exists()
-
-    def is_folder(self):
-        return self.label_type == Label.TYPE_FOLDER
-
     def release(self, user):
-        assert not self.has_child_labels(), "can't release non-empty label folder"
+        super().release(user)  # releases flow dependencies
 
-        if not self.is_folder():
-            super().release(user)  # releases flow dependencies
-
-            # delete labellings of messages with this label (not the actual messages)
-            Msg.labels.through.objects.filter(label=self).delete()
+        # delete labellings of messages with this label (not the actual messages)
+        Msg.labels.through.objects.filter(label=self).delete()
 
         self.counts.all().delete()
 
@@ -1155,8 +1111,6 @@ class Label(TembaModel, DependencyMixin):
         self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
 
     def __str__(self):
-        if self.folder:
-            return "%s > %s" % (str(self.folder), self.name)
         return self.name
 
     class Meta:
