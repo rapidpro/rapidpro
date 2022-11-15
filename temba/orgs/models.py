@@ -409,11 +409,8 @@ class Org(SmartModel):
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     name = models.CharField(verbose_name=_("Name"), max_length=128)
-    plan = models.CharField(
-        verbose_name=_("Plan"),
-        max_length=16,
-        default=settings.DEFAULT_PLAN,
-    )
+    brand = models.CharField(max_length=128, default="rapidpro", verbose_name=_("Brand"))
+    plan = models.CharField(verbose_name=_("Plan"), max_length=16, default="rapidpro")
     plan_start = models.DateTimeField(null=True)
     plan_end = models.DateTimeField(null=True)
 
@@ -490,12 +487,6 @@ class Org(SmartModel):
 
     flow_languages = ArrayField(models.CharField(max_length=3), default=list)
 
-    brand = models.CharField(
-        max_length=128,
-        default=settings.DEFAULT_BRAND,
-        verbose_name=_("Brand"),
-    )
-
     surveyor_password = models.CharField(
         null=True, max_length=128, default=None, help_text=_("A password that allows users to register as surveyors")
     )
@@ -528,18 +519,7 @@ class Org(SmartModel):
 
     @classmethod
     def get_new_org_plan(cls, branding, parent=None):
-        plan = branding.get("default_plan", settings.DEFAULT_PLAN)
-
-        if parent:
-            # if parent is on topups keep using those
-            if parent.plan == settings.TOPUP_PLAN:
-                plan = settings.TOPUP_PLAN
-
-            # shared usage always uses the workspace plan
-            if parent.has_shared_usage():
-                plan = settings.PARENT_PLAN
-
-        return plan
+        return "rapidpro"
 
     def create_child(self, user, name: str, timezone, date_format: str):
         """
