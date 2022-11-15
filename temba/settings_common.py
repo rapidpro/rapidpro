@@ -273,8 +273,6 @@ LOGGING = {
     },
 }
 
-PARENT_PLAN = "parent"
-
 # -----------------------------------------------------------------------------------
 # Branding Configuration
 # -----------------------------------------------------------------------------------
@@ -890,7 +888,6 @@ CELERY_BEAT_SCHEDULE = {
     "trim-http-logs": {"task": "trim_http_logs_task", "schedule": crontab(hour=3, minute=0)},
     "trim-sync-events": {"task": "trim_sync_events_task", "schedule": crontab(hour=3, minute=0)},
     "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
-    "update-org-activity": {"task": "update_org_activity_task", "schedule": crontab(hour=3, minute=5)},
 }
 
 # -----------------------------------------------------------------------------------

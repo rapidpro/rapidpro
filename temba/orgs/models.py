@@ -3,13 +3,11 @@ import logging
 import os
 from abc import ABCMeta
 from collections import defaultdict
-from datetime import timedelta
 from enum import Enum
 from urllib.parse import quote, urlencode, urlparse
 
 import pycountry
 import pyotp
-import pytz
 from packaging.version import Version
 from smartmin.models import SmartModel
 from timezone_field import TimeZoneField
@@ -19,7 +17,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User as AuthUser
 from django.contrib.postgres.fields import ArrayField
 from django.db import models, transaction
-from django.db.models import Count, Prefetch
+from django.db.models import Prefetch
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import slugify
@@ -1479,109 +1477,3 @@ class BackupToken(models.Model):
 
     def __str__(self):
         return self.token
-
-
-class OrgActivity(models.Model):
-    """
-    Tracks various metrics for an organization on a daily basis:
-       * total # of contacts
-       * total # of active contacts (that sent or received a message)
-       * total # of messages sent
-       * total # of message received
-       * total # of active contacts in plan period up to that date (if there is one)
-    """
-
-    # the org this contact activity is being tracked for
-    org = models.ForeignKey("orgs.Org", related_name="contact_activity", on_delete=models.CASCADE)
-
-    # the day this activity was tracked for
-    day = models.DateField()
-
-    # the total number of contacts on this day
-    contact_count = models.IntegerField(default=0)
-
-    # the number of active contacts on this day
-    active_contact_count = models.IntegerField(default=0)
-
-    # the number of messages sent on this day
-    outgoing_count = models.IntegerField(default=0)
-
-    # the number of messages received on this day
-    incoming_count = models.IntegerField(default=0)
-
-    # the number of active contacts in the plan period (if they are on a plan)
-    plan_active_contact_count = models.IntegerField(null=True)
-
-    @classmethod
-    def update_day(cls, now):
-        """
-        Updates our org activity for the passed in day.
-        """
-        from temba.msgs.models import Msg
-
-        # truncate to midnight the same day in UTC
-        end = pytz.utc.normalize(now.astimezone(pytz.utc)).replace(hour=0, minute=0, second=0, microsecond=0)
-        start = end - timedelta(days=1)
-
-        # first get all our contact counts
-        contact_counts = Org.objects.filter(
-            is_active=True, contacts__is_active=True, contacts__created_on__lt=end
-        ).annotate(contact_count=Count("contacts"))
-
-        # then get active contacts
-        active_counts = Org.objects.filter(
-            is_active=True, msgs__created_on__gte=start, msgs__created_on__lt=end
-        ).annotate(contact_count=Count("msgs__contact_id", distinct=True))
-        active_counts = {o.id: o.contact_count for o in active_counts}
-
-        # number of received msgs
-        incoming_count = Org.objects.filter(
-            is_active=True, msgs__created_on__gte=start, msgs__created_on__lt=end, msgs__direction="I"
-        ).annotate(msg_count=Count("id"))
-        incoming_count = {o.id: o.msg_count for o in incoming_count}
-
-        # number of sent messages
-        outgoing_count = Org.objects.filter(
-            is_active=True, msgs__created_on__gte=start, msgs__created_on__lt=end, msgs__direction="O"
-        ).annotate(msg_count=Count("id"))
-        outgoing_count = {o.id: o.msg_count for o in outgoing_count}
-
-        # calculate active count in plan period for orgs with an active plan
-        plan_active_contact_counts = dict()
-        for parent in (
-            Org.objects.exclude(plan_end=None)
-            .exclude(plan_start=None)
-            .exclude(plan_end__lt=start)
-            .exclude(plan=settings.PARENT_PLAN)
-            .only("plan_start", "plan_end")
-        ):
-            plan_end = parent.plan_end if parent.plan_end < end else end
-            orgs = [parent]
-
-            # find our shared usage and collect their stats too
-            if parent.has_shared_usage():
-                for child_org in Org.objects.filter(parent=parent, is_active=True):
-                    orgs.append(child_org)
-
-            for org in orgs:
-                count = (
-                    Msg.objects.filter(org=org, created_on__gt=parent.plan_start, created_on__lt=plan_end)
-                    .only("contact")
-                    .distinct("contact")
-                    .count()
-                )
-                plan_active_contact_counts[org.id] = count
-
-        for org in contact_counts:
-            OrgActivity.objects.update_or_create(
-                org=org,
-                day=start,
-                contact_count=org.contact_count,
-                active_contact_count=active_counts.get(org.id, 0),
-                incoming_count=incoming_count.get(org.id, 0),
-                outgoing_count=outgoing_count.get(org.id, 0),
-                plan_active_contact_count=plan_active_contact_counts.get(org.id),
-            )
-
-    class Meta:
-        unique_together = ("org", "day")
