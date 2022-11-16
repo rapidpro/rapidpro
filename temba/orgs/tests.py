@@ -60,8 +60,8 @@ from temba.triggers.models import Trigger
 from temba.utils import json, languages
 
 from .context_processors import RolePermsWrapper
-from .models import BackupToken, Invitation, Org, OrgActivity, OrgMembership, OrgRole, User
-from .tasks import delete_orgs_task, resume_failed_tasks, update_org_activity
+from .models import BackupToken, Invitation, Org, OrgMembership, OrgRole, User
+from .tasks import delete_orgs_task, resume_failed_tasks
 
 
 class OrgRoleTest(TembaTest):
@@ -2949,8 +2949,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             name="Child Org",
             timezone=pytz.timezone("Africa/Kigali"),
             country=self.org.country,
-            brand=settings.DEFAULT_BRAND,
-            plan=settings.PARENT_PLAN,
+            plan="parent",
             created_by=self.user,
             modified_by=self.user,
             parent=self.org,
@@ -4665,76 +4664,6 @@ class BulkExportTest(TembaTest):
         # even with the archived flag one deleted flows should not show up
         response = self.client.get("%s?archived=1" % reverse("orgs.org_export"))
         self.assertNotContains(response, "Register Patient")
-
-
-class OrgActivityTest(TembaTest):
-    def test_get_dependencies(self):
-        now = timezone.now()
-
-        # give us a shared plan
-        settings.BRANDS[0]["shared_plans"] = ["my_shared_plan"]
-        self.org.plan = "my_shared_plan"
-        self.org.is_multi_org = True
-        self.org.save(update_fields=("plan", "is_multi_org"))
-
-        workspace = self.org.create_child(self.admin, "Workspace", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
-        workspace.plan = settings.PARENT_PLAN
-        workspace.save(update_fields=("plan",))
-
-        mark = self.create_contact("Mark S", phone="+12065551212", org=workspace)
-        self.create_incoming_msg(mark, "I'm feeling uneasy")
-        self.create_outgoing_msg(mark, "Please try to enjoy each text equally.")
-
-        # create a few contacts
-        self.create_contact("Marshawn", phone="+14255551212")
-        russell = self.create_contact("Marshawn", phone="+14255551313")
-
-        # create some messages for russel
-        self.create_incoming_msg(russell, "hut")
-        self.create_incoming_msg(russell, "10-2")
-        self.create_outgoing_msg(russell, "first down")
-
-        # calculate our org activity, should get nothing because we aren't tomorrow yet
-        update_org_activity(now)
-        self.assertEqual(0, OrgActivity.objects.all().count())
-
-        # ok, calculate based on a now of tomorrow, will calculate today's stats
-        update_org_activity(now + timedelta(days=1))
-
-        activity = OrgActivity.objects.get(org=self.org)
-        self.assertEqual(2, activity.contact_count)
-        self.assertEqual(1, activity.active_contact_count)
-        self.assertEqual(2, activity.incoming_count)
-        self.assertEqual(1, activity.outgoing_count)
-        self.assertIsNone(activity.plan_active_contact_count)
-
-        activity = OrgActivity.objects.get(org=workspace)
-        self.assertEqual(1, activity.contact_count)
-        self.assertEqual(1, activity.active_contact_count)
-        self.assertEqual(1, activity.incoming_count)
-        self.assertEqual(1, activity.outgoing_count)
-        self.assertIsNone(activity.plan_active_contact_count)
-
-        # set a plan start and plan end
-        OrgActivity.objects.all().delete()
-        self.org.plan_start = now
-        self.org.plan_end = now + timedelta(days=30)
-        self.org.save()
-
-        update_org_activity(now + timedelta(days=1))
-        activity = OrgActivity.objects.get(org=self.org)
-        self.assertEqual(2, activity.contact_count)
-        self.assertEqual(1, activity.active_contact_count)
-        self.assertEqual(2, activity.incoming_count)
-        self.assertEqual(1, activity.outgoing_count)
-        self.assertEqual(1, activity.plan_active_contact_count)
-
-        activity = OrgActivity.objects.get(org=workspace)
-        self.assertEqual(1, activity.contact_count)
-        self.assertEqual(1, activity.active_contact_count)
-        self.assertEqual(1, activity.incoming_count)
-        self.assertEqual(1, activity.outgoing_count)
-        self.assertEqual(1, activity.plan_active_contact_count)
 
 
 class BackupTokenTest(TembaTest):

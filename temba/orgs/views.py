@@ -1226,14 +1226,14 @@ class OrgCRUDL(SmartCRUDL):
             return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)
 
         def has_permission(self, request, *args, **kwargs):
+            self.org = self.request.org
+
             if self.request.user.is_staff:
                 return True
             return super().has_permission(request, *args, **kwargs)
 
         def derive_menu(self):
-
             submenu = self.kwargs.get("submenu")
-            self.org = self.derive_org()
 
             # how this menu is made up is a wip
             # TODO: remove pragma
@@ -1333,10 +1333,7 @@ class OrgCRUDL(SmartCRUDL):
 
                     menu.append(self.create_menu_item(name=_("Archives"), items=items, inline=True))
 
-                child_orgs = Org.objects.filter(parent=self.org, is_active=True, plan=settings.PARENT_PLAN).order_by(
-                    "name"
-                )
-
+                child_orgs = self.org.children.filter(is_active=True).order_by("name")
                 if child_orgs:
                     menu.append(self.create_section(_("Workspaces")))
 
@@ -1344,9 +1341,9 @@ class OrgCRUDL(SmartCRUDL):
                     menu.append(
                         self.create_menu_item(
                             name=child.name,
-                            menu_id=child.pk,
+                            menu_id=child.id,
                             icon="icon.workspace",
-                            href=f"{reverse('orgs.org_manage_accounts_sub_org')}?org={child.pk}",
+                            href=f"{reverse('orgs.org_manage_accounts_sub_org')}?org={child.id}",
                         )
                     )
 
@@ -3402,7 +3399,7 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             org = self.request.org
 
-            if not (org.parent and org.plan == settings.PARENT_PLAN):
+            if not (org.parent and org.plan == "parent"):
                 if self.has_org_perm("orgs.org_plan"):
                     formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
 
