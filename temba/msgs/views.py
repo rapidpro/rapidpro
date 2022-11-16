@@ -103,7 +103,7 @@ class MsgListView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Sm
 
         # if there isn't a search filtering the queryset, we can replace the count function with a pre-calculated value
         if "search" not in self.request.GET:
-            if isinstance(label, Label) and not label.is_folder():
+            if isinstance(label, Label):
                 patch_queryset_count(self.object_list, label.get_visible_count)
             elif isinstance(label, str):
                 patch_queryset_count(self.object_list, lambda: counts[label])
@@ -124,7 +124,7 @@ class MsgListView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Sm
 
         context["org"] = org
         context["folders"] = folders
-        context["labels"] = Label.get_active_for_org(org).order_by(Lower("name"))
+        context["labels"] = self.get_labels_with_counts(org)
         context["has_messages"] = (
             any(counts.values()) or Archive.objects.filter(org=org, archive_type=Archive.TYPE_MSG).exists()
         )
@@ -138,6 +138,13 @@ class MsgListView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Sm
             context["refresh"] = int(previous_refresh) + self.derive_refresh()
 
         return context
+
+    def get_labels_with_counts(self, org):
+        labels = Label.get_active_for_org(org).order_by(Lower("name"))
+        label_counts = LabelCount.get_totals([lb for lb in labels])
+        for label in labels:
+            label.count = label_counts[label]
+        return labels
 
     def build_content_menu(self, menu):
         if self.is_spa():
@@ -544,7 +551,7 @@ class MsgCRUDL(SmartCRUDL):
                     )
                 return menu
             else:
-                labels = Label.get_active_for_org(org).order_by("name")
+                labels = Label.get_active_for_org(org).order_by(Lower("name"))
 
                 menu = [
                     self.create_menu_item(
@@ -800,20 +807,12 @@ class MsgCRUDL(SmartCRUDL):
 
         def build_content_menu(self, menu):
             if self.has_org_perm("msgs.msg_update"):
-                if self.label.is_folder():
-                    menu.add_modax(
-                        _("Edit"),
-                        "update-folder",
-                        reverse("msgs.label_update", args=[self.label.id]),
-                        title="Edit Folder",
-                    )
-                else:
-                    menu.add_modax(
-                        _("Edit"),
-                        "update-label",
-                        reverse("msgs.label_update", args=[self.label.id]),
-                        title="Edit Label",
-                    )
+                menu.add_modax(
+                    _("Edit"),
+                    "update-label",
+                    reverse("msgs.label_update", args=[self.label.id]),
+                    title="Edit Label",
+                )
 
             if self.has_org_perm("msgs.msg_export"):
                 menu.add_modax(
@@ -822,22 +821,13 @@ class MsgCRUDL(SmartCRUDL):
 
             menu.add_modax(_("Usages"), "label-usages", reverse("msgs.label_usages", args=[self.label.uuid]))
 
-            if self.label.is_folder():
-                if self.has_org_perm("msgs.label_delete_folder"):
-                    menu.add_modax(
-                        _("Delete"),
-                        "delete-folder",
-                        reverse("msgs.label_delete_folder", args=[self.label.id]),
-                        title="Delete Folder",
-                    )
-            else:
-                if self.has_org_perm("msgs.label_delete"):
-                    menu.add_modax(
-                        _("Delete"),
-                        "delete-label",
-                        reverse("msgs.label_delete", args=[self.label.uuid]),
-                        title="Delete Label",
-                    )
+            if self.has_org_perm("msgs.label_delete"):
+                menu.add_modax(
+                    _("Delete"),
+                    "delete-label",
+                    reverse("msgs.label_delete", args=[self.label.uuid]),
+                    title="Delete Label",
+                )
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -903,7 +893,7 @@ class LabelForm(BaseLabelForm):
 
 class LabelCRUDL(SmartCRUDL):
     model = Label
-    actions = ("create", "update", "usages", "delete", "delete_folder", "list")
+    actions = ("create", "update", "usages", "delete", "list")
 
     class List(OrgPermsMixin, SmartListView):
         paginate_by = None
@@ -942,8 +932,7 @@ class LabelCRUDL(SmartCRUDL):
             return obj
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        form = LabelForm
-
+        form_class = LabelForm
         success_url = "uuid@msgs.msg_filter"
         success_message = ""
         title = _("Update Label")
@@ -960,26 +949,6 @@ class LabelCRUDL(SmartCRUDL):
         cancel_url = "@msgs.msg_inbox"
         success_url = "@msgs.msg_inbox"
         success_message = _("Your label has been deleted.")
-
-    class DeleteFolder(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-        success_url = "@msgs.msg_inbox"
-        redirect_url = "@msgs.msg_inbox"
-        cancel_url = "@msgs.msg_inbox"
-        success_message = _("Your label folder has been deleted.")
-        fields = ("uuid",)
-        submit_button_name = _("Delete")
-
-        def post(self, request, *args, **kwargs):
-            self.object = self.get_object()
-
-            # don't actually release if a label has been added
-            if self.object.has_child_labels():
-                return self.render_to_response(self.get_context_data())
-
-            self.object.release(self.request.user)
-            response = HttpResponse()
-            response["Temba-Success"] = self.get_success_url()
-            return response
 
 
 class MediaCRUDL(SmartCRUDL):

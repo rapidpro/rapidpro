@@ -55,33 +55,12 @@
                 .font-normal.uppercase.text-xs.text-gray-500.pb-1
                   - trans "Labels"
                 .inner-scroll
-                  -for node in labels
-                    -if node.obj.is_folder
-                      .lp-nav-item{ class:'{% if current_label.id == node.obj.id %}font-normal{% endif %}' }
-                        .name{onclick:"goto(event)", 'href':'{% url "msgs.msg_filter" node.obj.uuid %}'}
-                          {{ node.obj.name }}
-                        -if node.children
-                          .count.-mr-1.text-gray-400
-                            -if current_label.id == node.obj.id or current_label.folder_id == node.obj.id
-                              .glyph.icon-arrow-down-2{onclick:"goto(event)", 'href':'{% url "msgs.msg_filter" node.obj.uuid %}'}
-                            -else
-                              .glyph.icon-arrow-right-8{onclick:"goto(event)", 'href':'{% url "msgs.msg_filter" node.obj.uuid %}'}
-
-                      -if current_label.id == node.obj.id or current_label.folder_id == node.obj.id
-                        .pl-2.mt-1.level2.font-light
-                          -for child in node.children
-                            .lp-nav-item{ class:'{% if current_label.id == child.obj.id %}font-normal{% endif %}' }
-                              .name{onclick:"goto(event)",  href:"{% url 'msgs.msg_filter' child.obj.uuid %}" }
-                                {{ child.obj.name }}
-                              .count{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' child.obj.uuid %}" }
-                                {{ child.count | intcomma }}
-                  -for node in labels
-                    -if not node.obj.is_folder
-                      .lp-nav-item{ class:'{% if current_label.id == node.obj.id %}font-normal{% endif %}' }
-                        .name{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' node.obj.uuid %}", class:'{% if current_label.id == node.obj.id %}font-normal active{% endif %}' }
-                          {{ node.obj.name }} 
-                        .count{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' node.obj.uuid %}", class:'{% if current_label.id == node.obj.id %}font-normal active{% endif %}' }
-                          {{ node.count | intcomma }}
+                  -for label in labels
+                    .lp-nav-item{ class:'{% if current_label.id == label.id %}font-normal{% endif %}' }
+                      .name{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' label.uuid %}", class:'{% if current_label.id == label.id %}font-normal active{% endif %}' }
+                        {{ label.name }} 
+                      .count{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' label.uuid %}", class:'{% if current_label.id == label.id %}font-normal active{% endif %}' }
+                        {{ label.count | intcomma }}
 
             .flex-grow
               -if org_perms.msgs.label_create
@@ -128,33 +107,16 @@
                             -trans "Label"
 
                           %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
-                            -for node in labels
-                              -if node.obj.is_folder and node.children
-                                %li.dropdown-submenu
-                                  .lbl-menu.cursor-pointer(href='#' onclick='labelObjectRows({{node.obj.id}}, false, wireTableListeners)' data-id='{{node.obj.id}}')
-                                    .flex.items-center.py-1.hover-linked
-                                      .icon-arrow-right-8.text-2xl.-ml-1.-mt-1.mr-1
-                                      .name.px-2
-                                        {{ node.obj.name }}
-                                  %ul.dropdown-menu.label-menu.border-none
-                                    - for child in node.children
-                                      %li
-                                        .lbl-menu.object-btn-label.px-4(href='#' onclick='labelObjectRows({{child.obj.id}}, false, wireTableListeners)' data-id='{{child.obj.id}}')
-                                          .flex.items-center.py-1.hover-linked
-                                            .glyph.message-label.label-checkbox
-                                            .name.px-1
-                                              {{ child.obj.name }}
-                            -for node in labels
-                              -if not node.obj.is_folder
-                                %li
-                                  .lbl-menu(href='#' onclick='labelObjectRows({{node.obj.id}}, false, wireTableListeners)' data-id='{{node.obj.id}}')
-                                    .flex.items-center.py-1.hover-linked
-                                      .glyph.message-label.label-checkbox
-                                      .name.px-1
-                                        {{ node.obj.name }}
+                            -for label in labels
+                              %li
+                                .lbl-menu(href='#' onclick='labelObjectRows({{label.id}}, false, wireTableListeners)' data-id='{{label.id}}')
+                                  .flex.items-center.py-1.hover-linked
+                                    .glyph.message-label.label-checkbox
+                                    .name.px-1
+                                      {{ label.name }}
 
-                            - if org_perms.msgs.label_create
-                              - if labels
+                            -if org_perms.msgs.label_create
+                              -if labels
                                 %li.separator.-mx-4.border-b.my-3
                               %li
                                 .lbl-menu.add-label.linked{onclick:"handleAddLabelClicked()"}

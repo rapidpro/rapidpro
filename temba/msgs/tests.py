@@ -1695,7 +1695,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         frank = self.create_contact("Frank Blow", phone="250788000002")
         billy = self.create_contact("Billy Bob", urns=["twitter:billy_bob"])
 
-        # create some folders and labels
+        # create labels
         label1 = self.create_label("label1")
         label2 = self.create_label("label2")
         label3 = self.create_label("label3")
@@ -1726,11 +1726,8 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(("label",), response.context["actions"])
         self.assertContentMenu(label3_url, self.user, ["Download", "Usages"])  # no update or delete
 
-        # check that test and non-visible messages are excluded, and messages and ordered newest to oldest
+        # check that non-visible messages are excluded, and messages and ordered newest to oldest
         self.assertEqual([msg6, msg3, msg2, msg1], list(response.context["object_list"]))
-
-        # messages from contained labels are rolled up without duplicates
-        self.assertEqual([msg3, msg2, msg1], list(response.context["object_list"]))
 
         # search on label by contact name
         response = self.client.get(f"{label3_url}?search=joe")
@@ -2413,7 +2410,9 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         label1_url = reverse("msgs.label_update", args=[label1.id])
         label2_url = reverse("msgs.label_update", args=[label2.id])
 
-        self.assertUpdateFetch(label2_url, allow_viewers=False, allow_editors=True, form_fields={"name": "Sales"})
+        self.assertUpdateFetch(
+            label2_url, allow_viewers=False, allow_editors=True, form_fields={"name": "Sales", "messages": None}
+        )
 
         # try to update to invalid name
         self.assertUpdateSubmit(
