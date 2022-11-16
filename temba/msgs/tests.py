@@ -2960,6 +2960,8 @@ class FlattenLabelsTest(MigrationTest):
         self.folder2 = create_folder("Spam")
         self.folder2_label1 = create_label("Scams", folder=self.folder2)
 
+        ExportMessagesTask.create(self.org, self.admin, date(2022, 10, 1), date(2022, 11, 1), label=self.folder1)
+
     def test_migration(self):
         self.assertEqual(3, Label.objects.count())  # folders are gone
 

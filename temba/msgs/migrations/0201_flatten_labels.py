@@ -15,6 +15,8 @@ def flatten_labels(apps, schema_editor):
         print(f"Flattened label #{label.id} '{old_name}' to '{label.name}'")
 
     for folder in Label.objects.filter(label_type="F"):
+        folder.counts.all().delete()
+        folder.exportmessagestask_set.all().delete()
         folder.delete()
         print(f"Deleted folder #{folder.id} '{folder.name}'")
 
