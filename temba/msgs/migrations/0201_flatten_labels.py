@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def flatten_labels(apps, schema_editor):
+def flatten_labels(apps, schema_editor):  # pragma: no cover
     Label = apps.get_model("msgs", "Label")
 
     for label in Label.objects.filter(is_active=True).exclude(folder=None).select_related("folder"):
@@ -21,7 +21,7 @@ def flatten_labels(apps, schema_editor):
         print(f"Deleted folder #{folder.id} '{folder.name}'")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

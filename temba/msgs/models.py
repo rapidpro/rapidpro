@@ -1037,16 +1037,12 @@ class Label(TembaModel, DependencyMixin):
 
     MAX_ORG_FOLDERS = 250
 
-    TYPE_FOLDER = "F"
-    TYPE_LABEL = "L"
-    TYPE_CHOICES = ((TYPE_FOLDER, "Folder of labels"), (TYPE_LABEL, "Regular label"))
-
     org_limit_key = Org.LIMIT_LABELS
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs_labels")
 
     # TODO drop
-    label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_LABEL)
+    label_type = models.CharField(max_length=1, null=True)
     folder = models.ForeignKey("Label", on_delete=models.PROTECT, null=True, related_name="children")
 
     @classmethod
