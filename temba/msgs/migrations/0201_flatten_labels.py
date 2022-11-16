@@ -6,7 +6,7 @@ from django.db import migrations
 def flatten_labels(apps, schema_editor):
     Label = apps.get_model("msgs", "Label")
 
-    for label in Label.objects.exclude(folder=None).select_related("folder"):
+    for label in Label.objects.filter(is_active=True).exclude(folder=None).select_related("folder"):
         old_name = label.name
         label.name = f"{label.folder.name} > {label.name}"[:64]
         label.folder = None
@@ -14,7 +14,7 @@ def flatten_labels(apps, schema_editor):
 
         print(f"Flattened label #{label.id} '{old_name}' to '{label.name}'")
 
-    for folder in Label.objects.filter(label_type="F"):
+    for folder in Label.objects.filter(is_active=True, label_type="F"):
         folder.counts.all().delete()
         folder.exportmessagestask_set.all().delete()
         folder.delete()
