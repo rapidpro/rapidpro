@@ -1,3 +1,7 @@
+v7.5.110
+----------
+ * Data migration to flatten msg labels
+
 v7.5.109
 ----------
  * Remove logic for which plan to use for a new org
