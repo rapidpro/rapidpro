@@ -2353,8 +2353,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     exclusive_params = ("uuid", "name")
 
     def derive_queryset(self):
-        org = self.request.org
-        return self.model.objects.filter(org=org, is_active=True).exclude(label_type=Label.TYPE_FOLDER)
+        return self.model.objects.filter(org=self.request.org, is_active=True)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params

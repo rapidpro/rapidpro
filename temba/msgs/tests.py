@@ -25,7 +25,7 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest, mock_uuids
+from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 
@@ -2769,46 +2769,3 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
         list_url = reverse("msgs.media_list")
 
         self.assertStaffOnly(list_url)
-
-
-class FlattenLabelsTest(MigrationTest):
-    app = "msgs"
-    migrate_from = "0200_remove_msg_topup"
-    migrate_to = "0201_flatten_labels"
-
-    def setUpBeforeMigration(self, apps):
-        contact = self.create_contact("Bob", phone="+1234567890")
-        self.msg1 = self.create_incoming_msg(contact, "blue")
-        self.msg2 = self.create_incoming_msg(contact, "red")
-
-        def create_folder(name: str):
-            return Label.objects.create(
-                org=self.org, name=name, label_type="F", created_by=self.admin, modified_by=self.admin
-            )
-
-        def create_label(name: str, folder=None, msgs=()):
-            label = Label.objects.create(
-                org=self.org, name=name, folder=folder, created_by=self.admin, modified_by=self.admin
-            )
-            label.msgs.add(*msgs)
-            return label
-
-        self.folder1 = create_folder("Cool")
-        self.folder1_label1 = create_label("Really Cool", folder=self.folder1, msgs=[self.msg1, self.msg2])
-        self.folder1_label2 = create_label("Sorta Cool", folder=self.folder1, msgs=[self.msg2])
-        self.folder2 = create_folder("Spam")
-        self.folder2_label1 = create_label("Scams", folder=self.folder2)
-
-        ExportMessagesTask.create(self.org, self.admin, date(2022, 10, 1), date(2022, 11, 1), label=self.folder1)
-
-    def test_migration(self):
-        self.assertEqual(3, Label.objects.count())  # folders are gone
-
-        def assert_label(lbl, expected_name, expected_msgs):
-            lbl.refresh_from_db()
-            self.assertEqual(expected_name, lbl.name)
-            self.assertEqual(expected_msgs, set(lbl.msgs.all()))
-
-        assert_label(self.folder1_label1, "Cool > Really Cool", {self.msg1, self.msg2})
-        assert_label(self.folder1_label2, "Cool > Sorta Cool", {self.msg2})
-        assert_label(self.folder2_label1, "Spam > Scams", set())
