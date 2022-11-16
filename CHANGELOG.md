@@ -1,3 +1,8 @@
+v7.5.113
+----------
+ * Stop reading Label.label_type and make nullable
+ * Remove all support for labels with parents
+
 v7.5.112
 ----------
  * Remove OrgActivity
