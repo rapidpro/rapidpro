@@ -1,3 +1,7 @@
+v7.5.111
+----------
+ * Delete associated exports when trying to delete message label folders
+
 v7.5.110
 ----------
  * Data migration to flatten msg labels
