@@ -30,7 +30,7 @@
             %temba-tip(position="top" text='{{_("Labels")|escapejs}}'  slot="toggle")
               %temba-icon(name="icon.label" clickable="true")
             .label-menu.px-6.py-4(slot="dropdown")
-              -for label in labels_flat
+              -for label in labels
                 .lbl-menu(onclick='labelObjectRows({{label.id}}, false, refreshMenu)' data-id='{{label.id}}')
                   .flex.items-center.py-1.hover-linked
                     .glyph.message-label.label-checkbox
@@ -38,7 +38,7 @@
                       {{ label.name }}
 
               -if org_perms.msgs.label_create
-                -if labels_flat
+                -if labels
                   %li.separator.-mx-4.border-b.my-3
                 %li
                   .lbl-menu.add-label.linked{onclick:"handleAddLabelClicked()"}

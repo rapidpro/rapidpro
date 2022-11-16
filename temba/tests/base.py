@@ -251,12 +251,8 @@ class TembaTestMixin:
                 group.contacts.add(*contacts)
             return group
 
-    def create_label(self, name, *, folder=None, org=None):
-        label = Label.create(org or self.org, self.admin, name)
-        if folder:
-            label.folder = folder
-            label.save(update_fields=("folder",))
-        return label
+    def create_label(self, name, *, org=None):
+        return Label.create(org or self.org, self.admin, name)
 
     def create_field(self, key, name, value_type=ContactField.TYPE_TEXT, priority=0, show_in_table=False, org=None):
         org = org or self.org

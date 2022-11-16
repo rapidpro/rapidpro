@@ -249,7 +249,7 @@ class FlowCRUDL(SmartCRUDL):
                         menu_id=label.uuid,
                         name=label.name,
                         href=reverse("flows.flow_filter", args=[label.uuid]),
-                        count=label.get_flows_count(),
+                        count=label.get_flow_count(),
                     )
                 )
 
@@ -699,11 +699,7 @@ class FlowCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["org_has_flows"] = self.request.org.flows.filter(is_active=True).exists()
             context["folders"] = self.get_folders()
-            if self.is_spa():
-                context["labels_flat"] = self.get_flow_labels_flat()
-            else:
-                context["labels"] = self.get_flow_labels()
-
+            context["labels"] = self.get_flow_labels()
             context["campaigns"] = self.get_campaigns()
             context["request_url"] = self.request.path
 
@@ -750,28 +746,14 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_flow_labels(self):
             labels = []
-            for label in self.request.org.flow_labels.filter(is_active=True, parent=None):
-                labels.append(
-                    dict(
-                        pk=label.id,
-                        uuid=label.uuid,
-                        label=label.name,
-                        count=label.get_flows_count(),
-                        children=label.children.all(),
-                    )
-                )
-            return labels
-
-        def get_flow_labels_flat(self):
-            labels = []
             for label in self.request.org.flow_labels.order_by("name"):
                 labels.append(
-                    dict(
-                        id=label.pk,
-                        uuid=label.uuid,
-                        name=label.name,
-                        count=label.get_flows_count(),
-                    )
+                    {
+                        "id": label.id,
+                        "uuid": label.uuid,
+                        "name": label.name,
+                        "count": label.get_flow_count(),
+                    }
                 )
             return labels
 
@@ -916,19 +898,9 @@ class FlowCRUDL(SmartCRUDL):
         def label(self):
             return FlowLabel.objects.get(uuid=self.kwargs["label_uuid"], org=self.request.org)
 
-        def get_label_filter(self):
-            children = self.label.children.all()
-            if children:  # pragma: needs cover
-                return [lb for lb in FlowLabel.objects.filter(parent=self.label)] + [self.label]
-            else:
-                return [self.label]
-
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            qs = qs.filter(org=self.request.org).order_by("-created_on")
-            qs = qs.filter(labels__in=self.get_label_filter(), is_archived=False).distinct()
-
-            return qs
+            return qs.filter(org=self.request.org, labels=self.label, is_archived=False).order_by("-created_on")
 
     class Editor(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
@@ -1960,13 +1932,6 @@ class PreprocessTest(FormView):  # pragma: no cover
 
 class FlowLabelForm(forms.ModelForm):
     name = forms.CharField(required=True, widget=InputWidget(), label=_("Name"))
-    parent = forms.ModelChoiceField(
-        FlowLabel.objects.none(),
-        required=False,
-        label=_("Parent"),
-        widget=SelectWidget(attrs={"placeholder": _("Select label")}),
-        help_text=_("Optional parent label which can be used to group related labels."),
-    )
     flows = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, org, *args, **kwargs):
@@ -1974,22 +1939,15 @@ class FlowLabelForm(forms.ModelForm):
 
         super().__init__(*args, **kwargs)
 
-        qs = FlowLabel.objects.filter(org=self.org, parent=None)
-
-        if self.instance:
-            qs = qs.exclude(id=self.instance.id)
-
-        self.fields["parent"].queryset = qs
-
     def clean_name(self):
         name = self.cleaned_data["name"].strip()
-        if FlowLabel.objects.filter(org=self.org, name=name).exclude(pk=self.instance.id).exists():
+        if self.org.flow_labels.filter(name=name).exclude(id=self.instance.id).exists():
             raise ValidationError(_("Must be unique."))
         return name
 
     class Meta:
         model = FlowLabel
-        fields = "__all__"
+        fields = ("name",)
 
 
 class FlowLabelCRUDL(SmartCRUDL):
@@ -2020,13 +1978,6 @@ class FlowLabelCRUDL(SmartCRUDL):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.request.org
             return kwargs
-
-        def derive_fields(self):
-            # can't edit parent if this label is already a parent.. or didn't previously have a parent
-            if self.object.children.exists() or not self.object.parent:
-                return ("name",)
-            else:
-                return ("name", "parent")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "flows")

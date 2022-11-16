@@ -393,7 +393,7 @@ PERMISSIONS = {
         "scheduled_delete",
         "send",
     ),
-    "msgs.label": ("api", "delete_folder"),
+    "msgs.label": ("api",),
     "msgs.media": ("upload", "list"),
     "msgs.msg": (
         "api",

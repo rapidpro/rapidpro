@@ -67,7 +67,7 @@
                             .name{onclick:"goto(event)",  href:"{% url 'flows.flow_filter' child.uuid %}" }
                               {{ child.name }}
                             .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' child.uuid %}" }
-                              {{ child.get_flows_count | intcomma }}
+                              {{ child.get_flow_count | intcomma }}
 
                 -for label in labels
                   -if not label.children
