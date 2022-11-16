@@ -45,14 +45,9 @@ media/test_orgs
 media/tmp
 media/attachments
 
-
 # External projects
-fabric
-fabconfig.py
 fabfile.py
 deploy
-config
-Flows.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -63,8 +58,6 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-env/
-venv/
 .venv/
 build/
 develop-eggs/
@@ -86,16 +79,10 @@ var/
 *.manifest
 *.spec
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
 # Unit test / coverage reports
 htmlcov/
-.tox/
 .coverage
 .cache
-.perf_results
 nosetests.xml
 coverage.xml
 js-coverage/
@@ -112,11 +99,6 @@ docs/_build/
 # PyBuilder
 target/
 /textit
-
-# Vagrant/Ansible
-.vagrant/
-ansible/vendor/
-ansible/site.retry
 
 # sublime projects
 *.sublime*

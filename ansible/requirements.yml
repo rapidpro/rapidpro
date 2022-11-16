@@ -1,4 +1,0 @@
----
-
-- name: supervisor
-  src: Stouts.supervisor
