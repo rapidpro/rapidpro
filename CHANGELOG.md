@@ -1,3 +1,7 @@
+v7.5.112
+----------
+ * Remove OrgActivity
+
 v7.5.111
 ----------
  * Delete associated exports when trying to delete message label folders
