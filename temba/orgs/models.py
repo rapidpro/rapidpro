@@ -515,10 +515,6 @@ class Org(SmartModel):
 
             return unique_slug
 
-    @classmethod
-    def get_new_org_plan(cls, branding, parent=None):
-        return "rapidpro"
-
     def create_child(self, user, name: str, timezone, date_format: str):
         """
         Creates a new child workspace with this as its parent
@@ -537,7 +533,6 @@ class Org(SmartModel):
             slug=self.get_unique_slug(name),
             created_by=user,
             modified_by=user,
-            plan=Org.get_new_org_plan(self.branding, parent=self),
             is_multi_user=self.is_multi_user,
             is_multi_org=False,
         )

@@ -3109,7 +3109,6 @@ class OrgCRUDL(SmartCRUDL):
             obj.modified_by = self.user
             obj.brand = self.request.branding["slug"]
             obj.language = brand_language
-            obj.plan = Org.get_new_org_plan(self.request.branding)
 
             if obj.timezone.zone in pytz.country_timezones("US"):
                 obj.date_format = Org.DATE_FORMAT_MONTH_FIRST
@@ -3399,7 +3398,7 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             org = self.request.org
 
-            if not (org.parent and org.plan == "parent"):
+            if not org.parent:
                 if self.has_org_perm("orgs.org_plan"):
                     formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
 
