@@ -1,3 +1,7 @@
+1.6.10-rapidpro-7.1.27
+----------
+* Internal ticketer conditional on org initialize
+
 1.6.9-rapidpro-7.1.27
 ----------
 * Modify contact history request trigger method to `load`
