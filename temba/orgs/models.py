@@ -1556,7 +1556,7 @@ class Org(SmartModel):
 
         return all_components
 
-    def initialize(self, branding=None, topup_size=None, sample_flows=True):
+    def initialize(self, branding=None, topup_size=None, sample_flows=True, internal_ticketer=True):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
@@ -1570,8 +1570,10 @@ class Org(SmartModel):
 
             ContactGroup.create_system_groups(self)
             ContactField.create_system_fields(self)
-            Ticketer.create_internal_ticketer(self, branding)
             Topic.create_default_topic(self)
+
+            if internal_ticketer:
+                Ticketer.create_internal_ticketer(self, branding)
 
             self.init_topups(topup_size)
             self.update_capabilities()
