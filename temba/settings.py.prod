@@ -232,6 +232,7 @@ INSTALLED_APPS += (
     "weni.internal",
     "weni.ticketer_queues",
     "weni.orgs_api",
+    "weni.success_orgs",
     # OIDC authentication
     "mozilla_django_oidc",
     "weni.auth",
@@ -453,3 +454,8 @@ if WENI_REDIRECT_DEPRECATED_DOMAIN:
 # Cors Configuration
 CORS_ORIGIN_ALLOW_ALL = env.bool("CORS_ORIGIN_ALLOW_ALL", default=False)
 CORS_ORIGIN_WHITELIST = env.tuple("CORS_ORIGIN_WHITELIST", default=())
+
+
+# Fixed token with super user access
+
+FIXED_SUPER_ACCESS_TOKEN = env("FIXED_SUPER_ACCESS_TOKEN")
