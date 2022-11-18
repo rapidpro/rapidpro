@@ -439,41 +439,37 @@ class Attachment:
 class Msg(models.Model):
     """
     Messages are the main building blocks of a RapidPro application. Channels send and receive
-    these, Triggers and Flows handle them when appropriate.
+    these, triggers and flows handle them when appropriate.
 
     Messages are either inbound or outbound and can have varying states depending on their
     direction. Generally an outbound message will go through the following states:
 
-      INITIALIZING > QUEUED > WIRED > SENT > DELIVERED
+      QUEUED > WIRED > SENT > DELIVERED
 
     If things go wrong, they can be put into an ERRORED state where they can be retried. Once
     we've given up then they can be put in the FAILED state.
 
-    Inbound messages are much simpler. They start as PENDING and the can be picked up by Triggers
+    Inbound messages are much simpler. They start as PENDING and the can be picked up by triggers
     or Flows where they would get set to the HANDLED state once they've been dealt with.
     """
 
-    STATUS_INITIALIZING = "I"  # used to hold off sending the message until the flow is ready to receive a response
-    STATUS_PENDING = "P"  # initial state for all messages
-    STATUS_QUEUED = "Q"
-    STATUS_WIRED = "W"  # message was handed off to the provider and credits were deducted for it
-    STATUS_SENT = "S"  # we have confirmation that a message was sent
-    STATUS_DELIVERED = "D"  # we have confirmation that a message was delivered
-    STATUS_HANDLED = "H"
-    STATUS_ERRORED = "E"  # there was an error during delivery
-    STATUS_FAILED = "F"  # we gave up on sending this message
-    STATUS_RESENT = "R"  # we retried this message (no longer used)
+    STATUS_PENDING = "P"  # incoming msg created but not yet handled
+    STATUS_HANDLED = "H"  # incoming msg handled
+    STATUS_QUEUED = "Q"  # outgoing msg created and queued to courier
+    STATUS_WIRED = "W"  # outgoing msg requested to be sent via channel
+    STATUS_SENT = "S"  # outgoing msg having received sent confirmation from channel
+    STATUS_DELIVERED = "D"  # outgoing msg having received delivery confirmation from channel
+    STATUS_ERRORED = "E"  # outgoing msg which has errored and will be retried
+    STATUS_FAILED = "F"  # outgoing msg which has failed permanently
     STATUS_CHOICES = (
-        (STATUS_INITIALIZING, _("Initializing")),
         (STATUS_PENDING, _("Pending")),
+        (STATUS_HANDLED, _("Handled")),
         (STATUS_QUEUED, _("Queued")),
         (STATUS_WIRED, _("Wired")),
         (STATUS_SENT, _("Sent")),
         (STATUS_DELIVERED, _("Delivered")),
-        (STATUS_HANDLED, _("Handled")),
         (STATUS_ERRORED, _("Error")),
         (STATUS_FAILED, _("Failed")),
-        (STATUS_RESENT, _("Resent")),
     )
 
     VISIBILITY_VISIBLE = "V"

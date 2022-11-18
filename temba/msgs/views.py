@@ -762,7 +762,7 @@ class MsgCRUDL(SmartCRUDL):
             context["pending_broadcasts"] = (
                 Broadcast.objects.filter(
                     org=self.request.org,
-                    status__in=[Msg.STATUS_QUEUED, Msg.STATUS_INITIALIZING],
+                    status__in=[Broadcast.STATUS_INITIALIZING, Broadcast.STATUS_QUEUED],
                     schedule=None,
                 )
                 .select_related("org")

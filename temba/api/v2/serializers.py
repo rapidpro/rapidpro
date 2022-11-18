@@ -1171,16 +1171,14 @@ class LabelWriteSerializer(WriteSerializer):
 
 class MsgReadSerializer(ReadSerializer):
     STATUSES = {
-        Msg.STATUS_INITIALIZING: "initializing",
         Msg.STATUS_PENDING: "queued",  # same as far as users are concerned
+        Msg.STATUS_HANDLED: "handled",
         Msg.STATUS_QUEUED: "queued",
         Msg.STATUS_WIRED: "wired",
         Msg.STATUS_SENT: "sent",
         Msg.STATUS_DELIVERED: "delivered",
-        Msg.STATUS_HANDLED: "handled",
         Msg.STATUS_ERRORED: "errored",
         Msg.STATUS_FAILED: "failed",
-        Msg.STATUS_RESENT: "resent",
     }
     TYPES = {Msg.TYPE_INBOX: "inbox", Msg.TYPE_FLOW: "flow", Msg.TYPE_IVR: "ivr"}
     VISIBILITIES = {  # deleted messages should never be exposed over API
