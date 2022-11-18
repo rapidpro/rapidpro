@@ -1,3 +1,7 @@
+1.6.11-rapidpro-7.1.27
+----------
+* Update weni-rp-apps package to support gRPC-REST conversion
+
 1.6.10-rapidpro-7.1.27
 ----------
 * Internal ticketer conditional on org initialize
