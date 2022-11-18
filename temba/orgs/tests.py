@@ -2687,13 +2687,13 @@ class OrgTest(TembaTest):
 
         # error if a non-multi-org enabled org tries to create a child
         with self.assertRaises(AssertionError):
-            self.org.create_child(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
+            self.org.create_new(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
 
         # enable multi-org and try again
         self.org.is_multi_org = True
         self.org.save(update_fields=("is_multi_org",))
 
-        sub_org = self.org.create_child(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
+        sub_org = self.org.create_new(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
 
         # suborg has been created
         self.assertIsNotNone(sub_org)
@@ -3350,9 +3350,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         user = User.objects.get(username="myal@wr.org")
         self.assertTrue(user.check_password("Password123"))
 
-    def test_create_child(self):
+    def test_create_new(self):
         home_url = reverse("orgs.org_home")
-        create_child_url = reverse("orgs.org_create_child")
+        create_new_url = reverse("orgs.org_create_new")
 
         self.org.is_multi_org = False
         self.org.save(update_fields=("is_multi_org",))
@@ -3367,12 +3367,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(response, home_url)
 
         # creating a new sub org should also redirect
-        response = self.client.get(create_child_url)
+        response = self.client.get(create_new_url)
         self.assertRedirect(response, home_url)
 
         # make sure posting is gated too
         response = self.client.post(
-            create_child_url,
+            create_new_url,
             {"name": "Sub Org", "timezone": self.org.timezone, "date_format": self.org.date_format},
         )
         self.assertRedirect(response, home_url)
@@ -3395,7 +3395,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # add a sub org
         response = self.client.post(
-            create_child_url,
+            create_new_url,
             {"name": "Sub Org", "timezone": self.org.timezone, "date_format": self.org.date_format},
         )
         self.assertRedirect(response, reverse("orgs.org_sub_orgs"))
@@ -3405,7 +3405,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create a second org to test sorting
         response = self.client.post(
-            create_child_url,
+            create_new_url,
             {"name": "A Second Org", "timezone": self.org.timezone, "date_format": self.org.date_format},
         )
         self.assertEqual(302, response.status_code)
@@ -3597,7 +3597,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_delete(self):
         self.org.is_multi_org = True
         self.org.save(update_fields=("is_multi_org",))
-        workspace = self.org.create_child(self.admin, "Child Workspace", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
+        workspace = self.org.create_new(self.admin, "Child Workspace", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
         delete_workspace = reverse("orgs.org_delete", args=[workspace.id])
 
         # choose the parent org, try to delete the workspace

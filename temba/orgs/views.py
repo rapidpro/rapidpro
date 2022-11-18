@@ -1205,7 +1205,7 @@ class OrgCRUDL(SmartCRUDL):
         "vonage_connect",
         "plan",
         "sub_orgs",
-        "create_child",
+        "create_new",
         "export",
         "import",
         "plivo_connect",
@@ -2572,8 +2572,8 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_dashboard"):
                 menu.add_link(_("Dashboard"), reverse("dashboard.dashboard_home"))
 
-            if self.has_org_perm("orgs.org_create_child") and org.is_multi_org and not org.parent:
-                menu.add_modax(_("New Workspace"), "new-workspace", reverse("orgs.org_create_child"))
+            if self.has_org_perm("orgs.org_create_new") and org.is_multi_org and not org.parent:
+                menu.add_modax(_("New Workspace"), "new-workspace", reverse("orgs.org_create_new"))
 
         def get_manage(self, obj):  # pragma: needs cover
             if obj == self.get_object():
@@ -2620,7 +2620,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
-    class CreateChild(NonAtomicMixin, SpaMixin, MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
+    class CreateNew(NonAtomicMixin, SpaMixin, MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
         class Form(forms.ModelForm):
             name = forms.CharField(
                 label=_("Workspace"), help_text=_("The name of your workspace"), widget=InputWidget()
@@ -2649,7 +2649,7 @@ class OrgCRUDL(SmartCRUDL):
             return initial
 
         def form_valid(self, form):
-            child = self.org.create_child(
+            child = self.org.create_new(
                 self.request.user,
                 form.cleaned_data["name"],
                 timezone=form.cleaned_data["timezone"],
@@ -3293,8 +3293,8 @@ class OrgCRUDL(SmartCRUDL):
                 menu.add_link(_("New Classifier"), reverse("classifiers.classifier_connect"))
             if self.has_org_perm("tickets.ticketer_connect") and "ticketers" in settings.FEATURES:
                 menu.add_link(_("New Ticketing Service"), reverse("tickets.ticketer_connect"))
-            if self.has_org_perm("orgs.org_create_child") and obj.is_multi_org and not obj.parent:
-                menu.add_modax(_("New Workspace"), "new-workspace", reverse("orgs.org_create_child"))
+            if self.has_org_perm("orgs.org_create_new") and obj.is_multi_org and not obj.parent:
+                menu.add_modax(_("New Workspace"), "new-workspace", reverse("orgs.org_create_new"))
 
             menu.new_group()
 

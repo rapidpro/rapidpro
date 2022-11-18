@@ -195,8 +195,11 @@
                 .org.text-primary
                   %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
                     {{ org.name }}
-
-
+            -if org_perms.orgs.org_create_new and user_org.is_multi_org
+              %hr
+              .org.text-primary
+                %a{href:'{% url "orgs.org_create_new" %}'}
+                  -trans "New Workspace"
 
       #header
         &nbsp;

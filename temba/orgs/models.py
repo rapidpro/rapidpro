@@ -515,7 +515,7 @@ class Org(SmartModel):
 
             return unique_slug
 
-    def create_child(self, user, name: str, timezone, date_format: str):
+    def create_new(self, user, name: str, timezone, date_format: str):
         """
         Creates a new child workspace with this as its parent
         """
