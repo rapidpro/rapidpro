@@ -1,3 +1,7 @@
+1.6.12-rapidpro-7.1.27
+----------
+* Create endpoint that returns success orgs
+
 1.6.11-rapidpro-7.1.27
 ----------
 * Update weni-rp-apps package to support gRPC-REST conversion
