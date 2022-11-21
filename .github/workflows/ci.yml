@@ -5,16 +5,14 @@ jobs:
     name: Test
     env:
       python-version: "3.9.x"
+      pg-version: "14"
+      postgis-version: "3.2"
       redis-version: "6.2"
-      postgis-version: "3.1"
       node-version: "10"
       elastic-version: "7.17.6"
       rpindexer-version: "7.5.0"
-      mailroom-version: "7.5.27"
+      mailroom-version: "7.5.33"
       DJANGO_SETTINGS_MODULE: temba.settings_ci
-    strategy:
-      matrix:
-        pg-version: ["13", "14"]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -23,7 +21,7 @@ jobs:
       - name: Install PostgreSQL and PostGIS
         uses: nyaruka/postgis-action@v2.1.0
         with:
-          postgresql version: ${{ matrix.pg-version }}
+          postgresql version: ${{ env.pg-version }}
           postgis version: ${{ env.postgis-version }}
           postgresql db: temba
           postgresql user: temba
