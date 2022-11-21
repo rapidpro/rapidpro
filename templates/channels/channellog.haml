@@ -11,5 +11,6 @@
         .msg.flex-grow
           {{ err.message }}
           -if err.ref_url 
-            %a(href="{{ err.ref_url }}")
-              -trans "link"
+            .inline-block.align-middle.ml-1
+              %a(href="{{ err.ref_url }}")
+                %temba-icon(name="icon.link" size="1")
