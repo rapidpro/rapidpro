@@ -10,6 +10,8 @@ from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
+from .type import TwilioType
+
 
 class TwilioTypeTest(TembaTest):
     @patch("temba.orgs.models.TwilioClient", MockTwilioClient)
@@ -294,3 +296,6 @@ class TwilioTypeTest(TembaTest):
             twilio_channel.release(self.admin)
             twilio_channel.refresh_from_db()
             self.assertFalse(twilio_channel.is_active)
+
+    def test_get_error_ref_url(self):
+        self.assertEqual("https://www.twilio.com/docs/api/errors/30006", TwilioType().get_error_ref_url(None, "30006"))

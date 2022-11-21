@@ -5,6 +5,8 @@ from django.urls import reverse
 from temba.tests import TembaTest
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
+from .type import TwimlAPIType
+
 
 class TwimlAPITypeTest(TembaTest):
     def setUp(self):
@@ -137,3 +139,8 @@ class TwimlAPITypeTest(TembaTest):
 
         response = self.client.get(reverse("channels.channel_configuration", args=[channel.uuid]))
         self.assertContains(response, reverse("courier.tw", args=[channel.uuid, "receive"]))
+
+    def test_get_error_ref_url(self):
+        self.assertEqual(
+            "https://www.twilio.com/docs/api/errors/30006", TwimlAPIType().get_error_ref_url(None, "30006")
+        )

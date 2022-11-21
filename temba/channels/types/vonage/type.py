@@ -102,3 +102,10 @@ class VonageType(ChannelType):
 
     def get_urls(self):
         return [self.get_claim_url(), re_path(r"^search$", SearchView.as_view(), name="search")]
+
+    def get_error_ref_url(self, channel, code: str) -> str:
+        if code.startswith("send:"):
+            return "https://developer.vonage.com/messaging/sms/guides/troubleshooting-sms"
+        elif code.startswith("dlr:"):
+            return "https://developer.vonage.com/messaging/sms/guides/delivery-receipts"
+        return None

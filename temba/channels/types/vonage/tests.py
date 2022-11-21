@@ -8,6 +8,7 @@ from temba.channels.models import Channel
 from temba.tests import MockResponse, TembaTest
 
 from .client import VonageClient
+from .type import VonageType
 
 
 class VonageTypeTest(TembaTest):
@@ -207,6 +208,17 @@ class VonageTypeTest(TembaTest):
         self.assertEqual(
             ["name", "alert_email", "allow_international", "loc"], list(response.context["form"].fields.keys())
         )
+
+    def test_get_error_ref_url(self):
+        self.assertEqual(
+            "https://developer.vonage.com/messaging/sms/guides/troubleshooting-sms",
+            VonageType().get_error_ref_url(None, "send:7"),
+        )
+        self.assertEqual(
+            "https://developer.vonage.com/messaging/sms/guides/delivery-receipts",
+            VonageType().get_error_ref_url(None, "dlr:8"),
+        )
+        self.assertIsNone(VonageType().get_error_ref_url(None, "x:9"))
 
 
 class ClientTest(TembaTest):

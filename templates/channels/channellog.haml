@@ -8,3 +8,6 @@
         %temba-icon.ml-2.mr-4(name="icon.error" style="--icon-color:rgb(var(--error-rgb))" size="1.5")
         .msg.flex-grow
           {{ err.message }}
+          -if err.ref_url 
+            %a(href="{{ ref_url }}")
+              -trans "link"
