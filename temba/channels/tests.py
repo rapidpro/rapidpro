@@ -1756,7 +1756,7 @@ class ChannelLogTest(TembaTest):
                     "created_on": "2022-08-17T14:07:30Z",
                 }
             ],
-            errors=[{"message": "response not right", "code": ""}],
+            errors=[{"code": "bad_response", "ext_code": "", "message": "response not right"}],
         )
 
         expected_unredacted = {
@@ -1772,7 +1772,7 @@ class ChannelLogTest(TembaTest):
                     "created_on": "2022-08-17T14:07:30Z",
                 }
             ],
-            "errors": [{"message": "response not right", "code": ""}],
+            "errors": [{"code": "bad_response", "ext_code": "", "message": "response not right", "ref_url": None}],
             "created_on": matchers.Datetime(),
         }
 
@@ -1789,7 +1789,7 @@ class ChannelLogTest(TembaTest):
                     "created_on": "2022-08-17T14:07:30Z",
                 }
             ],
-            "errors": [{"message": "response n********", "code": ""}],
+            "errors": [{"code": "bad_response", "ext_code": "", "message": "response n********", "ref_url": None}],
             "created_on": matchers.Datetime(),
         }
 
@@ -1818,7 +1818,7 @@ class ChannelLogTest(TembaTest):
                     "created_on": "2022-08-17T14:07:30Z",
                 }
             ],
-            errors=[{"message": "response not right", "code": ""}],
+            errors=[{"code": "bad_response", "ext_code": "", "message": "response not right"}],
         )
 
         expected_unredacted = {
@@ -1834,7 +1834,7 @@ class ChannelLogTest(TembaTest):
                     "created_on": "2022-08-17T14:07:30Z",
                 }
             ],
-            "errors": [{"message": "response not right", "code": ""}],
+            "errors": [{"code": "bad_response", "ext_code": "", "message": "response not right", "ref_url": None}],
             "created_on": matchers.Datetime(),
         }
 
@@ -1851,7 +1851,7 @@ class ChannelLogTest(TembaTest):
                     "created_on": "2022-08-17T14:07:30Z",
                 }
             ],
-            "errors": [{"message": "response n********", "code": ""}],
+            "errors": [{"code": "bad_response", "ext_code": "", "message": "response n********", "ref_url": None}],
             "created_on": matchers.Datetime(),
         }
 

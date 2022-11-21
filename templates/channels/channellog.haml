@@ -1,3 +1,5 @@
+-load i18n
+
 -for http_log in log.http_logs
   .mb-4
     -include "includes/http_log.haml" with log=http_log
@@ -9,5 +11,5 @@
         .msg.flex-grow
           {{ err.message }}
           -if err.ref_url 
-            %a(href="{{ ref_url }}")
+            %a(href="{{ err.ref_url }}")
               -trans "link"
