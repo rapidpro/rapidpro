@@ -388,6 +388,11 @@ class Org(SmartModel):
     FEATURE_USERS = "users"  # can invite users to this org
     FEATURE_NEW_ORGS = "new_orgs"  # can create new workspace with same login
     FEATURE_CHILD_ORGS = "child_orgs"  # can create child workspaces of this org
+    FEATURES_CHOICES = (
+        (FEATURE_USERS, _("Users")),
+        (FEATURE_NEW_ORGS, _("New Orgs")),
+        (FEATURE_CHILD_ORGS, _("Child Orgs")),
+    )
 
     LIMIT_CHANNELS = "channels"
     LIMIT_FIELDS = "fields"
@@ -480,13 +485,6 @@ class Org(SmartModel):
     is_flagged = models.BooleanField(default=False, help_text=_("Whether this organization is currently flagged."))
     is_suspended = models.BooleanField(default=False, help_text=_("Whether this organization is currently suspended."))
 
-    is_multi_org = models.BooleanField(
-        default=False, help_text=_("Whether this organization can have child workspaces")
-    )
-    is_multi_user = models.BooleanField(
-        default=False, help_text=_("Whether this organization can have multiple logins")
-    )
-
     flow_languages = ArrayField(models.CharField(max_length=3), default=list)
 
     surveyor_password = models.CharField(
@@ -498,6 +496,10 @@ class Org(SmartModel):
     # when this org was released and when it was actually deleted
     released_on = models.DateTimeField(null=True)
     deleted_on = models.DateTimeField(null=True)
+
+    # TODO remove
+    is_multi_org = models.BooleanField(default=False, null=True)
+    is_multi_user = models.BooleanField(default=False, null=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -523,7 +525,7 @@ class Org(SmartModel):
         """
         Creates a new child workspace with this as its parent
         """
-        assert self.is_multi_org, "only multi-org enabled orgs can create children"
+        assert Org.FEATURE_CHILD_ORGS in self.features, "only orgs with this feature enabled can create children"
         assert not self.parent_id, "child orgs can't create children"
 
         org = Org.objects.create(
@@ -537,8 +539,6 @@ class Org(SmartModel):
             slug=self.get_unique_slug(name),
             created_by=user,
             modified_by=user,
-            is_multi_user=self.is_multi_user,
-            is_multi_org=False,
         )
 
         org.add_user(user, OrgRole.ADMINISTRATOR)
@@ -612,7 +612,7 @@ class Org(SmartModel):
         # TODO remove once we no longer need to set these for backward compatibility
         if feature == Org.FEATURE_USERS:
             self.is_multi_user = enabled
-        elif feature == Org.FEATURE_NEW_ORGS:
+        elif feature == Org.FEATURE_CHILD_ORGS:
             self.is_multi_org = enabled
 
         self.save(update_fields=("features", "is_multi_user", "is_multi_org"))

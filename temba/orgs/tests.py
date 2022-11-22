@@ -1149,14 +1149,14 @@ class OrgTest(TembaTest):
 
     def test_toggle_feature(self):
         self.org.toggle_feature(Org.FEATURE_USERS, enabled=True)
-        self.org.toggle_feature(Org.FEATURE_NEW_ORGS, enabled=True)
+        self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=True)
 
         self.org.refresh_from_db()
-        self.assertEqual(["users", "new_orgs"], self.org.features)
+        self.assertEqual(["users", "child_orgs"], self.org.features)
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
 
-        self.org.toggle_feature(Org.FEATURE_NEW_ORGS, enabled=False)
+        self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=False)
 
         self.org.refresh_from_db()
         self.assertEqual(["users"], self.org.features)
@@ -2697,21 +2697,16 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org.api_rates, {"v2.contacts": "10000/hour"})
 
     def test_child_management(self):
-        self.org.is_multi_org = False
-        self.org.save(update_fields=("is_multi_org",))
+        self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=False)
 
-        # error if a non-multi-org enabled org tries to create a child
+        # error if an org without this feature tries to create a child
         with self.assertRaises(AssertionError):
             self.org.create_child(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
 
-        # enable multi-org and try again
-        self.org.is_multi_org = True
-        self.org.save(update_fields=("is_multi_org",))
+        # enable feature and try again
+        self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=True)
 
         sub_org = self.org.create_child(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
-
-        # suborg has been created
-        self.assertIsNotNone(sub_org)
 
         # we should be linked to our parent with the same brand
         self.assertEqual(self.org, sub_org.parent)
@@ -2949,7 +2944,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, "New Workspace")
 
         self.org.toggle_feature(Org.FEATURE_USERS, enabled=True)
-        self.org.toggle_feature(Org.FEATURE_NEW_ORGS, enabled=True)
+        self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=True)
 
         response = self.assertListFetch(workspace_url, allow_viewers=True, allow_editors=True, allow_agents=False)
 
@@ -3367,8 +3362,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         home_url = reverse("orgs.org_home")
         create_child_url = reverse("orgs.org_create_child")
 
-        self.org.is_multi_org = False
-        self.org.save(update_fields=("is_multi_org",))
+        self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=False)
 
         self.login(self.admin, choose_org=self.org)
 
@@ -3394,9 +3388,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("orgs.org_manage_accounts_sub_org"))
         self.assertRedirect(response, home_url)
 
-        # enable multi-org
-        self.org.is_multi_org = True
-        self.org.save(update_fields=("is_multi_org",))
+        # enable child orgs
+        self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=True)
 
         response = self.client.get(home_url)
         self.assertContains(response, "Manage Workspaces")
@@ -3608,8 +3601,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, created_on.strftime("%H:%M").lower())
 
     def test_delete(self):
-        self.org.is_multi_org = True
-        self.org.save(update_fields=("is_multi_org",))
+        self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=True)
+
         workspace = self.org.create_child(self.admin, "Child Workspace", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
         delete_workspace = reverse("orgs.org_delete", args=[workspace.id])
 
@@ -3693,9 +3686,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "parent",
                 "plan",
                 "plan_end",
+                "features",
                 "is_anon",
-                "is_multi_user",
-                "is_multi_org",
                 "is_suspended",
                 "is_flagged",
                 "channels_limit",
@@ -3728,9 +3720,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "parent": parent.id,
                 "plan": "unicef",
                 "plan_end": "2027-12-31T00:00Z",
+                "features": ["new_orgs"],
                 "is_anon": False,
-                "is_multi_user": False,
-                "is_multi_org": False,
                 "is_suspended": False,
                 "is_flagged": False,
                 "channels_limit": 20,
@@ -3749,6 +3740,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(parent, self.org.parent)
         self.assertEqual("unicef", self.org.plan)
         self.assertEqual(datetime(2027, 12, 31, 0, 0, 0, 0, timezone.utc), self.org.plan_end)
+        self.assertEqual(["new_orgs"], self.org.features)
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)  # uses default
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 400)
