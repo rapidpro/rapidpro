@@ -8,6 +8,7 @@ from temba.utils import json
 from temba.utils.text import truncate
 
 from ...models import Channel
+from .type import InstagramType
 
 
 class InstagramTypeTest(TembaTest):
@@ -301,4 +302,10 @@ class InstagramTypeTest(TembaTest):
             "https://graph.facebook.com/v12.0/123456/subscribed_apps",
             data={"subscribed_fields": "messages,messaging_postbacks"},
             params={"access_token": self.long_life_page_token},
+        )
+
+    def test_get_error_ref_url(self):
+        self.assertEqual(
+            "https://developers.facebook.com/docs/instagram-api/reference/error-codes",
+            InstagramType().get_error_ref_url(None, "36000"),
         )
