@@ -1147,6 +1147,22 @@ class OrgTest(TembaTest):
         self.assertEqual(Org.get_unique_slug("Which part?"), "which-part")
         self.assertEqual(Org.get_unique_slug("Allo"), "allo-2")
 
+    def test_toggle_feature(self):
+        self.org.toggle_feature(Org.FEATURE_USERS, enabled=True)
+        self.org.toggle_feature(Org.FEATURE_NEW_ORGS, enabled=True)
+
+        self.org.refresh_from_db()
+        self.assertEqual(["users", "new_orgs"], self.org.features)
+        self.assertTrue(self.org.is_multi_user)
+        self.assertTrue(self.org.is_multi_org)
+
+        self.org.toggle_feature(Org.FEATURE_NEW_ORGS, enabled=False)
+
+        self.org.refresh_from_db()
+        self.assertEqual(["users"], self.org.features)
+        self.assertTrue(self.org.is_multi_user)
+        self.assertFalse(self.org.is_multi_org)
+
     def test_set_flow_languages(self):
         self.assertEqual([], self.org.flow_languages)
 
