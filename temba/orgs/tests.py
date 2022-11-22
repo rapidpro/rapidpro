@@ -44,7 +44,6 @@ from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     CRUDLTestMixin,
     ESMockWithScroll,
-    MigrationTest,
     MockResponse,
     TembaNonAtomicTest,
     TembaTest,
@@ -2863,8 +2862,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(200, response.status_code)
         self.assertEqual(14, len(response.context["formax"].sections))
 
-        self.org.is_multi_user = True
-        self.org.save(update_fields=("is_multi_user",))
+        self.org.toggle_feature(Org.FEATURE_USERS, enabled=True)
 
         response = self.client.get(home_url)
         self.assertEqual(200, response.status_code)
@@ -2934,9 +2932,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(7, len(response.context["formax"].sections))
         self.assertNotContains(response, "New Workspace")
 
-        self.org.is_multi_org = True
-        self.org.is_multi_user = True
-        self.org.save(update_fields=("is_multi_org", "is_multi_user"))
+        self.org.toggle_feature(Org.FEATURE_USERS, enabled=True)
+        self.org.toggle_feature(Org.FEATURE_NEW_ORGS, enabled=True)
 
         response = self.assertListFetch(workspace_url, allow_viewers=True, allow_editors=True, allow_agents=False)
 
@@ -4681,47 +4678,3 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
-
-
-class SimplifyOrgHierarchiesTest(MigrationTest):
-    app = "orgs"
-    migrate_from = "0107_remove_topup_created_by_remove_topup_modified_by_and_more"
-    migrate_to = "0108_simplify_org_hierarchies"
-
-    def setUpBeforeMigration(self, apps):
-        def create_org(parent):
-            return Org.objects.create(
-                name="Test",
-                parent=parent,
-                timezone=pytz.timezone("Africa/Kigali"),
-                brand=settings.DEFAULT_BRAND,
-                created_by=self.admin,
-                modified_by=self.admin,
-            )
-
-        self.org1 = create_org(parent=None)
-        self.org1_child1 = create_org(parent=self.org1)
-        self.org1_child1_child1 = create_org(parent=self.org1_child1)
-        self.org1_child1_child1_child1 = create_org(parent=self.org1_child1_child1)
-        self.org1_child1_child1_child2 = create_org(parent=self.org1_child1_child1)
-        self.org1_child1_child2 = create_org(parent=self.org1_child1)
-        self.org1_child2 = create_org(parent=self.org1)
-        self.org2 = create_org(parent=None)
-        self.org2_child1 = create_org(parent=self.org2)
-        self.org3 = create_org(parent=None)
-
-    def test_migration(self):
-        def assert_org(org, expected_parent):
-            org.refresh_from_db()
-            self.assertEqual(expected_parent, org.parent)
-
-        assert_org(self.org1, None)
-        assert_org(self.org1_child1, self.org1)
-        assert_org(self.org1_child1_child1, self.org1)
-        assert_org(self.org1_child1_child1_child1, self.org1)
-        assert_org(self.org1_child1_child1_child2, self.org1)
-        assert_org(self.org1_child1_child2, self.org1)
-        assert_org(self.org1_child2, self.org1)
-        assert_org(self.org2, None)
-        assert_org(self.org2_child1, self.org2)
-        assert_org(self.org3, None)
