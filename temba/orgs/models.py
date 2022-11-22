@@ -385,6 +385,10 @@ class Org(SmartModel):
     EARLIEST_IMPORT_VERSION = "3"
     CURRENT_EXPORT_VERSION = "13"
 
+    FEATURE_USERS = "users"  # can invite users to this org
+    FEATURE_NEW_ORGS = "new_orgs"  # can create new workspace with same login
+    FEATURE_CHILD_ORGS = "child_orgs"  # can create child workspaces of this org
+
     LIMIT_CHANNELS = "channels"
     LIMIT_FIELDS = "fields"
     LIMIT_GLOBALS = "globals"
@@ -465,8 +469,8 @@ class Org(SmartModel):
         error_messages=dict(unique=_("This slug is not available")),
     )
 
+    features = ArrayField(models.CharField(max_length=32), default=list)
     limits = JSONField(default=dict)
-
     api_rates = JSONField(default=dict)
 
     is_anon = models.BooleanField(
@@ -595,6 +599,23 @@ class Org(SmartModel):
         A verified org is not subject to automatic flagging for suspicious activity
         """
         return self.config.get(Org.CONFIG_VERIFIED, False)
+
+    def toggle_feature(self, feature: str, *, enabled: bool):
+        """
+        Toggles access to a feature
+        """
+        if enabled and feature not in self.features:
+            self.features.append(feature)
+        elif not enabled and feature in self.features:
+            self.features.remove(feature)
+
+        # TODO remove once we no longer need to set these for backward compatibility
+        if feature == Org.FEATURE_USERS:
+            self.is_multi_user = enabled
+        elif feature == Org.FEATURE_NEW_ORGS:
+            self.is_multi_org = enabled
+
+        self.save(update_fields=("features", "is_multi_user", "is_multi_org"))
 
     def import_app(self, export_json, user, site=None):
         """
