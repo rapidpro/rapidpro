@@ -1,3 +1,8 @@
+v7.5.115 (2022-11-22)
+-------------------------
+ * Default to no features on new child orgs
+ * Add features field to org update UI
+
 v7.5.114 (2022-11-22)
 -------------------------
  * Add Org.features and start writing it
