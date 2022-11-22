@@ -525,7 +525,7 @@ class Org(SmartModel):
         """
         Creates a new child workspace with this as its parent
         """
-        assert Org.FEATURE_CHILD_ORGS in self.features, "only multi-org enabled orgs can create children"
+        assert Org.FEATURE_CHILD_ORGS in self.features, "only orgs with this feature enabled can create children"
         assert not self.parent_id, "child orgs can't create children"
 
         org = Org.objects.create(
@@ -539,7 +539,6 @@ class Org(SmartModel):
             slug=self.get_unique_slug(name),
             created_by=user,
             modified_by=user,
-            features=self.features,
         )
 
         org.add_user(user, OrgRole.ADMINISTRATOR)
