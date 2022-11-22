@@ -8,6 +8,7 @@ from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
+from .type import TwilioMessagingServiceType
 from .views import COUNTRY_CHOICES
 
 
@@ -84,3 +85,9 @@ class TwilioMessagingServiceTypeTest(TembaTest):
 
         response = self.client.get(reverse("channels.channel_configuration", args=[channel.uuid]))
         self.assertContains(response, reverse("courier.tms", args=[channel.uuid, "receive"]))
+
+    def test_get_error_ref_url(self):
+        self.assertEqual(
+            "https://www.twilio.com/docs/api/errors/30006",
+            TwilioMessagingServiceType().get_error_ref_url(None, "30006"),
+        )

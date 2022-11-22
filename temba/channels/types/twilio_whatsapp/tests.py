@@ -9,6 +9,8 @@ from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
+from .type import TwilioWhatsappType
+
 
 class TwilioWhatsappTypeTest(TembaTest):
     @patch("temba.orgs.models.TwilioClient", MockTwilioClient)
@@ -133,3 +135,8 @@ class TwilioWhatsappTypeTest(TembaTest):
 
         self.client.post(reverse("channels.channel_delete", args=[twilio_channel.pk]))
         self.assertIsNotNone(self.org.channels.all().first())
+
+    def test_get_error_ref_url(self):
+        self.assertEqual(
+            "https://www.twilio.com/docs/api/errors/30006", TwilioWhatsappType().get_error_ref_url(None, "30006")
+        )

@@ -81,3 +81,6 @@ class TwilioType(ChannelType):
 
     def get_urls(self):
         return [self.get_claim_url(), re_path(r"^search$", SearchView.as_view(), name="search")]
+
+    def get_error_ref_url(self, channel, code: str) -> str:
+        return f"https://www.twilio.com/docs/api/errors/{code}"

@@ -1,3 +1,5 @@
+-load i18n
+
 -for http_log in log.http_logs
   .mb-4
     -include "includes/http_log.haml" with log=http_log
@@ -8,3 +10,7 @@
         %temba-icon.ml-2.mr-4(name="icon.error" style="--icon-color:rgb(var(--error-rgb))" size="1.5")
         .msg.flex-grow
           {{ err.message }}
+          -if err.ref_url 
+            .inline-block.align-middle.ml-1
+              %a(href="{{ err.ref_url }}")
+                %temba-icon(name="icon.link" size="1")
