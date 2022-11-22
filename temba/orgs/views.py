@@ -2132,7 +2132,10 @@ class OrgCRUDL(SmartCRUDL):
         class Form(forms.ModelForm):
             brand = forms.ChoiceField(choices=brands.get_choices(), label=_("Brand"), required=True)
             parent = forms.IntegerField(required=False)
-            plan_end = TembaDateTimeField(label=_("Plan End Date"))
+            plan_end = TembaDateTimeField(label=_("Plan End Date"), required=False)
+            features = forms.MultipleChoiceField(
+                choices=Org.FEATURES_CHOICES, widget=SelectMultipleWidget(), required=False
+            )
 
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -2161,17 +2164,15 @@ class OrgCRUDL(SmartCRUDL):
 
             def add_limits_fields(self, org: Org):
                 for limit_type in settings.ORG_LIMIT_DEFAULTS.keys():
-                    initial = org.limits.get(limit_type)
-                    limit_field = forms.IntegerField(
+                    field = forms.IntegerField(
                         label=limit_type.capitalize(),
                         required=False,
-                        initial=initial,
+                        initial=org.limits.get(limit_type),
                         widget=forms.TextInput(attrs={"placeholder": _("Limit")}),
                     )
                     field_key = f"{limit_type}_limit"
 
-                    self.fields.update(OrderedDict([(field_key, limit_field)]))
-
+                    self.fields.update(OrderedDict([(field_key, field)]))
                     self.limits_rows.append({"limit_type": limit_type, "limit_field_key": field_key})
 
             class Meta:
@@ -2182,9 +2183,8 @@ class OrgCRUDL(SmartCRUDL):
                     "parent",
                     "plan",
                     "plan_end",
+                    "features",
                     "is_anon",
-                    "is_multi_user",
-                    "is_multi_org",
                     "is_suspended",
                     "is_flagged",
                 )
@@ -2212,6 +2212,7 @@ class OrgCRUDL(SmartCRUDL):
                 elif action == "unflag":
                     self.get_object().unflag()
                 return HttpResponseRedirect(self.get_success_url())
+
             return super().post(request, *args, **kwargs)
 
         def pre_save(self, obj):
@@ -2519,15 +2520,13 @@ class OrgCRUDL(SmartCRUDL):
             # if current user no longer belongs to this org, redirect to org chooser
             return reverse("orgs.org_manage_accounts") if still_in_org else reverse("orgs.org_choose")
 
-    class MultiOrgMixin(OrgPermsMixin):
-        # if we don't support multi orgs, go home
+    class AllowChildOrgsMixin(OrgPermsMixin):
+        # if we don't support child orgs, go home
         def pre_process(self, request, *args, **kwargs):
-            response = super().pre_process(request, *args, **kwargs)
-            if not response and not request.org.is_multi_org:
+            if request.org.parent_id or Org.FEATURE_CHILD_ORGS not in request.org.features:
                 return HttpResponseRedirect(reverse("orgs.org_home"))
-            return response
 
-    class ManageAccountsSubOrg(MultiOrgMixin, ManageAccounts):
+    class ManageAccountsSubOrg(AllowChildOrgsMixin, ManageAccounts):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org_id = self.request.GET.get("org")
@@ -2562,17 +2561,19 @@ class OrgCRUDL(SmartCRUDL):
             self.request.session["org_id"] = None
             return HttpResponseRedirect(reverse("orgs.org_manage"))
 
-    class SubOrgs(SpaMixin, ContentMenuMixin, MultiOrgMixin, InferOrgMixin, SmartListView):
+    class SubOrgs(SpaMixin, ContentMenuMixin, AllowChildOrgsMixin, InferOrgMixin, SmartListView):
         fields = ("name", "contacts", "manage", "created_on")
         title = _("Workspaces")
         link_fields = []
 
         def build_content_menu(self, menu):
             org = self.get_object()
+            allow_child_orgs = Org.FEATURE_CHILD_ORGS in org.features and not org.parent
+
             if self.has_org_perm("orgs.org_dashboard"):
                 menu.add_link(_("Dashboard"), reverse("dashboard.dashboard_home"))
 
-            if self.has_org_perm("orgs.org_create_child") and org.is_multi_org and not org.parent:
+            if self.has_org_perm("orgs.org_create_child") and allow_child_orgs:
                 menu.add_modax(_("New Workspace"), "new-workspace", reverse("orgs.org_create_child"))
 
         def get_manage(self, obj):  # pragma: needs cover
@@ -2620,7 +2621,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
-    class CreateChild(NonAtomicMixin, SpaMixin, MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
+    class CreateChild(NonAtomicMixin, SpaMixin, AllowChildOrgsMixin, ModalMixin, InferOrgMixin, SmartCreateView):
         class Form(forms.ModelForm):
             name = forms.CharField(
                 label=_("Workspace"), help_text=_("The name of your workspace"), widget=InputWidget()
@@ -2637,10 +2638,6 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = Form
         success_url = "@orgs.org_sub_orgs"
-
-        def pre_process(self, request, *args, **kwargs):
-            if not self.request.org.is_multi_org or self.request.org.parent:
-                return HttpResponseRedirect(reverse("orgs.org_home"))
 
         def derive_initial(self):
             initial = super().derive_initial()
@@ -3286,6 +3283,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def build_content_menu(self, menu):
             obj = self.request.org
+            allow_child_orgs = Org.FEATURE_CHILD_ORGS in obj.features and not obj.parent
 
             menu.add_link(_("New Channel"), reverse("channels.channel_claim"), as_button=True)
 
@@ -3293,7 +3291,7 @@ class OrgCRUDL(SmartCRUDL):
                 menu.add_link(_("New Classifier"), reverse("classifiers.classifier_connect"))
             if self.has_org_perm("tickets.ticketer_connect") and "ticketers" in settings.FEATURES:
                 menu.add_link(_("New Ticketing Service"), reverse("tickets.ticketer_connect"))
-            if self.has_org_perm("orgs.org_create_child") and obj.is_multi_org and not obj.parent:
+            if self.has_org_perm("orgs.org_create_child") and allow_child_orgs:
                 menu.add_modax(_("New Workspace"), "new-workspace", reverse("orgs.org_create_child"))
 
             menu.new_group()
@@ -3321,8 +3319,7 @@ class OrgCRUDL(SmartCRUDL):
             if vonage_client:  # pragma: needs cover
                 formax.add_section("vonage", reverse("orgs.org_vonage_account"), icon="icon-vonage")
 
-            # only pro orgs get multiple users
-            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user:
+            if self.has_org_perm("orgs.org_accounts") and Org.FEATURE_USERS in org.features:
                 formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users")
 
             if self.has_org_perm("orgs.org_languages"):
@@ -3442,8 +3439,7 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_edit"):
                 formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
 
-            # only pro orgs get multiple users
-            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user:
+            if self.has_org_perm("orgs.org_accounts") and Org.FEATURE_USERS in org.features:
                 formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users", action="redirect")
 
             if self.has_org_perm("orgs.org_languages"):
@@ -3582,8 +3578,11 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            sub_orgs = Org.objects.filter(is_active=True, parent=self.get_object())
-            context["sub_orgs"] = sub_orgs
+
+            org = self.get_object()
+
+            context["sub_orgs"] = org.children.filter(is_active=True)
+            context["allow_child_orgs"] = Org.FEATURE_CHILD_ORGS in org.features and not org.parent
             context["is_spa"] = "HTTP_TEMBA_SPA" in self.request.META
             return context
 
