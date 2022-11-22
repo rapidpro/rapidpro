@@ -9,6 +9,7 @@ from temba.utils import json
 from temba.utils.text import truncate
 
 from ...models import Channel
+from .type import FacebookAppType
 
 
 class FacebookTypeTest(TembaTest):
@@ -296,3 +297,9 @@ class FacebookTypeTest(TembaTest):
                 params={"access_token": "09876543"},
             )
             mock_post.reset_mock()
+
+    def test_get_error_ref_url(self):
+        self.assertEqual(
+            "https://developers.facebook.com/docs/messenger-platform/error-codes",
+            FacebookAppType().get_error_ref_url(None, "190"),
+        )
