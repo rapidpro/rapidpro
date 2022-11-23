@@ -182,9 +182,8 @@
       <!-- Header -->
       -if user_org
         .org-header.self-end
-          -if user_orgs|length > 1
-            .pull-right.toggle
-              .icon-menu-2
+          .pull-right.toggle
+            .icon-menu-2
 
           .org
             {{ user_org.name }}

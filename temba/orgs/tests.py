@@ -2697,12 +2697,12 @@ class OrgTest(TembaTest):
 
         # error if an org without this feature tries to create a child
         with self.assertRaises(AssertionError):
-            self.org.create_new(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
+            self.org.create_new(self.admin, "Sub Org", self.org.timezone, as_child=True)
 
         # enable feature and try again
         self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=True)
 
-        sub_org = self.org.create_new(self.admin, "Sub Org", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
+        sub_org = self.org.create_new(self.admin, "Sub Org", self.org.timezone, as_child=True)
 
         # we should be linked to our parent with the same brand
         self.assertEqual(self.org, sub_org.parent)
@@ -3599,7 +3599,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_delete(self):
         self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=True)
 
-        workspace = self.org.create_new(self.admin, "Child Workspace", self.org.timezone, Org.DATE_FORMAT_DAY_FIRST)
+        workspace = self.org.create_new(self.admin, "Child Workspace", self.org.timezone, as_child=True)
         delete_workspace = reverse("orgs.org_delete", args=[workspace.id])
 
         # choose the parent org, try to delete the workspace

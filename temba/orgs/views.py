@@ -2439,6 +2439,10 @@ class OrgCRUDL(SmartCRUDL):
         submit_button_name = _("Save Changes")
         title = _("Users")
 
+        def pre_process(self, request, *args, **kwargs):
+            if Org.FEATURE_CHILD_ORGS not in request.org.features:
+                return HttpResponseRedirect(reverse("orgs.org_home"))
+
         def derive_title(self):
             if self.object.parent and self.is_spa():
                 return self.object.name
@@ -2520,13 +2524,7 @@ class OrgCRUDL(SmartCRUDL):
             # if current user no longer belongs to this org, redirect to org chooser
             return reverse("orgs.org_manage_accounts") if still_in_org else reverse("orgs.org_choose")
 
-    class AllowChildOrgsMixin(OrgPermsMixin):
-        # if we don't support child orgs, go home
-        def pre_process(self, request, *args, **kwargs):
-            if request.org.parent_id or Org.FEATURE_CHILD_ORGS not in request.org.features:
-                return HttpResponseRedirect(reverse("orgs.org_home"))
-
-    class ManageAccountsSubOrg(AllowChildOrgsMixin, ManageAccounts):
+    class ManageAccountsSubOrg(ManageAccounts):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org_id = self.request.GET.get("org")
@@ -2561,20 +2559,14 @@ class OrgCRUDL(SmartCRUDL):
             self.request.session["org_id"] = None
             return HttpResponseRedirect(reverse("orgs.org_manage"))
 
-    class SubOrgs(SpaMixin, ContentMenuMixin, AllowChildOrgsMixin, InferOrgMixin, SmartListView):
+    class SubOrgs(SpaMixin, ContentMenuMixin, OrgPermsMixin, InferOrgMixin, SmartListView):
         fields = ("name", "contacts", "manage", "created_on")
         title = _("Workspaces")
         link_fields = []
 
         def build_content_menu(self, menu):
-            org = self.get_object()
-            allow_child_orgs = Org.FEATURE_CHILD_ORGS in org.features and not org.parent
-
             if self.has_org_perm("orgs.org_dashboard"):
                 menu.add_link(_("Dashboard"), reverse("dashboard.dashboard_home"))
-
-            if self.has_org_perm("orgs.org_create_new") and allow_child_orgs:
-                menu.add_modax(_("New Workspace"), "new-workspace", reverse("orgs.org_create_new"))
 
         def get_manage(self, obj):  # pragma: needs cover
             if obj == self.get_object():
@@ -2621,45 +2613,59 @@ class OrgCRUDL(SmartCRUDL):
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
-    class CreateNew(NonAtomicMixin, SpaMixin, AllowChildOrgsMixin, ModalMixin, InferOrgMixin, SmartCreateView):
+    class CreateNew(NonAtomicMixin, SpaMixin, OrgPermsMixin, ModalMixin, InferOrgMixin, SmartCreateView):
         class Form(forms.ModelForm):
-            name = forms.CharField(
-                label=_("Workspace"), help_text=_("The name of your workspace"), widget=InputWidget()
-            )
+            TYPE_CHILD = "child"
+            TYPE_NEW = "new"
+            TYPE_CHOICES = ((TYPE_CHILD, _("As child workspace")), (TYPE_NEW, _("As separate workspace")))
 
-            timezone = TimeZoneFormField(
-                help_text=_("The timezone for your workspace"), widget=SelectWidget(attrs={"searchable": True})
-            )
+            type = forms.ChoiceField(choices=TYPE_CHOICES, widget=SelectWidget(attrs={"widget_only": True}))
+            name = forms.CharField(label=_("Name"), widget=InputWidget())
+            timezone = TimeZoneFormField(widget=SelectWidget(attrs={"searchable": True}))
 
             class Meta:
                 model = Org
-                fields = ("name", "date_format", "timezone")
-                widgets = {"date_format": SelectWidget()}
+                fields = ("name", "timezone")
 
         form_class = Form
         success_url = "@orgs.org_sub_orgs"
 
+        def pre_process(self, request, *args, **kwargs):
+            if Org.FEATURE_NEW_ORGS not in request.org.features and Org.FEATURE_CHILD_ORGS not in request.org.features:
+                return HttpResponseRedirect(reverse("orgs.org_home"))
+
         def derive_initial(self):
             initial = super().derive_initial()
             initial["timezone"] = self.request.org.timezone
-            initial["date_format"] = self.request.org.date_format
             return initial
 
+        def derive_fields(self):
+            allow_child_orgs = Org.FEATURE_CHILD_ORGS in self.request.org.features and not self.request.org.parent
+
+            return ["type", "name", "timezone"] if allow_child_orgs else ["name", "timezone"]
+
+        def get_success_url(self):
+            if self.object.parent:
+                if self.is_spa():
+                    return f"{reverse('orgs.org_manage_accounts_sub_org')}?org={self.object.id}"
+                else:
+                    return reverse("orgs.org_sub_orgs")
+
+            # TODO login to new workspace
+            return reverse("msgs.msg_inbox")
+
         def form_valid(self, form):
-            child = self.org.create_new(
+            self.object = self.org.create_new(
                 self.request.user,
                 form.cleaned_data["name"],
                 timezone=form.cleaned_data["timezone"],
-                date_format=form.cleaned_data["date_format"],
+                as_child=form.cleaned_data.get("type") == form.TYPE_CHILD,
             )
 
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
-
                 success_url = self.get_success_url()
-                if self.is_spa():
-                    success_url = f"{reverse('orgs.org_manage_accounts_sub_org')}?org={child.id}"
 
                 response = self.render_to_response(
                     self.get_context_data(
@@ -3125,7 +3131,7 @@ class OrgCRUDL(SmartCRUDL):
             ):  # pragma: needs cover
                 obj.add_user(self.request.user, OrgRole.ADMINISTRATOR)
 
-            obj.initialize(branding=obj.branding)
+            obj.initialize()
 
             return obj
 
@@ -3282,17 +3288,12 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Workspace")
 
         def build_content_menu(self, menu):
-            obj = self.request.org
-            allow_child_orgs = Org.FEATURE_CHILD_ORGS in obj.features and not obj.parent
-
             menu.add_link(_("New Channel"), reverse("channels.channel_claim"), as_button=True)
 
             if self.has_org_perm("classifiers.classifier_connect"):
                 menu.add_link(_("New Classifier"), reverse("classifiers.classifier_connect"))
             if self.has_org_perm("tickets.ticketer_connect") and "ticketers" in settings.FEATURES:
                 menu.add_link(_("New Ticketing Service"), reverse("tickets.ticketer_connect"))
-            if self.has_org_perm("orgs.org_create_new") and allow_child_orgs:
-                menu.add_modax(_("New Workspace"), "new-workspace", reverse("orgs.org_create_new"))
 
             menu.new_group()
 
@@ -3582,7 +3583,6 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
 
             context["sub_orgs"] = org.children.filter(is_active=True)
-            context["allow_child_orgs"] = Org.FEATURE_CHILD_ORGS in org.features and not org.parent
             context["is_spa"] = "HTTP_TEMBA_SPA" in self.request.META
             return context
 
