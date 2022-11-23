@@ -1153,15 +1153,11 @@ class OrgTest(TembaTest):
 
         self.org.refresh_from_db()
         self.assertEqual(["users", "child_orgs"], self.org.features)
-        self.assertTrue(self.org.is_multi_user)
-        self.assertTrue(self.org.is_multi_org)
 
         self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=False)
 
         self.org.refresh_from_db()
         self.assertEqual(["users"], self.org.features)
-        self.assertTrue(self.org.is_multi_user)
-        self.assertFalse(self.org.is_multi_org)
 
     def test_set_flow_languages(self):
         self.assertEqual([], self.org.flow_languages)

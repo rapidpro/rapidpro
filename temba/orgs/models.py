@@ -497,10 +497,6 @@ class Org(SmartModel):
     released_on = models.DateTimeField(null=True)
     deleted_on = models.DateTimeField(null=True)
 
-    # TODO remove
-    is_multi_org = models.BooleanField(default=False, null=True)
-    is_multi_user = models.BooleanField(default=False, null=True)
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -609,13 +605,7 @@ class Org(SmartModel):
         elif not enabled and feature in self.features:
             self.features.remove(feature)
 
-        # TODO remove once we no longer need to set these for backward compatibility
-        if feature == Org.FEATURE_USERS:
-            self.is_multi_user = enabled
-        elif feature == Org.FEATURE_CHILD_ORGS:
-            self.is_multi_org = enabled
-
-        self.save(update_fields=("features", "is_multi_user", "is_multi_org"))
+        self.save(update_fields=("features",))
 
     def import_app(self, export_json, user, site=None):
         """
