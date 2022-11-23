@@ -56,3 +56,6 @@ class InstagramType(ChannelType):
             f"https://graph.facebook.com/v12.0/{channel.address}/subscribed_apps",
             params={"access_token": config[Channel.CONFIG_AUTH_TOKEN]},
         )
+
+    def get_error_ref_url(self, channel, code: str) -> str:
+        return "https://developers.facebook.com/docs/instagram-api/reference/error-codes"

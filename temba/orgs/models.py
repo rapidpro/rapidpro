@@ -385,6 +385,15 @@ class Org(SmartModel):
     EARLIEST_IMPORT_VERSION = "3"
     CURRENT_EXPORT_VERSION = "13"
 
+    FEATURE_USERS = "users"  # can invite users to this org
+    FEATURE_NEW_ORGS = "new_orgs"  # can create new workspace with same login
+    FEATURE_CHILD_ORGS = "child_orgs"  # can create child workspaces of this org
+    FEATURES_CHOICES = (
+        (FEATURE_USERS, _("Users")),
+        (FEATURE_NEW_ORGS, _("New Orgs")),
+        (FEATURE_CHILD_ORGS, _("Child Orgs")),
+    )
+
     LIMIT_CHANNELS = "channels"
     LIMIT_FIELDS = "fields"
     LIMIT_GLOBALS = "globals"
@@ -465,8 +474,8 @@ class Org(SmartModel):
         error_messages=dict(unique=_("This slug is not available")),
     )
 
+    features = ArrayField(models.CharField(max_length=32), default=list)
     limits = JSONField(default=dict)
-
     api_rates = JSONField(default=dict)
 
     is_anon = models.BooleanField(
@@ -475,13 +484,6 @@ class Org(SmartModel):
 
     is_flagged = models.BooleanField(default=False, help_text=_("Whether this organization is currently flagged."))
     is_suspended = models.BooleanField(default=False, help_text=_("Whether this organization is currently suspended."))
-
-    is_multi_org = models.BooleanField(
-        default=False, help_text=_("Whether this organization can have child workspaces")
-    )
-    is_multi_user = models.BooleanField(
-        default=False, help_text=_("Whether this organization can have multiple logins")
-    )
 
     flow_languages = ArrayField(models.CharField(max_length=3), default=list)
 
@@ -519,7 +521,7 @@ class Org(SmartModel):
         """
         Creates a new child workspace with this as its parent
         """
-        assert self.is_multi_org, "only multi-org enabled orgs can create children"
+        assert Org.FEATURE_CHILD_ORGS in self.features, "only orgs with this feature enabled can create children"
         assert not self.parent_id, "child orgs can't create children"
 
         org = Org.objects.create(
@@ -533,8 +535,6 @@ class Org(SmartModel):
             slug=self.get_unique_slug(name),
             created_by=user,
             modified_by=user,
-            is_multi_user=self.is_multi_user,
-            is_multi_org=False,
         )
 
         org.add_user(user, OrgRole.ADMINISTRATOR)
@@ -595,6 +595,17 @@ class Org(SmartModel):
         A verified org is not subject to automatic flagging for suspicious activity
         """
         return self.config.get(Org.CONFIG_VERIFIED, False)
+
+    def toggle_feature(self, feature: str, *, enabled: bool):
+        """
+        Toggles access to a feature
+        """
+        if enabled and feature not in self.features:
+            self.features.append(feature)
+        elif not enabled and feature in self.features:
+            self.features.remove(feature)
+
+        self.save(update_fields=("features",))
 
     def import_app(self, export_json, user, site=None):
         """

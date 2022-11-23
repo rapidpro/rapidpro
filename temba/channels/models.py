@@ -213,6 +213,11 @@ class ChannelType(metaclass=ABCMeta):
         else:
             return ""
 
+    def get_error_ref_url(self, channel, code: str) -> str:
+        """
+        Resolves an error code from a channel log into a docs URL for that error.
+        """
+
     def __str__(self):
         return self.name
 
@@ -1256,9 +1261,14 @@ class ChannelLog(models.Model):
             }
 
         def redact_error(err: dict) -> dict:
+            ext_code = err.get("ext_code")
+            ref_url = self.channel.type.get_error_ref_url(self.channel, ext_code) if ext_code else None
+
             return {
-                "message": self._get_display_value(user, err["message"], redact_values=redact_values),
                 "code": err["code"],
+                "ext_code": ext_code,
+                "message": self._get_display_value(user, err["message"], redact_values=redact_values),
+                "ref_url": ref_url,
             }
 
         return {

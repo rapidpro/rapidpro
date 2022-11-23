@@ -58,3 +58,6 @@ class TwimlAPIType(ChannelType):
             description=_("Incoming messages for this channel will be sent to this endpoint."),
         ),
     )
+
+    def get_error_ref_url(self, channel, code: str) -> str:
+        return f"https://www.twilio.com/docs/api/errors/{code}"

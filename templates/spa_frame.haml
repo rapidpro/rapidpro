@@ -791,27 +791,20 @@
       });
       event.target.setOptions(options)
 
-      if (evt.target.value.link) {
-        fetchURL(evt.target.value.link);
-        currentOrg = -1;
-        return;
-
-      } else {
-        var orgId = evt.target.value.value;
-        if (currentOrg != orgId) {
-          currentOrg = orgId;
-          showLoading(true);
-          var store = document.querySelector("temba-store");
-          store.postUrl("/org/choose/", "organization=" + orgId, {}, 'application/x-www-form-urlencoded').then(function(response) {
-            if (response.status >= 200 && response.status < 400) {
-              store.reset();
-              var menu = document.querySelector("temba-menu");
-              menu.reset();
-            } else {
-              document.location.reload();
-            }
-          });
-        }
+      var orgId = evt.target.value.value;
+      if (currentOrg != orgId) {
+        currentOrg = orgId;
+        showLoading(true);
+        var store = document.querySelector("temba-store");
+        store.postUrl("/org/choose/", "organization=" + orgId, {}, 'application/x-www-form-urlencoded').then(function(response) {
+          if (response.status >= 200 && response.status < 400) {
+            store.reset();
+            var menu = document.querySelector("temba-menu");
+            menu.reset();
+          } else {
+            document.location.reload();
+          }
+        });
       }
     }
 
@@ -869,8 +862,6 @@
                 -for other_org in user_orgs
                   -if other_org.id != user_org.id
                     %temba-option(name='{{ other_org.name }}' value="{{other_org.id}}")
-                -if org_perms.orgs.org_create_new and user_org.is_multi_org and not user_org.parent
-                  %temba-option(name="New Workspace" link='{% url "orgs.org_create_new" %}')
 
         .spa-content.p-5.overflow-y-auto.overflow-x-hidden
 

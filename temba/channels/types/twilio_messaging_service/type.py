@@ -47,3 +47,6 @@ class TwilioMessagingServiceType(ChannelType):
 
     def is_recommended_to(self, org, user):
         return timezone_to_country_code(org.timezone) in SUPPORTED_COUNTRIES
+
+    def get_error_ref_url(self, channel, code: str) -> str:
+        return f"https://www.twilio.com/docs/api/errors/{code}"
