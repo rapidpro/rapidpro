@@ -7,6 +7,7 @@ from django.urls import reverse
 from temba.tests import TembaTest
 
 from ...models import Channel
+from .type import TelegramType
 
 
 class TelegramTypeTest(TembaTest):
@@ -82,3 +83,6 @@ class TelegramTypeTest(TembaTest):
         self.channel.release(self.admin)
 
         mock_delete_webhook.assert_called_once_with()
+
+    def test_get_error_ref_url(self):
+        self.assertEqual("https://core.telegram.org/api/errors", TelegramType().get_error_ref_url(None, "420"))

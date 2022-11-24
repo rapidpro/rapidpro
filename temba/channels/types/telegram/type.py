@@ -47,3 +47,6 @@ class TelegramType(ChannelType):
         config = channel.config
         bot = telegram.Bot(config["auth_token"])
         bot.delete_webhook()
+
+    def get_error_ref_url(self, channel, code: str) -> str:
+        return "https://core.telegram.org/api/errors"
