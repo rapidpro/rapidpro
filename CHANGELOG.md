@@ -1,3 +1,8 @@
+v7.5.117 (2022-11-23)
+-------------------------
+ * Update to latest editor
+ * Drop Org.is_multi_org and Org.is_multi_user which have been replaced by Org.features
+
 v7.5.116 (2022-11-23)
 -------------------------
  * Fix flow label name display
