@@ -194,12 +194,11 @@
                 .org.text-primary
                   %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
                     {{ org.name }}
-            -if org_perms.orgs.org_create_new 
+            -if org_perms.orgs.org_create
               -if "new_orgs" in user_org.features or "child_orgs" in user_org.features
                 %hr
                 .org.text-primary
-                  %a{href:'{% url "orgs.org_create_new" %}'}
-                    -trans "New Workspace"
+                  <a onclick="handleNewWorkspaceClicked(event)">{% trans "New Workspace" %}</a>
 
       #header
         &nbsp;
@@ -363,6 +362,16 @@
             return {id:"number-" + term, text:term};
           }
         }
+      }
+
+      function handleNewWorkspaceClicked(evt) {
+        var modal = getModax();
+        modal.header = '{{_("New Workspace")|escapejs}}';
+        modal.setAttribute("endpoint", "{% url 'orgs.org_create' %}");
+        modal.open = true;
+
+        evt.preventDefault();
+        evt.stopPropagation();
       }
 
     -block extra-script

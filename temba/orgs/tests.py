@@ -1493,17 +1493,23 @@ class OrgTest(TembaTest):
     @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
         url = reverse("orgs.org_manage_accounts")
+        home_url = reverse("orgs.org_home")
 
         # can't access as editor
         self.login(self.editor)
         response = self.client.get(url)
         self.assertLoginRedirect(response)
 
-        # can access as admin
+        # can't access as admin either because we don't have that feature enabled
         self.login(self.admin)
         response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
+        self.assertRedirect(response, home_url)
 
+        self.org.features = [Org.FEATURE_USERS]
+        self.org.save(update_fields=("features",))
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(
             [("A", "Administrator"), ("E", "Editor"), ("V", "Viewer"), ("T", "Agent"), ("S", "Surveyor")],
             response.context["form"].fields["invite_role"].choices,
@@ -2862,7 +2868,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
 
-        with self.assertNumQueries(45):
+        with self.assertNumQueries(46):
             response = self.client.get(home_url)
 
         # more options for admins
@@ -2937,16 +2943,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # make sure we have the appropriate number of sections
         self.assertEqual(7, len(response.context["formax"].sections))
-        self.assertNotContains(response, "New Workspace")
 
-        self.org.toggle_feature(Org.FEATURE_USERS, enabled=True)
-        self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=True)
+        self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS]
+        self.org.save(update_fields=("features",))
 
         response = self.assertListFetch(workspace_url, allow_viewers=True, allow_editors=True, allow_agents=False)
 
         # we now have workspace management
         self.assertEqual(8, len(response.context["formax"].sections))
-        self.assertContains(response, "New Workspace")
 
         # create a child org
         self.child_org = Org.objects.create(
@@ -3356,95 +3360,192 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_create_new(self):
         home_url = reverse("orgs.org_home")
-        create_new_url = reverse("orgs.org_create_new")
+        create_url = reverse("orgs.org_create")
 
-        self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=False)
+        self.login(self.admin)
 
-        self.login(self.admin, choose_org=self.org)
+        # by default orgs don't have this feature
+        response = self.client.get(home_url)
 
+        self.assertNotContains(response, ">New Workspace</a>")
+
+        # trying to access the modal directly should redirect
+        response = self.client.get(create_url)
+        self.assertLoginRedirect(response)
+
+        self.org.features = [Org.FEATURE_NEW_ORGS]
+        self.org.save(update_fields=("features",))
+
+        response = self.client.get(home_url)
+        self.assertContains(response, ">New Workspace</a>")
+
+        # since we can only create new orgs, we don't show type as an option
+        self.assertCreateFetch(
+            create_url, allow_viewers=False, allow_editors=False, allow_org2=False, form_fields=["name", "timezone"]
+        )
+
+        # try to submit an empty form
+        response = self.assertCreateSubmit(
+            create_url, {}, form_errors={"name": "This field is required.", "timezone": "This field is required."}
+        )
+
+        # submit with valid values to create a new org...
+        response = self.assertCreateSubmit(
+            create_url,
+            {"name": "My Other Org", "timezone": "Africa/Nairobi"},
+            new_obj_query=Org.objects.filter(name="My Other Org", parent=None),
+        )
+
+        new_org = Org.objects.get(name="My Other Org")
+        self.assertEqual([], new_org.features)
+        self.assertEqual("Africa/Nairobi", str(new_org.timezone))
+        self.assertEqual(OrgRole.ADMINISTRATOR, new_org.get_user_role(self.admin))
+
+        # should be now logged into that org
+        self.assertRedirect(response, "/msg/inbox/")
+        response = self.client.get("/msg/inbox/")
+        self.assertEqual(str(new_org.id), response.headers["X-Temba-Org"])
+
+    def test_create_child(self):
+        home_url = reverse("orgs.org_home")
+        create_url = reverse("orgs.org_create")
+
+        self.login(self.admin)
+
+        # by default orgs don't have the new_orgs or child_orgs feature
+        response = self.client.get(home_url)
+
+        self.assertNotContains(response, ">New Workspace</a>")
+
+        # trying to access the modal directly should redirect
+        response = self.client.get(create_url)
+        self.assertLoginRedirect(response)
+
+        self.org.features = [Org.FEATURE_CHILD_ORGS]
+        self.org.save(update_fields=("features",))
+
+        response = self.client.get(home_url)
+        self.assertContains(response, ">New Workspace</a>")
+
+        # since we can only create child orgs, we don't show type as an option
+        self.assertCreateFetch(
+            create_url, allow_viewers=False, allow_editors=False, allow_org2=False, form_fields=["name", "timezone"]
+        )
+
+        # try to submit an empty form
+        response = self.assertCreateSubmit(
+            create_url, {}, form_errors={"name": "This field is required.", "timezone": "This field is required."}
+        )
+
+        # submit with valid values to create a child org...
+        response = self.assertCreateSubmit(
+            create_url,
+            {"name": "My Child Org", "timezone": "Africa/Nairobi"},
+            new_obj_query=Org.objects.filter(name="My Child Org", parent=self.org),
+        )
+
+        child_org = Org.objects.get(name="My Child Org")
+        self.assertEqual([], child_org.features)
+        self.assertEqual("Africa/Nairobi", str(child_org.timezone))
+        self.assertEqual(OrgRole.ADMINISTRATOR, child_org.get_user_role(self.admin))
+
+        # should have been redirected to child management page
+        self.assertRedirect(response, "/org/sub_orgs/")
+
+    def test_create_child_or_new(self):
+        create_url = reverse("orgs.org_create")
+
+        self.login(self.admin)
+
+        self.org.features = [Org.FEATURE_NEW_ORGS, Org.FEATURE_CHILD_ORGS]
+        self.org.save(update_fields=("features",))
+
+        # because we can create both new orgs and child orgs, type is an option
+        self.assertCreateFetch(
+            create_url,
+            allow_viewers=False,
+            allow_editors=False,
+            allow_org2=False,
+            form_fields=["type", "name", "timezone"],
+        )
+
+        self.assertCreateSubmit(
+            create_url,
+            {"type": "new", "name": "New Org", "timezone": "Africa/Nairobi"},
+            new_obj_query=Org.objects.filter(name="New Org", parent=None),
+        )
+
+        Org.objects.get(name="New Org").release(self.admin)
+
+        self.assertCreateSubmit(
+            create_url,
+            {"type": "child", "name": "Child Org", "timezone": "Africa/Nairobi"},
+            new_obj_query=Org.objects.filter(name="Child Org", parent=self.org),
+        )
+
+    def test_child_management(self):
+        sub_orgs_url = reverse("orgs.org_sub_orgs")
+        home_url = reverse("orgs.org_home")
+
+        self.login(self.admin)
+
+        # we don't see button if we don't have child orgs
         response = self.client.get(home_url)
         self.assertNotContains(response, "Manage Workspaces")
 
-        # attempting to manage orgs should redirect
-        response = self.client.get(reverse("orgs.org_sub_orgs"))
-        self.assertRedirect(response, home_url)
+        # enable child orgs and create some child orgs
+        self.org.features = [Org.FEATURE_CHILD_ORGS]
+        self.org.save(update_fields=("features",))
+        child1 = self.org.create_new(self.admin, "Child Org 1", self.org.timezone, as_child=True)
+        child2 = self.org.create_new(self.admin, "Child Org 2", self.org.timezone, as_child=True)
 
-        # creating a new sub org should also redirect
-        response = self.client.get(create_new_url)
-        self.assertRedirect(response, home_url)
-
-        # make sure posting is gated too
-        response = self.client.post(
-            create_new_url,
-            {"name": "Sub Org", "timezone": self.org.timezone, "date_format": self.org.date_format},
-        )
-        self.assertRedirect(response, home_url)
-
-        # cant manage users either
-        response = self.client.get(reverse("orgs.org_manage_accounts_sub_org"))
-        self.assertRedirect(response, home_url)
-
-        # enable child orgs
-        self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=True)
-
+        # now we see the button and can view that page
+        self.login(self.admin, choose_org=self.org)
         response = self.client.get(home_url)
         self.assertContains(response, "Manage Workspaces")
 
-        # now we can manage our orgs
-        response = self.client.get(reverse("orgs.org_sub_orgs"))
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Workspaces")
-
-        # add a sub org
-        response = self.client.post(
-            create_new_url,
-            {"name": "Sub Org", "timezone": self.org.timezone, "date_format": self.org.date_format},
+        response = self.assertListFetch(
+            sub_orgs_url, allow_viewers=False, allow_editors=False, context_objects=[self.org, child1, child2]
         )
-        self.assertRedirect(response, reverse("orgs.org_sub_orgs"))
-        sub_org = Org.objects.filter(name="Sub Org").first()
-        self.assertIsNotNone(sub_org)
-        self.assertEqual(OrgRole.ADMINISTRATOR, sub_org.get_user_role(self.admin))
 
-        # create a second org to test sorting
-        response = self.client.post(
-            create_new_url,
-            {"name": "A Second Org", "timezone": self.org.timezone, "date_format": self.org.date_format},
-        )
-        self.assertEqual(302, response.status_code)
+        child1_edit_url = reverse("orgs.org_edit_sub_org") + f"?org={child1.id}"
+        child1_accounts_url = reverse("orgs.org_manage_accounts_sub_org") + f"?org={child1.id}"
 
-        # we can reach the manage accounts page too now
-        response = self.client.get("%s?org=%d" % (reverse("orgs.org_manage_accounts_sub_org"), sub_org.id))
+        self.assertContains(response, child1_edit_url)
+        self.assertContains(response, child1_accounts_url)
+
+        # we can also access the manage accounts page
+        response = self.client.get(child1_accounts_url)
         self.assertEqual(200, response.status_code)
 
-        headers = {"HTTP_TEMBA_SPA": 1}
-        response = self.client.get("%s?org=%d" % (reverse("orgs.org_manage_accounts_sub_org"), sub_org.id), **headers)
+        response = self.client.get(child1_accounts_url, HTTP_TEMBA_SPA=1)
         self.assertContains(response, "Edit Workspace")
 
         # edit our sub org's details
         response = self.client.post(
-            f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}",
-            {"name": "New Sub Org Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
+            child1_edit_url,
+            {"name": "New Child Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
         )
+        self.assertEqual(sub_orgs_url, response.url)
 
-        sub_org.refresh_from_db()
-        self.assertEqual("New Sub Org Name", sub_org.name)
-
-        self.assertEqual(response.url, "/org/sub_orgs/")
+        child1.refresh_from_db()
+        self.assertEqual("New Child Name", child1.name)
+        self.assertEqual("/org/sub_orgs/", response.url)
 
         # edit our sub org's details in a spa view
         response = self.client.post(
-            f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}",
-            {"name": "Spa Sub Org Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
-            **headers,
+            child1_edit_url,
+            {"name": "Spa Child Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
+            HTTP_TEMBA_SPA=1,
         )
 
-        self.assertEqual(response.url, f"/org/manage_accounts_sub_org/?org={sub_org.id}")
+        self.assertEqual(child1_accounts_url, response.url)
 
-        sub_org.refresh_from_db()
-        self.assertEqual("Spa Sub Org Name", sub_org.name)
-        self.assertEqual("Africa/Nairobi", str(sub_org.timezone))
-        self.assertEqual("Y", sub_org.date_format)
-        self.assertEqual("es", sub_org.language)
+        child1.refresh_from_db()
+        self.assertEqual("Spa Child Name", child1.name)
+        self.assertEqual("Africa/Nairobi", str(child1.timezone))
+        self.assertEqual("Y", child1.date_format)
+        self.assertEqual("es", child1.language)
 
         # if org doesn't exist, 404
         response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org=3464374")
@@ -3453,7 +3554,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.login(self.admin2)
 
         # same if it's not a child of the request org
-        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}")
+        response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org={child1.id}")
         self.assertEqual(404, response.status_code)
 
     def test_choose(self):
@@ -3603,7 +3704,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         delete_workspace = reverse("orgs.org_delete", args=[workspace.id])
 
         # choose the parent org, try to delete the workspace
-        self.assertDeleteFetch(delete_workspace, choose_org=self.org)
+        self.assertDeleteFetch(delete_workspace)
 
         # schedule for deletion
         response = self.client.get(delete_workspace)

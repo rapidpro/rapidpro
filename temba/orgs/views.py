@@ -89,6 +89,10 @@ TWO_FACTOR_STARTED_SESSION_KEY = "_two_factor_started_on"
 TWO_FACTOR_LIMIT_SECONDS = 5 * 60
 
 
+def switch_to_org(request, org):
+    request.session["org_id"] = org.id if org else None
+
+
 def check_login(request):
     """
     Simple view that checks whether we actually need to log in.  This is needed on the live site
@@ -1205,7 +1209,7 @@ class OrgCRUDL(SmartCRUDL):
         "vonage_connect",
         "plan",
         "sub_orgs",
-        "create_new",
+        "create",
         "export",
         "import",
         "plivo_connect",
@@ -2440,7 +2444,7 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Users")
 
         def pre_process(self, request, *args, **kwargs):
-            if Org.FEATURE_CHILD_ORGS not in request.org.features:
+            if Org.FEATURE_USERS not in request.org.features:
                 return HttpResponseRedirect(reverse("orgs.org_home"))
 
         def derive_title(self):
@@ -2525,6 +2529,9 @@ class OrgCRUDL(SmartCRUDL):
             return reverse("orgs.org_manage_accounts") if still_in_org else reverse("orgs.org_choose")
 
     class ManageAccountsSubOrg(ManageAccounts):
+        def pre_process(self, request, *args, **kwargs):
+            pass
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org_id = self.request.GET.get("org")
@@ -2549,14 +2556,13 @@ class OrgCRUDL(SmartCRUDL):
 
         # valid form means we set our org and redirect to their inbox
         def form_valid(self, form):
-            org = form.cleaned_data["organization"]
-            self.request.session["org_id"] = org.pk
+            switch_to_org(self.request, form.cleaned_data["organization"])
             success_url = form.cleaned_data["redirect_url"] or reverse("msgs.msg_inbox")
             return HttpResponseRedirect(success_url)
 
         # invalid form login 'logs out' the user from the org and takes them to the org manage page
         def form_invalid(self, form):
-            self.request.session["org_id"] = None
+            switch_to_org(self.request, None)
             return HttpResponseRedirect(reverse("orgs.org_manage"))
 
     class SubOrgs(SpaMixin, ContentMenuMixin, OrgPermsMixin, InferOrgMixin, SmartListView):
@@ -2613,53 +2619,65 @@ class OrgCRUDL(SmartCRUDL):
         def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
-    class CreateNew(NonAtomicMixin, SpaMixin, OrgPermsMixin, ModalMixin, InferOrgMixin, SmartCreateView):
+    class Create(NonAtomicMixin, SpaMixin, OrgPermsMixin, ModalMixin, InferOrgMixin, SmartCreateView):
         class Form(forms.ModelForm):
             TYPE_CHILD = "child"
             TYPE_NEW = "new"
             TYPE_CHOICES = ((TYPE_CHILD, _("As child workspace")), (TYPE_NEW, _("As separate workspace")))
 
-            type = forms.ChoiceField(choices=TYPE_CHOICES, widget=SelectWidget(attrs={"widget_only": True}))
+            type = forms.ChoiceField(initial=TYPE_CHILD, widget=SelectWidget(attrs={"widget_only": True}))
             name = forms.CharField(label=_("Name"), widget=InputWidget())
             timezone = TimeZoneFormField(widget=SelectWidget(attrs={"searchable": True}))
 
+            def __init__(self, org, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                self.fields["type"].choices = self.TYPE_CHOICES
+                self.fields["timezone"].initial = org.timezone
+
             class Meta:
                 model = Org
-                fields = ("name", "timezone")
+                fields = ("type", "name", "timezone")
 
         form_class = Form
-        success_url = "@orgs.org_sub_orgs"
 
         def pre_process(self, request, *args, **kwargs):
-            if Org.FEATURE_NEW_ORGS not in request.org.features and Org.FEATURE_CHILD_ORGS not in request.org.features:
-                return HttpResponseRedirect(reverse("orgs.org_home"))
+            # if org has neither feature then redirect
+            features = self.request.org.features
+            if Org.FEATURE_NEW_ORGS not in features and Org.FEATURE_CHILD_ORGS not in features:
+                return HttpResponseRedirect(reverse("users.user_login"))
 
-        def derive_initial(self):
-            initial = super().derive_initial()
-            initial["timezone"] = self.request.org.timezone
-            return initial
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
+            return kwargs
 
         def derive_fields(self):
-            allow_child_orgs = Org.FEATURE_CHILD_ORGS in self.request.org.features and not self.request.org.parent
-
-            return ["type", "name", "timezone"] if allow_child_orgs else ["name", "timezone"]
+            # if org supports creating both new and child orgs, need to show type as option
+            features = self.request.org.features
+            show_type = Org.FEATURE_NEW_ORGS in features and Org.FEATURE_CHILD_ORGS in features
+            return ["type", "name", "timezone"] if show_type else ["name", "timezone"]
 
         def get_success_url(self):
+            # if we created a child org, redirect to its management
             if self.object.parent:
                 if self.is_spa():
                     return f"{reverse('orgs.org_manage_accounts_sub_org')}?org={self.object.id}"
                 else:
                     return reverse("orgs.org_sub_orgs")
 
-            # TODO login to new workspace
+            # if we created a new separate org, switch to it
+            switch_to_org(self.request, self.object)
             return reverse("msgs.msg_inbox")
 
         def form_valid(self, form):
+            default_type = form.TYPE_CHILD if Org.FEATURE_CHILD_ORGS in self.request.org.features else form.TYPE_NEW
+
             self.object = self.org.create_new(
                 self.request.user,
                 form.cleaned_data["name"],
                 timezone=form.cleaned_data["timezone"],
-                as_child=form.cleaned_data.get("type") == form.TYPE_CHILD,
+                as_child=form.cleaned_data.get("type", default_type) == form.TYPE_CHILD,
             )
 
             if "HTTP_X_PJAX" not in self.request.META:
@@ -2701,8 +2719,8 @@ class OrgCRUDL(SmartCRUDL):
         def get_user_orgs(self):
             return self.request.user.get_orgs(brand=self.request.branding["slug"])
 
-        def get_success_url(self):
-            role = self.request.org.get_user_role(self.request.user)
+        def get_success_url(self, org):
+            role = org.get_user_role(self.request.user)
             return reverse(self.success_urls[role])
 
         def pre_process(self, request, *args, **kwargs):
@@ -2711,12 +2729,10 @@ class OrgCRUDL(SmartCRUDL):
                 user_orgs = self.get_user_orgs()
                 if user_orgs.count() == 1:
                     org = user_orgs[0]
-                    self.request.session["org_id"] = org.id
-                    self.request.org = org
-
+                    switch_to_org(self.request, org)
                     analytics.identify(user, self.request.branding, org)
 
-                    return HttpResponseRedirect(self.get_success_url())
+                    return HttpResponseRedirect(self.get_success_url(org))
 
                 elif user_orgs.count() == 0:
                     if user.is_staff:
@@ -2743,11 +2759,9 @@ class OrgCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             org = form.cleaned_data["organization"]
-
-            self.request.session["org_id"] = org.id
-            self.request.org = org
+            switch_to_org(self.request, org)
             analytics.identify(self.request.user, self.request.branding, org)
-            return HttpResponseRedirect(self.get_success_url())
+            return HttpResponseRedirect(self.get_success_url(org))
 
     class CreateLogin(SmartUpdateView):
         title = ""
@@ -2922,8 +2936,7 @@ class OrgCRUDL(SmartCRUDL):
                 self.invitation.is_active = False
                 self.invitation.save()
 
-                # make this the current org for user's session
-                self.request.session["org_id"] = org.pk
+                switch_to_org(self.request, org)
 
         def get_success_url(self):  # pragma: needs cover
             if self.invitation.user_group == "S":
@@ -3167,8 +3180,7 @@ class OrgCRUDL(SmartCRUDL):
 
             obj = super().post_save(obj)
 
-            self.request.session["org_id"] = obj.pk
-
+            switch_to_org(self.request, obj)
             login(self.request, user)
 
             return obj
