@@ -3469,19 +3469,31 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             form_fields=["type", "name", "timezone"],
         )
 
+        # create new org
         self.assertCreateSubmit(
             create_url,
             {"type": "new", "name": "New Org", "timezone": "Africa/Nairobi"},
             new_obj_query=Org.objects.filter(name="New Org", parent=None),
         )
 
-        Org.objects.get(name="New Org").release(self.admin)
-
+        # create child org
         self.assertCreateSubmit(
             create_url,
             {"type": "child", "name": "Child Org", "timezone": "Africa/Nairobi"},
             new_obj_query=Org.objects.filter(name="Child Org", parent=self.org),
         )
+
+    def test_create_child_spa(self):
+        create_url = reverse("orgs.org_create")
+
+        self.login(self.admin)
+
+        self.org.features = [Org.FEATURE_CHILD_ORGS]
+        self.org.save(update_fields=("features",))
+
+        response = self.client.post(create_url, {"name": "Child Org", "timezone": "Africa/Nairobi"}, HTTP_TEMBA_SPA=1)
+
+        self.assertRedirect(response, "/org/manage_accounts_sub_org/")
 
     def test_child_management(self):
         sub_orgs_url = reverse("orgs.org_sub_orgs")
