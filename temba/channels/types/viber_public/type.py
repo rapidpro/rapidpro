@@ -58,3 +58,6 @@ class ViberPublicType(ChannelType):
     def deactivate(self, channel):
         auth_token = channel.config["auth_token"]
         requests.post("https://chatapi.viber.com/pa/set_webhook", json={"auth_token": auth_token, "url": ""})
+
+    def get_error_ref_url(self, channel, code: str) -> str:
+        return "https://developers.viber.com/docs/api/rest-bot-api/#error-codes"
