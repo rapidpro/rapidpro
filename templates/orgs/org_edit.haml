@@ -1,5 +1,5 @@
 -extends 'smartmin/form.html'
--load smartmin humanize i18n
+-load i18n
 
 -block spa-title
 
@@ -12,7 +12,7 @@
       -blocktrans trimmed with timezone=object.timezone
         which is in the <b>{{timezone}}</b> timezone.
 
-      -if not is_spa and allow_child_orgs and sub_orgs
+      -if not is_spa and sub_orgs
         .mt-4
           {% blocktrans count sub_orgs|length as org_count%}
             You have <b>{{org_count}}</b> child workspaces.
@@ -22,6 +22,6 @@
 
     -if not is_spa
       .buttons
-        -if allow_child_orgs
+        -if sub_orgs
           .button-light(onclick="goto(event)" href='{% url "orgs.org_sub_orgs" %}')
             -trans "Manage Workspaces"

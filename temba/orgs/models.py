@@ -517,28 +517,32 @@ class Org(SmartModel):
 
             return unique_slug
 
-    def create_child(self, user, name: str, timezone, date_format: str):
+    def create_new(self, user, name: str, timezone, *, as_child: bool):
         """
-        Creates a new child workspace with this as its parent
+        Creates a new workspace copying settings from this workspace.
         """
-        assert Org.FEATURE_CHILD_ORGS in self.features, "only orgs with this feature enabled can create children"
-        assert not self.parent_id, "child orgs can't create children"
+
+        if as_child:
+            assert Org.FEATURE_CHILD_ORGS in self.features, "only orgs with this feature enabled can create child orgs"
+            assert not self.parent_id, "child orgs can't create children"
+        else:
+            assert Org.FEATURE_NEW_ORGS in self.features, "only orgs with this feature enabled can create new orgs"
 
         org = Org.objects.create(
             name=name,
             timezone=timezone,
-            date_format=date_format,
+            date_format=self.date_format,
             language=self.language,
             flow_languages=self.flow_languages,
             brand=self.brand,
-            parent=self,
+            parent=self if as_child else None,
             slug=self.get_unique_slug(name),
             created_by=user,
             modified_by=user,
         )
 
         org.add_user(user, OrgRole.ADMINISTRATOR)
-        org.initialize(branding=org.branding)
+        org.initialize()
         return org
 
     @cached_property
@@ -1181,7 +1185,7 @@ class Org(SmartModel):
 
         return all_components
 
-    def initialize(self, branding=None, sample_flows=True):
+    def initialize(self, sample_flows=True):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
@@ -1189,17 +1193,14 @@ class Org(SmartModel):
         from temba.tickets.models import Ticketer, Topic
 
         with transaction.atomic():
-            if not branding:
-                branding = brands.get_by_slug(settings.DEFAULT_BRAND)
-
             ContactGroup.create_system_groups(self)
             ContactField.create_system_fields(self)
-            Ticketer.create_internal_ticketer(self, branding)
+            Ticketer.create_internal_ticketer(self, self.branding)
             Topic.create_default_topic(self)
 
         # outside of the transaction as it's going to call out to mailroom for flow validation
         if sample_flows:
-            self.create_sample_flows(branding.get("link", ""))
+            self.create_sample_flows(self.branding.get("link", ""))
 
     def get_delete_date(self, *, archive_type=Archive.TYPE_MSG):
         """
