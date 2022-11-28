@@ -417,7 +417,7 @@ class Org(SmartModel):
 
     name = models.CharField(verbose_name=_("Name"), max_length=128)
     brand = models.CharField(max_length=128, default="rapidpro", verbose_name=_("Brand"))
-    plan = models.CharField(verbose_name=_("Plan"), max_length=16, default="rapidpro")
+    plan = models.CharField(verbose_name=_("Plan"), max_length=16, null=True, blank=True)
     plan_start = models.DateTimeField(null=True)
     plan_end = models.DateTimeField(null=True)
 

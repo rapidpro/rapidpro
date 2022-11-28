@@ -2873,12 +2873,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # more options for admins
         self.assertEqual(200, response.status_code)
-        self.assertEqual(14, len(response.context["formax"].sections))
+        self.assertEqual(13, len(response.context["formax"].sections))
 
-        self.org.toggle_feature(Org.FEATURE_USERS, enabled=True)
+        # set a plan and add the users feature
+        self.org.plan = "unicef"
+        self.org.features = [Org.FEATURE_USERS]
+        self.org.save(update_fields=("plan", "features"))
 
         response = self.client.get(home_url)
-        self.assertEqual(200, response.status_code)
         self.assertEqual(15, len(response.context["formax"].sections))
 
     def test_menu(self):
