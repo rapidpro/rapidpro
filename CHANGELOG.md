@@ -1,3 +1,9 @@
+v7.5.118 (2022-11-28)
+-------------------------
+ * Add telgram and viber error reference URLs
+ * Make Org.plan optional
+ * Add support to create new workspaces from org chooser
+
 v7.5.117 (2022-11-23)
 -------------------------
  * Update to latest editor
