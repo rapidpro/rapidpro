@@ -600,17 +600,6 @@ class Org(SmartModel):
         """
         return self.config.get(Org.CONFIG_VERIFIED, False)
 
-    def toggle_feature(self, feature: str, *, enabled: bool):
-        """
-        Toggles access to a feature
-        """
-        if enabled and feature not in self.features:
-            self.features.append(feature)
-        elif not enabled and feature in self.features:
-            self.features.remove(feature)
-
-        self.save(update_fields=("features",))
-
     def import_app(self, export_json, user, site=None):
         """
         Imports previously exported JSON

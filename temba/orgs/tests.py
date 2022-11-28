@@ -1147,18 +1147,6 @@ class OrgTest(TembaTest):
         self.assertEqual(Org.get_unique_slug("Which part?"), "which-part")
         self.assertEqual(Org.get_unique_slug("Allo"), "allo-2")
 
-    def test_toggle_feature(self):
-        self.org.toggle_feature(Org.FEATURE_USERS, enabled=True)
-        self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=True)
-
-        self.org.refresh_from_db()
-        self.assertEqual(["users", "child_orgs"], self.org.features)
-
-        self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=False)
-
-        self.org.refresh_from_db()
-        self.assertEqual(["users"], self.org.features)
-
     def test_set_flow_languages(self):
         self.assertEqual([], self.org.flow_languages)
 
@@ -2699,14 +2687,13 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org.api_rates, {"v2.contacts": "10000/hour"})
 
     def test_child_management(self):
-        self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=False)
-
         # error if an org without this feature tries to create a child
         with self.assertRaises(AssertionError):
             self.org.create_new(self.admin, "Sub Org", self.org.timezone, as_child=True)
 
         # enable feature and try again
-        self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=True)
+        self.org.features = [Org.FEATURE_CHILD_ORGS]
+        self.org.save(update_fields=("features",))
 
         sub_org = self.org.create_new(self.admin, "Sub Org", self.org.timezone, as_child=True)
 
@@ -3719,7 +3706,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, created_on.strftime("%H:%M").lower())
 
     def test_delete(self):
-        self.org.toggle_feature(Org.FEATURE_CHILD_ORGS, enabled=True)
+        self.org.features = [Org.FEATURE_CHILD_ORGS]
+        self.org.save(update_fields=("features",))
 
         workspace = self.org.create_new(self.admin, "Child Workspace", self.org.timezone, as_child=True)
         delete_workspace = reverse("orgs.org_delete", args=[workspace.id])
