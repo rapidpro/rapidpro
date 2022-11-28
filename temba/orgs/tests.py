@@ -3371,7 +3371,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # trying to access the modal directly should redirect
         response = self.client.get(create_url)
-        self.assertLoginRedirect(response)
+        self.assertRedirect(response, "/org/home/")
 
         self.org.features = [Org.FEATURE_NEW_ORGS]
         self.org.save(update_fields=("features",))
@@ -3379,10 +3379,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(home_url)
         self.assertContains(response, ">New Workspace</a>")
 
+        # give org2 the same feature
+        self.org2.features = [Org.FEATURE_CHILD_ORGS]
+        self.org2.save(update_fields=("features",))
+
         # since we can only create new orgs, we don't show type as an option
-        self.assertCreateFetch(
-            create_url, allow_viewers=False, allow_editors=False, allow_org2=False, form_fields=["name", "timezone"]
-        )
+        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=False, form_fields=["name", "timezone"])
 
         # try to submit an empty form
         response = self.assertCreateSubmit(
@@ -3419,7 +3421,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # trying to access the modal directly should redirect
         response = self.client.get(create_url)
-        self.assertLoginRedirect(response)
+        self.assertRedirect(response, "/org/home/")
 
         self.org.features = [Org.FEATURE_CHILD_ORGS]
         self.org.save(update_fields=("features",))
@@ -3427,10 +3429,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(home_url)
         self.assertContains(response, ">New Workspace</a>")
 
+        # give org2 the same feature
+        self.org2.features = [Org.FEATURE_CHILD_ORGS]
+        self.org2.save(update_fields=("features",))
+
         # since we can only create child orgs, we don't show type as an option
-        self.assertCreateFetch(
-            create_url, allow_viewers=False, allow_editors=False, allow_org2=False, form_fields=["name", "timezone"]
-        )
+        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=False, form_fields=["name", "timezone"])
 
         # try to submit an empty form
         response = self.assertCreateSubmit(
@@ -3460,12 +3464,15 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.features = [Org.FEATURE_NEW_ORGS, Org.FEATURE_CHILD_ORGS]
         self.org.save(update_fields=("features",))
 
+        # give org2 the same feature
+        self.org2.features = [Org.FEATURE_NEW_ORGS, Org.FEATURE_CHILD_ORGS]
+        self.org2.save(update_fields=("features",))
+
         # because we can create both new orgs and child orgs, type is an option
         self.assertCreateFetch(
             create_url,
             allow_viewers=False,
             allow_editors=False,
-            allow_org2=False,
             form_fields=["type", "name", "timezone"],
         )
 

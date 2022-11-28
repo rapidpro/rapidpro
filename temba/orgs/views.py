@@ -2645,7 +2645,7 @@ class OrgCRUDL(SmartCRUDL):
             # if org has neither feature then redirect
             features = self.request.org.features
             if Org.FEATURE_NEW_ORGS not in features and Org.FEATURE_CHILD_ORGS not in features:
-                return HttpResponseRedirect(reverse("users.user_login"))
+                return HttpResponseRedirect(reverse("orgs.org_home"))
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
