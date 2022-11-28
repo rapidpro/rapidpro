@@ -6,6 +6,7 @@ from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
 from temba.utils import json
 
 from ...models import Channel
+from .type import ViberPublicType
 from .views import CONFIG_WELCOME_MESSAGE
 
 
@@ -98,3 +99,9 @@ class ViberPublicTypeTest(TembaTest, CRUDLTestMixin):
         # read page has link to update page
         response = self.client.get(reverse("channels.channel_read", args=[self.channel.uuid]))
         self.assertContains(response, update_url)
+
+    def test_get_error_ref_url(self):
+        self.assertEqual(
+            "https://developers.viber.com/docs/api/rest-bot-api/#error-codes",
+            ViberPublicType().get_error_ref_url(None, "12"),
+        )
