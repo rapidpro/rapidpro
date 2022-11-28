@@ -3408,7 +3408,7 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             org = self.request.org
 
-            if org.plan and not org.plan == "parent":
+            if org.plan:
                 if self.has_org_perm("orgs.org_plan"):
                     formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
 
