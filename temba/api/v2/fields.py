@@ -253,7 +253,11 @@ class ContactFieldField(TembaModelField):
     lookup_fields = ("key",)
 
     def to_representation(self, obj):
-        return {"key": obj.key, "label": obj.name}
+        return {
+            "key": obj.key,
+            "name": obj.name,
+            "label": obj.name,  # for backwards compatibility
+        }
 
 
 class ContactGroupField(TembaModelField):

@@ -12,7 +12,7 @@ from smartmin.views import SmartFormView, SmartTemplateView
 from django import forms
 from django.conf import settings
 from django.contrib.auth import authenticate, login
-from django.db.models import Prefetch, Q
+from django.db.models import Count, Prefetch, Q
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -816,7 +816,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
             {
                 "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
                 "campaign": {"uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00", "name": "Reminders"},
-                "relative_to": {"key": "registration", "label": "Registration Date"},
+                "relative_to": {"key": "registration", "name": "Registration Date"},
                 "offset": 7,
                 "unit": "days",
                 "delivery_hour": 9,
@@ -857,7 +857,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
         {
             "uuid": "6a6d7531-6b44-4c45-8c33-957ddd8dfabc",
             "campaign": {"uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00", "name": "Hits"},
-            "relative_to": "last_hit",
+            "relative_to": {"key": "last_hit", "name": "Last Hit"},
             "offset": 160,
             "unit": "W",
             "delivery_hour": -1,
@@ -1723,8 +1723,8 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     A **GET** returns the list of custom contact fields for your organization, in the order of last created.
 
      * **key** - the unique key of this field (string), filterable as `key`
-     * **label** - the display label of this field (string)
-     * **value_type** - the data type of values associated with this field (string)
+     * **name** - the display name of this field (string)
+     * **type** - the data type of this field (string)
 
     Example:
 
@@ -1738,8 +1738,8 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "results": [
                 {
                     "key": "nick_name",
-                    "label": "Nick name",
-                    "value_type": "text"
+                    "name": "Nick name",
+                    "type": "text"
                 },
                 ...
             ]
@@ -1764,8 +1764,8 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
         {
             "key": "nick_name",
-            "label": "Nick name",
-            "value_type": "text"
+            "name": "Nick name",
+            "type": "text"
         }
 
     ## Updating Fields
@@ -1784,8 +1784,8 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
         {
             "key": "nick_name",
-            "label": "New label",
-            "value_type": "text"
+            "name": "New label",
+            "type": "text"
         }
     """
 
@@ -1798,7 +1798,12 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     def derive_queryset(self):
         org = self.request.org
-        return self.model.user_fields.filter(org=org, is_active=True)
+        return (
+            self.model.user_fields.filter(org=org, is_active=True)
+            .annotate(flow_count=Count("dependent_flows", filter=Q(dependent_flows__is_active=True)))
+            .annotate(group_count=Count("dependent_groups", filter=Q(dependent_groups__is_active=True)))
+            .annotate(campaignevent_count=Count("campaign_events", filter=Q(campaign_events__is_active=True)))
+        )
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -1808,7 +1813,7 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         if key:
             queryset = queryset.filter(key=key)
 
-        return queryset.filter(is_active=True)
+        return queryset
 
     @classmethod
     def get_read_explorer(cls):
