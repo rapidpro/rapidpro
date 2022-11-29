@@ -1,3 +1,9 @@
+v7.5.119 (2022-11-29)
+-------------------------
+ * Fix flow label in list buttons
+ * Fix editor StartSessionForm bug for definitions without exclusions
+ * Remove no longer needed check for plan=parent
+
 v7.5.118 (2022-11-28)
 -------------------------
  * Add telgram and viber error reference URLs
