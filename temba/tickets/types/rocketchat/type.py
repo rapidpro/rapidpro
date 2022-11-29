@@ -25,4 +25,4 @@ class RocketChatType(TicketerType):
     ) % {"link": '<a href="https://rocket.chat/">Rocket.Chat</a>'}
 
     def is_available_to(self, user):
-        return user.is_beta
+        return False
