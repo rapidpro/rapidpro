@@ -706,7 +706,7 @@ class ContactFieldReadSerializer(ReadSerializer):
     }
 
     type = serializers.SerializerMethodField()
-    pinned = serializers.SerializerMethodField()
+    featured = serializers.SerializerMethodField()
     usages = serializers.SerializerMethodField()
 
     # for backwards compatibility
@@ -716,7 +716,7 @@ class ContactFieldReadSerializer(ReadSerializer):
     def get_type(self, obj):
         return ContactField.ENGINE_TYPES[obj.value_type]
 
-    def get_pinned(self, obj):
+    def get_featured(self, obj):
         return obj.show_in_table
 
     def get_usages(self, obj):
@@ -734,7 +734,7 @@ class ContactFieldReadSerializer(ReadSerializer):
 
     class Meta:
         model = ContactField
-        fields = ("key", "name", "type", "pinned", "priority", "usages", "label", "value_type")
+        fields = ("key", "name", "type", "featured", "priority", "usages", "label", "value_type")
 
 
 class ContactFieldWriteSerializer(WriteSerializer):
