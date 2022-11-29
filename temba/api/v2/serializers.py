@@ -705,9 +705,26 @@ class ContactFieldReadSerializer(ReadSerializer):
         ContactField.TYPE_WARD: "ward",
     }
 
+    type = serializers.SerializerMethodField()
+    pinned = serializers.SerializerMethodField()
+    usages = serializers.SerializerMethodField()
+
+    # for backwards compatibility
     label = serializers.SerializerMethodField()
     value_type = serializers.SerializerMethodField()
-    pinned = serializers.SerializerMethodField()
+
+    def get_type(self, obj):
+        return ContactField.ENGINE_TYPES[obj.value_type]
+
+    def get_pinned(self, obj):
+        return obj.show_in_table
+
+    def get_usages(self, obj):
+        return {
+            "flows": getattr(obj, "flow_count", 0),
+            "groups": getattr(obj, "group_count", 0),
+            "campaign_events": getattr(obj, "campaignevent_count", 0),
+        }
 
     def get_label(self, obj):
         return obj.name
@@ -715,12 +732,9 @@ class ContactFieldReadSerializer(ReadSerializer):
     def get_value_type(self, obj):
         return self.VALUE_TYPES[obj.value_type]
 
-    def get_pinned(self, obj):
-        return obj.show_in_table
-
     class Meta:
         model = ContactField
-        fields = ("key", "label", "value_type", "pinned", "priority")
+        fields = ("key", "name", "type", "pinned", "priority", "usages", "label", "value_type")
 
 
 class ContactFieldWriteSerializer(WriteSerializer):

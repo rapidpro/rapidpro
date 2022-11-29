@@ -234,7 +234,7 @@ class FieldsTest(TembaTest):
         self.assert_field(
             fields.ContactFieldField(source="test"),
             submissions={"registered": field_obj, "created_on": field_created_on, "xyz": serializers.ValidationError},
-            representations={field_obj: {"key": "registered", "label": "Registered On"}},
+            representations={field_obj: {"key": "registered", "name": "Registered On", "label": "Registered On"}},
         )
 
         self.assert_field(
@@ -1255,7 +1255,7 @@ class EndpointsTest(TembaTest):
                 {
                     "uuid": str(event3.uuid),
                     "campaign": {"uuid": str(campaign3.uuid), "name": "Alerts"},
-                    "relative_to": {"key": "created_on", "label": "Created On"},
+                    "relative_to": {"key": "created_on", "name": "Created On", "label": "Created On"},
                     "offset": 6,
                     "unit": "hours",
                     "delivery_hour": 12,
@@ -1266,7 +1266,7 @@ class EndpointsTest(TembaTest):
                 {
                     "uuid": str(event2.uuid),
                     "campaign": {"uuid": str(campaign2.uuid), "name": "Notifications"},
-                    "relative_to": {"key": "registration", "label": "Registration"},
+                    "relative_to": {"key": "registration", "name": "Registration", "label": "Registration"},
                     "offset": 6,
                     "unit": "hours",
                     "delivery_hour": 12,
@@ -1277,7 +1277,7 @@ class EndpointsTest(TembaTest):
                 {
                     "uuid": str(event1.uuid),
                     "campaign": {"uuid": str(campaign1.uuid), "name": "Reminders"},
-                    "relative_to": {"key": "registration", "label": "Registration"},
+                    "relative_to": {"key": "registration", "name": "Registration", "label": "Registration"},
                     "offset": 1,
                     "unit": "days",
                     "delivery_hour": -1,
@@ -2660,12 +2660,24 @@ class EndpointsTest(TembaTest):
             [
                 {
                     "key": "registered",
-                    "label": "Registered On",
-                    "value_type": "datetime",
+                    "name": "Registered On",
+                    "type": "datetime",
                     "pinned": False,
                     "priority": 0,
+                    "usages": {"campaign_events": 1, "flows": 0, "groups": 0},
+                    "label": "Registered On",
+                    "value_type": "datetime",
                 },
-                {"key": "nick_name", "label": "Nick Name", "value_type": "text", "pinned": False, "priority": 0},
+                {
+                    "key": "nick_name",
+                    "name": "Nick Name",
+                    "type": "text",
+                    "pinned": False,
+                    "priority": 0,
+                    "usages": {"campaign_events": 0, "flows": 0, "groups": 0},
+                    "label": "Nick Name",
+                    "value_type": "text",
+                },
             ],
         )
 
@@ -2673,7 +2685,18 @@ class EndpointsTest(TembaTest):
         response = self.fetchJSON(url, "key=nick_name")
         self.assertEqual(
             response.json()["results"],
-            [{"key": "nick_name", "label": "Nick Name", "pinned": False, "value_type": "text", "priority": 0}],
+            [
+                {
+                    "key": "nick_name",
+                    "name": "Nick Name",
+                    "type": "text",
+                    "pinned": False,
+                    "priority": 0,
+                    "usages": {"campaign_events": 0, "flows": 0, "groups": 0},
+                    "label": "Nick Name",
+                    "value_type": "text",
+                }
+            ],
         )
 
         # try to create empty field
