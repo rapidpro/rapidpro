@@ -351,7 +351,6 @@ class CampaignEventWriteSerializer(WriteSerializer):
     relative_to = fields.ContactFieldField(required=True)
     message = fields.TranslatableField(required=False, max_length=Msg.MAX_TEXT_LEN)
     flow = fields.FlowField(required=False)
-    new_expressions = serializers.BooleanField(required=False, default=False)
 
     def validate_unit(self, value):
         return self.UNITS[value]
