@@ -1,7 +1,6 @@
 from django.urls import reverse
 
 from ..models import NotificationType
-from . import register_notification_type
 
 
 class ExportFinishedNotificationType(NotificationType):
@@ -62,10 +61,3 @@ class TicketActivityNotificationType(NotificationType):
 
     def get_target_url(self, notification) -> str:
         return "/ticket/mine/"
-
-
-register_notification_type(ExportFinishedNotificationType())
-register_notification_type(ImportFinishedNotificationType())
-register_notification_type(IncidentStartedNotificationType())
-register_notification_type(TicketsOpenedNotificationType())
-register_notification_type(TicketActivityNotificationType())
