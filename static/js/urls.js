@@ -6,6 +6,7 @@ window.urls = [
   { old: /\/msg\/(.*)\//,                                new: /\/messages\/(.*)/ },
   { old: /\/contact\/read\/(.*)/,                        new: /\/contacts\/read\/(.*)/ },
   { old: /\/contact\/filter\/(.*)/,                      new: /\/contacts\/groups\/(.*)/ },
+  { old: /\/contactfield\//,                             new: /\/contacts\/fields\// },
   { old: /\/contact\//,                                  new: /\/contacts\// },
   { old: /\/flow\/editor\/(.*)/,                         new: /\/flows\/editor\/(.*)/ },
   { old: /\/flow\/results\/(.*)/,                        new: /\/flows\/results\/(.*)/ },
