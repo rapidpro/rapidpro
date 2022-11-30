@@ -355,14 +355,17 @@ class ContactField(TembaModel, DependencyMixin):
     TYPE_DISTRICT = "I"
     TYPE_WARD = "W"
 
-    TYPE_CHOICES = (
+    TYPE_CHOICES_BASIC = (
         (TYPE_TEXT, _("Text")),
         (TYPE_NUMBER, _("Number")),
         (TYPE_DATETIME, _("Date & Time")),
+    )
+    TYPE_CHOICES_LOCATIONS = (
         (TYPE_STATE, _("State")),
         (TYPE_DISTRICT, _("District")),
         (TYPE_WARD, _("Ward")),
     )
+    TYPE_CHOICES = TYPE_CHOICES_BASIC + TYPE_CHOICES_LOCATIONS
 
     ENGINE_TYPES = {
         TYPE_TEXT: "text",

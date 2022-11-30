@@ -1605,6 +1605,16 @@ class ContactFieldForm(forms.ModelForm):
 
         self.org = org
 
+        is_already_location_type = self.instance and self.instance.value_type in (
+            ContactField.TYPE_STATE,
+            ContactField.TYPE_DISTRICT,
+            ContactField.TYPE_WARD,
+        )
+        allow_location_types = "locations" in settings.FEATURES or is_already_location_type
+        self.fields["value_type"].choices = (
+            ContactField.TYPE_CHOICES if allow_location_types else ContactField.TYPE_CHOICES_BASIC
+        )
+
     def clean_name(self):
         name = self.cleaned_data["name"]
 
