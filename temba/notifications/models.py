@@ -4,7 +4,6 @@ from abc import abstractmethod
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q
-from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
 
@@ -156,69 +155,6 @@ class NotificationType:
         }
 
 
-class ExportFinishedNotificationType(NotificationType):
-    slug = "export:finished"
-
-    def get_target_url(self, notification) -> str:
-        return notification.export.get_download_url()
-
-    def get_email_template(self, notification) -> tuple:
-        export_type = notification.export.notification_export_type
-        return f"Your {export_type} export is ready", f"notifications/email/export_finished.{export_type}"
-
-    def get_email_context(self, notification):
-        context = super().get_email_context(notification)
-        if notification.results_export:
-            context["flows"] = notification.results_export.flows.order_by("name")
-        return context
-
-    def as_json(self, notification) -> dict:
-        json = super().as_json(notification)
-        json["export"] = {"type": notification.export.notification_export_type}
-        return json
-
-
-class ImportFinishedNotificationType(NotificationType):
-    slug = "import:finished"
-
-    def get_target_url(self, notification) -> str:
-        return reverse("contacts.contactimport_read", args=[notification.contact_import.id])
-
-    def as_json(self, notification) -> dict:
-        json = super().as_json(notification)
-        json["import"] = {"type": "contact", "num_records": notification.contact_import.num_records}
-        return json
-
-
-class IncidentStartedNotificationType(NotificationType):
-    slug = "incident:started"
-
-    def get_target_url(self, notification) -> str:
-        return reverse("notifications.incident_list")
-
-    def as_json(self, notification) -> dict:
-        json = super().as_json(notification)
-        json["incident"] = notification.incident.as_json()
-        return json
-
-
-class TicketsOpenedNotificationType(NotificationType):
-    slug = "tickets:opened"
-
-    def get_target_url(self, notification) -> str:
-        return "/ticket/unassigned/"
-
-
-class TicketActivityNotificationType(NotificationType):
-    slug = "tickets:activity"
-
-    def get_target_url(self, notification) -> str:
-        return "/ticket/mine/"
-
-
-NOTIFICATION_TYPES_BY_SLUG = {lt.slug: lt() for lt in NotificationType.__subclasses__()}
-
-
 class Notification(models.Model):
     """
     A user specific notification
@@ -272,6 +208,8 @@ class Notification(models.Model):
         Creates an export finished notification for the creator of the given export.
         """
 
+        from .types.builtin import ExportFinishedNotificationType
+
         cls._create_all(
             export.org,
             ExportFinishedNotificationType.slug,
@@ -286,6 +224,8 @@ class Notification(models.Model):
         """
         Creates an incident started notification for all admins in the workspace.
         """
+
+        from .types.builtin import IncidentStartedNotificationType
 
         cls._create_all(
             incident.org,
@@ -347,7 +287,9 @@ class Notification(models.Model):
 
     @property
     def type(self):
-        return NOTIFICATION_TYPES_BY_SLUG[self.notification_type]
+        from .types import TYPES  # noqa
+
+        return TYPES[self.notification_type]
 
     def as_json(self) -> dict:
         return self.type.as_json(self)
