@@ -1724,7 +1724,7 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
      * **key** - the unique key of this field (string), filterable as `key`
      * **name** - the display name of this field (string)
-     * **type** - the data type of this field (string)
+     * **type** - the data type of this field (one of "text", "number", "datetime", "state", "district", "ward")
 
     Example:
 
@@ -1749,15 +1749,15 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     A **POST** can be used to create a new contact field. Don't specify a key as this will be generated for you.
 
-    * **label** - the display label (string)
-    * **value_type** - one of the value type codes (string)
+    * **name** - the display name (string)
+    * **type** - one of the data type codes (string)
 
     Example:
 
         POST /api/v2/fields.json
         {
-            "label": "Nick name",
-            "value_type": "text"
+            "name": "Nick name",
+            "type": "text"
         }
 
     You will receive a field object (with the new field key) as a response if successful:
@@ -1776,8 +1776,8 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
         POST /api/v2/fields.json?key=nick_name
         {
-            "label": "New label",
-            "value_type": "text"
+            "name": "New label",
+            "type": "text"
         }
 
     You will receive the updated field object as a response if successful:
@@ -1835,8 +1835,8 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "slug": "field-write",
             "params": [{"name": "key", "required": False, "help": "Key of an existing field to update"}],
             "fields": [
-                {"name": "label", "required": True, "help": "The label of the field"},
-                {"name": "value_type", "required": True, "help": "The value type of the field"},
+                {"name": "name", "required": True, "help": "The display name of the field"},
+                {"name": "type", "required": True, "help": "The data type of the field"},
             ],
             "example": {"query": "key=nick_name"},
         }

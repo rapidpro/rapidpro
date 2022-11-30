@@ -4,7 +4,6 @@ from abc import abstractmethod
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q
-from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
 
@@ -78,6 +77,8 @@ class Incident(models.Model):
 
     @classmethod
     def _create(cls, org, incident_type: str, *, scope: str, **kwargs):
+        from .types.builtin import IncidentStartedNotificationType
+
         incident, created = cls.objects.get_or_create(
             org=org,
             incident_type=incident_type,
@@ -86,7 +87,7 @@ class Incident(models.Model):
             defaults=kwargs,
         )
         if created:
-            Notification.incident_started(incident)
+            IncidentStartedNotificationType.create(incident)
         return incident
 
     def end(self):
@@ -134,11 +135,17 @@ class NotificationType:
     def get_target_url(self, notification) -> str:  # pragma: no cover
         pass
 
-    def get_email_template(self, notification) -> tuple:  # pragma: no cover
+    def get_email_subject(self, notification) -> str:  # pragma: no cover
         """
-        For types that support sending as email, this should return subject and template name
+        For types that support sending as email, this is the subject of the email
         """
-        return ("", "")
+        return ""
+
+    def get_email_template(self, notification) -> str:  # pragma: no cover
+        """
+        For types that support sending as email, this is the template to use
+        """
+        return ""
 
     def get_email_context(self, notification):
         return {
@@ -154,69 +161,6 @@ class NotificationType:
             "target_url": self.get_target_url(notification),
             "is_seen": notification.is_seen,
         }
-
-
-class ExportFinishedNotificationType(NotificationType):
-    slug = "export:finished"
-
-    def get_target_url(self, notification) -> str:
-        return notification.export.get_download_url()
-
-    def get_email_template(self, notification) -> tuple:
-        export_type = notification.export.notification_export_type
-        return f"Your {export_type} export is ready", f"notifications/email/export_finished.{export_type}"
-
-    def get_email_context(self, notification):
-        context = super().get_email_context(notification)
-        if notification.results_export:
-            context["flows"] = notification.results_export.flows.order_by("name")
-        return context
-
-    def as_json(self, notification) -> dict:
-        json = super().as_json(notification)
-        json["export"] = {"type": notification.export.notification_export_type}
-        return json
-
-
-class ImportFinishedNotificationType(NotificationType):
-    slug = "import:finished"
-
-    def get_target_url(self, notification) -> str:
-        return reverse("contacts.contactimport_read", args=[notification.contact_import.id])
-
-    def as_json(self, notification) -> dict:
-        json = super().as_json(notification)
-        json["import"] = {"type": "contact", "num_records": notification.contact_import.num_records}
-        return json
-
-
-class IncidentStartedNotificationType(NotificationType):
-    slug = "incident:started"
-
-    def get_target_url(self, notification) -> str:
-        return reverse("notifications.incident_list")
-
-    def as_json(self, notification) -> dict:
-        json = super().as_json(notification)
-        json["incident"] = notification.incident.as_json()
-        return json
-
-
-class TicketsOpenedNotificationType(NotificationType):
-    slug = "tickets:opened"
-
-    def get_target_url(self, notification) -> str:
-        return "/ticket/unassigned/"
-
-
-class TicketActivityNotificationType(NotificationType):
-    slug = "tickets:activity"
-
-    def get_target_url(self, notification) -> str:
-        return "/ticket/mine/"
-
-
-NOTIFICATION_TYPES_BY_SLUG = {lt.slug: lt() for lt in NotificationType.__subclasses__()}
 
 
 class Notification(models.Model):
@@ -267,37 +211,7 @@ class Notification(models.Model):
     incident = models.ForeignKey(Incident, null=True, on_delete=models.PROTECT, related_name="notifications")
 
     @classmethod
-    def export_finished(cls, export):
-        """
-        Creates an export finished notification for the creator of the given export.
-        """
-
-        cls._create_all(
-            export.org,
-            ExportFinishedNotificationType.slug,
-            scope=export.get_notification_scope(),
-            users=[export.created_by],
-            email_status=cls.EMAIL_STATUS_PENDING,
-            **{export.notification_export_type + "_export": export},
-        )
-
-    @classmethod
-    def incident_started(cls, incident):
-        """
-        Creates an incident started notification for all admins in the workspace.
-        """
-
-        cls._create_all(
-            incident.org,
-            IncidentStartedNotificationType.slug,
-            scope=str(incident.id),
-            users=incident.org.get_admins(),
-            email_status=cls.EMAIL_STATUS_NONE,  # TODO add email support
-            incident=incident,
-        )
-
-    @classmethod
-    def _create_all(cls, org, notification_type: str, *, scope: str, users, **kwargs):
+    def create_all(cls, org, notification_type: str, *, scope: str, users, **kwargs):
         for user in users:
             cls.objects.get_or_create(
                 org=org,
@@ -309,7 +223,8 @@ class Notification(models.Model):
             )
 
     def send_email(self):
-        subject, template = self.type.get_email_template(self)
+        subject = self.type.get_email_subject(self)
+        template = self.type.get_email_template(self)
         context = self.type.get_email_context(self)
 
         if subject and template:
@@ -347,7 +262,9 @@ class Notification(models.Model):
 
     @property
     def type(self):
-        return NOTIFICATION_TYPES_BY_SLUG[self.notification_type]
+        from .types import TYPES  # noqa
+
+        return TYPES[self.notification_type]
 
     def as_json(self) -> dict:
         return self.type.as_json(self)

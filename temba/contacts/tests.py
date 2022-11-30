@@ -4835,8 +4835,25 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create(self):
         create_url = reverse("contacts.contactfield_create")
 
-        self.assertCreateFetch(
+        # for a deploy that doesn't have locations feature, don't show location field types
+        with override_settings(FEATURES={}):
+            response = self.assertCreateFetch(
+                create_url,
+                allow_viewers=False,
+                allow_editors=True,
+                form_fields=["name", "value_type", "show_in_table"],
+            )
+            self.assertEqual(
+                [("T", "Text"), ("N", "Number"), ("D", "Date & Time")],
+                response.context["form"].fields["value_type"].choices,
+            )
+
+        response = self.assertCreateFetch(
             create_url, allow_viewers=False, allow_editors=True, form_fields=["name", "value_type", "show_in_table"]
+        )
+        self.assertEqual(
+            [("T", "Text"), ("N", "Number"), ("D", "Date & Time"), ("S", "State"), ("I", "District"), ("W", "Ward")],
+            response.context["form"].fields["value_type"].choices,
         )
 
         # try to submit with empty name
@@ -4902,12 +4919,23 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_update(self):
         update_url = reverse("contacts.contactfield_update", args=[self.age.key])
 
-        self.assertUpdateFetch(
+        # for a deploy that doesn't have locations feature, don't show location field types
+        with override_settings(FEATURES={}):
+            response = self.assertUpdateFetch(
+                update_url,
+                allow_viewers=False,
+                allow_editors=True,
+                form_fields={"name": "Age", "value_type": "N", "show_in_table": True},
+            )
+            self.assertEqual(3, len(response.context["form"].fields["value_type"].choices))
+
+        response = self.assertUpdateFetch(
             update_url,
             allow_viewers=False,
             allow_editors=True,
             form_fields={"name": "Age", "value_type": "N", "show_in_table": True},
         )
+        self.assertEqual(6, len(response.context["form"].fields["value_type"].choices))
 
         # try submit without change
         self.assertUpdateSubmit(
