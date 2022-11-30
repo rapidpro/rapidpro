@@ -49,7 +49,7 @@
 
           -block pre-table
             %temba-modax(id='update-field' header='{{_("Update Field")|escapejs}}' -temba-submitted='handleFieldUpdated')
-            %temba-modax(id='delete-modal' header='{{_("Delete Field")|escapejs}}')
+            %temba-modax(id='delete-modal' header='{{_("Delete Field")|escapejs}}' -temba-submitted='handleFieldUpdated')
             %temba-modax(id='usages-modal' header='{{_("Usages")|escapejs}}')
           
           - block table
