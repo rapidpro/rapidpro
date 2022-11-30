@@ -1,3 +1,7 @@
+v7.5.121 (2022-11-30)
+-------------------------
+ * Fix loading of notification types
+
 v7.5.120 (2022-11-30)
 -------------------------
  * Rework notification types to work more like channel types

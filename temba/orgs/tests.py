@@ -38,7 +38,7 @@ from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, 
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, ExportMessagesTask, Label, Msg
-from temba.notifications.models import Notification
+from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
@@ -904,7 +904,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             responded_only=True,
             extra_urns=(),
         )
-        Notification.export_finished(export)
+        ExportFinishedNotificationType.create(export)
         ExportFlowResultsTask.create(
             self.child_org,
             self.admin,
@@ -918,13 +918,13 @@ class OrgDeleteTest(TembaNonAtomicTest):
         )
 
         export = ExportContactsTask.create(self.parent_org, self.admin, group=parent_group)
-        Notification.export_finished(export)
+        ExportFinishedNotificationType.create(export)
         ExportContactsTask.create(self.child_org, self.admin, group=child_group)
 
         export = ExportMessagesTask.create(
             self.parent_org, self.admin, start_date=date.today(), end_date=date.today(), label=parent_label
         )
-        Notification.export_finished(export)
+        ExportFinishedNotificationType.create(export)
         ExportMessagesTask.create(
             self.child_org,
             self.admin,
