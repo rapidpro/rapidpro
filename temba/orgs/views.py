@@ -1726,13 +1726,7 @@ class OrgCRUDL(SmartCRUDL):
             return HttpResponseRedirect(self.get_success_url())
 
     class Plan(InferOrgMixin, OrgPermsMixin, SmartReadView):
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            org = self.request.org
-            context["plan"] = org.plan
-            context["plan_end"] = org.format_datetime(org.plan_end, show_time=False) if org.plan_end else None
-            return context
+        pass
 
     class WhatsappCloudConnect(InferOrgMixin, OrgPermsMixin, SmartFormView):
         class WhatsappCloudConnectForm(forms.Form):
