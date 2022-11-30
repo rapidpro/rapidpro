@@ -737,18 +737,29 @@ class ContactFieldReadSerializer(ReadSerializer):
 
 
 class ContactFieldWriteSerializer(WriteSerializer):
+    TYPES = {v: k for k, v in ContactField.ENGINE_TYPES.items()}
     VALUE_TYPES = {v: k for k, v in ContactFieldReadSerializer.VALUE_TYPES.items()}
 
-    label = serializers.CharField(
-        required=True,
+    name = serializers.CharField(
+        required=False,
         max_length=ContactField.MAX_NAME_LEN,
         validators=[
             UniqueForOrgValidator(ContactField.objects.filter(is_active=True), ignore_case=True, model_field="name")
         ],
     )
-    value_type = serializers.ChoiceField(required=True, choices=list(VALUE_TYPES.keys()))
+    type = serializers.ChoiceField(required=False, choices=list(TYPES.keys()))
 
-    def validate_label(self, value):
+    # for backwards compatibility
+    label = serializers.CharField(
+        required=False,
+        max_length=ContactField.MAX_NAME_LEN,
+        validators=[
+            UniqueForOrgValidator(ContactField.objects.filter(is_active=True), ignore_case=True, model_field="name")
+        ],
+    )
+    value_type = serializers.ChoiceField(required=False, choices=list(VALUE_TYPES.keys()))
+
+    def validate_name(self, value):
         if not ContactField.is_valid_name(value):
             raise serializers.ValidationError("Can only contain letters, numbers and hypens.")
 
@@ -758,17 +769,32 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
         return value
 
-    def validate_value_type(self, value):
+    def validate_type(self, value):
         if self.instance and self.instance.campaign_events.filter(is_active=True).exists() and value != "datetime":
             raise serializers.ValidationError("Can't change type of date field being used by campaign events.")
 
-        return self.VALUE_TYPES[value]
+        return self.TYPES.get(value, self.VALUE_TYPES.get(value))
+
+    def validate_label(self, value):
+        return self.validate_name(value)
+
+    def validate_value_type(self, value):
+        return self.validate_type(value)
+
+    def validate(self, data):
+        if not data.get("name") and not data.get("label"):
+            raise serializers.ValidationError("Field 'name' is required.")
+
+        if not data.get("type") and not data.get("value_type"):
+            raise serializers.ValidationError("Field 'type' is required.")
+
+        return data
 
     def save(self):
         org = self.context["org"]
         user = self.context["user"]
-        name = self.validated_data["label"]
-        value_type = self.validated_data["value_type"]
+        name = self.validated_data.get("name") or self.validated_data.get("label")
+        value_type = self.validated_data.get("type") or self.validated_data.get("value_type")
 
         if self.instance:
             self.instance.name = name

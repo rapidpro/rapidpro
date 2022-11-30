@@ -2701,30 +2701,38 @@ class EndpointsTest(TembaTest):
 
         # try to create empty field
         response = self.postJSON(url, None, {})
-        self.assertResponseError(response, "label", "This field is required.")
-        self.assertResponseError(response, "value_type", "This field is required.")
+        self.assertResponseError(response, "non_field_errors", "Field 'name' is required.")
+
+        # try to create field without type
+        response = self.postJSON(url, None, {"name": "goats"})
+        self.assertResponseError(response, "non_field_errors", "Field 'type' is required.")
 
         # try again with some invalid values
+        response = self.postJSON(url, None, {"name": "!@#$%", "type": "video"})
+        self.assertResponseError(response, "name", "Can only contain letters, numbers and hypens.")
+        self.assertResponseError(response, "type", '"video" is not a valid choice.')
+
+        # try again with some invalid values using deprecated field names
         response = self.postJSON(url, None, {"label": "!@#$%", "value_type": "video"})
         self.assertResponseError(response, "label", "Can only contain letters, numbers and hypens.")
         self.assertResponseError(response, "value_type", '"video" is not a valid choice.')
 
         # try again with a label that would generate an invalid key
-        response = self.postJSON(url, None, {"label": "UUID", "value_type": "text"})
-        self.assertResponseError(response, "label", 'Generated key "uuid" is invalid or a reserved name.')
+        response = self.postJSON(url, None, {"name": "UUID", "type": "text"})
+        self.assertResponseError(response, "name", 'Generated key "uuid" is invalid or a reserved name.')
 
         # try again with a label that's already taken
         response = self.postJSON(url, None, {"label": "nick name", "value_type": "text"})
         self.assertResponseError(response, "label", "This field must be unique.")
 
         # create a new field
-        response = self.postJSON(url, None, {"label": "Age", "value_type": "numeric"})
+        response = self.postJSON(url, None, {"name": "Age", "type": "number"})
         self.assertEqual(response.status_code, 201)
 
         age = ContactField.user_fields.get(org=self.org, name="Age", value_type="N", is_active=True)
 
         # update a field by its key
-        response = self.postJSON(url, "key=age", {"label": "Real Age", "value_type": "datetime"})
+        response = self.postJSON(url, "key=age", {"name": "Real Age", "type": "datetime"})
         self.assertEqual(response.status_code, 200)
 
         age.refresh_from_db()
@@ -2732,18 +2740,16 @@ class EndpointsTest(TembaTest):
         self.assertEqual(age.value_type, "D")
 
         # try to update with key of deleted field
-        response = self.postJSON(url, "key=deleted", {"label": "Something", "value_type": "text"})
+        response = self.postJSON(url, "key=deleted", {"name": "Something", "type": "text"})
         self.assert404(response)
 
         # try to update with non-existent key
-        response = self.postJSON(url, "key=not_ours", {"label": "Something", "value_type": "text"})
+        response = self.postJSON(url, "key=not_ours", {"name": "Something", "type": "text"})
         self.assert404(response)
 
         # try to change type of date field used by campaign event
-        response = self.postJSON(url, "key=registered", {"label": "Registered", "value_type": "text"})
-        self.assertResponseError(
-            response, "value_type", "Can't change type of date field being used by campaign events."
-        )
+        response = self.postJSON(url, "key=registered", {"name": "Registered", "type": "text"})
+        self.assertResponseError(response, "type", "Can't change type of date field being used by campaign events.")
 
         CampaignEvent.objects.all().delete()
         ContactField.objects.filter(is_system=False).delete()
