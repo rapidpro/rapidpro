@@ -1,3 +1,12 @@
+v7.5.120 (2022-11-30)
+-------------------------
+ * Rework notification types to work more like channel types
+ * Update API fields endpoint to use name and type for writes as well as reads
+ * Remove unused field on campaign events write serializer
+ * Change undocumented pinned field on fields endpoint to be featured
+ * Add usages field to fields API endpoint, as well as name and type to replace label and value_type
+ * Add Line error reference URL
+
 v7.5.119 (2022-11-29)
 -------------------------
  * Fix flow label in list buttons
