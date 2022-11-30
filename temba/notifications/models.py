@@ -77,6 +77,8 @@ class Incident(models.Model):
 
     @classmethod
     def _create(cls, org, incident_type: str, *, scope: str, **kwargs):
+        from .types.builtin import IncidentStartedNotificationType
+
         incident, created = cls.objects.get_or_create(
             org=org,
             incident_type=incident_type,
@@ -85,7 +87,7 @@ class Incident(models.Model):
             defaults=kwargs,
         )
         if created:
-            Notification.incident_started(incident)
+            IncidentStartedNotificationType.create(incident)
         return incident
 
     def end(self):
@@ -133,11 +135,17 @@ class NotificationType:
     def get_target_url(self, notification) -> str:  # pragma: no cover
         pass
 
-    def get_email_template(self, notification) -> tuple:  # pragma: no cover
+    def get_email_subject(self, notification) -> str:  # pragma: no cover
         """
-        For types that support sending as email, this should return subject and template name
+        For types that support sending as email, this is the subject of the email
         """
-        return ("", "")
+        return ""
+
+    def get_email_template(self, notification) -> str:  # pragma: no cover
+        """
+        For types that support sending as email, this is the template to use
+        """
+        return ""
 
     def get_email_context(self, notification):
         return {
@@ -203,41 +211,7 @@ class Notification(models.Model):
     incident = models.ForeignKey(Incident, null=True, on_delete=models.PROTECT, related_name="notifications")
 
     @classmethod
-    def export_finished(cls, export):
-        """
-        Creates an export finished notification for the creator of the given export.
-        """
-
-        from .types.builtin import ExportFinishedNotificationType
-
-        cls._create_all(
-            export.org,
-            ExportFinishedNotificationType.slug,
-            scope=export.get_notification_scope(),
-            users=[export.created_by],
-            email_status=cls.EMAIL_STATUS_PENDING,
-            **{export.notification_export_type + "_export": export},
-        )
-
-    @classmethod
-    def incident_started(cls, incident):
-        """
-        Creates an incident started notification for all admins in the workspace.
-        """
-
-        from .types.builtin import IncidentStartedNotificationType
-
-        cls._create_all(
-            incident.org,
-            IncidentStartedNotificationType.slug,
-            scope=str(incident.id),
-            users=incident.org.get_admins(),
-            email_status=cls.EMAIL_STATUS_NONE,  # TODO add email support
-            incident=incident,
-        )
-
-    @classmethod
-    def _create_all(cls, org, notification_type: str, *, scope: str, users, **kwargs):
+    def create_all(cls, org, notification_type: str, *, scope: str, users, **kwargs):
         for user in users:
             cls.objects.get_or_create(
                 org=org,
@@ -249,7 +223,8 @@ class Notification(models.Model):
             )
 
     def send_email(self):
-        subject, template = self.type.get_email_template(self)
+        subject = self.type.get_email_subject(self)
+        template = self.type.get_email_template(self)
         context = self.type.get_email_context(self)
 
         if subject and template:

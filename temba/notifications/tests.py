@@ -15,6 +15,7 @@ from temba.tests import CRUDLTestMixin, TembaTest, matchers
 
 from .models import Incident, Notification
 from .tasks import send_notification_emails, squash_notificationcounts
+from .types.builtin import ExportFinishedNotificationType
 
 
 class IncidentTest(TembaTest):
@@ -132,7 +133,7 @@ class NotificationTest(TembaTest):
         export = ExportContactsTask.create(self.org, self.editor)
         export.perform()
 
-        Notification.export_finished(export)
+        ExportFinishedNotificationType.create(export)
 
         self.assertFalse(self.editor.notifications.get(contact_export=export).is_seen)
 
@@ -173,7 +174,7 @@ class NotificationTest(TembaTest):
         )
         export.perform()
 
-        Notification.export_finished(export)
+        ExportFinishedNotificationType.create(export)
 
         self.assertFalse(self.editor.notifications.get(message_export=export).is_seen)
 
@@ -213,7 +214,7 @@ class NotificationTest(TembaTest):
         )
         export.perform()
 
-        Notification.export_finished(export)
+        ExportFinishedNotificationType.create(export)
 
         self.assertFalse(self.editor.notifications.get(results_export=export).is_seen)
 
@@ -245,7 +246,7 @@ class NotificationTest(TembaTest):
         )
 
         # mailroom will create these notifications when it's complete
-        Notification._create_all(
+        Notification.create_all(
             imp.org, "import:finished", scope=f"contact:{imp.id}", users=[self.editor], contact_import=imp
         )
         self.assertFalse(self.editor.notifications.get(contact_import=imp).is_seen)
@@ -272,7 +273,7 @@ class NotificationTest(TembaTest):
 
     def test_tickets_opened(self):
         # mailroom will create these notifications
-        Notification._create_all(self.org, "tickets:opened", scope="", users=[self.agent, self.editor])
+        Notification.create_all(self.org, "tickets:opened", scope="", users=[self.agent, self.editor])
 
         self.assert_notifications(
             expected_json={
@@ -294,7 +295,7 @@ class NotificationTest(TembaTest):
 
     def test_tickets_activity(self):
         # mailroom will create these notifications
-        Notification._create_all(self.org, "tickets:activity", scope="", users=[self.agent, self.editor])
+        Notification.create_all(self.org, "tickets:activity", scope="", users=[self.agent, self.editor])
 
         self.assert_notifications(
             expected_json={
@@ -346,12 +347,12 @@ class NotificationTest(TembaTest):
         imp = ContactImport.objects.create(
             org=self.org, mappings={}, num_records=5, created_by=self.editor, modified_by=self.editor
         )
-        Notification._create_all(
+        Notification.create_all(
             imp.org, "import:finished", scope=f"contact:{imp.id}", users=[self.editor], contact_import=imp
         )
-        Notification._create_all(self.org, "tickets:opened", scope="", users=[self.agent, self.editor])
-        Notification._create_all(self.org, "tickets:activity", scope="", users=[self.agent, self.editor])
-        Notification._create_all(self.org2, "tickets:activity", scope="", users=[self.editor])  # different org
+        Notification.create_all(self.org, "tickets:opened", scope="", users=[self.agent, self.editor])
+        Notification.create_all(self.org, "tickets:activity", scope="", users=[self.agent, self.editor])
+        Notification.create_all(self.org2, "tickets:activity", scope="", users=[self.editor])  # different org
 
         self.assertEqual(2, Notification.get_unseen_count(self.org, self.agent))
         self.assertEqual(3, Notification.get_unseen_count(self.org, self.editor))
@@ -386,7 +387,7 @@ class NotificationCRUDLTest(TembaTest):
 
         # simulate an export finishing
         export = ExportContactsTask.create(self.org, self.editor)
-        Notification.export_finished(export)
+        ExportFinishedNotificationType.create(export)
 
         # not access for anon
         self.assertLoginRedirect(self.client.get(list_url))
