@@ -58,7 +58,7 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.utils import analytics, brands, json, languages
+from temba.utils import analytics, brands, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address, send_template_email
 from temba.utils.fields import (
     ArbitraryJsonChoiceField,
@@ -699,14 +699,13 @@ class UserCRUDL(SmartCRUDL):
             )
             return mark_safe(f"{org_links}{more}")
 
-        def derive_querysset(self, **kwargs):
-            qs = super().derive_queryset(**kwargs)
+        def derive_queryset(self, **kwargs):
+            qs = super().derive_queryset(**kwargs).filter(is_active=True).exclude(id=get_anonymous_user().id)
             obj_filter = self.request.GET.get("filter")
             if obj_filter == "beta":
                 qs = qs.filter(groups__name="Beta")
             elif obj_filter == "staff":
                 qs = qs.filter(is_staff=True)
-
             return qs
 
         def get_context_data(self, **kwargs):
