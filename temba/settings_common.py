@@ -270,6 +270,7 @@ LOGGING = {
         "django.security.DisallowedHost": {"handlers": ["null"], "propagate": False},
         "django.db.backends": {"level": "ERROR", "handlers": ["console"], "propagate": False},
         "temba.formax": {"level": "DEBUG" if DEBUG else "ERROR", "handlers": ["console"], "propagate": False},
+        "celery.app.trace": {"level": "INFO", "handlers": ["console"], "propagate": False},
     },
 }
 
@@ -858,6 +859,7 @@ CACHES = {
 # Async tasks using Celery
 # -----------------------------------------------------------------------------------
 CELERY_RESULT_BACKEND = None
+CELERY_TASK_TRACK_STARTED = True
 CELERY_BROKER_URL = "redis://%s:%d/%d" % (REDIS_HOST, REDIS_PORT, REDIS_DB)
 
 # by default, celery doesn't have any timeout on our redis connections, this fixes that

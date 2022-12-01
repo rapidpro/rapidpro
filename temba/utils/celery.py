@@ -28,10 +28,12 @@ def nonoverlapping_task(*task_args, **task_kwargs):
                 lock_timeout = task_kwargs.get("time_limit", DEFAULT_TASK_LOCK_TIMEOUT)
 
             if r.get(lock_key):
-                print("Skipping task %s to prevent overlapping" % task_name)
+                result = {"skipped": True}
             else:
                 with r.lock(lock_key, timeout=lock_timeout):
-                    task_func(*exec_args, **exec_kwargs)
+                    result = task_func(*exec_args, **exec_kwargs)
+
+            return result
 
         return shared_task(*task_args, **task_kwargs)(wrapper)
 
