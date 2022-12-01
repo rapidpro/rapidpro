@@ -89,13 +89,11 @@ skip_covered = true
 exclude_lines = [
     "pragma: no cover",
     "pragma: needs cover",
-    "def __repr__",
     "if settings.DEBUG",
     "raise AssertionError",
     "raise NotImplementedError",
-    "if __name__ == .__main__.:",
 ]
-omit = ["*/gen/*", "*/tests*", "*settings*", "temba/*/management/commands/*"]
+omit = ["*/tests*", "*settings*", "temba/*/management/commands/*"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
