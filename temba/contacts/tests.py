@@ -1180,36 +1180,6 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.other_org_group = self.create_group("Customers", contacts=[], org=self.org2)
 
-    @mock_mailroom
-    def test_list(self, mr_mocks):
-        list_url = reverse("contacts.contactgroup_list")
-        response = self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, allow_agents=False)
-        self.assertEqual(
-            [
-                "delete",
-            ],
-            list(response.context["actions"]),
-        )
-
-        group = ContactGroup.create_manual(self.org, self.admin, "My New Group")
-
-        # let's delete it and make sure it's gone
-        self.client.post(list_url, {"action": "delete", "objects": group.id})
-        self.assertFalse(ContactGroup.objects.get(id=group.id).is_active)
-
-        smart_group = ContactGroup.create_smart(self.org, self.admin, "Smart Group", "name ~ Joe")
-
-        # fetch only smart groups
-        list_url = f"{reverse('contacts.contactgroup_list')}?type=smart"
-        response = self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, allow_agents=False)
-
-        self.assertEqual(1, len(response.context["object_list"]))
-        self.assertContains(response, smart_group.name)
-
-        # fetch with spa flag
-        response = self.client.get(list_url, content_type="application/json", HTTP_TEMBA_SPA="1")
-        self.assertEqual(response.context["base_template"], "spa.html")
-
     @override_settings(ORG_LIMIT_DEFAULTS={"groups": 10})
     @mock_mailroom
     def test_create(self, mr_mocks):
