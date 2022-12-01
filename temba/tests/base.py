@@ -101,6 +101,7 @@ class TembaTestMixin:
             device="Nexus 5X",
             secret="12345",
             config={Channel.CONFIG_FCM_ID: "123"},
+            normalize_urns=False,
         )
 
         # don't cache anon user between tests

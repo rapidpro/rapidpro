@@ -625,7 +625,7 @@ class ContactCRUDL(SmartCRUDL):
                         icon="icon.fields",
                         count=count,
                         name=_("Fields"),
-                        endpoint=reverse("contacts.contactfield_menu"),
+                        href=reverse("contacts.contactfield_list"),
                     )
                 )
 
@@ -1469,7 +1469,7 @@ class ContactCRUDL(SmartCRUDL):
 
 class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
-    actions = ("list", "create", "update", "usages", "delete", "menu")
+    actions = ("create", "update", "usages", "delete", "menu")
 
     class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):  # pragma: no cover
         def derive_menu(self):
@@ -1491,40 +1491,6 @@ class ContactGroupCRUDL(SmartCRUDL):
                     )
                 )
             return menu
-
-    class List(SpaMixin, OrgPermsMixin, BulkActionMixin, ContentMenuMixin, SmartListView):
-        fields = ("name", "query", "count", "created_on")
-        search_fields = ("name__icontains", "query")
-        default_order = ("name",)
-        paginate_by = 250
-
-        def build_content_menu(self, menu):
-            group_type = self.request.GET.get("type", "")
-
-            if group_type != "smart" and self.has_org_perm("contacts.contactgroup_create"):
-                menu.add_modax(_("New Group"), "new-group", f"{reverse('contacts.contactgroup_create')}", primary=True)
-
-        def get_bulk_actions(self):
-            return ("delete",) if self.has_org_perm("contacts.contactgroup_delete") else ()
-
-        def get_count(self, obj):
-            if not self.group_counts:
-                self.group_counts = ContactGroupCount.get_totals(self.get_queryset())
-            return self.group_counts[obj]
-
-        def get_queryset(self, **kwargs):
-            self.group_counts = {}
-            group_type = self.request.GET.get("type", "")
-            org = self.request.org
-            qs = super().get_queryset(**kwargs)
-            qs = qs.filter(org=org, is_system=False, is_active=True)
-
-            if group_type == "smart":
-                qs = qs.exclude(query=None)
-            else:
-                qs = qs.filter(query=None)
-
-            return qs
 
     class Create(ComponentFormMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactGroupForm
@@ -1656,7 +1622,7 @@ class ContactFieldForm(forms.ModelForm):
 
 class ContactFieldListView(SpaMixin, OrgPermsMixin, SmartListView):
     queryset = ContactField.user_fields
-    title = _("Manage Contact Fields")
+    title = _("Fields")
     fields = ("name", "show_in_table", "key", "value_type")
     search_fields = ("name__icontains", "key__icontains")
     default_order = ("name",)
@@ -1708,8 +1674,26 @@ class ContactFieldListView(SpaMixin, OrgPermsMixin, SmartListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update(self._get_static_context_data(**kwargs))
+        if not self.is_spa():
+            context.update(self._get_static_context_data(**kwargs))
         return context
+
+
+class FieldLookupMixin:
+    @classmethod
+    def derive_url_pattern(cls, path, action):
+        return r"^%s/%s/(?P<key>[^/]+)/$" % (path, action)
+
+    def has_permission(self, request, *args, **kwargs):
+        object = self.get_object()
+        if object:
+            return super().has_permission(request, *args, **kwargs)
+        return False
+
+    def get_object(self):
+        if self.request.org:
+            return self.request.org.fields.filter(key=self.kwargs["key"]).first()
+        return None
 
 
 class ContactFieldCRUDL(SmartCRUDL):
@@ -1763,12 +1747,20 @@ class ContactFieldCRUDL(SmartCRUDL):
         queryset = ContactField.user_fields
         form_class = Form
         success_message = ""
+        success_url = "hide"
         submit_button_name = _("Create")
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.derive_org()
             return kwargs
+
+        def get_context_data(self, **kwargs):
+            context_data = super().get_context_data(**kwargs)
+            org_count, org_limit = ContactField.get_org_limit_progress(self.org)
+            context_data["total_count"] = org_count
+            context_data["total_limit"] = org_limit
+            return context_data
 
         def form_valid(self, form):
             self.object = ContactField.create(
@@ -1780,25 +1772,33 @@ class ContactFieldCRUDL(SmartCRUDL):
             )
             return self.render_modal_response(form)
 
-    class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+    class Update(FieldLookupMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         queryset = ContactField.user_fields
         form_class = ContactFieldForm
         success_message = ""
         submit_button_name = _("Update")
+        success_url = "hide"
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.derive_org()
             return kwargs
 
+        def pre_save(self, obj):
+            obj = super().pre_save(obj)
+
+            # clear our priority if no longer featured
+            if not obj.show_in_table:
+                obj.priority = 0
+            return obj
+
         def form_valid(self, form):
             super().form_valid(form)
-
             return self.render_modal_response(form)
 
-    class Delete(DependencyDeleteModal):
+    class Delete(FieldLookupMixin, DependencyDeleteModal):
         cancel_url = "@contacts.contactfield_list"
-        success_url = "@contacts.contactfield_list"
+        success_url = "hide"
         success_message = ""
 
     class UpdatePriority(OrgPermsMixin, SmartView, View):
@@ -1806,10 +1806,9 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             try:
                 post_data = json.loads(request.body)
-
                 with transaction.atomic():
-                    for cfid, priority in post_data.items():
-                        ContactField.user_fields.filter(id=cfid, org=self.request.org).update(priority=priority)
+                    for key, priority in post_data.items():
+                        ContactField.user_fields.filter(key=key, org=self.request.org).update(priority=priority)
 
                 return HttpResponse('{"status":"OK"}', status=200, content_type="application/json")
 
@@ -1820,8 +1819,14 @@ class ContactFieldCRUDL(SmartCRUDL):
 
                 return HttpResponse(json.dumps(payload), status=400, content_type="application/json")
 
-    class List(ContactFieldListView):
-        pass
+    class List(ContentMenuMixin, ContactFieldListView):
+        def build_content_menu(self, menu):
+            menu.add_modax(
+                _("New Field"),
+                "new-field",
+                f"{reverse('contacts.contactfield_create')}",
+                on_submit="handleFieldUpdated()",
+            )
 
     class Featured(ContactFieldListView):
         search_fields = None  # search and reordering do not work together
@@ -1859,7 +1864,7 @@ class ContactFieldCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/(?P<value_type>[^/]+)/$" % (path, action)
 
-    class Usages(DependencyUsagesModal):
+    class Usages(FieldLookupMixin, DependencyUsagesModal):
         permission = "contacts.contactfield_read"
         queryset = ContactField.user_fields
 

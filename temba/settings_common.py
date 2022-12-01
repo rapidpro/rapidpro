@@ -714,7 +714,6 @@ GROUP_PERMISSIONS = {
         "contacts.contactfield_api",
         "contacts.contactfield_read",
         "contacts.contactgroup_api",
-        "contacts.contactgroup_list",
         "contacts.contactgroup_menu",
         "contacts.contactgroup_read",
         "contacts.contactimport_read",
