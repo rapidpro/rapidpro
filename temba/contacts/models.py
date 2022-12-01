@@ -1630,16 +1630,6 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
             modified_by=user,
         )
 
-    @classmethod
-    def apply_action_delete(cls, user, groups):
-        groups.update(is_active=False, modified_by=user)
-
-        from .tasks import release_group_task
-
-        for group in groups:
-            # release each group in a background task
-            on_transaction_commit(lambda: release_group_task.delay(group.id))
-
     @property
     def icon(self) -> str:
         return "icon.group_smart" if self.group_type == self.TYPE_SMART else "icon.group"

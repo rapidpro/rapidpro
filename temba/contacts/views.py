@@ -1469,7 +1469,7 @@ class ContactCRUDL(SmartCRUDL):
 
 class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
-    actions = ("list", "create", "update", "usages", "delete", "menu")
+    actions = ("create", "update", "usages", "delete", "menu")
 
     class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):  # pragma: no cover
         def derive_menu(self):
@@ -1491,40 +1491,6 @@ class ContactGroupCRUDL(SmartCRUDL):
                     )
                 )
             return menu
-
-    class List(SpaMixin, OrgPermsMixin, BulkActionMixin, ContentMenuMixin, SmartListView):
-        fields = ("name", "query", "count", "created_on")
-        search_fields = ("name__icontains", "query")
-        default_order = ("name",)
-        paginate_by = 250
-
-        def build_content_menu(self, menu):
-            group_type = self.request.GET.get("type", "")
-
-            if group_type != "smart" and self.has_org_perm("contacts.contactgroup_create"):
-                menu.add_modax(_("New Group"), "new-group", f"{reverse('contacts.contactgroup_create')}", primary=True)
-
-        def get_bulk_actions(self):
-            return ("delete",) if self.has_org_perm("contacts.contactgroup_delete") else ()
-
-        def get_count(self, obj):
-            if not self.group_counts:
-                self.group_counts = ContactGroupCount.get_totals(self.get_queryset())
-            return self.group_counts[obj]
-
-        def get_queryset(self, **kwargs):
-            self.group_counts = {}
-            group_type = self.request.GET.get("type", "")
-            org = self.request.org
-            qs = super().get_queryset(**kwargs)
-            qs = qs.filter(org=org, is_system=False, is_active=True)
-
-            if group_type == "smart":
-                qs = qs.exclude(query=None)
-            else:
-                qs = qs.filter(query=None)
-
-            return qs
 
     class Create(ComponentFormMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactGroupForm
