@@ -36,7 +36,7 @@ window.urls = [
   { old: /\/org\/export\//,                              new: /\/settings\/workspace\/export\// },
   { old: /\/org\/import\//,                              new: /\/settings\/workspace\/import\// },
   { old: /\/org\/read\/(.*)/,                            new: /\/staff\/workspace\/(.*)/ },
-  { old: /\/user\/update\/(.*)/,                         new: /\/staff\/user\/(.*)/ },
+  { old: /\/user\/read\/(.*)/,                           new: /\/staff\/user\/(.*)/ },
   { old: /\/org\/update\/(.*)/,                          new: /\/staff\/workspaces\/(.*)\/update/ },
   { old: /\/org\/home\//,                                new: /\/settings\/workspace\// },
   { old: /\/org\/manage_accounts_sub_org\/\?org=(.*)/,   new: /\/settings\/(.*)\// },
