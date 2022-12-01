@@ -19,13 +19,13 @@ from .models import Alert, Channel, ChannelCount, ChannelLog, SyncEvent
 logger = logging.getLogger(__name__)
 
 
-@shared_task(track_started=True, name="sync_channel_fcm_task")
+@shared_task(name="sync_channel_fcm_task")
 def sync_channel_fcm_task(cloud_registration_id, channel_id=None):  # pragma: no cover
     channel = Channel.objects.filter(pk=channel_id).first()
     Channel.sync_channel_fcm(cloud_registration_id, channel)
 
 
-@nonoverlapping_task(track_started=True, name="check_channels_task", lock_key="check_channels")
+@nonoverlapping_task(name="check_channels_task", lock_key="check_channels")
 def check_channels_task():
     """
     Run every 30 minutes.  Checks if any channels who are active have not been seen in that
@@ -34,7 +34,7 @@ def check_channels_task():
     Alert.check_alerts()
 
 
-@nonoverlapping_task(track_started=True, name="sync_old_seen_channels_task", lock_key="sync_old_seen_channels")
+@nonoverlapping_task(name="sync_old_seen_channels_task", lock_key="sync_old_seen_channels")
 def sync_old_seen_channels_task():
     from temba.channels.types.android import AndroidType
 
@@ -48,13 +48,13 @@ def sync_old_seen_channels_task():
         channel.trigger_sync()
 
 
-@shared_task(track_started=True, name="send_alert_task")
+@shared_task
 def send_alert_task(alert_id, resolved):
     alert = Alert.objects.get(pk=alert_id)
     alert.send_email(resolved)
 
 
-@shared_task(track_started=True, name="interrupt_channel")
+@shared_task
 def interrupt_channel_task(channel_id):
     channel = Channel.objects.get(pk=channel_id)
     # interrupt the channel, any sessions using this channel for calls,
@@ -62,7 +62,7 @@ def interrupt_channel_task(channel_id):
     mailroom.queue_interrupt_channel(channel.org, channel=channel)
 
 
-@nonoverlapping_task(track_started=True, name="trim_sync_events_task")
+@nonoverlapping_task(name="trim_sync_events_task")
 def trim_sync_events_task():
     """
     Trims old sync events
@@ -84,7 +84,7 @@ def trim_sync_events_task():
             event.release()
 
 
-@nonoverlapping_task(track_started=True, name="trim_channel_log_task")
+@nonoverlapping_task(name="trim_channel_log_task")
 def trim_channel_log_task():
     """
     Trims old channel logs
@@ -97,16 +97,12 @@ def trim_channel_log_task():
         ChannelLog.objects.filter(id__in=chunk).delete()
 
 
-@nonoverlapping_task(
-    track_started=True, name="squash_channelcounts", lock_key="squash_channelcounts", lock_timeout=7200
-)
+@nonoverlapping_task(name="squash_channelcounts", lock_key="squash_channelcounts", lock_timeout=7200)
 def squash_channelcounts():
     ChannelCount.squash()
 
 
-@nonoverlapping_task(
-    track_started=True, name="track_org_channel_counts", lock_key="track_org_channel_counts", lock_timeout=7200
-)
+@nonoverlapping_task(name="track_org_channel_counts", lock_key="track_org_channel_counts", lock_timeout=7200)
 def track_org_channel_counts(now=None):
     """
     Run daily, logs to our analytics the number of incoming and outgoing messages/ivr messages per org that had
