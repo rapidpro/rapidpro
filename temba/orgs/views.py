@@ -2090,9 +2090,6 @@ class OrgCRUDL(SmartCRUDL):
             qs = super().derive_queryset(**kwargs).filter(is_active=True)
             qs = qs.filter(brand=self.request.branding["slug"])
 
-            if obj_filter:
-                qs = qs.filter(parent=None)
-
             if obj_filter == "anon":
                 qs = qs.filter(is_anon=True, is_suspended=False)
             elif obj_filter == "flagged":
@@ -2103,7 +2100,11 @@ class OrgCRUDL(SmartCRUDL):
                 # this is not my favorite
                 qs = qs.filter(config__icontains='"verified": True', is_suspended=False)
             elif obj_filter:
-                qs = qs.filter(Q(plan=obj_filter) | Q(name__icontains=obj_filter)).filter(is_suspended=False)
+                qs = (
+                    qs.filter(parent=None)
+                    .filter(Q(plan=obj_filter) | Q(name__icontains=obj_filter))
+                    .filter(is_suspended=False)
+                )
 
             return qs
 
