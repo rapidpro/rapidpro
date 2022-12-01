@@ -30,25 +30,6 @@ class IncidentType:
         }
 
 
-class OrgFlaggedIncidentType(IncidentType):
-    """
-    Org has been flagged due to suspicious activity
-    """
-
-    slug = "org:flagged"
-
-
-class WebhooksUnhealthyIncidentType(IncidentType):
-    """
-    Webhook calls from flows have been taking too long to respond for a period of time.
-    """
-
-    slug = "webhooks:unhealthy"
-
-
-INCIDENT_TYPES_BY_SLUG = {t.slug: t() for t in IncidentType.__subclasses__()}
-
-
 class Incident(models.Model):
     """
     Models a problem with something in a workspace - e.g. a channel experiencing high error rates, webhooks in a flow
@@ -69,14 +50,7 @@ class Incident(models.Model):
     channel = models.ForeignKey(Channel, null=True, on_delete=models.PROTECT, related_name="incidents")
 
     @classmethod
-    def flagged(cls, org):
-        """
-        Creates a flagged incident if one is not already ongoing
-        """
-        return cls._create(org, OrgFlaggedIncidentType.slug, scope="")
-
-    @classmethod
-    def _create(cls, org, incident_type: str, *, scope: str, **kwargs):
+    def get_or_create(cls, org, incident_type: str, *, scope: str, **kwargs):
         from .types.builtin import IncidentStartedNotificationType
 
         incident, created = cls.objects.get_or_create(
@@ -103,7 +77,9 @@ class Incident(models.Model):
 
     @property
     def type(self):
-        return INCIDENT_TYPES_BY_SLUG[self.incident_type]
+        from .incidents import TYPES  # noqa
+
+        return TYPES[self.incident_type]
 
     def as_json(self) -> dict:
         return self.type.as_json(self)

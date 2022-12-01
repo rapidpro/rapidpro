@@ -13,6 +13,7 @@ from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import OrgRole
 from temba.tests import CRUDLTestMixin, TembaTest, matchers
 
+from .incidents.builtin import OrgFlaggedIncidentType
 from .models import Incident, Notification
 from .tasks import send_notification_emails, squash_notificationcounts
 from .types.builtin import ExportFinishedNotificationType
@@ -22,13 +23,13 @@ class IncidentTest(TembaTest):
     def test_create(self):
         # we use a unique constraint to enforce uniqueness on org+type+scope for ongoing incidents which allows use of
         # INSERT .. ON CONFLICT DO NOTHING
-        incident1 = Incident._create(self.org, "incident:test", scope="scope1")
+        incident1 = Incident.get_or_create(self.org, "incident:test", scope="scope1")
 
         # try to create another for the same scope
-        incident2 = Incident._create(self.org, "incident:test", scope="scope1")
+        incident2 = Incident.get_or_create(self.org, "incident:test", scope="scope1")
 
         # different scope
-        incident3 = Incident._create(self.org, "incident:test", scope="scope2")
+        incident3 = Incident.get_or_create(self.org, "incident:test", scope="scope2")
 
         self.assertEqual(incident1, incident2)
         self.assertNotEqual(incident1, incident3)
@@ -41,7 +42,7 @@ class IncidentTest(TembaTest):
         # check that once incident 1 ends, new incidents can be created for same scope
         incident1.end()
 
-        incident4 = Incident._create(self.org, "incident:test", scope="scope1")
+        incident4 = Incident.get_or_create(self.org, "incident:test", scope="scope1")
 
         self.assertNotEqual(incident1, incident4)
         self.assertEqual(3, Notification.objects.count())
@@ -87,9 +88,9 @@ class IncidentCRUDLTest(TembaTest, CRUDLTestMixin):
         list_url = reverse("notifications.incident_list")
 
         # create 2 org flagged incidents (1 ended, 1 ongoing)
-        incident1 = Incident.flagged(self.org)
-        Incident.flagged(self.org).end()
-        incident2 = Incident.flagged(self.org)
+        incident1 = OrgFlaggedIncidentType.get_or_create(self.org)
+        OrgFlaggedIncidentType.get_or_create(self.org).end()
+        incident2 = OrgFlaggedIncidentType.get_or_create(self.org)
 
         # create 2 flow webhook incidents (1 ended, 1 ongoing)
         incident3 = Incident.objects.create(
@@ -318,7 +319,7 @@ class NotificationTest(TembaTest):
     def test_incident_started(self):
         self.org.add_user(self.editor, OrgRole.ADMINISTRATOR)  # upgrade editor to administrator
 
-        Incident.flagged(self.org)
+        OrgFlaggedIncidentType.get_or_create(self.org)
 
         self.assert_notifications(
             expected_json={
