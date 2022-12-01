@@ -59,7 +59,7 @@ slack-sdk = "3.17.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1.0"
-coverage = "^5.5"
+coverage = {extras = ["toml"], version = "^6.5.0"}
 flake8 = "^4.0.1"
 isort = "^5.10.1"
 codecov = "^2.1.11"
@@ -77,6 +77,25 @@ include_trailing_comma = true
 combine_as_imports = true
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "DJANGO", "FIRSTPARTY", "LOCALFOLDER"]
 known_django = ["django"]
+
+[tool.coverage.run]
+source = ["./temba"]
+
+[tool.coverage.report]
+ignore_errors = true
+precision = 0
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "pragma: needs cover",
+    "def __repr__",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+omit = ["*/gen/*", "*/tests*", "*settings*", "temba/*/management/commands/*"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
