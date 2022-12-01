@@ -4063,6 +4063,15 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.requestView(list_url + "?search=Andy", self.customer_support)
         self.assertEqual({self.admin}, set(response.context["object_list"]))
 
+    def test_read(self):
+        read_url = reverse("orgs.user_read", args=[self.editor.id])
+
+        # this is a customer support only view
+        self.assertStaffOnly(read_url)
+
+        response = self.requestView(read_url, self.customer_support)
+        self.assertEqual(200, response.status_code)
+
     def test_update(self):
         update_url = reverse("orgs.user_update", args=[self.editor.id])
 
