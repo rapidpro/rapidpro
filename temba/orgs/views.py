@@ -2056,8 +2056,7 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
     class Manage(StaffOnlyMixin, SpaMixin, SmartListView):
-        fields = ("name", "owner", "created_on", "service")
-        field_config = {"service": {"label": ""}}
+        fields = ("name", "owner", "timezone", "created_on")
         default_order = ("-created_on",)
         search_fields = ("name__icontains", "created_by__email__iexact", "config__icontains")
         link_fields = ("name", "owner")
@@ -2075,21 +2074,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_owner(self, obj):
             owner = obj.get_owner()
-
-            return mark_safe(
-                f"<div class='owner-name'>{escape(owner.first_name)} {escape(owner.last_name)}</div><div class='owner-email'>{escape(owner.username)}</div>"
-            )
-
-        def get_service(self, obj):
-            url = reverse("orgs.org_service")
-
-            return mark_safe(
-                "<div onclick='goto(event)' href='%s?organization=%d' class='service posterize hover-linked text-gray-400'><temba-icon name='icon.service'></div></div>"
-                % (url, obj.id)
-            )
-
-        def get_name(self, obj):
-            return mark_safe(f"<div class='org-name'>{escape(obj.name)}</div><div class='org-plan'>{obj.plan}</div>")
+            return f"{owner.name} ({owner.email})"
 
         def derive_queryset(self, **kwargs):
             qs = super().derive_queryset(**kwargs).filter(is_active=True)
@@ -2122,9 +2107,6 @@ class OrgCRUDL(SmartCRUDL):
                 owner = obj.get_owner()
                 return reverse("orgs.user_update", args=[owner.pk])
             return super().lookup_field_link(context, field, obj)
-
-        def get_created_by(self, obj):  # pragma: needs cover
-            return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
     class Update(StaffOnlyMixin, SpaMixin, ModalMixin, ComponentFormMixin, SmartUpdateView):
         class Form(forms.ModelForm):
