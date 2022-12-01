@@ -58,7 +58,7 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.utils import analytics, brands, get_anonymous_user, json, languages
+from temba.utils import analytics, brands, json, languages
 from temba.utils.email import is_valid_address, send_template_email
 from temba.utils.fields import (
     ArbitraryJsonChoiceField,
@@ -677,7 +677,7 @@ class UserCRUDL(SmartCRUDL):
     class List(StaffOnlyMixin, SpaMixin, SmartListView):
         fields = ("email", "name", "orgs", "date_joined")
         ordering = ("-date_joined",)
-        search_fields = ("email", "first_name", "last_name")
+        search_fields = ("email__icontains", "first_name__icontains", "last_name__icontains")
         filters = (("all", _("All")), ("beta", _("Beta")), ("staff", _("Staff")))
 
         @csrf_exempt
@@ -699,14 +699,8 @@ class UserCRUDL(SmartCRUDL):
             )
             return mark_safe(f"{org_links}{more}")
 
-        def derive_queryset(self, **kwargs):
-            qs = User.objects.filter(is_active=True).exclude(id=get_anonymous_user().id)
-            search = self.request.GET.get("search", "")
-            if search:
-                qs = qs.filter(
-                    Q(first_name__icontains=search) | Q(last_name__icontains=search) | Q(email__icontains=search)
-                )
-
+        def derive_querysset(self, **kwargs):
+            qs = super().derive_queryset(**kwargs)
             obj_filter = self.request.GET.get("filter")
             if obj_filter == "beta":
                 qs = qs.filter(groups__name="Beta")
