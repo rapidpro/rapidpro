@@ -650,6 +650,7 @@ class UserCRUDL(SmartCRUDL):
         "update",
         "edit",
         "delete",
+        "read",
         "forget",
         "two_factor_enable",
         "two_factor_disable",
@@ -657,10 +658,26 @@ class UserCRUDL(SmartCRUDL):
         "account",
     )
 
+    class Read(StaffOnlyMixin, ContentMenuMixin, SpaMixin, SmartReadView):
+        fields = ("email", "date_joined")
+
+        def build_content_menu(self, menu):
+            menu.add_modax(
+                _("Edit"),
+                "user-update",
+                reverse("orgs.user_update", args=[self.object.id]),
+                title=_("Edit User"),
+                as_button=True,
+            )
+
+            menu.add_modax(
+                _("Delete"), "user-delete", reverse("orgs.user_delete", args=[self.object.id]), title=_("Delete User")
+            )
+
     class List(StaffOnlyMixin, SpaMixin, SmartListView):
         fields = ("email", "name", "orgs", "date_joined")
         ordering = ("-date_joined",)
-        search_fields = ("email", "first_name", "last_name")
+        search_fields = ("email__icontains", "first_name__icontains", "last_name__icontains")
         filters = (("all", _("All")), ("beta", _("Beta")), ("staff", _("Staff")))
 
         @csrf_exempt
@@ -678,19 +695,17 @@ class UserCRUDL(SmartCRUDL):
                 more = ", ..."
                 orgs = orgs[0:5]
             org_links = ", ".join(
-                [f"<a href='{reverse('orgs.org_update', args=[org.id])}'>{escape(org.name)}</a>" for org in orgs]
+                [f"<a href='{reverse('orgs.org_read', args=[org.id])}'>{escape(org.name)}</a>" for org in orgs]
             )
             return mark_safe(f"{org_links}{more}")
 
         def derive_queryset(self, **kwargs):
             qs = super().derive_queryset(**kwargs).filter(is_active=True).exclude(id=get_anonymous_user().id)
-
             obj_filter = self.request.GET.get("filter")
             if obj_filter == "beta":
                 qs = qs.filter(groups__name="Beta")
             elif obj_filter == "staff":
                 qs = qs.filter(is_staff=True)
-
             return qs
 
         def get_context_data(self, **kwargs):
@@ -699,7 +714,7 @@ class UserCRUDL(SmartCRUDL):
             context["filters"] = self.filters
             return context
 
-    class Update(StaffOnlyMixin, SpaMixin, ComponentFormMixin, ContentMenuMixin, SmartUpdateView):
+    class Update(StaffOnlyMixin, SpaMixin, ModalMixin, ComponentFormMixin, ContentMenuMixin, SmartUpdateView):
         class Form(UserUpdateForm):
             groups = forms.ModelMultipleChoiceField(
                 widget=SelectMultipleWidget(
@@ -716,12 +731,7 @@ class UserCRUDL(SmartCRUDL):
 
         form_class = Form
         success_message = "User updated successfully."
-        title = "Update"
-
-        def build_content_menu(self, menu):
-            menu.add_modax(
-                _("Delete"), "user-delete", reverse("orgs.user_delete", args=[self.object.id]), title=_("Delete User")
-            )
+        title = "Update User"
 
         def pre_save(self, obj):
             obj.username = obj.email
@@ -2043,21 +2053,12 @@ class OrgCRUDL(SmartCRUDL):
                     users_roles.append(dict(role_display=role.display_plural, users=role_users))
 
             context["users_roles"] = users_roles
-            workspaces = Org.objects.filter(parent=org, is_active=True).order_by("-created_on", "name")
-
-            children = {}
-            for workspace in workspaces:
-                plan_workspaces = children.get(workspace.plan, [])
-                plan_workspaces.append(workspace)
-                children[workspace.plan] = plan_workspaces
-
-            context["children"] = children
-
+            context["children"] = Org.objects.filter(parent=org, is_active=True).order_by("-created_on", "name")
             return context
 
     class Manage(StaffOnlyMixin, SpaMixin, SmartListView):
         fields = ("name", "owner", "timezone", "created_on")
-        default_order = ("-created_on",)
+        default_order = ("-plan_end", "-created_on")
         search_fields = ("name__icontains", "created_by__email__iexact", "config__icontains")
         link_fields = ("name", "owner")
         filters = (
@@ -2076,23 +2077,27 @@ class OrgCRUDL(SmartCRUDL):
             owner = obj.get_owner()
             return f"{owner.name} ({owner.email})"
 
-        def derive_queryset(self, **kwargs):
-            qs = super().derive_queryset(**kwargs).filter(is_active=True)
+        def derive_queryset(self, **kwargs):  # pragma: no cover
+            obj_filter = self.request.GET.get("filter")
 
+            qs = super().derive_queryset(**kwargs).filter(is_active=True)
             qs = qs.filter(brand=self.request.branding["slug"])
 
-            obj_filter = self.request.GET.get("filter")
             if obj_filter == "anon":
-                qs = qs.filter(is_anon=True)
+                qs = qs.filter(is_anon=True, is_suspended=False)
             elif obj_filter == "flagged":
-                qs = qs.filter(is_flagged=True)
+                qs = qs.filter(is_flagged=True, is_suspended=False)
             elif obj_filter == "suspended":
                 qs = qs.filter(is_suspended=True)
             elif obj_filter == "verified":
                 # this is not my favorite
-                qs = qs.filter(config__icontains='"verified": True')
-            elif obj_filter and obj_filter != "all":
-                qs = qs.filter(Q(plan=obj_filter) | Q(name__icontains=obj_filter))
+                qs = qs.filter(config__icontains='"verified": True', is_suspended=False)
+            elif obj_filter:
+                qs = (
+                    qs.filter(parent=None)
+                    .filter(Q(plan=obj_filter) | Q(name__icontains=obj_filter))
+                    .filter(is_suspended=False)
+                )
 
             return qs
 
