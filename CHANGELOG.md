@@ -1,3 +1,15 @@
+v7.5.122 (2022-12-02)
+-------------------------
+ * Add user read page
+ * Latest components
+ * Rework notification and incident types to function more like other typed things
+ * Add org timezone to manage page
+ * Remove no longer used group list view
+ * Log celery task completion by default and rework some tasks to return results included in the logging
+ * Refresh browser on field deletion in legacy
+ * Show org plan end as relative time
+ * Don't show location field types as options on deploys where locations aren't enabled
+
 v7.5.121 (2022-11-30)
 -------------------------
  * Fix loading of notification types
