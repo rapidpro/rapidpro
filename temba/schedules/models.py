@@ -201,7 +201,7 @@ class Schedule(SmartModel):
         self.modified_by = user
         self.save(update_fields=("is_active", "modified_by", "modified_on"))
 
-    def __repr__(self):
+    def __repr__(self):  # pragma: no cover
         return f'<Schedule: id={self.id} repeat="{self.get_display()}"  next={str(self.next_fire)}>'
 
     class Meta:
