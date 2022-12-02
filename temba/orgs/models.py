@@ -566,25 +566,25 @@ class Org(SmartModel):
         """
         Flags this org for suspicious activity
         """
-        from temba.notifications.models import Incident
+        from temba.notifications.incidents.builtin import OrgFlaggedIncidentType
 
         self.is_flagged = True
         self.save(update_fields=("is_flagged", "modified_on"))
 
-        Incident.flagged(self)  # create incident which will notify admins
+        OrgFlaggedIncidentType.get_or_create(self)  # create incident which will notify admins
 
     def unflag(self):
         """
         Unflags this org if they previously were flagged
         """
 
-        from temba.notifications.models import Incident
+        from temba.notifications.incidents.builtin import OrgFlaggedIncidentType
 
         if self.is_flagged:
             self.is_flagged = False
             self.save(update_fields=("is_flagged", "modified_on"))
 
-            Incident.flagged(self).end()
+            OrgFlaggedIncidentType.get_or_create(self).end()
 
     def verify(self):
         """
