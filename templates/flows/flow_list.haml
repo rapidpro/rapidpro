@@ -96,10 +96,10 @@
                         %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
                           -for label in labels
                             %li
-                              .lbl-menu.object-btn-label{data-id:'{{label.pk}}'}
+                              .lbl-menu(href='#' onclick='labelObjectRows({{label.id}}, false, wireTableListeners)' data-id='{{label.id}}')
                                 .flex.items-center.py-1.linked
                                   .glyph.message-label
-                                  = label.name
+                                  {{label.name}}
 
                           -if org_perms.flows.flowlabel_create
                             -if labels
