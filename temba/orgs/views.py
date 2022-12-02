@@ -58,17 +58,15 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.utils import analytics, brands, get_anonymous_user, json, languages
+from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address, send_template_email
 from temba.utils.fields import (
     ArbitraryJsonChoiceField,
     CheckboxWidget,
-    DateWidget,
     InputWidget,
     SelectMultipleWidget,
     SelectWidget,
     TembaChoiceField,
-    TembaDateTimeField,
 )
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
@@ -2115,9 +2113,6 @@ class OrgCRUDL(SmartCRUDL):
 
     class Update(StaffOnlyMixin, SpaMixin, ModalMixin, ComponentFormMixin, SmartUpdateView):
         class Form(forms.ModelForm):
-            brand = forms.ChoiceField(choices=brands.get_choices(), label=_("Brand"), required=True)
-            parent = forms.IntegerField(required=False)
-            plan_end = TembaDateTimeField(label=_("Plan End Date"), required=False)
             features = forms.MultipleChoiceField(
                 choices=Org.FEATURES_CHOICES, widget=SelectMultipleWidget(), required=False
             )
@@ -2125,15 +2120,8 @@ class OrgCRUDL(SmartCRUDL):
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
-                self.fields["plan_end"].widget = DateWidget(attrs={"timezone": org.timezone, "time": True})
-
                 self.limits_rows = []
                 self.add_limits_fields(org)
-
-            def clean_parent(self):
-                parent = self.cleaned_data.get("parent")
-                if parent:
-                    return Org.objects.filter(pk=parent).first()
 
             def clean(self):
                 super().clean()
@@ -2164,10 +2152,6 @@ class OrgCRUDL(SmartCRUDL):
                 model = Org
                 fields = (
                     "name",
-                    "brand",
-                    "parent",
-                    "plan",
-                    "plan_end",
                     "features",
                     "is_anon",
                     "is_suspended",

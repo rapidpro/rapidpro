@@ -21,7 +21,3 @@ def get_by_slug(slug: str) -> dict:
             return brand
 
     return get_by_slug(settings.DEFAULT_BRAND)
-
-
-def get_choices():
-    return [(b["slug"], b["name"]) for b in settings.BRANDS]
