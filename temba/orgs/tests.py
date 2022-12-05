@@ -626,9 +626,6 @@ class UserTest(TembaTest):
         response = self.client.get(reverse("orgs.user_list"))
         self.assertEqual(200, response.status_code)
 
-        # our user with lots of orgs should get ellipsized
-        self.assertContains(response, ", ...")
-
         response = self.client.post(reverse("orgs.user_delete", args=(self.editor.pk,)), {"delete": True})
         self.assertEqual(reverse("orgs.user_list"), response["Temba-Success"])
 
