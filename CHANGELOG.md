@@ -1,3 +1,8 @@
+v7.5.124 (2022-12-05)
+-------------------------
+ * Update to latest components
+ * More updates for manage pages
+
 v7.5.123 (2022-12-02)
 -------------------------
  * Fix bulk labelling flows
