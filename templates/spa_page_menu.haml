@@ -80,7 +80,26 @@
 
 :javascript
 
+  function handleContentMenuClicked(evt) {
+    var evtDetail = evt.detail;
+    if(evtDetail.script_name){
+      var scriptName = evtDetail.script_name;
+      var scriptFn = Function(scriptName);
+      //todo
+    }
+  }
+
+  function handleScriptTriggered(evt) {
+    var evtDetail = evt.detail;    
+    if(evtDetail.script_name){
+      var scriptName = evtDetail.script_name;
+      var scriptFn = Function(scriptName);
+      //todo
+    }
+  }
+
   function handleMenuClicked(evt) {
+    debugger;
     var link = evt.target;
     var href = link.getAttribute("data-href");
     var startDisabled = link.getAttribute("data-disabled") == "True";
@@ -117,6 +136,8 @@
     }
   }
 
+%temba-content-menu(endpoint="{{request.path}}" -temba-menu-clicked="handleContentMenuClicked(event)" -temba-script-triggered="handleScriptTriggered(event)")%
+
 -if content_menu_buttons or content_menu_links
   .flex.h-full.spa-gear-buttons
     -for link in content_menu_buttons
@@ -133,5 +154,5 @@
             .whitespace-nowrap.menu-item.hover-linked.font-normal{onclick:'handleMenuClicked(event)', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}', data-href:'{{link.href}}', data-modax: '{{link.modax|escapejs}}', data-on-submit:'{{link.on_submit|escapejs}}', data-disabled:'{{link.disabled}}'}
               {{link.title}}
               %span{class:'gear-flag'}
-                {{link.flag}}
+                {{link.flag}}h
 
