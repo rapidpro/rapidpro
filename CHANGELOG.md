@@ -1,3 +1,7 @@
+v7.5.125 (2022-12-05)
+-------------------------
+ * Tweak index used to find messages to retry so that it includes PENDING messages
+
 v7.5.124 (2022-12-05)
 -------------------------
  * Update to latest components
