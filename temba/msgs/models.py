@@ -846,9 +846,9 @@ class Msg(models.Model):
         indexes = [
             # used for finding errored messages to retry
             models.Index(
-                name="msgs_next_attempt_out_errored",
+                name="msgs_outgoing_to_retry",
                 fields=["next_attempt", "created_on", "id"],
-                condition=Q(direction="O", status="E", next_attempt__isnull=False),
+                condition=Q(direction="O", status__in=("P", "E"), next_attempt__isnull=False),
             ),
             # used for view of sent messages
             models.Index(
