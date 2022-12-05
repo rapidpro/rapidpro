@@ -673,7 +673,7 @@ class UserCRUDL(SmartCRUDL):
             )
 
     class List(StaffOnlyMixin, SpaMixin, SmartListView):
-        fields = ("email", "name", "orgs", "date_joined")
+        fields = ("email", "name", "date_joined")
         ordering = ("-date_joined",)
         search_fields = ("email__icontains", "first_name__icontains", "last_name__icontains")
         filters = (("all", _("All")), ("beta", _("Beta")), ("staff", _("Staff")))
@@ -684,18 +684,6 @@ class UserCRUDL(SmartCRUDL):
 
         def get_email(self, user):
             return user.email
-
-        def get_orgs(self, user):
-            orgs = user.get_orgs()[0:6]
-
-            more = ""
-            if len(orgs) > 5:
-                more = ", ..."
-                orgs = orgs[0:5]
-            org_links = ", ".join(
-                [f"<a href='{reverse('orgs.org_read', args=[org.id])}'>{escape(org.name)}</a>" for org in orgs]
-            )
-            return mark_safe(f"{org_links}{more}")
 
         def derive_queryset(self, **kwargs):
             qs = super().derive_queryset(**kwargs).filter(is_active=True).exclude(id=get_anonymous_user().id)
@@ -2015,6 +2003,7 @@ class OrgCRUDL(SmartCRUDL):
                 reverse("orgs.org_update", args=[obj.id]),
                 title=_("Edit Workspace"),
                 as_button=True,
+                on_submit="handleWorkspaceUpdated()",
             )
 
             if obj.is_flagged:
@@ -2056,7 +2045,7 @@ class OrgCRUDL(SmartCRUDL):
 
     class Manage(StaffOnlyMixin, SpaMixin, SmartListView):
         fields = ("name", "owner", "timezone", "created_on")
-        default_order = ("-plan_end", "-created_on")
+        default_order = ("plan_end", "-created_on")
         search_fields = ("name__icontains", "created_by__email__iexact", "config__icontains")
         link_fields = ("name", "owner")
         filters = (
@@ -2096,6 +2085,8 @@ class OrgCRUDL(SmartCRUDL):
                     .filter(Q(plan=obj_filter) | Q(name__icontains=obj_filter))
                     .filter(is_suspended=False)
                 )
+            else:
+                qs = qs.filter(is_suspended=False)
 
             return qs
 
@@ -2159,6 +2150,7 @@ class OrgCRUDL(SmartCRUDL):
                 )
 
         form_class = Form
+        success_url = "hide"
 
         def derive_title(self):
             return None
@@ -2167,9 +2159,6 @@ class OrgCRUDL(SmartCRUDL):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.get_object()
             return kwargs
-
-        def get_success_url(self):
-            return reverse("orgs.org_read", args=[self.get_object().pk])
 
         def post(self, request, *args, **kwargs):
             if "action" in request.POST:
