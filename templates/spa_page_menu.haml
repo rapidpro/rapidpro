@@ -149,17 +149,7 @@
     }
   
     if (item.type == 'modax') {
-
-      var modax = document.querySelector('temba-modax#shared-modax');
-      modax.endpoint = item.url;
-      modax.header = item.title;
-      modax.headers = { "Temba-Spa": "1"}
-      modax.disabled = item.disabled;
-
-      modax.addEventListener('temba-submitted', function(){});
-
-      // modax.onsubmit = item.on_submit; //todo
-      modax.open = true;
+      showModax(item.title, item.url, item.on_submit);
     }
 
     if (item.type === 'url_post') {
