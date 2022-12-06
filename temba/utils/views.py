@@ -296,9 +296,16 @@ class ContentMenu:
     def add_link(self, label: str, url: str, as_button: bool = False):
         self.groups[-1].append({"type": "link", "label": label, "url": url, "as_button": as_button})
 
-    def add_js(self, label: str, on_click: str, link_class: str, as_button: bool = False):
+    def add_js(self, id: str, label: str, on_click: str, link_class: str, as_button: bool = False):
         self.groups[-1].append(
-            {"type": "js", "label": label, "on_click": on_click, "link_class": link_class, "as_button": as_button}
+            {
+                "id": id,
+                "type": "js",
+                "label": label,
+                "on_click": on_click,
+                "link_class": link_class,
+                "as_button": as_button,
+            }
         )
 
     def add_url_post(self, label: str, url: str, as_button: bool = False):
@@ -355,6 +362,7 @@ class ContentMenuMixin:
     gear_link_renderers = {
         "link": lambda i: {"title": i["label"], "href": i["url"], "as_button": i["as_button"]},
         "js": lambda i: {
+            "id": i["id"],
             "title": i["label"],
             "on_click": i["on_click"],
             "js_class": i["link_class"],

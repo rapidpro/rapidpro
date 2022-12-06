@@ -15,7 +15,6 @@
       padding: 0.25rem;
     }
 
-
 -block spa-title
   .page-title
   #title-text
@@ -32,6 +31,17 @@
     %temba-dialog#delete-confirmation.hide(header='{{ _("Delete Selected Contacts")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')          
       .p-6
         -trans "Are you sure you want to delete the selected contacts? This cannot be undone."
+
+    %temba-dialog#delete-all-confirmation.hide(header='{{ _("Delete All Contacts")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+      .p-6
+        -blocktrans trimmed with count=paginator.count
+          Are you sure you want to delete all {{ count }} archived contacts? This cannot be undone.
+
+        -if paginator.count > 50
+          %br
+          %br
+          -blocktrans trimmed
+            This operation can take a while to complete. Contacts may remain in this view during the process.
 
   %temba-modax#create-group-modal(header='{% trans "Create Group" %}' endpoint="{% url 'contacts.contactgroup_create' %}" -temba-loaded="handleCreateGroupModalLoaded")
 

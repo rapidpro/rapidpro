@@ -1,6 +1,18 @@
 -extends "contacts/contact_list_spa.haml"
 -load i18n
 
+-block extra-script
+  {{block.super}}
+
+  :javascript
+    var menu = document.querySelector("temba-content-menu");      
+    menu.addEventListener("temba-selection", function(event) {
+      var item = event.detail;
+      if (item.id == "contacts_delete_all") {
+        handleDeleteAllContacts_spa();
+      }
+    });
+
 -block title-text
   .title.leading-tight
     -trans "Archived Contacts"
