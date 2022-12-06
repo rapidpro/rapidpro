@@ -1,3 +1,37 @@
+v7.5.124 (2022-12-05)
+-------------------------
+ * Update to latest components
+ * More updates for manage pages
+
+v7.5.123 (2022-12-02)
+-------------------------
+ * Fix bulk labelling flows
+
+v7.5.122 (2022-12-02)
+-------------------------
+ * Add user read page
+ * Latest components
+ * Rework notification and incident types to function more like other typed things
+ * Add org timezone to manage page
+ * Remove no longer used group list view
+ * Log celery task completion by default and rework some tasks to return results included in the logging
+ * Refresh browser on field deletion in legacy
+ * Show org plan end as relative time
+ * Don't show location field types as options on deploys where locations aren't enabled
+
+v7.5.121 (2022-11-30)
+-------------------------
+ * Fix loading of notification types
+
+v7.5.120 (2022-11-30)
+-------------------------
+ * Rework notification types to work more like channel types
+ * Update API fields endpoint to use name and type for writes as well as reads
+ * Remove unused field on campaign events write serializer
+ * Change undocumented pinned field on fields endpoint to be featured
+ * Add usages field to fields API endpoint, as well as name and type to replace label and value_type
+ * Add Line error reference URL
+
 v7.5.119 (2022-11-29)
 -------------------------
  * Fix flow label in list buttons

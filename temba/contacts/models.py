@@ -355,14 +355,17 @@ class ContactField(TembaModel, DependencyMixin):
     TYPE_DISTRICT = "I"
     TYPE_WARD = "W"
 
-    TYPE_CHOICES = (
+    TYPE_CHOICES_BASIC = (
         (TYPE_TEXT, _("Text")),
         (TYPE_NUMBER, _("Number")),
         (TYPE_DATETIME, _("Date & Time")),
+    )
+    TYPE_CHOICES_LOCATIONS = (
         (TYPE_STATE, _("State")),
         (TYPE_DISTRICT, _("District")),
         (TYPE_WARD, _("Ward")),
     )
+    TYPE_CHOICES = TYPE_CHOICES_BASIC + TYPE_CHOICES_LOCATIONS
 
     ENGINE_TYPES = {
         TYPE_TEXT: "text",
@@ -1626,16 +1629,6 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
             created_by=user,
             modified_by=user,
         )
-
-    @classmethod
-    def apply_action_delete(cls, user, groups):
-        groups.update(is_active=False, modified_by=user)
-
-        from .tasks import release_group_task
-
-        for group in groups:
-            # release each group in a background task
-            on_transaction_commit(lambda: release_group_task.delay(group.id))
 
     @property
     def icon(self) -> str:

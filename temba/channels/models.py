@@ -420,6 +420,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         config=None,
         role=DEFAULT_ROLE,
         schemes=None,
+        normalize_urns=True,
         **kwargs,
     ):
         if isinstance(channel_type, str):
@@ -460,7 +461,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         channel = cls.objects.create(**create_args)
 
         # normalize any telephone numbers that we may now have a clue as to country
-        if org and country:
+        if org and country and "tel" in schemes and normalize_urns:
             org.normalize_contact_tels()
 
         # track our creation

@@ -1180,36 +1180,6 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.other_org_group = self.create_group("Customers", contacts=[], org=self.org2)
 
-    @mock_mailroom
-    def test_list(self, mr_mocks):
-        list_url = reverse("contacts.contactgroup_list")
-        response = self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, allow_agents=False)
-        self.assertEqual(
-            [
-                "delete",
-            ],
-            list(response.context["actions"]),
-        )
-
-        group = ContactGroup.create_manual(self.org, self.admin, "My New Group")
-
-        # let's delete it and make sure it's gone
-        self.client.post(list_url, {"action": "delete", "objects": group.id})
-        self.assertFalse(ContactGroup.objects.get(id=group.id).is_active)
-
-        smart_group = ContactGroup.create_smart(self.org, self.admin, "Smart Group", "name ~ Joe")
-
-        # fetch only smart groups
-        list_url = f"{reverse('contacts.contactgroup_list')}?type=smart"
-        response = self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, allow_agents=False)
-
-        self.assertEqual(1, len(response.context["object_list"]))
-        self.assertContains(response, smart_group.name)
-
-        # fetch with spa flag
-        response = self.client.get(list_url, content_type="application/json", HTTP_TEMBA_SPA="1")
-        self.assertEqual(response.context["base_template"], "spa.html")
-
     @override_settings(ORG_LIMIT_DEFAULTS={"groups": 10})
     @mock_mailroom
     def test_create(self, mr_mocks):
@@ -4776,7 +4746,7 @@ class ContactFieldTest(TembaTest):
         self.assertListEqual([10, 0, 20], [cf.priority for cf in org_fields.order_by("id")])
 
         # build valid post data
-        post_data = json.dumps({cf.id: index for index, cf in enumerate(org_fields.order_by("id"))})
+        post_data = json.dumps({cf.key: index for index, cf in enumerate(org_fields.order_by("id"))})
 
         # try to update as admin2
         self.login(self.admin2)
@@ -4835,8 +4805,25 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create(self):
         create_url = reverse("contacts.contactfield_create")
 
-        self.assertCreateFetch(
+        # for a deploy that doesn't have locations feature, don't show location field types
+        with override_settings(FEATURES={}):
+            response = self.assertCreateFetch(
+                create_url,
+                allow_viewers=False,
+                allow_editors=True,
+                form_fields=["name", "value_type", "show_in_table"],
+            )
+            self.assertEqual(
+                [("T", "Text"), ("N", "Number"), ("D", "Date & Time")],
+                response.context["form"].fields["value_type"].choices,
+            )
+
+        response = self.assertCreateFetch(
             create_url, allow_viewers=False, allow_editors=True, form_fields=["name", "value_type", "show_in_table"]
+        )
+        self.assertEqual(
+            [("T", "Text"), ("N", "Number"), ("D", "Date & Time"), ("S", "State"), ("I", "District"), ("W", "Ward")],
+            response.context["form"].fields["value_type"].choices,
         )
 
         # try to submit with empty name
@@ -4900,14 +4887,25 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             )
 
     def test_update(self):
-        update_url = reverse("contacts.contactfield_update", args=[self.age.id])
+        update_url = reverse("contacts.contactfield_update", args=[self.age.key])
 
-        self.assertUpdateFetch(
+        # for a deploy that doesn't have locations feature, don't show location field types
+        with override_settings(FEATURES={}):
+            response = self.assertUpdateFetch(
+                update_url,
+                allow_viewers=False,
+                allow_editors=True,
+                form_fields={"name": "Age", "value_type": "N", "show_in_table": True},
+            )
+            self.assertEqual(3, len(response.context["form"].fields["value_type"].choices))
+
+        response = self.assertUpdateFetch(
             update_url,
             allow_viewers=False,
             allow_editors=True,
             form_fields={"name": "Age", "value_type": "N", "show_in_table": True},
         )
+        self.assertEqual(6, len(response.context["form"].fields["value_type"].choices))
 
         # try submit without change
         self.assertUpdateSubmit(
@@ -4964,7 +4962,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             self.org, self.admin, campaign, registered, offset=1, unit="W", flow=self.create_flow("Test")
         )
 
-        update_url = reverse("contacts.contactfield_update", args=[registered.id])
+        update_url = reverse("contacts.contactfield_update", args=[registered.key])
 
         self.assertUpdateFetch(
             update_url,
@@ -4994,21 +4992,28 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_list(self):
         list_url = reverse("contacts.contactfield_list")
 
-        response = self.assertListFetch(
+        self.assertListFetch(
             list_url, allow_viewers=False, allow_editors=True, context_objects=[self.age, self.gender, self.state]
         )
+
+    def test_create_warnings(self):
+
+        self.login(self.admin)
+        create_url = reverse("contacts.contactfield_create")
+        response = self.client.get(create_url)
+
         self.assertEqual(3, response.context["total_count"])
         self.assertEqual(250, response.context["total_limit"])
         self.assertNotContains(response, "You have reached the limit")
         self.assertNotContains(response, "You are approaching the limit")
 
         with override_settings(ORG_LIMIT_DEFAULTS={"fields": 10}):
-            response = self.requestView(list_url, self.admin)
+            response = self.requestView(create_url, self.admin)
 
             self.assertContains(response, "You are approaching the limit")
 
         with override_settings(ORG_LIMIT_DEFAULTS={"fields": 3}):
-            response = self.requestView(list_url, self.admin)
+            response = self.requestView(create_url, self.admin)
 
             self.assertContains(response, "You have reached the limit")
 
@@ -5046,7 +5051,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         inactive_campaignevent.is_active = False
         inactive_campaignevent.save(update_fields=("is_active",))
 
-        usages_url = reverse("contacts.contactfield_usages", args=[field.uuid])
+        usages_url = reverse("contacts.contactfield_usages", args=[field.key])
 
         response = self.assertReadFetch(usages_url, allow_viewers=True, allow_editors=True, context_object=field)
 
@@ -5070,9 +5075,9 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.field_dependencies.add(self.age)
         group.query_fields.add(self.age)
 
-        delete_gender_url = reverse("contacts.contactfield_delete", args=[self.gender.uuid])
-        delete_joined_url = reverse("contacts.contactfield_delete", args=[joined_on.uuid])
-        delete_age_url = reverse("contacts.contactfield_delete", args=[self.age.uuid])
+        delete_gender_url = reverse("contacts.contactfield_delete", args=[self.gender.key])
+        delete_joined_url = reverse("contacts.contactfield_delete", args=[joined_on.key])
+        delete_age_url = reverse("contacts.contactfield_delete", args=[self.age.key])
 
         # a field with no dependents can be deleted
         response = self.assertDeleteFetch(delete_gender_url, allow_editors=True)

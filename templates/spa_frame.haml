@@ -767,6 +767,7 @@
 
     function showModax(header, endpoint, onSubmit) {
       var modax = document.querySelector("temba-modax#shared-modax");
+      modax["-temba-loaded"] = undefined;
       if (onSubmit) {
         modax["-temba-submitted"] = Function(onSubmit);
       } else {

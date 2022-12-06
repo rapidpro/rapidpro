@@ -114,7 +114,12 @@
       var shared = document.querySelector("#shared-modax");
       shared.disabled = startDisabled;
 
+      if (onSubmit == "None") {
+        onSubmit = undefined;
+      }
+      
       showModax(modax, href, onSubmit);
+
     } else {
       if (href) {
         fetchURL(href);

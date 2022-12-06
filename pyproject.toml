@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temba"
-version = "7.5.119"
+version = "7.5.124"
 description = "Hosted service for visually building interactive messaging applications"
 authors = ["Nyaruka <code@nyaruka.com>"]
 license = "AGPL-3"
@@ -59,7 +59,7 @@ slack-sdk = "3.17.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1.0"
-coverage = "^5.5"
+coverage = {extras = ["toml"], version = "^6.5.0"}
 flake8 = "^4.0.1"
 isort = "^5.10.1"
 codecov = "^2.1.11"
@@ -77,6 +77,23 @@ include_trailing_comma = true
 combine_as_imports = true
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "DJANGO", "FIRSTPARTY", "LOCALFOLDER"]
 known_django = ["django"]
+
+[tool.coverage.run]
+source = ["./temba"]
+
+[tool.coverage.report]
+ignore_errors = true
+precision = 0
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "pragma: needs cover",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+]
+omit = ["*/tests*", "*settings*", "temba/*/management/commands/*"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

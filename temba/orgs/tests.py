@@ -1,6 +1,6 @@
 import io
 import smtplib
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import urlencode
@@ -38,7 +38,7 @@ from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, 
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, ExportMessagesTask, Label, Msg
-from temba.notifications.models import Notification
+from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
@@ -626,9 +626,6 @@ class UserTest(TembaTest):
         response = self.client.get(reverse("orgs.user_list"))
         self.assertEqual(200, response.status_code)
 
-        # our user with lots of orgs should get ellipsized
-        self.assertContains(response, ", ...")
-
         response = self.client.post(reverse("orgs.user_delete", args=(self.editor.pk,)), {"delete": True})
         self.assertEqual(reverse("orgs.user_list"), response["Temba-Success"])
 
@@ -904,7 +901,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             responded_only=True,
             extra_urns=(),
         )
-        Notification.export_finished(export)
+        ExportFinishedNotificationType.create(export)
         ExportFlowResultsTask.create(
             self.child_org,
             self.admin,
@@ -918,13 +915,13 @@ class OrgDeleteTest(TembaNonAtomicTest):
         )
 
         export = ExportContactsTask.create(self.parent_org, self.admin, group=parent_group)
-        Notification.export_finished(export)
+        ExportFinishedNotificationType.create(export)
         ExportContactsTask.create(self.child_org, self.admin, group=child_group)
 
         export = ExportMessagesTask.create(
             self.parent_org, self.admin, start_date=date.today(), end_date=date.today(), label=parent_label
         )
-        Notification.export_finished(export)
+        ExportFinishedNotificationType.create(export)
         ExportMessagesTask.create(
             self.child_org,
             self.admin,
@@ -3788,10 +3785,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(
             [
                 "name",
-                "brand",
-                "parent",
-                "plan",
-                "plan_end",
                 "features",
                 "is_anon",
                 "is_suspended",
@@ -3808,24 +3801,11 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             list(response.context["form"].fields.keys()),
         )
 
-        parent = Org.objects.create(
-            name="Parent",
-            timezone=pytz.timezone("Africa/Kigali"),
-            country=self.country,
-            brand=settings.DEFAULT_BRAND,
-            created_by=self.user,
-            modified_by=self.user,
-        )
-
         # make some changes to our org
         response = self.client.post(
             update_url,
             {
-                "name": "Temba",
-                "brand": "custom",
-                "parent": parent.id,
-                "plan": "unicef",
-                "plan_end": "2027-12-31T00:00Z",
+                "name": "Temba II",
                 "features": ["new_orgs"],
                 "is_anon": False,
                 "is_suspended": False,
@@ -3842,10 +3822,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(302, response.status_code)
 
         self.org.refresh_from_db()
-        self.assertEqual("custom", self.org.brand)
-        self.assertEqual(parent, self.org.parent)
-        self.assertEqual("unicef", self.org.plan)
-        self.assertEqual(datetime(2027, 12, 31, 0, 0, 0, 0, timezone.utc), self.org.plan_end)
+        self.assertEqual("Temba II", self.org.name)
         self.assertEqual(["new_orgs"], self.org.features)
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)  # uses default
@@ -4062,6 +4039,15 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.requestView(list_url + "?search=Andy", self.customer_support)
         self.assertEqual({self.admin}, set(response.context["object_list"]))
+
+    def test_read(self):
+        read_url = reverse("orgs.user_read", args=[self.editor.id])
+
+        # this is a customer support only view
+        self.assertStaffOnly(read_url)
+
+        response = self.requestView(read_url, self.customer_support)
+        self.assertEqual(200, response.status_code)
 
     def test_update(self):
         update_url = reverse("orgs.user_update", args=[self.editor.id])

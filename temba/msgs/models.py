@@ -453,7 +453,7 @@ class Msg(models.Model):
     or Flows where they would get set to the HANDLED state once they've been dealt with.
     """
 
-    STATUS_PENDING = "P"  # incoming msg created but not yet handled
+    STATUS_PENDING = "P"  # incoming msg created but not yet handled, or outgoing message that failed to queue
     STATUS_HANDLED = "H"  # incoming msg handled
     STATUS_QUEUED = "Q"  # outgoing msg created and queued to courier
     STATUS_WIRED = "W"  # outgoing msg requested to be sent via channel
