@@ -1,3 +1,7 @@
+v7.5.126 (2022-12-06)
+-------------------------
+ * Add new count model for run statuses managed by by-statement db triggers
+
 v7.5.125 (2022-12-05)
 -------------------------
  * Tweak index used to find messages to retry so that it includes PENDING messages
