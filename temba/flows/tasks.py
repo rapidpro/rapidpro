@@ -23,6 +23,7 @@ from .models import (
     FlowRevision,
     FlowRun,
     FlowRunCount,
+    FlowRunStatusCount,
     FlowSession,
     FlowStart,
     FlowStartCount,
@@ -61,6 +62,7 @@ def export_flow_results_task(export_id):
 def squash_flowcounts():
     FlowNodeCount.squash()
     FlowRunCount.squash()
+    FlowRunStatusCount.squash()
     FlowCategoryCount.squash()
     FlowStartCount.squash()
     FlowPathCount.squash()

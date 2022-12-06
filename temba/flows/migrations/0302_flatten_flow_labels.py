@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def flatten_flow_labels(apps, schema_editor):
+def flatten_flow_labels(apps, schema_editor):  # pragma: no cover
     FlowLabel = apps.get_model("flows", "FlowLabel")
 
     # We display parent labels as the set of flows they're assigned to plus the flows their children are assigned to so
@@ -26,7 +26,7 @@ def flatten_flow_labels(apps, schema_editor):
         label.children.clear()
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
