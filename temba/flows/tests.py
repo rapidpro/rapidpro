@@ -46,6 +46,7 @@ from .models import (
     FlowRevision,
     FlowRun,
     FlowRunCount,
+    FlowRunStatusCount,
     FlowSession,
     FlowStart,
     FlowStartCount,
@@ -3553,6 +3554,104 @@ class FlowRunTest(TembaTest):
         super().setUp()
 
         self.contact = self.create_contact("Ben Haggerty", phone="+250788123123")
+
+    def test_status_counts(self):
+        contact = self.create_contact("Bob", phone="+1234567890")
+        session = FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=self.contact,
+            status=FlowSession.STATUS_WAITING,
+            output_url="http://sessions.com/123.json",
+            created_on=timezone.now(),
+            wait_started_on=timezone.now(),
+            wait_expires_on=timezone.now() + timedelta(days=7),
+            wait_resume_on_expire=False,
+        )
+
+        def create_runs(flow_status_pairs: tuple) -> list:
+            runs = []
+            for flow, status in flow_status_pairs:
+                runs.append(
+                    FlowRun(
+                        uuid=uuid4(),
+                        org=self.org,
+                        session=session,
+                        flow=flow,
+                        contact=contact,
+                        status=status,
+                        created_on=timezone.now(),
+                        modified_on=timezone.now(),
+                        exited_on=timezone.now() if status not in ("A", "W") else None,
+                    )
+                )
+            return FlowRun.objects.bulk_create(runs)
+
+        flow1 = self.create_flow("Test 1")
+        flow2 = self.create_flow("Test 2")
+
+        runs1 = create_runs(
+            (
+                (flow1, FlowRun.STATUS_ACTIVE),
+                (flow2, FlowRun.STATUS_WAITING),
+                (flow1, FlowRun.STATUS_ACTIVE),
+                (flow2, FlowRun.STATUS_WAITING),
+                (flow1, FlowRun.STATUS_WAITING),
+                (flow1, FlowRun.STATUS_COMPLETED),
+            )
+        )
+
+        self.assertEqual(
+            {(flow1, "A"): 2, (flow2, "W"): 2, (flow1, "W"): 1, (flow1, "C"): 1},
+            {(c.flow, c.status): c.count for c in FlowRunStatusCount.objects.all()},
+        )
+        self.assertEqual({"A": 2, "W": 1, "C": 1}, FlowRunStatusCount.get_totals(flow1))
+        self.assertEqual({"W": 2}, FlowRunStatusCount.get_totals(flow2))
+
+        # no difference after squashing
+        squash_flowcounts()
+
+        self.assertEqual({"A": 2, "W": 1, "C": 1}, FlowRunStatusCount.get_totals(flow1))
+        self.assertEqual({"W": 2}, FlowRunStatusCount.get_totals(flow2))
+
+        runs2 = create_runs(
+            (
+                (flow1, FlowRun.STATUS_ACTIVE),
+                (flow1, FlowRun.STATUS_ACTIVE),
+                (flow2, FlowRun.STATUS_EXPIRED),
+            )
+        )
+
+        self.assertEqual({"A": 4, "W": 1, "C": 1}, FlowRunStatusCount.get_totals(flow1))
+        self.assertEqual({"W": 2, "X": 1}, FlowRunStatusCount.get_totals(flow2))
+
+        # bulk update runs like they're being interrupted
+        FlowRun.objects.filter(id__in=[r.id for r in runs1]).update(
+            status=FlowRun.STATUS_INTERRUPTED, exited_on=timezone.now()
+        )
+
+        self.assertEqual({"A": 2, "W": 0, "C": 0, "I": 4}, FlowRunStatusCount.get_totals(flow1))
+        self.assertEqual({"W": 0, "X": 1, "I": 2}, FlowRunStatusCount.get_totals(flow2))
+
+        # no difference after squashing
+        squash_flowcounts()
+
+        self.assertEqual({"A": 2, "W": 0, "C": 0, "I": 4}, FlowRunStatusCount.get_totals(flow1))
+        self.assertEqual({"W": 0, "X": 1, "I": 2}, FlowRunStatusCount.get_totals(flow2))
+
+        # do manual deletion of some runs
+        FlowRun.objects.filter(id__in=[r.id for r in runs2]).update(delete_from_results=True)
+        FlowRun.objects.filter(id__in=[r.id for r in runs2]).delete()
+
+        self.assertEqual({"A": 0, "W": 0, "C": 0, "I": 4}, FlowRunStatusCount.get_totals(flow1))
+        self.assertEqual({"W": 0, "X": 0, "I": 2}, FlowRunStatusCount.get_totals(flow2))
+
+        # do archival deletion of the rest
+        FlowRun.objects.filter(id__in=[r.id for r in runs1]).delete()
+
+        # status counts are unchanged
+        self.assertEqual({"A": 0, "W": 0, "C": 0, "I": 4}, FlowRunStatusCount.get_totals(flow1))
+        self.assertEqual({"W": 0, "X": 0, "I": 2}, FlowRunStatusCount.get_totals(flow2))
 
     def test_as_archive_json(self):
         flow = self.get_flow("color_v13")

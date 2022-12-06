@@ -1608,10 +1608,41 @@ class FlowNodeCount(SquashableModel):
         return {str(t[0]): t[1] for t in totals if t[1]}
 
 
+class FlowRunStatusCount(SquashableModel):
+    """
+    Maintains counts of different statuses of flow runs for all flows. These are inserted via triggers on the database.
+    """
+
+    squash_over = ("flow_id", "status")
+
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="status_counts")
+    status = models.CharField(max_length=1, choices=FlowRun.STATUS_CHOICES)
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def get_squash_query(cls, distinct_set):
+        sql = r"""
+        WITH removed as (
+            DELETE FROM flows_flowrunstatuscount WHERE "flow_id" = %s AND "status" = %s RETURNING "count"
+        )
+        INSERT INTO flows_flowrunstatuscount("flow_id", "status", "count", "is_squashed")
+        VALUES (%s, %s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+        """
+
+        return sql, (distinct_set.flow_id, distinct_set.status) * 2
+
+    @classmethod
+    def get_totals(cls, flow):
+        totals = list(cls.objects.filter(flow=flow).values_list("status").annotate(total=Sum("count")))
+        return {t[0]: t[1] for t in totals}
+
+    class Meta:
+        index_together = ("flow", "status")
+
+
 class FlowRunCount(SquashableModel):
     """
-    Maintains counts of different states of exit types of flow runs on a flow. These are calculated
-    via triggers on the database.
+    TODO replace with FlowRunStatusCount
     """
 
     squash_over = ("flow_id", "exit_type")
