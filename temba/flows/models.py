@@ -1047,6 +1047,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         self.path_counts.all().delete()
         self.node_counts.all().delete()
         self.exit_counts.all().delete()
+        self.status_counts.all().delete()
         self.labels.clear()
 
         super().delete()

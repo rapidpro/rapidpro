@@ -27,7 +27,7 @@ from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticketer
@@ -5793,39 +5793,3 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
-
-
-class FlattenFlowLabelsTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0301_exportflowresultstask_with_groups"
-    migrate_to = "0302_flatten_flow_labels"
-
-    def setUpBeforeMigration(self, apps):
-        self.flow1 = self.create_flow("Flow 1")
-        self.flow2 = self.create_flow("Flow 2")
-        self.flow3 = self.create_flow("Flow 3")
-        self.flow4 = self.create_flow("Flow 4")
-
-        def create_label(name, parent, flows):
-            label = FlowLabel.objects.create(
-                org=self.org, name=name, parent=parent, created_by=self.admin, modified_by=self.admin
-            )
-            label.flows.add(*flows)
-            return label
-
-        self.label1 = create_label("Foo", parent=None, flows=[self.flow1])
-        self.label1_child1 = create_label("1", parent=self.label1, flows=[self.flow1, self.flow2])
-        self.label1_child2 = create_label("2", parent=self.label1, flows=[self.flow3])
-        self.label2 = create_label("Bar", parent=None, flows=[self.flow4])
-
-    def test_migration(self):
-        def assert_label(lbl, expected_name, expected_flows):
-            lbl.refresh_from_db()
-            self.assertEqual(expected_name, lbl.name)
-            self.assertEqual(expected_flows, set(lbl.flows.all()))
-            self.assertIsNone(lbl.parent)
-
-        assert_label(self.label1, "Foo", {self.flow1, self.flow2, self.flow3})
-        assert_label(self.label1_child1, "Foo > 1", {self.flow1, self.flow2})
-        assert_label(self.label1_child2, "Foo > 2", {self.flow3})
-        assert_label(self.label2, "Bar", {self.flow4})
