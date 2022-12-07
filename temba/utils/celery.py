@@ -1,10 +1,15 @@
+import logging
 from functools import wraps
 
 from celery import shared_task
 from django_redis import get_redis_connection
 
+from django.utils import timezone
+
 # for tasks using a redis lock to prevent overlapping this is the default timeout for the lock
 DEFAULT_TASK_LOCK_TIMEOUT = 900
+
+logger = logging.getLogger(__name__)
 
 
 def cron_task(*task_args, **task_kwargs):
@@ -28,11 +33,16 @@ def cron_task(*task_args, **task_kwargs):
             if lock_timeout is None:
                 lock_timeout = task_kwargs.get("time_limit", DEFAULT_TASK_LOCK_TIMEOUT)
 
+            start = timezone.now()
+
             if r.get(lock_key):
                 result = {"skipped": True}
             else:
-                with r.lock(lock_key, timeout=lock_timeout):
-                    result = task_func(*exec_args, **exec_kwargs)
+                try:
+                    with r.lock(lock_key, timeout=lock_timeout):
+                        result = task_func(*exec_args, **exec_kwargs)
+                finally:
+                    r.hset("cron_times", task_name, (timezone.now() - start).total_seconds)
 
             return result
 
