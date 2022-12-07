@@ -3,7 +3,7 @@ from celery import shared_task
 from django.db.models import Prefetch
 
 from temba.contacts.models import ContactField, ContactGroup
-from temba.utils.celery import nonoverlapping_task
+from temba.utils.celery import cron_task
 
 from .models import ExportTicketsTask, TicketCount, TicketDailyCount, TicketDailyTiming
 
@@ -19,7 +19,7 @@ def export_tickets_task(task_id):
     ).get(id=task_id).perform()
 
 
-@nonoverlapping_task(name="squash_ticketcounts", lock_timeout=7200)
+@cron_task(name="squash_ticketcounts", lock_timeout=7200)
 def squash_ticketcounts():
     TicketCount.squash()
     TicketDailyCount.squash()

@@ -1,13 +1,13 @@
 import logging
 
-from temba.utils.celery import nonoverlapping_task
+from temba.utils.celery import cron_task
 
 from .models import Notification, NotificationCount
 
 logger = logging.getLogger(__name__)
 
 
-@nonoverlapping_task(name="send_notification_emails", lock_timeout=1800)
+@cron_task(name="send_notification_emails", lock_timeout=1800)
 def send_notification_emails():
     pending = list(
         Notification.objects.filter(email_status=Notification.EMAIL_STATUS_PENDING)
@@ -28,6 +28,6 @@ def send_notification_emails():
     return {"sent": num_sent, "errored": num_errored}
 
 
-@nonoverlapping_task(name="squash_notificationcounts", lock_timeout=1800)
+@cron_task(name="squash_notificationcounts", lock_timeout=1800)
 def squash_notificationcounts():
     NotificationCount.squash()

@@ -7,12 +7,13 @@ from django_redis import get_redis_connection
 DEFAULT_TASK_LOCK_TIMEOUT = 900
 
 
-def nonoverlapping_task(*task_args, **task_kwargs):
+def cron_task(*task_args, **task_kwargs):
     """
-    Decorator to create an task whose executions are prevented from overlapping by a redis lock
+    Decorator to create an task suitable for a cron schedule, whose executions are prevented from overlapping by a
+    redis lock
     """
 
-    def _nonoverlapping_task(task_func):
+    def _cron_task(task_func):
         @wraps(task_func)
         def wrapper(*exec_args, **exec_kwargs):
             r = get_redis_connection()
@@ -37,4 +38,4 @@ def nonoverlapping_task(*task_args, **task_kwargs):
 
         return shared_task(*task_args, **task_kwargs)(wrapper)
 
-    return _nonoverlapping_task
+    return _cron_task

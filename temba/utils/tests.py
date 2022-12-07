@@ -23,7 +23,7 @@ from temba.utils import json, uuid
 from temba.utils.templatetags.temba import format_datetime, icon
 
 from . import chunk_list, countries, format_number, languages, percentage, redact, sizeof_fmt, str_to_bool
-from .celery import nonoverlapping_task
+from .celery import cron_task
 from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
 from .fields import NameValidator, validate_external_url
@@ -539,19 +539,19 @@ class JsonTest(TembaTest):
 class CeleryTest(TembaTest):
     @patch("redis.client.StrictRedis.lock")
     @patch("redis.client.StrictRedis.get")
-    def test_nonoverlapping_task(self, mock_redis_get, mock_redis_lock):
+    def test_cron_task(self, mock_redis_get, mock_redis_lock):
         mock_redis_get.return_value = None
         task_calls = []
 
-        @nonoverlapping_task()
+        @cron_task()
         def test_task1(foo, bar):
             task_calls.append("1-%d-%d" % (foo, bar))
 
-        @nonoverlapping_task(name="task2", time_limit=100)
+        @cron_task(name="task2", time_limit=100)
         def test_task2(foo, bar):
             task_calls.append("2-%d-%d" % (foo, bar))
 
-        @nonoverlapping_task(name="task3", time_limit=100, lock_key="test_key", lock_timeout=55)
+        @cron_task(name="task3", time_limit=100, lock_key="test_key", lock_timeout=55)
         def test_task3(foo, bar):
             task_calls.append("3-%d-%d" % (foo, bar))
 

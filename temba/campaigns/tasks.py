@@ -5,14 +5,14 @@ from django.utils import timezone
 
 from temba.campaigns.models import EventFire
 from temba.utils import chunk_list
-from temba.utils.celery import nonoverlapping_task
+from temba.utils.celery import cron_task
 
 logger = logging.getLogger(__name__)
 
 EVENT_FIRES_TO_TRIM = 100_000
 
 
-@nonoverlapping_task(name="trim_event_fires_task")
+@cron_task(name="trim_event_fires_task")
 def trim_event_fires_task():
     trim_before = timezone.now() - settings.RETENTION_PERIODS["eventfire"]
 
