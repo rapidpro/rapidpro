@@ -941,7 +941,7 @@ class FlowReadSerializer(ReadSerializer):
     def get_runs(self, obj):
         stats = obj.get_run_stats()
         return {
-            "active": stats["active"],
+            "active": stats["status"]["active"] + stats["status"]["waiting"],
             "completed": stats["completed"],
             "interrupted": stats["interrupted"],
             "expired": stats["expired"],

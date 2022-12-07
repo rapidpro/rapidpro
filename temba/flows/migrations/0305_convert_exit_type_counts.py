@@ -23,7 +23,7 @@ exit_type_to_status = {
 }
 
 
-def convert_exit_type_counts(apps, schema_editor):
+def convert_exit_type_counts(apps, schema_editor):  # pragma: no cover
     Flow = apps.get_model("flows", "Flow")
     FlowRunStatusCount = apps.get_model("flows", "FlowRunStatusCount")
 
@@ -56,11 +56,11 @@ def convert_exit_type_counts(apps, schema_editor):
             FlowRunStatusCount.objects.bulk_create(status_counts)
 
         num_converted += 1
-        if num_converted % 100 == 0:  # pragma: no cover
+        if num_converted % 100 == 0:
             print(f"Converted counts for flow {num_converted}/{num_flows}")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
