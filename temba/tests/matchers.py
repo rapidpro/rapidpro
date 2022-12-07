@@ -76,5 +76,32 @@ class Int(MatcherMixin, int):
     Matches any int
     """
 
+    def __new__(cls, min=None):
+        m = int.__new__(cls, 0)
+        m.min = min
+        return m
+
     def __eq__(self, other):
-        return isinstance(other, int)
+        if not isinstance(other, int):
+            return False
+        if self.min is not None and other < self.min:
+            return False
+        return True
+
+
+class Float(MatcherMixin, float):
+    """
+    Matches any float
+    """
+
+    def __new__(cls, min=None):
+        m = float.__new__(cls, 0)
+        m.min = min
+        return m
+
+    def __eq__(self, other):
+        if not isinstance(other, float):
+            return False
+        if self.min is not None and other < self.min:
+            return False
+        return True
