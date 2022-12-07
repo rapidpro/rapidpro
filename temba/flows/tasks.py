@@ -12,7 +12,7 @@ from django.utils.timesince import timesince
 
 from temba.contacts.models import ContactField, ContactGroup
 from temba.utils import chunk_list
-from temba.utils.celery import cron_task
+from temba.utils.crons import cron_task
 
 from .models import (
     ExportFlowResultsTask,

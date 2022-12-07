@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 from temba.utils import chunk_list
-from temba.utils.celery import cron_task
+from temba.utils.crons import cron_task
 
 from .models import Contact, ContactGroup, ContactGroupCount, ContactImport, ExportContactsTask
 from .search import elastic

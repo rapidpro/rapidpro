@@ -11,7 +11,7 @@ from temba.flows.models import ExportFlowResultsTask
 from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import ExportMessagesTask
 from temba.msgs.tasks import export_messages_task
-from temba.utils.celery import cron_task
+from temba.utils.crons import cron_task
 
 from .models import Invitation, Org
 

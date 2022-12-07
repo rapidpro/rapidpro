@@ -12,7 +12,7 @@ from temba import mailroom
 from temba.orgs.models import Org
 from temba.utils import chunk_list
 from temba.utils.analytics import track
-from temba.utils.celery import cron_task
+from temba.utils.crons import cron_task
 
 from .models import Alert, Channel, ChannelCount, ChannelLog, SyncEvent
 

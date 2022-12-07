@@ -24,7 +24,7 @@ from temba.utils import json, uuid
 from temba.utils.templatetags.temba import format_datetime, icon
 
 from . import chunk_list, countries, format_number, languages, percentage, redact, sizeof_fmt, str_to_bool
-from .celery import cron_task
+from .crons import clear_cron_stats, cron_task
 from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
 from .fields import NameValidator, validate_external_url
@@ -537,10 +537,12 @@ class JsonTest(TembaTest):
             json.dumps(dict(foo=Exception("invalid")))
 
 
-class CeleryTest(TembaTest):
+class CronsTest(TembaTest):
     @patch("redis.client.StrictRedis.lock")
     @patch("redis.client.StrictRedis.get")
     def test_cron_task(self, mock_redis_get, mock_redis_lock):
+        clear_cron_stats()
+
         mock_redis_get.return_value = None
         task_calls = []
 

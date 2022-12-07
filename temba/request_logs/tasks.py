@@ -3,7 +3,7 @@ import logging
 from django.conf import settings
 from django.utils import timezone
 
-from temba.utils.celery import cron_task
+from temba.utils.crons import cron_task
 
 from .models import HTTPLog
 
