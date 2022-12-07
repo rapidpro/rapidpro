@@ -6,7 +6,6 @@ import subprocess
 import colorama
 
 parser = argparse.ArgumentParser(description="Code checks")
-parser.add_argument("--skip-flake", action="store_true")
 parser.add_argument("--debug", action="store_true")
 args = parser.parse_args()
 
@@ -42,9 +41,8 @@ if __name__ == "__main__":
     status("Running black")
     cmd("black temba")
 
-    if not args.skip_flake:
-        status("Running flake8")
-        cmd("flake8")
+    status("Running ruff")
+    cmd("ruff temba")
 
     # if any code changes were made, exit with error
     if cmd("git diff temba locale"):
