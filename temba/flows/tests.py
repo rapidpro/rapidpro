@@ -27,7 +27,7 @@ from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticketer
@@ -5793,3 +5793,88 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+
+
+class ConvertExitTypeCountsTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0304_flowrunstatuscount_db_triggers"
+    migrate_to = "0305_convert_exit_type_counts"
+
+    def setUpBeforeMigration(self, apps):
+        self.flow1 = self.create_flow("Test 1")
+        self.flow2 = self.create_flow("Test 2")
+        self.flow3 = self.create_flow("Test 3")
+        contact = self.create_contact("Bob", phone="+1234567890")
+        session = FlowSession.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            contact=contact,
+            status=FlowSession.STATUS_WAITING,
+            output_url="http://sessions.com/123.json",
+            created_on=timezone.now(),
+            wait_started_on=timezone.now(),
+            wait_expires_on=timezone.now() + timedelta(days=7),
+            wait_resume_on_expire=False,
+        )
+
+        def create_runs(flow_status_pairs: tuple) -> list:
+            runs = []
+            for flow, status in flow_status_pairs:
+                runs.append(
+                    FlowRun(
+                        uuid=uuid4(),
+                        org=self.org,
+                        session=session,
+                        flow=flow,
+                        contact=contact,
+                        status=status,
+                        created_on=timezone.now(),
+                        modified_on=timezone.now(),
+                        exited_on=timezone.now() if status not in ("A", "W") else None,
+                    )
+                )
+            return FlowRun.objects.bulk_create(runs)
+
+        create_runs(
+            (
+                (self.flow1, FlowRun.STATUS_ACTIVE),
+                (self.flow1, FlowRun.STATUS_ACTIVE),
+                (self.flow1, FlowRun.STATUS_WAITING),
+                (self.flow1, FlowRun.STATUS_COMPLETED),
+                (self.flow2, FlowRun.STATUS_ACTIVE),
+                (self.flow2, FlowRun.STATUS_WAITING),
+                (self.flow2, FlowRun.STATUS_WAITING),
+                (self.flow2, FlowRun.STATUS_INTERRUPTED),
+                (self.flow2, FlowRun.STATUS_EXPIRED),
+                (self.flow3, FlowRun.STATUS_FAILED),
+            )
+        )
+
+        create_runs(
+            (
+                (self.flow1, FlowRun.STATUS_ACTIVE),
+                (self.flow1, FlowRun.STATUS_WAITING),
+                (self.flow1, FlowRun.STATUS_COMPLETED),
+                (self.flow2, FlowRun.STATUS_ACTIVE),
+                (self.flow2, FlowRun.STATUS_WAITING),
+                (self.flow2, FlowRun.STATUS_INTERRUPTED),
+                (self.flow2, FlowRun.STATUS_EXPIRED),
+                (self.flow3, FlowRun.STATUS_FAILED),
+            )
+        )
+
+        # delete status counts for flow 2 as if all it's runs happened before status counts were a thing
+        self.flow2.status_counts.all().delete()
+
+    def test_migration(self):
+        self.assertEqual({None: 5, "C": 2}, FlowRunCount.get_totals(self.flow1))
+        self.assertEqual({"A": 3, "W": 2, "C": 2}, FlowRunStatusCount.get_totals(self.flow1))
+
+        self.assertEqual({None: 5, "I": 2, "E": 2}, FlowRunCount.get_totals(self.flow2))
+        self.assertEqual({"A": 2, "W": 3, "I": 2, "X": 2}, FlowRunStatusCount.get_totals(self.flow2))
+
+        self.assertEqual({"F": 2}, FlowRunCount.get_totals(self.flow3))
+        self.assertEqual({"F": 2}, FlowRunStatusCount.get_totals(self.flow3))
+
+        # all status counts are "squashed" since they were totalled in the migration
+        self.assertEqual(0, FlowRunStatusCount.objects.filter(is_squashed=False).count())
