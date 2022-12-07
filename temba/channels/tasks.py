@@ -12,7 +12,7 @@ from temba import mailroom
 from temba.orgs.models import Org
 from temba.utils import chunk_list
 from temba.utils.analytics import track
-from temba.utils.celery import nonoverlapping_task
+from temba.utils.crons import cron_task
 
 from .models import Alert, Channel, ChannelCount, ChannelLog, SyncEvent
 
@@ -25,7 +25,7 @@ def sync_channel_fcm_task(cloud_registration_id, channel_id=None):  # pragma: no
     Channel.sync_channel_fcm(cloud_registration_id, channel)
 
 
-@nonoverlapping_task(name="check_channels_task", lock_key="check_channels")
+@cron_task(name="check_channels_task", lock_key="check_channels")
 def check_channels_task():
     """
     Run every 30 minutes.  Checks if any channels who are active have not been seen in that
@@ -34,7 +34,7 @@ def check_channels_task():
     Alert.check_alerts()
 
 
-@nonoverlapping_task(name="sync_old_seen_channels_task", lock_key="sync_old_seen_channels")
+@cron_task(name="sync_old_seen_channels_task", lock_key="sync_old_seen_channels")
 def sync_old_seen_channels_task():
     from temba.channels.types.android import AndroidType
 
@@ -62,7 +62,7 @@ def interrupt_channel_task(channel_id):
     mailroom.queue_interrupt_channel(channel.org, channel=channel)
 
 
-@nonoverlapping_task(name="trim_sync_events_task")
+@cron_task(name="trim_sync_events_task")
 def trim_sync_events_task():
     """
     Trims old sync events
@@ -84,7 +84,7 @@ def trim_sync_events_task():
             event.release()
 
 
-@nonoverlapping_task(name="trim_channel_log_task")
+@cron_task(name="trim_channel_log_task")
 def trim_channel_log_task():
     """
     Trims old channel logs
@@ -97,12 +97,12 @@ def trim_channel_log_task():
         ChannelLog.objects.filter(id__in=chunk).delete()
 
 
-@nonoverlapping_task(name="squash_channelcounts", lock_key="squash_channelcounts", lock_timeout=7200)
+@cron_task(name="squash_channelcounts", lock_key="squash_channelcounts", lock_timeout=7200)
 def squash_channelcounts():
     ChannelCount.squash()
 
 
-@nonoverlapping_task(name="track_org_channel_counts", lock_key="track_org_channel_counts", lock_timeout=7200)
+@cron_task(name="track_org_channel_counts", lock_key="track_org_channel_counts", lock_timeout=7200)
 def track_org_channel_counts(now=None):
     """
     Run daily, logs to our analytics the number of incoming and outgoing messages/ivr messages per org that had

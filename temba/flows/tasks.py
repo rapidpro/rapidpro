@@ -12,7 +12,7 @@ from django.utils.timesince import timesince
 
 from temba.contacts.models import ContactField, ContactGroup
 from temba.utils import chunk_list
-from temba.utils.celery import nonoverlapping_task
+from temba.utils.crons import cron_task
 
 from .models import (
     ExportFlowResultsTask,
@@ -58,7 +58,7 @@ def export_flow_results_task(export_id):
     ).get(id=export_id).perform()
 
 
-@nonoverlapping_task(name="squash_flowcounts", lock_timeout=7200)
+@cron_task(name="squash_flowcounts", lock_timeout=7200)
 def squash_flowcounts():
     FlowNodeCount.squash()
     FlowRunCount.squash()
@@ -68,7 +68,7 @@ def squash_flowcounts():
     FlowPathCount.squash()
 
 
-@nonoverlapping_task(name="trim_flow_revisions")
+@cron_task(name="trim_flow_revisions")
 def trim_flow_revisions():
     start = timezone.now()
 
@@ -87,7 +87,7 @@ def trim_flow_revisions():
     logger.info(f"Trimmed {count} flow revisions since {last_trim} in {elapsed}")
 
 
-@nonoverlapping_task(name="trim_flow_sessions_and_starts")
+@cron_task(name="trim_flow_sessions_and_starts")
 def trim_flow_sessions_and_starts():
     num_sessions = _trim_flow_sessions()
     num_starts = _trim_flow_starts()
