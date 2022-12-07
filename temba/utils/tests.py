@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import pytz
 from celery.app.task import Task
+from django_redis import get_redis_connection
 
 from django.conf import settings
 from django.forms import ValidationError
@@ -546,10 +547,12 @@ class CeleryTest(TembaTest):
         @cron_task()
         def test_task1(foo, bar):
             task_calls.append("1-%d-%d" % (foo, bar))
+            return {"foo": 1}
 
         @cron_task(name="task2", time_limit=100)
         def test_task2(foo, bar):
             task_calls.append("2-%d-%d" % (foo, bar))
+            return 1234
 
         @cron_task(name="task3", time_limit=100, lock_key="test_key", lock_timeout=55)
         def test_task3(foo, bar):
@@ -575,6 +578,15 @@ class CeleryTest(TembaTest):
         mock_redis_lock.assert_any_call("test_key", timeout=55)
 
         self.assertEqual(task_calls, ["1-11-12", "2-21-22", "3-31-32"])
+
+        r = get_redis_connection()
+        self.assertEqual({b"test_task1", b"task2", b"task3"}, set(r.hkeys("cron_stats:last_start")))
+        self.assertEqual({b"test_task1", b"task2", b"task3"}, set(r.hkeys("cron_stats:last_time")))
+        self.assertEqual(
+            {b"test_task1": b'{"foo": 1}', b"task2": b"1234", b"task3": b"null"}, r.hgetall("cron_stats:last_result")
+        )
+        self.assertEqual({b"test_task1": b"1", b"task2": b"1", b"task3": b"1"}, r.hgetall("cron_stats:call_count"))
+        self.assertEqual({b"test_task1", b"task2", b"task3"}, set(r.hkeys("cron_stats:total_time")))
 
         # simulate task being already running
         mock_redis_get.reset_mock()
