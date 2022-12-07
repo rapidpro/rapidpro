@@ -460,6 +460,36 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # our keyword trigger should force a keywords section
         self.assertEqual(5, len(menu))
+        self.assertEqual(1, menu[-1]["count"])
+
+        # have an archived keyword trigger
+        trigger = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow,
+            groups=[],
+            exclude_groups=[],
+            keyword="join",
+        )
+
+        menu_url = reverse("triggers.trigger_menu")
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+
+        # should have 2 keyword triggers
+        self.assertEqual(5, len(menu))
+        self.assertEqual(2, menu[-1]["count"])
+
+        trigger.archive(self.admin)
+
+        menu_url = reverse("triggers.trigger_menu")
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+
+        # the archived trigger not counted
+        self.assertEqual(5, len(menu))
+        self.assertEqual(1, menu[-1]["count"])
 
     def test_create(self):
         create_url = reverse("triggers.trigger_create")

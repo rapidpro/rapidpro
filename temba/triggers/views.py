@@ -241,7 +241,7 @@ class TriggerCRUDL(SmartCRUDL):
             menu.append(self.create_divider())
 
             for slug, trigger_type in TYPES_BY_SLUG.items():
-                count = org_triggers.filter(trigger_type=trigger_type.code).count()
+                count = org_triggers.filter(trigger_type=trigger_type.code, is_archived=False).count()
                 if count:
                     menu.append(
                         self.create_menu_item(
