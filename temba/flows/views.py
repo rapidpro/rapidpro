@@ -1914,7 +1914,7 @@ class FlowCRUDL(SmartCRUDL):
                 return JsonResponse(org.as_environment_def())
             else:
                 results = [{"iso": code, "name": languages.get_name(code)} for code in org.flow_languages]
-                return JsonResponse({"results": sorted(results, key=lambda l: l["name"])})
+                return JsonResponse({"results": sorted(results, key=lambda lang: lang["name"])})
 
 
 # this is just for adhoc testing of the preprocess url
