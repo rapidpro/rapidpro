@@ -16,42 +16,41 @@
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
 
     -block ui-switch-js
-      -if user.is_beta
-        %script(src="{{ STATIC_URL }}js/urls.js")
+      %script(src="{{ STATIC_URL }}js/urls.js")
 
-        :javascript
-          window.STATIC_URL = "{{STATIC_URL}}";
-          function loadNewInterface(force) {
-            var location = window.location;
-            var newUrl = mapUrl(location.pathname + (location.search || ""));
-            if (newUrl != window.location.pathname) {
-              window.location = newUrl;
-            } else { 
-              if (force) {
-                window.location = "/messages/";
-              }
+      :javascript
+        window.STATIC_URL = "{{STATIC_URL}}";
+        function loadNewInterface(force) {
+          var location = window.location;
+          var newUrl = mapUrl(location.pathname + (location.search || ""));
+          if (newUrl != window.location.pathname) {
+            window.location = newUrl;
+          } else { 
+            if (force) {
+              window.location = "/messages/";
             }
           }
-          
-          function getCookie(name) {
-            var value = `; ${document.cookie}`;
-            var parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop().split(';').shift();
-          }
+        }
+        
+        function getCookie(name) {
+          var value = `; ${document.cookie}`;
+          var parts = value.split(`; ${name}=`);
+          if (parts.length === 2) return parts.pop().split(';').shift();
+        }
 
-          function switchToNewInterface() {
-            document.cookie = "nav=2; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/;";
-            loadNewInterface(true);
-          }
+        function switchToNewInterface() {
+          document.cookie = "nav=2; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/;";
+          loadNewInterface(true);
+        }
 
-        -block auto-route
-          :javascript
-            (function(){
-              var nav = getCookie("nav");
-              if (nav == "2") {
-                loadNewInterface(false);
-              }
-            })();
+      -block auto-route
+        :javascript
+          (function(){
+            var nav = getCookie("nav");
+            if (nav == "2") {
+              loadNewInterface(false);
+            }
+          })();
 
     :javascript
 
@@ -213,11 +212,10 @@
         -include 'includes/nav.html'
 
     -block interface-option
-      -if user.is_beta
-        #preview.text-center.px-3.text-sm.py-1(style='background:rgba(0,0,0,.75);z-index:10000;position:fixed;bottom:0px;width:100%;color:#fff')
-          Preview the
-          %span.linked(onclick="switchToNewInterface()" style="color:#43b1ff")<
-            new interface
+      #preview.text-center.px-3.text-sm.py-1(style='background:rgba(0,0,0,.75);z-index:10000;position:fixed;bottom:0px;width:100%;color:#fff')
+        Preview the
+        %span.linked(onclick="switchToNewInterface()" style="color:#43b1ff")<
+          new interface
 
     -if messages
       -block messages

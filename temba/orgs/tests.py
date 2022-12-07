@@ -2843,7 +2843,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.user)
 
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(12):
             response = self.client.get(home_url)
 
         # not so many options for viewers
@@ -2852,7 +2852,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
 
-        with self.assertNumQueries(46):
+        with self.assertNumQueries(45):
             response = self.client.get(home_url)
 
         # more options for admins
@@ -2949,7 +2949,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(22):
+        with self.assertNumQueries(21):
             response = self.client.get(reverse("orgs.org_workspace"))
 
         # should have an extra menu option for our child (and section header)

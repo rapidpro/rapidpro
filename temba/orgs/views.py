@@ -1085,9 +1085,6 @@ class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
 
         return context
 
-    def has_permission(self, request, *args, **kwargs):
-        return not request.user.is_anonymous and request.user.is_beta
-
 
 class MenuMixin(OrgPermsMixin):
     def create_divider(self):
