@@ -6,7 +6,7 @@ from django.db.models import Prefetch
 
 from temba.contacts.models import ContactField, ContactGroup
 from temba.utils import analytics
-from temba.utils.celery import nonoverlapping_task
+from temba.utils.crons import cron_task
 
 from .models import Broadcast, BroadcastMsgCount, ExportMessagesTask, LabelCount, Media, Msg, SystemLabelCount
 
@@ -58,7 +58,7 @@ def export_messages_task(export_id):
     ).get(id=export_id).perform()
 
 
-@nonoverlapping_task(name="squash_msgcounts", lock_timeout=7200)
+@cron_task(name="squash_msgcounts", lock_timeout=7200)
 def squash_msgcounts():
     SystemLabelCount.squash()
     LabelCount.squash()
