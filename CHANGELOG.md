@@ -1,3 +1,7 @@
+v7.5.127 (2022-12-07)
+-------------------------
+ * Fix counts for triggers on the menu
+
 v7.5.126 (2022-12-06)
 -------------------------
  * Add new count model for run statuses managed by by-statement db triggers
