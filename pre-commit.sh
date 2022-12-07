@@ -11,17 +11,17 @@ if [ -n "$FILES" ]; then
 fi
 
 if [ -n "$FILES" ]; then
-    if black --line-length=119 --target-version=py36 $FILES; then
+    if black $FILES; then
         touch .commit
     fi
 fi
 
 if [ -n "$FILES" ]; then
-    flake8_errors=$(flake8 --exit-zero $FILES)
+    ruff_errors=$(ruff temba --exit-zero $FILES)
 
-    if [ ! -z "$flake8_errors" ]; then
+    if [ ! -z "$ruff_errors" ]; then
         rm -f .commit
-        echo "$flake8_errors"
+        echo "$ruff_errors"
         exit 1
     fi
 fi
