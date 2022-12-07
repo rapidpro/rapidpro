@@ -1,3 +1,9 @@
+v7.5.128 (2022-12-07)
+-------------------------
+ * Record cron task last stats in redis
+ * Switch from flake8 to ruff
+ * Add data migration to convert exit_type counts to status counts
+
 v7.5.127 (2022-12-07)
 -------------------------
  * Fix counts for triggers on the menu
