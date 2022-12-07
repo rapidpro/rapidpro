@@ -228,7 +228,7 @@ BEGIN
 
     -- add start counts for all new start values
     INSERT INTO flows_flowstartcount(start_id, count, is_squashed)
-    SELECT start_id, count(*), FALSE FROM newtab GROUP BY start_id;
+    SELECT start_id, count(*), FALSE FROM newtab WHERE start_id IS NOT NULL GROUP BY start_id;
 
     RETURN NULL;
 END;
