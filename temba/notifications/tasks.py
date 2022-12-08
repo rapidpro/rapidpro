@@ -7,7 +7,7 @@ from .models import Notification, NotificationCount
 logger = logging.getLogger(__name__)
 
 
-@cron_task(name="send_notification_emails", lock_timeout=1800)
+@cron_task(lock_timeout=1800)
 def send_notification_emails():
     pending = list(
         Notification.objects.filter(email_status=Notification.EMAIL_STATUS_PENDING)
@@ -28,6 +28,6 @@ def send_notification_emails():
     return {"sent": num_sent, "errored": num_errored}
 
 
-@cron_task(name="squash_notificationcounts", lock_timeout=1800)
-def squash_notificationcounts():
+@cron_task(lock_timeout=1800)
+def squash_notification_counts():
     NotificationCount.squash()

@@ -33,7 +33,7 @@ FLOW_TIMEOUT_KEY = "flow_timeouts_%y_%m_%d"
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name="update_session_wait_expires")
+@shared_task
 def update_session_wait_expires(flow_id):
     """
     Update the wait_expires_on of any session currently waiting in the given flow
@@ -47,7 +47,7 @@ def update_session_wait_expires(flow_id):
         batch.update(wait_expires_on=F("wait_started_on") + timedelta(minutes=flow.expires_after_minutes))
 
 
-@shared_task(name="export_flow_results_task")
+@shared_task
 def export_flow_results_task(export_id):
     """
     Export a flow to a file and e-mail a link to the user
@@ -58,8 +58,8 @@ def export_flow_results_task(export_id):
     ).get(id=export_id).perform()
 
 
-@cron_task(name="squash_flowcounts", lock_timeout=7200)
-def squash_flowcounts():
+@cron_task(lock_timeout=7200)
+def squash_flow_counts():
     FlowNodeCount.squash()
     FlowRunCount.squash()
     FlowRunStatusCount.squash()
@@ -68,7 +68,7 @@ def squash_flowcounts():
     FlowPathCount.squash()
 
 
-@cron_task(name="trim_flow_revisions")
+@cron_task()
 def trim_flow_revisions():
     start = timezone.now()
 
@@ -87,7 +87,7 @@ def trim_flow_revisions():
     logger.info(f"Trimmed {count} flow revisions since {last_trim} in {elapsed}")
 
 
-@cron_task(name="trim_flow_sessions")
+@cron_task()
 def trim_flow_sessions():
     """
     Cleanup old flow sessions
@@ -110,7 +110,7 @@ def trim_flow_sessions():
     return {"deleted": num_deleted}
 
 
-@cron_task(name="trim_flow_starts")
+@cron_task()
 def trim_flow_starts() -> int:
     """
     Cleanup completed non-user created flow starts

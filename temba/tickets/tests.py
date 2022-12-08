@@ -26,7 +26,7 @@ from .models import (
     Topic,
     export_ticket_stats,
 )
-from .tasks import squash_ticketcounts
+from .tasks import squash_ticket_counts
 from .types import reload_ticketer_types
 from .types.internal import InternalType
 from .types.mailgun import MailgunType
@@ -178,7 +178,7 @@ class TicketTest(TembaTest):
             contacts={contact1: 2, contact2: 2},
         )
 
-        squash_ticketcounts()  # shouldn't change counts
+        squash_ticket_counts()  # shouldn't change counts
 
         assert_counts(
             self.org,

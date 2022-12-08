@@ -14,7 +14,7 @@ from temba.orgs.models import Org
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 
 from .models import Campaign, CampaignEvent, EventFire
-from .tasks import trim_event_fires_task
+from .tasks import trim_event_fires
 
 
 class CampaignTest(TembaTest):
@@ -267,7 +267,7 @@ class CampaignTest(TembaTest):
         second_event.release(self.admin)
 
         # trim our events, one fired and one inactive onfired
-        trim_event_fires_task()
+        trim_event_fires()
 
         # should now have only one event, e2
         e = EventFire.objects.get()
