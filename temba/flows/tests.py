@@ -54,7 +54,13 @@ from .models import (
     FlowVersionConflictException,
     get_flow_user,
 )
-from .tasks import squash_flowcounts, trim_flow_revisions, trim_flow_sessions_and_starts, update_session_wait_expires
+from .tasks import (
+    squash_flowcounts,
+    trim_flow_revisions,
+    trim_flow_sessions,
+    trim_flow_starts,
+    update_session_wait_expires,
+)
 from .views import FlowCRUDL
 
 
@@ -4005,7 +4011,7 @@ class FlowSessionTest(TembaTest):
         run2.session.ended_on = timezone.now()
         run2.session.save(update_fields=("status", "ended_on"))
 
-        trim_flow_sessions_and_starts()
+        trim_flow_sessions()
 
         run1, run2, run3, run4 = FlowRun.objects.order_by("id")
 
@@ -4067,7 +4073,7 @@ class FlowStartTest(TembaTest):
         create_start(None, FlowStart.TYPE_FLOW_ACTION, FlowStart.STATUS_COMPLETE, date2, contacts=[contact])
         create_start(None, FlowStart.TYPE_TRIGGER, FlowStart.STATUS_FAILED, date2, groups=[group])
 
-        trim_flow_sessions_and_starts()
+        trim_flow_starts()
 
         # check that related objects still exist!
         contact.refresh_from_db()
