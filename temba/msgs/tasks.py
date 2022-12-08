@@ -13,7 +13,7 @@ from .models import Broadcast, BroadcastMsgCount, ExportMessagesTask, LabelCount
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name="send_to_flow_node")
+@shared_task
 def send_to_flow_node(org_id, user_id, text, **kwargs):
     from django.contrib.auth.models import User
 
@@ -42,12 +42,12 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
         analytics.track(user, "temba.broadcast_created", dict(contacts=len(contact_ids), groups=0, urns=0))
 
 
-@shared_task(name="fail_old_messages")
+@cron_task()
 def fail_old_messages():  # pragma: needs cover
     Msg.fail_old_messages()
 
 
-@shared_task(name="export_sms_task")
+@shared_task
 def export_messages_task(export_id):
     """
     Export messages to a file and e-mail a link to the user
@@ -58,7 +58,7 @@ def export_messages_task(export_id):
     ).get(id=export_id).perform()
 
 
-@cron_task(name="squash_msg_counts", lock_timeout=7200)
+@cron_task(lock_timeout=7200)
 def squash_msg_counts():
     SystemLabelCount.squash()
     LabelCount.squash()

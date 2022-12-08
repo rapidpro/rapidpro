@@ -7,7 +7,7 @@ from temba.utils.crons import cron_task
 from .models import WebHookEvent
 
 
-@cron_task(name="trim_webhook_events")
+@cron_task()
 def trim_webhook_events():
     """
     Trims old webhook events

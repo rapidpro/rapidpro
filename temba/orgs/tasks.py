@@ -16,13 +16,13 @@ from temba.utils.crons import cron_task
 from .models import Invitation, Org
 
 
-@shared_task(name="send_invitation_email_task")
+@shared_task
 def send_invitation_email_task(invitation_id):
     invitation = Invitation.objects.get(pk=invitation_id)
     invitation.send_email()
 
 
-@shared_task(name="normalize_contact_tels_task")
+@shared_task
 def normalize_contact_tels_task(org_id):
     org = Org.objects.get(id=org_id)
 
@@ -33,7 +33,7 @@ def normalize_contact_tels_task(org_id):
             urn.ensure_number_normalization(org.default_country_code)
 
 
-@cron_task(name="resume_failed_tasks", lock_key="resume_failed_tasks", lock_timeout=7200)
+@cron_task(lock_timeout=7200)
 def resume_failed_tasks():
     now = timezone.now()
     window = now - timedelta(hours=1)
@@ -57,7 +57,7 @@ def resume_failed_tasks():
         export_messages_task.delay(msg_export.pk)
 
 
-@cron_task(name="delete_released_orgs", lock_timeout=7200)
+@cron_task(lock_timeout=7200)
 def delete_released_orgs():
     # for each org that was released over 7 days ago, delete it for real
     week_ago = timezone.now() - timedelta(days=Org.DELETE_DELAY_DAYS)

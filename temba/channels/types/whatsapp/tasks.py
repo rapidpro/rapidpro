@@ -12,7 +12,7 @@ from temba.request_logs.models import HTTPLog
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name="refresh_whatsapp_tokens")
+@shared_task
 def refresh_whatsapp_tokens():
     r = get_redis_connection()
     if r.get("refresh_whatsapp_tokens"):  # pragma: no cover

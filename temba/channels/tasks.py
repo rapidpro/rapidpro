@@ -19,13 +19,13 @@ from .models import Alert, Channel, ChannelCount, ChannelLog, SyncEvent
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name="sync_channel_fcm_task")
+@shared_task
 def sync_channel_fcm_task(cloud_registration_id, channel_id=None):  # pragma: no cover
     channel = Channel.objects.filter(pk=channel_id).first()
     Channel.sync_channel_fcm(cloud_registration_id, channel)
 
 
-@cron_task(name="check_channel_alerts")
+@cron_task()
 def check_channel_alerts():
     """
     Run every 30 minutes.  Checks if any channels who are active have not been seen in that
@@ -34,7 +34,7 @@ def check_channel_alerts():
     Alert.check_alerts()
 
 
-@cron_task(name="sync_old_seen_channels", lock_key="sync_old_seen_channels")
+@cron_task()
 def sync_old_seen_channels():
     from temba.channels.types.android import AndroidType
 
@@ -62,7 +62,7 @@ def interrupt_channel_task(channel_id):
     mailroom.queue_interrupt_channel(channel.org, channel=channel)
 
 
-@cron_task(name="trim_sync_events")
+@cron_task()
 def trim_sync_events():
     """
     Trims old Android sync events
@@ -84,7 +84,7 @@ def trim_sync_events():
             event.release()
 
 
-@cron_task(name="trim_channel_logs")
+@cron_task()
 def trim_channel_logs():
     """
     Trims old channel logs
@@ -97,12 +97,12 @@ def trim_channel_logs():
         ChannelLog.objects.filter(id__in=chunk).delete()
 
 
-@cron_task(name="squash_channel_counts", lock_key="squash_channelcounts", lock_timeout=7200)
+@cron_task(lock_timeout=7200)
 def squash_channel_counts():
     ChannelCount.squash()
 
 
-@cron_task(name="track_org_channel_counts", lock_key="track_org_channel_counts", lock_timeout=7200)
+@cron_task(lock_timeout=7200)
 def track_org_channel_counts(now=None):
     """
     Run daily, logs to our analytics the number of incoming and outgoing messages/ivr messages per org that had
