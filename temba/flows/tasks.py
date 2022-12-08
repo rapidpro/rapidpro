@@ -87,18 +87,12 @@ def trim_flow_revisions():
     logger.info(f"Trimmed {count} flow revisions since {last_trim} in {elapsed}")
 
 
-@cron_task(name="trim_flow_sessions_and_starts")
-def trim_flow_sessions_and_starts():
-    num_sessions = _trim_flow_sessions()
-    num_starts = _trim_flow_starts()
-
-    return {"sessions": num_sessions, "starts": num_starts}
-
-
-def _trim_flow_sessions() -> int:
+@cron_task(name="trim_flow_sessions")
+def trim_flow_sessions():
     """
     Cleanup old flow sessions
     """
+
     trim_before = timezone.now() - settings.RETENTION_PERIODS["flowsession"]
     num_deleted = 0
 
@@ -113,13 +107,15 @@ def _trim_flow_sessions() -> int:
         FlowSession.objects.filter(id__in=session_ids).delete()
         num_deleted += len(session_ids)
 
-    return num_deleted
+    return {"deleted": num_deleted}
 
 
-def _trim_flow_starts() -> int:
+@cron_task(name="trim_flow_starts")
+def trim_flow_starts() -> int:
     """
     Cleanup completed non-user created flow starts
     """
+
     trim_before = timezone.now() - settings.RETENTION_PERIODS["flowstart"]
     num_deleted = 0
 
@@ -149,4 +145,4 @@ def _trim_flow_starts() -> int:
         FlowStart.objects.filter(id__in=start_ids).delete()
         num_deleted += len(start_ids)
 
-    return num_deleted
+    return {"deleted": num_deleted}
