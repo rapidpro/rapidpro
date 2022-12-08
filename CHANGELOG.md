@@ -1,3 +1,11 @@
+v7.5.129 (2022-12-08)
+-------------------------
+ * Cleanup cron task names
+ * Split task to trim starts and sessions into two separate tasks
+ * Expose all status counts on flows endpoint
+ * Read from FlowRunStatusCount instead of FlowRunCount
+ * Track flow start counts in statement rather than row level trigger
+
 v7.5.128 (2022-12-07)
 -------------------------
  * Record cron task last stats in redis
