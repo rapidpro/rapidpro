@@ -45,7 +45,6 @@ from .models import (
     FlowPathCount,
     FlowRevision,
     FlowRun,
-    FlowRunCount,
     FlowRunStatusCount,
     FlowSession,
     FlowStart,
@@ -438,7 +437,11 @@ class FlowTest(TembaTest):
             visited,
         )
         self.assertEqual(
-            {"total": 1, "active": 1, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0, "completion": 0},
+            {
+                "total": 1,
+                "status": {"active": 0, "waiting": 1, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0},
+                "completion": 0,
+            },
             flow.get_run_stats(),
         )
 
@@ -523,7 +526,11 @@ class FlowTest(TembaTest):
             visited,
         )
         self.assertEqual(
-            {"total": 2, "active": 2, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0, "completion": 0},
+            {
+                "total": 2,
+                "status": {"active": 0, "waiting": 2, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0},
+                "completion": 0,
+            },
             flow.get_run_stats(),
         )
 
@@ -574,7 +581,11 @@ class FlowTest(TembaTest):
 
         # half of our flows are now complete
         self.assertEqual(
-            {"total": 2, "active": 1, "completed": 1, "expired": 0, "interrupted": 0, "failed": 0, "completion": 50},
+            {
+                "total": 2,
+                "status": {"active": 0, "waiting": 1, "completed": 1, "expired": 0, "interrupted": 0, "failed": 0},
+                "completion": 50,
+            },
             flow.get_run_stats(),
         )
 
@@ -598,7 +609,11 @@ class FlowTest(TembaTest):
             visited,
         )
         self.assertEqual(
-            {"total": 2, "active": 1, "completed": 1, "expired": 0, "interrupted": 0, "failed": 0, "completion": 50},
+            {
+                "total": 2,
+                "status": {"active": 0, "waiting": 1, "completed": 1, "expired": 0, "interrupted": 0, "failed": 0},
+                "completion": 50,
+            },
             flow.get_run_stats(),
         )
         self.assertEqual(
@@ -639,7 +654,11 @@ class FlowTest(TembaTest):
             visited,
         )
         self.assertEqual(
-            {"total": 1, "active": 1, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0, "completion": 0},
+            {
+                "total": 1,
+                "status": {"active": 0, "waiting": 1, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0},
+                "completion": 0,
+            },
             flow.get_run_stats(),
         )
         self.assertEqual(
@@ -689,7 +708,11 @@ class FlowTest(TembaTest):
             visited,
         )
         self.assertEqual(
-            {"total": 1, "active": 0, "completed": 1, "expired": 0, "interrupted": 0, "failed": 0, "completion": 100},
+            {
+                "total": 1,
+                "status": {"active": 0, "waiting": 0, "completed": 1, "expired": 0, "interrupted": 0, "failed": 0},
+                "completion": 100,
+            },
             flow.get_run_stats(),
         )
 
@@ -713,7 +736,11 @@ class FlowTest(TembaTest):
             visited,
         )
         self.assertEqual(
-            {"total": 0, "active": 0, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0, "completion": 0},
+            {
+                "total": 0,
+                "status": {"active": 0, "waiting": 0, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0},
+                "completion": 0,
+            },
             flow.get_run_stats(),
         )
         self.assertEqual(
@@ -769,7 +796,11 @@ class FlowTest(TembaTest):
             visited,
         )
         self.assertEqual(
-            {"total": 1, "active": 1, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0, "completion": 0},
+            {
+                "total": 1,
+                "status": {"active": 0, "waiting": 1, "completed": 0, "expired": 0, "interrupted": 0, "failed": 0},
+                "completion": 0,
+            },
             flow.get_run_stats(),
         )
 
@@ -796,7 +827,11 @@ class FlowTest(TembaTest):
             visited,
         )
         self.assertEqual(
-            {"total": 1, "active": 0, "completed": 0, "expired": 1, "interrupted": 0, "failed": 0, "completion": 0},
+            {
+                "total": 1,
+                "status": {"active": 0, "waiting": 0, "completed": 0, "expired": 1, "interrupted": 0, "failed": 0},
+                "completion": 0,
+            },
             flow.get_run_stats(),
         )
 
@@ -820,7 +855,11 @@ class FlowTest(TembaTest):
 
         self.assertEqual({color_split["uuid"]: 1}, active)
         self.assertEqual(
-            {"total": 2, "active": 1, "completed": 0, "expired": 1, "interrupted": 0, "failed": 0, "completion": 0},
+            {
+                "total": 2,
+                "status": {"active": 0, "waiting": 1, "completed": 0, "expired": 1, "interrupted": 0, "failed": 0},
+                "completion": 0,
+            },
             flow.get_run_stats(),
         )
 
@@ -833,30 +872,13 @@ class FlowTest(TembaTest):
 
         self.assertEqual({}, active)
         self.assertEqual(
-            {"total": 2, "active": 0, "completed": 0, "expired": 1, "interrupted": 1, "failed": 0, "completion": 0},
+            {
+                "total": 2,
+                "status": {"active": 0, "waiting": 0, "completed": 0, "expired": 1, "interrupted": 1, "failed": 0},
+                "completion": 0,
+            },
             flow.get_run_stats(),
         )
-
-    def test_squash_counts(self):
-        flow = self.get_flow("favorites")
-        flow2 = self.get_flow("pick_a_number")
-
-        FlowRunCount.objects.create(flow=flow, count=2, exit_type=None)
-        FlowRunCount.objects.create(flow=flow, count=1, exit_type=None)
-        FlowRunCount.objects.create(flow=flow, count=3, exit_type="E")
-        FlowRunCount.objects.create(flow=flow2, count=10, exit_type="I")
-        FlowRunCount.objects.create(flow=flow2, count=-1, exit_type="I")
-
-        squash_flowcounts()
-        self.assertEqual(FlowRunCount.objects.all().count(), 3)
-        self.assertEqual(FlowRunCount.get_totals(flow2), {"I": 9})
-        self.assertEqual(FlowRunCount.get_totals(flow), {None: 3, "E": 3})
-
-        max_id = FlowRunCount.objects.all().order_by("-id").first().id
-
-        # no-op this time
-        squash_flowcounts()
-        self.assertEqual(max_id, FlowRunCount.objects.all().order_by("-id").first().id)
 
     def test_category_counts(self):
         def assertCount(counts, result_key, category_name, truth):
@@ -3146,9 +3168,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             # and some charts
             response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
 
-            # we have two active runs, one failed run
+            # we have two waiting runs, one failed run
             self.assertEqual(response.context["failed"], 1)
-            self.assertEqual(response.context["active"], 2)
+            self.assertEqual(response.context["active"], 0)
+            self.assertEqual(response.context["waiting"], 2)
             self.assertEqual(response.context["completed"], 0)
             self.assertEqual(response.context["expired"], 0)
             self.assertEqual(response.context["interrupted"], 0)
@@ -3183,11 +3206,12 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             self.assertEqual(1, len(response.context["runs"]))
             self.assertContains(response, "Jimmy")
 
-            # now only one active, one completed, one failed and 5 total responses
+            # now only one waiting, one completed, one failed and 5 total responses
             response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
 
             self.assertEqual(response.context["failed"], 1)
-            self.assertEqual(response.context["active"], 1)
+            self.assertEqual(response.context["active"], 0)
+            self.assertEqual(response.context["waiting"], 1)
             self.assertEqual(response.context["completed"], 1)
             self.assertEqual(response.context["expired"], 0)
             self.assertEqual(response.context["interrupted"], 0)
@@ -3829,11 +3853,14 @@ class FlowRunTest(TembaTest):
                 "start_count": 1,  # unchanged
                 "run_count": {
                     "total": 0,
-                    "active": 0,
-                    "completed": 0,
-                    "expired": 0,
-                    "interrupted": 0,
-                    "failed": 0,
+                    "status": {
+                        "active": 0,
+                        "waiting": 0,
+                        "completed": 0,
+                        "expired": 0,
+                        "interrupted": 0,
+                        "failed": 0,
+                    },
                     "completion": 0,
                 },
             },
@@ -3850,11 +3877,14 @@ class FlowRunTest(TembaTest):
                 "start_count": 1,  # unchanged
                 "run_count": {
                     "total": 0,
-                    "active": 0,
-                    "completed": 0,
-                    "expired": 0,
-                    "interrupted": 0,
-                    "failed": 0,
+                    "status": {
+                        "active": 0,
+                        "waiting": 0,
+                        "completed": 0,
+                        "expired": 0,
+                        "interrupted": 0,
+                        "failed": 0,
+                    },
                     "completion": 0,
                 },
             },
@@ -3872,11 +3902,14 @@ class FlowRunTest(TembaTest):
                 "start_count": 1,  # unchanged
                 "run_count": {  # unchanged
                     "total": 1,
-                    "active": 0,
-                    "completed": 1,
-                    "expired": 0,
-                    "interrupted": 0,
-                    "failed": 0,
+                    "status": {
+                        "active": 0,
+                        "waiting": 0,
+                        "completed": 1,
+                        "expired": 0,
+                        "interrupted": 0,
+                        "failed": 0,
+                    },
                     "completion": 100,
                 },
             },
