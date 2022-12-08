@@ -1096,7 +1096,7 @@ class FlowTest(TembaTest):
         self.assertEqual(2, FlowCategoryCount.objects.filter(category_name="Blue", result_name="Color").count())
         FlowCategoryCount.objects.get(category_name="Blue", result_name="Color", result_key="color", count=-1)
 
-    def test_flow_start_counts(self):
+    def test_start_counts(self):
         # create start for 10 contacts
         flow = self.create_flow("Test")
         start = FlowStart.objects.create(org=self.org, flow=flow, created_by=self.admin)
