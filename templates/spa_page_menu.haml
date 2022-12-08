@@ -98,35 +98,6 @@
     }
   }
 
-  function handleMenuClicked(evt) {
-    debugger;
-    var link = evt.target;
-    var href = link.getAttribute("data-href");
-    var startDisabled = link.getAttribute("data-disabled") == "True";
-    var modax = link.getAttribute("data-modax");
-    var onSubmit = link.getAttribute("data-on-submit");
-
-    if(link.classList.contains("posterize")) {
-      return;
-    }
-
-    if (modax) {
-      var shared = document.querySelector("#shared-modax");
-      shared.disabled = startDisabled;
-
-      if (onSubmit == "None") {
-        onSubmit = undefined;
-      }
-      
-      showModax(modax, href, onSubmit);
-
-    } else {
-      if (href) {
-        fetchURL(href);
-      }
-    }
-  }
-
   function handleMoreToggle(event) {
     var more = document.querySelector(".more");
     if (more) {
@@ -149,11 +120,14 @@
     }
   
     if (item.type == 'modax') {
-      showModax(item.title, item.url, item.on_submit);
+      var modaxOptions = {
+        disabled: item.disabled,
+        onSubmit: item.on_submit
+      }
+      showModax(item.title, item.url, modaxOptions);
     }
 
     if (item.type === 'url_post') {
-      // todo confirm this is right
       var payload = '';
       var headers = {};
       var contentType = null;
