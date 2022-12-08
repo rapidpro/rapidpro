@@ -10,8 +10,8 @@ from .models import HTTPLog
 logger = logging.getLogger(__name__)
 
 
-@cron_task(name="trim_http_logs_task")
-def trim_http_logs_task():
+@cron_task(name="trim_http_logs")
+def trim_http_logs():
     trim_before = timezone.now() - settings.RETENTION_PERIODS["httplog"]
     num_deleted = 0
 

@@ -58,8 +58,8 @@ def export_flow_results_task(export_id):
     ).get(id=export_id).perform()
 
 
-@cron_task(name="squash_flowcounts", lock_timeout=7200)
-def squash_flowcounts():
+@cron_task(name="squash_flow_counts", lock_timeout=7200)
+def squash_flow_counts():
     FlowNodeCount.squash()
     FlowRunCount.squash()
     FlowRunStatusCount.squash()

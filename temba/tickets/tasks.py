@@ -19,8 +19,8 @@ def export_tickets_task(task_id):
     ).get(id=task_id).perform()
 
 
-@cron_task(name="squash_ticketcounts", lock_timeout=7200)
-def squash_ticketcounts():
+@cron_task(name="squash_ticket_counts", lock_timeout=7200)
+def squash_ticket_counts():
     TicketCount.squash()
     TicketDailyCount.squash()
     TicketDailyTiming.squash()

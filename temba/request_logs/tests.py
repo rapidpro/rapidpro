@@ -12,7 +12,7 @@ from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 
 from .models import HTTPLog
-from .tasks import trim_http_logs_task
+from .tasks import trim_http_logs
 
 
 class HTTPLogTest(TembaTest):
@@ -41,7 +41,7 @@ class HTTPLogTest(TembaTest):
             org=self.org,
         )
 
-        trim_http_logs_task()
+        trim_http_logs()
 
         # should only have one log remaining and should be l2
         self.assertEqual(1, HTTPLog.objects.all().count())

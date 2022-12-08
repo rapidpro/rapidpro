@@ -8,7 +8,7 @@ from temba.contacts.models import URN, Contact, ContactURN
 from temba.utils import chunk_list
 
 
-@shared_task(name="resolve_twitter_ids_task")
+@shared_task(name="resolve_twitter_ids")
 def resolve_twitter_ids():
     r = get_redis_connection()
     # TODO: we can't use our non-overlapping task decorator as it creates a loop in the celery resolver when registering

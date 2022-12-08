@@ -55,8 +55,8 @@ def release_group_task(group_id):
     ContactGroup.objects.get(id=group_id)._full_release()
 
 
-@cron_task(name="squash_contactgroupcounts", lock_timeout=7200)
-def squash_contactgroupcounts():
+@cron_task(name="squash_group_counts", lock_timeout=7200)
+def squash_group_counts():
     """
     Squashes our ContactGroupCounts into single rows per ContactGroup
     """

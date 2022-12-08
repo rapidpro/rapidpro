@@ -58,8 +58,8 @@ def export_messages_task(export_id):
     ).get(id=export_id).perform()
 
 
-@cron_task(name="squash_msgcounts", lock_timeout=7200)
-def squash_msgcounts():
+@cron_task(name="squash_msg_counts", lock_timeout=7200)
+def squash_msg_counts():
     SystemLabelCount.squash()
     LabelCount.squash()
     BroadcastMsgCount.squash()

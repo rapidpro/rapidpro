@@ -60,7 +60,7 @@ from temba.utils import json, languages
 
 from .context_processors import RolePermsWrapper
 from .models import BackupToken, Invitation, Org, OrgMembership, OrgRole, User
-from .tasks import delete_orgs_task, resume_failed_tasks
+from .tasks import delete_released_orgs, resume_failed_tasks
 
 
 class OrgRoleTest(TembaTest):
@@ -1073,7 +1073,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
         Org.objects.filter(id=self.child_org.id).update(released_on=timezone.now() - timedelta(days=10))
 
         with patch("temba.utils.s3.client", return_value=self.mock_s3):
-            delete_orgs_task()
+            delete_released_orgs()
 
         self.child_org.refresh_from_db()
         self.assertFalse(self.child_org.is_active)

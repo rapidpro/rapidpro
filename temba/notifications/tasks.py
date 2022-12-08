@@ -28,6 +28,6 @@ def send_notification_emails():
     return {"sent": num_sent, "errored": num_errored}
 
 
-@cron_task(name="squash_notificationcounts", lock_timeout=1800)
-def squash_notificationcounts():
+@cron_task(name="squash_notification_counts", lock_timeout=1800)
+def squash_notification_counts():
     NotificationCount.squash()

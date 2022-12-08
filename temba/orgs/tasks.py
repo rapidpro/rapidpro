@@ -57,8 +57,8 @@ def resume_failed_tasks():
         export_messages_task.delay(msg_export.pk)
 
 
-@cron_task(name="delete_orgs_task", lock_key="delete_orgs_task", lock_timeout=7200)
-def delete_orgs_task():
+@cron_task(name="delete_released_orgs", lock_timeout=7200)
+def delete_released_orgs():
     # for each org that was released over 7 days ago, delete it for real
     week_ago = timezone.now() - timedelta(days=Org.DELETE_DELAY_DAYS)
     for org in Org.objects.filter(is_active=False, released_on__lt=week_ago, deleted_on=None):
