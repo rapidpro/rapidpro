@@ -2804,7 +2804,7 @@ class EndpointsTest(TembaTest):
                     "archived": True,
                     "labels": [],
                     "expires": 720,
-                    "runs": {"active": 0, "completed": 0, "interrupted": 0, "expired": 0},
+                    "runs": {"active": 0, "waiting": 0, "completed": 0, "interrupted": 0, "expired": 0, "failed": 0},
                     "results": [
                         {
                             "key": "color",
@@ -2836,7 +2836,7 @@ class EndpointsTest(TembaTest):
                     "archived": False,
                     "labels": [{"uuid": str(reporting.uuid), "name": "Reporting"}],
                     "expires": 10080,
-                    "runs": {"active": 0, "completed": 1, "interrupted": 0, "expired": 0},
+                    "runs": {"active": 0, "waiting": 0, "completed": 1, "interrupted": 0, "expired": 0, "failed": 0},
                     "results": [
                         {
                             "key": "color",
@@ -2856,7 +2856,7 @@ class EndpointsTest(TembaTest):
                     "archived": False,
                     "labels": [],
                     "expires": 10080,
-                    "runs": {"active": 0, "completed": 0, "interrupted": 0, "expired": 0},
+                    "runs": {"active": 0, "waiting": 0, "completed": 0, "interrupted": 0, "expired": 0, "failed": 0},
                     "results": [
                         {
                             "key": "name",
