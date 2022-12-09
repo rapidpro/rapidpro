@@ -1,3 +1,7 @@
+v7.5.130 (2022-12-09)
+-------------------------
+ * Record cron time in analytics
+
 v7.5.129 (2022-12-08)
 -------------------------
  * Cleanup cron task names
