@@ -256,7 +256,7 @@ def sync(request, channel_id):
         sync_event.save()
 
     # keep track of how long a sync takes
-    analytics.gauge("temba.relayer_sync", time.time() - start)
+    analytics.gauges({"temba.relayer_sync": time.time() - start})
 
     return JsonResponse(result)
 
