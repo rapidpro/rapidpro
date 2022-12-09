@@ -1,3 +1,8 @@
+v7.5.131 (2022-12-09)
+-------------------------
+ * Replace .gauge on analytics backend with .gauges which allows backends to send guage values in bulk
+ * Remove celery auto discovery for jiochat and wechat tasks which were removed
+
 v7.5.130 (2022-12-09)
 -------------------------
  * Record cron time in analytics
