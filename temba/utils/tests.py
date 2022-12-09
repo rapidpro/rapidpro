@@ -556,7 +556,7 @@ class CronsTest(TembaTest):
             task_calls.append("2-%d-%d" % (foo, bar))
             return 1234
 
-        @cron_task(name="task3", time_limit=100, lock_key="test_key", lock_timeout=55)
+        @cron_task(name="task3", time_limit=100, lock_timeout=55)
         def test_task3(foo, bar):
             task_calls.append("3-%d-%d" % (foo, bar))
 
@@ -574,10 +574,10 @@ class CronsTest(TembaTest):
 
         mock_redis_get.assert_any_call("celery-task-lock:test_task1")
         mock_redis_get.assert_any_call("celery-task-lock:task2")
-        mock_redis_get.assert_any_call("test_key")
+        mock_redis_get.assert_any_call("celery-task-lock:task3")
         mock_redis_lock.assert_any_call("celery-task-lock:test_task1", timeout=900)
         mock_redis_lock.assert_any_call("celery-task-lock:task2", timeout=100)
-        mock_redis_lock.assert_any_call("test_key", timeout=55)
+        mock_redis_lock.assert_any_call("celery-task-lock:task3", timeout=55)
 
         self.assertEqual(task_calls, ["1-11-12", "2-21-22", "3-31-32"])
 
