@@ -80,7 +80,7 @@ def _record_cron_execution(r, name: str, start, end, result):
 
     pipe.execute()
 
-    analytics.gauge(f"temba.cron_{name}", (end - start).total_seconds())
+    analytics.gauges({f"temba.cron_{name}": (end - start).total_seconds()})
 
 
 def clear_cron_stats():
