@@ -3,7 +3,7 @@ from django.utils.safestring import mark_safe
 
 from temba.campaigns.models import EventFire
 from temba.channels.models import ChannelEvent
-from temba.contacts.models import URN, ContactURN
+from temba.contacts.models import URN, ContactField, ContactURN
 from temba.flows.models import FlowRun
 from temba.ivr.models import Call
 from temba.mailroom.events import Event
@@ -78,14 +78,21 @@ SUMMARY_EVENTS = {
 MISSING_VALUE = "--"
 
 
-@register.filter
-def contact_field(contact, arg):
-    field = contact.org.fields.filter(is_active=True, key=arg).first()
+@register.simple_tag()
+def contact_field_tag(contact, key):
+    field = contact.org.fields.filter(is_active=True, key=key).first()
     if field is None:
         return MISSING_VALUE
 
     value = contact.get_field_display(field)
-    return value or MISSING_VALUE
+
+    if not value:
+        return MISSING_VALUE
+
+    if field.value_type == ContactField.TYPE_DATETIME:
+        return mark_safe(f"<temba-date value='{value}' display='date'/>")
+
+    return value
 
 
 @register.filter

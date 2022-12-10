@@ -56,13 +56,13 @@
                 {{fire.contact|name_or_urn:user_org}}
 
               .relative-to
-                {{object.relative_to}} - {{fire.get_relative_to_value|date:"M d, Y \a\t h:ia"|slice:"-3"}}
+                .flex
+                  {{object.relative_to}}&nbsp;
+                  {{fire.get_relative_to_value|duration}}
+                  
 
             %td.event_date
-              -if fire.is_firing_soon
-                soon
-              -else
-                {{fire.scheduled|naturaltime}}
+              {{fire.scheduled|duration}}
 
         -if scheduled_event_fires_count
           %tr
@@ -103,7 +103,7 @@
                 {{object.relative_to}}
 
             %td.event_date
-              {{fire.fired|naturaltime}}
+              {{fire.fired|duration}}
 
         -if fired_event_fires_count
           %tr
@@ -161,7 +161,6 @@
 
         .relative-to {
           display:inline-block;
-          color: #999;
           margin-left:10px;
         }
         .message {
