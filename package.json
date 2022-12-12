@@ -11,13 +11,20 @@
   "dependencies": {
     "@nyaruka/flow-editor": "1.18.4",
     "@nyaruka/temba-components": "0.34.0",
+    "codemirror": "5.18.2",
     "colorette": "1.2.2",
     "fa-icons": "0.2.0",
+    "highcharts": "5.0.6",
+    "intercooler": "1.1.2",
     "is-core-module": "2.4.0",
+    "jquery": "2.1.0",
+    "jquery-migrate": "1.4.1",
     "less": "2.7.1",
+    "qrious": "4.0.2",
     "queue-microtask": "1.2.3",
     "react": "16.13.1",
-    "react-dom": "16.13.1"
+    "react-dom": "16.13.1",
+    "sortablejs": "1.8.4"
   },
   "scripts": {
     "tw-build": "postcss static/scss/tailwind.scss -o static/css/tailwind.css",

@@ -70,8 +70,8 @@
       }
 
     // ==== JQUERY ====
-    <script type="text/javascript" src="{{ STATIC_URL }}bower/jquery/jquery.js"></script>
-    <script type="text/javascript" src="{{ STATIC_URL }}bower/jquery-migrate/jquery-migrate.min.js"></script>
+    <script type="text/javascript" src="{{ STATIC_URL }}jquery/dist/jquery.min.js"></script>
+    // <script type="text/javascript" src="{{ STATIC_URL }}jquery-migrate/dist/jquery-migrate.min.js"></script>
 
     -# this view make it possible to process translations from javascript land
     <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
@@ -80,22 +80,12 @@
         var static_url = '{{STATIC_URL}}';
 
       %script{src:"{{ STATIC_URL }}js/libs/jquery.url.js"}
-      %script{src:"{{ STATIC_URL }}bower/toastr/toastr.js"}
-      %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-modal.js"}
-      %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-dropdown.js"}
-      %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-tooltip.js"}
-      %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-tab.js"}      
-      %script{src:"{{ STATIC_URL }}bower/intercooler-js/src/intercooler.js"}
-      %script{src:"{{ STATIC_URL }}bower/moment/moment.js"}
-      %script{src:"{{ STATIC_URL }}bower/moment-timezone/builds/moment-timezone-with-data.js"}
-      %script{src:"{{ STATIC_URL }}bower/xregexp/xregexp-all.js"}
 
       // expanded nav dropdown
       %script{src:"{{ STATIC_URL }}bower/jquery-hoverintent/jquery.hoverIntent.js"}
 
-      // Non-bower packages
-      %script{src:"{{ STATIC_URL }}lib/uuid.js"}
-      %script{src:"{{ STATIC_URL }}lib/bootstrap-limit.js"}
+      // npm packages
+      %script{src:"{{ STATIC_URL }}intercooler/dist/intercooler.js"}
 
       -if not debug and not testing
         %script{src:"{{ STATIC_URL }}lib/raven.min.js"}
@@ -122,11 +112,7 @@
         %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/bootstrap-css/css/bootstrap.css',  media:'all' }
 
       -compress css
-        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/toastr/toastr.css", media:'all'}
-
-      -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/icons/style.css", media:'all'}
-        %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/print.less', media:'print'}
         %link{type:"text/css", rel:"stylesheet", href:"{{ STATIC_URL }}css/temba-components.css"}
 
       -compress css
@@ -446,9 +432,7 @@
           $("html").addClass("windows");
         }
 
-        $(".btn").tooltip();
-
-        $('.org-header > .toggle').live('click', function(evt) {
+        $('.org-header > .toggle').on('click', function(evt) {
           evt.stopPropagation();
           var header = $('.org-header');
           if (header.hasClass('expanded')) {
@@ -458,7 +442,7 @@
           }
         });
 
-        $('.org-header').live('click', function(evt) {
+        $('.org-header').on('click', function(evt) {
           url = '{% url "orgs.org_home" %}';
           evt.stopPropagation();
           if (evt.ctrlKey || evt.metaKey){
