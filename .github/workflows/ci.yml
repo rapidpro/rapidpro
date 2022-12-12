@@ -61,8 +61,8 @@ jobs:
       - name: Initialize environment
         run: |
           poetry install
-          npm install
-          sudo npm install -g less
+          yarn install
+          sudo yarn global add less
           ln -s ${{ github.workspace }}/temba/settings.py.dev ${{ github.workspace }}/temba/settings.py
           poetry run ./manage.py migrate
           # fetch and extract rp-indexer
