@@ -23,7 +23,7 @@
   .flex
     .flex-grow.self-end.items-end
       .flex.flex-col
-        %form#search-form(method="get")
+        %form#search-form(method="get" onsubmit="handleSearchSubmitted(event)")
           %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
           %input.hide(type="submit")
 
@@ -166,5 +166,26 @@
                   %td.field
               %td
             
+-block extra-script
+  {{ block.super }}
 
+  :javascript
+
+    function handleSearchSubmitted(event){
+      debugger;
+      //add the search param to the content menu endpoint
+      var contentMenu = document.querySelector("temba-content-menu");
+      console.log('contact_list_spa.haml');
+      var formData = new FormData(event.target);
+      let queryString = new URLSearchParams(formData).toString();
+      if (queryString) {
+        var url = contentMenu.endpoint;
+        if (url.indexOf("?") > 0) {
+          url += "&" + queryString;
+        } else {
+          url += "?" + queryString;
+        }
+        contentMenu.endpoint = url;
+      }
+    }
 

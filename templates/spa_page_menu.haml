@@ -80,24 +80,6 @@
 
 :javascript
 
-  function handleContentMenuClicked(evt) {
-    var evtDetail = evt.detail;
-    if(evtDetail.script_name){
-      var scriptName = evtDetail.script_name;
-      var scriptFn = Function(scriptName);
-      //todo
-    }
-  }
-
-  function handleScriptTriggered(evt) {
-    var evtDetail = evt.detail;    
-    if(evtDetail.script_name){
-      var scriptName = evtDetail.script_name;
-      var scriptFn = Function(scriptName);
-      //todo
-    }
-  }
-
   function handleMoreToggle(event) {
     var more = document.querySelector(".more");
     if (more) {
@@ -143,4 +125,4 @@
     }
   }
 
-%temba-content-menu(endpoint="{{request.path}}" -temba-selection="handleContentMenuSelected(event)" -temba-script-triggered="handleScriptTriggered(event)")%
+%temba-content-menu(endpoint="{{request.path}}" -temba-selection="handleContentMenuSelected(event)")%

@@ -392,8 +392,9 @@ class ContentMenuMixin:
         context = super().get_context_data(**kwargs)
         menu_links = []
         menu_buttons = []
+        menu_items = self._get_content_menu()
 
-        for item in self._get_content_menu():
+        for item in menu_items:
             rendered_item = self.gear_link_renderers[item["type"]](item)
             if item.get("as_button", False):
                 menu_buttons.append(rendered_item)
@@ -407,13 +408,15 @@ class ContentMenuMixin:
     def _get_content_menu(self):
         menu = ContentMenu()
         self.build_content_menu(menu)
-        return menu.as_items()
+        menu_items = menu.as_items()
+        return menu_items
 
     def build_content_menu(self, menu: ContentMenu):  # pragma: no cover
         pass
 
     def get(self, request, *args, **kwargs):
         if "HTTP_TEMBA_CONTENT_MENU" in self.request.META:
-            return JsonResponse({"items": self._get_content_menu()})
+            content_menu_items = self._get_content_menu()
+            return JsonResponse({"items": content_menu_items})
 
         return super().get(request, *args, **kwargs)
