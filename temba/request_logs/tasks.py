@@ -3,15 +3,15 @@ import logging
 from django.conf import settings
 from django.utils import timezone
 
-from temba.utils.celery import nonoverlapping_task
+from temba.utils.crons import cron_task
 
 from .models import HTTPLog
 
 logger = logging.getLogger(__name__)
 
 
-@nonoverlapping_task(name="trim_http_logs_task")
-def trim_http_logs_task():
+@cron_task()
+def trim_http_logs():
     trim_before = timezone.now() - settings.RETENTION_PERIODS["httplog"]
     num_deleted = 0
 

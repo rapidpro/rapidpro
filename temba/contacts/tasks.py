@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 from temba.utils import chunk_list
-from temba.utils.celery import nonoverlapping_task
+from temba.utils.crons import cron_task
 
 from .models import Contact, ContactGroup, ContactGroupCount, ContactImport, ExportContactsTask
 from .search import elastic
@@ -55,8 +55,8 @@ def release_group_task(group_id):
     ContactGroup.objects.get(id=group_id)._full_release()
 
 
-@nonoverlapping_task(name="squash_contactgroupcounts", lock_timeout=7200)
-def squash_contactgroupcounts():
+@cron_task(lock_timeout=7200)
+def squash_group_counts():
     """
     Squashes our ContactGroupCounts into single rows per ContactGroup
     """
@@ -71,7 +71,7 @@ def full_release_contact(contact_id):
         contact._full_release()
 
 
-@nonoverlapping_task(name="check_elasticsearch_lag")
+@cron_task()
 def check_elasticsearch_lag():
     if settings.ELASTICSEARCH_URL:
         es_last_modified_contact = elastic.get_last_modified()

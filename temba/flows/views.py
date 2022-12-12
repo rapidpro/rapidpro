@@ -34,7 +34,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.models import URN
 from temba.contacts.search import SearchException, parse_query
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task, update_session_wait_expires
 from temba.ivr.models import Call
 from temba.mailroom import FlowValidationException
@@ -1355,14 +1355,6 @@ class FlowCRUDL(SmartCRUDL):
         # the min number of responses to show the period charts
         PERIOD_MIN = 0
 
-        EXIT_TYPES = {
-            None: "active",
-            FlowRun.EXIT_TYPE_COMPLETED: "completed",
-            FlowRun.EXIT_TYPE_INTERRUPTED: "interrupted",
-            FlowRun.EXIT_TYPE_EXPIRED: "expired",
-            FlowRun.EXIT_TYPE_FAILED: "failed",
-        }
-
         def get_context_data(self, *args, **kwargs):
 
             total_responses = 0
@@ -1444,20 +1436,11 @@ class FlowCRUDL(SmartCRUDL):
                 # highcharts works in UTC, but we want to offset our chart according to the org timezone
                 context["min_date"] = min_date
 
-            counts = FlowRunCount.objects.filter(flow=flow).values("exit_type").annotate(Sum("count"))
+            stats = flow.get_run_stats()
+            for status, count in stats["status"].items():
+                context[status] = count
 
-            total_runs = 0
-            for count in counts:
-                key = self.EXIT_TYPES[count["exit_type"]]
-                context[key] = count["count__sum"]
-                total_runs += count["count__sum"]
-
-            # make sure we have a value for each one
-            for state in ("expired", "interrupted", "completed", "active", "failed"):
-                if state not in context:
-                    context[state] = 0
-
-            context["total_runs"] = total_runs
+            context["total_runs"] = stats["total"]
             context["total_responses"] = total_responses
 
             return context
@@ -1914,7 +1897,7 @@ class FlowCRUDL(SmartCRUDL):
                 return JsonResponse(org.as_environment_def())
             else:
                 results = [{"iso": code, "name": languages.get_name(code)} for code in org.flow_languages]
-                return JsonResponse({"results": sorted(results, key=lambda l: l["name"])})
+                return JsonResponse({"results": sorted(results, key=lambda lang: lang["name"])})
 
 
 # this is just for adhoc testing of the preprocess url

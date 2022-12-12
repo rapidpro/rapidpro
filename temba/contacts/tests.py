@@ -60,7 +60,7 @@ from .models import (
     ContactURN,
     ExportContactsTask,
 )
-from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
+from .tasks import check_elasticsearch_lag, squash_group_counts
 from .templatetags.contacts import contact_field, history_class, history_icon, msg_status_badge
 
 
@@ -1057,7 +1057,7 @@ class ContactGroupTest(TembaTest):
         ba.restore(self.user)
 
         # squash all our counts, this shouldn't affect our overall counts, but we should now only have 3
-        squash_contactgroupcounts()
+        squash_group_counts()
         self.assertEqual(ContactGroupCount.objects.all().count(), 3)
 
         counts = Contact.get_status_counts(self.org)
@@ -5807,7 +5807,7 @@ class ContactImportTest(TembaTest):
                 "num_updated": 0,
                 "num_errored": 0,
                 "errors": [],
-                "time_taken": matchers.Int(),
+                "time_taken": matchers.Int(min=0),
             },
             imp.get_info(),
         )
@@ -5824,7 +5824,7 @@ class ContactImportTest(TembaTest):
                 "num_updated": 1,
                 "num_errored": 0,
                 "errors": [{"record": 1, "message": "that's wrong"}],
-                "time_taken": matchers.Int(),
+                "time_taken": matchers.Int(min=0),
             },
             imp.get_info(),
         )
@@ -5842,7 +5842,7 @@ class ContactImportTest(TembaTest):
                 "num_updated": 6,
                 "num_errored": 0,
                 "errors": [{"record": 1, "message": "that's wrong"}, {"record": 3, "message": "that's not right"}],
-                "time_taken": matchers.Int(),
+                "time_taken": matchers.Int(min=0),
             },
             imp.get_info(),
         )
@@ -5860,7 +5860,7 @@ class ContactImportTest(TembaTest):
                 "num_updated": 6,
                 "num_errored": 0,
                 "errors": [{"record": 1, "message": "that's wrong"}, {"record": 3, "message": "that's not right"}],
-                "time_taken": matchers.Int(),
+                "time_taken": matchers.Int(min=0),
             },
             imp.get_info(),
         )
