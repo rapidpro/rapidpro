@@ -95,6 +95,8 @@
   }
 
   function handleContentMenuSelected(event) {
+    //handles when items are clicked in the top right hamburger menu
+
     var item = event.detail;
     
     if (item.type === 'link') {
@@ -124,6 +126,7 @@
         });
     }
 
+    //handles when items need to be refreshed in the top left sidebar menu
     refreshMenu();
   }
 
