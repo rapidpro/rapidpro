@@ -510,12 +510,12 @@
         return false;
       });
 
-      $('.show-all.upcoming').live('click', function() {
+      $('.show-all.upcoming').on('click', function() {
         $(this).hide();
         $('table.activity.upcoming tbody:nth-child(1)').show();
       });
 
-      $('.show-all.fields').live('click', function() {
+      $('.show-all.fields').on('click', function() {
         if ($(this).hasClass('expanded')) {
           $(this).removeClass('expanded');
           $('.contact-fields').removeClass('expanded');
@@ -527,10 +527,10 @@
         }
       });
 
-      $('.time').live('mouseover', function() {
+      $('.time').on('mouseover', function() {
         $(this).children('.long').show();
         $(this).children('.short').hide();
-      }).live('mouseleave', function() {
+      }).on('mouseleave', function() {
         $(this).children('.short').show();
         $(this).children('.long').hide();
       });
@@ -565,7 +565,7 @@
   %script
 
     {% if org_perms.contacts.contact_update %}
-    $('.contact-field-value.editable').live('click', function(evt) {
+    $('.contact-field-value.editable').on('click', function(evt) {
       var endpoint = '{% url "contacts.contact_update_fields" object.pk %}';
       var field_id = $(this).parent().data('id');
       var modax = getModax("#update-custom-fields");
@@ -588,7 +588,7 @@
     {% endif %}
 
     {% if org_perms.contacts.contact_delete %}
-    $(".contact-delete-button").live('click', function() {
+    $(".contact-delete-button").on('click', function() {
       $(".gear-menu").removeClass("open");
       modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
       modal.addClass('alert');
