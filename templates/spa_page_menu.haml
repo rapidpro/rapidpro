@@ -123,6 +123,8 @@
           console.error('error', error);
         });
     }
+
+    refreshMenu();
   }
 
 %temba-content-menu(endpoint="{{request.path}}" -temba-selection="handleContentMenuSelected(event)")%
