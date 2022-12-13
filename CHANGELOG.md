@@ -1,3 +1,11 @@
+v7.5.133 (2022-12-12)
+-------------------------
+ * Bump required python version to 3.10
+
+v7.5.132 (2022-12-12)
+-------------------------
+ * Support Python 3.10
+
 v7.5.131 (2022-12-09)
 -------------------------
  * Replace .gauge on analytics backend with .gauges which allows backends to send guage values in bulk

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temba"
-version = "7.5.131"
+version = "7.5.133"
 description = "Hosted service for visually building interactive messaging applications"
 authors = ["Nyaruka <code@nyaruka.com>"]
 license = "AGPL-3"
@@ -9,7 +9,7 @@ license = "AGPL-3"
 repository = "http://github.com/rapidpro/rapidpro"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 Django = "^4.0.7"
 django-compressor = "^3.1"
 django-countries = "^7.0"
@@ -48,7 +48,7 @@ iso-639 = "^0.4.5"
 iso8601 = "^0.1.14"
 phonenumbers = "*"
 pycountry = "^20.7.3"
-python-dateutil = "2.2"
+python-dateutil = "^2.8.2"
 psycopg2-binary = "^2.9.1"
 packaging = "^20.9"
 requests-toolbelt = "^0.9.1"
