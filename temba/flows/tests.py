@@ -54,7 +54,7 @@ from .models import (
     get_flow_user,
 )
 from .tasks import (
-    squash_flowcounts,
+    squash_flow_counts,
     trim_flow_revisions,
     trim_flow_sessions,
     trim_flow_starts,
@@ -590,7 +590,7 @@ class FlowTest(TembaTest):
         )
 
         # check squashing doesn't change anything
-        squash_flowcounts()
+        squash_flow_counts()
 
         (active, visited) = flow.get_activity()
 
@@ -3639,7 +3639,7 @@ class FlowRunTest(TembaTest):
         self.assertEqual({"W": 2}, FlowRunStatusCount.get_totals(flow2))
 
         # no difference after squashing
-        squash_flowcounts()
+        squash_flow_counts()
 
         self.assertEqual({"A": 2, "W": 1, "C": 1}, FlowRunStatusCount.get_totals(flow1))
         self.assertEqual({"W": 2}, FlowRunStatusCount.get_totals(flow2))
@@ -3664,7 +3664,7 @@ class FlowRunTest(TembaTest):
         self.assertEqual({"W": 0, "X": 1, "I": 2}, FlowRunStatusCount.get_totals(flow2))
 
         # no difference after squashing
-        squash_flowcounts()
+        squash_flow_counts()
 
         self.assertEqual({"A": 2, "W": 0, "C": 0, "I": 4}, FlowRunStatusCount.get_totals(flow1))
         self.assertEqual({"W": 0, "X": 1, "I": 2}, FlowRunStatusCount.get_totals(flow2))

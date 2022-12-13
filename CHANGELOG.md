@@ -1,3 +1,28 @@
+v7.5.133 (2022-12-12)
+-------------------------
+ * Bump required python version to 3.10
+
+v7.5.132 (2022-12-12)
+-------------------------
+ * Support Python 3.10
+
+v7.5.131 (2022-12-09)
+-------------------------
+ * Replace .gauge on analytics backend with .gauges which allows backends to send guage values in bulk
+ * Remove celery auto discovery for jiochat and wechat tasks which were removed
+
+v7.5.130 (2022-12-09)
+-------------------------
+ * Record cron time in analytics
+
+v7.5.129 (2022-12-08)
+-------------------------
+ * Cleanup cron task names
+ * Split task to trim starts and sessions into two separate tasks
+ * Expose all status counts on flows endpoint
+ * Read from FlowRunStatusCount instead of FlowRunCount
+ * Track flow start counts in statement rather than row level trigger
+
 v7.5.128 (2022-12-07)
 -------------------------
  * Record cron task last stats in redis

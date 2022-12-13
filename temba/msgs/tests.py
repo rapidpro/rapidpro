@@ -29,7 +29,7 @@ from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 
-from .tasks import squash_msgcounts
+from .tasks import squash_msg_counts
 from .templatetags.sms import as_icon
 
 
@@ -2286,7 +2286,7 @@ class LabelTest(TembaTest):
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         # check still correct after squashing
-        squash_msgcounts()
+        squash_msg_counts()
         self.assertEqual(label.get_visible_count(), 2)
 
         msg2.archive()  # won't remove label from msg, but msg no longer counts toward visible count
@@ -2327,7 +2327,7 @@ class LabelTest(TembaTest):
         # squashing shouldn't affect counts
         self.assertEqual(LabelCount.get_totals([label])[label], 2)
 
-        squash_msgcounts()
+        squash_msg_counts()
 
         self.assertEqual(LabelCount.get_totals([label])[label], 2)
 
@@ -2615,7 +2615,7 @@ class SystemLabelTest(TembaTest):
         self.assertEqual(SystemLabelCount.objects.all().count(), 25)
 
         # squash our counts
-        squash_msgcounts()
+        squash_msg_counts()
 
         self.assertEqual(
             SystemLabel.get_counts(self.org),

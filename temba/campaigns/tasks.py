@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 EVENT_FIRES_TO_TRIM = 100_000
 
 
-@cron_task(name="trim_event_fires_task")
-def trim_event_fires_task():
+@cron_task()
+def trim_event_fires():
     trim_before = timezone.now() - settings.RETENTION_PERIODS["eventfire"]
 
     # first look for unfired fires that belong to inactive events

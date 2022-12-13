@@ -7,7 +7,7 @@ from .models import Classifier
 logger = logging.getLogger(__name__)
 
 
-@cron_task(name="sync_classifier_intents", lock_timeout=300)
+@cron_task(lock_timeout=300)
 def sync_classifier_intents(id=None):
     classifiers = Classifier.objects.filter(is_active=True)
     if id:
