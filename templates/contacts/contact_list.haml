@@ -371,8 +371,19 @@
       });
     }
 
-    function handleDeleteAllContactsConfirmed_spa(event){
+    function handleDeleteAllConfirmation_spa() {
       var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
+
+      deleteAllConfirmation.classList.remove("hide");
+      deleteAllConfirmation.open = true;
+
+      deleteAllConfirmation.removeEventListener("temba-button-clicked", handleDeleteAllContacts_spa);
+      deleteAllConfirmation.addEventListener("temba-button-clicked", handleDeleteAllContacts_spa);
+    }
+
+    function handleDeleteAllContacts_spa(event){
+      var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
+
       if (event.detail.button.attributes.destructive){
         jQuery.ajaxSettings.traditional = true;
         var url = "{% url 'contacts.contact_archived' %}";
@@ -388,15 +399,6 @@
       }
       deleteAllConfirmation.classList.add("hide");
       deleteAllConfirmation.open = false;
-    }
-
-    function handleDeleteAllContacts_spa() {
-      var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
-      deleteAllConfirmation.classList.remove("hide");
-      deleteAllConfirmation.open = true;
-
-      deleteAllConfirmation.removeEventListener("temba-button-clicked", handleDeleteAllContactsConfirmed_spa);
-      deleteAllConfirmation.addEventListener("temba-button-clicked", handleDeleteAllContactsConfirmed_spa);
     }
 
     {% endif %}
