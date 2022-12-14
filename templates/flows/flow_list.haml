@@ -88,17 +88,19 @@
                         -trans "Archive"
 
                     - if 'label' in actions and org_perms.flows.flow_update
-                      %span.btn-group
-                        .button-action.dropdown-toggle{data-toggle:"dropdown"}
-                          .-mt-1.mr-2.glyph.icon-tag
-                          -trans "Label"
 
-                        %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
+
+                      %temba-dropdown.items-stretch.flex.flex-column(arrowoffset="14" offsetx="6" offsety="10" arrowsize="8")
+                      
+                        .button-action(slot="toggle")
+                          .-mt-1.mr-2.glyph.icon-tag{style:"width:16px"}
+                          -trans "Label"
+                        .rounded-lg.border-none.px-4.py-3(slot="dropdown" style="min-width:200px")
                           -for label in labels
-                            %li
-                              .lbl-menu(href='#' onclick='labelObjectRows({{label.id}}, false, wireTableListeners)' data-id='{{label.id}}')
-                                .flex.items-center.py-1.linked
-                                  .glyph.message-label
+                            .lbl-menu(href='#' onclick='labelObjectRows({{label.id}}, false, wireTableListeners)' data-id='{{label.id}}')
+                              .flex.items-center.py-1.linked
+                                .glyph.message-label.label-checkbox
+                                .name.px-1.-mb-1
                                   {{label.name}}
 
                           -if org_perms.flows.flowlabel_create

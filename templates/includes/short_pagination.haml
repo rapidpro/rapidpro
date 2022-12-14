@@ -26,10 +26,10 @@
                     - trans "New Group..."
 
         -if 'label' in actions
-          %temba-dropdown.ml-4(offsety="8")
+          %temba-dropdown.ml-4(offsety="8" offsetx="-8")
             %temba-tip(position="top" text='{{_("Labels")|escapejs}}'  slot="toggle")
               %temba-icon(name="icon.label" clickable="true")
-            .label-menu.px-6.py-4(slot="dropdown")
+            .label-menu.px-6.py-4(slot="dropdown" style="min-width:200px")
               -for label in labels
                 .lbl-menu(onclick='labelObjectRows({{label.id}}, false, refreshMenu)' data-id='{{label.id}}')
                   .flex.items-center.py-1.hover-linked
