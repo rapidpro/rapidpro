@@ -251,6 +251,15 @@
 
   :javascript
 
+    function handleTabChanged(event) {
+      var tabs = document.querySelector("temba-tabs");
+      if(tabs.index == 1) {
+        for (var key of Object.keys(charts)) {
+          charts[key].reflow();
+        }
+      }
+    }
+
     function updateColumnSelect() {
       var select = document.getElementById("select-columns");
       if (select) {
@@ -436,15 +445,6 @@
       });
     });
 
-    $('a[data-toggle="tab"]').on('shown.bs.tab', function(e){
-      // reflow our charts when analytics is shown on the chance their dimensions have changed
-      if (e.currentTarget.innerText == 'Analytics') {
-        for (var key of Object.keys(charts)) {
-          charts[key].reflow();
-        }
-      }
-    });
-
     function updateChart(chartData) {
       var key = chartData.key;
       var chart = getChart(key, chartData.name);
@@ -595,19 +595,24 @@
         });
       });
 
+-block extra-style
+  {{block.super}}
+  %link(type="text/css" rel="stylesheet" href="{{ STATIC_URL }}highcharts/css/highcharts.css" media="all")
+
+
 -block content
 
   %temba-dialog#confirm-run-delete(header='{{ _("Delete Run")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
     .p-6
       -trans "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
 
-  %temba-tabs.flex-grow
+  %temba-tabs.flex-grow(-temba-context-changed="handleTabChanged")
     %temba-tab(name='{{_("Overview")|escapejs}}')
       #overview.active.py-4.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
         .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
           %i.fa.fa-spinner.fa-spin.fa-2x
 
-    %temba-tab(name='{{_("Analytics")|escapejs}}' icon="bar-chart")
+    %temba-tab(name='{{_("Analytics")|escapejs}}' icon="icon.analytics")
       #category-charts.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
 
     %temba-tab(name='{{_("Runs")|escapejs}}')
