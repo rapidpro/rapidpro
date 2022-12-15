@@ -1,98 +1,8 @@
 -load public
 
-:css
-  .gear-flag {
-    display: inline-block;
-    margin: 0px 3px;
-    font-size: 80%;
-    color: #ccc;
-    float: right;
-  }
-
-  #gear-container {
-    margin-left: 0em;
-  }
-
-  #gear-container .button-light.dropdown-toggle {
-    margin-top: 0 !important;
-  
-  }
-
-  #gear-container .button-light.dropdown-toggle {
-    padding-top: 0.64em;
-    padding-bottom: 0.64em;
-  }
-
-  #gear-container .button-light:hover {
-    background: #f1f1f1;
-  }
-
-  #gear-container .button-light:hover, #gear-container .button-light.dropdown-toggle:hover, #gear-container .button-light.dropdown-toggle:hover .icon-menu {
-    background: #f1f1f1;
-    color: #999 !important;
-  }
-
-  .dropdown-menu {
-    padding: .9em 1.25em;
-    padding-bottom: 0.6em;
-  }
-
-  .menu-item {
-    margin-top: 0.2em;
-    margin-bottom: 0.2em;
-    font-size: 1.1rem;
-  }
-
-  .spa-gear-buttons, .spa-gear-menu {
-    --button-y: .4em;
-    --button-x: 1em;
-  }
-
-  #gear-container .spa-gear-menu .button-light.dropdown-toggle {
-    padding-top: 0.5em;
-    padding-bottom: 0.4em;
-  }
-
-
-  .header-button {
-    background:rgba(0,0,0,.15);
-    color: #fff;
-    transition: all 200ms ease-in-out;
-  }
-
-  .menu-button {
-    --icon-color: #666;
-  }
-
-  .menu-button:hover, .open .menu-button {
-    cursor:pointer;
-    background:rgba(0,0,0,.05);
-    border-radius: var(--curvature);
-    --icon-color: #888;
-  }
-
-  temba-dropdown:empty {
-    display: none;
-  }
-
-
-
+%temba-content-menu(endpoint="{{request.path}}" -temba-selection="handleContentMenuSelected(event)")%
 
 :javascript
-
-  function handleMoreToggle(event) {
-    var more = document.querySelector(".more");
-    if (more) {
-      var classes = more.classList;
-      if (classes.contains("open")) {
-        classes.remove("open");
-      } else {
-        classes.add("open");
-      }
-      event.stopPropagation();
-      event.preventDefault();
-    }
-  }
 
   function handleContentMenuSelected(event) {
     //handles when items are clicked in the top right hamburger menu
@@ -129,5 +39,3 @@
     //handles when items need to be refreshed in the top left sidebar menu
     refreshMenu();
   }
-
-%temba-content-menu(endpoint="{{request.path}}" -temba-selection="handleContentMenuSelected(event)")%

@@ -245,15 +245,19 @@ class CRUDLTestMixin:
 
         self.assertEqual(labels, [item.get("label", "-") for item in response.json()["items"]])
 
-        # for now menu is also stuffed into context in old gear links format
+        # for now content menu is also stuffed into context in old gear links format
         headers = {}
         if spa:
             headers["HTTP_TEMBA_SPA"] = 1
 
         response = self.requestView(url, user, checks=[StatusCode(200)], **headers)
-        links = response.context.get("content_menu_buttons", []) + response.context.get("content_menu_links", [])
-        self.assertEqual(labels, [i.get("title", "-") for i in links])
 
+        if spa:
+            has_content_menu = response.context.get("has_content_menu")
+            self.assertTrue(has_content_menu)
+        else:
+            links = response.context.get("content_menu_buttons", []) + response.context.get("content_menu_links", [])
+            self.assertEqual(labels, [i.get("title", "-") for i in links])
 
 class BaseCheck:
     def pre_check(self, test_cls, desc):
