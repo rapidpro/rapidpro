@@ -405,7 +405,7 @@ class ContentMenuMixin:
         has_content_menu = len(menu_buttons) > 0 or len(menu_links) > 0
         context["has_content_menu"] = has_content_menu
 
-        # needed for gear links in old ui
+        # old ui - still needed for gear links
         context["content_menu_buttons"] = menu_buttons
         context["content_menu_links"] = menu_links
 
