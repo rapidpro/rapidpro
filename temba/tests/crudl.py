@@ -259,6 +259,7 @@ class CRUDLTestMixin:
             links = response.context.get("content_menu_buttons", []) + response.context.get("content_menu_links", [])
             self.assertEqual(labels, [i.get("title", "-") for i in links])
 
+
 class BaseCheck:
     def pre_check(self, test_cls, desc):
         pass
