@@ -1,3 +1,16 @@
+v7.5.136 (2022-12-15)
+-------------------------
+ * Tell codecov to ignore static/
+ * Switch label action buttons to use temba-dropdown
+
+v7.5.135 (2022-12-13)
+-------------------------
+ * Fix content menu display issues
+
+v7.5.134 (2022-12-13)
+-------------------------
+ * Switch to yarn
+
 v7.5.133 (2022-12-12)
 -------------------------
  * Bump required python version to 3.10

@@ -294,35 +294,6 @@ function messageTextareaLengthCheck() {
     }
 }
 
-function initMessageLengthCounter(textarea, counter) {
-    function onKeyUp() {
-        var ta = $(textarea);
-        if (ta) {
-            var val = ta.val();
-            var length = 0;
-            if (val) {
-                length = val.length;
-            }
-
-            var messages = Math.ceil(length / 160);
-            var left = messages * 160 - length;
-
-            if (length == 0) {
-                $(counter).text('' + 160);
-            } else if (messages < 2) {
-                $(counter).text('' + left);
-            } else {
-                $(counter).text('' + left + ' / ' + messages);
-            }
-        }
-    }
-
-    $(textarea).live('keyup', onKeyUp);
-
-    // set our initial length
-    onKeyUp();
-}
-
 function toggle_section() {
     var shrink;
     $('.form-section').each(function () {
