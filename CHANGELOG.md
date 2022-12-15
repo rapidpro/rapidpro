@@ -1,3 +1,12 @@
+v7.5.140 (2022-12-15)
+-------------------------
+ * Fix flow results page
+
+v7.5.136 (2022-12-15)
+-------------------------
+ * Tell codecov to ignore static/
+ * Switch label action buttons to use temba-dropdown
+
 v7.5.135 (2022-12-13)
 -------------------------
  * Fix content menu display issues
