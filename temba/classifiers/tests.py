@@ -124,7 +124,7 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
 
         connect_url = reverse("classifiers.classifier_connect")
         response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, connect_url)
+        self.assertContentMenuContains(reverse("orgs.org_home"), self.admin, "Add Classifier")
 
         read_url = reverse("classifiers.classifier_read", args=[self.c1.uuid])
         self.assertContains(response, read_url)
@@ -138,12 +138,11 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "book_car")
 
         # a link to logs
-        log_url = reverse("request_logs.httplog_classifier", args=[self.c1.uuid])
-        self.assertContains(response, log_url)
+        self.assertContentMenuContains(read_url, self.admin, "Log")
 
         # and buttons for delete and sync
-        self.assertContains(response, reverse("classifiers.classifier_sync", args=[self.c1.id]))
-        self.assertContains(response, reverse("classifiers.classifier_delete", args=[self.c1.uuid]))
+        self.assertContentMenuContains(read_url, self.admin, "Sync")
+        self.assertContentMenuContains(read_url, self.admin, "Delete")
 
         self.c1.intents.all().delete()
 

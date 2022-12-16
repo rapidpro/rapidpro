@@ -271,8 +271,7 @@ class FlowTest(TembaTest):
         # customer service gets a service button
         self.login(self.customer_support)
 
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertContains(response, "Service")
+        self.assertContentMenuContains(reverse("flows.flow_editor", args=[flow.uuid]), self.admin, "Service")
 
         # flows that are archived can't be edited, started or simulated
         self.login(self.admin)
@@ -1903,7 +1902,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         user.save()
         self.login(user)
 
-        self.assertContentMenu(reverse("flows.flow_list"), self.admin, ["Import", "Export"])
         self.assertContentMenu(reverse("flows.flow_list"), self.admin, ["New Flow", "New Label", "Import", "Export"])
 
         # list, should have only one flow (the one created in setUp)

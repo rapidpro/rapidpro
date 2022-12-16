@@ -437,6 +437,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "unlabel"], list(response.context["actions"]))
+        # todo figure out why this is failing - missing "Manage Fields"
         self.assertContentMenu(group1_url, self.admin, ["Manage Fields", "Edit", "Export", "Usages", "Delete"])
 
         response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
@@ -743,6 +744,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # now it's an option
         response = self.client.get(read_url)
+        # todo switch to checking if content menu contains "interrupt" label
         self.assertContains(response, interrupt_url)
 
         # can't interrupt if not logged in
@@ -2994,6 +2996,7 @@ class ContactTest(TembaTest):
 
         # should have the export link
         export_url = "%s?g=%s" % (reverse("contacts.contact_export"), group.uuid)
+        # todo switch to checking if content menu contains "export" label
         self.assertContains(response, export_url)
 
         # should have an edit button

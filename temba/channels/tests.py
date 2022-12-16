@@ -135,8 +135,7 @@ class ChannelTest(TembaTest):
                 role=channel_role,
                 schemes=channel_schemes,
             )
-            response = self.client.get(reverse("channels.channel_read", args=[channel.uuid]))
-            self.assertContains(response, link_text)
+            self.assertContentMenu(reverse("channels.channel_read", args=[channel.uuid]), self.admin, link_text)
 
     def test_delegate_channels(self):
 
@@ -167,8 +166,7 @@ class ChannelTest(TembaTest):
 
         # should now have the option to disable
         self.login(self.admin)
-        response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
-        self.assertContains(response, "Disable Voice Calling")
+        self.assertContentMenuContains(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin, "Disable Voice Calling")
 
         # try adding a caller for an invalid channel
         response = self.client.post("%s?channel=20000" % reverse("channels.channel_create_caller"))
@@ -183,7 +181,7 @@ class ChannelTest(TembaTest):
 
         # we should lose our caller
         response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
-        self.assertNotContains(response, "Disable Voice Calling")
+        self.assertContentMenuNotContains(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin, "Disable Voice Calling")
 
         # now try and add it back without a twilio connection
         response = self.client.post(reverse("channels.channel_create_caller"), post_data)
@@ -489,7 +487,7 @@ class ChannelTest(TembaTest):
 
         response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin)
         self.assertTrue(self.org.is_connected_to_twilio())
-        self.assertContains(response, "Enable Voice")
+        self.assertContentMenuContains(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin, "Enable Voice")
 
         two_hours_ago = timezone.now() - timedelta(hours=2)
 
@@ -1234,6 +1232,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("channels.channel_read", args=[self.ex_channel.uuid])
 
         # should see service button
+        # todo figure out why this is failing
         self.assertContentMenu(read_url, self.customer_support, ["Settings", "Channel Log", "-", "Service"])
 
     def test_configuration(self):
@@ -2131,6 +2130,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         # view success alone
         response = self.client.get(reverse("channels.channellog_read", args=[success_log.id]))
         self.assertContains(response, "POST /send?msg=message")
+        # todo figure out why this is failing - missing "Channel Log"
         self.assertContentMenu(reverse("channels.channellog_read", args=[success_log.id]), self.admin, ["Channel Log"])
 
         self.assertEqual(self.channel.get_success_log_count(), 3)
@@ -2831,6 +2831,7 @@ class FacebookWhitelistTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse("channels.channel_read", args=[self.channel.uuid]))
 
+        # todo switch to checking if content menu contains "whitelist" label
         self.assertContains(response, whitelist_url)
 
         with patch("requests.post") as mock:

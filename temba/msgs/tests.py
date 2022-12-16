@@ -1115,8 +1115,7 @@ class MsgTest(TembaTest):
         )
 
         # filter page should have an export option
-        response = self.client.get(reverse("msgs.msg_filter", args=[label.uuid]))
-        self.assertContains(response, "Download")
+        self.assertContentMenuContains(reverse("msgs.msg_filter", args=[label.uuid]), self.admin, "Download")
 
         # try export with user label
         self.assertExcelSheet(

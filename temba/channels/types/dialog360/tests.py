@@ -214,6 +214,7 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
 
         # should have our template translations
         self.assertContains(response, "Hello")
+        # todo switch to checking if content menu contains "sync" label
         self.assertContains(response, sync_url)
         self.assertContentMenu(templates_url, self.admin, ["Sync Logs"])
 

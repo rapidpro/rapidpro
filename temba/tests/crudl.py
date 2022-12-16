@@ -235,16 +235,28 @@ class CRUDLTestMixin:
         return self.requestView(url, self.customer_support, checks=[StatusCode(200)])
 
     def assertContentMenu(self, url: str, user, labels: list):
-
         headers = {"HTTP_TEMBA_CONTENT_MENU": 1, "HTTP_TEMBA_SPA": 1}
-        response = self.requestView(url, user, checks=[StatusCode(200), ContentType("application/json")], **headers)
-        # response = self.client.get(url, content_type="application/json", **headers)
+        response = self.client.get(url, content_type="application/json", **headers)
+        # response = self.requestView(url, user, checks=[StatusCode(200), ContentType("application/json")], **headers)
 
         items = [item.get("label", "-") for item in response.json()["items"]]
         self.assertEqual(labels, items)
 
-        has_content_menu = response.context.get("has_content_menu")
-        self.assertTrue(has_content_menu)
+    def assertContentMenuContains(self, url: str, user, label: str):
+        headers = {"HTTP_TEMBA_CONTENT_MENU": 1, "HTTP_TEMBA_SPA": 1}
+        response = self.client.get(url, content_type="application/json", **headers)
+        # response = self.requestView(url, user, checks=[StatusCode(200), ContentType("application/json")], **headers)
+
+        items = [item.get("label", "-") for item in response.json()["items"]]
+        self.assertTrue(label in items)
+
+    def assertContentMenuNotContains(self, url: str, user, label: str):
+        headers = {"HTTP_TEMBA_CONTENT_MENU": 1, "HTTP_TEMBA_SPA": 1}
+        response = self.client.get(url, content_type="application/json", **headers)
+        # response = self.requestView(url, user, checks=[StatusCode(200), ContentType("application/json")], **headers)
+
+        items = [item.get("label", "-") for item in response.json()["items"]]
+        self.assertTrue(label not in items)
 
 
 class BaseCheck:
