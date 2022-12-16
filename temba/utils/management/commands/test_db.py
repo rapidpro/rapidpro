@@ -113,8 +113,20 @@ CAMPAIGNS = (
 
 # contact names are generated from these components
 CONTACT_NAMES = (
-    ("Anne", "Bob", "Cathy", "Dave", "Evan", "Freda", "George", "Hallie", "Igor"),
-    ("Jameson", "Kardashian", "Lopez", "Mooney", "Newman", "O'Shea", "Poots", "Quincy", "Roberts"),
+    ("Dražen", "Eric", "Eugene", "Evan", "Gloria", "Kellan", "Leah", "Nic", "Norbert", "Rowan", "Susan"),
+    (
+        "Alexander",
+        "Breeden",
+        "Ingabire",
+        "Lister",
+        "Kwizera",
+        "Newcomer",
+        "Odobašić",
+        "Pottier",
+        "Rwagasore",
+        "Seymour",
+        "Wheeler",
+    ),
 )
 CONTACT_LANGS = (None, "eng", "fra", "spa", "kin")
 CONTACT_HAS_TEL_PROB = 0.9  # 9/10 contacts have a phone number
