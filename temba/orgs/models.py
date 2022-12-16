@@ -1037,8 +1037,8 @@ class Org(SmartModel):
             if user:
                 return user
 
-        # default to user that created this org
-        return self.created_by
+        # default to user that created this org (converting to our User proxy model)
+        return User.objects.get(id=self.created_by_id)
 
     def get_user_role(self, user: User):
         """
