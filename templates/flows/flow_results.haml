@@ -22,35 +22,9 @@
           font-size: 90%;
           font-color: #666;
         }
-
-        .nav.nav-tabs > li > a:hover {
-          margin-right: 2px;
-          background: transparent;
-          border-color: transparent;
-        }
-
-        .nav.nav-tabs > li.active > a:hover {
-          margin-right: 2px;
-          background: #fff;
-          border-color: inherit;
-          border-bottom: 1px solid #fff;
-        }
          
         .after {
           position: relative;
-        }
-
-        .tab {
-          display: inline-block;
-        }
-
-        .tab .content {
-          display: none;
-          position: absolute;
-        }
-
-        .tab.active .content {
-          display: block;
         }
 
         .chart {
@@ -244,13 +218,18 @@
     {% endlessblock %}
 
 -block extra-script
-  %script{src:"{{ STATIC_URL }}highcharts/js/highcharts.js"}
-  %script{src:"{{ STATIC_URL }}highcharts/js/modules/drilldown.js"}
-
   {{ block.super }}
+  %script{src:"{{ STATIC_URL }}highcharts/highcharts.js"}
+  %script{src:"{{ STATIC_URL }}highcharts/modules/drilldown.js"}
 
   :javascript
+    var colors = ['#2387CA', '#8FC93A', '#E18335', '#483C46', '#E4CC37', '#723D46', '#606C38', '#7DCFB6'];
+    Highcharts.setOptions({
+      colors: colors
+    });
+  
 
+    var charts = {}
     function handleTabChanged(event) {
       var tabs = document.querySelector("temba-tabs");
       if(tabs.index == 1) {
@@ -359,10 +338,7 @@
       })
     });
 
-    Highcharts.setOptions({
-      colors: ['#2387CA', '#8FC93A', '#E18335', '#483C46', '#E4CC37', '#723D46', '#606C38', '#7DCFB6']
-    });
-    var colors = Highcharts.getOptions().colors;
+
     function getColor(index) {
       return colors[index % colors.length];
     }
@@ -421,7 +397,11 @@
               return "<b>" + this.x + "</b>: " + this.point.count;
             }
           },
-          series: []
+          plotOptions: {
+            series: {
+              colorByPoint:true
+            }
+          },
         });
       }
 
@@ -595,13 +575,7 @@
         });
       });
 
--block extra-style
-  {{block.super}}
-  %link(type="text/css" rel="stylesheet" href="{{ STATIC_URL }}highcharts/css/highcharts.css" media="all")
-
-
 -block content
-
   %temba-dialog#confirm-run-delete(header='{{ _("Delete Run")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
     .p-6
       -trans "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
@@ -614,7 +588,6 @@
 
     %temba-tab(name='{{_("Analytics")|escapejs}}' icon="icon.analytics")
       #category-charts.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
-
     %temba-tab(name='{{_("Runs")|escapejs}}')
         .scroll-x
           .responded-checkbox.flex.items-center.py-3.w-full

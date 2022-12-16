@@ -3746,37 +3746,27 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertStaffOnly(manage_url)
         self.assertStaffOnly(update_url)
 
-        response = self.client.get(manage_url + "?filter=flagged")
-        self.assertNotIn(self.org, response.context["object_list"])
+        def assertOrgFilter(query: str, expected_orgs: list):
+            response = self.client.get(manage_url + query)
+            self.assertEqual(expected_orgs, list(response.context["object_list"]))
 
-        response = self.client.get(manage_url + "?filter=anon")
-        self.assertNotIn(self.org, response.context["object_list"])
-
-        response = self.client.get(manage_url + "?filter=suspended")
-        self.assertNotIn(self.org, response.context["object_list"])
-
-        response = self.client.get(manage_url + "?filter=verified")
-        self.assertNotIn(self.org, response.context["object_list"])
-
-        response = self.client.get(manage_url + "?filter=nyaruka")
-        self.assertIn(self.org, response.context["object_list"])
-        self.assertNotIn(self.org2, response.context["object_list"])
+        assertOrgFilter("", [self.org2, self.org])
+        assertOrgFilter("?filter=all", [self.org2, self.org])
+        assertOrgFilter("?filter=xxxx", [self.org2, self.org])
+        assertOrgFilter("?filter=flagged", [])
+        assertOrgFilter("?filter=anon", [])
+        assertOrgFilter("?filter=suspended", [])
+        assertOrgFilter("?filter=verified", [])
 
         self.org.flag()
-        response = self.client.get(manage_url + "?filter=flagged")
-        self.assertIn(self.org, response.context["object_list"])
 
-        # should contain our test org
-        self.assertContains(response, "Temba")
+        assertOrgFilter("?filter=flagged", [self.org])
 
-        response = self.client.get(manage_url + "?filter=flagged")
-        self.assertTrue(self.org in response.context["object_list"])
+        self.org2.verify()
 
-        self.org.verify()
-        response = self.client.get(manage_url + "?filter=verified")
-        self.assertIn(self.org, response.context["object_list"])
+        assertOrgFilter("?filter=verified", [self.org2])
 
-        # and can go to that org
+        # and can go to our org
         response = self.client.get(update_url)
         self.assertEqual(200, response.status_code)
         self.assertEqual(
