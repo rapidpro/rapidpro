@@ -7,7 +7,7 @@
 -block pre-table
   .flex.mb-4.items-center
     .bg-gray-100.px-4.py-2.rounded-lg.inline-block.mr-4.self-center.-mb-1
-      -for filter_key, filter_name in filters
+      -for filter_key, filter_name, _ in filters
         -if filter == filter_key
           .font-normal.inline-block.px-1
             {{ filter_name }}
