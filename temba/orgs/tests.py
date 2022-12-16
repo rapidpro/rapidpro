@@ -2051,6 +2051,7 @@ class OrgTest(TembaTest):
             surveyor_password="nyaruka",
         )
         response = self.client.post(url, post_data)
+        # todo - figure out why this is failing
         self.assertFormError(
             response, "form", "password", "This password is too short. It must contain at least 8 characters."
         )
@@ -3124,6 +3125,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "password": "pass",
             },
         )
+        # todo - figure out why this is failing
         self.assertFormError(
             response, "form", None, "This password is too short. It must contain at least 8 characters."
         )

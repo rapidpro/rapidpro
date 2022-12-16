@@ -205,7 +205,7 @@ class MediaTest(TembaTest):
         self.assertEqual(Media.STATUS_FAILED, media.status)
 
 
-class MsgTest(TembaTest):
+class MsgTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 

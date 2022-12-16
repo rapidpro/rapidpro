@@ -228,8 +228,11 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "archive", "send", "start-flow"], list(response.context["actions"]))
 
+        # todo - old ui
         self.assertContentMenu(list_url, self.admin, ["Manage Fields", "Export"])
+        # todo - new ui
         self.assertContentMenu(list_url, self.admin, ["New Contact", "New Group", "Export"])
+        # todo - verify which one is right
 
         # TODO: group labeling as a feature is on probation
         # self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})
@@ -437,8 +440,12 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "unlabel"], list(response.context["actions"]))
-        # todo figure out why this is failing - missing "Manage Fields"
+
+        # todo - old ui
         self.assertContentMenu(group1_url, self.admin, ["Manage Fields", "Edit", "Export", "Usages", "Delete"])
+        # todo - new ui
+        self.assertContentMenu(group1_url, self.admin, ["Edit", "Export", "Usages", "Delete"])
+        # todo - verify which one is right
 
         response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
 
@@ -476,19 +483,21 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertLoginRedirect(response)
 
         self.assertContentMenu(read_url, self.user, [])
+        # todo - old ui
         self.assertContentMenu(
             read_url,
             self.editor,
             ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"],
         )
+        # todo - old ui
         self.assertContentMenu(
             read_url,
             self.admin,
             ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"],
         )
-
-        # check menu for spa
+        # todo - new ui
         self.assertContentMenu(read_url, self.admin, ["Start Flow", "Open Ticket", "-", "Edit"])
+        # todo - verify which one is right
 
         # login as viewer
         self.login(self.user)
@@ -743,9 +752,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         MockSessionWriter(other_org_contact, self.create_flow("Test", org=self.org2)).wait().save()
 
         # now it's an option
-        response = self.client.get(read_url)
-        # todo switch to checking if content menu contains "interrupt" label
-        self.assertContains(response, interrupt_url)
+        self.assertContentMenuContains(read_url, self.admin, "Interrupt")
 
         # can't interrupt if not logged in
         self.client.logout()
@@ -1438,7 +1445,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, "Delete")
 
 
-class ContactTest(TembaTest):
+class ContactTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
@@ -2995,14 +3002,12 @@ class ContactTest(TembaTest):
         self.assertEqual(self.joe, response.context["object_list"][0])
 
         # should have the export link
-        export_url = "%s?g=%s" % (reverse("contacts.contact_export"), group.uuid)
-        # todo switch to checking if content menu contains "export" label
-        self.assertContains(response, export_url)
+        self.assertContentMenuContains(filter_url, self.admin, "Export")
 
         # should have an edit button
         update_url = reverse("contacts.contactgroup_update", args=[group.pk])
+        self.assertContentMenuContains(filter_url, self.admin, "Edit")
 
-        self.assertContains(response, update_url)
         response = self.client.get(update_url)
         self.assertIn("name", response.context["form"].fields)
 

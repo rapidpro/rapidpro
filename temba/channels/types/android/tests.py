@@ -4,13 +4,13 @@ from django.urls import reverse
 
 from temba.contacts.models import URN
 from temba.orgs.models import Org
-from temba.tests import TembaTest
+from temba.tests import CRUDLTestMixin, TembaTest
 from temba.utils import get_anonymous_user
 
 from ...models import Channel
 
 
-class AndroidTypeTest(TembaTest):
+class AndroidTypeTest(TembaTest, CRUDLTestMixin):
     def test_claim(self):
         # remove our explicit country so it needs to be derived from channels
         self.org.country = None
