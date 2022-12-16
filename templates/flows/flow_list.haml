@@ -119,7 +119,8 @@
                   .page-title.leading-tight
                     {{title}}
               .gear-links
-                -include "gear_links_include.haml"
+                {% comment %} -include "gear_links_include.haml" {% endcomment %}
+                -include "spa_page_menu.haml"
 
             -if view.search_fields
               %form#search-form.mb-4(method="get")

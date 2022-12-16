@@ -401,13 +401,8 @@ class ContentMenuMixin:
             else:
                 menu_links.append(rendered_item)
 
-        # new ui
         has_content_menu = len(menu_buttons) > 0 or len(menu_links) > 0
         context["has_content_menu"] = has_content_menu
-
-        # old ui - still needed for gear links
-        context["content_menu_buttons"] = menu_buttons
-        context["content_menu_links"] = menu_links
 
         return context
 

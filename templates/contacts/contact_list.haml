@@ -201,7 +201,8 @@
                           -else
                             {{title}}
                   .gear-links
-                    -include "gear_links_include.haml"
+                    {% comment %} -include "gear_links_include.haml" {% endcomment %}
+                    -include "spa_page_menu.haml"
                 .subtitle.ml-1.w-full
                   -block subtitle
 

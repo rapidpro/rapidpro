@@ -252,12 +252,8 @@ class CRUDLTestMixin:
 
         response = self.requestView(url, user, checks=[StatusCode(200)], **headers)
 
-        if spa:
-            has_content_menu = response.context.get("has_content_menu")
-            self.assertTrue(has_content_menu)
-        else:
-            links = response.context.get("content_menu_buttons", []) + response.context.get("content_menu_links", [])
-            self.assertEqual(labels, [i.get("title", "-") for i in links])
+        has_content_menu = response.context.get("has_content_menu")
+        self.assertTrue(has_content_menu)
 
 
 class BaseCheck:

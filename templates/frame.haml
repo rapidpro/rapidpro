@@ -240,7 +240,8 @@
                 .flex-grow
                   .flex.justify-end.w-full
                     -block gear-menu
-                      -include "gear_links_include.haml"
+                      {% comment %} -include "gear_links_include.haml" {% endcomment %}
+                      -include "spa_page_menu.haml"
 
               -block post-title
 

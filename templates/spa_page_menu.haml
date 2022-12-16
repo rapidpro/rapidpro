@@ -39,3 +39,36 @@
     //handles when items need to be refreshed in the top left sidebar menu
     refreshMenu();
   }
+
+  //todo - remove duplicate fn once old and new ui content menu transition is finished
+  //todo - this fn originally lives in gear_links_include.haml
+  function showModax(header, endpoint, modaxOptions) {
+    var modax = document.querySelector("temba-modax#shared-modax");
+    modax["-temba-loaded"] = undefined;
+    
+    modax.disabled = modaxOptions.disabled == "True";
+    var itemOnSubmit;
+    if (modaxOptions.onSubmit == "None") {
+      onSubmit = undefined;
+    }
+
+    if (modaxOptions.onSubmit) {
+      modax["-temba-submitted"] = Function(modaxOptions.onSubmit);
+    } else {
+      modax["-temba-submitted"] = undefined;
+    }
+    modax["-temba-redirected"] = refreshMenu;
+    modax.headers = { "TEMBA-SPA": 1};
+    modax.header = header;
+    modax.endpoint = endpoint;
+    modax.open = true;
+  }
+
+  //todo - remove duplicate fn once old and new ui content menu transition is finished
+  //todo - this fn originally lives in spa_frame.haml
+  function refreshMenu() {
+    var menu = document.querySelector("temba-menu");
+    if (menu) {
+      menu.refresh();
+    }
+  }
