@@ -1226,7 +1226,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Welcomes", count=3)
         self.assertContains(response, "Archived", count=0)
         self.assertContentMenu(read_url, self.admin, ["New Event", "Export", "Edit", "Archive"])
-        self.assertContentMenu(read_url, self.admin, ["New Event", "Export", "Edit", "Archive"], True)
+        self.assertContentMenu(read_url, self.admin, ["New Event", "Export", "Edit", "Archive"])
 
         # archive the campaign
         campaign.is_archived = True
@@ -1345,7 +1345,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[campaign2, campaign1])
 
         self.assertContentMenu(list_url, self.admin, [])
-        self.assertContentMenu(list_url, self.admin, ["New Campaign"], True)
+        self.assertContentMenu(list_url, self.admin, ["New Campaign"])
 
 
 class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):

@@ -390,18 +390,9 @@ class ContentMenuMixin:
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        menu_links = []
-        menu_buttons = []
         menu_items = self._get_content_menu()
 
-        for item in menu_items:
-            rendered_item = self.gear_link_renderers[item["type"]](item)
-            if item.get("as_button", False):
-                menu_buttons.append(rendered_item)
-            else:
-                menu_links.append(rendered_item)
-
-        has_content_menu = len(menu_buttons) > 0 or len(menu_links) > 0
+        has_content_menu = len(menu_items) > 0
         context["has_content_menu"] = has_content_menu
 
         return context

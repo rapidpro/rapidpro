@@ -229,7 +229,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(["block", "archive", "send", "start-flow"], list(response.context["actions"]))
 
         self.assertContentMenu(list_url, self.admin, ["Manage Fields", "Export"])
-        self.assertContentMenu(list_url, self.admin, ["New Contact", "New Group", "Export"], True)
+        self.assertContentMenu(list_url, self.admin, ["New Contact", "New Group", "Export"])
 
         # TODO: group labeling as a feature is on probation
         # self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})
@@ -487,7 +487,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         )
 
         # check menu for spa
-        self.assertContentMenu(read_url, self.admin, ["Start Flow", "Open Ticket", "-", "Edit"], True)
+        self.assertContentMenu(read_url, self.admin, ["Start Flow", "Open Ticket", "-", "Edit"])
 
         # login as viewer
         self.login(self.user)
