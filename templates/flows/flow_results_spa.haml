@@ -60,8 +60,8 @@
   {{ block.super }}
 
   -if not is_spa
-    %script(src="{{ STATIC_URL }}highcharts/js/highcharts.js")
-    %script(src="{{ STATIC_URL }}highcharts/js/modules/drilldown.js")
+    %script(src="{{ STATIC_URL }}highcharts/highcharts.js")
+    %script(src="{{ STATIC_URL }}highcharts/modules/drilldown.js")
 
   :javascript
 
