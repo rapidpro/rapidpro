@@ -39,7 +39,6 @@ from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError
-from django.db.models import Q
 from django.forms import Form
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import resolve_url
@@ -681,9 +680,6 @@ class UserCRUDL(SmartCRUDL):
         @csrf_exempt
         def dispatch(self, *args, **kwargs):
             return super().dispatch(*args, **kwargs)
-
-        def get_email(self, user):
-            return user.email
 
         def derive_queryset(self, **kwargs):
             qs = super().derive_queryset(**kwargs).filter(is_active=True).exclude(id=get_anonymous_user().id)
@@ -2049,11 +2045,11 @@ class OrgCRUDL(SmartCRUDL):
         search_fields = ("name__icontains", "created_by__email__iexact", "config__icontains")
         link_fields = ("name", "owner")
         filters = (
-            ("all", _("All")),
-            ("anon", _("Anonymous")),
-            ("flagged", _("Flagged")),
-            ("suspended", _("Suspended")),
-            ("verified", _("Verified")),
+            ("all", _("All"), dict()),
+            ("anon", _("Anonymous"), dict(is_anon=True, is_suspended=False)),
+            ("flagged", _("Flagged"), dict(is_flagged=True, is_suspended=False)),
+            ("suspended", _("Suspended"), dict(is_suspended=True)),
+            ("verified", _("Verified"), dict(config__contains='"verified": true', is_suspended=False)),
         )
 
         @csrf_exempt
@@ -2064,27 +2060,16 @@ class OrgCRUDL(SmartCRUDL):
             owner = obj.get_owner()
             return f"{owner.name} ({owner.email})"
 
-        def derive_queryset(self, **kwargs):  # pragma: no cover
-            obj_filter = self.request.GET.get("filter")
+        def derive_queryset(self, **kwargs):
+            obj_filter = self.request.GET.get("filter", "all")
 
             qs = super().derive_queryset(**kwargs).filter(is_active=True)
             qs = qs.filter(brand=self.request.branding["slug"])
 
-            if obj_filter == "anon":
-                qs = qs.filter(is_anon=True, is_suspended=False)
-            elif obj_filter == "flagged":
-                qs = qs.filter(is_flagged=True, is_suspended=False)
-            elif obj_filter == "suspended":
-                qs = qs.filter(is_suspended=True)
-            elif obj_filter == "verified":
-                # this is not my favorite
-                qs = qs.filter(config__icontains='"verified": True', is_suspended=False)
-            elif obj_filter:
-                qs = (
-                    qs.filter(parent=None)
-                    .filter(Q(plan=obj_filter) | Q(name__icontains=obj_filter))
-                    .filter(is_suspended=False)
-                )
+            for filter_key, _, filter_kwargs in self.filters:
+                if filter_key == obj_filter:
+                    qs = qs.filter(**filter_kwargs)
+                    break
             else:
                 qs = qs.filter(is_suspended=False)
 

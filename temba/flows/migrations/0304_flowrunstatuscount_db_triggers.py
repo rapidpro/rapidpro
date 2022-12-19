@@ -72,6 +72,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("flows", "0303_flowrunstatuscount"),
+        ("sql", "0004_squashed"),
     ]
 
     operations = [migrations.RunSQL(SQL)]

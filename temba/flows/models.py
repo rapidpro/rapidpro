@@ -665,17 +665,20 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         self.save_revision(user, definition)
 
     def get_run_stats(self):
-        totals_by_exit = FlowRunCount.get_totals(self)
-        total_runs = sum(totals_by_exit.values())
-        completed = totals_by_exit.get(FlowRun.EXIT_TYPE_COMPLETED, 0)
+        totals_by_status = FlowRunStatusCount.get_totals(self)
+        total_runs = sum(totals_by_status.values())
+        completed = totals_by_status.get(FlowRun.STATUS_COMPLETED, 0)
 
         return {
             "total": total_runs,
-            "active": totals_by_exit.get(None, 0),
-            "completed": completed,
-            "expired": totals_by_exit.get(FlowRun.EXIT_TYPE_EXPIRED, 0),
-            "interrupted": totals_by_exit.get(FlowRun.EXIT_TYPE_INTERRUPTED, 0),
-            "failed": totals_by_exit.get(FlowRun.EXIT_TYPE_FAILED, 0),
+            "status": {
+                "active": totals_by_status.get(FlowRun.STATUS_ACTIVE, 0),
+                "waiting": totals_by_status.get(FlowRun.STATUS_WAITING, 0),
+                "completed": completed,
+                "expired": totals_by_status.get(FlowRun.STATUS_EXPIRED, 0),
+                "interrupted": totals_by_status.get(FlowRun.STATUS_INTERRUPTED, 0),
+                "failed": totals_by_status.get(FlowRun.STATUS_FAILED, 0),
+            },
             "completion": int(completed * 100 // total_runs) if total_runs else 0,
         }
 
@@ -1643,21 +1646,17 @@ class FlowRunStatusCount(SquashableModel):
 
 class FlowRunCount(SquashableModel):
     """
-    TODO replace with FlowRunStatusCount
+    TODO remove from db triggers once we're confident FlowRunStatusCount is correct, then drop
     """
 
     squash_over = ("flow_id", "exit_type")
 
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="exit_counts")
-
-    # the type of exit
     exit_type = models.CharField(null=True, max_length=1, choices=FlowRun.EXIT_TYPE_CHOICES)
-
-    # the number of runs that exited with that exit type
     count = models.IntegerField(default=0)
 
     @classmethod
-    def get_squash_query(cls, distinct_set):
+    def get_squash_query(cls, distinct_set):  # pragma: no cover
         if distinct_set.exit_type:
             sql = """
             WITH removed as (
@@ -1684,11 +1683,6 @@ class FlowRunCount(SquashableModel):
             params = (distinct_set.flow_id,) * 2
 
         return sql, params
-
-    @classmethod
-    def get_totals(cls, flow):
-        totals = list(cls.objects.filter(flow=flow).values_list("exit_type").annotate(replies=Sum("count")))
-        return {t[0]: t[1] for t in totals}
 
     class Meta:
         index_together = ("flow", "exit_type")

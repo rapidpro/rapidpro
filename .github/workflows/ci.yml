@@ -4,11 +4,11 @@ jobs:
   test:
     name: Test
     env:
-      python-version: "3.9.x"
+      python-version: "3.10.x"
       pg-version: "14"
       postgis-version: "3.2"
       redis-version: "6.2"
-      node-version: "10"
+      node-version: "12"
       elastic-version: "7.17.6"
       rpindexer-version: "7.5.0"
       mailroom-version: "7.5.33"
@@ -61,15 +61,15 @@ jobs:
       - name: Initialize environment
         run: |
           poetry install
-          npm install
-          sudo npm install -g less
+          yarn install
+          sudo yarn global add less
           ln -s ${{ github.workspace }}/temba/settings.py.dev ${{ github.workspace }}/temba/settings.py
           poetry run ./manage.py migrate
           # fetch and extract rp-indexer
           wget https://github.com/nyaruka/rp-indexer/releases/download/v${{ env.rpindexer-version }}/rp-indexer_${{ env.rpindexer-version }}_linux_amd64.tar.gz
           tar -xvf rp-indexer_${{ env.rpindexer-version }}_linux_amd64.tar.gz rp-indexer
           # fetch, extract and start mailroom
-          wget https://github.com/nyaruka/mailroom/releases/download/v${{ env.mailroom-version }}/mailroom_${{ env.mailroom-version }}_linux_amd64.tar.gz
+          wget https://github.com/rapidpro/mailroom/releases/download/v${{ env.mailroom-version }}/mailroom_${{ env.mailroom-version }}_linux_amd64.tar.gz
           tar -xvf mailroom_${{ env.mailroom-version }}_linux_amd64.tar.gz mailroom
           ./mailroom -db=postgres://temba:temba@localhost:5432/temba?sslmode=disable -redis=redis://localhost:6379/10 -log-level=info > mailroom.log &
 

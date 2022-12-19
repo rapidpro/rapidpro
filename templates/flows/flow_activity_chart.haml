@@ -77,7 +77,7 @@
 -if hod and dow
   :javascript
     var pie_points = [
-      {% if active %}{ name: '{{ _("Active")|escapejs }}', y: {{active}}, color: '#2387CA'},{%endif%}
+      {% if active or waiting %}{ name: '{{ _("Active")|escapejs }}', y: {{active|add:waiting}}, color: '#2387CA'},{%endif%}
       { name: '{{ _("Completed")|escapejs }}', y: {{completed}}, drilldown: null, color: '#8FC93A'},
       { name: '{{ _("Interrupted, Expired and Failed")|escapejs }}', y: {{interrupted|add:expired|add:failed}}, drilldown: 'incomplete', color: '#CCC'},
     ];
@@ -148,7 +148,7 @@
       {% endfor %}
     ];
 
-    new Highcharts.chart({
+    new Highcharts.Chart({
       credits: { enabled: false },
       colors: ['#2387CA'],
       chart: {

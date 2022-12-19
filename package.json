@@ -10,19 +10,25 @@
   },
   "dependencies": {
     "@nyaruka/flow-editor": "1.18.4",
-    "@nyaruka/temba-components": "0.35.1",
+    "@nyaruka/temba-components": "0.35.3",
+    "codemirror": "5.18.2",
     "colorette": "1.2.2",
     "fa-icons": "0.2.0",
+    "highcharts": "5.0.6",
+    "intercooler": "1.1.2",
     "is-core-module": "2.4.0",
+    "jquery": "2.1.0",
+    "jquery-migrate": "1.4.1",
     "less": "2.7.1",
+    "qrious": "4.0.2",
     "queue-microtask": "1.2.3",
     "react": "16.13.1",
-    "react-dom": "16.13.1"
+    "react-dom": "16.13.1",
+    "sortablejs": "1.8.4"
   },
   "scripts": {
-    "preinstall": "npx npm-force-resolutions",
     "tw-build": "postcss static/scss/tailwind.scss -o static/css/tailwind.css",
-    "tw-watch": "watch 'npm run tw-build' ./static/scss"
+    "tw-watch": "watch 'yarn run tw-build' ./static/scss"
   },
   "devDependencies": {
     "autoprefixer": "10.2.5",
@@ -35,9 +41,6 @@
     "postcss-simple-vars": "6.0.3",
     "tailwindcss": "2.0.4",
     "watch": "0.13.0"
-  },
-  "resolutions": {
-    "minimist": "1.2.5"
   },
   "vaadin": {
     "disableUsageStatistics": true

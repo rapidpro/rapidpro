@@ -939,13 +939,7 @@ class FlowReadSerializer(ReadSerializer):
         return [{"uuid": str(lb.uuid), "name": lb.name} for lb in obj.labels.all()]
 
     def get_runs(self, obj):
-        stats = obj.get_run_stats()
-        return {
-            "active": stats["active"],
-            "completed": stats["completed"],
-            "interrupted": stats["interrupted"],
-            "expired": stats["expired"],
-        }
+        return obj.get_run_stats()["status"]
 
     def get_results(self, obj):
         return obj.metadata.get(Flow.METADATA_RESULTS, [])

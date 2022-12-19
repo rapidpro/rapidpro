@@ -15,7 +15,7 @@ from temba.tests import CRUDLTestMixin, TembaTest, matchers
 
 from .incidents.builtin import OrgFlaggedIncidentType
 from .models import Incident, Notification
-from .tasks import send_notification_emails, squash_notificationcounts
+from .tasks import send_notification_emails, squash_notification_counts
 from .types.builtin import ExportFinishedNotificationType
 
 
@@ -374,7 +374,7 @@ class NotificationTest(TembaTest):
         self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
         self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
 
-        squash_notificationcounts()
+        squash_notification_counts()
 
         self.assertEqual(1, Notification.get_unseen_count(self.org, self.agent))
         self.assertEqual(2, Notification.get_unseen_count(self.org, self.editor))

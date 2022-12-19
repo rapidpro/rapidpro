@@ -6,7 +6,7 @@ from django_redis import get_redis_connection
 
 from django.utils import timezone
 
-from . import json
+from . import analytics, json
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +41,7 @@ def cron_task(*task_args, **task_kwargs):
             r = get_redis_connection()
 
             task_name = task_kwargs.get("name", task_func.__name__)
-
-            # lock key can be provided or defaults to celery-task-lock:<task_name>
-            lock_key = task_kwargs.pop("lock_key", "celery-task-lock:" + task_name)
+            lock_key = "celery-task-lock:" + task_name
 
             # lock timeout can be provided or defaults to task hard time limit
             lock_timeout = task_kwargs.pop("lock_timeout", None)
@@ -81,6 +79,8 @@ def _record_cron_execution(r, name: str, start, end, result):
         pipe.expire(key, STATS_EXPIRES)
 
     pipe.execute()
+
+    analytics.gauges({f"temba.cron_{name}": (end - start).total_seconds()})
 
 
 def clear_cron_stats():
