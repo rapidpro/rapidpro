@@ -122,7 +122,6 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, "Old Booker")
         self.assertNotContains(response, "Org 2 Booker")
 
-        connect_url = reverse("classifiers.classifier_connect")
         response = self.client.get(reverse("orgs.org_home"))
         self.assertContentMenuContains(reverse("orgs.org_home"), self.admin, "Add Classifier")
 

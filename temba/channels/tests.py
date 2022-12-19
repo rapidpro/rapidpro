@@ -491,7 +491,9 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.org.config.update({Org.CONFIG_TWILIO_SID: "SID", Org.CONFIG_TWILIO_TOKEN: "TOKEN"})
         self.org.save(update_fields=("config",))
         self.assertTrue(self.org.is_connected_to_twilio())
-        self.assertContentMenuContains(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin, "Enable Voice")
+        self.assertContentMenuContains(
+            reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin, "Enable Voice"
+        )
 
         two_hours_ago = timezone.now() - timedelta(hours=2)
 

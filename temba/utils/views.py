@@ -390,7 +390,7 @@ class ContentMenuMixin:
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
+
         # does the page have a content menu with items?
         menu_items = self._get_content_menu()
         has_content_menu = len(menu_items) > 0

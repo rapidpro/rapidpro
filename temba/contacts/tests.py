@@ -483,15 +483,11 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # old ui
         self.assertContentMenu(read_url, self.user, [], False)
         self.assertContentMenu(
-            read_url,
-            self.editor,
-            ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"],
-            False)
+            read_url, self.editor, ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"], False
+        )
         self.assertContentMenu(
-            read_url,
-            self.admin,
-            ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"],
-            False)
+            read_url, self.admin, ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"], False
+        )
         # new ui
         self.assertContentMenu(read_url, self.admin, ["Start Flow", "Open Ticket", "-", "Edit"])
 
