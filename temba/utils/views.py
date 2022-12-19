@@ -390,10 +390,19 @@ class ContentMenuMixin:
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        
+        # does the page have a content menu with items?
         menu_items = self._get_content_menu()
-
         has_content_menu = len(menu_items) > 0
         context["has_content_menu"] = has_content_menu
+
+        # is the page old (legacy) ui or new (spa) ui?
+        is_spa = True
+        if "is_spa" in context:
+            is_spa = context["is_spa"]
+        else:
+            is_spa = False
+        context["is_legacy"] = 0 if is_spa else 1
 
         return context
 

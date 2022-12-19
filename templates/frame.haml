@@ -240,7 +240,8 @@
                 .flex-grow
                   .flex.justify-end.w-full
                     -block gear-menu
-                      -include "spa_page_menu.haml"
+                      -if has_content_menu  
+                        -include "spa_page_menu.haml"
 
               -block post-title
 

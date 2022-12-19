@@ -272,7 +272,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
 
         # customer service gets a service button
         self.login(self.customer_support)
-        self.assertContentMenuContains(flow_editor_url, self.admin, "Service")
+        self.assertContentMenuContains(flow_editor_url, self.customer_support, "Service")
 
         # flows that are archived can't be edited, started or simulated
         self.login(self.admin)

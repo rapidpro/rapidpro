@@ -490,10 +490,8 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         # Add twilio credentials to make sure we can add calling for our android channel
         self.org.config.update({Org.CONFIG_TWILIO_SID: "SID", Org.CONFIG_TWILIO_TOKEN: "TOKEN"})
         self.org.save(update_fields=("config",))
-
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin)
         self.assertTrue(self.org.is_connected_to_twilio())
-        self.assertContains(response, "Enable Voice")
+        self.assertContentMenuContains(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin, "Enable Voice")
 
         two_hours_ago = timezone.now() - timedelta(hours=2)
 
@@ -2137,7 +2135,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(channel_log_read_url)
         self.assertContains(response, "POST /send?msg=message")
 
-        self.assertContentMenu(channel_log_read_url, self.admin, ["Channel Log"])
+        self.assertContentMenu(channel_log_read_url, self.admin, ["Channel Log"], False)
 
         self.assertEqual(self.channel.get_success_log_count(), 3)
         self.assertEqual(self.channel.get_error_log_count(), 4)  # error log count always includes IVR logs

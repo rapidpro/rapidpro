@@ -228,11 +228,10 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "archive", "send", "start-flow"], list(response.context["actions"]))
 
-        # todo - old ui
-        self.assertContentMenu(list_url, self.admin, ["Manage Fields", "Export"])
-        # todo - new ui
+        # old ui
+        self.assertContentMenu(list_url, self.admin, ["Manage Fields", "Export"], False)
+        # new ui
         self.assertContentMenu(list_url, self.admin, ["New Contact", "New Group", "Export"])
-        # todo - verify which one is right
 
         # TODO: group labeling as a feature is on probation
         # self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})
@@ -441,11 +440,10 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "unlabel"], list(response.context["actions"]))
 
-        # todo - old ui
-        self.assertContentMenu(group1_url, self.admin, ["Manage Fields", "Edit", "Export", "Usages", "Delete"])
-        # todo - new ui
+        # old ui
+        self.assertContentMenu(group1_url, self.admin, ["Manage Fields", "Edit", "Export", "Usages", "Delete"], False)
+        # new ui
         self.assertContentMenu(group1_url, self.admin, ["Edit", "Export", "Usages", "Delete"])
-        # todo - verify which one is right
 
         response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
 
@@ -458,7 +456,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([], list(response.context["object_list"]))
         self.assertEqual(["block", "archive"], list(response.context["actions"]))
         self.assertContains(response, "tickets &gt; 0")
-        self.assertContentMenu(open_tickets_url, self.admin, ["Manage Fields", "Export", "Usages"])
+        self.assertContentMenu(open_tickets_url, self.admin, ["Manage Fields", "Export", "Usages"], False)
 
         # if a user tries to access a non-existent group, that's a 404
         response = self.requestView(reverse("contacts.contact_filter", args=["21343253"]), self.admin)
@@ -482,22 +480,20 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(read_url)
         self.assertLoginRedirect(response)
 
-        self.assertContentMenu(read_url, self.user, [])
-        # todo - old ui
+        # old ui
+        self.assertContentMenu(read_url, self.user, [], False)
         self.assertContentMenu(
             read_url,
             self.editor,
             ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"],
-        )
-        # todo - old ui
+            False)
         self.assertContentMenu(
             read_url,
             self.admin,
             ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"],
-        )
-        # todo - new ui
+            False)
+        # new ui
         self.assertContentMenu(read_url, self.admin, ["Start Flow", "Open Ticket", "-", "Edit"])
-        # todo - verify which one is right
 
         # login as viewer
         self.login(self.user)
@@ -512,7 +508,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         joe.block(self.admin)
         self.assertTrue(Contact.objects.get(pk=joe.id, status="B"))
 
-        self.assertContentMenu(read_url, self.admin, ["Edit", "Custom Fields"])
+        self.assertContentMenu(read_url, self.admin, ["Edit", "Custom Fields"], False)
 
         # can't access a deleted contact
         joe.release(self.admin)
