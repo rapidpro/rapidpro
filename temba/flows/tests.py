@@ -1903,7 +1903,9 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         user.save()
         self.login(user)
 
+        # old ui
         self.assertContentMenu(reverse("flows.flow_list"), self.user, ["Export"])
+        # new ui
         self.assertContentMenu(
             reverse("flows.flow_list"), self.admin, ["New Flow", "New Label", "Import", "Export"], True
         )

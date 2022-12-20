@@ -1226,9 +1226,9 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Welcomes", count=3)
         self.assertContains(response, "Archived", count=0)
         # old ui
-        self.assertContentMenu(read_url, self.admin, ["New Event", "Export", "Edit", "Archive"], False)
-        # new ui
         self.assertContentMenu(read_url, self.admin, ["New Event", "Export", "Edit", "Archive"])
+        # new ui
+        self.assertContentMenu(read_url, self.admin, ["New Event", "Export", "Edit", "Archive"], True)
 
         # archive the campaign
         campaign.is_archived = True

@@ -2137,7 +2137,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(channel_log_read_url)
         self.assertContains(response, "POST /send?msg=message")
 
-        self.assertContentMenu(channel_log_read_url, self.admin, ["Channel Log"], False)
+        self.assertContentMenu(channel_log_read_url, self.admin, ["Channel Log"])
 
         self.assertEqual(self.channel.get_success_log_count(), 3)
         self.assertEqual(self.channel.get_error_log_count(), 4)  # error log count always includes IVR logs

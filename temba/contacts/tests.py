@@ -456,7 +456,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([], list(response.context["object_list"]))
         self.assertEqual(["block", "archive"], list(response.context["actions"]))
         self.assertContains(response, "tickets &gt; 0")
-        self.assertContentMenu(open_tickets_url, self.admin, ["Manage Fields", "Export", "Usages"], False)
+        self.assertContentMenu(open_tickets_url, self.admin, ["Manage Fields", "Export", "Usages"])
 
         # if a user tries to access a non-existent group, that's a 404
         response = self.requestView(reverse("contacts.contact_filter", args=["21343253"]), self.admin)
@@ -481,7 +481,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertLoginRedirect(response)
 
         # old ui
-        self.assertContentMenu(read_url, self.user, [], False)
+        self.assertContentMenu(read_url, self.user, [])
         self.assertContentMenu(
             read_url, self.editor, ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"]
         )
@@ -504,7 +504,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         joe.block(self.admin)
         self.assertTrue(Contact.objects.get(pk=joe.id, status="B"))
 
-        self.assertContentMenu(read_url, self.admin, ["Edit", "Custom Fields"], False)
+        self.assertContentMenu(read_url, self.admin, ["Edit", "Custom Fields"])
 
         # can't access a deleted contact
         joe.release(self.admin)
