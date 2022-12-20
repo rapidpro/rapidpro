@@ -930,7 +930,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
             return ""
 
         if field.value_type == ContactField.TYPE_DATETIME:
-            return value.isoformat()
+            return self.org.format_datetime(value)
         elif field.value_type == ContactField.TYPE_NUMBER:
             return format_number(value)
         elif (

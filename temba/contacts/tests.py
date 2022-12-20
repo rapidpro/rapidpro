@@ -61,7 +61,7 @@ from .models import (
     ExportContactsTask,
 )
 from .tasks import check_elasticsearch_lag, squash_group_counts
-from .templatetags.contacts import contact_field, history_class, history_icon, msg_status_badge
+from .templatetags.contacts import contact_field_tag, history_class, history_icon, msg_status_badge
 
 
 class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
@@ -3911,8 +3911,8 @@ class ContactFieldTest(TembaTest):
 
     def test_contact_templatetag(self):
         self.set_contact_field(self.joe, "first", "Starter")
-        self.assertEqual(contact_field(self.joe, "first"), "Starter")
-        self.assertEqual(contact_field(self.joe, "not_there"), "--")
+        self.assertEqual(contact_field_tag(self.joe, "first"), "Starter")
+        self.assertEqual(contact_field_tag(self.joe, "not_there"), "--")
 
     def test_make_key(self):
         self.assertEqual("first_name", ContactField.make_key("First Name"))
