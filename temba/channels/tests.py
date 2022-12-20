@@ -136,7 +136,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
                 schemes=channel_schemes,
             )
             self.assertContentMenuContains(
-                reverse("channels.channel_read", args=[channel.uuid]), self.admin, link_text
+                reverse("channels.channel_read", args=[channel.uuid]), self.admin, link_text, False
             )
 
     def test_delegate_channels(self):
@@ -492,7 +492,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.org.save(update_fields=("config",))
         self.assertTrue(self.org.is_connected_to_twilio())
         self.assertContentMenuContains(
-            reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin, "Enable Voice"
+            reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin, "Enable Voice Calling"
         )
 
         two_hours_ago = timezone.now() - timedelta(hours=2)

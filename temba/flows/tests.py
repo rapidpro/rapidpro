@@ -1904,7 +1904,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.login(user)
 
         self.assertContentMenu(reverse("flows.flow_list"), self.user, ["Export"])
-        self.assertContentMenu(reverse("flows.flow_list"), self.admin, ["New Flow", "New Label", "Import", "Export"])
+        self.assertContentMenu(reverse("flows.flow_list"), self.admin, ["New Flow", "New Label", "Import", "Export"], True)
 
         # list, should have only one flow (the one created in setUp)
         response = self.client.get(reverse("flows.flow_list"))

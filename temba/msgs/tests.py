@@ -1500,7 +1500,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({label1, label3}, set(msg1.labels.all()))
 
         self.assertContentMenu(inbox_url, self.user, ["Download"])
-        self.assertContentMenu(inbox_url, self.admin, ["New Label", "Download"])
+        self.assertContentMenu(inbox_url, self.admin, ["New Label", "Download"], True)
 
     def test_flows(self):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")

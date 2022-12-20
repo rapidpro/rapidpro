@@ -1225,7 +1225,9 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         # page title and main content title should NOT contain (Archived)
         self.assertContains(response, "Welcomes", count=3)
         self.assertContains(response, "Archived", count=0)
-        self.assertContentMenu(read_url, self.admin, ["New Event", "Export", "Edit", "Archive"])
+        # old ui
+        self.assertContentMenu(read_url, self.admin, ["New Event", "Export", "Edit", "Archive"], False)
+        # new ui
         self.assertContentMenu(read_url, self.admin, ["New Event", "Export", "Edit", "Archive"])
 
         # archive the campaign
@@ -1345,7 +1347,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[campaign2, campaign1])
 
         self.assertContentMenu(list_url, self.user, [])
-        self.assertContentMenu(list_url, self.admin, ["New Campaign"])
+        self.assertContentMenu(list_url, self.admin, ["New Campaign"], True)
 
 
 class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):

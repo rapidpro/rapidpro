@@ -229,9 +229,9 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(["block", "archive", "send", "start-flow"], list(response.context["actions"]))
 
         # old ui
-        self.assertContentMenu(list_url, self.admin, ["Manage Fields", "Export"], False)
+        self.assertContentMenu(list_url, self.admin, ["Manage Fields", "Export"])
         # new ui
-        self.assertContentMenu(list_url, self.admin, ["New Contact", "New Group", "Export"])
+        self.assertContentMenu(list_url, self.admin, ["New Contact", "New Group", "Export"], True)
 
         # TODO: group labeling as a feature is on probation
         # self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})
@@ -441,9 +441,9 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(["block", "unlabel"], list(response.context["actions"]))
 
         # old ui
-        self.assertContentMenu(group1_url, self.admin, ["Manage Fields", "Edit", "Export", "Usages", "Delete"], False)
+        self.assertContentMenu(group1_url, self.admin, ["Manage Fields", "Edit", "Export", "Usages", "Delete"])
         # new ui
-        self.assertContentMenu(group1_url, self.admin, ["Edit", "Export", "Usages", "Delete"])
+        self.assertContentMenu(group1_url, self.admin, ["Edit", "Export", "Usages", "Delete"], True)
 
         response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
 
@@ -483,13 +483,13 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # old ui
         self.assertContentMenu(read_url, self.user, [], False)
         self.assertContentMenu(
-            read_url, self.editor, ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"], False
+            read_url, self.editor, ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"]
         )
         self.assertContentMenu(
-            read_url, self.admin, ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"], False
+            read_url, self.admin, ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"]
         )
         # new ui
-        self.assertContentMenu(read_url, self.admin, ["Start Flow", "Open Ticket", "-", "Edit"])
+        self.assertContentMenu(read_url, self.admin, ["Start Flow", "Open Ticket", "-", "Edit"], True)
 
         # login as viewer
         self.login(self.user)
