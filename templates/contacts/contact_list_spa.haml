@@ -23,7 +23,7 @@
   .flex
     .flex-grow.self-end.items-end
       .flex.flex-col
-        %form#search-form(method="get")
+        %form#search-form(method="get" onSubmit="handleSearchSubmitted(event)")
           %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
           %input.hide(type="submit")
 
@@ -166,4 +166,16 @@
                   %td.field
               %td
 
+-block extra-script
+  {{ block.super }}
 
+  :javascript
+
+    function handleSearchSubmitted(event){
+      //update the content menu query with the search form input value
+      var contentMenu = document.querySelector("temba-content-menu");
+      var formData = new FormData(event.target);
+      let search = new URLSearchParams(formData).toString();
+      console.log('handleSearchSubmitted search', search);
+      contentMenu.query = search;
+    }

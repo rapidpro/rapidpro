@@ -1,6 +1,6 @@
 -load public
 
-%temba-content-menu(endpoint="{{request.path}}" legacy="{{is_legacy}}" -temba-selection="handleContentMenuSelected(event)")
+%temba-content-menu(endpoint="{{request.path}}" legacy="{{is_legacy}}" query="{{has_search_query}}" -temba-selection="handleContentMenuSelected(event)")
 
 :javascript
 

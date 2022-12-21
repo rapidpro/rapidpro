@@ -1,5 +1,5 @@
 import logging
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from django import forms
 from django.db import transaction
@@ -391,10 +391,16 @@ class ContentMenuMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # does the page have a content menu with items?
+        # does the page have a content menu?
         menu_items = self._get_content_menu()
         has_content_menu = len(menu_items) > 0
         context["has_content_menu"] = has_content_menu
+
+        # does the page have a search query?
+        if "search" in self.request.GET:
+            search = self.request.GET.get("search")
+            search_query = urlencode({"search": search})
+            context["has_search_query"] = search_query
 
         # is the page old (legacy) ui or new (spa) ui?
         is_spa = True
