@@ -230,8 +230,14 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # old ui
         self.assertContentMenu(list_url, self.admin, ["Manage Fields", "Export"])
+        self.assertContentMenu(
+            list_url, self.admin, ["Create Smart Group", "Manage Fields", "Export"], False, "age > 50"
+        )
         # new ui
         self.assertContentMenu(list_url, self.admin, ["New Contact", "New Group", "Export"], True)
+        self.assertContentMenu(
+            list_url, self.admin, ["Create Smart Group", "New Contact", "New Group", "Export"], True, "age > 50"
+        )
 
         # TODO: group labeling as a feature is on probation
         # self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})

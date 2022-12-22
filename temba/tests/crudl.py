@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from urllib.parse import urlencode
 
 from django.forms import model_to_dict
 
@@ -234,10 +235,13 @@ class CRUDLTestMixin:
 
         return self.requestView(url, self.customer_support, checks=[StatusCode(200)])
 
-    def assertContentMenu(self, url: str, user, labels: list, is_spa: bool = False):
+    def assertContentMenu(self, url: str, user, labels: list, is_spa: bool = False, search: str = None):
         headers = {"HTTP_TEMBA_CONTENT_MENU": 1}
         if is_spa:
             headers["HTTP_TEMBA_SPA"] = 1
+        if search:
+            url += "&" if ("?" in url) else "?"
+            url += urlencode({"search": search})
         response = self.requestView(url, user, checks=[StatusCode(200), ContentType("application/json")], **headers)
         items = [item.get("label", "-") for item in response.json()["items"]]
         self.assertEqual(labels, items)
