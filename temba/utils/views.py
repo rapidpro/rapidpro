@@ -391,6 +391,12 @@ class ContentMenuMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        # is the page old (legacy) ui or new (spa) ui?
+        if "HTTP_TEMBA_SPA" in self.request.META:
+            context["is_legacy"] = 0
+        else:
+            context["is_legacy"] = 1
+
         # does the page have a content menu?
         menu_items = self._get_content_menu()
         has_content_menu = len(menu_items) > 0
@@ -401,14 +407,6 @@ class ContentMenuMixin:
             search = self.request.GET.get("search")
             search_query = urlencode({"search": search})
             context["has_search_query"] = search_query
-
-        # is the page old (legacy) ui or new (spa) ui?
-        is_spa = True
-        if "is_spa" in context:
-            is_spa = context["is_spa"]
-        else:
-            is_spa = False
-        context["is_legacy"] = 0 if is_spa else 1
 
         return context
 

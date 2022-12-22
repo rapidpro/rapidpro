@@ -72,3 +72,17 @@
       menu.refresh();
     }
   }
+
+  function handleSearchSubmitted(event){
+    //update the content menu query with the search form input value
+    var contentMenu = document.querySelector("temba-content-menu");
+    var formData = new FormData(event.target);
+    let search = new URLSearchParams(formData).toString();
+    console.log('handleSearchSubmitted search', search);
+    contentMenu.query = search;
+  }
+
+  $(function(){
+    var searchForm = document.querySelector("#search-form :has(temba-textinput[name='search'])");
+    searchForm.addEventListener('submit', handleSearchSubmitted);
+  });
