@@ -1,3 +1,8 @@
+1.6.13-rapidpro-7.1.27
+----------
+* Adds exclusion list of channels that go to integrations
+* Update rp-apps to 2.0.0
+
 1.6.12-rapidpro-7.1.27
 ----------
 * Create endpoint that returns success orgs
