@@ -88,7 +88,7 @@ def contact_field_tag(contact, key):
     if value and field.value_type == ContactField.TYPE_DATETIME:
         value = contact.get_field_value(field)
         if value:
-            return mark_safe(f"<temba-date value='{value.isoformat()}' display='date'/>")
+            return mark_safe(f"<temba-date value='{value.isoformat()}' display='date'></temba-date>")
 
     return value or MISSING_VALUE
 
