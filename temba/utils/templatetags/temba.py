@@ -223,7 +223,7 @@ def duration(date):
 
 @register.filter
 def datetime(date):
-    return mark_safe(f"<temba-date value='{date.isoformat()}' display='datetime'/>")
+    return mark_safe(f"<temba-date value='{date.isoformat()}' display='datetime'></temba-date>")
 
 
 @register.simple_tag(takes_context=True)
