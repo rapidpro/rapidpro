@@ -1,4 +1,4 @@
-1.6.13-rapidpro-7.1.28
+1.6.14-rapidpro-7.1.27
 ----------
 * Add Courier S3 endpoint env key
 * Update weni-rp-apps to 2.0.1
