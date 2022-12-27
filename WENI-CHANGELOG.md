@@ -1,3 +1,8 @@
+1.6.13-rapidpro-7.1.28
+----------
+* Add Courier S3 endpoint env key
+* Update weni-rp-apps to 2.0.1
+
 1.6.13-rapidpro-7.1.27
 ----------
 * Adds exclusion list of channels that go to integrations
