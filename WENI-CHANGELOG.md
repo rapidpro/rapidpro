@@ -1,3 +1,7 @@
+1.6.16-rapidpro-7.1.27
+----------
+* Revert "fix: add weni.s3 to installed_apps"
+
 1.6.15-rapidpro-7.1.27
 ----------
 * Update weni-rp-apps from 2.0.1 to 2.1.0
