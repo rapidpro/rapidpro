@@ -1,3 +1,7 @@
+1.6.17-rapidpro-7.1.27
+----------
+* Fix: add weni.s3 to installed_apps
+
 1.6.16-rapidpro-7.1.27
 ----------
 * Revert "fix: add weni.s3 to installed_apps"
