@@ -1,3 +1,10 @@
+1.6.15-rapidpro-7.1.27
+----------
+* Update weni-rp-apps from 2.0.1 to 2.1.0
+* Add activities app on INSTALLED_APPS
+* fix: add weni.s3 to installed_apps
+* feat: Adjustment in welcome flow
+
 1.6.14-rapidpro-7.1.27
 ----------
 * Add Courier S3 endpoint env key
