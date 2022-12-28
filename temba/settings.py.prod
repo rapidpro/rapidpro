@@ -236,6 +236,7 @@ INSTALLED_APPS += (
     "weni.orgs_api",
     "weni.s3",
     "weni.success_orgs",
+    "weni.activities",
     # OIDC authentication
     "mozilla_django_oidc",
     "weni.auth",
@@ -445,6 +446,9 @@ if DISABLE_OIDC:
     AUTHENTICATION_BACKENDS = tuple(authentication_backend_list)
 
     OIDC_DRF_AUTH_BACKEND = None
+
+CONNECT_BASE_URL = env("CONNECT_BASE_URL", default="https://api.dev.cloud.weni.ai")
+
 
 # ----------------------------------------------------------------------------------------
 # Option to enable redirect all routes (except api), to redirect view 
