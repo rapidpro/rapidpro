@@ -234,7 +234,6 @@ INSTALLED_APPS += (
     "weni.internal",
     "weni.ticketer_queues",
     "weni.orgs_api",
-    "weni.s3",
     "weni.success_orgs",
     "weni.activities",
     # OIDC authentication
