@@ -3930,7 +3930,7 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(contact_field_tag(self.joe, "first"), "Starter")
         self.assertEqual(
             contact_field_tag(self.joe, "date_joined"),
-            "<temba-date value='2022-01-01T08:30:00+02:00' display='date'/>",
+            "<temba-date value='2022-01-01T08:30:00+02:00' display='date'></temba-date>",
         )
         self.assertEqual(contact_field_tag(self.joe, "not_there"), "--")
 
