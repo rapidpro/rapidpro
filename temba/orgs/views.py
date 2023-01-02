@@ -10,7 +10,6 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import iso8601
 import pyotp
-import pytz
 import requests
 from packaging.version import Version
 from smartmin.users.models import FailedLogin, PasswordHistory, RecoveryToken
@@ -403,7 +402,7 @@ class OrgSignupForm(forms.ModelForm):
 
     class Meta:
         model = Org
-        fields = "__all__"
+        fields = ("first_name", "last_name", "email", "timezone", "password", "name")
 
 
 class OrgGrantForm(forms.ModelForm):
@@ -449,7 +448,7 @@ class OrgGrantForm(forms.ModelForm):
 
     class Meta:
         model = Org
-        fields = "__all__"
+        fields = ("first_name", "last_name", "email", "timezone", "password", "name")
 
 
 class LoginView(Login):
@@ -2615,7 +2614,7 @@ class OrgCRUDL(SmartCRUDL):
             self.object = self.org.create_new(
                 self.request.user,
                 form.cleaned_data["name"],
-                timezone=form.cleaned_data["timezone"],
+                tz=form.cleaned_data["timezone"],
                 as_child=form.cleaned_data.get("type", default_type) == form.TYPE_CHILD,
             )
 
@@ -3032,62 +3031,29 @@ class OrgCRUDL(SmartCRUDL):
     class Grant(NonAtomicMixin, SmartCreateView):
         title = _("Create Workspace Account")
         form_class = OrgGrantForm
-        fields = ("first_name", "last_name", "email", "password", "name", "timezone")
         success_message = "Workspace successfully created."
         submit_button_name = _("Create")
         success_url = "@orgs.org_grant"
 
-        def get_or_create_user(self, email, first_name, last_name, password, language):
-            user = User.objects.filter(username__iexact=email).first()
-            if user:
-                user.first_name = first_name
-                user.last_name = last_name
-                user.save(update_fields=("first_name", "last_name"))
-                return user
+        def save(self, obj):
+            self.object = Org.create(
+                self.request.user,
+                self.request.branding,
+                self.form.cleaned_data["name"],
+                self.form.cleaned_data["timezone"],
+            )
 
-            return User.create(email, first_name, last_name, password=password, language=language)
-
-        def pre_save(self, obj):
-            obj = super().pre_save(obj)
-
-            brand_language = self.request.branding.get("language", settings.DEFAULT_LANGUAGE)
-
-            self.user = self.get_or_create_user(
+            user = User.get_or_create(
                 self.form.cleaned_data["email"],
                 self.form.cleaned_data["first_name"],
                 self.form.cleaned_data["last_name"],
                 self.form.cleaned_data["password"],
-                language=brand_language,
+                language=settings.DEFAULT_LANGUAGE,
             )
+            self.object.add_user(user, OrgRole.ADMINISTRATOR)
+            return self.object
 
-            obj.created_by = self.user
-            obj.modified_by = self.user
-            obj.brand = self.request.branding["slug"]
-            obj.language = brand_language
-
-            if obj.timezone.zone in pytz.country_timezones("US"):
-                obj.date_format = Org.DATE_FORMAT_MONTH_FIRST
-
-            # if we have a default UI language, use that as the default flow language too
-            default_flow_language = languages.alpha2_to_alpha3(obj.language)
-            obj.flow_languages = [default_flow_language] if default_flow_language else ["eng"]
-
-            return obj
-
-        def post_save(self, obj):
-            obj = super().post_save(obj)
-            obj.add_user(self.user, OrgRole.ADMINISTRATOR)
-
-            if not self.request.user.is_anonymous and self.request.user.has_perm(
-                "orgs.org_grant"
-            ):  # pragma: needs cover
-                obj.add_user(self.request.user, OrgRole.ADMINISTRATOR)
-
-            obj.initialize()
-
-            return obj
-
-    class Signup(ComponentFormMixin, Grant):
+    class Signup(ComponentFormMixin, NonAtomicMixin, SmartCreateView):
         title = _("Sign Up")
         form_class = OrgSignupForm
         permission = None
@@ -3110,18 +3076,27 @@ class OrgCRUDL(SmartCRUDL):
             initial["email"] = self.request.POST.get("email", self.request.GET.get("email", None))
             return initial
 
-        def post_save(self, obj):
-            user = authenticate(username=self.user.username, password=self.form.cleaned_data["password"])
+        def save(self, obj):
+            new_user = User.create(
+                self.form.cleaned_data["email"],
+                self.form.cleaned_data["first_name"],
+                self.form.cleaned_data["last_name"],
+                self.form.cleaned_data["password"],
+                language=settings.DEFAULT_LANGUAGE,
+            )
 
-            # setup user tracking before creating Org in super().post_save
-            analytics.identify(user, brand=self.request.branding, org=obj)
-            analytics.track(user, "temba.org_signup", properties=dict(org=obj.name))
+            self.object = Org.create(
+                new_user,
+                self.request.branding,
+                self.form.cleaned_data["name"],
+                self.form.cleaned_data["timezone"],
+            )
 
-            obj = super().post_save(obj)
+            analytics.identify(new_user, brand=self.request.branding, org=obj)
+            analytics.track(new_user, "temba.org_signup", properties=dict(org=self.object.name))
 
             switch_to_org(self.request, obj)
-            login(self.request, user)
-
+            login(self.request, new_user)
             return obj
 
     class Resthooks(SpaMixin, ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
