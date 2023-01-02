@@ -56,7 +56,7 @@ from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
-from temba.utils import json, languages
+from temba.utils import brands, json, languages
 
 from .context_processors import RolePermsWrapper
 from .models import BackupToken, Invitation, Org, OrgMembership, OrgRole, User
@@ -1092,6 +1092,24 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
 
 class OrgTest(TembaTest):
+    def test_create(self):
+        new_org = Org.create(self.admin, brands.get_by_slug("rapidpro"), "Cool Stuff", pytz.timezone("Africa/Kigali"))
+        self.assertEqual("Cool Stuff", new_org.name)
+        self.assertEqual("rapidpro", new_org.brand)
+        self.assertEqual(self.admin, new_org.created_by)
+        self.assertEqual("en-us", new_org.language)
+        self.assertEqual(["eng"], new_org.flow_languages)
+        self.assertEqual("D", new_org.date_format)
+        self.assertEqual(str(new_org.timezone), "Africa/Kigali")
+        self.assertIn(self.admin, self.org.get_admins())
+
+        # if timezone is US, should get MMDDYYYY dates
+        new_org = Org.create(
+            self.admin, brands.get_by_slug("rapidpro"), "Cool Stuff", pytz.timezone("America/Los_Angeles")
+        )
+        self.assertEqual("M", new_org.date_format)
+        self.assertEqual(str(new_org.timezone), "America/Los_Angeles")
+
     def test_get_users(self):
         admin3 = self.create_user("bob@nyaruka.com")
 
@@ -3177,7 +3195,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
         ]
     )
-    def test_org_signup(self):
+    def test_signup(self):
         signup_url = reverse("orgs.org_signup")
 
         response = self.client.get(signup_url + "?%s" % urlencode({"email": "address@example.com"}))
@@ -3199,41 +3217,62 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response, "form", "timezone", "This field is required.")
 
         # submit with invalid password and email
-        post_data = dict(
-            first_name="Eugene",
-            last_name="Rwagasore",
-            email="bad_email",
-            password="badpass",
-            name="Your Face",
-            timezone="Africa/Kigali",
+        response = self.client.post(
+            signup_url,
+            {
+                "first_name": "Eugene",
+                "last_name": "Rwagasore",
+                "email": "bad_email",
+                "password": "badpass",
+                "name": "Your Face",
+                "timezone": "Africa/Kigali",
+            },
         )
-        response = self.client.post(signup_url, post_data)
         self.assertFormError(response, "form", "email", "Enter a valid email address.")
         self.assertFormError(
             response, "form", "password", "This password is too short. It must contain at least 8 characters."
         )
 
         # submit with password that is too common
-        post_data["email"] = "eugene@temba.io"
-        post_data["password"] = "password"
-        response = self.client.post(signup_url, post_data)
+        response = self.client.post(
+            signup_url,
+            {
+                "first_name": "Eugene",
+                "last_name": "Rwagasore",
+                "email": "eugene@temba.io",
+                "password": "password",
+                "name": "Your Face",
+                "timezone": "Africa/Kigali",
+            },
+        )
         self.assertFormError(response, "form", "password", "This password is too common.")
 
         # submit with password that is all numerical
-        post_data["password"] = "3464357358532"
-        response = self.client.post(signup_url, post_data)
+        response = self.client.post(
+            signup_url,
+            {
+                "first_name": "Eugene",
+                "last_name": "Rwagasore",
+                "email": "eugene@temba.io",
+                "password": "3464357358532",
+                "name": "Your Face",
+                "timezone": "Africa/Kigali",
+            },
+        )
         self.assertFormError(response, "form", "password", "This password is entirely numeric.")
 
         # submit with valid data (long email)
-        post_data = dict(
-            first_name="Eugene",
-            last_name="Rwagasore",
-            email="myal12345678901234567890@relieves.org",
-            password="HelloWorld1",
-            name="Relieves World",
-            timezone="Africa/Kigali",
+        response = self.client.post(
+            signup_url,
+            {
+                "first_name": "Eugene",
+                "last_name": "Rwagasore",
+                "email": "myal12345678901234567890@relieves.org",
+                "password": "HelloWorld1",
+                "name": "Relieves World",
+                "timezone": "Africa/Kigali",
+            },
         )
-        response = self.client.post(signup_url, post_data)
         self.assertEqual(response.status_code, 302)
 
         # should have a new user
@@ -3277,9 +3316,19 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, reverse("channels.channel_list"))
         self.assertContains(response, reverse("orgs.org_home"))
 
-        post_data["name"] = "Relieves World Rwanda"
-        response = self.client.post(signup_url, post_data)
-        self.assertIn("email", response.context["form"].errors)
+        # can't signup again with same email
+        response = self.client.post(
+            signup_url,
+            {
+                "first_name": "Eugene",
+                "last_name": "Rwagasore",
+                "email": "myal12345678901234567890@relieves.org",
+                "password": "HelloWorld1",
+                "name": "Relieves World 2",
+                "timezone": "Africa/Kigali",
+            },
+        )
+        self.assertFormError(response, "form", "email", "That email address is already used")
 
         # if we hit /login we'll be taken back to the channel page
         response = self.client.get(reverse("users.user_check_login"))
@@ -3749,37 +3798,27 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertStaffOnly(manage_url)
         self.assertStaffOnly(update_url)
 
-        response = self.client.get(manage_url + "?filter=flagged")
-        self.assertNotIn(self.org, response.context["object_list"])
+        def assertOrgFilter(query: str, expected_orgs: list):
+            response = self.client.get(manage_url + query)
+            self.assertEqual(expected_orgs, list(response.context["object_list"]))
 
-        response = self.client.get(manage_url + "?filter=anon")
-        self.assertNotIn(self.org, response.context["object_list"])
-
-        response = self.client.get(manage_url + "?filter=suspended")
-        self.assertNotIn(self.org, response.context["object_list"])
-
-        response = self.client.get(manage_url + "?filter=verified")
-        self.assertNotIn(self.org, response.context["object_list"])
-
-        response = self.client.get(manage_url + "?filter=nyaruka")
-        self.assertIn(self.org, response.context["object_list"])
-        self.assertNotIn(self.org2, response.context["object_list"])
+        assertOrgFilter("", [self.org2, self.org])
+        assertOrgFilter("?filter=all", [self.org2, self.org])
+        assertOrgFilter("?filter=xxxx", [self.org2, self.org])
+        assertOrgFilter("?filter=flagged", [])
+        assertOrgFilter("?filter=anon", [])
+        assertOrgFilter("?filter=suspended", [])
+        assertOrgFilter("?filter=verified", [])
 
         self.org.flag()
-        response = self.client.get(manage_url + "?filter=flagged")
-        self.assertIn(self.org, response.context["object_list"])
 
-        # should contain our test org
-        self.assertContains(response, "Temba")
+        assertOrgFilter("?filter=flagged", [self.org])
 
-        response = self.client.get(manage_url + "?filter=flagged")
-        self.assertTrue(self.org in response.context["object_list"])
+        self.org2.verify()
 
-        self.org.verify()
-        response = self.client.get(manage_url + "?filter=verified")
-        self.assertIn(self.org, response.context["object_list"])
+        assertOrgFilter("?filter=verified", [self.org2])
 
-        # and can go to that org
+        # and can go to our org
         response = self.client.get(update_url)
         self.assertEqual(200, response.status_code)
         self.assertEqual(

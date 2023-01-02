@@ -1,3 +1,17 @@
+v7.5.142 (2022-12-16)
+-------------------------
+ * Fix org listing when org has no users left
+
+v7.5.141 (2022-12-16)
+-------------------------
+ * Fix searching for orgs on manage list page
+ * Fix highcharts colors
+ * Fix invalid template name
+
+v7.5.140 (2022-12-15)
+-------------------------
+ * Fix flow results page
+
 v7.5.136 (2022-12-15)
 -------------------------
  * Tell codecov to ignore static/

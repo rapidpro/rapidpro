@@ -8,6 +8,7 @@ from urllib.parse import quote, urlencode, urlparse
 
 import pycountry
 import pyotp
+import pytz
 from packaging.version import Version
 from smartmin.models import SmartModel
 from timezone_field import TimeZoneField
@@ -135,6 +136,17 @@ class User(AuthUser):
             obj.settings.language = language
             obj.settings.save(update_fields=("language",))
         return obj
+
+    @classmethod
+    def get_or_create(cls, email: str, first_name: str, last_name: str, password: str, language: str = None):
+        obj = cls.objects.filter(username__iexact=email).first()
+        if obj:
+            obj.first_name = first_name
+            obj.last_name = last_name
+            obj.save(update_fields=("first_name", "last_name"))
+            return obj
+
+        return cls.create(email, first_name, last_name, password=password, language=language)
 
     @property
     def name(self) -> str:
@@ -517,7 +529,36 @@ class Org(SmartModel):
 
             return unique_slug
 
-    def create_new(self, user, name: str, timezone, *, as_child: bool):
+    @classmethod
+    def create(cls, user, branding, name: str, tz):
+        """
+        Creates a new workspace.
+        """
+
+        mdy_tzs = pytz.country_timezones("US")
+        date_format = Org.DATE_FORMAT_MONTH_FIRST if str(tz) in mdy_tzs else cls.DATE_FORMAT_DAY_FIRST
+
+        # use default user language as default flow language too
+        default_flow_language = languages.alpha2_to_alpha3(settings.DEFAULT_LANGUAGE)
+        flow_languages = [default_flow_language] if default_flow_language else ["eng"]
+
+        org = Org.objects.create(
+            name=name,
+            timezone=tz,
+            date_format=date_format,
+            language=settings.DEFAULT_LANGUAGE,
+            flow_languages=flow_languages,
+            brand=branding["slug"],
+            slug=cls.get_unique_slug(name),
+            created_by=user,
+            modified_by=user,
+        )
+
+        org.add_user(user, OrgRole.ADMINISTRATOR)
+        org.initialize()
+        return org
+
+    def create_new(self, user, name: str, tz, *, as_child: bool):
         """
         Creates a new workspace copying settings from this workspace.
         """
@@ -530,7 +571,7 @@ class Org(SmartModel):
 
         org = Org.objects.create(
             name=name,
-            timezone=timezone,
+            timezone=tz,
             date_format=self.date_format,
             language=self.language,
             flow_languages=self.flow_languages,
@@ -1037,8 +1078,8 @@ class Org(SmartModel):
             if user:
                 return user
 
-        # default to user that created this org
-        return self.created_by
+        # default to user that created this org (converting to our User proxy model)
+        return User.objects.get(id=self.created_by_id)
 
     def get_user_role(self, user: User):
         """
