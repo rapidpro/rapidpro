@@ -1,3 +1,8 @@
+v7.5.143 (2023-01-02)
+-------------------------
+ * Update mailroom version for CI
+ * Tidy up org creation (signups and grants)
+
 v7.5.142 (2022-12-16)
 -------------------------
  * Fix org listing when org has no users left
