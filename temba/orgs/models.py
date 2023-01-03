@@ -17,6 +17,7 @@ from twilio.rest import Client as TwilioClient
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User as AuthUser
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.validators import ArrayMinLengthValidator
 from django.db import models, transaction
 from django.db.models import Prefetch
 from django.utils import timezone
@@ -497,7 +498,7 @@ class Org(SmartModel):
     is_flagged = models.BooleanField(default=False, help_text=_("Whether this organization is currently flagged."))
     is_suspended = models.BooleanField(default=False, help_text=_("Whether this organization is currently suspended."))
 
-    flow_languages = ArrayField(models.CharField(max_length=3), default=list)
+    flow_languages = ArrayField(models.CharField(max_length=3), default=list, validators=[ArrayMinLengthValidator(1)])
 
     surveyor_password = models.CharField(
         null=True, max_length=128, default=None, help_text=_("A password that allows users to register as surveyors")
