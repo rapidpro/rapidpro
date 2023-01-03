@@ -62,7 +62,7 @@ from .models import (
     ExportContactsTask,
 )
 from .tasks import check_elasticsearch_lag, squash_group_counts
-from .templatetags.contacts import contact_field_tag, history_class, history_icon, msg_status_badge
+from .templatetags.contacts import contact_field, history_class, history_icon, msg_status_badge
 
 
 class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
@@ -3927,12 +3927,12 @@ class ContactFieldTest(TembaTest):
         self.set_contact_field(self.joe, "first", "Starter")
         self.set_contact_field(self.joe, "date_joined", "01-01-2022 8:30")
 
-        self.assertEqual(contact_field_tag(self.joe, "first"), "Starter")
+        self.assertEqual(contact_field(self.joe, "first"), "Starter")
         self.assertEqual(
-            contact_field_tag(self.joe, "date_joined"),
+            contact_field(self.joe, "date_joined"),
             "<temba-date value='2022-01-01T08:30:00+02:00' display='date'></temba-date>",
         )
-        self.assertEqual(contact_field_tag(self.joe, "not_there"), "--")
+        self.assertEqual(contact_field(self.joe, "not_there"), "--")
 
     def test_make_key(self):
         self.assertEqual("first_name", ContactField.make_key("First Name"))

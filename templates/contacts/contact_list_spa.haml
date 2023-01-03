@@ -124,7 +124,7 @@
               -for field in contact_fields
                 -if field.show_in_table
                   %td.field.truncate(style="max-width:240px")
-                    {% contact_field_tag object field.key %}
+                    {% contact_field object field.key %}
 
               %td.value-received.field_received
                 .whitespace-nowrap

@@ -79,7 +79,7 @@ MISSING_VALUE = "--"
 
 
 @register.simple_tag()
-def contact_field_tag(contact, key):
+def contact_field(contact, key):
     field = contact.org.fields.filter(is_active=True, key=key).first()
     if field is None:
         return MISSING_VALUE
