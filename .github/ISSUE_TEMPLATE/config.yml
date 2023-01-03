@@ -9,7 +9,7 @@ contact_links:
     about: Mailroom is responsible for flow execution, if your flow is misbehaving, the bug might belong here.
   - name: Courier
     url: https://github.com/nyaruka/courier/issues
-    about: Courier is responsible for sending and receiving messages from many different channel types. If you have a specific channel type that isn't behaving properly it might belong here.
+    about: If you have a specific channel type that isn't behaving properly it might belong here.
   - name: RapidPro Archiver
     url: https://github.com/nyaruka/rp-archiver/issues
     about: Runs scheduled archiving of messages and runs
