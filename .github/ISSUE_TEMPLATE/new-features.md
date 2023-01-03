@@ -1,5 +1,5 @@
 ---
-name: New Features
+name: New Feature
 about: Before starting on new features, discuss them with the maintainers first.
 title: ''
 labels: feature
