@@ -27,6 +27,7 @@ jobs:
     - uses: actions/stale@v5
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
+        operations-per-run: 300
         stale-issue-label: 'inactive'
         stale-issue-message: 'Without activity, this issue will be closed in 14 days.'
         close-issue-message: 'This issue was closed for inactivity.'
