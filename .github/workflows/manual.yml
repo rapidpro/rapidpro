@@ -1,19 +1,12 @@
-# This is a basic workflow that is manually triggered
-name: Stale Test
+name: Stale Manual
 
-# Controls when the action will run. Workflow runs when manually triggered using the UI
-# or API.
 on:
   workflow_dispatch:
-    # Inputs the workflow accepts.
     inputs:
-      name:
-        # Friendly description to be shown in the UI instead of 'name'
-        description: 'Person to greet'
-        # Default value if no value is explicitly provided
-        default: 'World'
-        # Input has to be provided for the workflow to run
-        required: false
+      operations:
+        description: 'Number of operations'
+        default: "300"
+        required: true
 
 jobs:
   stale:
@@ -27,7 +20,7 @@ jobs:
     - uses: actions/stale@v5
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
-        operations-per-run: 300
+        operations-per-run: ${{ github.event.inputs.operations }}
         stale-issue-label: 'inactive'
         stale-issue-message: 'Without activity, this issue will be closed in 14 days.'
         close-issue-message: 'This issue was closed for inactivity.'
