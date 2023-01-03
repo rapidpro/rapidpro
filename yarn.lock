@@ -40,10 +40,10 @@
   resolved "https://registry.npmjs.org/@lit/reactive-element/-/reactive-element-1.5.0.tgz#344cc33f2d1491d094b8ef824a9fe31d150d2375"
   integrity sha512-fQh9FDK0LPTwDk+0HhSZEtb8K0LTN1wXerwpGrWA+a8tWulYRDLI4vQDWp4GOIsewn0572KYV/oZ3+492D7osA==
 
-"@nyaruka/flow-editor@1.18.4":
-  version "1.18.4"
-  resolved "https://registry.npmjs.org/@nyaruka/flow-editor/-/flow-editor-1.18.4.tgz#6fb33b38ef4cf7278fdd46816360342da60f5f7e"
-  integrity sha512-okvFPvdkAPRVKQKX7U6QQ82Svh6XV3KoJF12ZG4PKYcTdkIefBHJ8lWsnAAZgk4Jxjf/8xE4JgN/LN28OhGjjg==
+"@nyaruka/flow-editor@1.19.0":
+  version "1.19.0"
+  resolved "https://registry.npmjs.org/@nyaruka/flow-editor/-/flow-editor-1.19.0.tgz#e2ac0ad64a0ce4aeab499bdd6709649a406c3f48"
+  integrity sha512-AJN9rM5S/rpMktvFcFxkAF6VOisQGD6Cg12Uzgrj7JCz30BLSRFtncQqaB1oTnaUa2fVPvtZztp5TO3Op6Pigg==
   dependencies:
     react "^16.8.6"
     react-dom "^16.8.6"
