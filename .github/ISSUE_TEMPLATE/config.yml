@@ -1,0 +1,15 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: Mailroom
+    url: https://github.com/nyaruka/mailroom/issues
+    about: Bugs and feature requests for mailroom
+  - name: Courier
+    url: https://github.com/nyaruka/courier/issues
+    about: Bugs and feature requests for courier
+  - name: RapidPro Archiver
+    url: https://github.com/nyaruka/rp-archiver/issues
+    about: Bugs and feature requests for rp-archiver
+  - name: RapidPro Indexer
+    url: https://github.com/nyaruka/rp-indexer/issues
+    about: Bugs and feature requests for rp-indexer
