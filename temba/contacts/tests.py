@@ -3134,7 +3134,7 @@ class ContactTest(TembaTest):
 
         self.assertEqual(
             list(response.context["form"].fields.keys()),
-            ["name", "status", "groups", "urn__twitter__0", "urn__tel__1", "loc"],
+            ["name", "status", "language", "groups", "urn__twitter__0", "urn__tel__1", "loc"],
         )
         self.assertEqual(response.context["form"].initial["name"], "Joe Blow")
         self.assertEqual(response.context["form"].fields["urn__tel__1"].initial, "+250781111111")
@@ -3413,7 +3413,7 @@ class ContactTest(TembaTest):
         response = self.client.post(
             reverse("contacts.contact_update", args=[self.joe.id]),
             dict(
-                language="fra",
+                language="eng",
                 name="Muller Awesome",
                 urn__tel__0="+250781111111",
                 urn__twitter__1="blow80",
@@ -5297,6 +5297,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
             timezone=pytz.timezone("Africa/Kigali"),
             country=self.country,
             brand=settings.DEFAULT_BRAND,
+            flow_languages=["eng"],
             created_by=self.admin,
             modified_by=self.admin,
         )

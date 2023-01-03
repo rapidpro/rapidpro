@@ -1243,9 +1243,6 @@ class ContactCRUDL(SmartCRUDL):
             exclude = []
             exclude.extend(self.exclude)
 
-            if not obj.org.flow_languages:
-                exclude.append("language")
-
             if obj.status != Contact.STATUS_ACTIVE:
                 exclude.append("groups")
 

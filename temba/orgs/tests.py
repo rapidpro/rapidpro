@@ -743,6 +743,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             timezone=pytz.timezone("Africa/Kigali"),
             country=self.country,
             brand=settings.DEFAULT_BRAND,
+            flow_languages=["eng"],
             created_by=self.user,
             modified_by=self.user,
         )
@@ -1164,8 +1165,6 @@ class OrgTest(TembaTest):
         self.assertEqual(Org.get_unique_slug("Allo"), "allo-2")
 
     def test_set_flow_languages(self):
-        self.assertEqual([], self.org.flow_languages)
-
         self.org.set_flow_languages(self.admin, ["eng", "fra"])
         self.org.refresh_from_db()
         self.assertEqual(["eng", "fra"], self.org.flow_languages)
@@ -3974,11 +3973,11 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         home_url = reverse("orgs.org_home")
         langs_url = reverse("orgs.org_languages")
 
-        self.org.set_flow_languages(self.admin, [])
+        self.org.set_flow_languages(self.admin, ["eng"])
 
-        # check summary on home page
         response = self.requestView(home_url, self.admin)
-        self.assertContains(response, "Your workspace is configured to use a single language.")
+        self.assertEqual("English", response.context["primary_lang"])
+        self.assertEqual([], response.context["other_langs"])
 
         self.assertUpdateFetch(
             langs_url,
@@ -4621,7 +4620,7 @@ class BulkExportTest(TembaTest):
         message_flow = (
             Flow.objects.filter(flow_type="B", is_system=True, campaign_events__offset=-1).order_by("id").first()
         )
-        message_flow.update_single_message_flow(self.admin, {"base": "No reminders for you!"}, base_language="base")
+        message_flow.update_single_message_flow(self.admin, {"eng": "No reminders for you!"}, base_language="eng")
 
         # now reimport
         self.import_file("the_clinic")

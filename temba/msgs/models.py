@@ -263,7 +263,7 @@ class Broadcast(models.Model):
     ):
         # for convenience broadcasts can still be created with single translation and no base_language
         if isinstance(text, str):
-            base_language = org.flow_languages[0] if org.flow_languages else "base"
+            base_language = org.flow_languages[0]
             text = {base_language: text}
 
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
@@ -327,7 +327,7 @@ class Broadcast(models.Model):
             if contact.language in self.text:
                 return self.text[contact.language]
 
-        if self.org.flow_languages and self.org.flow_languages[0] in self.text:  # try org primary language
+        if self.org.flow_languages[0] in self.text:  # try org primary language
             return self.text[self.org.flow_languages[0]]
 
         return self.text[self.base_language]  # should always be a base language translation

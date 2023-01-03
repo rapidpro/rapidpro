@@ -719,18 +719,12 @@ class CampaignEventCRUDL(SmartCRUDL):
                     raise Http404("Campaign not found")
 
         def derive_fields(self):
-
             from copy import deepcopy
 
             fields = deepcopy(self.default_fields)
 
             # add in all of our flow languages
-            org = self.request.org
-
-            if org.flow_languages:
-                fields += org.flow_languages
-            else:
-                fields.append("base")
+            fields += self.request.org.flow_languages
 
             return fields
 

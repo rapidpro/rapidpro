@@ -176,7 +176,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         null=True,
         blank=True,
         help_text=_("The authoring language, additional languages can be added later"),
-        default="base",
+        default="eng",
     )
 
     version_number = models.CharField(default=FINAL_LEGACY_VERSION, max_length=8)
@@ -206,7 +206,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         name,
         flow_type=TYPE_MESSAGE,
         expires_after_minutes=0,
-        base_language="base",
+        base_language="eng",
         create_revision=False,
         **kwargs,
     ):
@@ -262,7 +262,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         """
         Creates a special 'join group' flow
         """
-        base_language = org.flow_languages[0] if org.flow_languages else "base"
+        base_language = org.flow_languages[0]
 
         name = Flow.get_unique_name(org, "Join %s" % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
