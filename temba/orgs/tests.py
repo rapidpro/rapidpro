@@ -44,6 +44,7 @@ from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     CRUDLTestMixin,
     ESMockWithScroll,
+    MigrationTest,
     MockResponse,
     TembaNonAtomicTest,
     TembaTest,
@@ -4817,3 +4818,34 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
+
+
+class DefaultFlowLanguagesTest(MigrationTest):
+    app = "orgs"
+    migrate_from = "0115_alter_org_plan"
+    migrate_to = "0116_default_flow_languages"
+
+    def setUpBeforeMigration(self, apps):
+        self.org3 = Org.objects.create(
+            name="Foo",
+            timezone="Africa/Kigali",
+            brand="rapidpro",
+            created_by=self.admin,
+            modified_by=self.admin,
+            flow_languages=[],
+        )
+        self.org4 = Org.objects.create(
+            name="Foo",
+            timezone="Africa/Kigali",
+            brand="rapidpro",
+            created_by=self.admin,
+            modified_by=self.admin,
+            flow_languages=["kin"],
+        )
+
+    def test_migration(self):
+        self.org3.refresh_from_db()
+        self.org4.refresh_from_db()
+
+        self.assertEqual(["eng"], self.org3.flow_languages)
+        self.assertEqual(["kin"], self.org4.flow_languages)  # unchanged
