@@ -1,15 +1,18 @@
 blank_issues_enabled: false
 
 contact_links:
+  - name: Getting Help
+    url: https://groups.google.com/g/rapidpro-dev
+    about: If you have a question about your own installation, ask a question on the dev list.
   - name: Mailroom
     url: https://github.com/nyaruka/mailroom/issues
-    about: Bugs and feature requests for mailroom
+    about: Mailroom is responsible for flow execution, if your flow is misbehaving, the bug might belong here.
   - name: Courier
     url: https://github.com/nyaruka/courier/issues
-    about: Bugs and feature requests for courier
+    about: Courier is responsible for sending and receiving messages from many different channel types. If you have a specific channel type that isn't behaving properly it might belong here.
   - name: RapidPro Archiver
     url: https://github.com/nyaruka/rp-archiver/issues
-    about: Bugs and feature requests for rp-archiver
+    about: Runs scheduled archiving of messages and runs
   - name: RapidPro Indexer
     url: https://github.com/nyaruka/rp-indexer/issues
-    about: Bugs and feature requests for rp-indexer
+    about: Responsible for scheduled indexing of contact fields so they are searchable.
