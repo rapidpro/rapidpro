@@ -1,0 +1,39 @@
+# This is a basic workflow that is manually triggered
+name: Stale Test
+
+# Controls when the action will run. Workflow runs when manually triggered using the UI
+# or API.
+on:
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      name:
+        # Friendly description to be shown in the UI instead of 'name'
+        description: 'Person to greet'
+        # Default value if no value is explicitly provided
+        default: 'World'
+        # Input has to be provided for the workflow to run
+        required: false
+
+jobs:
+  stale:
+
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+
+    steps:
+    - uses: actions/stale@v5
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        stale-issue-label: 'inactive'
+        stale-issue-message: 'Without activity, this issue will be closed in 14 days.'
+        close-issue-message: 'This issue was closed for inactivity.'
+        stale-pr-message: 'Without activity, this PR will be closed in 14 days.'
+        close-pr-message: 'This PR was closed for inactivity.'
+        stale-pr-label: 'inactive'
+        days-before-pr-stale: 30
+        days-before-pr-close: 14
+        days-before-issue-stale: 30
+        days-before-issue-close: 14
