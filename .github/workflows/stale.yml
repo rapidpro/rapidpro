@@ -1,0 +1,22 @@
+name: Close inactive issues
+on:
+  schedule:
+    - cron: "0 1 * * *"
+
+jobs:
+  close-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@v6
+        with:
+          days-before-issue-stale: 30
+          days-before-issue-close: 14
+          stale-issue-label: "inactive"
+          stale-issue-message: "This issue will be closed in 14 days if it remains inactive."
+          close-issue-message: "This issue was closed for inactivity. Open a new issue referencing it to continue the discussion."
+          days-before-pr-stale: 30
+          days-before-pr-close: 10
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
