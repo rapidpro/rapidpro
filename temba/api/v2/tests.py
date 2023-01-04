@@ -293,8 +293,8 @@ class FieldsTest(TembaTest):
         field = fields.TranslatableField(source="test", max_length=10)
         field._context = {"org": self.org}
 
-        self.assertEqual(field.to_internal_value("Hello"), ({"base": "Hello"}, "base"))
-        self.assertEqual(field.to_internal_value({"base": "Hello"}), ({"base": "Hello"}, "base"))
+        self.assertEqual(field.to_internal_value("Hello"), ({"eng": "Hello"}, "eng"))
+        self.assertEqual(field.to_internal_value({"eng": "Hello"}), ({"eng": "Hello"}, "eng"))
 
         self.org.set_flow_languages(self.admin, ["kin"])
         self.org.save()
@@ -878,7 +878,7 @@ class EndpointsTest(TembaTest):
                 "urns": [],
                 "contacts": [{"uuid": self.joe.uuid, "name": self.joe.name}],
                 "groups": [],
-                "text": {"base": "Hello 2"},
+                "text": {"eng": "Hello 2"},
                 "status": "queued",
                 "created_on": format_datetime(bcast2.created_on),
             },
@@ -890,7 +890,7 @@ class EndpointsTest(TembaTest):
                 "urns": ["twitter:franky"],
                 "contacts": [{"uuid": self.joe.uuid, "name": self.joe.name}],
                 "groups": [{"uuid": reporters.uuid, "name": reporters.name}],
-                "text": {"base": "Hello 4"},
+                "text": {"eng": "Hello 4"},
                 "status": "failed",
                 "created_on": format_datetime(bcast4.created_on),
             },
@@ -936,7 +936,7 @@ class EndpointsTest(TembaTest):
         )
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
-        self.assertEqual({"base": "Hi @(format_urn(urns.tel))"}, broadcast.text)
+        self.assertEqual({"eng": "Hi @(format_urn(urns.tel))"}, broadcast.text)
         self.assertEqual(["twitter:franky"], broadcast.raw_urns)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
         self.assertEqual({reporters}, set(broadcast.groups.all()))
@@ -946,17 +946,17 @@ class EndpointsTest(TembaTest):
 
         # create new broadcast with translations
         response = self.postJSON(
-            url, None, {"text": {"base": "Hello", "fra": "Bonjour"}, "contacts": [self.joe.uuid, self.frank.uuid]}
+            url, None, {"text": {"eng": "Hello", "fra": "Bonjour"}, "contacts": [self.joe.uuid, self.frank.uuid]}
         )
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
-        self.assertEqual({"base": "Hello", "fra": "Bonjour"}, broadcast.text)
+        self.assertEqual({"eng": "Hello", "fra": "Bonjour"}, broadcast.text)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
 
         # create new broadcast with an expression
         response = self.postJSON(url, None, {"text": "You are @fields.age", "contacts": [self.joe.uuid]})
         broadcast = Broadcast.objects.get(id=response.json()["id"])
-        self.assertEqual({"base": "You are @fields.age"}, broadcast.text)
+        self.assertEqual({"eng": "You are @fields.age"}, broadcast.text)
 
         # try sending as a flagged org
         self.org.flag()
@@ -1282,7 +1282,7 @@ class EndpointsTest(TembaTest):
                     "unit": "days",
                     "delivery_hour": -1,
                     "flow": None,
-                    "message": {"base": "Don't forget to brush your teeth"},
+                    "message": {"eng": "Don't forget to brush your teeth"},
                     "created_on": format_datetime(event1.created_on),
                 },
             ],
@@ -1362,7 +1362,7 @@ class EndpointsTest(TembaTest):
         self.assertEqual(event1.offset, 15)
         self.assertEqual(event1.unit, "W")
         self.assertEqual(event1.delivery_hour, -1)
-        self.assertEqual(event1.message, {"base": "You are @fields.age"})
+        self.assertEqual(event1.message, {"eng": "You are @fields.age"})
         self.assertIsNotNone(event1.flow)
 
         # a message event with an empty message
@@ -1402,7 +1402,7 @@ class EndpointsTest(TembaTest):
         self.assertEqual(event1.offset, 15)
         self.assertEqual(event1.unit, "D")
         self.assertEqual(event1.delivery_hour, -1)
-        self.assertEqual(event1.message, {"base": "Nice unit of work @fields.code"})
+        self.assertEqual(event1.message, {"eng": "Nice unit of work @fields.code"})
         self.assertIsNotNone(event1.flow)
 
         # create a flow event
@@ -1471,14 +1471,14 @@ class EndpointsTest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": {"base": "OK @(format_urn(urns.tel))", "fra": "D'accord"},
+                "message": {"eng": "OK @(format_urn(urns.tel))", "fra": "D'accord"},
             },
         )
         self.assertEqual(response.status_code, 200)
 
         event2 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
-        self.assertEqual(event2.message, {"base": "OK @(format_urn(urns.tel))", "fra": "D'accord"})
+        self.assertEqual(event2.message, {"eng": "OK @(format_urn(urns.tel))", "fra": "D'accord"})
 
         # and update update it's message again
         response = self.postJSON(
@@ -1490,14 +1490,14 @@ class EndpointsTest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": {"base": "OK", "fra": "D'accord", "kin": "Sawa"},
+                "message": {"eng": "OK", "fra": "D'accord", "kin": "Sawa"},
             },
         )
         self.assertEqual(response.status_code, 200)
 
         event2 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
-        self.assertEqual(event2.message, {"base": "OK", "fra": "D'accord", "kin": "Sawa"})
+        self.assertEqual(event2.message, {"eng": "OK", "fra": "D'accord", "kin": "Sawa"})
 
         # try to change an existing event's campaign
         response = self.postJSON(
@@ -3567,8 +3567,8 @@ class EndpointsTest(TembaTest):
                 "uuid": str(self.org.uuid),
                 "name": "Nyaruka",
                 "country": "RW",
-                "languages": [],
-                "primary_language": None,
+                "languages": ["eng", "kin"],
+                "primary_language": "eng",
                 "timezone": "Africa/Kigali",
                 "date_style": "day_first",
                 "credits": {"used": -1, "remaining": -1},
@@ -3576,7 +3576,7 @@ class EndpointsTest(TembaTest):
             },
         )
 
-        self.org.set_flow_languages(self.admin, ["eng", "fra"])
+        self.org.set_flow_languages(self.admin, ["kin"])
 
         response = self.fetchJSON(url)
         self.assertEqual(
@@ -3585,8 +3585,8 @@ class EndpointsTest(TembaTest):
                 "uuid": str(self.org.uuid),
                 "name": "Nyaruka",
                 "country": "RW",
-                "languages": ["eng", "fra"],
-                "primary_language": "eng",
+                "languages": ["kin"],
+                "primary_language": "kin",
                 "timezone": "Africa/Kigali",
                 "date_style": "day_first",
                 "credits": {"used": -1, "remaining": -1},

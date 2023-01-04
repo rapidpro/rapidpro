@@ -95,11 +95,13 @@ class CRUDLTestMixin:
     ):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
-        def as_user(user, allowed):
+        def as_user(user, allowed, check_fields=True):
             if allowed:
-                checks = [StatusCode(status), FormFields(form_fields)]
-                if isinstance(form_fields, dict):
-                    checks.append(FormInitialValues(form_fields))
+                checks = [StatusCode(status)]
+                if check_fields:
+                    checks.append(FormFields(form_fields))
+                    if isinstance(form_fields, dict):
+                        checks.append(FormInitialValues(form_fields))
             else:
                 checks = [LoginRedirect()]
 
@@ -109,7 +111,7 @@ class CRUDLTestMixin:
         as_user(viewer, allowed=allow_viewers)
         as_user(editor, allowed=allow_editors)
         as_user(agent, allowed=allow_agents)
-        as_user(org2_admin, allowed=allow_org2)
+        as_user(org2_admin, allowed=allow_org2, check_fields=False)
         return as_user(admin, allowed=True)
 
     def assertCreateSubmit(self, url, data, *, form_errors=None, new_obj_query=None, success_status=302):

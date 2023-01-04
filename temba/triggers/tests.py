@@ -661,21 +661,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         trigger = Trigger.objects.get(keyword="join", flow=flow)
         self.assertEqual(trigger.flow.name, "Join Chat")
 
-        # the org has no language, so it should be a 'base' flow
-        self.assertEqual(flow.base_language, "base")
-
-        # try creating a join group on an org with a language
-        self.org.set_flow_languages(self.admin, ["spa"])
-
-        self.assertCreateSubmit(
-            create_url,
-            {"keyword": "join2", "action_join_group": group2.id, "response": "Thanks for joining", "flow": flow1.id},
-            new_obj_query=Trigger.objects.filter(keyword="join2", flow__name="Join Testers"),
-            success_status=200,
-        )
-
-        flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE, name="Join Testers")
-        self.assertEqual(flow.base_language, "spa")
+        self.assertEqual(flow.base_language, "eng")
 
     def test_create_register_no_response_or_flow(self):
         create_url = reverse("triggers.trigger_create_register")
