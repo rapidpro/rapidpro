@@ -1,9 +1,9 @@
-# RapidPro 
+# TextIt
 
 [![Build Status](https://github.com/nyaruka/rapidpro/workflows/CI/badge.svg)](https://github.com/nyaruka/rapidpro/actions?query=workflow%3ACI) 
 [![codecov](https://codecov.io/gh/nyaruka/rapidpro/branch/main/graph/badge.svg)](https://codecov.io/gh/nyaruka/rapidpro)
 
-RapidPro is a hosted service for visually building interactive messaging applications.
+TextIt is a hosted service for visually building interactive messaging applications.
 To learn more, please visit the project site at http://rapidpro.github.io/rapidpro.
 
 ### Stable Versions
