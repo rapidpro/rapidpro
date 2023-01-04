@@ -44,6 +44,7 @@ from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     CRUDLTestMixin,
     ESMockWithScroll,
+    MigrationTest,
     MockResponse,
     TembaNonAtomicTest,
     TembaTest,
@@ -56,7 +57,7 @@ from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
-from temba.utils import json, languages
+from temba.utils import brands, json, languages
 
 from .context_processors import RolePermsWrapper
 from .models import BackupToken, Invitation, Org, OrgMembership, OrgRole, User
@@ -1092,6 +1093,24 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
 
 class OrgTest(TembaTest):
+    def test_create(self):
+        new_org = Org.create(self.admin, brands.get_by_slug("rapidpro"), "Cool Stuff", pytz.timezone("Africa/Kigali"))
+        self.assertEqual("Cool Stuff", new_org.name)
+        self.assertEqual("rapidpro", new_org.brand)
+        self.assertEqual(self.admin, new_org.created_by)
+        self.assertEqual("en-us", new_org.language)
+        self.assertEqual(["eng"], new_org.flow_languages)
+        self.assertEqual("D", new_org.date_format)
+        self.assertEqual(str(new_org.timezone), "Africa/Kigali")
+        self.assertIn(self.admin, self.org.get_admins())
+
+        # if timezone is US, should get MMDDYYYY dates
+        new_org = Org.create(
+            self.admin, brands.get_by_slug("rapidpro"), "Cool Stuff", pytz.timezone("America/Los_Angeles")
+        )
+        self.assertEqual("M", new_org.date_format)
+        self.assertEqual(str(new_org.timezone), "America/Los_Angeles")
+
     def test_get_users(self):
         admin3 = self.create_user("bob@nyaruka.com")
 
@@ -3177,7 +3196,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
         ]
     )
-    def test_org_signup(self):
+    def test_signup(self):
         signup_url = reverse("orgs.org_signup")
 
         response = self.client.get(signup_url + "?%s" % urlencode({"email": "address@example.com"}))
@@ -3199,41 +3218,62 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response, "form", "timezone", "This field is required.")
 
         # submit with invalid password and email
-        post_data = dict(
-            first_name="Eugene",
-            last_name="Rwagasore",
-            email="bad_email",
-            password="badpass",
-            name="Your Face",
-            timezone="Africa/Kigali",
+        response = self.client.post(
+            signup_url,
+            {
+                "first_name": "Eugene",
+                "last_name": "Rwagasore",
+                "email": "bad_email",
+                "password": "badpass",
+                "name": "Your Face",
+                "timezone": "Africa/Kigali",
+            },
         )
-        response = self.client.post(signup_url, post_data)
         self.assertFormError(response, "form", "email", "Enter a valid email address.")
         self.assertFormError(
             response, "form", "password", "This password is too short. It must contain at least 8 characters."
         )
 
         # submit with password that is too common
-        post_data["email"] = "eugene@temba.io"
-        post_data["password"] = "password"
-        response = self.client.post(signup_url, post_data)
+        response = self.client.post(
+            signup_url,
+            {
+                "first_name": "Eugene",
+                "last_name": "Rwagasore",
+                "email": "eugene@temba.io",
+                "password": "password",
+                "name": "Your Face",
+                "timezone": "Africa/Kigali",
+            },
+        )
         self.assertFormError(response, "form", "password", "This password is too common.")
 
         # submit with password that is all numerical
-        post_data["password"] = "3464357358532"
-        response = self.client.post(signup_url, post_data)
+        response = self.client.post(
+            signup_url,
+            {
+                "first_name": "Eugene",
+                "last_name": "Rwagasore",
+                "email": "eugene@temba.io",
+                "password": "3464357358532",
+                "name": "Your Face",
+                "timezone": "Africa/Kigali",
+            },
+        )
         self.assertFormError(response, "form", "password", "This password is entirely numeric.")
 
         # submit with valid data (long email)
-        post_data = dict(
-            first_name="Eugene",
-            last_name="Rwagasore",
-            email="myal12345678901234567890@relieves.org",
-            password="HelloWorld1",
-            name="Relieves World",
-            timezone="Africa/Kigali",
+        response = self.client.post(
+            signup_url,
+            {
+                "first_name": "Eugene",
+                "last_name": "Rwagasore",
+                "email": "myal12345678901234567890@relieves.org",
+                "password": "HelloWorld1",
+                "name": "Relieves World",
+                "timezone": "Africa/Kigali",
+            },
         )
-        response = self.client.post(signup_url, post_data)
         self.assertEqual(response.status_code, 302)
 
         # should have a new user
@@ -3277,9 +3317,19 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, reverse("channels.channel_list"))
         self.assertContains(response, reverse("orgs.org_home"))
 
-        post_data["name"] = "Relieves World Rwanda"
-        response = self.client.post(signup_url, post_data)
-        self.assertIn("email", response.context["form"].errors)
+        # can't signup again with same email
+        response = self.client.post(
+            signup_url,
+            {
+                "first_name": "Eugene",
+                "last_name": "Rwagasore",
+                "email": "myal12345678901234567890@relieves.org",
+                "password": "HelloWorld1",
+                "name": "Relieves World 2",
+                "timezone": "Africa/Kigali",
+            },
+        )
+        self.assertFormError(response, "form", "email", "That email address is already used")
 
         # if we hit /login we'll be taken back to the channel page
         response = self.client.get(reverse("users.user_check_login"))
@@ -4765,3 +4815,34 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
+
+
+class DefaultFlowLanguagesTest(MigrationTest):
+    app = "orgs"
+    migrate_from = "0115_alter_org_plan"
+    migrate_to = "0116_default_flow_languages"
+
+    def setUpBeforeMigration(self, apps):
+        self.org3 = Org.objects.create(
+            name="Foo",
+            timezone="Africa/Kigali",
+            brand="rapidpro",
+            created_by=self.admin,
+            modified_by=self.admin,
+            flow_languages=[],
+        )
+        self.org4 = Org.objects.create(
+            name="Foo",
+            timezone="Africa/Kigali",
+            brand="rapidpro",
+            created_by=self.admin,
+            modified_by=self.admin,
+            flow_languages=["kin"],
+        )
+
+    def test_migration(self):
+        self.org3.refresh_from_db()
+        self.org4.refresh_from_db()
+
+        self.assertEqual(["eng"], self.org3.flow_languages)
+        self.assertEqual(["kin"], self.org4.flow_languages)  # unchanged

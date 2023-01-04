@@ -8,6 +8,7 @@ from urllib.parse import quote, urlencode, urlparse
 
 import pycountry
 import pyotp
+import pytz
 from packaging.version import Version
 from smartmin.models import SmartModel
 from timezone_field import TimeZoneField
@@ -16,6 +17,7 @@ from twilio.rest import Client as TwilioClient
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User as AuthUser
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.validators import ArrayMinLengthValidator
 from django.db import models, transaction
 from django.db.models import Prefetch
 from django.utils import timezone
@@ -135,6 +137,17 @@ class User(AuthUser):
             obj.settings.language = language
             obj.settings.save(update_fields=("language",))
         return obj
+
+    @classmethod
+    def get_or_create(cls, email: str, first_name: str, last_name: str, password: str, language: str = None):
+        obj = cls.objects.filter(username__iexact=email).first()
+        if obj:
+            obj.first_name = first_name
+            obj.last_name = last_name
+            obj.save(update_fields=("first_name", "last_name"))
+            return obj
+
+        return cls.create(email, first_name, last_name, password=password, language=language)
 
     @property
     def name(self) -> str:
@@ -485,7 +498,7 @@ class Org(SmartModel):
     is_flagged = models.BooleanField(default=False, help_text=_("Whether this organization is currently flagged."))
     is_suspended = models.BooleanField(default=False, help_text=_("Whether this organization is currently suspended."))
 
-    flow_languages = ArrayField(models.CharField(max_length=3), default=list)
+    flow_languages = ArrayField(models.CharField(max_length=3), default=list, validators=[ArrayMinLengthValidator(1)])
 
     surveyor_password = models.CharField(
         null=True, max_length=128, default=None, help_text=_("A password that allows users to register as surveyors")
@@ -517,7 +530,36 @@ class Org(SmartModel):
 
             return unique_slug
 
-    def create_new(self, user, name: str, timezone, *, as_child: bool):
+    @classmethod
+    def create(cls, user, branding, name: str, tz):
+        """
+        Creates a new workspace.
+        """
+
+        mdy_tzs = pytz.country_timezones("US")
+        date_format = Org.DATE_FORMAT_MONTH_FIRST if str(tz) in mdy_tzs else cls.DATE_FORMAT_DAY_FIRST
+
+        # use default user language as default flow language too
+        default_flow_language = languages.alpha2_to_alpha3(settings.DEFAULT_LANGUAGE)
+        flow_languages = [default_flow_language] if default_flow_language else ["eng"]
+
+        org = Org.objects.create(
+            name=name,
+            timezone=tz,
+            date_format=date_format,
+            language=settings.DEFAULT_LANGUAGE,
+            flow_languages=flow_languages,
+            brand=branding["slug"],
+            slug=cls.get_unique_slug(name),
+            created_by=user,
+            modified_by=user,
+        )
+
+        org.add_user(user, OrgRole.ADMINISTRATOR)
+        org.initialize()
+        return org
+
+    def create_new(self, user, name: str, tz, *, as_child: bool):
         """
         Creates a new workspace copying settings from this workspace.
         """
@@ -530,7 +572,7 @@ class Org(SmartModel):
 
         org = Org.objects.create(
             name=name,
-            timezone=timezone,
+            timezone=tz,
             date_format=self.date_format,
             language=self.language,
             flow_languages=self.flow_languages,
