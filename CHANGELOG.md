@@ -1,3 +1,8 @@
+v7.5.145 (2023-01-04)
+-------------------------
+ * Update flow editor to include fix for no expiration route on ivr
+ * Stop defaulting to base for new flow languages
+
 v7.5.144 (2023-01-04)
 -------------------------
  * Ensure all orgs have at least one flow language
