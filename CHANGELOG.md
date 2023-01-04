@@ -1,3 +1,8 @@
+v7.5.144 (2023-01-04)
+-------------------------
+ * Ensure all orgs have at least one flow language
+ * Switch to using temba-date in more places
+
 v7.5.143 (2023-01-02)
 -------------------------
  * Update mailroom version for CI
