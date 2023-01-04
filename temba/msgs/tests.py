@@ -1867,6 +1867,8 @@ class BroadcastTest(TembaTest):
             schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
         )
 
+        self.org.set_flow_languages(self.admin, ["kin"])
+
         # test resolving the broadcast text in different languages (used to render scheduled ones)
         self.assertEqual("Hello everyone", broadcast.get_text(self.joe))  # uses broadcast base language
 
