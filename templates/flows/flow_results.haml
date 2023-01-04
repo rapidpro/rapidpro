@@ -582,7 +582,7 @@
 
   %temba-tabs.flex-grow(-temba-context-changed="handleTabChanged")
     %temba-tab(name='{{_("Overview")|escapejs}}')
-      #overview.active.py-4.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
+      #overview.active.p-4.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
         .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
           %i.fa.fa-spinner.fa-spin.fa-2x
 
