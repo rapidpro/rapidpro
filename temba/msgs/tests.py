@@ -458,10 +458,8 @@ class MsgTest(TembaTest):
                 self.admin,
                 "If a broadcast is sent and nobody receives it, does it still send?",
                 contacts=[contact1],
-                quick_replies=[dict(eng="Yes"), dict(eng="No")],
+                quick_replies=[dict(spa="Si"), dict(spa="No")],
             )
-
-        self.org.set_flow_languages(self.admin, ["eng", "fra"])
 
         broadcast = Broadcast.create(
             self.org,
@@ -469,13 +467,13 @@ class MsgTest(TembaTest):
             "If a broadcast is sent and nobody receives it, does it still send?",
             contacts=[contact1, contact2],
             send_all=True,
-            quick_replies=[dict(eng="Yes", fra="Oui"), dict(eng="No")],
+            quick_replies=[dict(eng="Yes", kin="Yego"), dict(eng="No")],
         )
 
         # check metadata was set on the broadcast
         self.assertEqual(
             broadcast.metadata,
-            {"quick_replies": [{"eng": "Yes", "fra": "Oui"}, {"eng": "No"}], "template_state": "legacy"},
+            {"quick_replies": [{"eng": "Yes", "kin": "Yego"}, {"eng": "No"}], "template_state": "legacy"},
         )
 
     @patch("temba.utils.email.send_temba_email")
@@ -1869,6 +1867,8 @@ class BroadcastTest(TembaTest):
             schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
         )
 
+        self.org.set_flow_languages(self.admin, ["kin"])
+
         # test resolving the broadcast text in different languages (used to render scheduled ones)
         self.assertEqual("Hello everyone", broadcast.get_text(self.joe))  # uses broadcast base language
 
@@ -1997,7 +1997,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(200, response.status_code)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual({"base": "Hey Joe, where you goin?"}, broadcast.text)
+        self.assertEqual({"eng": "Hey Joe, where you goin?"}, broadcast.text)
         self.assertEqual({self.joe_and_frank}, set(broadcast.groups.all()))
         self.assertEqual({self.frank}, set(broadcast.contacts.all()))
         self.assertEqual(["tel:+12025550149", "tel:0780000001"], broadcast.raw_urns)
@@ -2059,7 +2059,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("hide", response["Temba-Success"])
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, {"base": "Hurry up"})
+        self.assertEqual(broadcast.text, {"eng": "Hurry up"})
         self.assertEqual(broadcast.groups.count(), 0)
         self.assertEqual({self.joe}, set(broadcast.contacts.all()))
 
@@ -2142,7 +2142,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
                 "repeat_days_of_week": ["M", "F"],
             },
             new_obj_query=Broadcast.objects.filter(
-                text={"base": "Daily reminder"}, schedule__repeat_period="W", schedule__repeat_days_of_week="MF"
+                text={"eng": "Daily reminder"}, schedule__repeat_period="W", schedule__repeat_days_of_week="MF"
             ),
             success_status=200,
         )
@@ -2203,8 +2203,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(response.status_code, 302)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, {"base": "Dinner reminder"})
-        self.assertEqual(broadcast.base_language, "base")
+        self.assertEqual(broadcast.text, {"eng": "Dinner reminder"})
+        self.assertEqual(broadcast.base_language, "eng")
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
 
     def test_scheduled_delete(self):

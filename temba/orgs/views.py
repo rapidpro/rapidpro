@@ -3600,22 +3600,15 @@ class OrgCRUDL(SmartCRUDL):
 
             non_primary_langs = org.flow_languages[1:] if len(org.flow_languages) > 1 else []
             initial["other_langs"] = [lang_json(ln) for ln in non_primary_langs]
-
-            if org.flow_languages:
-                initial["primary_lang"] = [lang_json(org.flow_languages[0])]
-
+            initial["primary_lang"] = [lang_json(org.flow_languages[0])]
             return initial
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org = self.get_object()
 
-            if org.flow_languages:
-                primary_lang = languages.get_name(org.flow_languages[0])
-                other_langs = sorted([languages.get_name(code) for code in org.flow_languages[1:]])
-            else:
-                primary_lang = None
-                other_langs = []
+            primary_lang = languages.get_name(org.flow_languages[0])
+            other_langs = sorted([languages.get_name(code) for code in org.flow_languages[1:]])
 
             context["primary_lang"] = primary_lang
             context["other_langs"] = other_langs

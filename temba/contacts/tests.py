@@ -48,6 +48,7 @@ from temba.tickets.models import Ticket, TicketCount, Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_str, datetime_to_timestamp
+from temba.utils.templatetags.temba import datetime as datetime_tag, duration
 
 from .models import (
     URN,
@@ -2657,6 +2658,15 @@ class ContactTest(TembaTest):
         self.assertEqual(history_icon(item), '<span class="glyph icon-cash"></span>')
         self.assertEqual(history_class(item), "non-msg detail-event")
 
+    def test_date_tags(self):
+        next_year = datetime.now() + timedelta(days=365)
+        self.assertEqual(
+            duration(next_year), f"<temba-date value='{next_year.isoformat()}' display='duration'></temba-date>"
+        )
+        self.assertEqual(
+            datetime_tag(next_year), f"<temba-date value='{next_year.isoformat()}' display='datetime'></temba-date>"
+        )
+
     def test_get_scheduled_messages(self):
         self.just_joe = self.create_group("Just Joe", [self.joe])
 
@@ -3124,7 +3134,7 @@ class ContactTest(TembaTest):
 
         self.assertEqual(
             list(response.context["form"].fields.keys()),
-            ["name", "status", "groups", "urn__twitter__0", "urn__tel__1", "loc"],
+            ["name", "status", "language", "groups", "urn__twitter__0", "urn__tel__1", "loc"],
         )
         self.assertEqual(response.context["form"].initial["name"], "Joe Blow")
         self.assertEqual(response.context["form"].fields["urn__tel__1"].initial, "+250781111111")
@@ -3403,7 +3413,7 @@ class ContactTest(TembaTest):
         response = self.client.post(
             reverse("contacts.contact_update", args=[self.joe.id]),
             dict(
-                language="fra",
+                language="eng",
                 name="Muller Awesome",
                 urn__tel__0="+250781111111",
                 urn__twitter__1="blow80",
@@ -3910,8 +3920,18 @@ class ContactFieldTest(TembaTest):
         self.assertEqual("New Key", field7.name)  # generated
 
     def test_contact_templatetag(self):
+        ContactField.get_or_create(
+            self.org, self.admin, "date_joined", name="join date", value_type=ContactField.TYPE_DATETIME
+        )
+
         self.set_contact_field(self.joe, "first", "Starter")
+        self.set_contact_field(self.joe, "date_joined", "01-01-2022 8:30")
+
         self.assertEqual(contact_field(self.joe, "first"), "Starter")
+        self.assertEqual(
+            contact_field(self.joe, "date_joined"),
+            "<temba-date value='2022-01-01T08:30:00+02:00' display='date'></temba-date>",
+        )
         self.assertEqual(contact_field(self.joe, "not_there"), "--")
 
     def test_make_key(self):
@@ -5277,6 +5297,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
             timezone=pytz.timezone("Africa/Kigali"),
             country=self.country,
             brand=settings.DEFAULT_BRAND,
+            flow_languages=["eng"],
             created_by=self.admin,
             modified_by=self.admin,
         )

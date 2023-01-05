@@ -51,10 +51,10 @@
                       {% attachment_button attachment %}
 
               %td
-                .flex.w-full.items-end.justify-end.pr-4
+                .flex.w-full.items-center.justify-end.pr-4
                   .time.whitespace-nowrap
                     -block message_time
-                      {% short_datetime object.created_on %}
+                      %temba-date(value="{{object.created_on.isoformat}}" display="timedate")
 
                   {% channel_log_link object %}
 

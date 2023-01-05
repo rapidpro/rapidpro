@@ -1,3 +1,18 @@
+v7.5.145 (2023-01-04)
+-------------------------
+ * Update flow editor to include fix for no expiration route on ivr
+ * Stop defaulting to base for new flow languages
+
+v7.5.144 (2023-01-04)
+-------------------------
+ * Ensure all orgs have at least one flow language
+ * Switch to using temba-date in more places
+
+v7.5.143 (2023-01-02)
+-------------------------
+ * Update mailroom version for CI
+ * Tidy up org creation (signups and grants)
+
 v7.5.142 (2022-12-16)
 -------------------------
  * Fix org listing when org has no users left

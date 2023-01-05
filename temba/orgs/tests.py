@@ -44,6 +44,7 @@ from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     CRUDLTestMixin,
     ESMockWithScroll,
+    MigrationTest,
     MockResponse,
     TembaNonAtomicTest,
     TembaTest,
@@ -742,6 +743,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             timezone=pytz.timezone("Africa/Kigali"),
             country=self.country,
             brand=settings.DEFAULT_BRAND,
+            flow_languages=["eng"],
             created_by=self.user,
             modified_by=self.user,
         )
@@ -1163,8 +1165,6 @@ class OrgTest(TembaTest):
         self.assertEqual(Org.get_unique_slug("Allo"), "allo-2")
 
     def test_set_flow_languages(self):
-        self.assertEqual([], self.org.flow_languages)
-
         self.org.set_flow_languages(self.admin, ["eng", "fra"])
         self.org.refresh_from_db()
         self.assertEqual(["eng", "fra"], self.org.flow_languages)
@@ -3973,11 +3973,11 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         home_url = reverse("orgs.org_home")
         langs_url = reverse("orgs.org_languages")
 
-        self.org.set_flow_languages(self.admin, [])
+        self.org.set_flow_languages(self.admin, ["eng"])
 
-        # check summary on home page
         response = self.requestView(home_url, self.admin)
-        self.assertContains(response, "Your workspace is configured to use a single language.")
+        self.assertEqual("English", response.context["primary_lang"])
+        self.assertEqual([], response.context["other_langs"])
 
         self.assertUpdateFetch(
             langs_url,
@@ -4620,7 +4620,7 @@ class BulkExportTest(TembaTest):
         message_flow = (
             Flow.objects.filter(flow_type="B", is_system=True, campaign_events__offset=-1).order_by("id").first()
         )
-        message_flow.update_single_message_flow(self.admin, {"base": "No reminders for you!"}, base_language="base")
+        message_flow.update_single_message_flow(self.admin, {"eng": "No reminders for you!"}, base_language="eng")
 
         # now reimport
         self.import_file("the_clinic")
@@ -4817,3 +4817,34 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
+
+
+class DefaultFlowLanguagesTest(MigrationTest):
+    app = "orgs"
+    migrate_from = "0115_alter_org_plan"
+    migrate_to = "0116_default_flow_languages"
+
+    def setUpBeforeMigration(self, apps):
+        self.org3 = Org.objects.create(
+            name="Foo",
+            timezone="Africa/Kigali",
+            brand="rapidpro",
+            created_by=self.admin,
+            modified_by=self.admin,
+            flow_languages=[],
+        )
+        self.org4 = Org.objects.create(
+            name="Foo",
+            timezone="Africa/Kigali",
+            brand="rapidpro",
+            created_by=self.admin,
+            modified_by=self.admin,
+            flow_languages=["kin"],
+        )
+
+    def test_migration(self):
+        self.org3.refresh_from_db()
+        self.org4.refresh_from_db()
+
+        self.assertEqual(["eng"], self.org3.flow_languages)
+        self.assertEqual(["kin"], self.org4.flow_languages)  # unchanged

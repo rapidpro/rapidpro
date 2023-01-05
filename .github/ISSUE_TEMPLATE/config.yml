@@ -1,0 +1,9 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: Feature Requests
+    url: https://github.com/nyaruka/rapidpro/discussions/categories/ideas
+    about: Suggest a new feature to discuss before beginning development
+  - name: Questions
+    url: https://github.com/nyaruka/rapidpro/discussions/categories/q-a
+    about: Ask general questions about RapidPro

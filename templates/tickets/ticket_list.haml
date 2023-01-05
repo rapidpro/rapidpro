@@ -101,10 +101,12 @@
         focusNext = null;
         if (folder !== selection) {
           // whenever our menu changes, reset filter
-          statusSelect.setValue("open");
-          status = "open";
-          folder = selection;
-          updateTicketList();
+          if (statusSelect) {
+            statusSelect.setValue("open");
+            status = "open";
+            folder = selection;
+            updateTicketList();
+          }
         }                    
       }     
 
@@ -264,8 +266,7 @@
       } else {
         tickets.refresh();
       }
-
-      // menu.refresh();
+      menu.refresh();
     }
 
 -block page-container

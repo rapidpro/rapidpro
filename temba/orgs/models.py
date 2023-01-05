@@ -17,6 +17,7 @@ from twilio.rest import Client as TwilioClient
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User as AuthUser
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.validators import ArrayMinLengthValidator
 from django.db import models, transaction
 from django.db.models import Prefetch
 from django.utils import timezone
@@ -497,7 +498,7 @@ class Org(SmartModel):
     is_flagged = models.BooleanField(default=False, help_text=_("Whether this organization is currently flagged."))
     is_suspended = models.BooleanField(default=False, help_text=_("Whether this organization is currently suspended."))
 
-    flow_languages = ArrayField(models.CharField(max_length=3), default=list)
+    flow_languages = ArrayField(models.CharField(max_length=3), default=list, validators=[ArrayMinLengthValidator(1)])
 
     surveyor_password = models.CharField(
         null=True, max_length=128, default=None, help_text=_("A password that allows users to register as surveyors")
@@ -998,11 +999,12 @@ class Org(SmartModel):
 
         return None
 
-    def set_flow_languages(self, user, codes):
+    def set_flow_languages(self, user, codes: list):
         """
         Sets languages used in flows for this org, creating and deleting language objects as necessary
         """
 
+        assert len(codes), "must specify at least one language"
         assert all([languages.get_name(c) for c in codes]), "not a valid or allowed language"
         assert len(set(codes)) == len(codes), "language code list contains duplicates"
 
@@ -1406,7 +1408,6 @@ class Org(SmartModel):
             "date_format": Org.DATE_FORMATS_ENGINE.get(self.date_format),
             "time_format": "tt:mm",
             "timezone": str(self.timezone),
-            "default_language": self.flow_languages[0] if self.flow_languages else None,
             "allowed_languages": self.flow_languages,
             "default_country": self.default_country_code,
             "redaction_policy": "urns" if self.is_anon else "none",

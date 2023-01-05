@@ -418,7 +418,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 self.fields["base_language"] = forms.ChoiceField(
                     label=_("Language"),
-                    initial=org.flow_languages[0] if org.flow_languages else None,
+                    initial=org.flow_languages[0],
                     choices=language_choices,
                     widget=SelectWidget(attrs={"widget_only": False}),
                 )
