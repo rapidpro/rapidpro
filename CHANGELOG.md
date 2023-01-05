@@ -1,3 +1,11 @@
+v7.5.146 (2023-01-05)
+-------------------------
+ * Cleanup migrate_flows command and stop excluding flows with version 11.12
+ * Change sample flows language to eng
+ * Refresh menu when tickets are updated
+ * Fix frame-top analytics includes
+ * Fix transparency issue with content menu on editor page
+
 v7.5.145 (2023-01-04)
 -------------------------
  * Update flow editor to include fix for no expiration route on ivr
