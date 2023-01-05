@@ -1,12 +1,11 @@
 -load public
 
-%temba-content-menu(endpoint="{{request.path}}" legacy="{{is_legacy}}" query="{{has_search_query}}" -temba-selection="handleContentMenuSelected(event)")
+%temba-content-menu(endpoint="{{request.path}}?{{request.GET.urlencode}}" legacy="{{is_legacy}}" query="{{has_search_query}}" -temba-selection="handleContentMenuSelected(event)")
 
 :javascript
 
   function handleContentMenuSelected(event) {
-    //handles when items are clicked in the top right hamburger menu
-
+    // handles when items are clicked in the top right hamburger menu
     var item = event.detail;
     
     if (item.type === 'link') {
@@ -42,12 +41,11 @@
         });
     }
 
-    //handles when items need to be refreshed in the top left sidebar menu
+    // items need to be refreshed in the top left sidebar menu
     refreshMenu();
   }
 
-  // content menu (top right hamburger menu) link helpers
-
+  // TODO: Remove with legacy ui
   function gotoURL_legacy(event) {
     event.stopPropagation();
     event.preventDefault();
@@ -64,8 +62,6 @@
     }
   }
 
-  //todo - remove duplicate fn once old and new ui content menu transition is finished
-  //todo - this fn originally lives in spa_frame.haml
   function gotoURL(urlToGo, urlToShow, ignoreEvents, ignoreHistory) {
     var refererPath = window.location.pathname;
     window.lastFetch = urlToGo;
@@ -83,10 +79,6 @@
     });
   }
 
-  // content menu (top right hamburger menu) modax helpers
-
-  //todo - remove duplicate fn once old and new ui content menu transition is finished
-  //todo - this fn originally lives in gear_links_include.haml
   function showModax(header, endpoint, modaxOptions) {
     var modax = document.querySelector("temba-modax#shared-modax");
     modax["-temba-loaded"] = undefined;
@@ -109,27 +101,9 @@
     modax.open = true;
   }
 
-  // menu (top left sidebar) helpers
-
-  //todo - remove duplicate fn once old and new ui content menu transition is finished
-  //todo - this fn originally lives in spa_frame.haml
   function refreshMenu() {
     var menu = document.querySelector("temba-menu");
     if (menu) {
       menu.refresh();
     }
-  }
-
-  // search form helpers
-
-  $(function(){
-    var searchForm = document.querySelector("#search-form :has(temba-textinput[name='search'])");
-    searchForm.addEventListener('submit', handleSearchSubmitted);
-  });
-
-  function handleSearchSubmitted(event){
-    var contentMenu = document.querySelector("temba-content-menu");
-    var formData = new FormData(event.target);
-    let search = new URLSearchParams(formData).toString();
-    contentMenu.query = search;
   }
