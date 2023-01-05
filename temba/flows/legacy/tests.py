@@ -1046,7 +1046,7 @@ class FlowMigrationTest(TembaTest):
 
         # make sure it is localized
         poll = self.org.flows.filter(name="Sample Flow - Simple Poll").first()
-        self.assertEqual("base", poll.base_language)
+        self.assertEqual("eng", poll.base_language)
 
         # check substitutions
         order_checker = self.org.flows.filter(name="Sample Flow - Order Status Checker").first()
