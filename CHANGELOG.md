@@ -1,3 +1,21 @@
+v7.5.146 (2023-01-05)
+-------------------------
+ * Cleanup migrate_flows command and stop excluding flows with version 11.12
+ * Change sample flows language to eng
+ * Refresh menu when tickets are updated
+ * Fix frame-top analytics includes
+ * Fix transparency issue with content menu on editor page
+
+v7.5.145 (2023-01-04)
+-------------------------
+ * Update flow editor to include fix for no expiration route on ivr
+ * Stop defaulting to base for new flow languages
+
+v7.5.144 (2023-01-04)
+-------------------------
+ * Ensure all orgs have at least one flow language
+ * Switch to using temba-date in more places
+
 v7.5.143 (2023-01-02)
 -------------------------
  * Update mailroom version for CI

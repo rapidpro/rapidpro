@@ -1617,11 +1617,12 @@ class WorkspaceReadSerializer(ReadSerializer):
 
     country = serializers.SerializerMethodField()
     languages = serializers.SerializerMethodField()
-    primary_language = serializers.SerializerMethodField()
     timezone = serializers.SerializerMethodField()
     date_style = serializers.SerializerMethodField()
-    credits = serializers.SerializerMethodField()
     anon = serializers.SerializerMethodField()
+
+    credits = serializers.SerializerMethodField()  # deprecated
+    primary_language = serializers.SerializerMethodField()  # deprecated
 
     def get_country(self, obj):
         return obj.default_country_code
@@ -1629,20 +1630,20 @@ class WorkspaceReadSerializer(ReadSerializer):
     def get_languages(self, obj):
         return obj.flow_languages
 
-    def get_primary_language(self, obj):
-        return obj.flow_languages[0] if obj.flow_languages else None
-
     def get_timezone(self, obj):
         return str(obj.timezone)
 
     def get_date_style(self, obj):
         return self.DATE_STYLES.get(obj.date_format)
 
+    def get_anon(self, obj):
+        return obj.is_anon
+
     def get_credits(self, obj):
         return {"used": -1, "remaining": -1}  # for backwards compatibility
 
-    def get_anon(self, obj):
-        return obj.is_anon
+    def get_primary_language(self, obj):
+        return obj.flow_languages[0]
 
     class Meta:
         model = Org
@@ -1651,9 +1652,9 @@ class WorkspaceReadSerializer(ReadSerializer):
             "name",
             "country",
             "languages",
-            "primary_language",
             "timezone",
             "date_style",
-            "credits",
             "anon",
+            "credits",
+            "primary_language",
         )

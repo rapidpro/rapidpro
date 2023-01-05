@@ -999,11 +999,12 @@ class Org(SmartModel):
 
         return None
 
-    def set_flow_languages(self, user, codes):
+    def set_flow_languages(self, user, codes: list):
         """
         Sets languages used in flows for this org, creating and deleting language objects as necessary
         """
 
+        assert len(codes), "must specify at least one language"
         assert all([languages.get_name(c) for c in codes]), "not a valid or allowed language"
         assert len(set(codes)) == len(codes), "language code list contains duplicates"
 
@@ -1407,7 +1408,6 @@ class Org(SmartModel):
             "date_format": Org.DATE_FORMATS_ENGINE.get(self.date_format),
             "time_format": "tt:mm",
             "timezone": str(self.timezone),
-            "default_language": self.flow_languages[0] if self.flow_languages else None,
             "allowed_languages": self.flow_languages,
             "default_country": self.default_country_code,
             "redaction_policy": "urns" if self.is_anon else "none",

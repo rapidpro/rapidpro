@@ -327,7 +327,9 @@ class FlowTest(TembaTest, CRUDLTestMixin):
 
     def test_save_revision(self):
         self.login(self.admin)
-        self.client.post(reverse("flows.flow_create"), {"name": "Go Flow", "flow_type": Flow.TYPE_MESSAGE})
+        self.client.post(
+            reverse("flows.flow_create"), {"name": "Go Flow", "flow_type": Flow.TYPE_MESSAGE, "base_language": "eng"}
+        )
         flow = Flow.objects.get(
             org=self.org, name="Go Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.CURRENT_SPEC_VERSION
         )
@@ -1760,14 +1762,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         create_url = reverse("flows.flow_create")
         self.create_flow("Registration")
 
-        # don't show language if workspace doesn't have languages configured
-        self.assertCreateFetch(
-            create_url, allow_viewers=False, allow_editors=True, form_fields=["name", "keyword_triggers", "flow_type"]
-        )
-
-        self.org.set_flow_languages(self.admin, ["eng", "spa"])
-        self.org2.set_flow_languages(self.admin, ["eng"])
-
         response = self.assertCreateFetch(
             create_url,
             allow_viewers=False,
@@ -1833,6 +1827,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             {
                 "name": "Flow #1",
+                "base_language": "eng",
                 "keyword_triggers": ["toooooooooooooolong", "test"],
                 "flow_type": Flow.TYPE_MESSAGE,
             },
@@ -1846,6 +1841,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             {
                 "name": "Flow 1",
+                "base_language": "eng",
                 "keyword_triggers": ["testing", "test"],
                 "flow_type": Flow.TYPE_MESSAGE,
             },
@@ -1861,6 +1857,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             {
                 "name": "Flow 2",
+                "base_language": "eng",
                 "keyword_triggers": ["test"],
                 "flow_type": Flow.TYPE_MESSAGE,
             },
@@ -1876,6 +1873,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             {
                 "name": "Flow 2",
+                "base_language": "eng",
                 "keyword_triggers": ["test"],
                 "flow_type": Flow.TYPE_MESSAGE,
             },
@@ -1887,11 +1885,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({"test"}, set(flow2.triggers.values_list("keyword", flat=True)))
 
     def test_views(self):
+        create_url = reverse("flows.flow_create")
+
         contact = self.create_contact("Eric", phone="+250788382382")
         flow = self.get_flow("color")
 
         # create a flow for another org
-        other_flow = Flow.create(self.org2, self.admin2, "Flow2", base_language="base")
+        other_flow = Flow.create(self.org2, self.admin2, "Flow2")
 
         # no login, no list
         response = self.client.get(reverse("flows.flow_list"))
@@ -1923,11 +1923,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(302, response.status_code)
 
         # get our create page
-        response = self.client.get(reverse("flows.flow_create"))
+        response = self.client.get(create_url)
         self.assertTrue(response.context["has_flows"])
 
         # create a new regular flow
-        response = self.client.post(reverse("flows.flow_create"), {"name": "Flow 1", "flow_type": Flow.TYPE_MESSAGE})
+        response = self.client.post(
+            create_url, {"name": "Flow 1", "flow_type": Flow.TYPE_MESSAGE, "base_language": "eng"}
+        )
         self.assertEqual(302, response.status_code)
 
         # check we've been redirected to the editor and we have a revision
@@ -1943,9 +1945,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # create a new surveyor flow
-        self.client.post(
-            reverse("flows.flow_create"), dict(name="Surveyor Flow", flow_type=Flow.TYPE_SURVEY), follow=True
-        )
+        self.client.post(create_url, {"name": "Surveyor Flow", "flow_type": Flow.TYPE_SURVEY, "base_language": "eng"})
         flow2 = Flow.objects.get(org=self.org, name="Surveyor Flow")
         self.assertEqual(flow2.flow_type, "S")
         self.assertEqual(flow2.expires_after_minutes, 0)
@@ -1970,10 +1970,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create a new voice flow
         response = self.client.post(
-            reverse("flows.flow_create"), dict(name="Voice Flow", flow_type=Flow.TYPE_VOICE), follow=True
+            create_url, {"name": "Voice Flow", "flow_type": Flow.TYPE_VOICE, "base_language": "eng"}
         )
         voice_flow = Flow.objects.get(org=self.org, name="Voice Flow")
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(voice_flow.flow_type, "V")
 
         # default expiration for voice is shorter
@@ -1981,8 +1981,14 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # test flows with triggers
         # create a new flow with one unformatted keyword
-        post_data = {"name": "Flow With Unformated Keyword Triggers", "keyword_triggers": ["this is", "it"]}
-        response = self.client.post(reverse("flows.flow_create"), post_data)
+        response = self.client.post(
+            create_url,
+            {
+                "name": "Flow With Unformated Keyword Triggers",
+                "keyword_triggers": ["this is", "it"],
+                "base_language": "eng",
+            },
+        )
         self.assertFormError(
             response,
             "form",
@@ -1991,8 +1997,9 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # create a new flow with one existing keyword
-        post_data = {"name": "Flow With Existing Keyword Triggers", "keyword_triggers": ["this", "is", "unique"]}
-        response = self.client.post(reverse("flows.flow_create"), post_data)
+        response = self.client.post(
+            create_url, {"name": "Flow With Existing Keyword Triggers", "keyword_triggers": ["this", "is", "unique"]}
+        )
         self.assertFormError(response, "form", "keyword_triggers", '"unique" is already used for another flow.')
 
         # create another trigger so there are two in the way
@@ -2000,42 +2007,45 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             org=self.org, keyword="this", flow=flow1, created_by=self.admin, modified_by=self.admin
         )
 
-        response = self.client.post(reverse("flows.flow_create"), post_data)
+        response = self.client.post(
+            create_url, {"name": "Flow With Existing Keyword Triggers", "keyword_triggers": ["this", "is", "unique"]}
+        )
         self.assertFormError(
             response, "form", "keyword_triggers", '"this", "unique" are already used for another flow.'
         )
         trigger.delete()
 
         # create a new flow with keywords
-        post_data = {
-            "name": "Flow With Good Keyword Triggers",
-            "keyword_triggers": ["this", "is", "it"],
-            "flow_type": Flow.TYPE_MESSAGE,
-            "expires_after_minutes": 30,
-        }
-        response = self.client.post(reverse("flows.flow_create"), post_data, follow=True)
-        flow3 = Flow.objects.get(name=post_data["name"])
+        response = self.client.post(
+            create_url,
+            {
+                "name": "Flow With Good Keyword Triggers",
+                "base_language": "eng",
+                "keyword_triggers": ["this", "is", "it"],
+                "flow_type": Flow.TYPE_MESSAGE,
+                "expires_after_minutes": 30,
+            },
+        )
+        flow3 = Flow.objects.get(name="Flow With Good Keyword Triggers")
 
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[flow3.uuid]))
-        self.assertEqual(response.context["object"].triggers.count(), 3)
+        # check we're being redirected to the editor view
+        self.assertRedirect(response, reverse("flows.flow_editor", args=[flow3.uuid]))
 
         # update flow triggers, and test if form has expected fields
-        post_data = dict()
-        response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data, follow=True)
+        response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), {})
 
         field_names = [field for field in response.context_data["form"].fields]
         self.assertEqual(field_names, ["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "loc"])
 
-        post_data = dict()
-        post_data["name"] = "Flow With Keyword Triggers"
-        post_data["keyword_triggers"] = ["it", "changes", "everything"]
-        post_data["expires_after_minutes"] = 60 * 12
-        response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data, follow=True)
+        post_data = {
+            "name": "Flow With Keyword Triggers",
+            "keyword_triggers": ["it", "changes", "everything"],
+            "expires_after_minutes": 60 * 12,
+        }
+        response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data)
 
         flow3 = Flow.objects.get(name=post_data["name"])
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[flow3.uuid]))
+        self.assertEqual(302, response.status_code)
         self.assertEqual(flow3.triggers.count(), 5)
         self.assertEqual(flow3.triggers.filter(is_archived=True).count(), 2)
         self.assertEqual(flow3.triggers.filter(is_archived=False).count(), 3)
@@ -2087,40 +2097,45 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.channel.role = "SRCA"
         self.channel.save()
 
-        post_data = dict(name="Message flow", expires_after_minutes=5, flow_type=Flow.TYPE_MESSAGE)
-        response = self.client.post(reverse("flows.flow_create"), post_data, follow=True)
-        msg_flow = Flow.objects.get(name=post_data["name"])
+        response = self.client.post(
+            create_url,
+            {
+                "name": "Message flow",
+                "base_language": "eng",
+                "expires_after_minutes": 5,
+                "flow_type": Flow.TYPE_MESSAGE,
+            },
+        )
+        msg_flow = Flow.objects.get(name="Message flow")
 
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[msg_flow.uuid]))
+        self.assertEqual(302, response.status_code)
         self.assertEqual(msg_flow.flow_type, Flow.TYPE_MESSAGE)
 
-        post_data = dict(name="Call flow", expires_after_minutes=5, flow_type=Flow.TYPE_VOICE)
-        response = self.client.post(reverse("flows.flow_create"), post_data, follow=True)
-        call_flow = Flow.objects.get(name=post_data["name"])
+        response = self.client.post(
+            create_url,
+            {"name": "Call flow", "base_language": "eng", "expires_after_minutes": 5, "flow_type": Flow.TYPE_VOICE},
+        )
+        call_flow = Flow.objects.get(name="Call flow")
 
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[call_flow.uuid]))
+        self.assertEqual(302, response.status_code)
         self.assertEqual(call_flow.flow_type, Flow.TYPE_VOICE)
 
         # test creating a flow with base language
         self.org.set_flow_languages(self.admin, ["eng"])
 
         response = self.client.post(
-            reverse("flows.flow_create"),
+            create_url,
             {
                 "name": "Language Flow",
                 "expires_after_minutes": 5,
                 "base_language": "eng",
                 "flow_type": Flow.TYPE_MESSAGE,
             },
-            follow=True,
         )
 
         language_flow = Flow.objects.get(name="Language Flow")
 
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[language_flow.uuid]))
+        self.assertEqual(302, response.status_code)
         self.assertEqual(language_flow.base_language, "eng")
 
     def test_update_messaging_flow(self):
@@ -2243,7 +2258,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow2.is_archived = True
         flow2.save(update_fields=("is_archived",))
 
-        flow3 = Flow.create(self.org, self.admin, "Flow 3", base_language="base")
+        flow3 = Flow.create(self.org, self.admin, "Flow 3")
 
         self.login(self.admin)
 
@@ -5560,8 +5575,7 @@ class SimulationTest(TembaTest):
                             "date_format": "DD-MM-YYYY",
                             "time_format": "tt:mm",
                             "timezone": "Africa/Kigali",
-                            "default_language": None,
-                            "allowed_languages": [],
+                            "allowed_languages": ["eng", "kin"],
                             "default_country": "RW",
                             "redaction_policy": "none",
                         },
@@ -5731,8 +5745,7 @@ class AssetServerTest(TembaTest):
                     "date_format": date_format,
                     "time_format": "tt:mm",
                     "timezone": "Africa/Kigali",
-                    "default_language": None,
-                    "allowed_languages": [],
+                    "allowed_languages": ["eng", "kin"],
                     "default_country": "RW",
                     "redaction_policy": "none",
                 },
@@ -5740,10 +5753,9 @@ class AssetServerTest(TembaTest):
 
     def test_languages(self):
         self.login(self.admin)
-        self.org.set_flow_languages(self.admin, ["eng", "spa"])
         response = self.client.get("/flow/assets/%d/1234/language/" % self.org.id)
         self.assertEqual(
-            response.json(), {"results": [{"iso": "eng", "name": "English"}, {"iso": "spa", "name": "Spanish"}]}
+            response.json(), {"results": [{"iso": "eng", "name": "English"}, {"iso": "kin", "name": "Kinyarwanda"}]}
         )
 
 

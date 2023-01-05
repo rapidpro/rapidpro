@@ -695,7 +695,7 @@
       });
     }
 
-    var toMap = /(msg|contact|flow|ticket|channels|triggers|campaign|org|user|settings|httplog|classifier).*/;
+    var toMap = /(msg|contact|flow|ticket|channels|triggers|campaign|org|user|settings|httplog|classifier|workspace).*/;
 
     function handleNoPath(event) {
       var details = event.detail;
@@ -839,7 +839,6 @@
    
 
 -block page-container
-  -include "includes/frame_top.html"
   %temba-modax#shared-modax
   %temba-dialog#shared-dialog
   .ajax-scripts
@@ -847,7 +846,7 @@
   .flex-col
     .flex.widget-container(style="height:100vh;overflow:hidden")
       .folders       
-        %temba-menu(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)" -temba-ready="handleMenuReady")
+        %temba-menu#nav(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)" -temba-ready="handleMenuReady")
           -block menu-header
 
       .flex-grow.spa-container.flex.flex-col

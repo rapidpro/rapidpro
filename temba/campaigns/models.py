@@ -315,7 +315,7 @@ class CampaignEvent(TembaUUIDMixin, SmartModel):
             )
 
         if isinstance(message, str):
-            base_language = org.flow_languages[0] if org.flow_languages else "base"
+            base_language = org.flow_languages[0]
             message = {base_language: message}
 
         flow = Flow.create_single_message(org, user, message, base_language)
