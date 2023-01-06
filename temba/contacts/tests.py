@@ -225,19 +225,19 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.login(self.admin)
 
         # admins can see bulk actions
+        age_query = "?search=age%20%3E%2050"
         response = self.client.get(list_url)
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "archive", "send", "start-flow"], list(response.context["actions"]))
 
         # old ui
         self.assertContentMenu(list_url, self.admin, ["Manage Fields", "Export"])
-        self.assertContentMenu(
-            list_url, self.admin, ["Create Smart Group", "Manage Fields", "Export"], False, "age > 50"
-        )
+        self.assertContentMenu(list_url + age_query, self.admin, ["Create Smart Group", "Manage Fields", "Export"])
+
         # new ui
-        self.assertContentMenu(list_url, self.admin, ["New Contact", "New Group", "Export"], True)
+        self.assertContentMenu(list_url, self.admin, ["New Contact", "New Group", "Export"], is_spa=True)
         self.assertContentMenu(
-            list_url, self.admin, ["Create Smart Group", "New Contact", "New Group", "Export"], True, "age > 50"
+            list_url + age_query, self.admin, ["Create Smart Group", "New Contact", "New Group", "Export"], is_spa=True
         )
 
         # TODO: group labeling as a feature is on probation
@@ -450,7 +450,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # old ui
         self.assertContentMenu(group1_url, self.admin, ["Manage Fields", "Edit", "Export", "Usages", "Delete"])
         # new ui
-        self.assertContentMenu(group1_url, self.admin, ["Edit", "Export", "Usages", "Delete"], True)
+        self.assertContentMenu(group1_url, self.admin, ["Edit", "Export", "Usages", "Delete"], is_spa=True)
 
         response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
 
@@ -496,7 +496,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             read_url, self.admin, ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"]
         )
         # new ui
-        self.assertContentMenu(read_url, self.admin, ["Start Flow", "Open Ticket", "-", "Edit"], True)
+        self.assertContentMenu(read_url, self.admin, ["Start Flow", "Open Ticket", "-", "Edit"], is_spa=True)
 
         # login as viewer
         self.login(self.user)

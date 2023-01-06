@@ -246,7 +246,7 @@ class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
         # old ui
         self.assertContentMenu(runs_url, self.admin, ["Message Archives"])
         # new ui
-        self.assertContentMenu(runs_url, self.admin, [], True)
+        self.assertContentMenu(runs_url, self.admin, [], is_spa=True)
 
         response = self.assertListFetch(
             reverse("archives.archive_message"), allow_viewers=False, allow_editors=True, context_objects=[d2, m1]
@@ -256,7 +256,7 @@ class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
         # old ui
         self.assertContentMenu(msgs_url, self.admin, ["Run Archives"])
         # new ui
-        self.assertContentMenu(msgs_url, self.admin, [], True)
+        self.assertContentMenu(msgs_url, self.admin, [], is_spa=True)
 
     def test_read(self):
         archive = self.create_archive(Archive.TYPE_MSG, "D", date(2020, 7, 31), [{"id": 1}, {"id": 2}])
