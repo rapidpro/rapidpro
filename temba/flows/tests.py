@@ -1904,7 +1904,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.login(user)
 
         self.assertContentMenu(reverse("flows.flow_list"), self.user, legacy_items=["Export"], spa_items=["Export"])
-        
+
         self.assertContentMenu(
             reverse("flows.flow_list"),
             self.admin,
