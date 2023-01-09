@@ -1491,7 +1491,7 @@ class FlowCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
 
         def render_to_response(self, context, **response_kwargs):
-            return JsonResponse(self.get_object().get_category_counts())
+            return JsonResponse({"counts": self.get_object().get_category_counts()})
 
     class Results(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
@@ -1522,7 +1522,7 @@ class FlowCRUDL(SmartCRUDL):
                     result_fields.append(result_field)
             context["result_fields"] = result_fields
 
-            context["categories"] = flow.get_category_counts()["counts"]
+            context["categories"] = flow.get_category_counts()
             context["utcoffset"] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
             return context
 
