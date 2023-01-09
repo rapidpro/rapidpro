@@ -261,7 +261,7 @@ class CRUDLTestMixin:
         items = [item.get("label", "-") for item in response.json()["items"]]
         self.assertIn(item, items)
 
-    def assertContentMenuNotContains(self, url: str, user, item: str, is_spa: bool = False):
+    def assertContentMenuNotContains(self, url: str, user, item: str, *, is_spa: bool = False):
         headers = {"HTTP_TEMBA_CONTENT_MENU": 1}
         if is_spa:
             headers["HTTP_TEMBA_SPA"] = 1

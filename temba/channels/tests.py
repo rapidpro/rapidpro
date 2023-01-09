@@ -136,7 +136,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
                 schemes=channel_schemes,
             )
             self.assertContentMenuContains(
-                reverse("channels.channel_read", args=[channel.uuid]), self.admin, link_text, False
+                reverse("channels.channel_read", args=[channel.uuid]), self.admin, link_text
             )
 
     def test_delegate_channels(self):

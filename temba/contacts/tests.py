@@ -499,7 +499,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContentMenu(
             read_url,
             self.admin,
-            legacy_menu=["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"],
+            legacy_items=["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"],
             spa_items=["Start Flow", "Open Ticket", "-", "Edit"],
         )
 
