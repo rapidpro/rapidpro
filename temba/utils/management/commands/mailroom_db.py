@@ -46,7 +46,7 @@ RESET_SEQUENCES = (
     "triggers_trigger_id_seq",
 )
 
-PG_DUMP_VERSION = "13"
+PG_DUMP_VERSION = "14"
 
 
 class Command(BaseCommand):
