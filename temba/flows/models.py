@@ -1042,7 +1042,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         self.category_counts.all().delete()
         self.path_counts.all().delete()
         self.node_counts.all().delete()
-        self.exit_counts.all().delete()
         self.status_counts.all().delete()
         self.labels.clear()
 
@@ -1639,19 +1638,6 @@ class FlowRunStatusCount(SquashableModel):
             # for squashing task
             models.Index(name="flowrun_count_unsquashed", fields=("flow", "status"), condition=Q(is_squashed=False)),
         ]
-
-
-class FlowRunCount(SquashableModel):
-    """
-    TODO remove from db triggers once we're confident FlowRunStatusCount is correct, then drop
-    """
-
-    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="exit_counts")
-    exit_type = models.CharField(null=True, max_length=1, choices=FlowRun.EXIT_TYPE_CHOICES)
-    count = models.IntegerField(default=0)
-
-    class Meta:
-        index_together = ("flow", "exit_type")
 
 
 class ExportFlowResultsTask(BaseItemWithContactExport):
