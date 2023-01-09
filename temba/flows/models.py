@@ -482,12 +482,14 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
                 result["total"] += count["count"]
             results[count["result_key"]] = result
 
-        for k, v in results.items():
-            for cat in results[k]["categories"]:
-                if results[k]["total"]:
-                    cat["pct"] = float(cat["count"]) / float(results[k]["total"])
+        for result_key, result_dict in results.items():
+            for cat in result_dict["categories"]:
+                if result_dict["total"]:
+                    cat["pct"] = float(cat["count"]) / float(result_dict["total"])
                 else:
                     cat["pct"] = 0
+
+            result_dict["categories"] = sorted(result_dict["categories"], key=lambda d: d["name"])
 
         # order counts by their place on the flow
         result_list = []
@@ -496,7 +498,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             if result:
                 result_list.append(result)
 
-        return dict(counts=result_list)
+        return result_list
 
     def lock(self):
         """
@@ -1632,7 +1634,11 @@ class FlowRunStatusCount(SquashableModel):
         return {t[0]: t[1] for t in totals}
 
     class Meta:
-        index_together = ("flow", "status")
+        indexes = [
+            models.Index(fields=("flow", "status")),
+            # for squashing task
+            models.Index(name="flowrun_count_unsquashed", fields=("flow", "status"), condition=Q(is_squashed=False)),
+        ]
 
 
 class FlowRunCount(SquashableModel):

@@ -619,19 +619,17 @@ class FlowTest(TembaTest):
             flow.get_run_stats(),
         )
         self.assertEqual(
-            {
-                "counts": [
-                    {
-                        "categories": [
-                            {"count": 2, "name": "Blue", "pct": 1.0},
-                            {"count": 0, "name": "Other", "pct": 0.0},
-                        ],
-                        "key": "color",
-                        "name": "color",
-                        "total": 2,
-                    }
-                ]
-            },
+            [
+                {
+                    "categories": [
+                        {"count": 2, "name": "Blue", "pct": 1.0},
+                        {"count": 0, "name": "Other", "pct": 0.0},
+                    ],
+                    "key": "color",
+                    "name": "color",
+                    "total": 2,
+                }
+            ],
             flow.get_category_counts(),
         )
 
@@ -664,19 +662,17 @@ class FlowTest(TembaTest):
             flow.get_run_stats(),
         )
         self.assertEqual(
-            {
-                "counts": [
-                    {
-                        "categories": [
-                            {"count": 1, "name": "Blue", "pct": 1.0},
-                            {"count": 0, "name": "Other", "pct": 0.0},
-                        ],
-                        "key": "color",
-                        "name": "color",
-                        "total": 1,
-                    }
-                ]
-            },
+            [
+                {
+                    "categories": [
+                        {"count": 1, "name": "Blue", "pct": 1.0},
+                        {"count": 0, "name": "Other", "pct": 0.0},
+                    ],
+                    "key": "color",
+                    "name": "color",
+                    "total": 1,
+                }
+            ],
             flow.get_category_counts(),
         )
 
@@ -746,19 +742,17 @@ class FlowTest(TembaTest):
             flow.get_run_stats(),
         )
         self.assertEqual(
-            {
-                "counts": [
-                    {
-                        "categories": [
-                            {"count": 0, "name": "Blue", "pct": 0.0},
-                            {"count": 0, "name": "Other", "pct": 0.0},
-                        ],
-                        "key": "color",
-                        "name": "color",
-                        "total": 0,
-                    }
-                ]
-            },
+            [
+                {
+                    "categories": [
+                        {"count": 0, "name": "Blue", "pct": 0.0},
+                        {"count": 0, "name": "Other", "pct": 0.0},
+                    ],
+                    "key": "color",
+                    "name": "color",
+                    "total": 0,
+                }
+            ],
             flow.get_category_counts(),
         )
 
@@ -885,7 +879,7 @@ class FlowTest(TembaTest):
     def test_category_counts(self):
         def assertCount(counts, result_key, category_name, truth):
             found = False
-            for count in counts["counts"]:
+            for count in counts:
                 if count["key"] == result_key:
                     categories = count["categories"]
                     for category in categories:
@@ -3847,7 +3841,7 @@ class FlowRunTest(TembaTest):
         else:
             run.delete()  # delete_from_counts updated to true
 
-        cat_counts = {c["key"]: c for c in flow.get_category_counts()["counts"]}
+        cat_counts = {c["key"]: c for c in flow.get_category_counts()}
 
         self.assertEqual(2, len(cat_counts))
         self.assertEqual(expected["red_count"], cat_counts["color"]["categories"][0]["count"])
