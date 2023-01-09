@@ -1036,7 +1036,7 @@ ANALYTICS_TYPES = [
 ]
 
 # set of ISO-639-3 codes of languages to allow in addition to all ISO-639-1 languages
-NON_ISO6391_LANGUAGES = {}
+NON_ISO6391_LANGUAGES = {"mul", "und"}
 
 # -----------------------------------------------------------------------------------
 # Store sessions in our cache

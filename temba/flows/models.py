@@ -164,7 +164,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
     base_language = models.CharField(
         max_length=4,  # until we fix remaining flows with "base"
         help_text=_("The authoring language, additional languages can be added later."),
-        default="eng",
+        default="und",
     )
     version_number = models.CharField(default="0.0.0", max_length=8)  # no actual spec version until there's a revision
 
@@ -210,7 +210,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             name=name,
             flow_type=flow_type,
             expires_after_minutes=expires_after_minutes or cls.EXPIRES_DEFAULTS[flow_type],
-            base_language=base_language,
             saved_by=user,
             created_by=user,
             modified_by=user,
