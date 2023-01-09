@@ -465,7 +465,7 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
             "hi",
             "eng",
             "US",
-            "Hi {{1}}",
+            "Goodbye {{1}}",
             1,
             TemplateTranslation.STATUS_APPROVED,
             "1235",
@@ -480,7 +480,7 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
 
         # should have our template translations
         self.assertContains(response, "Hello")
-        self.assertContains(response, "Hi")
+        self.assertContains(response, "Goodbye")
         # check if templates view contains the sync logs link menu item
         self.assertContentMenu(templates_url, self.admin, ["Sync Logs"])
 
@@ -490,7 +490,7 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
 
         # should have our template translations
         self.assertContains(response, "Hello")
-        self.assertNotContains(response, "Hi")
+        self.assertNotContains(response, "Goodbye")
         # check if sync_logs view contains the message templates link menu item
         self.assertContentMenu(sync_url, self.admin, ["Message Templates"])
 
