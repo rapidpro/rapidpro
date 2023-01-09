@@ -398,30 +398,24 @@ class ContentMenuMixin:
             context["is_legacy"] = 1
 
         # does the page have a content menu?
-        menu_items = self._get_content_menu()
-        has_content_menu = len(menu_items) > 0
-        context["has_content_menu"] = has_content_menu
+        context["has_content_menu"] = len(self._get_content_menu()) > 0
 
         # does the page have a search query?
         if "search" in self.request.GET:
-            search = self.request.GET.get("search")
-            search_query = urlencode({"search": search})
-            context["has_search_query"] = search_query
+            context["has_search_query"] = urlencode({"search": self.request.GET["search"]})
 
         return context
 
     def _get_content_menu(self):
         menu = ContentMenu()
         self.build_content_menu(menu)
-        menu_items = menu.as_items()
-        return menu_items
+        return menu.as_items()
 
     def build_content_menu(self, menu: ContentMenu):  # pragma: no cover
         pass
 
     def get(self, request, *args, **kwargs):
         if "HTTP_TEMBA_CONTENT_MENU" in self.request.META:
-            content_menu_items = self._get_content_menu()
-            return JsonResponse({"items": content_menu_items})
+            return JsonResponse({"items": self._get_content_menu()})
 
         return super().get(request, *args, **kwargs)
