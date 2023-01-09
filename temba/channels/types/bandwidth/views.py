@@ -26,9 +26,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         username = forms.CharField(max_length=64, label=_("Username"), help_text=_("Your username on Bandwidth"))
         password = forms.CharField(max_length=64, label=_("Password"), help_text=_("Your password on Bandwidth"))
         account_id = forms.CharField(max_length=64, label=_("Account ID"), help_text=_("Your account ID on Bandwidth"))
-        application_id = forms.CharField(
-            max_length=64, label=_("Application ID"), help_text=_("Your application ID on Bandwidth")
-        )
 
     form_class = Form
 
@@ -38,7 +35,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_USERNAME: data["username"],
             Channel.CONFIG_PASSWORD: data["password"],
             "account_id": data["account_id"],
-            "application_id": data["application_id"],
         }
 
         self.object = Channel.create(

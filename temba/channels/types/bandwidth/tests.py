@@ -1,12 +1,21 @@
+from unittest.mock import patch
+
 from django.urls import reverse
 
-from temba.tests import TembaTest
+from temba.tests import MockResponse, TembaTest
 
 from ...models import Channel
 
 
 class BandwidthTypeTest(TembaTest):
-    def test_claim(self):
+    @patch("requests.post")
+    def test_claim(self, mock_post):
+
+        mock_post.return_value = MockResponse(
+            200,
+            "<ApplicationProvisioningResponse><Application><ApplicationId>e5a9e103-application_id</ApplicationId></Application></ApplicationProvisioningResponse>",
+        )
+
         Channel.objects.all().delete()
 
         url = reverse("channels.types.bandwidth.claim")
@@ -31,7 +40,6 @@ class BandwidthTypeTest(TembaTest):
         post_data["username"] = "user1"
         post_data["password"] = "pass1"
         post_data["account_id"] = "account-id"
-        post_data["application_id"] = "app-id"
 
         response = self.client.post(url, post_data)
 
@@ -41,15 +49,19 @@ class BandwidthTypeTest(TembaTest):
         self.assertEqual(post_data["username"], channel.config["username"])
         self.assertEqual(post_data["password"], channel.config["password"])
         self.assertEqual(post_data["account_id"], channel.config["account_id"])
-        self.assertEqual(post_data["application_id"], channel.config["application_id"])
+        self.assertEqual("e5a9e103-application_id", channel.config["application_id"])
         self.assertEqual("250788123123", channel.address)
         self.assertEqual("BW", channel.channel_type)
 
-        config_url = reverse("channels.channel_configuration", args=[channel.uuid])
-        self.assertRedirect(response, config_url)
+        self.assertRedirect(response, reverse("channels.channel_read", args=[channel.uuid]))
 
-        response = self.client.get(config_url)
-        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            mock_post.call_args_list[0][0][0], "https://dashboard.bandwidth.com/api/accounts/account-id/applications"
+        )
 
-        self.assertContains(response, reverse("courier.bw", args=[channel.uuid, "receive"]))
-        self.assertContains(response, reverse("courier.bw", args=[channel.uuid, "status"]))
+        self.assertEqual(mock_post.call_args_list[0][1]["auth"][0], "user1")
+        self.assertEqual(mock_post.call_args_list[0][1]["auth"][1], "pass1")
+        self.assertEqual(
+            mock_post.call_args_list[0][1]["data"].decode("utf-8"),
+            f'<Application><ServiceType text="Messaging-V2" /><AppName text="app.rapidpro.io/{channel.uuid}" /><InboundCallbackUrl text="https://app.rapidpro.io/c/bw/{channel.uuid}/receive" /><OutboundCallbackUrl text="https://app.rapidpro.io/c/bw/{channel.uuid}/status" /><RequestedCallbackTypes><CallbackType text="message-delivered" /><CallbackType text="message-failed" /><CallbackType text="message-sending" /></RequestedCallbackTypes></Application>',
+        )
