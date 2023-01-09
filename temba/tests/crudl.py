@@ -250,7 +250,7 @@ class CRUDLTestMixin:
             headers["HTTP_TEMBA_SPA"] = 1
         response = self.requestView(url, user, checks=[StatusCode(200), ContentType("application/json")], **headers)
         items = [item.get("label", "-") for item in response.json()["items"]]
-        self.assertTrue(label in items)
+        self.assertIn(label, items)
 
     def assertContentMenuNotContains(self, url: str, user, label: str, is_spa: bool = False):
         headers = {"HTTP_TEMBA_CONTENT_MENU": 1}
@@ -258,7 +258,7 @@ class CRUDLTestMixin:
             headers["HTTP_TEMBA_SPA"] = 1
         response = self.requestView(url, user, checks=[StatusCode(200), ContentType("application/json")], **headers)
         items = [item.get("label", "-") for item in response.json()["items"]]
-        self.assertTrue(label not in items)
+        self.assertNotIn(label, items)
 
 
 class BaseCheck:
