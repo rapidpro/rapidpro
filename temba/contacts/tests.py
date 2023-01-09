@@ -230,14 +230,17 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "archive", "send", "start-flow"], list(response.context["actions"]))
 
-        # old ui
-        self.assertContentMenu(list_url, self.admin, ["Manage Fields", "Export"])
-        self.assertContentMenu(list_url + age_query, self.admin, ["Create Smart Group", "Manage Fields", "Export"])
-
-        # new ui
-        self.assertContentMenu(list_url, self.admin, ["New Contact", "New Group", "Export"], is_spa=True)
         self.assertContentMenu(
-            list_url + age_query, self.admin, ["Create Smart Group", "New Contact", "New Group", "Export"], is_spa=True
+            list_url,
+            self.admin,
+            legacy_items=["Manage Fields", "Export"],
+            spa_items=["New Contact", "New Group", "Export"],
+        )
+        self.assertContentMenu(
+            list_url + age_query,
+            self.admin,
+            legacy_items=["Create Smart Group", "Manage Fields", "Export"],
+            spa_items=["Create Smart Group", "New Contact", "New Group", "Export"],
         )
 
         # TODO: group labeling as a feature is on probation
@@ -447,10 +450,12 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "unlabel"], list(response.context["actions"]))
 
-        # old ui
-        self.assertContentMenu(group1_url, self.admin, ["Manage Fields", "Edit", "Export", "Usages", "Delete"])
-        # new ui
-        self.assertContentMenu(group1_url, self.admin, ["Edit", "Export", "Usages", "Delete"], is_spa=True)
+        self.assertContentMenu(
+            group1_url,
+            self.admin,
+            legacy_items=["Manage Fields", "Edit", "Export", "Usages", "Delete"],
+            spa_items=["Edit", "Export", "Usages", "Delete"],
+        )
 
         response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
 
@@ -487,16 +492,16 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(read_url)
         self.assertLoginRedirect(response)
 
-        # old ui
         self.assertContentMenu(read_url, self.user, [])
         self.assertContentMenu(
             read_url, self.editor, ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"]
         )
         self.assertContentMenu(
-            read_url, self.admin, ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"]
+            read_url,
+            self.admin,
+            legacy_menu=["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"],
+            spa_items=["Start Flow", "Open Ticket", "-", "Edit"],
         )
-        # new ui
-        self.assertContentMenu(read_url, self.admin, ["Start Flow", "Open Ticket", "-", "Edit"], is_spa=True)
 
         # login as viewer
         self.login(self.user)

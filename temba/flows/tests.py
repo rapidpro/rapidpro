@@ -1903,11 +1903,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         user.save()
         self.login(user)
 
-        # old ui
-        self.assertContentMenu(reverse("flows.flow_list"), self.user, ["Export"])
-        # new ui
+        self.assertContentMenu(reverse("flows.flow_list"), self.user, legacy_items=["Export"], spa_items=["Export"])
+        
         self.assertContentMenu(
-            reverse("flows.flow_list"), self.admin, ["New Flow", "New Label", "Import", "Export"], True
+            reverse("flows.flow_list"),
+            self.admin,
+            legacy_items=["Import", "Export"],
+            spa_items=["New Flow", "New Label", "Import", "Export"],
         )
 
         # list, should have only one flow (the one created in setUp)
