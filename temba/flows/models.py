@@ -1646,40 +1646,9 @@ class FlowRunCount(SquashableModel):
     TODO remove from db triggers once we're confident FlowRunStatusCount is correct, then drop
     """
 
-    squash_over = ("flow_id", "exit_type")
-
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="exit_counts")
     exit_type = models.CharField(null=True, max_length=1, choices=FlowRun.EXIT_TYPE_CHOICES)
     count = models.IntegerField(default=0)
-
-    @classmethod
-    def get_squash_query(cls, distinct_set):  # pragma: no cover
-        if distinct_set.exit_type:
-            sql = """
-            WITH removed as (
-                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "exit_type" = %%s RETURNING "count"
-            )
-            INSERT INTO %(table)s("flow_id", "exit_type", "count", "is_squashed")
-            VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-            """ % {
-                "table": cls._meta.db_table
-            }
-
-            params = (distinct_set.flow_id, distinct_set.exit_type) * 2
-        else:
-            sql = """
-            WITH removed as (
-                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "exit_type" IS NULL RETURNING "count"
-            )
-            INSERT INTO %(table)s("flow_id", "exit_type", "count", "is_squashed")
-            VALUES (%%s, NULL, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-            """ % {
-                "table": cls._meta.db_table
-            }
-
-            params = (distinct_set.flow_id,) * 2
-
-        return sql, params
 
     class Meta:
         index_together = ("flow", "exit_type")

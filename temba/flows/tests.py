@@ -1046,7 +1046,7 @@ class FlowTest(TembaTest):
 
         # now the color counts have been removed, but beer is still there
         counts = favorites.get_category_counts()
-        self.assertEqual(["beer"], [c["key"] for c in counts["counts"]])
+        self.assertEqual(["beer"], [c["key"] for c in counts])
         assertCount(counts, "beer", "Turbo King", 3)
 
         # make sure it still works after ze squashings
