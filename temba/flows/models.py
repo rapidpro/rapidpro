@@ -150,38 +150,30 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         TYPE_SURVEY: 0,
     }
 
-    labels = models.ManyToManyField("FlowLabel", related_name="flows")
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flows")
-
+    labels = models.ManyToManyField("FlowLabel", related_name="flows")
     is_archived = models.BooleanField(default=False)
-
     flow_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_MESSAGE)
+    ignore_triggers = models.BooleanField(default=False, help_text=_("Ignore keyword triggers while in this flow."))
 
-    # additional information about the flow, e.g. possible results
-    metadata = JSONAsTextField(null=True, default=dict)
-
+    # properties set from last revision
     expires_after_minutes = models.IntegerField(
         default=EXPIRES_DEFAULTS[TYPE_MESSAGE],
-        help_text=_("Minutes of inactivity that will cause expiration from flow"),
+        help_text=_("Minutes of inactivity that will cause expiration from flow."),
     )
+    base_language = models.CharField(
+        max_length=4,  # until we fix remaining flows with "base"
+        help_text=_("The authoring language, additional languages can be added later."),
+        default="eng",
+    )
+    version_number = models.CharField(default="0.0.0", max_length=8)  # no actual spec version until there's a revision
 
-    ignore_triggers = models.BooleanField(default=False, help_text=_("Ignore keyword triggers while in this flow"))
+    # information from flow inspection
+    metadata = JSONAsTextField(null=True, default=dict)  # additional information about the flow, e.g. possible results
+    has_issues = models.BooleanField(default=False)
 
     saved_on = models.DateTimeField(auto_now_add=True)
     saved_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="flow_saves")
-
-    base_language = models.CharField(
-        max_length=4,
-        null=True,
-        blank=True,
-        help_text=_("The authoring language, additional languages can be added later"),
-        default="eng",
-    )
-
-    version_number = models.CharField(default=FINAL_LEGACY_VERSION, max_length=8)
-
-    has_issues = models.BooleanField(default=False)
 
     # dependencies on other assets
     channel_dependencies = models.ManyToManyField(Channel, related_name="dependent_flows")
