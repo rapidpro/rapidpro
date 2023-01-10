@@ -3,8 +3,8 @@
 [![Build Status](https://github.com/nyaruka/rapidpro/workflows/CI/badge.svg)](https://github.com/nyaruka/rapidpro/actions?query=workflow%3ACI) 
 [![codecov](https://codecov.io/gh/nyaruka/rapidpro/branch/main/graph/badge.svg)](https://codecov.io/gh/nyaruka/rapidpro)
 
-TextIt is a hosted service for visually building interactive messaging applications.
-To learn more, please visit the project site at http://rapidpro.github.io/rapidpro.
+TextIt is a hosted service for visually building interactive messaging applications. You can signup at 
+[textit.com](https://textit.com) or host it yourself.
 
 ### Stable Versions
 
@@ -20,18 +20,15 @@ The set of versions that make up the latest stable release are:
 
 ### Versioning
 
-Major releases are made every four months on a set schedule. We target November 1st
-as a major release (`v7.0.0`), then March 1st as the first stable dot release (`v7.2.0`) and July 1st
-as the second stable dot release (`v7.4.0`). The next November would start the next major release `v8.0.0`.
+Major releases are made every 4 months on a set schedule. We target January as a major release (e.g. `8.0.0`), then 
+May as the first stable dot release (e.g. `8.2.0`), and September as the second dot release (e.g. `8.4.0`). Unstable 
+releases (i.e. *development* versionsw) have odd minor versions (e.g. `8.1.*`, `8.3.*`). Generally we recommend staying 
+on stable releases.
 
-Unstable releases have odd minor versions, that is versions `v7.1.*` would indicate an unstable or *development*
-version. Generally we recommend staying on stable releases.
-
-To upgrade from one stable release to the next, you should first install and run the migrations
-for the latest stable release you are on, then every stable release afterwards. If you are
-on version `v6.0.12` and the latest stable release on the `v6.0` series is `v6.0.14`, you should
-first install `v6.0.14` before trying to install the next stable release `v6.2.5`.
+To upgrade from one stable release to the next, you must first install and run the migrations
+for the latest stable release you are on, then every stable release afterwards. For example if you're upgrading from 
+`7.4` to `8.0`, you need to upgrade to `7.4.2` before upgrading to `8.0`
 
 Generally we only do bug fixes (patch releases) on stable releases for the first two weeks after we put
-out that release. After that you either have to wait for the next stable release or take your
-chances with an unstable release.
+out that release. After that you either have to wait for the next stable release or take your chances with an unstable 
+release.
