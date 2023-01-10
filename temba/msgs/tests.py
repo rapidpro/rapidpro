@@ -1113,6 +1113,8 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         )
 
         # filter page should have an export option
+        response = self.requestView(reverse("msgs.msg_filter", args=[label.uuid]), self.admin)
+        self.assertContains(response, label.name)
         self.assertContentMenuContains(reverse("msgs.msg_filter", args=[label.uuid]), self.admin, "Download")
 
         # try export with user label
