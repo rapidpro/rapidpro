@@ -24,3 +24,4 @@ jobs:
           days-before-pr-close: 14
           days-before-issue-stale: 30
           days-before-issue-close: 14
+          exempt-all-assignees: true
