@@ -86,6 +86,13 @@ jobs:
           poetry run coverage run manage.py test --keepdb --noinput --verbosity=2
           poetry run coverage report -i
           poetry run coverage xml
+          poetry run coverage html
+
+      - name: Save coverage report as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: coverage-report
+          path: htmlcov/
 
       - name: Mailroom log
         if: failure()
