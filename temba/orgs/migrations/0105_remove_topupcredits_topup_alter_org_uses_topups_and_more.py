@@ -5,9 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("orgs", "0104_alter_org_brand"),
-    ]
+    dependencies = [("orgs", "0104_alter_org_brand"), ("sql", "0004_squashed")]
 
     operations = [
         migrations.RemoveField(
