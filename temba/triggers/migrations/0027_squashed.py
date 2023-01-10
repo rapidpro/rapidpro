@@ -1,4 +1,4 @@
-# This is a dummy migration which will be implemented in 7.3
+# This is a dummy migration which will be implemented in the next release
 
 from django.conf import settings
 from django.db import migrations
