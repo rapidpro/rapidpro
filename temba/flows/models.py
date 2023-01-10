@@ -164,7 +164,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
     base_language = models.CharField(
         max_length=4,  # until we fix remaining flows with "base"
         help_text=_("The authoring language, additional languages can be added later."),
-        default="eng",
+        default="und",
     )
     version_number = models.CharField(default="0.0.0", max_length=8)  # no actual spec version until there's a revision
 
@@ -210,7 +210,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             name=name,
             flow_type=flow_type,
             expires_after_minutes=expires_after_minutes or cls.EXPIRES_DEFAULTS[flow_type],
-            base_language=base_language,
             saved_by=user,
             created_by=user,
             modified_by=user,
@@ -483,12 +482,14 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
                 result["total"] += count["count"]
             results[count["result_key"]] = result
 
-        for k, v in results.items():
-            for cat in results[k]["categories"]:
-                if results[k]["total"]:
-                    cat["pct"] = float(cat["count"]) / float(results[k]["total"])
+        for result_key, result_dict in results.items():
+            for cat in result_dict["categories"]:
+                if result_dict["total"]:
+                    cat["pct"] = float(cat["count"]) / float(result_dict["total"])
                 else:
                     cat["pct"] = 0
+
+            result_dict["categories"] = sorted(result_dict["categories"], key=lambda d: d["name"])
 
         # order counts by their place on the flow
         result_list = []
@@ -497,7 +498,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             if result:
                 result_list.append(result)
 
-        return dict(counts=result_list)
+        return result_list
 
     def lock(self):
         """
@@ -1041,7 +1042,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         self.category_counts.all().delete()
         self.path_counts.all().delete()
         self.node_counts.all().delete()
-        self.exit_counts.all().delete()
         self.status_counts.all().delete()
         self.labels.clear()
 
@@ -1633,51 +1633,11 @@ class FlowRunStatusCount(SquashableModel):
         return {t[0]: t[1] for t in totals}
 
     class Meta:
-        index_together = ("flow", "status")
-
-
-class FlowRunCount(SquashableModel):
-    """
-    TODO remove from db triggers once we're confident FlowRunStatusCount is correct, then drop
-    """
-
-    squash_over = ("flow_id", "exit_type")
-
-    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="exit_counts")
-    exit_type = models.CharField(null=True, max_length=1, choices=FlowRun.EXIT_TYPE_CHOICES)
-    count = models.IntegerField(default=0)
-
-    @classmethod
-    def get_squash_query(cls, distinct_set):  # pragma: no cover
-        if distinct_set.exit_type:
-            sql = """
-            WITH removed as (
-                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "exit_type" = %%s RETURNING "count"
-            )
-            INSERT INTO %(table)s("flow_id", "exit_type", "count", "is_squashed")
-            VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-            """ % {
-                "table": cls._meta.db_table
-            }
-
-            params = (distinct_set.flow_id, distinct_set.exit_type) * 2
-        else:
-            sql = """
-            WITH removed as (
-                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "exit_type" IS NULL RETURNING "count"
-            )
-            INSERT INTO %(table)s("flow_id", "exit_type", "count", "is_squashed")
-            VALUES (%%s, NULL, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-            """ % {
-                "table": cls._meta.db_table
-            }
-
-            params = (distinct_set.flow_id,) * 2
-
-        return sql, params
-
-    class Meta:
-        index_together = ("flow", "exit_type")
+        indexes = [
+            models.Index(fields=("flow", "status")),
+            # for squashing task
+            models.Index(name="flowrun_count_unsquashed", fields=("flow", "status"), condition=Q(is_squashed=False)),
+        ]
 
 
 class ExportFlowResultsTask(BaseItemWithContactExport):

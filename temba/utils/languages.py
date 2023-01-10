@@ -6,21 +6,22 @@ from django.conf import settings
 
 # tweak standard ISO-639-3 names to steer users toward using languages with ISO-639-1 equivalents if possible
 NAME_OVERRIDES = {
-    "ara": "Arabic",  # ar in ISO-639-1
-    "afb": "Arabic (Gulf, ISO-639-3)",
     "acx": "Arabic (Omani, ISO-639-3)",
     "aec": "Arabic (Saidi, ISO-639-3)",
+    "afb": "Arabic (Gulf, ISO-639-3)",
+    "ara": "Arabic",  # ar in ISO-639-1
     "arb": "Arabic (Standard, ISO-639-3)",
+    "cmn": "Chinese (Mandarin, ISO-639-3)",
+    "kir": "Kyrgyz",  # https://github.com/rapidpro/rapidpro/issues/1551
     "msa": "Malay",  # ms in ISO-639-1
-    "zsm": "Malay (Standard, ISO-639-3)",
+    "mul": "Multiple",
     "nep": "Nepali",  # ne in ISO-639-1
     "npi": "Nepali (Indiv. lang., ISO-639-3)",
     "swa": "Swahili",  # sw in ISO-639-1
     "swc": "Swahili (Congo, ISO-639-3)",
     "swh": "Swahili (Indiv. lang., ISO-639-3)",
     "zho": "Chinese",  # zh in ISO-639-1
-    "cmn": "Chinese (Mandarin, ISO-639-3)",
-    "kir": "Kyrgyz",  # https://github.com/rapidpro/rapidpro/issues/1551
+    "zsm": "Malay (Standard, ISO-639-3)",
 }
 
 NAMES = {}
