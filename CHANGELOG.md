@@ -1,3 +1,24 @@
+v8.0.0 (2023-01-10)
+-------------------------
+ * Update deps
+
+v7.5.149 (2023-01-10)
+-------------------------
+ * Drop FlowRunCount model
+
+v7.5.148 (2023-01-09)
+-------------------------
+ * Stop squashing FlowRunCount
+ * Add misisng index on FlowRunStatusCount and rework get_category_counts to be deterministic
+ * Stop creating flows_flowruncount rows in db triggers and remove unsquashed index
+ * Bump required pg_dump version for mailroom_db command to 14
+
+v7.5.147 (2023-01-09)
+-------------------------
+ * Use und (Undetermined) as default flow language and add support for mul (Multiple)
+ * Disallow empty and null flow languages, change default spec version to zero
+ * Tweak migrate_flows to have smaller batch size and order by org to increase org assets cache hits
+
 v7.5.146 (2023-01-05)
 -------------------------
  * Cleanup migrate_flows command and stop excluding flows with version 11.12

@@ -22,7 +22,6 @@ from .models import (
     FlowPathCount,
     FlowRevision,
     FlowRun,
-    FlowRunCount,
     FlowRunStatusCount,
     FlowSession,
     FlowStartCount,
@@ -60,7 +59,6 @@ def export_flow_results_task(export_id):
 @cron_task(lock_timeout=7200)
 def squash_flow_counts():
     FlowNodeCount.squash()
-    FlowRunCount.squash()
     FlowRunStatusCount.squash()
     FlowCategoryCount.squash()
     FlowStartCount.squash()
