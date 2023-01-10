@@ -5,9 +5,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("orgs", "0106_update_db_triggers"),
-    ]
+    dependencies = [("orgs", "0106_update_db_triggers"), ("msgs", "0200_remove_msg_topup")]
 
     operations = [
         migrations.RemoveField(
