@@ -3572,6 +3572,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(child1_accounts_url)
         self.assertEqual(200, response.status_code)
 
+        response = self.client.get(child1_accounts_url, HTTP_TEMBA_SPA=1)
+        self.assertContains(response, child1.name)
+
         # edit our sub org's details
         response = self.client.post(
             child1_edit_url,

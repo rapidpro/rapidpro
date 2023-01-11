@@ -135,9 +135,10 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
                 role=channel_role,
                 schemes=channel_schemes,
             )
-            self.assertContentMenuContains(
-                reverse("channels.channel_read", args=[channel.uuid]), self.admin, link_text
-            )
+            read_url = reverse("channels.channel_read", args=[channel.uuid])
+            response = self.client.get(read_url)
+            self.assertContains(response, channel.name)
+            self.assertContentMenuContains(read_url, self.admin, link_text)
 
     def test_delegate_channels(self):
 
@@ -168,6 +169,8 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # should now have the option to disable
         self.login(self.admin)
+        response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
+        self.assertContains(response, self.tel_channel.name)
         self.assertContentMenuContains(
             reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin, "Disable Voice Calling"
         )
@@ -185,6 +188,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # we should lose our caller
         response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
+        self.assertContains(response, self.tel_channel.name)
         self.assertContentMenuNotContains(
             reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin, "Disable Voice Calling"
         )
@@ -458,11 +462,12 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # non-org users can't view our channels
         self.login(self.non_org_user)
-        response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
+        tel_channel_read_url = reverse("channels.channel_read", args=[self.tel_channel.uuid])
+        response = self.client.get(tel_channel_read_url)
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
         # org users can
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.user)
+        response = self.fetch_protected(tel_channel_read_url, self.user)
 
         self.assertEqual(
             len(response.context["source_stats"]),
@@ -484,16 +489,16 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         self.assertTrue(len(response.context["latest_sync_events"]) <= 5)
 
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin)
-        self.assertNotContains(response, "Enable Voice")
+        response = self.fetch_protected(tel_channel_read_url, self.admin)
+        self.assertContains(response, self.tel_channel.name)
+        self.assertContentMenuNotContains(tel_channel_read_url, self.admin, "Enable Voice Calling")
 
         # Add twilio credentials to make sure we can add calling for our android channel
         self.org.config.update({Org.CONFIG_TWILIO_SID: "SID", Org.CONFIG_TWILIO_TOKEN: "TOKEN"})
         self.org.save(update_fields=("config",))
         self.assertTrue(self.org.is_connected_to_twilio())
-        self.assertContentMenuContains(
-            reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin, "Enable Voice Calling"
-        )
+
+        self.assertContentMenuContains(tel_channel_read_url, self.admin, "Enable Voice Calling")
 
         two_hours_ago = timezone.now() - timedelta(hours=2)
 
@@ -512,14 +517,12 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         with patch("django.utils.timezone.now", return_value=two_hours_ago):
             self.create_outgoing_msg(bob, "delayed message", status=Msg.STATUS_QUEUED, channel=self.tel_channel)
 
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin)
+        response = self.fetch_protected(tel_channel_read_url, self.admin)
         self.assertIn("delayed_sync_event", response.context_data.keys())
         self.assertIn("unsent_msgs_count", response.context_data.keys())
 
         # as staff
-        response = self.fetch_protected(
-            reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.customer_support
-        )
+        response = self.fetch_protected(tel_channel_read_url, self.customer_support)
         self.assertEqual(200, response.status_code)
 
         # now that we can access the channel, which messages do we display in the chart?
@@ -545,7 +548,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.create_outgoing_msg(joe, "This outgoing message will be counted", channel=self.tel_channel)
 
         # now we have an inbound message and two outbounds
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin)
+        response = self.fetch_protected(tel_channel_read_url, self.admin)
         self.assertEqual(200, response.status_code)
         self.assertEqual(1, response.context["message_stats"][0]["data"][-1]["count"])
 
@@ -566,7 +569,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         # now let's create an ivr interaction
         self.create_incoming_msg(joe, "incoming ivr", channel=self.tel_channel, msg_type=Msg.TYPE_IVR)
         self.create_outgoing_msg(joe, "outgoing ivr", channel=self.tel_channel, msg_type=Msg.TYPE_IVR)
-        response = self.fetch_protected(reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin)
+        response = self.fetch_protected(tel_channel_read_url, self.admin)
 
         self.assertEqual(4, len(response.context["message_stats"]))
         self.assertEqual(1, response.context["message_stats"][2]["data"][0]["count"])
@@ -1235,10 +1238,13 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     def test_channel_read_as_customer_support(self):
-        read_url = reverse("channels.channel_read", args=[self.ex_channel.uuid])
+        ex_channel_read_url = reverse("channels.channel_read", args=[self.ex_channel.uuid])
+
+        response = self.requestView(ex_channel_read_url, self.customer_support)
+        self.assertContains(response, self.ex_channel.name)
 
         # should see service button
-        self.assertContentMenuContains(read_url, self.customer_support, "Service")
+        self.assertContentMenuContains(ex_channel_read_url, self.customer_support, "Service")
 
     def test_configuration(self):
         config_url = reverse("channels.channel_configuration", args=[self.ex_channel.uuid])
@@ -2136,7 +2142,6 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         channel_log_read_url = reverse("channels.channellog_read", args=[success_log.id])
         response = self.client.get(channel_log_read_url)
         self.assertContains(response, "POST /send?msg=message")
-
         self.assertContentMenu(channel_log_read_url, self.admin, ["Channel Log"])
 
         self.assertEqual(self.channel.get_success_log_count(), 3)
@@ -2835,6 +2840,8 @@ class FacebookWhitelistTest(TembaTest, CRUDLTestMixin):
         self.assertLoginRedirect(response)
 
         self.login(self.admin)
+        response = self.client.get(reverse("channels.channel_read", args=[self.channel.uuid]))
+        self.assertContains(response, self.channel.name)
         self.assertContentMenuContains(
             reverse("channels.channel_read", args=[self.channel.uuid]), self.admin, "Whitelist Domain"
         )
