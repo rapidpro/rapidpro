@@ -492,6 +492,8 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
         self.assertContains(response, "Hello")
         self.assertNotContains(response, "Goodbye")
         # check if sync_logs view contains the message templates link menu item
+        response = self.client.get(sync_url)
+        self.assertContains(response, channel.name)
         self.assertContentMenu(sync_url, self.admin, ["Message Templates"])
 
         # sync logs and message templates not accessible by user from other org
