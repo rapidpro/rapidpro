@@ -182,16 +182,10 @@ class Broadcast(models.Model):
     messages sent from the same bundle together
     """
 
-    STATUS_INITIALIZING = "I"
     STATUS_QUEUED = "Q"
     STATUS_SENT = "S"
     STATUS_FAILED = "F"
-    STATUS_CHOICES = (
-        (STATUS_INITIALIZING, "Initializing"),
-        (STATUS_QUEUED, "Queued"),
-        (STATUS_SENT, "Sent"),
-        (STATUS_FAILED, "Failed"),
-    )
+    STATUS_CHOICES = ((STATUS_QUEUED, "Queued"), (STATUS_SENT, "Sent"), (STATUS_FAILED, "Failed"))
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
@@ -212,7 +206,7 @@ class Broadcast(models.Model):
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True)
     ticket = models.ForeignKey("tickets.Ticket", on_delete=models.PROTECT, null=True, related_name="broadcasts")
 
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_QUEUED)
 
     schedule = models.OneToOneField(Schedule, on_delete=models.PROTECT, null=True, related_name="broadcast")
 
@@ -249,7 +243,6 @@ class Broadcast(models.Model):
         channel: Channel = None,
         ticket=None,
         send_all: bool = False,
-        status: str = STATUS_INITIALIZING,
         **kwargs,
     ):
         if not base_language:
@@ -267,7 +260,6 @@ class Broadcast(models.Model):
             translations={lang: {"text": t} for lang, t in text.items()},
             created_by=user,
             modified_by=user,
-            status=status,
             **kwargs,
         )
 
@@ -374,6 +366,12 @@ class Broadcast(models.Model):
                 name="msgs_broadcasts_scheduled",
                 fields=["org", "-created_on"],
                 condition=Q(schedule__isnull=False, is_active=True),
+            ),
+            # used to fetch pending broadcasts for the Outbox
+            models.Index(
+                name="msgs_broadcasts_queued",
+                fields=["org", "-created_on"],
+                condition=Q(schedule__isnull=True, status="Q", is_active=True),
             ),
         ]
 

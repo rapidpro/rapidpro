@@ -1534,9 +1534,14 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         contact2 = self.create_contact("Joe Blow", phone="+250788000001")
         contact3 = self.create_contact("Frank Blow", phone="+250788000002")
 
-        # create a single message broadcast and put message back into pending state
-        broadcast1 = self.create_broadcast(self.admin, "How is it going?", contacts=[contact1])
-        Msg.objects.filter(broadcast=broadcast1).update(status=Msg.STATUS_PENDING)
+        # create a single message broadcast that's sent but it's message is still pending
+        broadcast1 = self.create_broadcast(
+            self.admin,
+            "How is it going?",
+            contacts=[contact1],
+            status=Broadcast.STATUS_SENT,
+            msg_status=Msg.STATUS_PENDING,
+        )
         msg1 = broadcast1.msgs.get()
 
         outbox_url = reverse("msgs.msg_outbox")
@@ -1559,11 +1564,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         broadcast2.msgs.update(status=Msg.STATUS_PENDING)
         msg4, msg3, msg2 = broadcast2.msgs.order_by("-id")
 
-        broadcast3 = Broadcast.create(
-            self.channel.org, self.admin, {"eng": "Pending broadcast"}, contacts=[contact4], status=Msg.STATUS_QUEUED
-        )
+        broadcast3 = Broadcast.create(self.channel.org, self.admin, {"eng": "Pending broadcast"}, contacts=[contact4])
         broadcast4 = Broadcast.create(
-            self.channel.org, self.admin, {"eng": "Scheduled broadcast"}, contacts=[contact4], status=Msg.STATUS_QUEUED
+            self.channel.org, self.admin, {"eng": "Scheduled broadcast"}, contacts=[contact4]
         )
 
         broadcast4.schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
@@ -1793,7 +1796,7 @@ class BroadcastTest(TembaTest):
             contacts=[self.kevin, self.lucy],
             schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
         )
-        self.assertEqual("I", broadcast1.status)
+        self.assertEqual("Q", broadcast1.status)
         self.assertEqual(True, broadcast1.is_active)
 
         with patch("temba.mailroom.queue_broadcast") as mock_queue_broadcast:
@@ -2492,9 +2495,7 @@ class SystemLabelTest(TembaTest):
         self.create_incoming_msg(contact1, "Message 2")
         msg3 = self.create_incoming_msg(contact1, "Message 3")
         msg4 = self.create_incoming_msg(contact1, "Message 4")
-        Broadcast.create(
-            self.org, self.user, {"eng": "Broadcast 2"}, contacts=[contact1, contact2], status=Msg.STATUS_QUEUED
-        )
+        Broadcast.create(self.org, self.user, {"eng": "Broadcast 2"}, contacts=[contact1, contact2])
         Broadcast.create(
             self.org,
             self.user,

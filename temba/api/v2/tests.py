@@ -852,7 +852,6 @@ class EndpointsTest(TembaTest):
             urns=["twitter:franky"],
             contacts=[self.joe],
             groups=[reporters],
-            status="F",
             ticket=ticket,
         )
         Broadcast.create(
@@ -863,6 +862,9 @@ class EndpointsTest(TembaTest):
             schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
         )
         Broadcast.create(self.org2, self.admin2, {"eng": "Different org..."}, contacts=[self.hans])
+
+        bcast4.status = "F"
+        bcast4.save(update_fields=("status",))
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
