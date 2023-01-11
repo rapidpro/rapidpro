@@ -1560,10 +1560,10 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         msg4, msg3, msg2 = broadcast2.msgs.order_by("-id")
 
         broadcast3 = Broadcast.create(
-            self.channel.org, self.admin, "Pending broadcast", contacts=[contact4], status=Msg.STATUS_QUEUED
+            self.channel.org, self.admin, {"eng": "Pending broadcast"}, contacts=[contact4], status=Msg.STATUS_QUEUED
         )
         broadcast4 = Broadcast.create(
-            self.channel.org, self.admin, "Scheduled broadcast", contacts=[contact4], status=Msg.STATUS_QUEUED
+            self.channel.org, self.admin, {"eng": "Scheduled broadcast"}, contacts=[contact4], status=Msg.STATUS_QUEUED
         )
 
         broadcast4.schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
@@ -1967,7 +1967,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(200, response.status_code)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual({"eng": "Hey Joe, where you goin?"}, broadcast.text)
+        self.assertEqual({"und": "Hey Joe, where you goin?"}, broadcast.text)
         self.assertEqual({self.joe_and_frank}, set(broadcast.groups.all()))
         self.assertEqual({self.frank}, set(broadcast.contacts.all()))
         self.assertEqual(["tel:+12025550149", "tel:0780000001"], broadcast.raw_urns)
@@ -2029,7 +2029,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("hide", response["Temba-Success"])
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, {"eng": "Hurry up"})
+        self.assertEqual(broadcast.text, {"und": "Hurry up"})
         self.assertEqual(broadcast.groups.count(), 0)
         self.assertEqual({self.joe}, set(broadcast.contacts.all()))
 
@@ -2112,7 +2112,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
                 "repeat_days_of_week": ["M", "F"],
             },
             new_obj_query=Broadcast.objects.filter(
-                text={"eng": "Daily reminder"}, schedule__repeat_period="W", schedule__repeat_days_of_week="MF"
+                text={"und": "Daily reminder"}, schedule__repeat_period="W", schedule__repeat_days_of_week="MF"
             ),
             success_status=200,
         )
@@ -2145,7 +2145,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
                 Broadcast.create(
                     self.org,
                     self.admin,
-                    "Daily Reminder",
+                    {"eng": "Daily Reminder"},
                     groups=[self.joe_and_frank],
                     status=Msg.STATUS_QUEUED,
                     parent=broadcast,
@@ -2172,8 +2172,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(response.status_code, 302)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, {"eng": "Dinner reminder"})
-        self.assertEqual(broadcast.base_language, "eng")
+        self.assertEqual(broadcast.text, {"und": "Dinner reminder"})
+        self.assertEqual(broadcast.base_language, "und")
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
 
     def test_scheduled_delete(self):
@@ -2492,11 +2492,13 @@ class SystemLabelTest(TembaTest):
         self.create_incoming_msg(contact1, "Message 2")
         msg3 = self.create_incoming_msg(contact1, "Message 3")
         msg4 = self.create_incoming_msg(contact1, "Message 4")
-        Broadcast.create(self.org, self.user, "Broadcast 2", contacts=[contact1, contact2], status=Msg.STATUS_QUEUED)
+        Broadcast.create(
+            self.org, self.user, {"eng": "Broadcast 2"}, contacts=[contact1, contact2], status=Msg.STATUS_QUEUED
+        )
         Broadcast.create(
             self.org,
             self.user,
-            "Broadcast 2",
+            {"eng": "Broadcast 2"},
             contacts=[contact1, contact2],
             schedule=Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_DAILY),
         )
@@ -2516,14 +2518,14 @@ class SystemLabelTest(TembaTest):
 
         msg3.archive()
 
-        bcast1 = self.create_broadcast(self.user, "Broadcast 1", contacts=[contact1, contact2])
+        bcast1 = self.create_broadcast(self.user, {"eng": "Broadcast 1"}, contacts=[contact1, contact2])
         Msg.objects.filter(broadcast=bcast1).update(status=Msg.STATUS_PENDING)
 
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
         Broadcast.create(
             self.org,
             self.user,
-            "Broadcast 3",
+            {"eng": "Broadcast 3"},
             contacts=[contact1],
             schedule=Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_DAILY),
         )

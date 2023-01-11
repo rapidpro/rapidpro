@@ -252,13 +252,10 @@ class Broadcast(models.Model):
         status: str = STATUS_INITIALIZING,
         **kwargs,
     ):
-        # for convenience broadcasts can still be created with single translation and no base_language
-        if isinstance(text, str):
-            base_language = org.flow_languages[0]
-            text = {base_language: text}
+        if not base_language:
+            base_language = next(iter(text))
 
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
-        assert base_language in text, "base_language doesn't exist in text translations"
 
         broadcast = cls.objects.create(
             org=org,

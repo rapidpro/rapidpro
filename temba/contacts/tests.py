@@ -2672,7 +2672,7 @@ class ContactTest(TembaTest):
 
         self.assertFalse(self.joe.get_scheduled_broadcasts())
 
-        broadcast = Broadcast.create(self.org, self.admin, "Hello", contacts=[self.frank])
+        broadcast = Broadcast.create(self.org, self.admin, {"eng": "Hello"}, contacts=[self.frank])
         self.assertFalse(self.joe.get_scheduled_broadcasts())
 
         broadcast.contacts.add(self.joe)
@@ -2794,7 +2794,7 @@ class ContactTest(TembaTest):
         self.assertGreater(upcoming[4]["scheduled"], upcoming[5]["scheduled"])
 
         # add a scheduled broadcast
-        broadcast = Broadcast.create(self.org, self.admin, "Hello", contacts=[self.joe])
+        broadcast = Broadcast.create(self.org, self.admin, {"eng": "Hello"}, contacts=[self.joe])
         schedule_time = now + timedelta(days=5)
         broadcast.schedule = Schedule.create_schedule(self.org, self.admin, schedule_time, Schedule.REPEAT_NEVER)
         broadcast.save()

@@ -288,7 +288,7 @@ class BroadcastCRUDL(SmartCRUDL):
             self.object = Broadcast.create(
                 org,
                 user,
-                text,
+                {"und": text},
                 groups=list(recipients["groups"]),
                 contacts=list(recipients["contacts"]),
                 urns=list(recipients["urns"]),
@@ -497,7 +497,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 urns = list(omnibox["urns"])
 
                 broadcast = Broadcast.create(
-                    org, user, text, groups=groups, contacts=contacts, urns=urns, status=Msg.STATUS_QUEUED
+                    org, user, {"und": text}, groups=groups, contacts=contacts, urns=urns, status=Msg.STATUS_QUEUED
                 )
 
                 self.post_save(broadcast)
