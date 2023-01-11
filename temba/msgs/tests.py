@@ -473,7 +473,7 @@ class MsgTest(TembaTest):
         # check metadata was set on the broadcast
         self.assertEqual(
             broadcast.metadata,
-            {"quick_replies": [{"eng": "Yes", "kin": "Yego"}, {"eng": "No"}], "template_state": "legacy"},
+            {"quick_replies": [{"eng": "Yes", "kin": "Yego"}, {"eng": "No"}], "template_state": "unevaluated"},
         )
 
     @patch("temba.utils.email.send_temba_email")
@@ -2178,7 +2178,6 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
                     "Daily Reminder",
                     groups=[self.joe_and_frank],
                     status=Msg.STATUS_QUEUED,
-                    template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
                     parent=broadcast,
                 )
             )

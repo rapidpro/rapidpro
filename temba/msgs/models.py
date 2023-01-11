@@ -195,10 +195,9 @@ class Broadcast(models.Model):
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
-    TEMPLATE_STATE_LEGACY = "legacy"
     TEMPLATE_STATE_EVALUATED = "evaluated"
     TEMPLATE_STATE_UNEVALUATED = "unevaluated"
-    TEMPLATE_STATE_CHOICES = (TEMPLATE_STATE_LEGACY, TEMPLATE_STATE_EVALUATED, TEMPLATE_STATE_UNEVALUATED)
+    TEMPLATE_STATE_CHOICES = (TEMPLATE_STATE_EVALUATED, TEMPLATE_STATE_UNEVALUATED)
 
     METADATA_QUICK_REPLIES = "quick_replies"
     METADATA_TEMPLATE_STATE = "template_state"
@@ -257,7 +256,6 @@ class Broadcast(models.Model):
         media: dict = None,
         send_all: bool = False,
         quick_replies: list[dict] = None,
-        template_state: str = TEMPLATE_STATE_LEGACY,
         status: str = STATUS_INITIALIZING,
         **kwargs,
     ):
@@ -278,7 +276,7 @@ class Broadcast(models.Model):
                         % base_language
                     )
 
-        metadata = {Broadcast.METADATA_TEMPLATE_STATE: template_state}
+        metadata = {Broadcast.METADATA_TEMPLATE_STATE: Broadcast.TEMPLATE_STATE_UNEVALUATED}
         if quick_replies:
             metadata[Broadcast.METADATA_QUICK_REPLIES] = quick_replies
 
@@ -386,7 +384,7 @@ class Broadcast(models.Model):
 
     def get_template_state(self):
         metadata = self.metadata or {}
-        return metadata.get(Broadcast.METADATA_TEMPLATE_STATE, Broadcast.TEMPLATE_STATE_LEGACY)
+        return metadata.get(Broadcast.METADATA_TEMPLATE_STATE, Broadcast.TEMPLATE_STATE_UNEVALUATED)
 
     def __str__(self):  # pragma: no cover
         return f"Broadcast[id={self.id}, text={self.text}]"

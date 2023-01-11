@@ -234,7 +234,6 @@ class BroadcastWriteSerializer(WriteSerializer):
             groups=self.validated_data.get("groups", []),
             contacts=self.validated_data.get("contacts", []),
             urns=self.validated_data.get("urns", []),
-            template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
             ticket=self.validated_data.get("ticket"),
         )
 

@@ -293,7 +293,6 @@ class BroadcastCRUDL(SmartCRUDL):
                 contacts=list(recipients["contacts"]),
                 urns=list(recipients["urns"]),
                 status=Msg.STATUS_QUEUED,
-                template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
                 schedule=schedule,
             )
 
@@ -498,14 +497,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 urns = list(omnibox["urns"])
 
                 broadcast = Broadcast.create(
-                    org,
-                    user,
-                    text,
-                    groups=groups,
-                    contacts=contacts,
-                    urns=urns,
-                    status=Msg.STATUS_QUEUED,
-                    template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
+                    org, user, text, groups=groups, contacts=contacts, urns=urns, status=Msg.STATUS_QUEUED
                 )
 
                 self.post_save(broadcast)
