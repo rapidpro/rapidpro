@@ -62,6 +62,6 @@ class BandwidthTypeTest(TembaTest):
         self.assertEqual(mock_post.call_args_list[0][1]["auth"][0], "user1")
         self.assertEqual(mock_post.call_args_list[0][1]["auth"][1], "pass1")
         self.assertEqual(
-            mock_post.call_args_list[0][1]["data"].decode("utf-8"),
-            f'<Application><ServiceType text="Messaging-V2" /><AppName text="app.rapidpro.io/{channel.uuid}" /><InboundCallbackUrl text="https://app.rapidpro.io/c/bw/{channel.uuid}/receive" /><OutboundCallbackUrl text="https://app.rapidpro.io/c/bw/{channel.uuid}/status" /><RequestedCallbackTypes><CallbackType text="message-delivered" /><CallbackType text="message-failed" /><CallbackType text="message-sending" /></RequestedCallbackTypes></Application>',
+            mock_post.call_args_list[0][1]["data"],
+            f"<Application><ServiceType>Messaging-V2</ServiceType><AppName>app.rapidpro.io/{channel.uuid}</AppName><InboundCallbackUrl>https://app.rapidpro.io/c/bw/{channel.uuid}/receive</InboundCallbackUrl><OutboundCallbackUrl>https://app.rapidpro.io/c/bw/{channel.uuid}/status</OutboundCallbackUrl><RequestedCallbackTypes><CallbackType>message-delivered</CallbackType><CallbackType>message-failed</CallbackType><CallbackType>message-sending</CallbackType></RequestedCallbackTypes></Application>",
         )
