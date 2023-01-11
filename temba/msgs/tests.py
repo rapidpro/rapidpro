@@ -446,36 +446,6 @@ class MsgTest(TembaTest):
         )
         self.assertReleaseCount("I", Msg.STATUS_HANDLED, Msg.VISIBILITY_VISIBLE, Msg.TYPE_FLOW, SystemLabel.TYPE_FLOWS)
 
-    def test_broadcast_metadata(self):
-        self.create_channel("TT", "Twitter", "nyaruka")
-        contact1 = self.create_contact("Stephen", phone="+12078778899", language="fra")
-        contact2 = self.create_contact("Maaaarcos", urns=["tel:+12078778888", "twitter:marky65"])
-
-        # can't create quick replies if you don't include base translation
-        with self.assertRaises(ValueError):
-            Broadcast.create(
-                self.org,
-                self.admin,
-                "If a broadcast is sent and nobody receives it, does it still send?",
-                contacts=[contact1],
-                quick_replies=[dict(spa="Si"), dict(spa="No")],
-            )
-
-        broadcast = Broadcast.create(
-            self.org,
-            self.admin,
-            "If a broadcast is sent and nobody receives it, does it still send?",
-            contacts=[contact1, contact2],
-            send_all=True,
-            quick_replies=[dict(eng="Yes", kin="Yego"), dict(eng="No")],
-        )
-
-        # check metadata was set on the broadcast
-        self.assertEqual(
-            broadcast.metadata,
-            {"quick_replies": [{"eng": "Yes", "kin": "Yego"}, {"eng": "No"}], "template_state": "unevaluated"},
-        )
-
     @patch("temba.utils.email.send_temba_email")
     def test_message_export_from_archives(self, mock_send_temba_email):
         export_url = reverse("msgs.msg_export")

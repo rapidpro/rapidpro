@@ -195,13 +195,6 @@ class Broadcast(models.Model):
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
-    TEMPLATE_STATE_EVALUATED = "evaluated"
-    TEMPLATE_STATE_UNEVALUATED = "unevaluated"
-    TEMPLATE_STATE_CHOICES = (TEMPLATE_STATE_EVALUATED, TEMPLATE_STATE_UNEVALUATED)
-
-    METADATA_QUICK_REPLIES = "quick_replies"
-    METADATA_TEMPLATE_STATE = "template_state"
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
 
     # recipients of this broadcast
@@ -237,6 +230,7 @@ class Broadcast(models.Model):
 
     is_active = models.BooleanField(null=True, default=True)
 
+    # TODO drop
     metadata = JSONAsTextField(null=True, default=dict)
 
     @classmethod
@@ -268,18 +262,6 @@ class Broadcast(models.Model):
         assert base_language in text, "base_language doesn't exist in text translations"
         assert not media or base_language in media, "base_language doesn't exist in media translations"
 
-        if quick_replies:
-            for quick_reply in quick_replies:
-                if base_language not in quick_reply:
-                    raise ValueError(
-                        "Base language '%s' doesn't exist for one or more of the provided quick replies"
-                        % base_language
-                    )
-
-        metadata = {Broadcast.METADATA_TEMPLATE_STATE: Broadcast.TEMPLATE_STATE_UNEVALUATED}
-        if quick_replies:
-            metadata[Broadcast.METADATA_QUICK_REPLIES] = quick_replies
-
         broadcast = cls.objects.create(
             org=org,
             channel=channel,
@@ -290,7 +272,6 @@ class Broadcast(models.Model):
             media=media,
             created_by=user,
             modified_by=user,
-            metadata=metadata,
             status=status,
             **kwargs,
         )
@@ -381,10 +362,6 @@ class Broadcast(models.Model):
             for chunk in chunk_list(contact_ids, 1000):
                 bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
                 RelatedModel.objects.bulk_create(bulk_contacts)
-
-    def get_template_state(self):
-        metadata = self.metadata or {}
-        return metadata.get(Broadcast.METADATA_TEMPLATE_STATE, Broadcast.TEMPLATE_STATE_UNEVALUATED)
 
     def __str__(self):  # pragma: no cover
         return f"Broadcast[id={self.id}, text={self.text}]"
