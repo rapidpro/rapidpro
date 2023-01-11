@@ -205,10 +205,9 @@ class Broadcast(models.Model):
     # URN strings that mailroom will turn into contacts and URN objects
     raw_urns = ArrayField(models.TextField(), null=True)
 
-    # message content
+    # message content in different languages, e.g. {"eng": {"text": "Hello"}, "spa": {"text": "Hola"}}
+    translations = models.JSONField(null=True)
     base_language = models.CharField(max_length=4)
-    text = TranslatableField(max_length=MAX_TEXT_LEN)
-    media = TranslatableField(max_length=2048, null=True)
 
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True)
     ticket = models.ForeignKey("tickets.Ticket", on_delete=models.PROTECT, null=True, related_name="broadcasts")
@@ -230,8 +229,10 @@ class Broadcast(models.Model):
 
     is_active = models.BooleanField(null=True, default=True)
 
-    # TODO drop
+    # deprecated
     metadata = JSONAsTextField(null=True, default=dict)
+    text = TranslatableField(max_length=MAX_TEXT_LEN)
+    media = TranslatableField(max_length=2048, null=True)
 
     @classmethod
     def create(
@@ -247,9 +248,7 @@ class Broadcast(models.Model):
         base_language: str = None,
         channel: Channel = None,
         ticket=None,
-        media: dict = None,
         send_all: bool = False,
-        quick_replies: list[dict] = None,
         status: str = STATUS_INITIALIZING,
         **kwargs,
     ):
@@ -260,7 +259,6 @@ class Broadcast(models.Model):
 
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
         assert base_language in text, "base_language doesn't exist in text translations"
-        assert not media or base_language in media, "base_language doesn't exist in media translations"
 
         broadcast = cls.objects.create(
             org=org,
@@ -269,7 +267,7 @@ class Broadcast(models.Model):
             send_all=send_all,
             base_language=base_language,
             text=text,
-            media=media,
+            translations={lang: {"text": t} for lang, t in text.items()},
             created_by=user,
             modified_by=user,
             status=status,
