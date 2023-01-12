@@ -1,0 +1,108 @@
+-extends "smartmin/base.html"
+
+-load smartmin temba compress i18n humanize tz
+-block messages
+-block content
+  #range-group.card.scrollable.flex-shrink-0
+    #range-header.flex.bg-gray-100.-mx-6.-mt-6.px-8.py-2.border-b
+      #range-from.flex-grow
+      #range-to
+    #message-chart
+
+-block extra-script
+  {{block.super}}
+
+  :javascript
+    function setChartOptions(begin, end, direction) {
+      var from = Highcharts.dateFormat('%A, %B %e, %Y', begin);
+      var to = Highcharts.dateFormat('%A, %B %e, %Y', end)
+      document.querySelector("#range-from").innerText = from;
+      document.querySelector("#range-to").innerText = to;
+    }
+
+    Highcharts.setOptions({
+	  lang: {
+	    thousandsSep: ','
+	  }
+    });
+
+    function selectionChanged(chart) {
+      var direction = "";
+      if (chart.series[0].visible) {
+        direction += "I";
+      }
+
+      if (chart.series[1].visible) {
+        direction += "O";
+      }
+
+      var axis = chart.xAxis[0];
+      setChartOptions(axis.min, axis.max, direction);
+    }
+
+    var redrawMarker = null;
+    function markDirty(chart) {
+      if (redrawMarker != null) {
+        window.clearTimeout(redrawMarker);
+      }
+      redrawMarker = window.setTimeout(selectionChanged.bind(null, chart), 200);
+    }
+
+    var store = document.querySelector("temba-store");
+    store.getUrl('/dashboard/message_history').then(function(response){
+      var data = response.json;
+
+      console.log(data);
+
+      // Create the chart
+      Highcharts.stockChart('message-chart', {
+        chart: {
+          zoomType: 'x',
+          events: {
+            // mark dirty out the gate
+            load: function(e) {
+              markDirty(this);
+            },
+            redraw: function(e) {
+              markDirty(this);
+            }
+          }
+        },
+        plotOptions: {
+          series: {
+            showInLegend: true,
+            stacking: 'normal'
+          }
+        },
+        legend: {
+          enabled: true
+        },
+        rangeSelector: {
+          buttons: [
+            {type: 'week', count: 1, text: 'W'},
+            {type: 'month', count: 1, text: 'M'},
+            {type: 'year', count: 1, text: 'Y'},
+            {type: 'all', count: 1, text: 'all'}
+          ],
+          inputEnabled: false,
+          selected: 1
+        },
+        xAxis: {
+          minRange: 3600000 * 24
+        },
+        credits: {
+          enabled: false
+        },
+        navigator: {
+          series: {
+            // we want to stack the navigator, but can't due to a highcharts bug, for now we
+            // use a third non-visible series with the sum of the first two series
+            // https://github.com/highcharts/highcharts/issues/7033
+            stacking: 'normal',
+            type: 'column'
+          }
+        },
+        series: data
+      });
+
+    });

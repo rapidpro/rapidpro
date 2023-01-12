@@ -279,7 +279,7 @@
 -block full-page-script
 
   %script(src="{{ STATIC_URL }}js/labels.js")
-  %script(src="{{ STATIC_URL }}highcharts/highcharts.js")
+  %script(src="{{ STATIC_URL }}highcharts/highstock.js?v=3.0")
   %script(src="{{ STATIC_URL }}highcharts/modules/drilldown.js")
   %script(src="{{ STATIC_URL }}qrious/dist/qrious.min.js")
 
@@ -691,7 +691,7 @@
       });
     }
 
-    var toMap = /(msg|contact|flow|ticket|channels|triggers|campaign|org|user|settings|httplog|classifier|workspace).*/;
+    var toMap = /(msg|contact|flow|ticket|channels|triggers|campaign|org|user|settings|httplog|classifier|workspace|dashboard).*/;
 
     function handleNoPath(event) {
       var details = event.detail;

@@ -39,6 +39,7 @@ window.urls = [
   { old: /\/user\/read\/(.*)/,                           new: /\/staff\/user\/(.*)/ },
   { old: /\/org\/update\/(.*)/,                          new: /\/staff\/workspaces\/(.*)\/update/ },
   { old: /\/org\/home\//,                                new: /\/settings\/workspace\// },
+  { old: /\/dashboard\/home\//,                          new: /\/settings\/dashboard\// },
   { old: /\/org\/manage_accounts_sub_org\/\?org=(.*)/,   new: /\/settings\/(.*)\// },
 
 ];

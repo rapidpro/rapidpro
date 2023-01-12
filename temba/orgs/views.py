@@ -1241,6 +1241,16 @@ class OrgCRUDL(SmartCRUDL):
                     )
                 )
 
+                if self.has_org_perm("orgs.org_dashboard"):
+                    menu.append(
+                        self.create_menu_item(
+                            menu_id="dashboard",
+                            name=_("Dashboard"),
+                            icon="icon.dashboard",
+                            href=reverse("dashboard.dashboard_home"),
+                        )
+                    )
+
                 if self.request.user.settings.two_factor_enabled:
                     menu.append(
                         self.create_menu_item(
