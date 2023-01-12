@@ -83,5 +83,5 @@ class BandwidthType(ChannelType):
 
         resp = requests.delete(url)
 
-        if resp.status_code != 200:
+        if resp.status_code != 200:  # pragma: no cover
             raise ValidationError(_("Error removing the bandwidth application"))
