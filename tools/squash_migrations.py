@@ -28,7 +28,7 @@ from typing import Callable, List
 import colorama
 
 MIGRATION_FILENAME_REGEX = re.compile(r"\d{4}_\w+\.py")
-EMPTY_MIGRATION = """# This is a dummy migration which will be implemented in 7.3
+EMPTY_MIGRATION = """# This is a dummy migration which will be implemented in the next release
 
 {{IMPORTS}}
 
