@@ -51,9 +51,6 @@
     var store = document.querySelector("temba-store");
     store.getUrl('/dashboard/message_history').then(function(response){
       var data = response.json;
-
-      console.log(data);
-
       // Create the chart
       Highcharts.stockChart('message-chart', {
         chart: {
@@ -95,9 +92,6 @@
         },
         navigator: {
           series: {
-            // we want to stack the navigator, but can't due to a highcharts bug, for now we
-            // use a third non-visible series with the sum of the first two series
-            // https://github.com/highcharts/highcharts/issues/7033
             stacking: 'normal',
             type: 'column'
           }
