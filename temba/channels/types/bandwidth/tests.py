@@ -53,7 +53,9 @@ class BandwidthTypeTest(TembaTest):
         self.assertEqual("250788123123", channel.address)
         self.assertEqual("BW", channel.channel_type)
 
-        self.assertRedirect(response, reverse("channels.channel_read", args=[channel.uuid]))
+        config_url = reverse("channels.channel_configuration", args=[channel.uuid])
+
+        self.assertRedirect(response, config_url)
 
         self.assertEqual(
             mock_post.call_args_list[0][0][0], "https://dashboard.bandwidth.com/api/accounts/account-id/applications"
@@ -65,3 +67,18 @@ class BandwidthTypeTest(TembaTest):
             mock_post.call_args_list[0][1]["data"],
             f"<Application><ServiceType>Messaging-V2</ServiceType><AppName>app.rapidpro.io/{channel.uuid}</AppName><InboundCallbackUrl>https://app.rapidpro.io/c/bw/{channel.uuid}/receive</InboundCallbackUrl><OutboundCallbackUrl>https://app.rapidpro.io/c/bw/{channel.uuid}/status</OutboundCallbackUrl><RequestedCallbackTypes><CallbackType>message-delivered</CallbackType><CallbackType>message-failed</CallbackType><CallbackType>message-sending</CallbackType></RequestedCallbackTypes></Application>",
         )
+
+        response = self.client.get(config_url)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(
+            response, "https://dashboard.bandwidth.com/portal/r/a/account-id/applications/e5a9e103-application_id"
+        )
+
+        with patch("requests.delete") as mock_delete:
+            mock_delete.side_effect = [MockResponse(200, "")]
+            channel.release(self.admin)
+
+            self.assertEqual(
+                mock_delete.call_args[0][0],
+                "https://dashboard.bandwidth.com/api/accounts/account-id/applications/e5a9e103-application_id",
+            )

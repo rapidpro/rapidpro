@@ -33,21 +33,17 @@ class BandwidthType(ChannelType):
         "link": '<a href="https://www.bandwidth.com/">Bandwidth</a>'
     }
 
-    show_config_page = False
+    show_config_page = True
 
     configuration_blurb = _(
-        "To finish configuring your Bandwidth connection you need to set the following URLs in your "
-        "Bandwidth account settings."
+        "To finish configuring your Bandwidth connection you need to associate the locaiton of the phone number to "
+        "the Bandwidth application on the following URLs in your Bandwidth account dashboard."
     )
 
     configuration_urls = (
         dict(
-            label=_("Inbound Message Webhook URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.bw' channel.uuid 'receive' %}",
-        ),
-        dict(
-            label=_("Outbound Message Webhook URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.bw' channel.uuid 'status' %}",
+            label=_("Bandwidth application URL"),
+            url="https://dashboard.bandwidth.com/portal/r/a/{{channel.config.account_id}}/applications/{{channel.config.application_id}}",
         ),
     )
 
@@ -78,3 +74,14 @@ class BandwidthType(ChannelType):
         channel.config["application_id"] = application_id_elt.text
 
         channel.save(update_fields=("config",))
+
+    def deactivate(self, channel):
+        account_id = channel.config.get("account_id")
+        application_id = channel.config.get("application_id")
+
+        url = f"https://dashboard.bandwidth.com/api/accounts/{account_id}/applications/{application_id}"
+
+        resp = requests.delete(url)
+
+        if resp.status_code != 200:
+            raise ValidationError(_("Error removing the bandwidth application"))
