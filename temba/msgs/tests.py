@@ -2519,10 +2519,11 @@ class SystemLabelTest(TembaTest):
 
         msg3.archive()
 
-        bcast1 = self.create_broadcast(self.user, {"eng": "Broadcast 1"}, contacts=[contact1, contact2])
-        Msg.objects.filter(broadcast=bcast1).update(status=Msg.STATUS_PENDING)
-
+        bcast1 = self.create_broadcast(
+            self.user, "Broadcast 1", contacts=[contact1, contact2], msg_status=Msg.STATUS_PENDING
+        )
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
+
         Broadcast.create(
             self.org,
             self.user,
@@ -2584,7 +2585,7 @@ class SystemLabelTest(TembaTest):
             },
         )
 
-        self.assertEqual(SystemLabelCount.objects.all().count(), 25)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 21)
 
         # squash our counts
         squash_msg_counts()

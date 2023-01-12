@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("msgs", "0204_remove_msg_msgs_next_attempt_out_errored_and_more"),
+        ("msgs", "0206_squashed"),
     ]
 
     operations = [

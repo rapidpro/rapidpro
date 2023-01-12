@@ -233,7 +233,7 @@ class Broadcast(models.Model):
         cls,
         org,
         user,
-        text,
+        text: dict,
         *,
         groups=None,
         contacts=None,
