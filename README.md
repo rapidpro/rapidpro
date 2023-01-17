@@ -15,8 +15,6 @@ The set of versions that make up the latest stable release are:
  * [Courier 8.0.2](https://github.com/nyaruka/courier/releases/tag/v8.0.2)
  * [Archiver 8.0.0](https://github.com/nyaruka/rp-archiver/releases/tag/v8.0.0)
  * [Indexer 8.0.0](https://github.com/nyaruka/rp-indexer/releases/tag/v8.0.0)
- * [Android Channel 2.0.0](https://github.com/rapidpro/android-channel/releases/tag/v2.0.0)
- * [Android Surveyor 13.9.0](https://github.com/rapidpro/surveyor/releases/tag/v13.9.0)
 
 ### Versioning
 
