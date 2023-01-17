@@ -8,7 +8,7 @@
     input {
       padding: 9px;
       cursor: pointer;
-      box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 1px, rgba(0, 0, 0, 0.04) 0px 3px 20px 0px, rgba(0, 0, 0, 0.02) 0px 1px 2px 0px;
+      border: 1px solid var(--color-widget-border);
     }
 
     table.list tr th {
@@ -53,7 +53,7 @@
     }
 
 -block content
-  .title
+  .text-lg
     -trans "Importing Contacts"
   {{block.super}}
 
