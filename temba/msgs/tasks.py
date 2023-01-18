@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task
-def send_to_flow_node(org_id, user_id, text, **kwargs):
+def send_to_flow_node(org_id, user_id, text: str, **kwargs):
     from django.contrib.auth.models import User
 
     from temba.contacts.models import Contact
@@ -36,7 +36,7 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
     )
 
     if contact_ids:
-        broadcast = Broadcast.create(org, user, text, contact_ids=contact_ids)
+        broadcast = Broadcast.create(org, user, {"und": text}, contact_ids=contact_ids)
         broadcast.send_async()
 
         analytics.track(user, "temba.broadcast_created", dict(contacts=len(contact_ids), groups=0, urns=0))

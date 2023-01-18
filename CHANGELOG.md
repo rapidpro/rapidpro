@@ -1,3 +1,14 @@
+v8.1.0 (2023-01-17)
+-------------------------
+ * Update contact import styling
+ * Implement squashed migrations
+ * Stop trimming flow starts as this will be handled by archiver
+
+v8.0.1 (2023-01-12)
+-------------------------
+ * Tweak migration dependencies to ensure clean installs run them in order that works
+ * Add empty migrations required for squashing
+
 v8.0.0 (2023-01-10)
 -------------------------
  * Update deps
