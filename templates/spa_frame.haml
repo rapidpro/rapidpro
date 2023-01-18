@@ -478,6 +478,7 @@
             disabled: false, 
             onSubmit: event.detail.on_submit
           }
+
           showModax(event.detail.title, event.detail.href, modaxOptions);
         });
     
@@ -765,6 +766,7 @@
     }
 
     function showModax(header, endpoint, modaxOptions) {
+
       var modax = document.querySelector("temba-modax#shared-modax");
       modax["-temba-loaded"] = undefined;
       

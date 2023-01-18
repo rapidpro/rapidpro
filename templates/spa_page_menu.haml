@@ -94,8 +94,12 @@
     } else {
       modax["-temba-submitted"] = undefined;
     }
+
+    if (!modaxOptions.legacy) {
+      modax.headers = { "TEMBA-SPA": 1};
+    }
     modax["-temba-redirected"] = refreshMenu;
-    modax.headers = { "TEMBA-SPA": 1};
+    
     modax.header = header;
     modax.endpoint = endpoint;
     modax.open = true;
