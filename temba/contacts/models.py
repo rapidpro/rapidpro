@@ -621,13 +621,18 @@ class Contact(LegacyUUIDMixin, SmartModel):
     modified_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
+        db_index=False,
         on_delete=models.PROTECT,
         related_name="%(app_label)s_%(class)s_modifications",
     )
 
     # user that created this contact
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="%(app_label)s_%(class)s_creations", null=True
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="%(app_label)s_%(class)s_creations",
+        null=True,
+        db_index=False,
     )
 
     last_seen_on = models.DateTimeField(null=True)
