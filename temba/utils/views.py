@@ -1,5 +1,5 @@
 import logging
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from django import forms
 from django.db import transaction
@@ -296,9 +296,16 @@ class ContentMenu:
     def add_link(self, label: str, url: str, as_button: bool = False):
         self.groups[-1].append({"type": "link", "label": label, "url": url, "as_button": as_button})
 
-    def add_js(self, label: str, on_click: str, link_class: str, as_button: bool = False):
+    def add_js(self, id: str, label: str, on_click: str, link_class: str, as_button: bool = False):
         self.groups[-1].append(
-            {"type": "js", "label": label, "on_click": on_click, "link_class": link_class, "as_button": as_button}
+            {
+                "id": id,
+                "type": "js",
+                "label": label,
+                "on_click": on_click,
+                "link_class": link_class,
+                "as_button": as_button,
+            }
         )
 
     def add_url_post(self, label: str, url: str, as_button: bool = False):
@@ -355,6 +362,7 @@ class ContentMenuMixin:
     gear_link_renderers = {
         "link": lambda i: {"title": i["label"], "href": i["url"], "as_button": i["as_button"]},
         "js": lambda i: {
+            "id": i["id"],
             "title": i["label"],
             "on_click": i["on_click"],
             "js_class": i["link_class"],
@@ -382,18 +390,20 @@ class ContentMenuMixin:
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        menu_links = []
-        menu_buttons = []
 
-        for item in self._get_content_menu():
-            rendered_item = self.gear_link_renderers[item["type"]](item)
-            if item.get("as_button", False):
-                menu_buttons.append(rendered_item)
-            else:
-                menu_links.append(rendered_item)
+        # is the page old (legacy) ui or new (spa) ui?
+        if "HTTP_TEMBA_SPA" in self.request.META:
+            context["is_legacy"] = 0
+        else:
+            context["is_legacy"] = 1
 
-        context["content_menu_buttons"] = menu_buttons
-        context["content_menu_links"] = menu_links
+        # does the page have a content menu?
+        context["has_content_menu"] = len(self._get_content_menu()) > 0
+
+        # does the page have a search query?
+        if "search" in self.request.GET:
+            context["has_search_query"] = urlencode({"search": self.request.GET["search"]})
+
         return context
 
     def _get_content_menu(self):

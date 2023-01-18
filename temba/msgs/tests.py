@@ -205,7 +205,7 @@ class MediaTest(TembaTest):
         self.assertEqual(Media.STATUS_FAILED, media.status)
 
 
-class MsgTest(TembaTest):
+class MsgTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
@@ -1083,8 +1083,9 @@ class MsgTest(TembaTest):
         )
 
         # filter page should have an export option
-        response = self.client.get(reverse("msgs.msg_filter", args=[label.uuid]))
-        self.assertContains(response, "Download")
+        response = self.requestView(reverse("msgs.msg_filter", args=[label.uuid]), self.admin)
+        self.assertContains(response, label.name)
+        self.assertContentMenuContains(reverse("msgs.msg_filter", args=[label.uuid]), self.admin, "Download")
 
         # try export with user label
         self.assertExcelSheet(
@@ -1468,8 +1469,8 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         msg1.refresh_from_db()
         self.assertEqual({label1, label3}, set(msg1.labels.all()))
 
-        self.assertContentMenu(inbox_url, self.user, ["Download"])
-        self.assertContentMenu(inbox_url, self.admin, ["New Label", "Download"], True)
+        self.assertContentMenu(inbox_url, self.user, legacy_items=["Download"], spa_items=["Download"])
+        self.assertContentMenu(inbox_url, self.admin, legacy_items=["Download"], spa_items=["New Label", "Download"])
 
     def test_flows(self):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")

@@ -474,7 +474,11 @@
         menu.setSelection(selection);
 
         menu.addEventListener("temba-button-clicked", function(event) {
-          showModax(event.detail.title, event.detail.href, event.detail.on_submit);
+          var modaxOptions = { 
+            disabled: false, 
+            onSubmit: event.detail.on_submit
+          }
+          showModax(event.detail.title, event.detail.href, modaxOptions);
         });
     
         window.addEventListener('resize', function() {
@@ -760,20 +764,25 @@
       }
     }
 
-    function showModax(header, endpoint, onSubmit) {
+    function showModax(header, endpoint, modaxOptions) {
       var modax = document.querySelector("temba-modax#shared-modax");
       modax["-temba-loaded"] = undefined;
-      if (onSubmit) {
-        modax["-temba-submitted"] = Function(onSubmit);
+      
+      modax.disabled = modaxOptions.disabled == "True";
+      var itemOnSubmit;
+      if (modaxOptions.onSubmit == "None") {
+        onSubmit = undefined;
+      }
+
+      if (modaxOptions.onSubmit) {
+        modax["-temba-submitted"] = Function(modaxOptions.onSubmit);
       } else {
         modax["-temba-submitted"] = undefined;
       }
-
       modax["-temba-redirected"] = refreshMenu;
-
+      modax.headers = { "TEMBA-SPA": 1};
       modax.header = header;
       modax.endpoint = endpoint;
-      modax.headers = { "TEMBA-SPA": 1}
       modax.open = true;
     }
 

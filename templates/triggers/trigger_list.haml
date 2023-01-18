@@ -62,7 +62,7 @@
                 .page-title.leading-tight
                   {{title}}
             .gear-links
-              -include "gear_links_include.haml"
+              -include "spa_page_menu.haml"
 
           %form#search-form.mb-4(method="get")
             %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
