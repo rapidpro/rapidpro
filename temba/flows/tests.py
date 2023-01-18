@@ -1768,6 +1768,23 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             response.context["form"].fields["flow_type"].choices,
         )
 
+        # if surveyor feature is disabled, that is no longer a flow type option
+        with self.settings(FEATURES={}):
+            response = self.assertCreateFetch(
+                create_url,
+                allow_viewers=False,
+                allow_editors=True,
+                form_fields=["name", "keyword_triggers", "flow_type", "base_language"],
+            )
+            self.assertEqual(
+                [
+                    (Flow.TYPE_MESSAGE, "Messaging"),
+                    (Flow.TYPE_VOICE, "Phone Call"),
+                    (Flow.TYPE_BACKGROUND, "Background"),
+                ],
+                response.context["form"].fields["flow_type"].choices,
+            )
+
         # try to submit without name or language
         self.assertCreateSubmit(
             create_url,
