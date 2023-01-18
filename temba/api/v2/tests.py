@@ -842,27 +842,29 @@ class EndpointsTest(TembaTest):
         ticketer = Ticketer.create(self.org, self.admin, "mailgun", "Support Tickets", {})
         ticket = self.create_ticket(ticketer, self.joe, "Help!")
 
-        bcast1 = Broadcast.create(self.org, self.admin, "Hello 1", urns=["twitter:franky"])
-        bcast2 = Broadcast.create(self.org, self.admin, "Hello 2", contacts=[self.joe])
-        bcast3 = Broadcast.create(self.org, self.admin, "Hello 3", contacts=[self.frank], status="S")
+        bcast1 = Broadcast.create(self.org, self.admin, {"eng": "Hello 1"}, urns=["twitter:franky"])
+        bcast2 = Broadcast.create(self.org, self.admin, {"eng": "Hello 2"}, contacts=[self.joe])
+        bcast3 = Broadcast.create(self.org, self.admin, {"eng": "Hello 3"}, contacts=[self.frank], status="S")
         bcast4 = Broadcast.create(
             self.org,
             self.admin,
-            "Hello 4",
+            {"eng": "Hello 4"},
             urns=["twitter:franky"],
             contacts=[self.joe],
             groups=[reporters],
-            status="F",
             ticket=ticket,
         )
         Broadcast.create(
             self.org,
             self.admin,
-            "Scheduled",
+            {"eng": "Scheduled"},
             contacts=[self.joe],
             schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
         )
-        Broadcast.create(self.org2, self.admin2, "Different org...", contacts=[self.hans])
+        Broadcast.create(self.org2, self.admin2, {"eng": "Different org..."}, contacts=[self.hans])
+
+        bcast4.status = "F"
+        bcast4.save(update_fields=("status",))
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
