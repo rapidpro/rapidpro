@@ -1,3 +1,11 @@
+v8.1.1 (2023-01-18)
+-------------------------
+ * Restrict creating surveyor flows unless that is enabled as a feature
+ * Always create braodcasts with status = QUEUED, create index for fetching queued broadcasts
+ * Add new translations JSON field to broadcasts and start writing it
+ * Remove support for creating broadcasts with legacy expressions
+ * New content menu component
+
 v8.1.0 (2023-01-17)
 -------------------------
  * Update contact import styling
