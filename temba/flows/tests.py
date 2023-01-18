@@ -57,7 +57,7 @@ from .tasks import squash_flow_counts, trim_flow_revisions, trim_flow_sessions, 
 from .views import FlowCRUDL
 
 
-class FlowTest(TembaTest):
+class FlowTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
@@ -254,7 +254,9 @@ class FlowTest(TembaTest):
 
         self.login(self.admin)
 
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
+        flow_editor_url = reverse("flows.flow_editor", args=[flow.uuid])
+
+        response = self.client.get(flow_editor_url)
 
         self.assertTrue(response.context["mutable"])
         self.assertTrue(response.context["can_start"])
@@ -264,9 +266,7 @@ class FlowTest(TembaTest):
 
         # customer service gets a service button
         self.login(self.customer_support)
-
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertContains(response, "Service")
+        self.assertContentMenuContains(flow_editor_url, self.customer_support, "Service")
 
         # flows that are archived can't be edited, started or simulated
         self.login(self.admin)
@@ -274,7 +274,7 @@ class FlowTest(TembaTest):
         flow.is_archived = True
         flow.save(update_fields=("is_archived",))
 
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
+        response = self.client.get(flow_editor_url)
 
         self.assertFalse(response.context["mutable"])
         self.assertFalse(response.context["can_start"])
@@ -1768,6 +1768,23 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             response.context["form"].fields["flow_type"].choices,
         )
 
+        # if surveyor feature is disabled, that is no longer a flow type option
+        with self.settings(FEATURES={}):
+            response = self.assertCreateFetch(
+                create_url,
+                allow_viewers=False,
+                allow_editors=True,
+                form_fields=["name", "keyword_triggers", "flow_type", "base_language"],
+            )
+            self.assertEqual(
+                [
+                    (Flow.TYPE_MESSAGE, "Messaging"),
+                    (Flow.TYPE_VOICE, "Phone Call"),
+                    (Flow.TYPE_BACKGROUND, "Background"),
+                ],
+                response.context["form"].fields["flow_type"].choices,
+            )
+
         # try to submit without name or language
         self.assertCreateSubmit(
             create_url,
@@ -1891,9 +1908,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         user.save()
         self.login(user)
 
-        self.assertContentMenu(reverse("flows.flow_list"), self.admin, ["Import", "Export"])
+        self.assertContentMenu(reverse("flows.flow_list"), self.user, legacy_items=["Export"], spa_items=["Export"])
+
         self.assertContentMenu(
-            reverse("flows.flow_list"), self.admin, ["New Flow", "New Label", "Import", "Export"], True
+            reverse("flows.flow_list"),
+            self.admin,
+            legacy_items=["Import", "Export"],
+            spa_items=["New Flow", "New Label", "Import", "Export"],
         )
 
         # list, should have only one flow (the one created in setUp)

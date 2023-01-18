@@ -404,22 +404,20 @@ class FlowCRUDL(SmartCRUDL):
                 ),
             )
 
-            flow_type = forms.ChoiceField(
-                label=_("Type"),
-                help_text=_("Choose the method for your flow"),
-                choices=Flow.TYPE_CHOICES,
-                widget=SelectWidget(attrs={"widget_only": False}),
-            )
-
             def __init__(self, org, branding, *args, **kwargs):
                 super().__init__(org, branding, *args, **kwargs)
 
-                language_choices = languages.choices(org.flow_languages)
+                self.fields["flow_type"] = forms.ChoiceField(
+                    label=_("Type"),
+                    help_text=_("Choose the method for your flow"),
+                    choices=Flow.TYPE_CHOICES if "surveyor" in settings.FEATURES else Flow.TYPE_CHOICES[:3],
+                    widget=SelectWidget(attrs={"widget_only": False}),
+                )
 
                 self.fields["base_language"] = forms.ChoiceField(
                     label=_("Language"),
                     initial=org.flow_languages[0],
-                    choices=language_choices,
+                    choices=languages.choices(org.flow_languages),
                     widget=SelectWidget(attrs={"widget_only": False}),
                 )
 

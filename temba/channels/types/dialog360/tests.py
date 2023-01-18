@@ -214,7 +214,6 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
 
         # should have our template translations
         self.assertContains(response, "Hello")
-        self.assertContains(response, sync_url)
         self.assertContentMenu(templates_url, self.admin, ["Sync Logs"])
 
         # check if message templates link are in sync_logs view

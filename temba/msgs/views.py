@@ -288,12 +288,10 @@ class BroadcastCRUDL(SmartCRUDL):
             self.object = Broadcast.create(
                 org,
                 user,
-                text,
+                {"und": text},
                 groups=list(recipients["groups"]),
                 contacts=list(recipients["contacts"]),
                 urns=list(recipients["urns"]),
-                status=Msg.STATUS_QUEUED,
-                template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
                 schedule=schedule,
             )
 
@@ -498,14 +496,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 urns = list(omnibox["urns"])
 
                 broadcast = Broadcast.create(
-                    org,
-                    user,
-                    text,
-                    groups=groups,
-                    contacts=contacts,
-                    urns=urns,
-                    status=Msg.STATUS_QUEUED,
-                    template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
+                    org, user, {"und": text}, groups=groups, contacts=contacts, urns=urns, status=Msg.STATUS_QUEUED
                 )
 
                 self.post_save(broadcast)
@@ -761,9 +752,7 @@ class MsgCRUDL(SmartCRUDL):
             # stuff in any pending broadcasts
             context["pending_broadcasts"] = (
                 Broadcast.objects.filter(
-                    org=self.request.org,
-                    status__in=[Broadcast.STATUS_INITIALIZING, Broadcast.STATUS_QUEUED],
-                    schedule=None,
+                    org=self.request.org, status=Broadcast.STATUS_QUEUED, schedule=None, is_active=True
                 )
                 .select_related("org")
                 .prefetch_related("groups", "contacts", "urns")

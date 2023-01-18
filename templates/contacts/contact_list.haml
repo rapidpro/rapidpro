@@ -201,7 +201,7 @@
                           -else
                             {{title}}
                   .gear-links
-                    -include "gear_links_include.haml"
+                    -include "spa_page_menu.haml"
                 .subtitle.ml-1.w-full
                   -block subtitle
 
@@ -237,10 +237,9 @@
 -block extra-script
   {{ block.super }}
 
-  -block spa-script
-    :javascript
+  :javascript
 
-      {% if org_perms.contacts.contact_delete %}
+    {% if org_perms.contacts.contact_delete %}
       function onDeleteClicked(){
         var deleteConfirmation = document.querySelector("#delete-confirmation");
         deleteConfirmation.classList.remove("hide");
@@ -253,121 +252,153 @@
           deleteConfirmation.open = false;
         });
       }
+    {% endif %}
 
-      function handleDeleteAllContacts() {
-        var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
-        deleteAllConfirmation.classList.remove("hide");
-        deleteAllConfirmation.open = true;
+    function handleRowClicked(event) {
 
-        deleteAllConfirmation.addEventListener("temba-button-clicked", function(event){
-          if (event.detail.button.attributes.destructive){
-            jQuery.ajaxSettings.traditional = true;
-            fetchPJAXContent(document.location.href, '#pjax', {
-                postData: { action: "delete", all: 'true', pjax: 'true' },
-                forceReload: true
-            });
-          }
-          deleteAllConfirmation.classList.add("hide");
-          deleteAllConfirmation.open = false;
-        });
+      if (event.target.tagName == "TEMBA-CHECKBOX") {
+        return;
       }
-      
+
+      var row = event.target.closest("tr");
+      var uuid = row.getAttribute("data-uuid");
+
+      {% if is_spa %}
+      fetchURL("/contact/read/" + uuid + "/");
+      {% else %}
+      gotoLink("/contact/read/" + uuid + "/");
       {% endif %}
+    }
 
-      function handleRowClicked(event) {
+    function handleStartFlowClicked(evt) {
 
-        if (event.target.tagName == "TEMBA-CHECKBOX") {
-          return;
-        }
+      var sendEndpoint = "{% url 'flows.flow_broadcast' %}";
+      var startModal = getModax("#start-modal");
 
-        var row = event.target.closest("tr");
-        var uuid = row.getAttribute("data-uuid");
-
-        {% if is_spa %}
-        fetchURL("/contact/read/" + uuid + "/");
-        {% else %}
-        gotoLink("/contact/read/" + uuid + "/");
-        {% endif %}
+      startModal.header = '{{_("Start Flow")|escapejs}}';
+      var ids = getCheckedUuids();
+      if (ids.length > 0) {
+        startModal.setAttribute("endpoint", sendEndpoint + '?c=' + ids);
+      } else {
+        startModal.setAttribute("endpoint", sendEndpoint);
       }
+      startModal.open = true;
 
-      function handleStartFlowClicked(evt) {
+      evt.preventDefault();
+      evt.stopPropagation();
+    }
 
-        var sendEndpoint = "{% url 'flows.flow_broadcast' %}";
-        var startModal = getModax("#start-modal");
-
-        startModal.header = '{{_("Start Flow")|escapejs}}';
-        var ids = getCheckedUuids();
-        if (ids.length > 0) {
-          startModal.setAttribute("endpoint", sendEndpoint + '?c=' + ids);
-        } else {
-          startModal.setAttribute("endpoint", sendEndpoint);
-        }
-        startModal.open = true;
-
-        evt.preventDefault();
-        evt.stopPropagation();
+    function handleSendMessageClicked() {
+      // when we click send, include any clicked messages in our modax request
+      var sendEndpoint = "{% url 'msgs.broadcast_send' %}";
+      var sendModal = document.querySelector("#send-message-modal");
+      var ids = getCheckedUuids();
+      if (ids.length > 0) {
+        sendModal.setAttribute("endpoint", sendEndpoint + '?c=' + ids);
+      } else {
+        sendModal.setAttribute("endpoint", sendEndpoint);
       }
+    }
 
-      function handleSendMessageClicked() {
-        // when we click send, include any clicked messages in our modax request
-        var sendEndpoint = "{% url 'msgs.broadcast_send' %}";
-        var sendModal = document.querySelector("#send-message-modal");
-        var ids = getCheckedUuids();
-        if (ids.length > 0) {
-          sendModal.setAttribute("endpoint", sendEndpoint + '?c=' + ids);
-        } else {
-          sendModal.setAttribute("endpoint", sendEndpoint);
-        }
+    // keeps track if we are on a link or not
+    var onLink = false;
+
+    {% if org_perms.contacts.contact_update %}
+    function addContactToGroup(groupId){
+      window.lastChecked = getCheckedIds();
+      var groupedIds = getLabeledIds(groupId);
+
+      var addGroup = true;
+
+      // find the intersection of contactIds and groupedIds
+      var contactIdsWithGroup = intersect(window.lastChecked, groupedIds);
+
+      // they all belong to the group, so we are actually removing these contacts from the group
+      if (contactIdsWithGroup.length == window.lastChecked.length){
+        addGroup = false;
       }
+      jQuery.ajaxSettings.traditional = true;
+      fetchPJAXContent(window.lastFetch || document.location.href, "#pjax", { postData: {objects: window.lastChecked, label: groupId, add: addGroup, action: 'label', pjax: 'true'}, forceReload: true, onSuccess: function(){ recheckIds(); wireTableListeners()}});
+    }
+    {% endif %}
 
-      // keeps track if we are on a link or not
-      var onLink = false;
+    {% if org_perms.contacts.contact_block %}
+      $(".lp-frame").on('click', ".object-btn-unblock", function() {
+        runActionOnObjectRows("unblock", wireTableListeners);
+      });
+      $(".lp-frame").on('click', ".object-btn-block", function() {
+        runActionOnObjectRows("block", wireTableListeners);
+      });
+    {% endif %}
 
-      {% if org_perms.contacts.contact_update %}
-      function addContactToGroup(groupId){
-        window.lastChecked = getCheckedIds();
-        var groupedIds = getLabeledIds(groupId);
+    {% if org_perms.contacts.contact_unstop %}
+      $(".lp-frame").on('click', ".object-btn-unstop", function() {
+        runActionOnObjectRows("unstop", wireTableListeners);
+      });
+    {% endif %}
 
-        var addGroup = true;
+    function handleCreateGroupModalLoaded(event) {
+      window.lastChecked = getCheckedIds();
+      var body = event.detail.body;
+      body.querySelector("#id_preselected_contacts").value = window.lastChecked.join();
+    }
 
-        // find the intersection of contactIds and groupedIds
-        var contactIdsWithGroup = intersect(window.lastChecked, groupedIds);
+    function handleCreateGroupModalSubmitted(event) {
+      refresh(function() { recheckIds(); }, true);
+    }
 
-        // they all belong to the group, so we are actually removing these contacts from the group
-        if (contactIdsWithGroup.length == window.lastChecked.length){
-          addGroup = false;
+    function handleAddGroupClicked() {
+      document.getElementById("create-group-modal").open = true;
+    }
+
+    {% if org_perms.contacts.contact_delete %}
+    function handleDeleteAllContacts() {
+      var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
+      deleteAllConfirmation.classList.remove("hide");
+      deleteAllConfirmation.open = true;
+
+      deleteAllConfirmation.addEventListener("temba-button-clicked", function(event){
+        if (event.detail.button.attributes.destructive){
+          jQuery.ajaxSettings.traditional = true;
+          fetchPJAXContent(document.location.href, '#pjax', {
+              postData: { action: "delete", all: 'true', pjax: 'true' },
+              forceReload: true
+          });
+
         }
+        deleteAllConfirmation.classList.add("hide");
+        deleteAllConfirmation.open = false;
+      });
+    }
+
+    function handleDeleteAllConfirmation_spa() {
+      var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
+
+      deleteAllConfirmation.classList.remove("hide");
+      deleteAllConfirmation.open = true;
+
+      deleteAllConfirmation.removeEventListener("temba-button-clicked", handleDeleteAllContacts_spa);
+      deleteAllConfirmation.addEventListener("temba-button-clicked", handleDeleteAllContacts_spa);
+    }
+
+    function handleDeleteAllContacts_spa(event){
+      var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
+
+      if (event.detail.button.attributes.destructive){
         jQuery.ajaxSettings.traditional = true;
-        fetchPJAXContent(window.lastFetch || document.location.href, "#pjax", { postData: {objects: window.lastChecked, label: groupId, add: addGroup, action: 'label', pjax: 'true'}, forceReload: true, onSuccess: function(){ recheckIds(); wireTableListeners()}});
-      }
-      {% endif %}
+        var url = "{% url 'contacts.contact_archived' %}";
 
-      {% if org_perms.contacts.contact_block %}
-        $(".lp-frame").on('click', ".object-btn-unblock", function() {
-          runActionOnObjectRows("unblock", wireTableListeners);
+        var store = document.querySelector("temba-store");
+        store.postForm(url, { action: "delete", all: 'true', pjax: true}).then(function(response){
+          document.querySelector("temba-menu").refresh();
+          gotoURL(url);
+        }).catch(function(error){
+          console.log(error);
         });
-        $(".lp-frame").on('click', ".object-btn-block", function() {
-          runActionOnObjectRows("block", wireTableListeners);
-        });
-      {% endif %}
 
-      {% if org_perms.contacts.contact_unstop %}
-        $(".lp-frame").on('click', ".object-btn-unstop", function() {
-          runActionOnObjectRows("unstop", wireTableListeners);
-        });
-      {% endif %}
-
-      function handleCreateGroupModalLoaded(event) {
-        window.lastChecked = getCheckedIds();
-        var body = event.detail.body;
-        body.querySelector("#id_preselected_contacts").value = window.lastChecked.join();
       }
+      deleteAllConfirmation.classList.add("hide");
+      deleteAllConfirmation.open = false;
+    }
 
-      function handleCreateGroupModalSubmitted(event) {
-        refresh(function() { recheckIds(); }, true);
-      }
-
-      function handleAddGroupClicked() {
-        document.getElementById("create-group-modal").open = true;
-      }
-
+    {% endif %}
