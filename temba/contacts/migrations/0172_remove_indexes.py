@@ -22,8 +22,8 @@ class Migration(migrations.Migration):
                 db_index=False,
                 null=True,
                 on_delete=django.db.models.deletion.PROTECT,
-                related_name="%(app_label)s_%(class)s_creations",
                 to=settings.AUTH_USER_MODEL,
+                related_name="+",
             ),
         ),
         migrations.AlterField(
@@ -33,8 +33,8 @@ class Migration(migrations.Migration):
                 db_index=False,
                 null=True,
                 on_delete=django.db.models.deletion.PROTECT,
-                related_name="%(app_label)s_%(class)s_modifications",
                 to=settings.AUTH_USER_MODEL,
+                related_name="+",
             ),
         ),
     ]
