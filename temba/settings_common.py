@@ -292,7 +292,7 @@ BRANDS = [
 ]
 DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro")
 
-FEATURES = {"locations", "ticketers"}
+FEATURES = {"locations", "surveyor", "ticketers"}
 
 
 # -----------------------------------------------------------------------------------
