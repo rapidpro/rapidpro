@@ -10,8 +10,8 @@ jobs:
       redis-version: "6.2"
       node-version: "12"
       elastic-version: "7.17.6"
-      rpindexer-version: "7.5.0"
-      mailroom-version: "7.5.36"
+      rpindexer-version: "8.0.0"
+      mailroom-version: "8.1.0"
       DJANGO_SETTINGS_MODULE: temba.settings_ci
     runs-on: ubuntu-latest
     steps:
