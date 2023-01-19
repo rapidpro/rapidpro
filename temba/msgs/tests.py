@@ -25,7 +25,7 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 
@@ -2743,3 +2743,34 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
         list_url = reverse("msgs.media_list")
 
         self.assertStaffOnly(list_url)
+
+
+class PopulateBroadcastTranslationsTest(MigrationTest):
+    app = "msgs"
+    migrate_from = "0207_broadcast_translations_alter_broadcast_status_and_more"
+    migrate_to = "0208_populate_bcast_translations"
+
+    def setUpBeforeMigration(self, apps):
+        self.bcast1 = Broadcast.objects.create(
+            org=self.org,
+            base_language="eng",
+            text={"eng": "Hello", "spa": "Hola"},
+            translations={"eng": {"text": "Hello"}, "spa": {"text": "Hola"}},
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+        self.bcast2 = Broadcast.objects.create(
+            org=self.org,
+            base_language="fra",
+            text={"fra": "Bonjour", "kin": "Muraho"},
+            translations=None,
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+    def test_migration(self):
+        self.bcast1.refresh_from_db()
+        self.bcast2.refresh_from_db()
+
+        self.assertEqual({"eng": {"text": "Hello"}, "spa": {"text": "Hola"}}, self.bcast1.translations)
+        self.assertEqual({"fra": {"text": "Bonjour"}, "kin": {"text": "Muraho"}}, self.bcast2.translations)
