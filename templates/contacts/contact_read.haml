@@ -484,6 +484,9 @@
   :javascript
 
     var startTime = null;
+    function contactUpdated() {
+      document.location.reload();
+    }
 
     $(document).ready(function() {
       $(".flow-event-display-selector a").each(function() {
@@ -494,8 +497,6 @@
           $('table.activity.history').addClass('summary-events-only');
         }
       })
-
-
 
       $(".flow-event-display-selector a").on('click', function() {
         $(this).parent('.flow-event-display-selector').children('a').removeClass('is-active');
@@ -568,12 +569,11 @@
     $('.contact-field-value.editable').on('click', function(evt) {
       var endpoint = '{% url "contacts.contact_update_fields" object.pk %}';
       var field_id = $(this).parent().data('id');
-      var modax = getModax("#update-custom-fields");
-      modax.endpoint = endpoint + '?field=' + field_id;
-      modax.open = true;
-
-      // reset our modal
-      window.setTimeout(function(){ modax.endpoint = endpoint;}, 1000);
+      var options = { 
+        disabled: false,
+        legacy: true
+      }
+      showModax("{{_("Update Field")|escapejs}}", endpoint + '?field=' + field_id, options);      
     });
 
     {% endif %}

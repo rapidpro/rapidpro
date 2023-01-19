@@ -585,7 +585,7 @@ class MailroomQueueTest(TembaTest):
                         "eng": {"text": "Welcome to mailroom!"},
                         "spa": {"text": "\u00a1Bienvenidx a mailroom!"},
                     },
-                    "template_state": "legacy",
+                    "template_state": "unevaluated",
                     "base_language": "eng",
                     "urns": ["tel:+12065556666"],
                     "contact_ids": [jim.id],

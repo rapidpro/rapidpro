@@ -292,7 +292,7 @@ BRANDS = [
 ]
 DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro")
 
-FEATURES = {"locations", "ticketers"}
+FEATURES = {"locations", "surveyor", "ticketers"}
 
 
 # -----------------------------------------------------------------------------------
@@ -878,7 +878,6 @@ CELERY_BEAT_SCHEDULE = {
     "trim-event-fires": {"task": "trim_event_fires", "schedule": timedelta(seconds=900)},
     "trim-flow-revisions": {"task": "trim_flow_revisions", "schedule": crontab(hour=0, minute=0)},
     "trim-flow-sessions": {"task": "trim_flow_sessions", "schedule": crontab(hour=0, minute=0)},
-    "trim-flow-starts": {"task": "trim_flow_starts", "schedule": crontab(hour=1, minute=0)},
     "trim-http-logs": {"task": "trim_http_logs", "schedule": crontab(hour=2, minute=0)},
     "trim-sync-events": {"task": "trim_sync_events", "schedule": crontab(hour=3, minute=0)},
     "trim-webhook-events": {"task": "trim_webhook_events", "schedule": crontab(hour=3, minute=0)},

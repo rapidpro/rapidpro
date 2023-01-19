@@ -266,6 +266,7 @@ class Command(BaseCommand):
                     created_by=superuser,
                     modified_by=superuser,
                     is_anon=(o % 2 != 0),  # org 1 non-anon, org 2 anon etc
+                    flow_languages=["eng"],
                 )
             )
         Org.objects.bulk_create(orgs)

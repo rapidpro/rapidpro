@@ -24,7 +24,6 @@ from .models import (
     FlowRun,
     FlowRunStatusCount,
     FlowSession,
-    FlowStart,
     FlowStartCount,
 )
 
@@ -104,43 +103,5 @@ def trim_flow_sessions():
 
         FlowSession.objects.filter(id__in=session_ids).delete()
         num_deleted += len(session_ids)
-
-    return {"deleted": num_deleted}
-
-
-@cron_task()
-def trim_flow_starts() -> int:
-    """
-    Cleanup completed non-user created flow starts
-    """
-
-    trim_before = timezone.now() - settings.RETENTION_PERIODS["flowstart"]
-    num_deleted = 0
-
-    while True:
-        start_ids = list(
-            FlowStart.objects.filter(
-                created_by=None,
-                status__in=(FlowStart.STATUS_COMPLETE, FlowStart.STATUS_FAILED),
-                modified_on__lte=trim_before,
-            ).values_list("id", flat=True)[:1000]
-        )
-        if not start_ids:
-            break
-
-        # detach any flows runs that belong to these starts
-        run_ids = FlowRun.objects.filter(start_id__in=start_ids).values_list("id", flat=True)[:100000]
-        while len(run_ids) > 0:
-            for chunk in chunk_list(run_ids, 1000):
-                FlowRun.objects.filter(id__in=chunk).update(start_id=None)
-
-            # reselect for our next batch
-            run_ids = FlowRun.objects.filter(start_id__in=start_ids).values_list("id", flat=True)[:100000]
-
-        FlowStart.contacts.through.objects.filter(flowstart_id__in=start_ids).delete()
-        FlowStart.groups.through.objects.filter(flowstart_id__in=start_ids).delete()
-        FlowStartCount.objects.filter(start_id__in=start_ids).delete()
-        FlowStart.objects.filter(id__in=start_ids).delete()
-        num_deleted += len(start_ids)
 
     return {"deleted": num_deleted}

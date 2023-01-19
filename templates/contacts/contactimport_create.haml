@@ -7,6 +7,7 @@
 
 -block content
   .flex.mb-4.flex-col(style="min-height:41px")  
+
     -blocktrans trimmed
       You can import contacts from an Excel spreadsheet or comma separated values file.
 
@@ -33,9 +34,10 @@
         %td
           Advisors
 
-    .title
+    .text-lg
       -trans "Supported Fields"
 
+    
     -trans "Any columns that do not match the following table will be ignored."
 
     %table.list.my-6

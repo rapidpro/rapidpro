@@ -225,12 +225,23 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.login(self.admin)
 
         # admins can see bulk actions
+        age_query = "?search=age%20%3E%2050"
         response = self.client.get(list_url)
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "archive", "send", "start-flow"], list(response.context["actions"]))
 
-        self.assertContentMenu(list_url, self.admin, ["Manage Fields", "Export"])
-        self.assertContentMenu(list_url, self.admin, ["New Contact", "New Group", "Export"], True)
+        self.assertContentMenu(
+            list_url,
+            self.admin,
+            legacy_items=["Manage Fields", "Export"],
+            spa_items=["New Contact", "New Group", "Export"],
+        )
+        self.assertContentMenu(
+            list_url + age_query,
+            self.admin,
+            legacy_items=["Create Smart Group", "Manage Fields", "Export"],
+            spa_items=["Create Smart Group", "New Contact", "New Group", "Export"],
+        )
 
         # TODO: group labeling as a feature is on probation
         # self.client.post(list_url, {"action": "label", "objects": frank.id, "label": survey_audience.id})
@@ -438,7 +449,13 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "unlabel"], list(response.context["actions"]))
-        self.assertContentMenu(group1_url, self.admin, ["Manage Fields", "Edit", "Export", "Usages", "Delete"])
+
+        self.assertContentMenu(
+            group1_url,
+            self.admin,
+            legacy_items=["Manage Fields", "Edit", "Export", "Usages", "Delete"],
+            spa_items=["Edit", "Export", "Usages", "Delete"],
+        )
 
         response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
 
@@ -477,18 +494,14 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.assertContentMenu(read_url, self.user, [])
         self.assertContentMenu(
-            read_url,
-            self.editor,
-            ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"],
+            read_url, self.editor, ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"]
         )
         self.assertContentMenu(
             read_url,
             self.admin,
-            ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"],
+            legacy_items=["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"],
+            spa_items=["Start Flow", "Open Ticket", "-", "Edit"],
         )
-
-        # check menu for spa
-        self.assertContentMenu(read_url, self.admin, ["Start Flow", "Open Ticket", "-", "Edit"], True)
 
         # login as viewer
         self.login(self.user)
@@ -743,8 +756,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         MockSessionWriter(other_org_contact, self.create_flow("Test", org=self.org2)).wait().save()
 
         # now it's an option
-        response = self.client.get(read_url)
-        self.assertContains(response, interrupt_url)
+        self.assertContentMenuContains(read_url, self.admin, "Interrupt")
 
         # can't interrupt if not logged in
         self.client.logout()
@@ -1437,7 +1449,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, "Delete")
 
 
-class ContactTest(TembaTest):
+class ContactTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
@@ -2672,7 +2684,7 @@ class ContactTest(TembaTest):
 
         self.assertFalse(self.joe.get_scheduled_broadcasts())
 
-        broadcast = Broadcast.create(self.org, self.admin, "Hello", contacts=[self.frank])
+        broadcast = Broadcast.create(self.org, self.admin, {"eng": "Hello"}, contacts=[self.frank])
         self.assertFalse(self.joe.get_scheduled_broadcasts())
 
         broadcast.contacts.add(self.joe)
@@ -2794,7 +2806,7 @@ class ContactTest(TembaTest):
         self.assertGreater(upcoming[4]["scheduled"], upcoming[5]["scheduled"])
 
         # add a scheduled broadcast
-        broadcast = Broadcast.create(self.org, self.admin, "Hello", contacts=[self.joe])
+        broadcast = Broadcast.create(self.org, self.admin, {"eng": "Hello"}, contacts=[self.joe])
         schedule_time = now + timedelta(days=5)
         broadcast.schedule = Schedule.create_schedule(self.org, self.admin, schedule_time, Schedule.REPEAT_NEVER)
         broadcast.save()
@@ -3003,13 +3015,12 @@ class ContactTest(TembaTest):
         self.assertEqual(self.joe, response.context["object_list"][0])
 
         # should have the export link
-        export_url = "%s?g=%s" % (reverse("contacts.contact_export"), group.uuid)
-        self.assertContains(response, export_url)
+        self.assertContentMenuContains(filter_url, self.admin, "Export")
 
         # should have an edit button
         update_url = reverse("contacts.contactgroup_update", args=[group.pk])
+        self.assertContentMenuContains(filter_url, self.admin, "Edit")
 
-        self.assertContains(response, update_url)
         response = self.client.get(update_url)
         self.assertIn("name", response.context["form"].fields)
 

@@ -10,8 +10,8 @@ jobs:
       redis-version: "6.2"
       node-version: "12"
       elastic-version: "7.17.6"
-      rpindexer-version: "7.5.0"
-      mailroom-version: "7.5.36"
+      rpindexer-version: "8.0.0"
+      mailroom-version: "8.1.0"
       DJANGO_SETTINGS_MODULE: temba.settings_ci
     runs-on: ubuntu-latest
     steps:
@@ -86,6 +86,13 @@ jobs:
           poetry run coverage run manage.py test --keepdb --noinput --verbosity=2
           poetry run coverage report -i
           poetry run coverage xml
+          poetry run coverage html
+
+      - name: Save coverage report as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: coverage-report
+          path: htmlcov/
 
       - name: Mailroom log
         if: failure()

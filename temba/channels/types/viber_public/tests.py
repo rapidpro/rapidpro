@@ -97,8 +97,7 @@ class ViberPublicTypeTest(TembaTest, CRUDLTestMixin):
         )
 
         # read page has link to update page
-        response = self.client.get(reverse("channels.channel_read", args=[self.channel.uuid]))
-        self.assertContains(response, update_url)
+        self.assertContentMenuContains(reverse("channels.channel_read", args=[self.channel.uuid]), self.admin, "Edit")
 
     def test_get_error_ref_url(self):
         self.assertEqual(

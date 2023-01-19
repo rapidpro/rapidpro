@@ -1,142 +1,113 @@
 -load public
 
-:css
-  .gear-flag {
-    display: inline-block;
-    margin: 0px 3px;
-    font-size: 80%;
-    color: #ccc;
-    float: right;
-  }
-
-  #gear-container {
-    margin-left: 0em;
-  }
-
-  #gear-container .button-light.dropdown-toggle {
-    margin-top: 0 !important;
-  
-  }
-
-  #gear-container .button-light.dropdown-toggle {
-    padding-top: 0.64em;
-    padding-bottom: 0.64em;
-  }
-
-  #gear-container .button-light:hover {
-    background: #f1f1f1;
-  }
-
-  #gear-container .button-light:hover, #gear-container .button-light.dropdown-toggle:hover, #gear-container .button-light.dropdown-toggle:hover .icon-menu {
-    background: #f1f1f1;
-    color: #999 !important;
-  }
-
-  .dropdown-menu {
-    padding: .9em 1.25em;
-    padding-bottom: 0.6em;
-  }
-
-  .menu-item {
-    margin-top: 0.2em;
-    margin-bottom: 0.2em;
-    font-size: 1.1rem;
-  }
-
-  .spa-gear-buttons, .spa-gear-menu {
-    --button-y: .4em;
-    --button-x: 1em;
-  }
-
-  #gear-container .spa-gear-menu .button-light.dropdown-toggle {
-    padding-top: 0.5em;
-    padding-bottom: 0.4em;
-  }
-
-
-  .header-button {
-    background:rgba(0,0,0,.15);
-    color: #fff;
-    transition: all 200ms ease-in-out;
-  }
-
-  .menu-button {
-    --icon-color: #666;
-  }
-
-  .menu-button:hover, .open .menu-button {
-    cursor:pointer;
-    background:rgba(0,0,0,.05);
-    border-radius: var(--curvature);
-    --icon-color: #888;
-  }
-
-  temba-dropdown:empty {
-    display: none;
-  }
-
-
-
+%temba-content-menu(endpoint="{{request.path}}?{{request.GET.urlencode}}" legacy="{{is_legacy}}" query="{{has_search_query}}" -temba-selection="handleContentMenuSelected(event)")
 
 :javascript
 
-  function handleMenuClicked(evt) {
-    var link = evt.target;
-    var href = link.getAttribute("data-href");
-    var startDisabled = link.getAttribute("data-disabled") == "True";
-    var modax = link.getAttribute("data-modax");
-    var onSubmit = link.getAttribute("data-on-submit");
-
-    if(link.classList.contains("posterize")) {
-      return;
-    }
-
-    if (modax) {
-      var shared = document.querySelector("#shared-modax");
-      shared.disabled = startDisabled;
-
-      if (onSubmit == "None") {
-        onSubmit = undefined;
+  function handleContentMenuSelected(event) {
+    // handles when items are clicked in the top right hamburger menu
+    var item = event.detail;
+    
+    if (item.type === 'link') {
+      var contentMenu = document.querySelector("temba-content-menu");
+      if(contentMenu.legacy){        
+        gotoURL_legacy(event);
       }
-      
-      showModax(modax, href, onSubmit);
-
-    } else {
-      if (href) {
-        fetchURL(href);
+      else{
+        gotoURL(item.url);
       }
     }
+  
+    if (item.type == 'modax') {
+      var modaxOptions = {
+        disabled: item.disabled,
+        onSubmit: item.on_submit
+      }
+      showModax(item.title, item.url, modaxOptions);
+    }
+
+    if (item.type === 'url_post') {
+      var payload = '';
+      var headers = {};
+      var contentType = null;
+
+      var store = document.querySelector("temba-store");
+      store.postUrl(item.url, payload, headers, contentType)
+        .then((response) => {
+          console.log('response', response);
+        })
+        .catch((error) => {
+          console.error('error', error);
+        });
+    }
+
+    // items need to be refreshed in the top left sidebar menu
+    refreshMenu();
   }
 
-  function handleMoreToggle(event) {
-    var more = document.querySelector(".more");
-    if (more) {
-      var classes = more.classList;
-      if (classes.contains("open")) {
-        classes.remove("open");
+  // TODO: Remove with legacy ui
+  function gotoURL_legacy(event) {
+    event.stopPropagation();
+    event.preventDefault();
+
+    var item = event.detail;
+    var href = item.url;
+
+    if (href) {
+      if (event.metaKey){
+        window.open(href,'_blank')
       } else {
-        classes.add("open");
+        window.location = href;
       }
-      event.stopPropagation();
-      event.preventDefault();
     }
   }
 
--if content_menu_buttons or content_menu_links
-  .flex.h-full.spa-gear-buttons
-    -for link in content_menu_buttons
-      %temba-button.ml-4(name="{{link.title|escapejs}}" onclick="handleMenuClicked(event)" class='{{ link|gear_link_classes }}' data-success-url='{{ link.success_url }}' data-href='{{link.href}}' data-modax='{{link.modax|escapejs}}' data-on-submit='{{link.on_submit|escapejs}}' data-disabled='{{link.disabled}}')
+  function gotoURL(urlToGo, urlToShow, ignoreEvents, ignoreHistory) {
+    var refererPath = window.location.pathname;
+    window.lastFetch = urlToGo;
 
-    -if content_menu_links
-      %temba-dropdown#content-menu.items-stretch.flex.flex-column(arrowoffset="-10" arrowsize="8" drop_align="right")
-        .menu-button.items-center.flex.flex-column.py-2.px-2.ml-2(slot="toggle")
-          %temba-icon( name="icon.menu" size="1.5")
-        .dropdown.px-6.py-4.text-gray-800.z-50(slot="dropdown" style="min-width:200px")
-          -for link in content_menu_links
-            -if link.divider
-              .border-b.border-gray-200.my-4.-mx-6
-            .whitespace-nowrap.menu-item.hover-linked.font-normal{onclick:'handleMenuClicked(event)', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}', data-href:'{{link.href}}', data-modax: '{{link.modax|escapejs}}', data-on-submit:'{{link.on_submit|escapejs}}', data-disabled:'{{link.disabled}}'}
-              {{link.title}}
-              %span{class:'gear-flag'}
-                {{link.flag}}
+    if (!ignoreHistory) {
+      window.history.pushState({ url: urlToGo, show: urlToShow }, "", urlToShow);
+    }
 
+    fetchAjax(urlToGo, ".spa-content", { "headers": { 
+        "TEMBA-SPA": "1", 
+        "TEMBA-REFERER-PATH": refererPath,
+        "TEMBA-PATH": urlToShow
+        }, 
+      "onSuccess": hideLoading, "ignoreEvents": ignoreEvents, "cancel": true
+    });
+  }
+
+  function showModax(header, endpoint, modaxOptions) {
+    var modax = document.querySelector("temba-modax#shared-modax");
+    modax["-temba-loaded"] = undefined;
+    
+    modax.disabled = modaxOptions.disabled == "True";
+    var itemOnSubmit;
+    if (modaxOptions.onSubmit == "None") {
+      onSubmit = undefined;
+    }
+
+    if (modaxOptions.onSubmit) {
+      modax["-temba-submitted"] = Function(modaxOptions.onSubmit);
+    } else {
+      modax["-temba-submitted"] = undefined;
+    }
+
+    if (!modaxOptions.legacy) {
+      modax.headers = { "TEMBA-SPA": 1};
+    }
+    modax["-temba-redirected"] = refreshMenu;
+    
+    modax.header = header;
+    modax.endpoint = endpoint;
+    modax.open = true;
+  }
+
+  function refreshMenu() {
+    var menu = document.querySelector("temba-menu");
+    if (menu) {
+      menu.refresh();
+    }
+  }
