@@ -1,3 +1,10 @@
+v8.1.3 (2023-01-19)
+-------------------------
+ * Tweak broadcasts API endpoint so it filters by is_active and hits index
+ * Fix indexes used for tickets API endpoint
+ * Remove unused indexes on contacts_contact
+ * Bump engine version to 13.2
+
 v8.1.2 (2023-01-19)
 -------------------------
  * Fixes for content menu changes
