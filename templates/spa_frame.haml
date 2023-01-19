@@ -242,10 +242,6 @@
       height:100%;
     }
 
-    .folders {
-      z-index:1;
-    }
-
     table.list.selectable tbody tr:hover td {
       background-color: var(--color-row-hover);
       cursor: pointer;
@@ -257,6 +253,12 @@
 
     temba-menu {
       background: #fff;
+    }
+
+    temba-menu.servicing {
+      --primary-rgb: 191,84,155;
+      --color-primary-dark: rgb(var(--primary-rgb));
+      --color-selection: rgba(var(--primary-rgb), .05);
     }
     
     .formax .formax-section.open {
@@ -489,7 +491,7 @@
     }
 
     document.addEventListener("temba-pjax-complete", function() {
-      hideLoading();
+      hideLoading()
       handleUpdateComplete();
     })
 
@@ -743,6 +745,11 @@
       menu.setFocusedItem(dest.path);
     }
    
+    function handleMenuClicked(event) {
+      console.log("hello!");
+      console.log(event.detail);
+    }
+
     function handleMenuChanged(event) {
 
       var selection = event.target.getSelection();
@@ -789,6 +796,7 @@
     }
 
     var currentOrg = {{user_org.id}};
+    
     function handleWorkspaceChanged(evt) {
 
       // remove any options with an icon
@@ -841,33 +849,31 @@
    
 
 -block page-container
+  %temba-mask
   %temba-modax#shared-modax
   %temba-dialog#shared-dialog
   .ajax-scripts
 
   .flex-col
     .flex.widget-container(style="height:100vh;overflow:hidden")
-      .folders       
-        %temba-menu#nav(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)" -temba-ready="handleMenuReady")
+      -if not request.user.is_staff
+        -if user_org not in user_orgs or True
+          .servicing.absolute.m-4(style="z-index:999999;right:0;bottom:0")
+            .flex.items-center.bg-secondary.text-white.text-lg.rounded(style="opacity:1;padding:0em 1em;")
+              .flex-grow
+              %temba-icon(name="icon.tickets")
+              .ml-1
+                {{user_org.name}}
+              .flex-grow
+
+      .folders
+        %temba-menu#nav(class="{% if servicing %}{% endif%}" style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" -temba-button-clicked="handleMenuClicked(event)" -temba-no-path="handleNoPath(event)" -temba-ready="handleMenuReady"  wait="true")
           -block menu-header
 
       .flex-grow.spa-container.flex.flex-col
         .spa-loader.hide.absolute
           .wrapper(style="display:flex;z-index:100000;margin-top:0.1em;margin-left:1em")
             %temba-loading(size=16 units=6)
-
-        -if user_orgs|length > 1 or request.user.is_staff
-          .flex.org-chooser
-            .flex-grow
-            .pr-5.py-2.selection
-              %temba-select.w-full(onchange="handleWorkspaceChanged(event)" option-width="250" anchor-right="true")
-                -if user_org not in user_orgs               
-                  %temba-option(icon="agent" name='{{ user_org.name }}' value="{{user_org.id}}" selected="true")
-                -else
-                  %temba-option(name='{{ user_org.name }}' value="{{user_org.id}}" selected="true")
-                -for other_org in user_orgs
-                  -if other_org.id != user_org.id
-                    %temba-option(name='{{ other_org.name }}' value="{{other_org.id}}")
 
         .spa-content.p-5.overflow-y-auto.overflow-x-hidden
 

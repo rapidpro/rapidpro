@@ -1042,6 +1042,7 @@ class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         context = super().get_context_data(**kwargs)
         context["org"] = self.request.org
         context["is_spa"] = True
+        context["servicing"] = self.request.org in self.request.user.get_orgs()
 
         dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
         prefix = "/dev" if dev_mode else settings.STATIC_URL
@@ -1119,6 +1120,7 @@ class MenuMixin(OrgPermsMixin):
         menu_id=None,
         name=None,
         icon=None,
+        avatar=None,
         endpoint=None,
         href=None,
         count=None,
@@ -1126,7 +1128,9 @@ class MenuMixin(OrgPermsMixin):
         items=[],
         inline=False,
         bottom=False,
+        popup=False,
         verbose_name=None,
+        event=False,
     ):
 
         if perm and not self.has_org_perm(perm):  # pragma: no cover
@@ -1136,6 +1140,8 @@ class MenuMixin(OrgPermsMixin):
         menu_item["id"] = menu_id if menu_id else slugify(name)
         menu_item["bottom"] = bottom
         menu_item["verbose_name"] = verbose_name
+        menu_item["popup"] = popup
+        menu_item["avatar"] = avatar
 
         if icon:
             menu_item["icon"] = icon
@@ -1159,7 +1165,7 @@ class MenuMixin(OrgPermsMixin):
             menu_item["items"] = items
 
         # only include the menu item if we have somewhere to go
-        if "href" not in menu_item and "endpoint" not in menu_item and not inline:
+        if "href" not in menu_item and "endpoint" not in menu_item and not inline and not popup and not event:
             return None
 
         return menu_item
@@ -1370,7 +1376,28 @@ class OrgCRUDL(SmartCRUDL):
                     ),
                 ]
 
+            other_orgs = self.request.user.get_orgs().exclude(id=self.org.id).order_by("name")
+            print(other_orgs)
+
+            other_org_items = [
+                self.create_menu_item(menu_id=other_org.id, name=other_org.name, avatar=other_org.name, event=True)
+                for other_org in other_orgs
+            ]
+
             menu = [
+                self.create_menu_item(
+                    menu_id="workspace",
+                    name=_("Workspace"),
+                    avatar=self.org.name,
+                    popup=True,
+                    items=[
+                        self.create_space(),
+                        self.create_menu_item(name=self.org.name, icon="icon.settings", event=True),
+                        self.create_menu_item(menu_id="logout", name=_("Sign Out"), icon="log-out-04", event=True),
+                        self.create_divider(),
+                        *other_org_items,
+                    ],
+                ),
                 self.create_menu_item(
                     menu_id="messages", name=_("Messages"), icon="icon.messages", endpoint="msgs.msg_menu"
                 ),
