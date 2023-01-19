@@ -1,3 +1,8 @@
+v8.1.2 (2023-01-19)
+-------------------------
+ * Fixes for content menu changes
+ * Fix test_db to create orgs with flow languages
+
 v8.1.1 (2023-01-18)
 -------------------------
  * Restrict creating surveyor flows unless that is enabled as a feature
