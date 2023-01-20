@@ -218,7 +218,7 @@ class CampaignTest(TembaTest):
             {
                 "uuid": str(event.flow.uuid),
                 "name": event.flow.name,
-                "spec_version": "13.0.0",
+                "spec_version": "13.2.0",
                 "revision": 1,
                 "language": "eng",
                 "type": "messaging_background",
@@ -1582,7 +1582,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
             {
                 "uuid": str(event.flow.uuid),
                 "name": f"Single Message ({event.id})",
-                "spec_version": "13.0.0",
+                "spec_version": "13.2.0",
                 "revision": 1,
                 "expire_after_minutes": 0,
                 "language": "eng",

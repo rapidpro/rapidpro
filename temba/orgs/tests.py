@@ -4714,8 +4714,8 @@ class BulkExportTest(TembaTest):
             .first()
         )
 
-        # make sure the base language is set to 'base', not 'eng'
-        self.assertEqual(message_flow.base_language, "base")
+        # make sure the base language is set to 'und', not 'eng'
+        self.assertEqual(message_flow.base_language, "und")
 
         # let's rename a flow and import our export again
         flow = Flow.objects.get(name="Confirm Appointment")

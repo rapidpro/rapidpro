@@ -117,7 +117,9 @@ class Campaign(TembaModel):
                         try:
                             message = json.loads(message)
                         except ValueError:
-                            message = dict(und=str(message))
+                            # if it's not a language dict, turn it into one
+                            message = dict(base=message)
+                            base_language = "base"
 
                     # change base to und
                     if "base" in message:
@@ -125,7 +127,8 @@ class Campaign(TembaModel):
                         del message["base"]
                         base_language = "und"
 
-                    if base_language not in message:
+                    # ensure base language is valid
+                    if base_language not in message:  # pragma: needs cover
                         base_language = next(iter(message))
 
                     event = CampaignEvent.create_message_event(
