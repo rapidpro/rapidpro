@@ -27,18 +27,7 @@
     }
 
     if (item.type === 'url_post') {
-      var payload = '';
-      var headers = {};
-      var contentType = null;
-
-      var store = document.querySelector("temba-store");
-      store.postUrl(item.url, payload, headers, contentType)
-        .then((response) => {
-          console.log('response', response);
-        })
-        .catch((error) => {
-          console.error('error', error);
-        });
+      posterize(item.url);
     }
 
     // items need to be refreshed in the top left sidebar menu
