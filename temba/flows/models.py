@@ -113,7 +113,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     FINAL_LEGACY_VERSION = legacy.VERSIONS[-1]
     INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
-    CURRENT_SPEC_VERSION = "13.1.0"  # current flow spec version
+    CURRENT_SPEC_VERSION = "13.2.0"  # current flow spec version
 
     EXPIRES_CHOICES = {
         TYPE_MESSAGE: (

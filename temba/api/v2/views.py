@@ -602,7 +602,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     def filter_queryset(self, queryset):
         org = self.request.org
-        queryset = queryset.filter(schedule=None)
+        queryset = queryset.filter(schedule=None, is_active=True)
 
         # filter by id (optional)
         broadcast_id = self.get_int_param("id")

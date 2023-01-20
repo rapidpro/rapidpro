@@ -431,12 +431,12 @@ class CampaignEventForm(forms.ModelForm):
             lang_name = languages.get_name(lang_code)
             insert = None
 
-            # if it's our primary language, allow use to steal the 'base' message
+            # if it's our primary language, allow use to steal the 'Default' message
             if org.flow_languages[0] == lang_code:
                 initial = message.get(lang_code, "")
 
                 if not initial:
-                    initial = message.get("base", "")
+                    initial = message.get("base", "") or message.get("und", "")
 
                 # also, let's show it first
                 insert = 0

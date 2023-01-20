@@ -2,7 +2,6 @@
   .controls {
     --textarea-height: 5em;
   }
-
 %label.control-label
   {{contact_field.get_value_type_display}} Value
 .controls
@@ -13,20 +12,3 @@
       %temba-textinput{ name:'field_value', type:'text', value:'{%if value %}{{value}}{%endif%}'}
 	-else
 		%temba-textinput{ name:'field_value',	type:'text', disabled:'disabled' }
-
-:javascript
-
-  var modaxBody = getModax("#update-custom-fields").shadowRoot.querySelector(".modax-body");
-  
-  // aggressively grab focus when we load
-  var ele = $(modaxBody).find('temba-textinput[name="field_value"]');
-  ele.focus();
-
-  // bit of a hack here, we want to force our cursor to the end
-  var val = ele.val();
-  ele.val('');
-  ele.val(val);
-
-  // re-enable our submission
-  $('.modal-footer .btn').attr('disabled', false);
-  $('.modal .loader-circles').hide();

@@ -158,7 +158,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
     def test_ensure_current_version(self):
         # importing migrates to latest spec version
         flow = self.get_flow("favorites_v13")
-        self.assertEqual("13.1.0", flow.version_number)
+        self.assertEqual("13.2.0", flow.version_number)
         self.assertEqual(1, flow.revisions.count())
 
         # rewind one spec version..
@@ -175,7 +175,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         flow.ensure_current_version()
 
         # check we migrate to current spec version
-        self.assertEqual("13.1.0", flow.version_number)
+        self.assertEqual("13.2.0", flow.version_number)
         self.assertEqual(2, flow.revisions.count())
         self.assertEqual(get_flow_user(self.org), flow.revisions.order_by("id").last().created_by)
 
@@ -2444,7 +2444,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                     "user": {"email": "admin@nyaruka.com", "name": "Andy"},
                     "created_on": matchers.ISODate(),
                     "id": revisions[0].id,
-                    "version": "13.1.0",
+                    "version": Flow.CURRENT_SPEC_VERSION,
                     "revision": 2,
                 },
                 {
@@ -2474,7 +2474,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # make sure we can read the definition
         definition = response.json()["definition"]
-        self.assertEqual("base", definition["language"])
+        self.assertEqual("und", definition["language"])
 
         # really break the legacy revision
         revisions[1].definition = {"foo": "bar"}
