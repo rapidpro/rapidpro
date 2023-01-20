@@ -1,3 +1,8 @@
+v8.1.4 (2023-01-20)
+-------------------------
+ * Update campaign message events with language base
+ * Make servicing to use posterize
+
 v8.1.3 (2023-01-19)
 -------------------------
  * Tweak broadcasts API endpoint so it filters by is_active and hits index
