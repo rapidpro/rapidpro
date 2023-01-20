@@ -162,7 +162,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         help_text=_("Minutes of inactivity that will cause expiration from flow."),
     )
     base_language = models.CharField(
-        max_length=4,  # until we fix remaining flows with "base"
+        max_length=3,  # ISO-639-3
         help_text=_("The authoring language, additional languages can be added later."),
         default="und",
     )
