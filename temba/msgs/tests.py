@@ -2767,10 +2767,30 @@ class PopulateBroadcastTranslationsTest(MigrationTest):
             created_by=self.admin,
             modified_by=self.admin,
         )
+        self.bcast3 = Broadcast.objects.create(
+            org=self.org,
+            base_language="base",
+            text={"base": "Hello", "spa": "Hola"},
+            translations=None,
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+        self.bcast4 = Broadcast.objects.create(
+            org=self.org,
+            base_language="base",
+            text={"base": "Hello", "spa": "Hola"},
+            translations={"base": {"text": "Hello"}, "spa": {"text": "Hola"}},
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
 
     def test_migration(self):
-        self.bcast1.refresh_from_db()
-        self.bcast2.refresh_from_db()
+        def assert_bcast(b, trans: dict, base_lang: str):
+            b.refresh_from_db()
+            self.assertEqual(trans, b.translations)
+            self.assertEqual(base_lang, b.base_language)
 
-        self.assertEqual({"eng": {"text": "Hello"}, "spa": {"text": "Hola"}}, self.bcast1.translations)
-        self.assertEqual({"fra": {"text": "Bonjour"}, "kin": {"text": "Muraho"}}, self.bcast2.translations)
+        assert_bcast(self.bcast1, {"eng": {"text": "Hello"}, "spa": {"text": "Hola"}}, "eng")
+        assert_bcast(self.bcast2, {"fra": {"text": "Bonjour"}, "kin": {"text": "Muraho"}}, "fra")
+        assert_bcast(self.bcast3, {"und": {"text": "Hello"}, "spa": {"text": "Hola"}}, "und")
+        assert_bcast(self.bcast4, {"und": {"text": "Hello"}, "spa": {"text": "Hola"}}, "und")
