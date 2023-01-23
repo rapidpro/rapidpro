@@ -1,3 +1,9 @@
+v8.1.6 (2023-01-23)
+-------------------------
+ * Fix campaign imports so we don't import base as a language
+ * Increase max-width for channel configuration page
+ * Support bandwidth channel type
+
 v8.1.5 (2023-01-23)
 -------------------------
  * Data migration to backfill broadcast.translations and replace base with und
