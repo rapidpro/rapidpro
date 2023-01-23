@@ -4,13 +4,13 @@ from django.urls import reverse
 
 from temba.contacts.models import URN
 from temba.orgs.models import Org
-from temba.tests import TembaTest
+from temba.tests import CRUDLTestMixin, TembaTest
 from temba.utils import get_anonymous_user
 
 from ...models import Channel
 
 
-class AndroidTypeTest(TembaTest):
+class AndroidTypeTest(TembaTest, CRUDLTestMixin):
     def test_claim(self):
         # remove our explicit country so it needs to be derived from channels
         self.org.country = None
@@ -251,8 +251,9 @@ class AndroidTypeTest(TembaTest):
 
         # reading our delegate channel should now offer a disconnect option
         vonage = self.org.channels.filter(channel_type="NX").first()
-        response = self.client.get(reverse("channels.channel_read", args=[vonage.uuid]))
-        self.assertContains(response, "Disable Bulk Sending")
+        self.assertContentMenuContains(
+            reverse("channels.channel_read", args=[vonage.uuid]), self.admin, "Disable Bulk Sending"
+        )
 
         # receiving still job of our Android device
         self.assertEqual(self.org.get_receive_channel(URN.TEL_SCHEME), android2)

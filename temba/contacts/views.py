@@ -1083,7 +1083,7 @@ class ContactCRUDL(SmartCRUDL):
                     )
 
             if self.has_org_perm("contacts.contactfield_list") and not is_spa:
-                menu.add_link(_("Manage Fields"), reverse("contacts.contactfield_list"), as_button=True)
+                menu.add_link(_("Manage Fields"), reverse("contacts.contactfield_list"))
 
             if self.has_org_perm("contacts.contact_export"):
                 menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
@@ -1143,7 +1143,9 @@ class ContactCRUDL(SmartCRUDL):
 
         def build_content_menu(self, menu):
             if self.has_org_perm("contacts.contact_delete"):
-                menu.add_js(_("Delete All"), "handleDeleteAllContacts(event)", "contacts-btn-delete-all")
+                menu.add_js(
+                    "contacts_delete_all", _("Delete All"), "handleDeleteAllContacts(event)", "contacts-btn-delete-all"
+                )
 
     class Filter(OrgObjPermsMixin, ContentMenuMixin, ContactListView):
         template_name = "contacts/contact_filter.haml"

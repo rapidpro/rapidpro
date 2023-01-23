@@ -1,3 +1,34 @@
+v8.1.4 (2023-01-20)
+-------------------------
+ * Update campaign message events with language base
+ * Make servicing to use posterize
+
+v8.1.3 (2023-01-19)
+-------------------------
+ * Tweak broadcasts API endpoint so it filters by is_active and hits index
+ * Fix indexes used for tickets API endpoint
+ * Remove unused indexes on contacts_contact
+ * Bump engine version to 13.2
+
+v8.1.2 (2023-01-19)
+-------------------------
+ * Fixes for content menu changes
+ * Fix test_db to create orgs with flow languages
+
+v8.1.1 (2023-01-18)
+-------------------------
+ * Restrict creating surveyor flows unless that is enabled as a feature
+ * Always create braodcasts with status = QUEUED, create index for fetching queued broadcasts
+ * Add new translations JSON field to broadcasts and start writing it
+ * Remove support for creating broadcasts with legacy expressions
+ * New content menu component
+
+v8.1.0 (2023-01-17)
+-------------------------
+ * Update contact import styling
+ * Implement squashed migrations
+ * Stop trimming flow starts as this will be handled by archiver
+
 v8.0.1 (2023-01-12)
 -------------------------
  * Tweak migration dependencies to ensure clean installs run them in order that works

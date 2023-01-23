@@ -481,17 +481,19 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
         # should have our template translations
         self.assertContains(response, "Hello")
         self.assertContains(response, "Goodbye")
+        # check if templates view contains the sync logs link menu item
         self.assertContentMenu(templates_url, self.admin, ["Sync Logs"])
 
         foo.is_active = False
         foo.save()
-
         response = self.client.get(templates_url)
+
         # should have our template translations
         self.assertContains(response, "Hello")
         self.assertNotContains(response, "Goodbye")
-
-        # check if message templates link are in sync_logs view
+        # check if sync_logs view contains the message templates link menu item
+        response = self.client.get(sync_url)
+        self.assertContains(response, channel.name)
         self.assertContentMenu(sync_url, self.admin, ["Message Templates"])
 
         # sync logs and message templates not accessible by user from other org

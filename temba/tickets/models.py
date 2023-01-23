@@ -305,8 +305,8 @@ class Ticket(models.Model):
                 condition=Q(external_id__isnull=False),
             ),
             # used by API tickets endpoint
-            models.Index(name="tickets_modified_on", fields=["-modified_on"]),
-            models.Index(name="tickets_contact_modified_on", fields=["contact", "-modified_on"]),
+            models.Index(name="tickets_api_by_org", fields=["org", "-modified_on", "-id"]),
+            models.Index(name="tickets_api_by_contact", fields=["contact", "-modified_on", "-id"]),
         ]
 
 

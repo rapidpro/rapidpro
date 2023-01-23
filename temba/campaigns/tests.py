@@ -11,7 +11,7 @@ from temba.contacts.models import ContactField
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 
 from .models import Campaign, CampaignEvent, EventFire
 from .tasks import trim_event_fires
@@ -1226,8 +1226,12 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         # page title and main content title should NOT contain (Archived)
         self.assertContains(response, "Welcomes", count=3)
         self.assertContains(response, "Archived", count=0)
-        self.assertContentMenu(read_url, self.admin, ["New Event", "Export", "Edit", "Archive"])
-        self.assertContentMenu(read_url, self.admin, ["New Event", "Export", "Edit", "Archive"], True)
+        self.assertContentMenu(
+            read_url,
+            self.admin,
+            legacy_items=["New Event", "Export", "Edit", "Archive"],
+            spa_items=["New Event", "Export", "Edit", "Archive"],
+        )
 
         # archive the campaign
         campaign.is_archived = True
@@ -1345,8 +1349,8 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[campaign2, campaign1])
 
-        self.assertContentMenu(list_url, self.admin, [])
-        self.assertContentMenu(list_url, self.admin, ["New Campaign"], True)
+        self.assertContentMenu(list_url, self.user, legacy_items=[], spa_items=[])
+        self.assertContentMenu(list_url, self.admin, legacy_items=[], spa_items=["New Campaign"])
 
 
 class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -1773,3 +1777,49 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # our single message flow should be released and take its dependencies with it
         self.assertEqual(event.flow.field_dependencies.count(), 0)
+
+
+class BaseToUndMigrationTest(MigrationTest):
+    app = "campaigns"
+    migrate_from = "0052_squashed"
+    migrate_to = "0053_base_to_und"
+
+    def setUpBeforeMigration(self, apps):
+        joined = self.create_field("joined", "Joined", value_type=ContactField.TYPE_DATETIME)
+        group = self.create_group("Testers", contacts=[])
+        campaign = Campaign.create(self.org, self.user, "Reminders", group)
+        flow = self.create_flow("Test")
+
+        self.flow_event = CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, joined, offset=1, unit="W", flow=flow
+        )
+        self.msg_event1 = CampaignEvent.create_message_event(
+            self.org,
+            self.admin,
+            campaign,
+            joined,
+            offset=1,
+            unit="W",
+            message={"eng": "Hello", "spa": "Hola"},
+            base_language="eng",
+        )
+        self.msg_event2 = CampaignEvent.create_message_event(
+            self.org,
+            self.admin,
+            campaign,
+            joined,
+            offset=1,
+            unit="W",
+            message={"base": "Hello", "spa": "Hola"},
+            base_language="base",
+        )
+
+    def test_migration(self):
+        self.flow_event.refresh_from_db()
+        self.assertEqual(None, self.flow_event.message)  # unchanged
+
+        self.msg_event1.refresh_from_db()
+        self.assertEqual({"eng": "Hello", "spa": "Hola"}, self.msg_event1.message)  # unchanged
+
+        self.msg_event2.refresh_from_db()
+        self.assertEqual({"und": "Hello", "spa": "Hola"}, self.msg_event2.message)
