@@ -248,6 +248,7 @@ class Broadcast(models.Model):
         if not base_language:
             base_language = next(iter(text))
 
+        assert base_language in text, "no translation for base language"
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
 
         broadcast = cls.objects.create(
@@ -290,13 +291,13 @@ class Broadcast(models.Model):
         """
 
         if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
-            if contact.language in self.text:
-                return self.text[contact.language]
+            if contact.language in self.translations:
+                return self.translations[contact.language]["text"]
 
-        if self.org.flow_languages[0] in self.text:  # try org primary language
-            return self.text[self.org.flow_languages[0]]
+        if self.org.flow_languages[0] in self.translations:  # try org primary language
+            return self.translations[self.org.flow_languages[0]]["text"]
 
-        return self.text[self.base_language]  # should always be a base language translation
+        return self.translations[self.base_language]["text"]  # should always be a base language translation
 
     def delete(self, user, *, soft: bool):
         if soft:
@@ -350,8 +351,8 @@ class Broadcast(models.Model):
                 bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
                 RelatedModel.objects.bulk_create(bulk_contacts)
 
-    def __str__(self):  # pragma: no cover
-        return f"Broadcast[id={self.id}, text={self.text}]"
+    def __repr__(self):
+        return f'<Broadcast: id={self.id} text="{self.get_text()}">'
 
     class Meta:
         indexes = [

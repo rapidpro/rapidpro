@@ -1859,6 +1859,8 @@ class BroadcastTest(TembaTest):
 
         self.assertEqual("Hola a todos", broadcast.get_text(self.joe))  # but only if it's allowed
 
+        self.assertEqual(f'<Broadcast: id={broadcast.id} text="Hola a todos">', repr(broadcast))
+
     def test_message_parts(self):
         contact = self.create_contact("Matt", phone="+12067778811")
 
