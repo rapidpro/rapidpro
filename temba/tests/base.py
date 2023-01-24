@@ -418,7 +418,7 @@ class TembaTestMixin:
     def create_broadcast(
         self,
         user,
-        text: str,
+        text: str | dict,
         contacts=(),
         groups=(),
         status=Broadcast.STATUS_SENT,
@@ -431,7 +431,7 @@ class TembaTestMixin:
         bcast = Broadcast.create(
             self.org,
             user,
-            {"eng": text},
+            {"und": text} if isinstance(text, str) else text,
             contacts=contacts,
             groups=groups,
             parent=parent,

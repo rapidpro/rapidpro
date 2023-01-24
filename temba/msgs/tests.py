@@ -2080,11 +2080,13 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[bc3, bc2, bc1])
 
         bc3.is_active = False
-        bc3.save()
+        bc3.save(update_fields=("is_active",))
 
         self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[bc2, bc1])
 
+        # can search on text or URN path
         self.assertListFetch(list_url + "?search=MORN", allow_viewers=True, allow_editors=True, context_objects=[bc1])
+        self.assertListFetch(list_url + "?search=50195", allow_viewers=True, allow_editors=True, context_objects=[bc2])
 
     def test_scheduled_create(self):
         create_url = reverse("msgs.broadcast_scheduled_create")

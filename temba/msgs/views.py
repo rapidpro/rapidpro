@@ -198,7 +198,7 @@ class BroadcastCRUDL(SmartCRUDL):
         refresh = 30000
         title = _("Scheduled Messages")
         fields = ("contacts", "msgs", "sent", "status")
-        search_fields = ("text__icontains", "contacts__urns__path__icontains")
+        search_fields = ("translations__und__icontains", "contacts__urns__path__icontains")
         system_label = SystemLabel.TYPE_SCHEDULED
         default_order = ("-created_on",)
 
