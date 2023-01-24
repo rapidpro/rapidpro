@@ -223,9 +223,9 @@ class Broadcast(models.Model):
 
     is_active = models.BooleanField(null=True, default=True)
 
-    # deprecated
+    # TODO: drop
     metadata = JSONAsTextField(null=True, default=dict)
-    text = TranslatableField(max_length=MAX_TEXT_LEN)
+    text = TranslatableField(max_length=MAX_TEXT_LEN, null=True)
     media = TranslatableField(max_length=2048, null=True)
 
     @classmethod
@@ -257,7 +257,6 @@ class Broadcast(models.Model):
             ticket=ticket,
             send_all=send_all,
             base_language=base_language,
-            text=text,
             translations={lang: {"text": t} for lang, t in text.items()},
             created_by=user,
             modified_by=user,

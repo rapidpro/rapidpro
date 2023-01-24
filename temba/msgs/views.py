@@ -198,7 +198,7 @@ class BroadcastCRUDL(SmartCRUDL):
         refresh = 30000
         title = _("Scheduled Messages")
         fields = ("contacts", "msgs", "sent", "status")
-        search_fields = ("text__icontains", "contacts__urns__path__icontains")
+        search_fields = ("translations__und__icontains", "contacts__urns__path__icontains")
         system_label = SystemLabel.TYPE_SCHEDULED
         default_order = ("-created_on",)
 
@@ -340,10 +340,12 @@ class BroadcastCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             org = self.object.org
-            results = [*self.object.groups.all(), *self.object.contacts.all()]
-            selected = omnibox_results_to_dict(org, results, version="2")
-            message = self.object.text[self.object.base_language]
-            return dict(message=message, omnibox=selected)
+            recipients = [*self.object.groups.all(), *self.object.contacts.all()]
+
+            return {
+                "message": self.object.get_text(),
+                "omnibox": omnibox_results_to_dict(org, recipients, version="2"),
+            }
 
         def save(self, *args, **kwargs):
             form = self.form
@@ -354,7 +356,7 @@ class BroadcastCRUDL(SmartCRUDL):
             omnibox = omnibox_deserialize(org, self.form.cleaned_data["omnibox"])
 
             # set our new message
-            broadcast.text = {broadcast.base_language: form.cleaned_data["message"]}
+            broadcast.translations = {broadcast.base_language: {"text": form.cleaned_data["message"]}}
             broadcast.update_recipients(groups=omnibox["groups"], contacts=omnibox["contacts"], urns=omnibox["urns"])
 
             broadcast.save()
