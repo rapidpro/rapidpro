@@ -184,12 +184,15 @@ class BroadcastReadSerializer(ReadSerializer):
         Broadcast.STATUS_FAILED: "failed",
     }
 
-    text = fields.TranslatableField()
+    text = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     urns = serializers.SerializerMethodField()
     contacts = fields.ContactField(many=True)
     groups = fields.ContactGroupField(many=True)
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    def get_text(self, obj):
+        return {lang: trans["text"] for lang, trans in obj.translations.items()}
 
     def get_status(self, obj):
         return self.STATUSES.get(obj.status, "sent")

@@ -935,8 +935,8 @@ class EventTest(TembaTest):
             {
                 "type": "broadcast_created",
                 "created_on": matchers.ISODate(),
-                "translations": {"eng": "Hi there"},
-                "base_language": "eng",
+                "translations": {"und": {"text": "Hi there"}},
+                "base_language": "und",
                 "msg": {
                     "uuid": str(msg_out2.uuid),
                     "id": msg_out2.id,

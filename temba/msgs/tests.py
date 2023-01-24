@@ -2182,7 +2182,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(response.status_code, 302)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, {"und": "Dinner reminder"})
+        self.assertEqual(broadcast.translations, {"und": {"text": "Dinner reminder"}})
         self.assertEqual(broadcast.base_language, "und")
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
 

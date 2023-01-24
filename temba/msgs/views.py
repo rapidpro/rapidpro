@@ -356,7 +356,7 @@ class BroadcastCRUDL(SmartCRUDL):
             omnibox = omnibox_deserialize(org, self.form.cleaned_data["omnibox"])
 
             # set our new message
-            broadcast.text = {broadcast.base_language: form.cleaned_data["message"]}
+            broadcast.translations = {broadcast.base_language: {"text": form.cleaned_data["message"]}}
             broadcast.update_recipients(groups=omnibox["groups"], contacts=omnibox["contacts"], urns=omnibox["urns"])
 
             broadcast.save()

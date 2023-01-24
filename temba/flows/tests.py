@@ -5478,7 +5478,7 @@ class SimulationTest(TembaTest):
         replies = []
         for event in response.get("events", []):
             if event["type"] == "broadcast_created":
-                replies.append(event["text"])
+                replies.append(event["translations"][event["base_language"]]["text"])
             elif event["type"] == "msg_created":
                 replies.append(event["msg"]["text"])
         return replies
