@@ -86,7 +86,7 @@ def queue_broadcast(broadcast):
     """
 
     task = {
-        "translations": {lang: {"text": text} for lang, text in broadcast.text.items()},
+        "translations": broadcast.translations,
         "template_state": "unevaluated",
         "base_language": broadcast.base_language,
         "urns": broadcast.raw_urns or [],

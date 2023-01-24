@@ -340,10 +340,12 @@ class BroadcastCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             org = self.object.org
-            results = [*self.object.groups.all(), *self.object.contacts.all()]
-            selected = omnibox_results_to_dict(org, results, version="2")
-            message = self.object.text[self.object.base_language]
-            return dict(message=message, omnibox=selected)
+            recipients = [*self.object.groups.all(), *self.object.contacts.all()]
+
+            return {
+                "message": self.object.get_text(),
+                "omnibox": omnibox_results_to_dict(org, recipients, version="2"),
+            }
 
         def save(self, *args, **kwargs):
             form = self.form

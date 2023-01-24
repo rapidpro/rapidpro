@@ -1973,7 +1973,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(200, response.status_code)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual({"und": "Hey Joe, where you goin?"}, broadcast.text)
+        self.assertEqual({"und": {"text": "Hey Joe, where you goin?"}}, broadcast.translations)
         self.assertEqual({self.joe_and_frank}, set(broadcast.groups.all()))
         self.assertEqual({self.frank}, set(broadcast.contacts.all()))
         self.assertEqual(["tel:+12025550149", "tel:0780000001"], broadcast.raw_urns)
@@ -2035,7 +2035,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("hide", response["Temba-Success"])
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, {"und": "Hurry up"})
+        self.assertEqual(broadcast.translations, {"und": {"text": "Hurry up"}})
         self.assertEqual(broadcast.groups.count(), 0)
         self.assertEqual({self.joe}, set(broadcast.contacts.all()))
 
@@ -2118,7 +2118,9 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
                 "repeat_days_of_week": ["M", "F"],
             },
             new_obj_query=Broadcast.objects.filter(
-                text={"und": "Daily reminder"}, schedule__repeat_period="W", schedule__repeat_days_of_week="MF"
+                translations={"und": {"text": "Daily reminder"}},
+                schedule__repeat_period="W",
+                schedule__repeat_days_of_week="MF",
             ),
             success_status=200,
         )
