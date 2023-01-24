@@ -1,3 +1,7 @@
+v8.1.8 (2023-01-24)
+-------------------------
+ * Make Broadcast.text nullable and stop writing it
+
 v8.1.7 (2023-01-24)
 -------------------------
  * Stop reading from Broadcast.text
