@@ -1,3 +1,7 @@
+v8.1.7 (2023-01-24)
+-------------------------
+ * Stop reading from Broadcast.text
+
 v8.1.6 (2023-01-23)
 -------------------------
  * Fix campaign imports so we don't import base as a language
