@@ -494,6 +494,7 @@ class Msg(models.Model):
 
     text = models.TextField()
     attachments = ArrayField(models.URLField(max_length=2048), null=True)
+    locale = models.CharField(max_length=6, null=True)  # eng, eng-US, por-BR, und etc
 
     high_priority = models.BooleanField(null=True)
 
