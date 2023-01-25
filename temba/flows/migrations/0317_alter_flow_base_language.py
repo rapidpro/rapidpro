@@ -5,9 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("flows", "0315_squashed"),
-    ]
+    dependencies = [("flows", "0316_base_to_und")]
 
     operations = [
         migrations.AlterField(
