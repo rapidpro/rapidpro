@@ -1,3 +1,8 @@
+v8.1.10 (2023-01-25)
+-------------------------
+ * Require flow and broadcast base languages to 3 letters
+ * Require broadcast.translations to be non-null
+
 v8.1.9 (2023-01-25)
 -------------------------
  * Drop unused broadcast fields
