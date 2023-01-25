@@ -199,9 +199,9 @@ class Broadcast(models.Model):
     # URN strings that mailroom will turn into contacts and URN objects
     raw_urns = ArrayField(models.TextField(), null=True)
 
-    # message content in different languages, e.g. {"eng": {"text": "Hello"}, "spa": {"text": "Hola"}}
-    translations = models.JSONField(null=True)
-    base_language = models.CharField(max_length=4)
+    # message content in different languages, e.g. {"eng": {"text": "Hello", "attachments": [...]}, "spa": ...}
+    translations = models.JSONField()
+    base_language = models.CharField(max_length=3)  # ISO-639-3
 
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True)
     ticket = models.ForeignKey("tickets.Ticket", on_delete=models.PROTECT, null=True, related_name="broadcasts")
