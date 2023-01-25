@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("msgs", "0208_populate_bcast_translations"),
+        ("msgs", "0210_remove_broadcast_media_remove_broadcast_metadata_and_more"),
     ]
 
     operations = [
@@ -14,5 +14,10 @@ class Migration(migrations.Migration):
             model_name="broadcast",
             name="base_language",
             field=models.CharField(max_length=3),
+        ),
+        migrations.AlterField(
+            model_name="broadcast",
+            name="translations",
+            field=models.JSONField(),
         ),
     ]

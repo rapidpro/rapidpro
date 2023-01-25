@@ -961,6 +961,7 @@ TICKETER_TYPES = [
 CHANNEL_TYPES = [
     "temba.channels.types.africastalking.AfricasTalkingType",
     "temba.channels.types.arabiacell.ArabiaCellType",
+    "temba.channels.types.bandwidth.BandwidthType",
     "temba.channels.types.blackmyna.BlackmynaType",
     "temba.channels.types.bongolive.BongoLiveType",
     "temba.channels.types.burstsms.BurstSMSType",

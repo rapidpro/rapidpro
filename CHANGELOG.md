@@ -1,3 +1,21 @@
+v8.1.9 (2023-01-25)
+-------------------------
+ * Drop unused broadcast fields
+
+v8.1.8 (2023-01-24)
+-------------------------
+ * Make Broadcast.text nullable and stop writing it
+
+v8.1.7 (2023-01-24)
+-------------------------
+ * Stop reading from Broadcast.text
+
+v8.1.6 (2023-01-23)
+-------------------------
+ * Fix campaign imports so we don't import base as a language
+ * Increase max-width for channel configuration page
+ * Support bandwidth channel type
+
 v8.1.5 (2023-01-23)
 -------------------------
  * Data migration to backfill broadcast.translations and replace base with und

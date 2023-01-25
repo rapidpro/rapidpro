@@ -4,11 +4,11 @@ from django.db import migrations, transaction
 from django.db.models import Q
 
 
-def fix_lang(lang: str):
+def fix_lang(lang: str):  # pragma: no cover
     return lang if len(lang) == 3 else "und"
 
 
-def populate_bcast_translations(apps, schema_editor):
+def populate_bcast_translations(apps, schema_editor):  # pragma: no cover
     Broadcast = apps.get_model("msgs", "Broadcast")
 
     num_updated = 0
@@ -29,7 +29,7 @@ def populate_bcast_translations(apps, schema_editor):
         print(f"Updated {num_updated} broadcasts")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

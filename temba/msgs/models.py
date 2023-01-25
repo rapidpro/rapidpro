@@ -30,7 +30,7 @@ from temba.orgs.models import DependencyMixin, Org
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
-from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
+from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import clean_string
 from temba.utils.uuid import uuid4
@@ -200,18 +200,12 @@ class Broadcast(models.Model):
     raw_urns = ArrayField(models.TextField(), null=True)
 
     # message content in different languages, e.g. {"eng": {"text": "Hello", "attachments": [...]}, "spa": ...}
-    translations = models.JSONField(null=True)
+    translations = models.JSONField()
     base_language = models.CharField(max_length=3)  # ISO-639-3
 
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True)
     ticket = models.ForeignKey("tickets.Ticket", on_delete=models.PROTECT, null=True, related_name="broadcasts")
-
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_QUEUED)
-
-    schedule = models.OneToOneField(Schedule, on_delete=models.PROTECT, null=True, related_name="broadcast")
-
-    # used for repeating scheduled broadcasts
-    parent = models.ForeignKey("Broadcast", on_delete=models.PROTECT, null=True, related_name="children")
 
     created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_creations")
     created_on = models.DateTimeField(default=timezone.now, db_index=True)  # TODO remove index
@@ -221,12 +215,10 @@ class Broadcast(models.Model):
     # whether this broadcast should send to all URNs for each contact
     send_all = models.BooleanField(default=False)
 
+    # used for scheduled broadcasts which are never actually sent themselves but spawn child broadcasts which are
+    schedule = models.OneToOneField(Schedule, on_delete=models.PROTECT, null=True, related_name="broadcast")
+    parent = models.ForeignKey("Broadcast", on_delete=models.PROTECT, null=True, related_name="children")
     is_active = models.BooleanField(null=True, default=True)
-
-    # deprecated
-    metadata = JSONAsTextField(null=True, default=dict)
-    text = TranslatableField(max_length=MAX_TEXT_LEN)
-    media = TranslatableField(max_length=2048, null=True)
 
     @classmethod
     def create(
@@ -248,6 +240,7 @@ class Broadcast(models.Model):
         if not base_language:
             base_language = next(iter(text))
 
+        assert base_language in text, "no translation for base language"
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
 
         broadcast = cls.objects.create(
@@ -256,7 +249,6 @@ class Broadcast(models.Model):
             ticket=ticket,
             send_all=send_all,
             base_language=base_language,
-            text=text,
             translations={lang: {"text": t} for lang, t in text.items()},
             created_by=user,
             modified_by=user,
@@ -290,13 +282,13 @@ class Broadcast(models.Model):
         """
 
         if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
-            if contact.language in self.text:
-                return self.text[contact.language]
+            if contact.language in self.translations:
+                return self.translations[contact.language]["text"]
 
-        if self.org.flow_languages[0] in self.text:  # try org primary language
-            return self.text[self.org.flow_languages[0]]
+        if self.org.flow_languages[0] in self.translations:  # try org primary language
+            return self.translations[self.org.flow_languages[0]]["text"]
 
-        return self.text[self.base_language]  # should always be a base language translation
+        return self.translations[self.base_language]["text"]  # should always be a base language translation
 
     def delete(self, user, *, soft: bool):
         if soft:
@@ -350,8 +342,8 @@ class Broadcast(models.Model):
                 bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
                 RelatedModel.objects.bulk_create(bulk_contacts)
 
-    def __str__(self):  # pragma: no cover
-        return f"Broadcast[id={self.id}, text={self.text}]"
+    def __repr__(self):
+        return f'<Broadcast: id={self.id} text="{self.get_text()}">'
 
     class Meta:
         indexes = [
