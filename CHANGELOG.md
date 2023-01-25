@@ -1,3 +1,7 @@
+v8.1.11 (2023-01-25)
+-------------------------
+ * Add migration to alter flow language field to first update any remaining flows with 'base'
+
 v8.1.10 (2023-01-25)
 -------------------------
  * Require flow and broadcast base languages to 3 letters
