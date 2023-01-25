@@ -3,13 +3,17 @@
 from django.db import migrations, models
 
 
+def replace_base(apps, schema_editor):  # pragma: no cover
+    Flow = apps.get_model("flows", "Flow")
+    Flow.objects.filter(base_language="base").update(base_language="und")
+
+
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("flows", "0315_squashed"),
-    ]
+    dependencies = [("flows", "0315_squashed")]
 
     operations = [
+        migrations.RunPython(replace_base),
         migrations.AlterField(
             model_name="flow",
             name="base_language",
