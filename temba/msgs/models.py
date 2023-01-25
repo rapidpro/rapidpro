@@ -30,7 +30,7 @@ from temba.orgs.models import DependencyMixin, Org
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
-from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, TranslatableField
+from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import clean_string
 from temba.utils.uuid import uuid4
@@ -205,13 +205,7 @@ class Broadcast(models.Model):
 
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True)
     ticket = models.ForeignKey("tickets.Ticket", on_delete=models.PROTECT, null=True, related_name="broadcasts")
-
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_QUEUED)
-
-    schedule = models.OneToOneField(Schedule, on_delete=models.PROTECT, null=True, related_name="broadcast")
-
-    # used for repeating scheduled broadcasts
-    parent = models.ForeignKey("Broadcast", on_delete=models.PROTECT, null=True, related_name="children")
 
     created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_creations")
     created_on = models.DateTimeField(default=timezone.now, db_index=True)  # TODO remove index
@@ -221,12 +215,10 @@ class Broadcast(models.Model):
     # whether this broadcast should send to all URNs for each contact
     send_all = models.BooleanField(default=False)
 
+    # used for scheduled broadcasts which are never actually sent themselves but spawn child broadcasts which are
+    schedule = models.OneToOneField(Schedule, on_delete=models.PROTECT, null=True, related_name="broadcast")
+    parent = models.ForeignKey("Broadcast", on_delete=models.PROTECT, null=True, related_name="children")
     is_active = models.BooleanField(null=True, default=True)
-
-    # TODO: drop
-    metadata = JSONAsTextField(null=True, default=dict)
-    text = TranslatableField(max_length=MAX_TEXT_LEN, null=True)
-    media = TranslatableField(max_length=2048, null=True)
 
     @classmethod
     def create(
