@@ -4,9 +4,10 @@
 -block messages
 -block content
   #range-group.card.scrollable.flex-shrink-0
-    #range-header.flex.bg-gray-100.-mx-6.-mt-6.px-8.py-2.border-b
-      #range-from.flex-grow
-      #range-to
+    #range-header.bg-gray-700.text-gray-400.-mx-6.-mt-6.px-4.py-2.border-b(style="min-height:2.55em")
+      #dates.flex.opacity-0.transition-opacity
+        #range-from.flex-grow
+        #range-to
     #message-chart
 
 -block extra-script
@@ -16,6 +17,7 @@
     function setChartOptions(begin, end, direction) {
       var from = Highcharts.dateFormat('%A, %B %e, %Y', begin);
       var to = Highcharts.dateFormat('%A, %B %e, %Y', end)
+      document.querySelector("#dates").classList.add("opacity-100");
       document.querySelector("#range-from").innerText = from;
       document.querySelector("#range-to").innerText = to;
     }

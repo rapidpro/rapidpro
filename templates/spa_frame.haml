@@ -474,16 +474,6 @@
       var menu = document.querySelector("temba-menu");
       if (menu) {
         menu.setSelection(selection);
-
-        menu.addEventListener("temba-button-clicked", function(event) {
-          var modaxOptions = { 
-            disabled: false, 
-            onSubmit: event.detail.on_submit
-          }
-
-          showModax(event.detail.title, event.detail.href, modaxOptions);
-        });
-    
         window.addEventListener('resize', function() {
           // menu.collapsed = !!window.matchMedia("(max-width: 800px)").matches
         });
@@ -491,7 +481,7 @@
     }
 
     document.addEventListener("temba-pjax-complete", function() {
-      hideLoading()
+      hideLoading();
       handleUpdateComplete();
     })
 
@@ -746,8 +736,33 @@
     }
    
     function handleMenuClicked(event) {
-      console.log("hello!");
-      console.log(event.detail);
+      var menu = document.querySelector("temba-menu");
+
+      var items = event.detail;
+      var item = items.item;
+      var parent = items.parent;
+    
+      if (item.type == "modax-button") {
+        var modaxOptions = { 
+          disabled: false, 
+          onSubmit: item.on_submit
+        }
+        showModax(item.name, item.href, modaxOptions);
+      }
+
+
+      // clicked inside our workspace popup
+      if (parent && parent.id == "workspace") {
+        console.log(item);
+        if (item.id == "settings") {
+          menu.setSelectionPath("settings/workspace");
+        } else if (item.id == "logout") {
+          posterize(item.href)
+        }
+        else {
+          handleWorkspaceChanged(item.id);
+        }
+      }
     }
 
     function handleMenuChanged(event) {
@@ -774,17 +789,18 @@
 
     function showModax(header, endpoint, modaxOptions) {
 
+      var options = modaxOptions || {};
       var modax = document.querySelector("temba-modax#shared-modax");
       modax["-temba-loaded"] = undefined;
       
-      modax.disabled = modaxOptions.disabled == "True";
+      modax.disabled = options.disabled == "True";
       var itemOnSubmit;
-      if (modaxOptions.onSubmit == "None") {
+      if (options.onSubmit == "None") {
         onSubmit = undefined;
       }
 
-      if (modaxOptions.onSubmit) {
-        modax["-temba-submitted"] = Function(modaxOptions.onSubmit);
+      if (options.onSubmit) {
+        modax["-temba-submitted"] = Function(options.onSubmit);
       } else {
         modax["-temba-submitted"] = undefined;
       }
@@ -797,32 +813,16 @@
 
     var currentOrg = {{user_org.id}};
     
-    function handleWorkspaceChanged(evt) {
-
-      // remove any options with an icon
-      var options = event.target.getStaticOptions();
-      options = options.filter(function(option) {
-        return !option.icon;
-      });
-      event.target.setOptions(options)
-
-      var orgId = evt.target.value.value;
+    function handleWorkspaceChanged(orgId) {
       if (currentOrg != orgId) {
         currentOrg = orgId;
         showLoading(true);
         var store = document.querySelector("temba-store");
         store.postUrl("/org/choose/", "organization=" + orgId, {}, 'application/x-www-form-urlencoded').then(function(response) {
-          if (response.status >= 200 && response.status < 400) {
-            store.reset();
-            var menu = document.querySelector("temba-menu");
-            menu.reset();
-          } else {
-            document.location.reload();
-          }
+          document.location.href = "/";
         });
       }
     }
-
 -block refresh-fn
   :javascript
     function refresh(onSuccess, forceReload){
@@ -857,7 +857,7 @@
   .flex-col
     .flex.widget-container(style="height:100vh;overflow:hidden")
       -if not request.user.is_staff
-        -if user_org not in user_orgs or True
+        -if user_org not in user_orgs
           .servicing.absolute.m-4(style="z-index:999999;right:0;bottom:0")
             .flex.items-center.bg-secondary.text-white.text-lg.rounded(style="opacity:1;padding:0em 1em;")
               .flex-grow
@@ -881,26 +881,11 @@
           .spa-footer.text-center.text-gray-500.mt-4
             :plain
               <!--
-                This software is licensed under AGPL v3. Please review the full license:
-                https://github.com/rapidpro/rapidpro/blob/main/LICENSE
-                
-                WARNING!
-
-                Hey, we get it. This is neat software, and it would be great to slap
-                the name of your company on it. While you can copyright your modifications,
-                which they themselves require careful consideration of the AGPL license,
-                you cannot claim copyright for work that is not yours. Any modified source code
-                must be shared publicly. Any related copyrights of such work much make notice
-                that it is based on this AGPL software, and also include the below notice.
-                
-                DO NOT illegally claim copyright of this work. If you want to edit the 
-                presentation of the below copyright, please contact us at legal@textit.com 
-                to discuss attribution requirements for this software.
+                License requires that the copyright attribution remain, please do not modify.
               -->
-              Copyright © 2012-2022 TextIt, UNICEF
+              Copyright © 2012-2023 TextIt. All rights reserved.
   
   .bottom-strip.absolute.bottom-0.text-sm.text-center.text-white.p-1(style="background:rgba(0,0,0,.7); z-index:100000;width:100%;")
     Go back to the
     %span.linked(onclick="leaveNewInterface()" style="color:#43b1ff")<
       old interface
-      

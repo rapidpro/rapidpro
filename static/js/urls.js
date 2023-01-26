@@ -33,6 +33,7 @@ window.urls = [
   { old: /\/org\/manage_accounts\/(.*)/,                 new: /\/settings\/users/ },
   { old: /\/user\/account\//,                            new: /\/settings\/account/ },
   { old: /\/user\/two_factor_disable\//,                 new: /\/settings\/authentication\/2fa-disable/ },
+  { old: /\/user\/two_factor_enable\//,                 new: /\/settings\/authentication\// },
   { old: /\/org\/export\//,                              new: /\/settings\/workspace\/export\// },
   { old: /\/org\/import\//,                              new: /\/settings\/workspace\/import\// },
   { old: /\/org\/read\/(.*)/,                            new: /\/staff\/workspace\/(.*)/ },
@@ -40,7 +41,8 @@ window.urls = [
   { old: /\/org\/update\/(.*)/,                          new: /\/staff\/workspaces\/(.*)\/update/ },
   { old: /\/org\/home\//,                                new: /\/settings\/workspace\// },
   { old: /\/dashboard\/home\//,                          new: /\/settings\/dashboard\// },
-  { old: /\/org\/manage_accounts_sub_org\/\?org=(.*)/,   new: /\/settings\/(.*)\// },
+  { old: /\/org\/manage_accounts_sub_org\/\?org=(.*)/,   new: /\/settings\/workspaces\/(.*)\/users\// },
+  { old: /\/org\/sub_orgs\//,   new: /\/settings\/workspaces\// },
 
 ];
 
