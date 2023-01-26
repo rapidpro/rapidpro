@@ -750,10 +750,8 @@
         showModax(item.name, item.href, modaxOptions);
       }
 
-
       // clicked inside our workspace popup
       if (parent && parent.id == "workspace") {
-        console.log(item);
         if (item.id == "settings") {
           menu.setSelectionPath("settings/workspace");
         } else if (item.id == "logout") {
