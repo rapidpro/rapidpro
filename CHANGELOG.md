@@ -1,3 +1,7 @@
+v8.1.12 (2023-01-26)
+-------------------------
+ * Add locale field to Msg
+
 v8.1.11 (2023-01-25)
 -------------------------
  * Add migration to alter flow language field to first update any remaining flows with 'base'
