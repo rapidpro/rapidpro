@@ -1373,43 +1373,49 @@ class OrgCRUDL(SmartCRUDL):
                     ),
                 ]
 
-            other_orgs = self.request.user.get_orgs().exclude(id=self.org.id).order_by("-parent", "name")
+            menu = []
+            if self.org:
+                other_orgs = self.request.user.get_orgs().exclude(id=self.org.id).order_by("-parent", "name")
+                other_org_items = [
+                    self.create_menu_item(menu_id=other_org.id, name=other_org.name, avatar=other_org.name, event=True)
+                    for other_org in other_orgs
+                ]
 
-            other_org_items = [
-                self.create_menu_item(menu_id=other_org.id, name=other_org.name, avatar=other_org.name, event=True)
-                for other_org in other_orgs
-            ]
+                if len(other_org_items):
+                    other_org_items.insert(0, self.create_divider())
 
-            if len(other_org_items):
-                other_org_items.insert(0, self.create_divider())
+                if self.has_org_perm("orgs.org_create"):
+                    if Org.FEATURE_NEW_ORGS in self.org.features and Org.FEATURE_CHILD_ORGS not in self.org.features:
+                        if len(other_org_items):
+                            other_org_items.append(self.create_divider())
+                        other_org_items.append(
+                            self.create_modax_button(name=_("New Workspace"), href="orgs.org_create")
+                        )
 
-            if self.has_org_perm("orgs.org_create"):
-                if Org.FEATURE_NEW_ORGS in self.org.features and Org.FEATURE_CHILD_ORGS not in self.org.features:
-                    if len(other_org_items):
-                        other_org_items.append(self.create_divider())
-                    other_org_items.append(self.create_modax_button(name=_("New Workspace"), href="orgs.org_create"))
+                menu += [
+                    self.create_menu_item(
+                        menu_id="workspace",
+                        name=_("Workspace"),
+                        avatar=self.org.name,
+                        popup=True,
+                        items=[
+                            self.create_space(),
+                            self.create_menu_item(
+                                menu_id="settings", name=self.org.name, avatar=self.org.name, event=True
+                            ),
+                            self.create_divider(),
+                            self.create_menu_item(
+                                menu_id="logout",
+                                name=_("Sign Out"),
+                                icon="log-out-04",
+                                href=f"{reverse('users.user_logout')}?next={reverse('users.user_login')}",
+                            ),
+                            *other_org_items,
+                        ],
+                    )
+                ]
 
-            menu = [
-                self.create_menu_item(
-                    menu_id="workspace",
-                    name=_("Workspace"),
-                    avatar=self.org.name,
-                    popup=True,
-                    items=[
-                        self.create_space(),
-                        self.create_menu_item(
-                            menu_id="settings", name=self.org.name, avatar=self.org.name, event=True
-                        ),
-                        self.create_divider(),
-                        self.create_menu_item(
-                            menu_id="logout",
-                            name=_("Sign Out"),
-                            icon="log-out-04",
-                            href=f"{reverse('users.user_logout')}?next={reverse('users.user_login')}",
-                        ),
-                        *other_org_items,
-                    ],
-                ),
+            menu += [
                 self.create_menu_item(
                     menu_id="messages", name=_("Messages"), icon="icon.messages", endpoint="msgs.msg_menu"
                 ),

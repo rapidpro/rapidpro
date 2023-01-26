@@ -2886,22 +2886,22 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_menu(self):
         self.login(self.admin)
-        self.assertMenu(reverse("orgs.org_menu"), 7)
+        self.assertMenu(reverse("orgs.org_menu"), 8)
         self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 7)
 
         menu_url = reverse("orgs.org_menu")
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=True)
         menu = response.json()["results"]
-        self.assertEqual(7, len(menu))
+        self.assertEqual(8, len(menu))
 
         # agents should only see tickets and settings
         self.login(self.agent)
 
-        with self.assertNumQueries(9):
+        with self.assertNumQueries(10):
             response = self.client.get(menu_url)
 
         menu = response.json()["results"]
-        self.assertEqual(2, len(menu))
+        self.assertEqual(3, len(menu))
 
         # customer support should only see the staff option
         self.login(self.customer_support)
@@ -3534,7 +3534,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.post(create_url, {"name": "Child Org", "timezone": "Africa/Nairobi"}, HTTP_TEMBA_SPA=1)
 
-        self.assertRedirect(response, "/org/manage_accounts_sub_org/")
+        self.assertRedirect(response, reverse("orgs.org_sub_orgs"))
 
     def test_child_management(self):
         sub_orgs_url = reverse("orgs.org_sub_orgs")
@@ -3558,7 +3558,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Manage Workspaces")
 
         response = self.assertListFetch(
-            sub_orgs_url, allow_viewers=False, allow_editors=False, context_objects=[self.org, child1, child2]
+            sub_orgs_url, allow_viewers=False, allow_editors=False, context_objects=[child1, child2]
         )
 
         child1_edit_url = reverse("orgs.org_edit_sub_org") + f"?org={child1.id}"
@@ -3592,7 +3592,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             HTTP_TEMBA_SPA=1,
         )
 
-        self.assertEqual(child1_accounts_url, response.url)
+        self.assertEqual(reverse("orgs.org_sub_orgs"), response.url)
 
         child1.refresh_from_db()
         self.assertEqual("Spa Child Name", child1.name)
@@ -3766,7 +3766,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # go through with it, redirects to main workspace page
         response = self.client.post(delete_workspace)
-        self.assertEqual(reverse("orgs.org_workspace"), response["Temba-Success"])
+        self.assertEqual(reverse("orgs.org_sub_orgs"), response["Temba-Success"])
 
         workspace.refresh_from_db()
         self.assertFalse(workspace.is_active)
