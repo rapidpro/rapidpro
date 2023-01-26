@@ -162,7 +162,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         help_text=_("Minutes of inactivity that will cause expiration from flow."),
     )
     base_language = models.CharField(
-        max_length=4,  # until we fix remaining flows with "base"
+        max_length=3,  # ISO-639-3
         help_text=_("The authoring language, additional languages can be added later."),
         default="und",
     )
@@ -626,34 +626,32 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         self.modified_by = user
         self.save(update_fields=("is_archived", "modified_by", "modified_on"))
 
-    def update_single_message_flow(self, user, translations, base_language):
+    def update_single_message_flow(self, user, translations: dict, base_language: str):
         assert translations and base_language in translations, "must include translation for base language"
 
-        self.base_language = base_language
-        self.version_number = "13.0.0"
-        self.save(update_fields=("name", "base_language", "version_number"))
-
         translations = translations.copy()  # don't modify instance being saved on event object
-
         action_uuid = str(uuid4())
         base_text = translations.pop(base_language)
         localization = {k: {action_uuid: {"text": [v]}} for k, v in translations.items()}
 
-        definition = {
-            "uuid": "8ca44c09-791d-453a-9799-a70dd3303306",
-            "name": self.name,
-            "spec_version": self.version_number,
-            "language": base_language,
-            "type": "messaging_background",
-            "localization": localization,
-            "nodes": [
-                {
-                    "uuid": str(uuid4()),
-                    "actions": [{"uuid": action_uuid, "type": "send_msg", "text": base_text}],
-                    "exits": [{"uuid": "0c599307-8222-4386-b43c-e41654f03acf"}],
-                }
-            ],
-        }
+        definition = Flow.migrate_definition(
+            {
+                "uuid": "8ca44c09-791d-453a-9799-a70dd3303306",
+                "name": self.name,
+                "spec_version": "13.0.0",
+                "language": base_language,
+                "type": "messaging_background",
+                "localization": localization,
+                "nodes": [
+                    {
+                        "uuid": str(uuid4()),
+                        "actions": [{"uuid": action_uuid, "type": "send_msg", "text": base_text}],
+                        "exits": [{"uuid": "0c599307-8222-4386-b43c-e41654f03acf"}],
+                    }
+                ],
+            },
+            flow=self,
+        )
 
         self.save_revision(user, definition)
 

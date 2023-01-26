@@ -372,6 +372,7 @@ class TembaTestMixin:
         surveyor=False,
         flow=None,
         broadcast=None,
+        locale=None,
         metadata=None,
         next_attempt=None,
         failed_reason=None,
@@ -399,10 +400,11 @@ class TembaTestMixin:
             contact=contact,
             contact_urn=contact_urn,
             text=text,
+            attachments=attachments,
+            locale=locale,
             channel=channel,
             status=status,
             msg_type=msg_type,
-            attachments=attachments,
             visibility=visibility,
             external_id=external_id,
             high_priority=high_priority,
@@ -418,7 +420,7 @@ class TembaTestMixin:
     def create_broadcast(
         self,
         user,
-        text: str,
+        text: str | dict,
         contacts=(),
         groups=(),
         status=Broadcast.STATUS_SENT,
@@ -431,7 +433,7 @@ class TembaTestMixin:
         bcast = Broadcast.create(
             self.org,
             user,
-            {"eng": text},
+            {"und": text} if isinstance(text, str) else text,
             contacts=contacts,
             groups=groups,
             parent=parent,
@@ -458,6 +460,7 @@ class TembaTestMixin:
                     created_on=timezone.now(),
                     sent_on=timezone.now(),
                     broadcast=bcast,
+                    locale=bcast.base_language,
                 )
 
         return bcast

@@ -109,10 +109,10 @@ class Campaign(TembaModel):
 
                 # create our message flow for message events
                 if event_spec["event_type"] == CampaignEvent.TYPE_MESSAGE:
-
                     message = event_spec["message"]
                     base_language = event_spec.get("base_language")
 
+                    # force the message value into a dict
                     if not isinstance(message, dict):
                         try:
                             message = json.loads(message)
@@ -120,6 +120,16 @@ class Campaign(TembaModel):
                             # if it's not a language dict, turn it into one
                             message = dict(base=message)
                             base_language = "base"
+
+                    # change base to und
+                    if "base" in message:
+                        message["und"] = message["base"]
+                        del message["base"]
+                        base_language = "und"
+
+                    # ensure base language is valid
+                    if base_language not in message:  # pragma: needs cover
+                        base_language = next(iter(message))
 
                     event = CampaignEvent.create_message_event(
                         org,

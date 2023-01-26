@@ -1,3 +1,38 @@
+v8.1.12 (2023-01-26)
+-------------------------
+ * Add locale field to Msg
+
+v8.1.11 (2023-01-25)
+-------------------------
+ * Add migration to alter flow language field to first update any remaining flows with 'base'
+
+v8.1.10 (2023-01-25)
+-------------------------
+ * Require flow and broadcast base languages to 3 letters
+ * Require broadcast.translations to be non-null
+
+v8.1.9 (2023-01-25)
+-------------------------
+ * Drop unused broadcast fields
+
+v8.1.8 (2023-01-24)
+-------------------------
+ * Make Broadcast.text nullable and stop writing it
+
+v8.1.7 (2023-01-24)
+-------------------------
+ * Stop reading from Broadcast.text
+
+v8.1.6 (2023-01-23)
+-------------------------
+ * Fix campaign imports so we don't import base as a language
+ * Increase max-width for channel configuration page
+ * Support bandwidth channel type
+
+v8.1.5 (2023-01-23)
+-------------------------
+ * Data migration to backfill broadcast.translations and replace base with und
+
 v8.1.4 (2023-01-20)
 -------------------------
  * Update campaign message events with language base
