@@ -2044,11 +2044,11 @@ class OrgCRUDL(SmartCRUDL):
         search_fields = ("name__icontains", "created_by__email__iexact", "config__icontains")
         link_fields = ("name", "owner")
         filters = (
-            ("all", _("All"), dict()),
-            ("anon", _("Anonymous"), dict(is_anon=True, is_suspended=False)),
-            ("flagged", _("Flagged"), dict(is_flagged=True, is_suspended=False)),
-            ("suspended", _("Suspended"), dict(is_suspended=True)),
-            ("verified", _("Verified"), dict(config__contains='"verified": true', is_suspended=False)),
+            ("all", _("All"), dict(), None),
+            ("anon", _("Anonymous"), dict(is_anon=True, is_suspended=False), None),
+            ("flagged", _("Flagged"), dict(is_flagged=True, is_suspended=False), None),
+            ("suspended", _("Suspended"), dict(is_suspended=True), None),
+            ("verified", _("Verified"), dict(config__contains='"verified": true', is_suspended=False), None),
         )
 
         @csrf_exempt
@@ -2065,14 +2065,22 @@ class OrgCRUDL(SmartCRUDL):
             qs = super().derive_queryset(**kwargs).filter(is_active=True)
             qs = qs.filter(brand=self.request.branding["slug"])
 
-            for filter_key, _, filter_kwargs in self.filters:
+            for filter_key, _, filter_kwargs, ordering in self.filters:
                 if filter_key == obj_filter:
                     qs = qs.filter(**filter_kwargs)
+                    if ordering:
+                        qs = qs.order_by(*ordering)
+                    else:
+                        qs = qs.order_by(*self.default_order)
                     break
             else:
                 qs = qs.filter(is_suspended=False)
 
             return qs
+
+        def derive_ordering(self):
+            # we do this in derive queryset for simplicity
+            return None
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
