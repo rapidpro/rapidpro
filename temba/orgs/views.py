@@ -2556,7 +2556,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def build_content_menu(self, menu):
             org = self.get_object()
-            if not self.is_spa and self.has_org_perm("orgs.org_dashboard"):
+            if not self.is_spa() and self.has_org_perm("orgs.org_dashboard"):
                 menu.add_link(_("Dashboard"), reverse("dashboard.dashboard_home"))
             elif self.has_org_perm("orgs.org_create") and Org.FEATURE_CHILD_ORGS in org.features:
                 menu.add_modax(_("New Workspace"), "new_workspace", reverse("orgs.org_create"))
@@ -2577,12 +2577,9 @@ class OrgCRUDL(SmartCRUDL):
             return obj.get_contact_count()
 
         def get_name(self, obj):
-            org_type = "child"
-            if not obj.parent:
-                org_type = "parent"
             if self.has_org_perm("orgs.org_edit_sub_org") and obj.parent:  # pragma: needs cover
                 return mark_safe(
-                    f"<temba-modax header={_('Update')} endpoint={reverse('orgs.org_edit_sub_org')}?org={obj.id} ><div class='{org_type}-org-name linked'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div></temba-modax>"
+                    f"<temba-modax header={_('Update')} endpoint={reverse('orgs.org_edit_sub_org')}?org={obj.id} ><div class='child-org-name linked'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div></temba-modax>"
                 )
             return mark_safe(
                 f"<div class='org-name'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div>"
