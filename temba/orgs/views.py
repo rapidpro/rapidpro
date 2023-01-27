@@ -2074,7 +2074,7 @@ class OrgCRUDL(SmartCRUDL):
                         qs = qs.order_by(*self.default_order)
                     break
             else:
-                qs = qs.filter(is_suspended=False)
+                qs = qs.filter(is_suspended=False).order_by(*self.default_order)
 
             return qs
 
