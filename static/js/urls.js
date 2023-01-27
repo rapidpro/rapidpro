@@ -31,6 +31,7 @@ window.urls = [
   { old: /\/httplog\/read\/(.*)\//,                      new: /\/settings\/httplog\/(.*)\// },
   { old: /\/classifier\/read\/(.*)\//,                   new: /\/settings\/classifiers\/(.*)\// },
   { old: /\/org\/manage_accounts\/(.*)/,                 new: /\/settings\/users/ },
+  { old: /\/org\/manage\/(.*)/,                          new: /\/staff\/(.*)/ },
   { old: /\/user\/account\//,                            new: /\/settings\/account/ },
   { old: /\/user\/two_factor_disable\//,                 new: /\/settings\/authentication\/2fa-disable/ },
   { old: /\/user\/two_factor_enable\//,                 new: /\/settings\/authentication\// },
