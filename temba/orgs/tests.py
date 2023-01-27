@@ -2850,10 +2850,16 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(deep_link)
         self.assertEqual(200, response.status_code)
 
-    def assertMenu(self, url, count):
+    def assertMenu(self, url, count, checks=[]):
         response = self.assertListFetch(url, allow_viewers=True, allow_editors=True, allow_agents=True)
         menu = response.json()["results"]
         self.assertEqual(count, len(menu))
+
+        # check the content if we have them
+        if checks:
+            content = json.dumps(menu, indent=2)
+            for check in checks:
+                self.assertTrue(check in content, f"Couldn't find {check} in {content}")
 
     def test_home(self):
         home_url = reverse("orgs.org_home")
@@ -2884,15 +2890,49 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(home_url)
         self.assertEqual(15, len(response.context["formax"].sections))
 
+    def test_manage_sub_orgs(self):
+
+        # give our org the multi users feature
+        self.org.features += [Org.FEATURE_USERS]
+        self.org.save()
+
+        # add a sub org
+        self.child = Org.objects.create(
+            name="Child Workspace",
+            timezone=pytz.timezone("US/Pacific"),
+            brand="rapidpro",
+            flow_languages=["eng"],
+            created_by=self.admin,
+            modified_by=self.admin,
+            parent=self.org,
+        )
+        self.child.initialize()
+        self.child.add_user(self.admin, OrgRole.ADMINISTRATOR)
+
+        self.assertListFetch(reverse("orgs.org_sub_orgs"), allow_viewers=False, allow_editors=False)
+        response = self.client.get(reverse("orgs.org_sub_orgs"), {}, True, True, HTTP_TEMBA_SPA=1)
+        self.assertContains(response, "Child Workspace")
+        self.assertContains(response, reverse("orgs.org_manage_accounts_sub_org"))
+
     def test_menu(self):
         self.login(self.admin)
-        self.assertMenu(reverse("orgs.org_menu"), 8)
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 7)
 
+        # add a sub org
+        self.child = Org.objects.create(
+            name="Child Workspace",
+            timezone=pytz.timezone("US/Pacific"),
+            brand="rapidpro",
+            flow_languages=["eng"],
+            created_by=self.admin,
+            modified_by=self.admin,
+            parent=self.org,
+        )
+        self.child.initialize()
+        self.child.add_user(self.admin, OrgRole.ADMINISTRATOR)
         menu_url = reverse("orgs.org_menu")
-        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=True)
-        menu = response.json()["results"]
-        self.assertEqual(8, len(menu))
+
+        self.assertMenu(menu_url, 8, ["Child Workspace"])
+        self.assertMenu(f"{menu_url}settings/", 7)
 
         # agents should only see tickets and settings
         self.login(self.agent)
@@ -2913,6 +2953,11 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(2, len(menu))
         self.assertEqual("Workspaces", menu[0]["name"])
         self.assertEqual("Users", menu[1]["name"])
+
+        # if our org has new orgs but not child orgs, we should have a New Workspace button in the menu
+        self.org.features = [Org.FEATURE_NEW_ORGS]
+        self.org.save()
+        self.assertMenu(menu_url, 8, ["New Workspace"])
 
     def test_read(self):
         read_url = reverse("orgs.org_read", args=[self.org.id])
