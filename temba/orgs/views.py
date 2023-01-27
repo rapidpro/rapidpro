@@ -2584,9 +2584,6 @@ class OrgCRUDL(SmartCRUDL):
                 return mark_safe(
                     f"<temba-modax header={_('Update')} endpoint={reverse('orgs.org_edit_sub_org')}?org={obj.id} ><div class='child-org-name linked'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div></temba-modax>"
                 )
-            return mark_safe(
-                f"<div class='org-name'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div>"
-            )
 
         def derive_queryset(self, **kwargs):
             queryset = super().derive_queryset(**kwargs)
