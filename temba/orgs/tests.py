@@ -2857,7 +2857,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check the content if we have them
         if contains_names:
-            # menu_names = [m["name"] for m in menu]
             for name in contains_names:
                 steps = name.split("/")
                 while steps:
