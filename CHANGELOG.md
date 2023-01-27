@@ -1,3 +1,9 @@
+v8.1.14 (2023-01-27)
+-------------------------
+ * Add ordering support for filters
+ * Fix redirect ping pong when managing orgs
+ * Tweak inspect_flows command to report spec veresion mismatches
+
 v8.1.13 (2023-01-26)
 -------------------------
  * Update flow editor
