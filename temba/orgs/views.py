@@ -2556,10 +2556,13 @@ class OrgCRUDL(SmartCRUDL):
 
         def build_content_menu(self, menu):
             org = self.get_object()
-            if not self.is_spa() and self.has_org_perm("orgs.org_dashboard"):
-                menu.add_link(_("Dashboard"), reverse("dashboard.dashboard_home"))
-            elif self.has_org_perm("orgs.org_create") and Org.FEATURE_CHILD_ORGS in org.features:
-                menu.add_modax(_("New Workspace"), "new_workspace", reverse("orgs.org_create"))
+
+            if self.is_spa():
+                if self.has_org_perm("orgs.org_create") and Org.FEATURE_CHILD_ORGS in org.features:
+                    menu.add_modax(_("New Workspace"), "new_workspace", reverse("orgs.org_create"))
+            else:
+                if self.has_org_perm("orgs.org_dashboard"):
+                    menu.add_link(_("Dashboard"), reverse("dashboard.dashboard_home"))
 
         def get_manage(self, obj):  # pragma: needs cover
             if obj == self.get_object():
