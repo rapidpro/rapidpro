@@ -2850,16 +2850,25 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(deep_link)
         self.assertEqual(200, response.status_code)
 
-    def assertMenu(self, url, count, checks=[]):
+    def assertMenu(self, url, count, contains_names=[]):
         response = self.assertListFetch(url, allow_viewers=True, allow_editors=True, allow_agents=True)
         menu = response.json()["results"]
         self.assertEqual(count, len(menu))
 
         # check the content if we have them
-        if checks:
-            content = json.dumps(menu, indent=2)
-            for check in checks:
-                self.assertTrue(check in content, f"Couldn't find {check} in {content}")
+        if contains_names:
+            # menu_names = [m["name"] for m in menu]
+            for name in contains_names:
+                steps = name.split("/")
+                while steps:
+                    step = steps.pop(0)
+                    menu_names = [m["name"] for m in menu if "name" in m]
+                    try:
+                        idx = menu_names.index(step)
+                        if "items" in menu[idx]:
+                            menu = menu[idx]["items"]
+                    except ValueError:
+                        self.fail(f"Couldn't find {step} in {menu_names}")
 
     def test_home(self):
         home_url = reverse("orgs.org_home")
@@ -2931,7 +2940,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.child.add_user(self.admin, OrgRole.ADMINISTRATOR)
         menu_url = reverse("orgs.org_menu")
 
-        self.assertMenu(menu_url, 8, ["Child Workspace"])
+        self.assertMenu(menu_url, 8, ["Workspace/Child Workspace"])
         self.assertMenu(f"{menu_url}settings/", 7)
 
         # agents should only see tickets and settings
@@ -2957,7 +2966,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # if our org has new orgs but not child orgs, we should have a New Workspace button in the menu
         self.org.features = [Org.FEATURE_NEW_ORGS]
         self.org.save()
-        self.assertMenu(menu_url, 8, ["New Workspace"])
+        self.assertMenu(menu_url, 8, ["Workspace/New Workspace"])
 
     def test_read(self):
         read_url = reverse("orgs.org_read", args=[self.org.id])
