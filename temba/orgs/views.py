@@ -2044,7 +2044,7 @@ class OrgCRUDL(SmartCRUDL):
         search_fields = ("name__icontains", "created_by__email__iexact", "config__icontains")
         link_fields = ("name", "owner")
         filters = (
-            ("all", _("All"), dict(), None),
+            ("all", _("All"), dict(), ("-created_on",)),
             ("anon", _("Anonymous"), dict(is_anon=True, is_suspended=False), None),
             ("flagged", _("Flagged"), dict(is_flagged=True, is_suspended=False), None),
             ("suspended", _("Suspended"), dict(is_suspended=True), None),
