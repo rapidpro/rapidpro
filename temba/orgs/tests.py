@@ -2893,7 +2893,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_manage_sub_orgs(self):
 
         # give our org the multi users feature
-        self.org.features += [Org.FEATURE_USERS]
+        self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS]
         self.org.save()
 
         # add a sub org
@@ -2910,7 +2910,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.child.add_user(self.admin, OrgRole.ADMINISTRATOR)
 
         self.assertListFetch(reverse("orgs.org_sub_orgs"), allow_viewers=False, allow_editors=False)
-        response = self.client.get(reverse("orgs.org_sub_orgs"), {}, True, True, HTTP_TEMBA_SPA=1)
+        response = self.client.get(reverse("orgs.org_sub_orgs"), HTTP_TEMBA_SPA=True)
         self.assertContains(response, "Child Workspace")
         self.assertContains(response, reverse("orgs.org_manage_accounts_sub_org"))
 
