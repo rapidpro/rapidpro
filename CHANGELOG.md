@@ -1,3 +1,8 @@
+v8.1.15 (2023-01-30)
+-------------------------
+ * Add new org chooser with avatars in new UI
+ * Add dashboard to menu in new UI
+
 v8.1.14 (2023-01-27)
 -------------------------
  * Add ordering support for filters
