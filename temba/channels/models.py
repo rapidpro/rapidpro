@@ -144,6 +144,7 @@ class ChannelType(metaclass=ABCMeta):
         """
         Called to check the credentials passed are valid
         """
+        return True
 
     def activate(self, channel):
         """
