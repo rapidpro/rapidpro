@@ -140,8 +140,10 @@ class ChannelType(metaclass=ABCMeta):
             return UpdateChannelForm
         return self.update_form
 
-    def check_credentials(self, cleaned_data):
-        return None, cleaned_data
+    def check_credentials(self, config: dict) -> bool:
+        """
+        Called to check the credentials passed are valid
+        """
 
     def activate(self, channel):
         """
@@ -716,6 +718,9 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     def is_new(self):
         # is this channel newer than an hour
         return self.created_on > timezone.now() - timedelta(hours=1) or not self.last_sync
+
+    def check_credentials(self) -> bool:
+        return self.type.check_credentials(self.config)
 
     def release(self, user, *, trigger_sync: bool = True):
         """

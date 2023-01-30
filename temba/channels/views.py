@@ -427,13 +427,8 @@ class UpdateChannelForm(forms.ModelForm):
 
     def clean(self) -> Dict[str, Any]:
         cleaned_data = super().clean()
-        error, cleaned_data = Channel.get_type_from_code(self.object.channel_type).check_credentials(cleaned_data)
-
-        if error is not None:
-            if isinstance(error, ValidationError):
-                raise error
-            raise ValidationError(_("Error checking credentials: %s" % error.message))
-
+        if not Channel.get_type_from_code(self.object.channel_type).check_credentials(cleaned_data):
+            raise ValidationError(_("Error checking credentials for channel type %s" % self.object.channel_type))
         return cleaned_data
 
     class Meta:

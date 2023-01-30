@@ -1,10 +1,14 @@
+from typing import Any, Dict
+
 import phonenumbers
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartFormView
 from twilio.base.exceptions import TwilioException, TwilioRestException
+from twilio.rest import Client as TwilioClient
 
 from django import forms
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -324,10 +328,10 @@ class UpdateForm(UpdateChannelForm):
         self.add_config_field(
             "account_sid",
             forms.CharField(
-                max_length=640,
+                max_length=128,
                 label=_("Your Twilio Account SID"),
                 required=True,
-                widget=InputWidget(),
+                widget=InputWidget(attrs={"disabled": "disabled"}),
             ),
             default="",
         )
@@ -335,13 +339,31 @@ class UpdateForm(UpdateChannelForm):
         self.add_config_field(
             "auth_token",
             forms.CharField(
-                max_length=640,
+                max_length=128,
                 label=_("Your Twilio Account Auth Token"),
                 required=True,
                 widget=InputWidget(),
             ),
             default="",
         )
+
+    def clean(self) -> Dict[str, Any]:
+        account_sid = self.cleaned_data.get("account_sid", None)
+        account_token = self.cleaned_data.get("account_token", None)
+
+        try:
+            client = TwilioClient(account_sid, account_token)
+
+            # get the actual primary auth tokens from twilio and use them
+            account = client.api.account.fetch()
+            self.cleaned_data["account_sid"] = account.sid
+            self.cleaned_data["account_token"] = account.auth_token
+        except Exception:  # pragma: needs cover
+            raise ValidationError(
+                _("The Twilio account SID and Token seem invalid. Please check them again and retry.")
+            )
+
+        return self.cleaned_data
 
     class Meta(UpdateChannelForm.Meta):
         fields = ("name",)
