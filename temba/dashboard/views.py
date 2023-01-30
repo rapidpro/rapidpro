@@ -6,17 +6,20 @@ from smartmin.views import SmartTemplateView
 from django.db.models import Q, Sum
 from django.http import JsonResponse
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel, ChannelCount
 from temba.orgs.models import Org
 from temba.orgs.views import OrgPermsMixin
+from temba.utils.views import SpaMixin
 
 
-class Home(OrgPermsMixin, SmartTemplateView):
+class Home(SpaMixin, OrgPermsMixin, SmartTemplateView):
     """
     The main dashboard view
     """
 
+    title = _("Dashboard")
     permission = "orgs.org_dashboard"
     template_name = "dashboard/home.haml"
 
@@ -99,14 +102,6 @@ class MessageHistory(OrgPermsMixin, SmartTemplateView):
             [
                 dict(name="Incoming", type="column", data=msgs_in, showInNavigator=False),
                 dict(name="Outgoing", type="column", data=msgs_out, showInNavigator=False),
-                dict(
-                    name="Total",
-                    type="column",
-                    data=msgs_total,
-                    showInNavigator=True,
-                    showInLegend=False,
-                    visible=False,
-                ),
             ],
             safe=False,
         )

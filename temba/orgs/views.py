@@ -1042,6 +1042,7 @@ class SpaView(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         context = super().get_context_data(**kwargs)
         context["org"] = self.request.org
         context["is_spa"] = True
+        context["servicing"] = self.request.org in self.request.user.get_orgs()
 
         dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
         prefix = "/dev" if dev_mode else settings.STATIC_URL
@@ -1119,6 +1120,7 @@ class MenuMixin(OrgPermsMixin):
         menu_id=None,
         name=None,
         icon=None,
+        avatar=None,
         endpoint=None,
         href=None,
         count=None,
@@ -1126,7 +1128,9 @@ class MenuMixin(OrgPermsMixin):
         items=[],
         inline=False,
         bottom=False,
+        popup=False,
         verbose_name=None,
+        event=False,
     ):
 
         if perm and not self.has_org_perm(perm):  # pragma: no cover
@@ -1136,6 +1140,8 @@ class MenuMixin(OrgPermsMixin):
         menu_item["id"] = menu_id if menu_id else slugify(name)
         menu_item["bottom"] = bottom
         menu_item["verbose_name"] = verbose_name
+        menu_item["popup"] = popup
+        menu_item["avatar"] = avatar
 
         if icon:
             menu_item["icon"] = icon
@@ -1159,7 +1165,7 @@ class MenuMixin(OrgPermsMixin):
             menu_item["items"] = items
 
         # only include the menu item if we have somewhere to go
-        if "href" not in menu_item and "endpoint" not in menu_item and not inline:
+        if "href" not in menu_item and "endpoint" not in menu_item and not inline and not popup and not event:
             return None
 
         return menu_item
@@ -1241,6 +1247,23 @@ class OrgCRUDL(SmartCRUDL):
                     )
                 )
 
+                if self.has_org_perm("orgs.org_sub_orgs") and Org.FEATURE_CHILD_ORGS in self.org.features:
+                    children = Org.objects.filter(parent=self.org, is_active=True).count()
+                    item = self.create_menu_item(name=_("Workspaces"), icon="icon.children", href="orgs.org_sub_orgs")
+                    if children:
+                        item["count"] = children
+                    menu.append(item)
+
+                if self.has_org_perm("orgs.org_dashboard"):
+                    menu.append(
+                        self.create_menu_item(
+                            menu_id="dashboard",
+                            name=_("Dashboard"),
+                            icon="icon.dashboard",
+                            href=reverse("dashboard.dashboard_home"),
+                        )
+                    )
+
                 if self.request.user.settings.two_factor_enabled:
                     menu.append(
                         self.create_menu_item(
@@ -1270,7 +1293,11 @@ class OrgCRUDL(SmartCRUDL):
                         )
                     )
 
-                menu.append(self.create_menu_item(name=_("Users"), icon="icon.users", href="orgs.org_manage_accounts"))
+                if self.has_org_perm("orgs.org_accounts") and Org.FEATURE_USERS in self.org.features:
+                    menu.append(
+                        self.create_menu_item(name=_("Users"), icon="icon.users", href="orgs.org_manage_accounts")
+                    )
+
                 menu.append(
                     self.create_menu_item(name=_("Resthooks"), icon="icon.resthooks", href="orgs.org_resthooks")
                 )
@@ -1282,7 +1309,7 @@ class OrgCRUDL(SmartCRUDL):
                     channels = Channel.objects.filter(org=self.org, is_active=True, parent=None).order_by("-role")
                     for channel in channels:
                         icon = channel.type.icon.replace("icon-", "")
-                        icon = icon.replace("power-cord", "box")
+                        icon = icon.replace("power-cord", "icon.channel")
                         items.append(
                             self.create_menu_item(
                                 menu_id=f"{channel.uuid}",
@@ -1328,20 +1355,6 @@ class OrgCRUDL(SmartCRUDL):
 
                     menu.append(self.create_menu_item(name=_("Archives"), items=items, inline=True))
 
-                child_orgs = self.org.children.filter(is_active=True).order_by("name")
-                if child_orgs:
-                    menu.append(self.create_section(_("Workspaces")))
-
-                for child in child_orgs:
-                    menu.append(
-                        self.create_menu_item(
-                            name=child.name,
-                            menu_id=child.id,
-                            icon="icon.workspace",
-                            href=f"{reverse('orgs.org_manage_accounts_sub_org')}?org={child.id}",
-                        )
-                    )
-
                 return menu
 
             if submenu == "staff":
@@ -1360,7 +1373,49 @@ class OrgCRUDL(SmartCRUDL):
                     ),
                 ]
 
-            menu = [
+            menu = []
+            if self.org:
+                other_orgs = self.request.user.get_orgs().exclude(id=self.org.id).order_by("-parent", "name")
+                other_org_items = [
+                    self.create_menu_item(menu_id=other_org.id, name=other_org.name, avatar=other_org.name, event=True)
+                    for other_org in other_orgs
+                ]
+
+                if len(other_org_items):
+                    other_org_items.insert(0, self.create_divider())
+
+                if self.has_org_perm("orgs.org_create"):
+                    if Org.FEATURE_NEW_ORGS in self.org.features and Org.FEATURE_CHILD_ORGS not in self.org.features:
+                        if len(other_org_items):
+                            other_org_items.append(self.create_divider())
+                        other_org_items.append(
+                            self.create_modax_button(name=_("New Workspace"), href="orgs.org_create")
+                        )
+
+                menu += [
+                    self.create_menu_item(
+                        menu_id="workspace",
+                        name=_("Workspace"),
+                        avatar=self.org.name,
+                        popup=True,
+                        items=[
+                            self.create_space(),
+                            self.create_menu_item(
+                                menu_id="settings", name=self.org.name, avatar=self.org.name, event=True
+                            ),
+                            self.create_divider(),
+                            self.create_menu_item(
+                                menu_id="logout",
+                                name=_("Sign Out"),
+                                icon="log-out-04",
+                                href=f"{reverse('users.user_logout')}?next={reverse('users.user_login')}",
+                            ),
+                            *other_org_items,
+                        ],
+                    )
+                ]
+
+            menu += [
                 self.create_menu_item(
                     menu_id="messages", name=_("Messages"), icon="icon.messages", endpoint="msgs.msg_menu"
                 ),
@@ -2175,7 +2230,7 @@ class OrgCRUDL(SmartCRUDL):
 
     class Delete(SpaMixin, OrgObjPermsMixin, ModalMixin, SmartDeleteView):
         cancel_url = "id@orgs.org_update"
-        success_url = "@orgs.org_workspace"
+        success_url = "@orgs.org_sub_orgs"
         fields = ("id",)
         submit_button_name = _("Delete")
 
@@ -2400,27 +2455,10 @@ class OrgCRUDL(SmartCRUDL):
                 return super().derive_title()
 
         def build_content_menu(self, menu):
-            other_org = self.request.org.id != self.get_object().id
+            self.object = self.get_object()
+            other_org = self.request.org.id != self.object.id
 
-            if self.is_spa():
-                if other_org:
-                    menu.add_modax(
-                        _("Edit"),
-                        "edit-workspace",
-                        f"{reverse('orgs.org_edit_sub_org')}?org={self.object.id}",
-                        title=_("Edit Workspace"),
-                    )
-
-                    if self.has_org_perm("orgs.org_delete"):
-                        menu.add_modax(
-                            _("Delete"),
-                            "delete-workspace",
-                            reverse("orgs.org_delete", args=[self.object.id]),
-                            title=_("Delete Workspace"),
-                            disabled=True,
-                        )
-
-            else:
+            if not self.is_spa():
                 if other_org:
                     menu.add_link(_("Workspaces"), reverse("orgs.org_sub_orgs"))
 
@@ -2517,8 +2555,14 @@ class OrgCRUDL(SmartCRUDL):
         link_fields = []
 
         def build_content_menu(self, menu):
-            if self.has_org_perm("orgs.org_dashboard"):
-                menu.add_link(_("Dashboard"), reverse("dashboard.dashboard_home"))
+            org = self.get_object()
+
+            if self.is_spa():
+                if self.has_org_perm("orgs.org_create") and Org.FEATURE_CHILD_ORGS in org.features:
+                    menu.add_modax(_("New Workspace"), "new_workspace", reverse("orgs.org_create"))
+            else:
+                if self.has_org_perm("orgs.org_dashboard"):
+                    menu.add_link(_("Dashboard"), reverse("dashboard.dashboard_home"))
 
         def get_manage(self, obj):  # pragma: needs cover
             if obj == self.get_object():
@@ -2536,30 +2580,26 @@ class OrgCRUDL(SmartCRUDL):
             return obj.get_contact_count()
 
         def get_name(self, obj):
-            org_type = "child"
-            if not obj.parent:
-                org_type = "parent"
             if self.has_org_perm("orgs.org_edit_sub_org") and obj.parent:  # pragma: needs cover
                 return mark_safe(
-                    f"<temba-modax header={_('Update')} endpoint={reverse('orgs.org_edit_sub_org')}?org={obj.id} ><div class='{org_type}-org-name linked'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div></temba-modax>"
+                    f"<temba-modax header={_('Update')} endpoint={reverse('orgs.org_edit_sub_org')}?org={obj.id} ><div class='child-org-name linked'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div></temba-modax>"
                 )
-            return mark_safe(
-                f"<div class='org-name'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div>"
-            )
 
         def derive_queryset(self, **kwargs):
             queryset = super().derive_queryset(**kwargs)
 
-            # all our children and ourselves
+            # all our children
             org = self.get_object()
             ids = [child.id for child in Org.objects.filter(parent=org)]
-            ids.append(org.id)
 
             return queryset.filter(id__in=ids, is_active=True).order_by("-parent", "name")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["searches"] = ["Nyaruka"]
+            org = self.get_object()
+            if self.has_org_perm("orgs.org_accounts") and Org.FEATURE_USERS in org.features:
+                context["manage_users"] = True
+
             return context
 
         def get_created_by(self, obj):  # pragma: needs cover
@@ -2607,10 +2647,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_success_url(self):
             # if we created a child org, redirect to its management
             if self.object.parent:
-                if self.is_spa():
-                    return f"{reverse('orgs.org_manage_accounts_sub_org')}?org={self.object.id}"
-                else:
-                    return reverse("orgs.org_sub_orgs")
+                return reverse("orgs.org_sub_orgs")
 
             # if we created a new separate org, switch to it
             switch_to_org(self.request, self.object)
@@ -3524,10 +3561,6 @@ class OrgCRUDL(SmartCRUDL):
         success_url = "@orgs.org_sub_orgs"
 
         def get_success_url(self):
-            if self.is_spa():
-                org_id = self.request.GET.get("org")
-                return f"{reverse('orgs.org_manage_accounts_sub_org')}?org={org_id}"
-
             return super().get_success_url()
 
         def get_object(self, *args, **kwargs):

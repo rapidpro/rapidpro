@@ -226,6 +226,11 @@ def datetime(date):
     return mark_safe(f"<temba-date value='{date.isoformat()}' display='datetime'></temba-date>")
 
 
+@register.filter
+def day(date):
+    return mark_safe(f"<temba-date value='{date.isoformat()}' display='date'></temba-date>")
+
+
 @register.simple_tag(takes_context=True)
 def short_datetime(context, dtime):
     if dtime.tzinfo is None:

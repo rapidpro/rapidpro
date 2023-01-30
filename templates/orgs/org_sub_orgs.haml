@@ -18,8 +18,12 @@
     {% lessblock %}
       :plain
 
-        tr {
+        table.list {
+          border-top-left-radius: 0;
+          border-top-right-radius: 0;
+        }
 
+        tr {
           th {
             &.header-created_on {
               text-align: right;
