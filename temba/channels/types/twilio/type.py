@@ -7,7 +7,7 @@ from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
 from ...models import ChannelType
-from .views import SUPPORTED_COUNTRIES, ClaimView, SearchView
+from .views import SUPPORTED_COUNTRIES, ClaimView, SearchView, UpdateForm
 
 
 class TwilioType(ChannelType):
@@ -27,6 +27,7 @@ class TwilioType(ChannelType):
         "link": '<a target="_blank" href="https://www.twilio.com/">Twilio</a>'
     }
     claim_view = ClaimView
+    update_form = UpdateForm
 
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
