@@ -661,16 +661,20 @@ class UserCRUDL(SmartCRUDL):
         fields = ("email", "date_joined")
 
         def build_content_menu(self, menu):
+            obj = self.get_object()
             menu.add_modax(
                 _("Edit"),
                 "user-update",
-                reverse("orgs.user_update", args=[self.object.id]),
+                reverse("orgs.user_update", args=[obj.id]),
                 title=_("Edit User"),
                 as_button=True,
             )
 
             menu.add_modax(
-                _("Delete"), "user-delete", reverse("orgs.user_delete", args=[self.object.id]), title=_("Delete User")
+                _("Delete"),
+                "user-delete",
+                reverse("orgs.user_delete", args=[obj.id]),
+                title=_("Delete User"),
             )
 
     class List(StaffOnlyMixin, SpaMixin, SmartListView):

@@ -1,3 +1,7 @@
+v8.1.17 (2023-01-31)
+-------------------------
+ * Fix modax from menu bug
+
 v8.1.15 (2023-01-30)
 -------------------------
  * Add new org chooser with avatars in new UI
