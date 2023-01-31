@@ -1,13 +1,13 @@
 // handle lack of console on IE
 if (typeof console == 'undefined') {
-    this.console = { log: function (msg) {} };
+    this.console = { log: function (msg) { } };
 }
 
 function downloadFile(evt, url) {
     evt.stopPropagation();
     evt.preventDefault();
     window.open(url, "_download");
-}  
+}
 
 function openWindow(evt, url, target) {
     evt.stopPropagation();
@@ -187,11 +187,11 @@ document.addEventListener('temba-refresh-begin', function () {
         pjaxElement.setAttribute(
             'data-no-pjax',
             dropDownOpen ||
-                checkedIds ||
-                openedModals ||
-                focused ||
-                openMenu ||
-                selection
+            checkedIds ||
+            openedModals ||
+            focused ||
+            openMenu ||
+            selection
         );
     }
 });
@@ -216,7 +216,7 @@ function getStartHour() {
 }
 
 // no operation here we'll overwrite this when needed
-function update_schedule() {}
+function update_schedule() { }
 
 function updateDailySelection() {
     var selected = 0;
@@ -323,7 +323,7 @@ function hide_section(section) {
 
     try {
         eval('update_' + section.attr('id') + '()');
-    } catch (e) {}
+    } catch (e) { }
 
     section
         .find('.section-icon')
@@ -431,6 +431,32 @@ function stopEvent(event) {
     event.preventDefault();
 }
 
+function showModax(header, endpoint, modaxOptions) {
+    var modax = document.querySelector("temba-modax#shared-modax");
+    modax["-temba-loaded"] = undefined;
+
+    modax.disabled = modaxOptions.disabled == "True";
+    var itemOnSubmit;
+    if (modaxOptions.onSubmit == "None") {
+        onSubmit = undefined;
+    }
+
+    if (modaxOptions.onSubmit) {
+        modax["-temba-submitted"] = Function(modaxOptions.onSubmit);
+    } else {
+        modax["-temba-submitted"] = undefined;
+    }
+
+    if (!modaxOptions.legacy) {
+        modax.headers = { "TEMBA-SPA": 1 };
+    }
+    modax["-temba-redirected"] = refreshMenu;
+
+    modax.header = header;
+    modax.endpoint = endpoint;
+    modax.open = true;
+}
+
 document.addEventListener('temba-refresh-complete', function () {
     wireTableListeners();
 });
@@ -466,23 +492,23 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 });
 
-var setInnerHTML = function(ele, html) {
+var setInnerHTML = function (ele, html) {
 
     var scripts = ele.parentNode.querySelectorAll("script");
-    scripts.forEach(function(script){
+    scripts.forEach(function (script) {
         script.parentNode.removeChild(script);
     })
 
     ele.innerHTML = html;
 
-    Array.from(ele.querySelectorAll("script")).forEach(function(oldScript) {
+    Array.from(ele.querySelectorAll("script")).forEach(function (oldScript) {
 
         oldScript.parentNode.removeChild(oldScript);
 
         var newScript = document.createElement("script");
         Array.from(oldScript.attributes)
-            .forEach(function(attr){ newScript.setAttribute(attr.name, attr.value) });
+            .forEach(function (attr) { newScript.setAttribute(attr.name, attr.value) });
         newScript.appendChild(document.createTextNode(oldScript.innerHTML));
         ele.parentNode.appendChild(newScript);
     });
-  }
+}
