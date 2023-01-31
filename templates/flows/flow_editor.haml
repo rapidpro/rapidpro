@@ -280,6 +280,10 @@
   %temba-dialog#shared-dialog
   %temba-modax#send-message-modal{ header:"Send Message" }
 
+  -block page-top
+    -block show-modax
+      {{block.super}}
+
   .top-bar.pb-2
     .flex.flex-col.pt-4
       .flex.px-6.pb-2
