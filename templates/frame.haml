@@ -229,32 +229,33 @@
 
           .px-12.py-4
             -block page-top
-              :javascript
-                function showModax(header, endpoint, modaxOptions) {
-                  var modax = document.querySelector("temba-modax#shared-modax");
-                  modax["-temba-loaded"] = undefined;
-                  
-                  modax.disabled = modaxOptions.disabled == "True";
-                  var itemOnSubmit;
-                  if (modaxOptions.onSubmit == "None") {
-                    onSubmit = undefined;
+              -block show-modax
+                :javascript
+                  function showModax(header, endpoint, modaxOptions) {
+                    var modax = document.querySelector("temba-modax#shared-modax");
+                    modax["-temba-loaded"] = undefined;
+                    
+                    modax.disabled = modaxOptions.disabled == "True";
+                    var itemOnSubmit;
+                    if (modaxOptions.onSubmit == "None") {
+                      onSubmit = undefined;
+                    }
+                
+                    if (modaxOptions.onSubmit) {
+                      modax["-temba-submitted"] = Function(modaxOptions.onSubmit);
+                    } else {
+                      modax["-temba-submitted"] = undefined;
+                    }
+                
+                    if (!modaxOptions.legacy) {
+                      modax.headers = { "TEMBA-SPA": 1};
+                    }
+                    modax["-temba-redirected"] = refreshMenu;
+                    
+                    modax.header = header;
+                    modax.endpoint = endpoint;
+                    modax.open = true;
                   }
-              
-                  if (modaxOptions.onSubmit) {
-                    modax["-temba-submitted"] = Function(modaxOptions.onSubmit);
-                  } else {
-                    modax["-temba-submitted"] = undefined;
-                  }
-              
-                  if (!modaxOptions.legacy) {
-                    modax.headers = { "TEMBA-SPA": 1};
-                  }
-                  modax["-temba-redirected"] = refreshMenu;
-                  
-                  modax.header = header;
-                  modax.endpoint = endpoint;
-                  modax.open = true;
-                }
               .flex.items-start
                 .flex.flex-col.mr-5.leading-tight
                   .page-title
