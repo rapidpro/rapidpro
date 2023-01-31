@@ -6,7 +6,7 @@ import string
 from collections import OrderedDict
 from datetime import timedelta
 from email.utils import parseaddr
-from urllib.parse import parse_qs, quote, unquote, urlparse
+from urllib.parse import parse_qs, quote, quote_plus, unquote, urlparse
 
 import iso8601
 import pyotp
@@ -38,7 +38,7 @@ from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError
-from django.forms import Form
+from django.forms import Form, ModelChoiceField
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import resolve_url
 from django.urls import reverse, reverse_lazy
@@ -64,7 +64,6 @@ from temba.utils.fields import (
     InputWidget,
     SelectMultipleWidget,
     SelectWidget,
-    TembaChoiceField,
 )
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
@@ -182,14 +181,18 @@ class OrgObjPermsMixin(OrgPermsMixin):
 
         if has_perm:
             user = self.request.user
-
-            # user has global permission
-            if user.has_perm(self.permission):
+            if user.is_staff:
                 return True
-
             return self.request.org == self.get_object_org()
 
         return False
+
+    def pre_process(self, request, *args, **kwargs):
+        org = self.get_object_org()
+        if request.user.is_staff and self.request.org != org:
+            return HttpResponseRedirect(
+                f"{reverse('orgs.org_service')}?next={quote_plus(request.path)}&other_org={org.pk}"
+            )
 
 
 class ModalMixin(SmartFormView):
@@ -588,7 +591,7 @@ class TwoFactorBackupView(BaseTwoFactorView):
     template_name = "orgs/login/two_factor_backup.haml"
 
 
-class ConfirmAccessView(SpaMixin, Login):
+class ConfirmAccessView(Login):
     """
     Overrides the smartmin login view to provide a view for an already logged in user to re-authenticate.
     """
@@ -2072,12 +2075,6 @@ class OrgCRUDL(SmartCRUDL):
                 disabled=True,
             )
 
-            menu.new_group()
-            menu.add_url_post(
-                _("Service"),
-                f'{reverse("orgs.org_service")}?organization={obj.id}&redirect_url={reverse("msgs.msg_inbox", args=[])}',
-            )
-
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
@@ -2532,11 +2529,23 @@ class OrgCRUDL(SmartCRUDL):
 
     class Service(StaffOnlyMixin, SmartFormView):
         class ServiceForm(forms.Form):
-            organization = TembaChoiceField(queryset=Org.objects.all(), empty_label=None)
-            redirect_url = forms.CharField(required=False)
+            organization = ModelChoiceField(queryset=Org.objects.all(), widget=forms.HiddenInput())
+            redirect_url = forms.CharField(widget=forms.HiddenInput(), required=False)
 
         form_class = ServiceForm
         fields = ("organization", "redirect_url")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["other_org"] = Org.objects.get(id=self.request.GET.get("other_org"))
+            context["redirect_url"] = self.request.GET.get("next", "")
+            return context
+
+        def derive_initial(self):
+            initial = super().derive_initial()
+            initial["organization"] = self.request.GET.get("other_org", "")
+            initial["redirect_url"] = self.request.GET.get("next", "")
+            return initial
 
         # valid form means we set our org and redirect to their inbox
         def form_valid(self, form):

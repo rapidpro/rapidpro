@@ -807,13 +807,6 @@ class ChannelCRUDL(SmartCRUDL):
                     reverse("channels.channel_facebook_whitelist", args=[obj.uuid]),
                 )
 
-            if self.request.user.is_staff:
-                menu.new_group()
-                menu.add_url_post(
-                    _("Service"),
-                    f'{reverse("orgs.org_service")}?organization={obj.org_id}&redirect_url={reverse("channels.channel_read", args=[obj.uuid])}',
-                )
-
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             channel = self.object

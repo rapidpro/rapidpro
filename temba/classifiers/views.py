@@ -95,7 +95,7 @@ class ClassifierCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
-            return queryset.filter(org=self.request.org, is_active=True)
+            return queryset.filter(is_active=True)
 
     class Sync(SpaMixin, OrgObjPermsMixin, SmartUpdateView):
         fields = ()

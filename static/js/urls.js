@@ -17,8 +17,8 @@ window.urls = [
   { old: /\/ticket\/(.*)\/(.*)\/(.*)/,                   new: /\/tickets\/(.*)\/(.*)\/(.*)/ },
   { old: /\/trigger\//,                                  new: /\/triggers\/active\// },
   { old: /\/trigger\/(.*)\//,                            new: /\/trigger\/(.*)/ },
-  { old: /\/campaignevent\/read\/(.*)\/(.*)/,            new: /\/campaigns\/(.*)\/(.*)/ },
-  { old: /\/campaign\/read\/(.*)\//,                     new: /\/campaigns\/(.*)/ },
+  { old: /\/campaignevent\/read\/(.*)\/(.*)/,            new: /\/campaigns\/event\/(.*)\/(.*)/ },
+  { old: /\/campaign\/read\/(.*)/,                       new: /\/campaigns\/campaign\/(.*)/ },
   { old: /\/campaign\//,                                 new: /\/campaigns\/active/ },
   { old: /\/channels\/logs\/(.*)\//,                     new: /\/settings\/channels\/(.*)\/history\// },
   { old: /\/channels\/channel\/configuration\/(.*)\//,   new: /\/settings\/channels\/(.*)\/config\// },
@@ -31,10 +31,11 @@ window.urls = [
   { old: /\/httplog\/read\/(.*)\//,                      new: /\/settings\/httplog\/(.*)\// },
   { old: /\/classifier\/read\/(.*)\//,                   new: /\/settings\/classifiers\/(.*)\// },
   { old: /\/org\/manage_accounts\/(.*)/,                 new: /\/settings\/users/ },
-  { old: /\/org\/manage\/(.*)/,                          new: /\/staff\/(.*)/ },
   { old: /\/user\/account\//,                            new: /\/settings\/account/ },
   { old: /\/user\/two_factor_disable\//,                 new: /\/settings\/authentication\/2fa-disable/ },
-  { old: /\/user\/two_factor_enable\//,                 new: /\/settings\/authentication\// },
+  { old: /\/user\/two_factor_enable\//,                  new: /\/settings\/authentication\// },
+  { old: /\/user\/two_factor_token\//,                   new: /\/settings\/authentication\/2fa-token\// },
+  { old: /\/users\/confirm_access\//,                    new: /\/settings\/authentication\/confirm\/(.*)/ },
   { old: /\/org\/export\//,                              new: /\/settings\/workspace\/export\// },
   { old: /\/org\/import\//,                              new: /\/settings\/workspace\/import\// },
   { old: /\/org\/read\/(.*)/,                            new: /\/staff\/workspace\/(.*)/ },
@@ -43,13 +44,16 @@ window.urls = [
   { old: /\/org\/home\//,                                new: /\/settings\/workspace\// },
   { old: /\/dashboard\/home\//,                          new: /\/settings\/dashboard\// },
   { old: /\/org\/manage_accounts_sub_org\/\?org=(.*)/,   new: /\/settings\/workspaces\/(.*)\/users\// },
-  { old: /\/org\/sub_orgs\//,   new: /\/settings\/workspaces\// },
-
+  { old: /\/org\/sub_orgs\//,                            new: /\/settings\/workspaces\// },
+  { old: /\/org\/manage\/(.*)/,                          new: /\/staff\/(.*)/ },
 ];
+
+window.excludeUrls = ["/user/login", "/org/service"];
 
 window.mapUrl = function (path, reverse) {
   var findDirection = reverse ? 'new' : 'old';
   var replaceDirection = reverse ? 'old' : 'new';
+
   for (var mapping of urls) {
       var match = path.match(mapping[findDirection]);
       if (match) {
