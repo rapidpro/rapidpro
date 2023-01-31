@@ -510,10 +510,12 @@ class CampaignEventCRUDL(SmartCRUDL):
             return _("Event History")
 
         def pre_process(self, request, *args, **kwargs):
+
             event = self.get_object()
             if not event.is_active:
                 messages.error(self.request, "Campaign event no longer exists")
                 return HttpResponseRedirect(reverse("campaigns.campaign_read", args=[event.campaign.uuid]))
+            return super().pre_process(request, *args, **kwargs)
 
         def get_object_org(self):
             return self.get_object().campaign.org

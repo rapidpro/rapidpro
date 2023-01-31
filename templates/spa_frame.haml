@@ -284,6 +284,7 @@
   %script(src="{{ STATIC_URL }}highcharts/highstock.js?v=3.0")
   %script(src="{{ STATIC_URL }}highcharts/modules/drilldown.js")
   %script(src="{{ STATIC_URL }}qrious/dist/qrious.min.js")
+  %script(src="{{ STATIC_URL }}rest_framework/js/prettify-min.js")
 
   -for script in scripts
     %script(type="text/javascript" src="{{script}}")
@@ -787,7 +788,7 @@
         var section = selection[0];
         var name = `handle${section.charAt(0).toUpperCase()}${section.slice(1)}MenuChanged`;
         if (this[name]) {
-          this[name](event);
+          this[name](menuItem);
         }
       }
     }

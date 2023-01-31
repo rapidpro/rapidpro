@@ -94,6 +94,8 @@
       // npm packages
       %script{src:"{{ STATIC_URL }}intercooler/dist/intercooler.js"}
 
+      %script(src="{{ STATIC_URL }}rest_framework/js/prettify-min.js")
+
       -if not debug and not testing
         %script{src:"{{ STATIC_URL }}lib/raven.min.js"}
 

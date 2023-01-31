@@ -1,6 +1,6 @@
 // prettier-ignore
 window.urls = [
-  { old: /\/channels\/(.*)\/logs\/msg\/(.*)/,            new: /\/settings\/channels\/(.*)\/logs\/msg\/(.*)/ },
+  { old: /\/channels\/(.*)\/logs\/msg\/(.*)/,            new: /\/settings\/channels\/(.*)\/history\/msg\/(.*)/ },
   { old: /\/msg\/filter\/(.*)/,                          new: /\/messages\/labels\/(.*)/ },
   { old: /\/msg\/flow\//,                                new: /\/messages\/flows/ },
   { old: /\/msg\/(.*)\//,                                new: /\/messages\/(.*)/ },
@@ -20,9 +20,9 @@ window.urls = [
   { old: /\/campaignevent\/read\/(.*)\/(.*)/,            new: /\/campaigns\/event\/(.*)\/(.*)/ },
   { old: /\/campaign\/read\/(.*)/,                       new: /\/campaigns\/campaign\/(.*)/ },
   { old: /\/campaign\//,                                 new: /\/campaigns\/active/ },
-  { old: /\/channels\/logs\/(.*)\//,                     new: /\/settings\/channels\/(.*)\/history\// },
+  { old: /\/channels\/logs\/(.*)\//,                       new: /\/settings\/channels\/(.*)\/history\// },
   { old: /\/channels\/channel\/configuration\/(.*)\//,   new: /\/settings\/channels\/(.*)\/config\// },
-  { old: /\/channels\/channel\/read\/(.*)/,              new: /\/settings\/channels\/(.*)/ },
+  { old: /\/channels\/channel\/read\/(.*)\//,            new: /\/settings\/channels\/(.*)\// },
   { old: /\/channels\/channel\/claim\//,                 new: /\/settings\/workspace\/new-channel\// },
   { old: /\/channels\/types\/(.*)\/claim/,               new: /\/settings\/workspace\/new-(.*)\// },
   { old: /\/classifier\/connect.*/,                      new: /\/settings\/workspace\/new-classifier\// },
@@ -55,15 +55,15 @@ window.mapUrl = function (path, reverse) {
   var replaceDirection = reverse ? 'old' : 'new';
 
   for (var mapping of urls) {
-      var match = path.match(mapping[findDirection]);
-      if (match) {
-          path = mapping[replaceDirection].source.replaceAll('\\/', '/');
-          for (var i = 1; i < match.length; i++) {
-              path = path.replace('(.*)', match[i]);
-          }
-          path = path.replaceAll('(.*)', '');
-          return path;
+    var match = path.match(mapping[findDirection]);
+    if (match) {
+      path = mapping[replaceDirection].source.replaceAll('\\/', '/');
+      for (var i = 1; i < match.length; i++) {      
+        path = path.replace('(.*)', match[i]);
       }
+      path = path.replaceAll('(.*)', '');
+      return path;
+    }
   }
   return path;
 };
