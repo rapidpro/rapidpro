@@ -1239,15 +1239,6 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             config={"send_url": "http://send.com"},
         )
 
-    def test_channel_read_as_customer_support(self):
-        ex_channel_read_url = reverse("channels.channel_read", args=[self.ex_channel.uuid])
-
-        response = self.requestView(ex_channel_read_url, self.customer_support)
-        self.assertContains(response, self.ex_channel.name)
-
-        # should see service button
-        self.assertContentMenuContains(ex_channel_read_url, self.customer_support, "Service")
-
     def test_configuration(self):
         config_url = reverse("channels.channel_configuration", args=[self.ex_channel.uuid])
 

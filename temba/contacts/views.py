@@ -1275,7 +1275,7 @@ class ContactCRUDL(SmartCRUDL):
             if new_groups is not None:
                 mods += obj.update_static_groups(new_groups)
 
-            if not self.org.is_anon:
+            if not obj.org.is_anon:
                 urns = []
 
                 for field_key, value in self.form.data.items():
