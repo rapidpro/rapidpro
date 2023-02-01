@@ -240,7 +240,7 @@ class ScheduleTest(TembaTest):
         )
 
         bcast.refresh_from_db()
-        self.assertEqual({"eng": "An updated scheduled message"}, bcast.text)
+        self.assertEqual({"und": {"text": "An updated scheduled message"}}, bcast.translations)
         self.assertEqual(self.editor, bcast.modified_by)
 
         start = datetime(2045, 9, 19, hour=10, minute=15, second=0, microsecond=0)

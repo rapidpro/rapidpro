@@ -56,9 +56,6 @@ class TranslatableField(serializers.Field):
         self.max_length = kwargs.pop("max_length", None)
         super().__init__(**kwargs)
 
-    def to_representation(self, obj):
-        return obj
-
     def to_internal_value(self, data):
         org = self.context["org"]
         base_language = org.flow_languages[0]

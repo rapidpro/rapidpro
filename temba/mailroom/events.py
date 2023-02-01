@@ -98,7 +98,7 @@ class Event:
             return {
                 "type": cls.TYPE_BROADCAST_CREATED,
                 "created_on": get_event_time(obj).isoformat(),
-                "translations": obj.broadcast.text,
+                "translations": obj.broadcast.translations,
                 "base_language": obj.broadcast.base_language,
                 # additional properties
                 "msg": _msg_out(obj),

@@ -938,7 +938,7 @@ class EndpointsTest(TembaTest):
         )
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
-        self.assertEqual({"eng": "Hi @(format_urn(urns.tel))"}, broadcast.text)
+        self.assertEqual({"eng": {"text": "Hi @(format_urn(urns.tel))"}}, broadcast.translations)
         self.assertEqual(["twitter:franky"], broadcast.raw_urns)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
         self.assertEqual({reporters}, set(broadcast.groups.all()))
@@ -952,13 +952,13 @@ class EndpointsTest(TembaTest):
         )
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
-        self.assertEqual({"eng": "Hello", "fra": "Bonjour"}, broadcast.text)
+        self.assertEqual({"eng": {"text": "Hello"}, "fra": {"text": "Bonjour"}}, broadcast.translations)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
 
         # create new broadcast with an expression
         response = self.postJSON(url, None, {"text": "You are @fields.age", "contacts": [self.joe.uuid]})
         broadcast = Broadcast.objects.get(id=response.json()["id"])
-        self.assertEqual({"eng": "You are @fields.age"}, broadcast.text)
+        self.assertEqual({"eng": {"text": "You are @fields.age"}}, broadcast.translations)
 
         # try sending as a flagged org
         self.org.flag()

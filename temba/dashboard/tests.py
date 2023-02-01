@@ -48,17 +48,14 @@ class DashboardTest(TembaTest):
         self.create_activity()
         response = self.client.get(url).json()
 
-        # in, out, and total
-        self.assertEqual(3, len(response))
+        # in, out
+        self.assertEqual(2, len(response))
 
         # incoming messages
         self.assertEqual(2, response[0]["data"][0][1])
 
         # outgoing messages
         self.assertEqual(3, response[1]["data"][0][1])
-
-        # total messages
-        self.assertEqual(5, response[2]["data"][0][1])
 
     def test_range_details(self):
 

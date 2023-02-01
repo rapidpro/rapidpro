@@ -218,7 +218,7 @@ class CampaignTest(TembaTest):
             {
                 "uuid": str(event.flow.uuid),
                 "name": event.flow.name,
-                "spec_version": "13.0.0",
+                "spec_version": "13.2.0",
                 "revision": 1,
                 "language": "eng",
                 "type": "messaging_background",
@@ -831,6 +831,27 @@ class CampaignTest(TembaTest):
 
         ev4 = EventFire.objects.create(event=event3, contact=self.farmer1, scheduled=trim_date, fired=trim_date)
         self.assertIsNotNone(ev4.get_relative_to_value())
+
+    def test_import(self):
+        self.import_file("the_clinic")
+        self.assertEqual(1, Campaign.objects.count())
+
+        campaign = Campaign.objects.get()
+        self.assertEqual("Appointment Schedule", campaign.name)
+        self.assertEqual(6, campaign.events.count())
+
+        events = list(campaign.events.order_by("id"))
+        self.assertEqual(CampaignEvent.TYPE_FLOW, events[0].event_type)
+        self.assertEqual(CampaignEvent.TYPE_FLOW, events[1].event_type)
+        self.assertEqual(CampaignEvent.TYPE_FLOW, events[2].event_type)
+        self.assertEqual(CampaignEvent.TYPE_FLOW, events[3].event_type)
+        self.assertEqual(CampaignEvent.TYPE_MESSAGE, events[4].event_type)
+        self.assertEqual(CampaignEvent.TYPE_MESSAGE, events[5].event_type)
+
+        # message flow should be migrated to latest engine spec
+        self.assertEqual({"und": "This is a second campaign message"}, events[5].message)
+        self.assertEqual("und", events[5].flow.base_language)
+        self.assertEqual("13.2.0", events[5].flow.version_number)
 
     def test_import_created_on_event(self):
         campaign = Campaign.create(self.org, self.admin, "New contact reminders", self.farmers)
@@ -1561,7 +1582,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
             {
                 "uuid": str(event.flow.uuid),
                 "name": f"Single Message ({event.id})",
-                "spec_version": "13.0.0",
+                "spec_version": "13.2.0",
                 "revision": 1,
                 "expire_after_minutes": 0,
                 "language": "eng",
