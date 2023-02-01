@@ -2533,28 +2533,28 @@ class OrgCRUDL(SmartCRUDL):
 
     class Service(StaffOnlyMixin, SmartFormView):
         class ServiceForm(forms.Form):
-            organization = ModelChoiceField(queryset=Org.objects.all(), widget=forms.HiddenInput())
-            redirect_url = forms.CharField(widget=forms.HiddenInput(), required=False)
+            other_org = ModelChoiceField(queryset=Org.objects.all(), widget=forms.HiddenInput())
+            next = forms.CharField(widget=forms.HiddenInput(), required=False)
 
         form_class = ServiceForm
-        fields = ("organization", "redirect_url")
+        fields = ("other_org", "next")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["other_org"] = Org.objects.get(id=self.request.GET.get("other_org"))
-            context["redirect_url"] = self.request.GET.get("next", "")
+            context["other_org"] = Org.objects.filter(id=self.request.GET.get("other_org")).first()
+            context["next"] = self.request.GET.get("next", "")
             return context
 
         def derive_initial(self):
             initial = super().derive_initial()
-            initial["organization"] = self.request.GET.get("other_org", "")
-            initial["redirect_url"] = self.request.GET.get("next", "")
+            initial["other_org"] = self.request.GET.get("other_org", "")
+            initial["next"] = self.request.GET.get("next", "")
             return initial
 
         # valid form means we set our org and redirect to their inbox
         def form_valid(self, form):
-            switch_to_org(self.request, form.cleaned_data["organization"])
-            success_url = form.cleaned_data["redirect_url"] or reverse("msgs.msg_inbox")
+            switch_to_org(self.request, form.cleaned_data["other_org"])
+            success_url = form.cleaned_data["next"] or reverse("msgs.msg_inbox")
             return HttpResponseRedirect(success_url)
 
         # invalid form login 'logs out' the user from the org and takes them to the org manage page
