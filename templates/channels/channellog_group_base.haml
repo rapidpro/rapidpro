@@ -11,11 +11,9 @@
 
 -block extra-script
   {{ block.super }}
-  <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
+
   :javascript
-    $(function(){
-      prettyPrint();
-    });
+    prettyPrint();
 
   :javascript
     $('document').ready(function(){

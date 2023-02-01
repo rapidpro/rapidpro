@@ -1,0 +1,30 @@
+-extends "orgs/login/login_base.html"
+-load smartmin
+
+-block extra-script
+  {{block.super}}
+  
+  :javascript
+    function handleSubmit() {
+      document.querySelector("form").submit();
+    }
+-block content
+  -if other_org
+
+    .mt-12
+      .text-xl
+        Different Workspace
+
+      .mt-4.mb-12
+        -if next
+          The page you are requesting belongs to a different workspace, <b>{{other_org.name}}</b>. To see it, you will need to service their account.
+        -else
+          You are about to service the workspace, <b>{{other_org.name}}</b>.
+
+      %form(method="post" action="{% url 'orgs.org_service' %}")
+        -for field in form.fields
+          -render_field field
+        {% csrf_token %}
+        %input.button.button-primary(type="submit" value="Service Account")
+  -else
+    Invalid org, servicing not available.

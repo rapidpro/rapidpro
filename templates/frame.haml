@@ -23,14 +23,21 @@
           window.STATIC_URL = "{{STATIC_URL}}";
           function loadNewInterface(force) {
             var location = window.location;
-            var newUrl = mapUrl(location.pathname + (location.search || ""));
-            if (newUrl != window.location.pathname) {
-              window.location = newUrl;
-            } else { 
-              if (force) {
-                window.location = "/messages/";
+            var excluded = window.excludeUrls.find(function(url) {
+              return location.pathname.indexOf(url) > -1;
+            });
+
+            if (!excluded) {
+              var newUrl = mapUrl(location.pathname + (location.search || ""));
+              if (newUrl != window.location.pathname) {
+                window.location = newUrl;
+              } else {
+                if (force) {
+                  window.location = "/messages/";
+                }
               }
             }
+
           }
           
           function getCookie(name) {
@@ -86,6 +93,8 @@
 
       // npm packages
       %script{src:"{{ STATIC_URL }}intercooler/dist/intercooler.js"}
+
+      %script(src="{{ STATIC_URL }}rest_framework/js/prettify-min.js")
 
       -if not debug and not testing
         %script{src:"{{ STATIC_URL }}lib/raven.min.js"}

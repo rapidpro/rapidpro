@@ -1265,14 +1265,6 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Archived", count=2)
         self.assertContentMenu(read_url, self.admin, ["Activate", "Export"])
 
-    def test_read_as_customer_support(self):
-        group = self.create_group("Reporters", contacts=[])
-        campaign = Campaign.create(self.org, self.admin, "Reminders", group)
-        read_url = reverse("campaigns.campaign_read", args=[campaign.uuid])
-
-        # should see service button
-        self.assertContentMenu(read_url, self.customer_support, ["Service"])
-
     def test_archive_and_activate(self):
         group = self.create_group("Reporters", contacts=[])
         campaign = self.create_campaign(self.org, "Welcomes", group)

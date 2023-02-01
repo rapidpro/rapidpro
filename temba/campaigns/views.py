@@ -153,13 +153,6 @@ class CampaignCRUDL(SmartCRUDL):
                 if self.has_org_perm("campaigns.campaign_archive"):
                     menu.add_url_post(_("Archive"), reverse("campaigns.campaign_archive", args=[obj.id]))
 
-            if self.request.user.is_staff:
-                menu.new_group()
-                menu.add_url_post(
-                    _("Service"),
-                    f'{reverse("orgs.org_service")}?organization={obj.org_id}&redirect_url={reverse("campaigns.campaign_read", args=[obj.uuid])}',
-                )
-
     class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
         fields = ("name", "group")
         form_class = CampaignForm
@@ -517,10 +510,12 @@ class CampaignEventCRUDL(SmartCRUDL):
             return _("Event History")
 
         def pre_process(self, request, *args, **kwargs):
+
             event = self.get_object()
             if not event.is_active:
                 messages.error(self.request, "Campaign event no longer exists")
                 return HttpResponseRedirect(reverse("campaigns.campaign_read", args=[event.campaign.uuid]))
+            return super().pre_process(request, *args, **kwargs)
 
         def get_object_org(self):
             return self.get_object().campaign.org

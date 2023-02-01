@@ -284,6 +284,7 @@
   %script(src="{{ STATIC_URL }}highcharts/highstock.js?v=3.0")
   %script(src="{{ STATIC_URL }}highcharts/modules/drilldown.js")
   %script(src="{{ STATIC_URL }}qrious/dist/qrious.min.js")
+  %script(src="{{ STATIC_URL }}rest_framework/js/prettify-min.js")
 
   -for script in scripts
     %script(type="text/javascript" src="{{script}}")
@@ -543,20 +544,27 @@
           }
         }
 
-        fetchPJAXContent(url, ".spa-content", { 
+        fetchPJAXContent(url, ".spa-content", {
             "headers": { "TEMBA-SPA": "1"}, 
             "onSuccess": hideLoading,  
         });
       } else {
+
         evt.stopPropagation();
         evt.preventDefault();
-        var formData = new FormData(formEle);
-        showLoading();
-        fetchPJAXContent(window.lastFetch, ".spa-content", { 
-            "headers": { "TEMBA-SPA": "1"},
-            "formData": formData,
-            "onSuccess": hideLoading,  
-        });
+        
+        if (window.lastFetch.indexOf("{% url 'orgs.org_service'%}") > -1) {
+          formEle.action = window.lastFetch;
+          formEle.submit();
+        } else {
+          var formData = new FormData(formEle);
+          showLoading();
+          fetchPJAXContent(window.lastFetch, ".spa-content", {
+              "headers": { "TEMBA-SPA": "1"},
+              "formData": formData,
+              "onSuccess": hideLoading,
+          });
+        }
       }
     });
     
@@ -679,7 +687,7 @@
         window.history.pushState({ url: urlToGo, show: urlToShow }, "", urlToShow);
       }
 
-      fetchAjax(urlToGo, ".spa-content", { "headers": { 
+      fetchAjax(urlToGo, ".spa-content", { "headers": {
           "TEMBA-SPA": "1", 
           "TEMBA-REFERER-PATH": refererPath,
           "TEMBA-PATH": urlToShow
@@ -780,7 +788,7 @@
         var section = selection[0];
         var name = `handle${section.charAt(0).toUpperCase()}${section.slice(1)}MenuChanged`;
         if (this[name]) {
-          this[name](event);
+          this[name](menuItem);
         }
       }
     }
@@ -817,7 +825,9 @@
         showLoading(true);
         var store = document.querySelector("temba-store");
         store.postUrl("/org/choose/", "organization=" + orgId, {}, 'application/x-www-form-urlencoded').then(function(response) {
-          document.location.href = "/";
+          if (response.redirected) {
+            document.location.href = response.url;
+          }
         });
       }
     }
@@ -825,7 +835,7 @@
   :javascript
     function refresh(onSuccess, forceReload){
       var refererPath = window.location.pathname;
-      fetchPJAXContent(window.lastFetch, ".spa-content", { "headers": { 
+      fetchPJAXContent(window.lastFetch, ".spa-content", { "headers": {
         "TEMBA-SPA": "1", 
         "TEMBA-REFERER-PATH": refererPath,
         "TEMBA-PATH": refererPath,
@@ -854,7 +864,7 @@
 
   .flex-col
     .flex.widget-container(style="height:100vh;overflow:hidden")
-      -if not request.user.is_staff
+      -if request.user.is_staff
         -if user_org not in user_orgs
           .servicing.absolute.m-4(style="z-index:999999;right:0;bottom:0")
             .flex.items-center.bg-secondary.text-white.text-lg.rounded(style="opacity:1;padding:0em 1em;")

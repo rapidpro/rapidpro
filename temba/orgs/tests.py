@@ -2883,7 +2883,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
 
-        with self.assertNumQueries(46):
+        with self.assertNumQueries(49):
             response = self.client.get(home_url)
 
         # more options for admins
@@ -2980,12 +2980,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, len(response.context["children"]))
 
         # we should have an option to flag
-        self.assertContentMenu(read_url, self.customer_support, ["Edit", "Flag", "Verify", "Delete", "-", "Service"])
+        self.assertContentMenu(read_url, self.customer_support, ["Edit", "Flag", "Verify", "Delete"])
 
         # flag and content menu option should be inverted
         self.org.flag()
         response = self.client.get(read_url)
-        self.assertContentMenu(read_url, self.customer_support, ["Edit", "Unflag", "Verify", "Delete", "-", "Service"])
+        self.assertContentMenu(read_url, self.customer_support, ["Edit", "Unflag", "Verify", "Delete"])
 
         # no menu for inactive orgs
         self.org.is_active = False
@@ -3984,31 +3984,49 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     @mock_mailroom
     def test_service(self, mr_mocks):
         service_url = reverse("orgs.org_service")
+        inbox_url = reverse("msgs.msg_inbox")
 
         # without logging in, try to service our main org
-        response = self.client.post(service_url, dict(organization=self.org.id))
+        response = self.client.get(service_url, dict(other_org=self.org.id, next=inbox_url))
+        self.assertLoginRedirect(response)
+
+        response = self.client.post(service_url, dict(other_org=self.org.id))
         self.assertLoginRedirect(response)
 
         # try logging in with a normal user
         self.login(self.admin)
 
         # same thing, no permission
-        response = self.client.post(service_url, dict(organization=self.org.id))
+        response = self.client.get(service_url, dict(other_org=self.org.id, next=inbox_url))
+        self.assertLoginRedirect(response)
+
+        response = self.client.post(service_url, dict(other_org=self.org.id))
         self.assertLoginRedirect(response)
 
         # ok, log in as our cs rep
         self.login(self.customer_support)
 
-        # invalid org just redirects back to manage page
-        response = self.client.post(service_url, dict(organization=325253256))
+        # getting invalid org, has no service form
+        response = self.client.get(service_url, dict(other_org=325253256, next=inbox_url))
+        self.assertContains(response, "Invalid org")
+
+        # posting invalid org just redirects back to manage page
+        response = self.client.post(service_url, dict(other_org=325253256))
         self.assertRedirect(response, "/org/manage/")
 
         # then service our org
-        response = self.client.post(service_url, dict(organization=self.org.id))
+        response = self.client.get(service_url, dict(other_org=self.org.id))
+        self.assertContains(response, "You are about to service the workspace, <b>Nyaruka</b>.")
+
+        # requesting a next page has a slightly different message
+        response = self.client.get(service_url, dict(other_org=self.org.id, next=inbox_url))
+        self.assertContains(response, "The page you are requesting belongs to a different workspace, <b>Nyaruka</b>.")
+
+        response = self.client.post(service_url, dict(other_org=self.org.id))
         self.assertRedirect(response, "/msg/inbox/")
 
         # specify redirect_url
-        response = self.client.post(service_url, dict(organization=self.org.id, redirect_url="/flow/"))
+        response = self.client.post(service_url, dict(other_org=self.org.id, next="/flow/"))
         self.assertRedirect(response, "/flow/")
 
         # create a new contact
