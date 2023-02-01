@@ -549,9 +549,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             response = self.fetch_protected(tel_channel_read_url, self.admin)
             self.assertEqual(200, response.status_code)
             self.assertEqual(1, response.context["message_stats"][0]["data"][-1]["count"])
-
-            # this assertion is problematic causing time-sensitive failures, to reconsider
-            # self.assertEqual(2, response.context['message_stats'][1]['data'][-1]['count'])
+            self.assertEqual(1, response.context["message_stats"][1]["data"][-1]["count"])
 
             # message stats table have an inbound and two outbounds in the last month
             self.assertEqual(1, len(response.context["message_stats_table"]))
