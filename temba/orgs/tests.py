@@ -2883,7 +2883,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
 
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(49):
             response = self.client.get(home_url)
 
         # more options for admins

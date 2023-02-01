@@ -825,7 +825,9 @@
         showLoading(true);
         var store = document.querySelector("temba-store");
         store.postUrl("/org/choose/", "organization=" + orgId, {}, 'application/x-www-form-urlencoded').then(function(response) {
-          document.location.href = "/";
+          if (response.redirected) {
+            document.location.href = response.url;
+          }
         });
       }
     }
