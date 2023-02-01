@@ -1,3 +1,9 @@
+v8.1.19 (2023-02-01)
+-------------------------
+ * Add Msg.quick_replies
+ * Add Broadcast.query
+ * More generic servicing for staff users
+
 v8.1.18 (2023-02-01)
 -------------------------
  * Drop un-used Media.name field
