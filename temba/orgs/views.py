@@ -169,10 +169,6 @@ class OrgObjPermsMixin(OrgPermsMixin):
         return self.get_object().org
 
     def has_org_perm(self, codename):
-        user = self.request.user
-        if user.is_staff:
-            return True
-
         has_org_perm = super().has_org_perm(codename)
         if has_org_perm:
             return self.request.org == self.get_object_org()
@@ -190,10 +186,10 @@ class OrgObjPermsMixin(OrgPermsMixin):
             return self.request.org == self.get_object_org()
 
     def pre_process(self, request, *args, **kwargs):
-        org = self.get_object_org()
-        if request.user.is_staff and self.request.org != org:
+        self.org = self.get_object_org()
+        if request.user.is_staff and self.request.org != self.org:
             return HttpResponseRedirect(
-                f"{reverse('orgs.org_service')}?next={quote_plus(request.path)}&other_org={org.pk}"
+                f"{reverse('orgs.org_service')}?next={quote_plus(request.path)}&other_org={self.org.pk}"
             )
 
 
