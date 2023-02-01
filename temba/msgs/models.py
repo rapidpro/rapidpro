@@ -38,14 +38,6 @@ from temba.utils.uuid import uuid4
 logger = logging.getLogger(__name__)
 
 
-class UnreachableException(Exception):
-    """
-    Exception thrown when a message is being sent to a contact that we don't have a sendable URN for
-    """
-
-    pass
-
-
 class Media(models.Model):
     """
     An uploaded media file that can be used as an attachment on messages.
@@ -75,9 +67,6 @@ class Media(models.Model):
 
     created_by = models.ForeignKey(User, on_delete=models.PROTECT)
     created_on = models.DateTimeField(default=timezone.now)
-
-    # TODO remove
-    name = models.CharField(max_length=255, null=True)
 
     @classmethod
     def is_allowed_type(cls, content_type: str) -> bool:
