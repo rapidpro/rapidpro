@@ -17,7 +17,8 @@
 
     -block ui-switch-js
       -if user.is_beta
-        %script(src="{{ STATIC_URL }}js/urls.js")
+        -compress js
+          %script(src="{{ STATIC_URL }}js/urls.js")
 
         :javascript
           window.STATIC_URL = "{{STATIC_URL}}";

@@ -2077,6 +2077,12 @@ class OrgCRUDL(SmartCRUDL):
                 disabled=True,
             )
 
+            menu.new_group()
+            menu.add_url_post(
+                _("Service"),
+                f'{reverse("orgs.org_service")}?other_org={obj.id}&next={reverse("msgs.msg_inbox", args=[])}',
+            )
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
