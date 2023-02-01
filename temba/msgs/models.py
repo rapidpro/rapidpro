@@ -184,9 +184,13 @@ class Broadcast(models.Model):
     groups = models.ManyToManyField(ContactGroup, related_name="addressed_broadcasts")
     contacts = models.ManyToManyField(Contact, related_name="addressed_broadcasts")
     urns = models.ManyToManyField(ContactURN, related_name="addressed_broadcasts")
+    query = models.TextField(null=True)
 
     # URN strings that mailroom will turn into contacts and URN objects
     raw_urns = ArrayField(models.TextField(), null=True)
+
+    # whether this broadcast should send to all URNs for each contact
+    send_all = models.BooleanField(default=False)
 
     # message content in different languages, e.g. {"eng": {"text": "Hello", "attachments": [...]}, "spa": ...}
     translations = models.JSONField()
@@ -200,9 +204,6 @@ class Broadcast(models.Model):
     created_on = models.DateTimeField(default=timezone.now, db_index=True)  # TODO remove index
     modified_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_modifications")
     modified_on = models.DateTimeField(default=timezone.now)
-
-    # whether this broadcast should send to all URNs for each contact
-    send_all = models.BooleanField(default=False)
 
     # used for scheduled broadcasts which are never actually sent themselves but spawn child broadcasts which are
     schedule = models.OneToOneField(Schedule, on_delete=models.PROTECT, null=True, related_name="broadcast")
@@ -483,6 +484,7 @@ class Msg(models.Model):
 
     text = models.TextField()
     attachments = ArrayField(models.URLField(max_length=2048), null=True)
+    quick_replies = ArrayField(models.CharField(max_length=64), null=True)
     locale = models.CharField(max_length=6, null=True)  # eng, eng-US, por-BR, und etc
 
     high_priority = models.BooleanField(null=True)
