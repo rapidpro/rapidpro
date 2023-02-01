@@ -2883,7 +2883,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
 
-        with self.assertNumQueries(46):
+        with self.assertNumQueries(48):
             response = self.client.get(home_url)
 
         # more options for admins
@@ -2980,12 +2980,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, len(response.context["children"]))
 
         # we should have an option to flag
-        self.assertContentMenu(read_url, self.customer_support, ["Edit", "Flag", "Verify", "Delete", "-", "Service"])
+        self.assertContentMenu(read_url, self.customer_support, ["Edit", "Flag", "Verify", "Delete"])
 
         # flag and content menu option should be inverted
         self.org.flag()
         response = self.client.get(read_url)
-        self.assertContentMenu(read_url, self.customer_support, ["Edit", "Unflag", "Verify", "Delete", "-", "Service"])
+        self.assertContentMenu(read_url, self.customer_support, ["Edit", "Unflag", "Verify", "Delete"])
 
         # no menu for inactive orgs
         self.org.is_active = False

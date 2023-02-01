@@ -169,23 +169,25 @@ class OrgObjPermsMixin(OrgPermsMixin):
         return self.get_object().org
 
     def has_org_perm(self, codename):
-        has_org_perm = super().has_org_perm(codename)
+        user = self.request.user
+        if user.is_staff:
+            return True
 
+        has_org_perm = super().has_org_perm(codename)
         if has_org_perm:
             return self.request.org == self.get_object_org()
 
         return False
 
     def has_permission(self, request, *args, **kwargs):
+
+        user = self.request.user
+        if user.is_staff:
+            return True
+
         has_perm = super().has_permission(request, *args, **kwargs)
-
         if has_perm:
-            user = self.request.user
-            if user.is_staff:
-                return True
             return self.request.org == self.get_object_org()
-
-        return False
 
     def pre_process(self, request, *args, **kwargs):
         org = self.get_object_org()
@@ -2235,6 +2237,10 @@ class OrgCRUDL(SmartCRUDL):
         fields = ("id",)
         submit_button_name = _("Delete")
 
+        # we don't want to reroute delete requests
+        def pre_process(self, request, *args, **kwargs):
+            return
+
         def has_org_perm(self, codename):
             # users can't delete the primary org
             org = self.get_object()
@@ -2242,12 +2248,6 @@ class OrgCRUDL(SmartCRUDL):
                 return False
 
             return super().has_org_perm(codename)
-
-        def has_permission(self, request, *args, **kwargs):
-            # staff can delete any org
-            if request.user.is_staff:
-                return True
-            return super().has_permission(request, *args, **kwargs)
 
         def get_object_org(self):
             # child orgs work in the context of their parent

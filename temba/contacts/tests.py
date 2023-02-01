@@ -42,6 +42,7 @@ from temba.tests import (
     matchers,
     mock_mailroom,
 )
+from temba.tests.crudl import StaffRedirect
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticket, TicketCount, Ticketer
@@ -537,13 +538,6 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # invalid uuid should return 404
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
-
-    def test_read_as_customer_support(self):
-        joe = self.create_contact("Joe", phone="123")
-        read_url = reverse("contacts.contact_read", args=[joe.uuid])
-
-        # should see service button
-        self.assertContentMenu(read_url, self.customer_support, ["Service"])
 
     def test_read_language(self):
         joe = self.create_contact("Joe", phone="123")
@@ -2358,7 +2352,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         # fetch our contact history
         self.login(self.admin)
         with patch("temba.utils.s3.s3.client", return_value=self.mock_s3):
-            with self.assertNumQueries(29):
+            with self.assertNumQueries(30):
                 response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -2827,9 +2821,9 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         contact_no_name = self.create_contact(name=None, phone="678")
         read_url = reverse("contacts.contact_read", args=[contact_no_name.uuid])
-        response = self.fetch_protected(read_url, self.customer_support)
-        self.assertEqual(contact_no_name, response.context["object"])
-        self.client.logout()
+
+        # as staff
+        self.requestView(read_url, self.customer_support, checks=[StaffRedirect()])
 
         # login as a manager from out of this organization
         self.login(self.non_org_user)
@@ -2878,14 +2872,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         # invalid UUID should return 404
         response = self.client.get(reverse("contacts.contact_read", args=["bad-uuid"]))
         self.assertEqual(response.status_code, 404)
-
-        # staff can view history of any contact
-        response = self.fetch_protected(reverse("contacts.contact_read", args=[self.joe.uuid]), self.customer_support)
-        self.assertEqual(response.status_code, 200)
-        response = self.fetch_protected(
-            reverse("contacts.contact_read", args=[self.other_org_contact.uuid]), self.customer_support
-        )
-        self.assertEqual(response.status_code, 200)
 
     @mock_mailroom
     def test_contacts_search(self, mr_mocks):

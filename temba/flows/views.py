@@ -818,7 +818,7 @@ class FlowCRUDL(SmartCRUDL):
             queryset = queryset.filter(is_active=True, is_archived=False)
             return queryset
 
-    class Campaign(BaseList):
+    class Campaign(BaseList, OrgObjPermsMixin):
         bulk_actions = ("label",)
         campaign = None
 
