@@ -1,6 +1,7 @@
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.types.twilio.views import SUPPORTED_COUNTRIES
+from temba.channels.types.twilio.type import TwilioType
+from temba.channels.types.twilio.views import SUPPORTED_COUNTRIES, UpdateForm
 from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
@@ -23,6 +24,8 @@ class TwilioMessagingServiceType(ChannelType):
     icon = "icon-channel-twilio"
 
     claim_view = ClaimView
+    update_form = UpdateForm
+
     claim_blurb = _(
         "You can connect a messaging service from your Twilio account to benefit from %(link)s features."
     ) % {"link": '<a target="_blank" href="https://www.twilio.com/copilot">Twilio Copilot</a>'}
@@ -50,3 +53,6 @@ class TwilioMessagingServiceType(ChannelType):
 
     def get_error_ref_url(self, channel, code: str) -> str:
         return f"https://www.twilio.com/docs/api/errors/{code}"
+
+    def check_credentials(self, config: dict) -> bool:
+        return TwilioType().check_credentials(config)

@@ -4,6 +4,7 @@ from twilio.base.exceptions import TwilioRestException
 
 from django.urls import reverse
 
+from temba.channels.models import Channel
 from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -91,3 +92,42 @@ class TwilioMessagingServiceTypeTest(TembaTest):
             "https://www.twilio.com/docs/api/errors/30006",
             TwilioMessagingServiceType().get_error_ref_url(None, "30006"),
         )
+
+    @patch("temba.channels.types.twilio.views.TwilioClient", MockTwilioClient)
+    @patch("temba.channels.types.twilio.type.TwilioClient", MockTwilioClient)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    def test_update(self):
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        tms_channel = self.org.channels.all().first()
+        tms_channel.channel_type = "TMS"
+        tms_channel.save()
+
+        update_url = reverse("channels.channel_update", args=[tms_channel.id])
+
+        self.login(self.admin)
+        response = self.client.get(update_url)
+        self.assertEqual(
+            ["name", "allow_international", "account_sid", "auth_token", "loc"],
+            list(response.context["form"].fields.keys()),
+        )
+
+        post_data = dict(name="Foo channel", allow_international=False, account_sid="ACC_SID", auth_token="ACC_Token")
+
+        response = self.client.post(update_url, post_data)
+
+        self.assertEqual(response.status_code, 302)
+
+        tms_channel.refresh_from_db()
+        self.assertEqual(tms_channel.name, "Foo channel")
+        # we used the primary credentials returned on the account fetch even though we submit the others
+        self.assertEqual(tms_channel.config[Channel.CONFIG_ACCOUNT_SID], "AccountSid")
+        self.assertEqual(tms_channel.config[Channel.CONFIG_AUTH_TOKEN], "AccountToken")
+        self.assertTrue(tms_channel.check_credentials())
+
+        with patch(
+            "temba.channels.types.twilio_messaging_service.type.TwilioMessagingServiceType.check_credentials"
+        ) as mock_check_credentials:
+            mock_check_credentials.return_value = False
+
+            response = self.client.post(update_url, post_data)
+            self.assertFormError(response, "form", "__all__", "Channel credentials don't appear to be valid.")
