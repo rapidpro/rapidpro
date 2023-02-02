@@ -350,7 +350,7 @@ class UpdateForm(UpdateChannelForm):
     # We override the clean method for Twilio we need to make sure we grab the primary auth tokens
     def clean(self) -> Dict[str, Any]:
         account_sid = self.cleaned_data.get("account_sid", None)
-        account_token = self.cleaned_data.get("account_token", None)
+        account_token = self.cleaned_data.get("auth_token", None)
 
         try:
             client = TwilioClient(account_sid, account_token)
@@ -358,13 +358,13 @@ class UpdateForm(UpdateChannelForm):
             # get the actual primary auth tokens from twilio and use them
             account = client.api.account.fetch()
             self.cleaned_data["account_sid"] = account.sid
-            self.cleaned_data["account_token"] = account.auth_token
+            self.cleaned_data["auth_token"] = account.auth_token
         except Exception:  # pragma: needs cover
             raise ValidationError(
                 _("The Twilio account SID and Token seem invalid. Please check them again and retry.")
             )
 
-        return self.cleaned_data
+        return super().clean()
 
     class Meta(UpdateChannelForm.Meta):
         fields = ("name",)
