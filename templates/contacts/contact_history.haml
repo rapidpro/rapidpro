@@ -194,8 +194,10 @@
   %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{ next_after }}&before={{ next_before }}",
        ic-trigger-on:"scrolled-into-view", 
        ic-target:"table.activity tbody.previous", 
-       ic-indicator:"#indicator" }
-
+       ic-indicator:"#indicator",
+       ic-on-success:"checkForPJAX"
+  }
+       
 -if not has_older and not recent_only and start_date
   -if start_date
     %tr.archive-note

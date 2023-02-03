@@ -464,10 +464,10 @@ inherits@2, inherits@~2.0.3:
   resolved "https://registry.npmjs.org/inherits/-/inherits-2.0.4.tgz"
   integrity sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==
 
-intercooler@1.1.2:
-  version "1.1.2"
-  resolved "https://registry.npmjs.org/intercooler/-/intercooler-1.1.2.tgz"
-  integrity sha512-hBb/9j28KSRFqCR9WSrv6m6P6KmFD3B1NAN3TJ56LvNq+GKw7KDKPKRXS9FjWE47HbULUa3OdClxpAhBP/7eHw==
+intercooler@1.2.3:
+  version "1.2.3"
+  resolved "https://registry.npmjs.org/intercooler/-/intercooler-1.2.3.tgz#4dd74d66809e5ec47d03b18f2701bb3a43de241c"
+  integrity sha512-rbgvkXJzRwZlb5UhP1JVzJLT45UEx7hyLB6f97K+ll/s2L4O82Gx8f3ZNdB6oZD6CwYM2Nr0MemOE0u+RovZAQ==
 
 is-arrayish@^0.2.1:
   version "0.2.1"
