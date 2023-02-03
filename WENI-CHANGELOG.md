@@ -1,3 +1,8 @@
+1.6.18-rapidpro-7.1.27
+----------
+* fix: case removal and reorder on expression and field routers [flow-editor #19](https://github.com/Ilhasoft/floweditor/pull/19)
+* fix: change the has_issues field to False, when create flow
+
 1.6.17-rapidpro-7.1.27
 ----------
 * Fix: add weni.s3 to installed_apps
