@@ -75,6 +75,21 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                     _("Unable to check WhatsApp enterprise account, please check username and password")
                 )
 
+            # validate we don't add the same number twice
+            existing = Channel.objects.filter(
+                is_active=True, address=self.cleaned_data["number"], schemes__overlap=list(self.channel_type.schemes)
+            ).first()
+            if existing:  # pragma: needs cover
+                if existing.org == self.request.org:
+                    raise forms.ValidationError(
+                        _("That number is already connected (%s)") % self.cleaned_data["number"]
+                    )
+
+                raise forms.ValidationError(
+                    _("That number is already connected to another account - %(org)s (%(user)s)")
+                    % dict(org=existing.org, user=existing.created_by.username)
+                )
+
             # check we can access their facebook templates
             from .type import TEMPLATE_LIST_URL
 

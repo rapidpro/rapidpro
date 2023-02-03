@@ -170,6 +170,78 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
         # deactivate our channel
         channel.release(self.admin)
 
+    @patch("temba.channels.types.whatsapp.WhatsAppType.check_health")
+    def test_duplicate_number_channels(self, mock_health):
+        mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "v2.35.2"}}')
+        TemplateTranslation.objects.all().delete()
+        Channel.objects.all().delete()
+
+        url = reverse("channels.types.whatsapp.claim")
+        self.login(self.admin)
+
+        response = self.client.get(reverse("channels.channel_claim"))
+        self.assertNotContains(response, url)
+
+        response = self.client.get(url)
+        self.assertEqual(200, response.status_code)
+        post_data = response.context["form"].initial
+
+        post_data["number"] = "0788123123"
+        post_data["username"] = "temba"
+        post_data["password"] = "tembapasswd"
+        post_data["country"] = "RW"
+        post_data["base_url"] = "https://nyaruka.com/whatsapp"
+        post_data["facebook_namespace"] = "my-custom-app"
+        post_data["facebook_business_id"] = "1234"
+        post_data["facebook_access_token"] = "token123"
+        post_data["facebook_template_list_domain"] = "graph.facebook.com"
+        post_data["facebook_template_list_api_version"] = ""
+
+        # will fail with invalid phone number
+        response = self.client.post(url, post_data)
+
+        with patch("requests.post") as mock_post, patch("requests.get") as mock_get, patch(
+            "requests.patch"
+        ) as mock_patch:
+            mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
+            mock_get.return_value = MockResponse(200, '{"data": []}')
+            mock_patch.return_value = MockResponse(200, '{"data": []}')
+
+            response = self.client.post(url, post_data)
+            self.assertEqual(302, response.status_code)
+
+        channel = Channel.objects.get()
+
+        with patch("requests.post") as mock_post, patch("requests.get") as mock_get, patch(
+            "requests.patch"
+        ) as mock_patch:
+            mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
+            mock_get.return_value = MockResponse(200, '{"data": []}')
+            mock_patch.return_value = MockResponse(200, '{"data": []}')
+
+            response = self.client.post(url, post_data)
+            self.assertEqual(200, response.status_code)
+            self.assertFormError(response, "form", "__all__", "That number is already connected (+250788123123)")
+
+        channel.org = self.org2
+        channel.save()
+
+        with patch("requests.post") as mock_post, patch("requests.get") as mock_get, patch(
+            "requests.patch"
+        ) as mock_patch:
+            mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
+            mock_get.return_value = MockResponse(200, '{"data": []}')
+            mock_patch.return_value = MockResponse(200, '{"data": []}')
+
+            response = self.client.post(url, post_data)
+            self.assertEqual(200, response.status_code)
+            self.assertFormError(
+                response,
+                "form",
+                "__all__",
+                "That number is already connected to another account - Trileet Inc. (admin@nyaruka.com)",
+            )
+
     def test_refresh_tokens(self):
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
