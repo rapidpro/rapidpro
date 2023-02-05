@@ -684,6 +684,7 @@
       window.lastFetch = urlToGo;
 
       if (!ignoreHistory) {
+        console.log("pushing", urlToGo, urlToShow);
         window.history.pushState({ url: urlToGo, show: urlToShow }, "", urlToShow);
       }
 

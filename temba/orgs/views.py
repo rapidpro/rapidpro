@@ -1498,9 +1498,10 @@ class OrgCRUDL(SmartCRUDL):
 
         success_message = _("Import successful")
         form_class = FlowImportForm
+        title = _("Import Flows")
 
         def get_success_url(self):  # pragma: needs cover
-            return reverse("orgs.org_home")
+            return reverse("flows.flow_list")
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -1522,6 +1523,8 @@ class OrgCRUDL(SmartCRUDL):
             return super().form_valid(form)  # pragma: needs cover
 
     class Export(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartTemplateView):
+        title = _("Create Export")
+
         def post(self, request, *args, **kwargs):
             org = self.get_object()
 

@@ -12,7 +12,7 @@
 
   -block import-status
     .flex.w-full.mb-4.items-end.flex-wrap{style:"min-height:41px"}
-      %form#import-form{method:"post", action:"{% url 'orgs.org_import' %}", enctype:"multipart/form-data"}
+      %form#import-form(method="post" action="{% url 'orgs.org_import' %}" enctype="multipart/form-data")
         - if form.non_field_errors
           .text-error
             {{ form.non_field_errors }}

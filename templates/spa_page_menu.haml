@@ -14,7 +14,7 @@
         gotoURL_legacy(event);
       }
       else{
-        gotoURL(item.url);
+        fetchURL(item.url);
       }
     }
   
@@ -49,23 +49,6 @@
         window.location = href;
       }
     }
-  }
-
-  function gotoURL(urlToGo, urlToShow, ignoreEvents, ignoreHistory) {
-    var refererPath = window.location.pathname;
-    window.lastFetch = urlToGo;
-
-    if (!ignoreHistory) {
-      window.history.pushState({ url: urlToGo, show: urlToShow }, "", urlToShow);
-    }
-
-    fetchAjax(urlToGo, ".spa-content", { "headers": { 
-        "TEMBA-SPA": "1", 
-        "TEMBA-REFERER-PATH": refererPath,
-        "TEMBA-PATH": urlToShow
-        }, 
-      "onSuccess": hideLoading, "ignoreEvents": ignoreEvents, "cancel": true
-    });
   }
 
   function refreshMenu() {
