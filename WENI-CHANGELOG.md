@@ -1,3 +1,7 @@
+1.6.19-rapidpro-7.1.27
+----------
+* Update gunicorn start
+
 1.6.18-rapidpro-7.1.27
 ----------
 * fix: case removal and reorder on expression and field routers [flow-editor #19](https://github.com/Ilhasoft/floweditor/pull/19)
