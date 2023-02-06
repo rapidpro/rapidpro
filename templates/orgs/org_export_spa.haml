@@ -1,0 +1,18 @@
+-extends "orgs/org_export.haml"
+
+-load temba compress i18n humanize
+
+-block extra-style
+  {{block.super}}
+  :css
+    .bucket .title {
+      font-size: 1.2em;
+    }
+
+    .card > .bg-gray-100 {
+      
+    }
+
+    .spa-container {
+      background: #fbfbfb;
+    }
