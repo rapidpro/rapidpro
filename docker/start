@@ -20,7 +20,7 @@ echo "Done!"
 
 echo "Starting server..."
 #gunicorn --access-logfile - --workers 3 --bind unix:/run/gunicorn.sock temba.wsgi:application
-gunicorn temba.wsgi:application \
+exec gunicorn temba.wsgi:application \
   --name=$PROJECT \
   --user=$PROJECT_USER \
   --chdir=$PROJECT_PATH \
