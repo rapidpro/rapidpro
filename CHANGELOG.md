@@ -1,3 +1,8 @@
+v8.1.23 (2023-02-06)
+-------------------------
+ * Fix flow results redirecting to it's own page
+ * Make sure WA numbers can only be claimed once
+
 v8.1.22 (2023-02-06)
 -------------------------
  * Update to latest django to get security fix
