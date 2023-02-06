@@ -151,7 +151,6 @@
 
       if (method == "GET") {
         store.getUrl(url+query, { "headers": headers }).then(function(response) {
-          console.log(response);
           results.innerText =  "HTTP/1.0 " + response.status + " " + "\n" + response.body;
         });
       } else {

@@ -264,10 +264,6 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, reverse("flows.flow_simulate", args=[flow.id]))
         self.assertContains(response, "id='rp-flow-editor'")
 
-        # customer service gets a service button
-        self.login(self.customer_support)
-        self.assertContentMenuContains(flow_editor_url, self.customer_support, "Service")
-
         # flows that are archived can't be edited, started or simulated
         self.login(self.admin)
 
@@ -5602,7 +5598,7 @@ class FlowSessionCRUDLTest(TembaTest):
         self.assertLoginRedirect(response)
 
         # but logged in as a CS rep we can
-        self.login(self.customer_support)
+        self.login(self.customer_support, choose_org=self.org)
 
         response = self.client.get(url)
         self.assertEqual(200, response.status_code)

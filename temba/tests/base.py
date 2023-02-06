@@ -60,9 +60,7 @@ class TembaTestMixin:
         self.user = self.create_user("viewer@nyaruka.com")
         self.agent = self.create_user("agent@nyaruka.com", first_name="Agnes")
         self.surveyor = self.create_user("surveyor@nyaruka.com")
-        self.customer_support = self.create_user(
-            "support@nyaruka.com", group_names=("Customer Support",), is_staff=True
-        )
+        self.customer_support = self.create_user("support@nyaruka.com", is_staff=True)
 
         self.org = Org.objects.create(
             name="Nyaruka",
@@ -300,6 +298,7 @@ class TembaTestMixin:
             channel=channel,
             msg_type=msg_type,
             attachments=attachments,
+            quick_replies=None,
             status=status,
             created_on=created_on,
             visibility=visibility,
@@ -343,6 +342,7 @@ class TembaTestMixin:
             channel=channel,
             msg_type=msg_type,
             attachments=attachments,
+            quick_replies=quick_replies,
             status=status,
             created_on=created_on,
             sent_on=sent_on,
@@ -363,6 +363,7 @@ class TembaTestMixin:
         channel,
         msg_type,
         attachments,
+        quick_replies,
         status,
         created_on,
         sent_on=None,
@@ -401,6 +402,7 @@ class TembaTestMixin:
             contact_urn=contact_urn,
             text=text,
             attachments=attachments,
+            quick_replies=quick_replies,
             locale=locale,
             channel=channel,
             status=status,
@@ -456,6 +458,7 @@ class TembaTestMixin:
                     channel=None,
                     msg_type=Msg.TYPE_INBOX,
                     attachments=(),
+                    quick_replies=(),
                     status=msg_status,
                     created_on=timezone.now(),
                     sent_on=timezone.now(),

@@ -48,10 +48,10 @@
     react "^16.8.6"
     react-dom "^16.8.6"
 
-"@nyaruka/temba-components@0.38.0":
-  version "0.38.0"
-  resolved "https://registry.npmjs.org/@nyaruka/temba-components/-/temba-components-0.38.0.tgz#02c9df786a9a05055acf4df6d48ff72d4e6fedf4"
-  integrity sha512-UdV/sh/fp3ZzqkuPAB1gTO6rFtM/lr4Ru+dkVsZRzxlQCQ2mTflPerEp7OSc9utVwxQamXP7CG3mlsqJluThEA==
+"@nyaruka/temba-components@0.39.1":
+  version "0.39.1"
+  resolved "https://registry.npmjs.org/@nyaruka/temba-components/-/temba-components-0.39.1.tgz#9ff266c42bf8fed6e1338eab0eae1830174c439f"
+  integrity sha512-P296KSSQHWd3HRmx3BwCLv0DjDfdYhMsRmrzaIB0h9hOfiNkq4bQiWQQDB/jYrhhyOixgyTEUNV0EikzwJ7SRw==
   dependencies:
     color-hash "^2.0.2"
     geojson "^0.5.0"
@@ -464,10 +464,10 @@ inherits@2, inherits@~2.0.3:
   resolved "https://registry.npmjs.org/inherits/-/inherits-2.0.4.tgz"
   integrity sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==
 
-intercooler@1.1.2:
-  version "1.1.2"
-  resolved "https://registry.npmjs.org/intercooler/-/intercooler-1.1.2.tgz"
-  integrity sha512-hBb/9j28KSRFqCR9WSrv6m6P6KmFD3B1NAN3TJ56LvNq+GKw7KDKPKRXS9FjWE47HbULUa3OdClxpAhBP/7eHw==
+intercooler@1.2.3:
+  version "1.2.3"
+  resolved "https://registry.npmjs.org/intercooler/-/intercooler-1.2.3.tgz#4dd74d66809e5ec47d03b18f2701bb3a43de241c"
+  integrity sha512-rbgvkXJzRwZlb5UhP1JVzJLT45UEx7hyLB6f97K+ll/s2L4O82Gx8f3ZNdB6oZD6CwYM2Nr0MemOE0u+RovZAQ==
 
 is-arrayish@^0.2.1:
   version "0.2.1"

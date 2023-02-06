@@ -7,16 +7,6 @@
 
 -block content
 
-  %div.hidden
-    .float-right
-      -if not archived
-        .button-light{onclick:"goto(event)", href:'?archived=1'}
-          -trans "Show Archived"
-
-      -else
-        .button-light{onclick:"goto(event)", href:'?'}
-          -trans "Hide Archived"
-
   .flex.w-full.mb-4.items-end.flex-wrap.justify-end{style:"min-height:41px"}
     -blocktrans trimmed
       Select all of the items below that you would like to include in your export. We've grouped them
@@ -24,7 +14,7 @@
       be included in the export.
 
   .flex.w-full.mb-4.items-end.flex-wrap.justify-end{style:"min-height:41px"}
-    %form.export.w-full{method:'POST'}
+    %form.export.w-full(method="POST" action="{{request.get_full_path}}")
       -csrf_token
       .flex.flex-col
         -for bucket in buckets

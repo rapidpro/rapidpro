@@ -242,7 +242,10 @@
               ic-trigger-on:"scrolled-into-view",
               ic-poll:"5s",
               ic-target:"table .recent",
-              ic-poll-repeats:"30" }
+              ic-poll-repeats:"30",
+              ic-on-success:"checkForPJAX"
+            
+            }
 
     %tbody.recent
 
@@ -250,7 +253,9 @@
     %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?before={{recent_start}}", 
          ic-trigger-on:"scrolled-into-view", 
          ic-target:"table .previous", 
-         ic-indicator:"#indicator" }
+         ic-indicator:"#indicator",
+         ic-on-success:"checkForPJAX"
+        }
 
     %tbody.previous
 
@@ -482,6 +487,15 @@
   {{ block.super }}
 
   :javascript
+
+    function checkForPJAX(selection, data, status, xhr) {
+      if (data.indexOf("<html") > -1) {
+        // we shouldnt have an html tag for pjax
+         document.location.reload();
+        return false;
+      }
+      return true;
+    }
 
     var startTime = null;
     function contactUpdated() {

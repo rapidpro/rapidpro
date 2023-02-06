@@ -6,7 +6,7 @@ import string
 from collections import OrderedDict
 from datetime import timedelta
 from email.utils import parseaddr
-from urllib.parse import parse_qs, quote, unquote, urlparse
+from urllib.parse import parse_qs, quote, quote_plus, unquote, urlparse
 
 import iso8601
 import pyotp
@@ -38,7 +38,7 @@ from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError
-from django.forms import Form
+from django.forms import Form, ModelChoiceField
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import resolve_url
 from django.urls import reverse, reverse_lazy
@@ -64,7 +64,6 @@ from temba.utils.fields import (
     InputWidget,
     SelectMultipleWidget,
     SelectWidget,
-    TembaChoiceField,
 )
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
@@ -171,25 +170,27 @@ class OrgObjPermsMixin(OrgPermsMixin):
 
     def has_org_perm(self, codename):
         has_org_perm = super().has_org_perm(codename)
-
         if has_org_perm:
             return self.request.org == self.get_object_org()
 
         return False
 
     def has_permission(self, request, *args, **kwargs):
+
+        user = self.request.user
+        if user.is_staff:
+            return True
+
         has_perm = super().has_permission(request, *args, **kwargs)
-
         if has_perm:
-            user = self.request.user
-
-            # user has global permission
-            if user.has_perm(self.permission):
-                return True
-
             return self.request.org == self.get_object_org()
 
-        return False
+    def pre_process(self, request, *args, **kwargs):
+        self.org = self.get_object_org()
+        if request.user.is_staff and self.request.org != self.org:
+            return HttpResponseRedirect(
+                f"{reverse('orgs.org_service')}?next={quote_plus(request.path)}&other_org={self.org.pk}"
+            )
 
 
 class ModalMixin(SmartFormView):
@@ -588,7 +589,7 @@ class TwoFactorBackupView(BaseTwoFactorView):
     template_name = "orgs/login/two_factor_backup.haml"
 
 
-class ConfirmAccessView(SpaMixin, Login):
+class ConfirmAccessView(Login):
     """
     Overrides the smartmin login view to provide a view for an already logged in user to re-authenticate.
     """
@@ -1494,9 +1495,10 @@ class OrgCRUDL(SmartCRUDL):
 
         success_message = _("Import successful")
         form_class = FlowImportForm
+        title = _("Import Flows")
 
         def get_success_url(self):  # pragma: needs cover
-            return reverse("orgs.org_home")
+            return reverse("flows.flow_list")
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -1518,6 +1520,8 @@ class OrgCRUDL(SmartCRUDL):
             return super().form_valid(form)  # pragma: needs cover
 
     class Export(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartTemplateView):
+        title = _("Create Export")
+
         def post(self, request, *args, **kwargs):
             org = self.get_object()
 
@@ -2076,7 +2080,7 @@ class OrgCRUDL(SmartCRUDL):
             menu.new_group()
             menu.add_url_post(
                 _("Service"),
-                f'{reverse("orgs.org_service")}?organization={obj.id}&redirect_url={reverse("msgs.msg_inbox", args=[])}',
+                f'{reverse("orgs.org_service")}?other_org={obj.id}&next={reverse("msgs.msg_inbox", args=[])}',
             )
 
         def get_context_data(self, **kwargs):
@@ -2235,6 +2239,10 @@ class OrgCRUDL(SmartCRUDL):
         fields = ("id",)
         submit_button_name = _("Delete")
 
+        # we don't want to reroute delete requests
+        def pre_process(self, request, *args, **kwargs):
+            return
+
         def has_org_perm(self, codename):
             # users can't delete the primary org
             org = self.get_object()
@@ -2242,12 +2250,6 @@ class OrgCRUDL(SmartCRUDL):
                 return False
 
             return super().has_org_perm(codename)
-
-        def has_permission(self, request, *args, **kwargs):
-            # staff can delete any org
-            if request.user.is_staff:
-                return True
-            return super().has_permission(request, *args, **kwargs)
 
         def get_object_org(self):
             # child orgs work in the context of their parent
@@ -2533,16 +2535,28 @@ class OrgCRUDL(SmartCRUDL):
 
     class Service(StaffOnlyMixin, SmartFormView):
         class ServiceForm(forms.Form):
-            organization = TembaChoiceField(queryset=Org.objects.all(), empty_label=None)
-            redirect_url = forms.CharField(required=False)
+            other_org = ModelChoiceField(queryset=Org.objects.all(), widget=forms.HiddenInput())
+            next = forms.CharField(widget=forms.HiddenInput(), required=False)
 
         form_class = ServiceForm
-        fields = ("organization", "redirect_url")
+        fields = ("other_org", "next")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["other_org"] = Org.objects.filter(id=self.request.GET.get("other_org")).first()
+            context["next"] = self.request.GET.get("next", "")
+            return context
+
+        def derive_initial(self):
+            initial = super().derive_initial()
+            initial["other_org"] = self.request.GET.get("other_org", "")
+            initial["next"] = self.request.GET.get("next", "")
+            return initial
 
         # valid form means we set our org and redirect to their inbox
         def form_valid(self, form):
-            switch_to_org(self.request, form.cleaned_data["organization"])
-            success_url = form.cleaned_data["redirect_url"] or reverse("msgs.msg_inbox")
+            switch_to_org(self.request, form.cleaned_data["other_org"])
+            success_url = form.cleaned_data["next"] or reverse("msgs.msg_inbox")
             return HttpResponseRedirect(success_url)
 
         # invalid form login 'logs out' the user from the org and takes them to the org manage page

@@ -1,3 +1,22 @@
+v8.1.21 (2023-02-06)
+-------------------------
+ * Fix export > import path on new ui
+ * Fix login redirects from pjax calls
+
+v8.1.20 (2023-02-02)
+-------------------------
+ * Add servicing menu on org read
+
+v8.1.19 (2023-02-01)
+-------------------------
+ * Add Msg.quick_replies
+ * Add Broadcast.query
+ * More generic servicing for staff users
+
+v8.1.18 (2023-02-01)
+-------------------------
+ * Drop un-used Media.name field
+
 v8.1.17 (2023-01-31)
 -------------------------
  * Fix modax from menu bug
