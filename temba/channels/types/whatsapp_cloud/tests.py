@@ -547,7 +547,7 @@ class WhatsAppCloudTypeTest(TembaTest):
                 self.assertEqual(200, response.status_code)
                 self.assertEqual(
                     response.context["form"].errors["__all__"][0],
-                    "That number is already connected (1234)",
+                    "Number is already connected to this workspace",
                 )
 
     def test_clear_session_token(self):
