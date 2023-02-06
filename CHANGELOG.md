@@ -1,3 +1,8 @@
+v8.1.21 (2023-02-06)
+-------------------------
+ * Fix export > import path on new ui
+ * Fix login redirects from pjax calls
+
 v8.1.20 (2023-02-02)
 -------------------------
  * Add servicing menu on org read
