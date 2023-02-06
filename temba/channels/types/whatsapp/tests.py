@@ -221,7 +221,7 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
 
             response = self.client.post(url, post_data)
             self.assertEqual(200, response.status_code)
-            self.assertFormError(response, "form", "__all__", "That number is already connected (+250788123123)")
+            self.assertFormError(response, "form", "__all__", "Number is already connected to this workspace")
 
         channel.org = self.org2
         channel.save()
@@ -239,7 +239,7 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
                 response,
                 "form",
                 "__all__",
-                "That number is already connected to another account - Trileet Inc. (admin@nyaruka.com)",
+                "Number is already connected to another workspace",
             )
 
     def test_refresh_tokens(self):

@@ -81,14 +81,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             ).first()
             if existing:  # pragma: needs cover
                 if existing.org == self.request.org:
-                    raise forms.ValidationError(
-                        _("That number is already connected (%s)") % self.cleaned_data["number"]
-                    )
+                    raise forms.ValidationError(_("Number is already connected to this workspace"))
 
-                raise forms.ValidationError(
-                    _("That number is already connected to another account - %(org)s (%(user)s)")
-                    % dict(org=existing.org, user=existing.created_by.username)
-                )
+                raise forms.ValidationError(_("Number is already connected to another workspace"))
 
             # check we can access their facebook templates
             from .type import TEMPLATE_LIST_URL

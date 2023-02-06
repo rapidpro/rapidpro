@@ -135,9 +135,7 @@ class TwilioTypeTest(TembaTest):
 
                 # claim it
                 response = self.client.post(claim_twilio, dict(country="US", phone_number="12062345678"))
-                self.assertFormError(
-                    response, "form", "phone_number", "That number is already connected (+12062345678)"
-                )
+                self.assertFormError(response, "form", "phone_number", "Number is already connected to this workspace")
 
                 # make sure the schemes do not overlap, having a WA channel with the same number
                 channel = Channel.objects.get(channel_type="T", org=self.org)
