@@ -1,3 +1,7 @@
+v8.1.22 (2023-02-06)
+-------------------------
+ * Update to latest django to get security fix
+
 v8.1.21 (2023-02-06)
 -------------------------
  * Fix export > import path on new ui
