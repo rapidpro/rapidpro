@@ -12,15 +12,7 @@
 <script>
 
   function fetchPJAXContent(url, container, options) {
-
     options = options || {};
-
-    // hijack an pjax requests made from spa pages and route the content there instead
-    if (container == "#pjax" && document.querySelector(".spa-content")) {
-      container = ".spa-content";
-      options["headers"] = (options["headers"] || {})
-      options["headers"]["TEMBA-SPA"] = 1;
-    }
 
     var triggerEvents = true;
     if (!!options["ignoreEvents"]) {
@@ -74,14 +66,20 @@
       contentType: contentType,
       processData: processData,
       data: data,
-      success: function(response, status, jqXHR) {
-        var toast = jqXHR.getResponseHeader('Temba-Toast');
+
+      success: function(response, status, xhr) {
+        if (xhr.responseText.indexOf('<html') > -1) {
+          document.location.href = url;
+          return;
+        }
+
+        var toast = xhr.getResponseHeader('Temba-Toast');
         if (toast) {
           toastr.info(toast, '', {"positionClass": "toast-bottom-full-width"});
         }
 
         if ('followRedirects' in options && options['followRedirects'] == true) {
-            var redirect = jqXHR.getResponseHeader('REDIRECT');
+            var redirect = xhr.getResponseHeader('REDIRECT');
             if (redirect) {
                 window.document.location.href = redirect;
                 return;
@@ -92,7 +90,7 @@
         if (options) {
           if (('shouldIgnore' in options && options['shouldIgnore'](response))) {
             if ('onIgnore' in options) {
-                options['onIgnore'](jqXHR);
+                options['onIgnore'](xhr);
             }
 
             return;

@@ -330,14 +330,13 @@
           return;
         }
 
+        if (response.redirected) {
+          document.location.href = url;
+          return;
+        }
+
         response.text().then(function (body){
           var containerEle = document.querySelector(container);
-
-          // if we are given an entire page, something bad has happened
-          if (body.indexOf("<html") > -1) {
-            document.location = url;
-            return;
-          }
 
           // special care to unmount the editor
           var editor = document.querySelector("#rp-flow-editor");
