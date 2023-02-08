@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from datetime import datetime, timedelta
 
 import pytz
@@ -10,6 +11,7 @@ from django.db.models import F, Prefetch
 from django.utils import timezone
 from django.utils.timesince import timesince
 
+from temba import mailroom
 from temba.contacts.models import ContactField, ContactGroup
 from temba.utils import chunk_list
 from temba.utils.crons import cron_task
@@ -27,7 +29,6 @@ from .models import (
     FlowStartCount,
 )
 
-FLOW_TIMEOUT_KEY = "flow_timeouts_%y_%m_%d"
 logger = logging.getLogger(__name__)
 
 
@@ -85,9 +86,37 @@ def trim_flow_revisions():
 
 
 @cron_task()
+def interrupt_flow_sessions():
+    """
+    Interrupt old flow sessions which have exceeded the absolute time limit
+    """
+
+    before = timezone.now() - timedelta(days=90)
+    num_interrupted = 0
+
+    # get old sessions and organize into lists by org
+    by_org = defaultdict(list)
+    sessions = (
+        FlowSession.objects.filter(created_on__lte=before, status=FlowSession.STATUS_WAITING)
+        .only("id", "org")
+        .select_related("org")
+        .order_by("id")
+    )
+    for session in sessions:
+        by_org[session.org].append(session)
+
+    for org, sessions in by_org.items():
+        for batch in chunk_list(sessions, 100):
+            mailroom.queue_interrupt(org, sessions=batch)
+            num_interrupted += len(sessions)
+
+    return {"interrupted": num_interrupted}
+
+
+@cron_task()
 def trim_flow_sessions():
     """
-    Cleanup old flow sessions
+    Cleanup ended flow sessions
     """
 
     trim_before = timezone.now() - settings.RETENTION_PERIODS["flowsession"]
