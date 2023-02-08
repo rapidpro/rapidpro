@@ -235,7 +235,7 @@ class BroadcastWriteSerializer(WriteSerializer):
                 raise serializers.ValidationError("No text translation provided in base language.")
 
             if attachments and base_language not in attachments:
-                raise serializers.ValidationError("No attachments translation provided in base language.")
+                raise serializers.ValidationError("No attachment translations provided in base language.")
 
         return data
 

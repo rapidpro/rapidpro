@@ -956,6 +956,25 @@ class EndpointsTest(TembaTest):
         response = self.postJSON(url, None, {"text": "Hello"})
         self.assertResponseError(response, "non_field_errors", "Must provide either urns, contacts or groups.")
 
+        # try to create new broadcast with translations that don't include base language
+        response = self.postJSON(
+            url, None, {"text": {"kin": "Muraho"}, "base_language": "eng", "contacts": [self.joe.uuid]}
+        )
+        self.assertResponseError(response, "non_field_errors", "No text translation provided in base language.")
+
+        # try to create new broadcast with translations that don't include base language
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "text": {"eng": "Hello"},
+                "attachments": {"spa": ["http://text.mp3"]},
+                "base_language": "eng",
+                "contacts": [self.joe.uuid],
+            },
+        )
+        self.assertResponseError(response, "non_field_errors", "No attachment translations provided in base language.")
+
         # create new broadcast with all fields
         response = self.postJSON(
             url,
