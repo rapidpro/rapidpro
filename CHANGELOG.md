@@ -1,3 +1,8 @@
+v8.1.24 (2023-02-08)
+-------------------------
+ * Update to latest cryptography library
+ * Add task to interrupt flow sessions after 90 days
+
 v8.1.23 (2023-02-06)
 -------------------------
  * Fix flow results redirecting to it's own page
