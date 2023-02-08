@@ -184,6 +184,60 @@ class FieldsTest(TembaTest):
                 },
             )
 
+    def test_language_and_translations(self):
+        self.assert_field(
+            fields.LanguageField(source="test"),
+            submissions={
+                "eng": "eng",
+                "kin": "kin",
+                123: serializers.ValidationError,
+                "base": serializers.ValidationError,
+            },
+            representations={"eng": "eng"},
+        )
+
+        field = fields.TranslationsField(source="test", max_length=10)
+        field._context = {"org": self.org}
+
+        self.assertEqual(field.to_internal_value("Hello"), {"eng": "Hello"})
+        self.assertEqual(field.to_internal_value({"eng": "Hello"}), {"eng": "Hello"})
+        self.assertEqual(field.to_internal_value({"eng": "Hello", "spa": "Hola"}), {"eng": "Hello", "spa": "Hola"})
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, "")  # empty
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, "  ")  # blank
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, 123)  # not a string or dict
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {})  # no translations
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {123: "Hello"})  # lang not a str
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"base": "Hello"})  # lang not valid
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"kin": 123})  # translation not a str
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, "HelloHello1")  # translation too long
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"eng": "HelloHello1"})
+
+        field = fields.TranslationsListField(source="test", max_items=2, max_length=10)
+        field._context = {"org": self.org}
+
+        self.assertEqual(field.to_internal_value(["Hello"]), {"eng": ["Hello"]})
+        self.assertEqual(field.to_internal_value({"eng": ["Hello"]}), {"eng": ["Hello"]})
+        self.assertEqual(
+            field.to_internal_value({"eng": ["Hello", "Bye"], "spa": ["Hola"]}),
+            {"eng": ["Hello", "Bye"], "spa": ["Hola"]},
+        )
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, [""])  # empty
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, ["  "])  # blank
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, 123)  # not a string or dict
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {})  # no translations
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {123: ["Hello"]})  # lang not a str
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"base": ["Hello"]})  # lang not valid
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"kin": 123})  # translation not a list
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, ["HelloHello1"])  # too long
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"eng": ["x", "HelloHello1"]})
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"eng": ["x", "y", "z"]})  # too many
+
+        # check that default language is based on first flow language
+        self.org.flow_languages = ["spa", "kin"]
+        self.org.save(update_fields=("flow_languages",))
+
+        self.assertEqual(field.to_internal_value(["Hello"]), {"spa": ["Hello"]})
+
     def test_others(self):
         group = self.create_group("Customers")
         field_obj = self.create_field("registered", "Registered On", value_type=ContactField.TYPE_DATETIME)
@@ -289,32 +343,6 @@ class FieldsTest(TembaTest):
             },
             representations={self.agent: {"email": "agent@nyaruka.com", "name": "Agnes"}},
         )
-
-        field = fields.TranslatableField(source="test", max_length=10)
-        field._context = {"org": self.org}
-
-        self.assertEqual(field.to_internal_value("Hello"), ({"eng": "Hello"}, "eng"))
-        self.assertEqual(field.to_internal_value({"eng": "Hello"}), ({"eng": "Hello"}, "eng"))
-
-        self.org.set_flow_languages(self.admin, ["kin"])
-        self.org.save()
-
-        self.assertEqual(field.to_internal_value("Hello"), ({"kin": "Hello"}, "kin"))
-        self.assertEqual(
-            field.to_internal_value({"eng": "Hello", "kin": "Muraho"}), ({"eng": "Hello", "kin": "Muraho"}, "kin")
-        )
-
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, 123)  # not a string or dict
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"kin": 123})
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {})
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {123: "Hello", "kin": "Muraho"})
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, "HelloHello1")  # too long
-        self.assertRaises(
-            serializers.ValidationError, field.to_internal_value, {"kin": "HelloHello1"}
-        )  # also too long
-        self.assertRaises(
-            serializers.ValidationError, field.to_internal_value, {"eng": "HelloHello1"}
-        )  # base lang not provided
 
 
 class EndpointsTest(TembaTest):
@@ -881,6 +909,8 @@ class EndpointsTest(TembaTest):
                 "contacts": [{"uuid": self.joe.uuid, "name": self.joe.name}],
                 "groups": [],
                 "text": {"eng": "Hello 2"},
+                "attachments": {"eng": []},
+                "base_language": "eng",
                 "status": "queued",
                 "created_on": format_datetime(bcast2.created_on),
             },
@@ -893,6 +923,8 @@ class EndpointsTest(TembaTest):
                 "contacts": [{"uuid": self.joe.uuid, "name": self.joe.name}],
                 "groups": [{"uuid": reporters.uuid, "name": reporters.name}],
                 "text": {"eng": "Hello 4"},
+                "attachments": {"eng": []},
+                "base_language": "eng",
                 "status": "failed",
                 "created_on": format_datetime(bcast4.created_on),
             },
@@ -922,14 +954,19 @@ class EndpointsTest(TembaTest):
 
         # try to create new broadcast with no recipients
         response = self.postJSON(url, None, {"text": "Hello"})
-        self.assertResponseError(response, "non_field_errors", "Must provide either urns, contacts or groups")
+        self.assertResponseError(response, "non_field_errors", "Must provide either urns, contacts or groups.")
 
         # create new broadcast with all fields
         response = self.postJSON(
             url,
             None,
             {
-                "text": "Hi @(format_urn(urns.tel))",
+                "text": {"eng": "Hello @contact.name", "spa": "Hola @contact.name"},
+                "attachments": {
+                    "eng": ["http://example.com/test.jpg", "http://example.com/test.mp3"],
+                    "kin": ["http://example.com/muraho.mp3"],
+                },
+                "base_language": "eng",
                 "urns": ["twitter:franky"],
                 "contacts": [self.joe.uuid, self.frank.uuid],
                 "groups": [reporters.uuid],
@@ -938,7 +975,18 @@ class EndpointsTest(TembaTest):
         )
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
-        self.assertEqual({"eng": {"text": "Hi @(format_urn(urns.tel))"}}, broadcast.translations)
+        self.assertEqual(
+            {
+                "eng": {
+                    "text": "Hello @contact.name",
+                    "attachments": ["http://example.com/test.jpg", "http://example.com/test.mp3"],
+                },
+                "spa": {"text": "Hola @contact.name"},
+                "kin": {"attachments": ["http://example.com/muraho.mp3"]},
+            },
+            broadcast.translations,
+        )
+        self.assertEqual("eng", broadcast.base_language)
         self.assertEqual(["twitter:franky"], broadcast.raw_urns)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
         self.assertEqual({reporters}, set(broadcast.groups.all()))
@@ -946,19 +994,24 @@ class EndpointsTest(TembaTest):
 
         mock_queue_broadcast.assert_called_once_with(broadcast)
 
-        # create new broadcast with translations
+        # create new broadcast without translations
         response = self.postJSON(
-            url, None, {"text": {"eng": "Hello", "fra": "Bonjour"}, "contacts": [self.joe.uuid, self.frank.uuid]}
+            url,
+            None,
+            {
+                "text": "Hello",
+                "attachments": ["http://example.com/test.jpg", "http://example.com/test.mp3"],
+                "contacts": [self.joe.uuid, self.frank.uuid],
+            },
         )
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
-        self.assertEqual({"eng": {"text": "Hello"}, "fra": {"text": "Bonjour"}}, broadcast.translations)
+        self.assertEqual(
+            {"eng": {"text": "Hello", "attachments": ["http://example.com/test.jpg", "http://example.com/test.mp3"]}},
+            broadcast.translations,
+        )
+        self.assertEqual("eng", broadcast.base_language)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
-
-        # create new broadcast with an expression
-        response = self.postJSON(url, None, {"text": "You are @fields.age", "contacts": [self.joe.uuid]})
-        broadcast = Broadcast.objects.get(id=response.json()["id"])
-        self.assertEqual({"eng": {"text": "You are @fields.age"}}, broadcast.translations)
 
         # try sending as a flagged org
         self.org.flag()
@@ -1324,10 +1377,12 @@ class EndpointsTest(TembaTest):
                 "offset": 15,
                 "unit": "epocs",
                 "delivery_hour": 25,
+                "message": {"kin": "Muraho"},
             },
         )
         self.assertResponseError(response, "unit", '"epocs" is not a valid choice.')
         self.assertResponseError(response, "delivery_hour", "Ensure this value is less than or equal to 23.")
+        self.assertResponseError(response, "message", "Message text in default flow language is required.")
 
         # provide valid values for those fields.. but not a message or flow
         response = self.postJSON(
@@ -1341,7 +1396,7 @@ class EndpointsTest(TembaTest):
                 "delivery_hour": -1,
             },
         )
-        self.assertResponseError(response, "non_field_errors", "Flow UUID or a message text required.")
+        self.assertResponseError(response, "non_field_errors", "Flow or a message text required.")
 
         # create a message event
         response = self.postJSON(
@@ -1382,7 +1437,7 @@ class EndpointsTest(TembaTest):
         )
 
         # we should have failed validation for sending an empty message
-        self.assertResponseError(response, "non_field_errors", "Message text is required")
+        self.assertResponseError(response, "message", "Translations cannot be empty or blank.")
 
         response = self.postJSON(
             url,
