@@ -1,3 +1,17 @@
+v8.1.24 (2023-02-08)
+-------------------------
+ * Update to latest cryptography library
+ * Add task to interrupt flow sessions after 90 days
+
+v8.1.23 (2023-02-06)
+-------------------------
+ * Fix flow results redirecting to it's own page
+ * Make sure WA numbers can only be claimed once
+
+v8.1.22 (2023-02-06)
+-------------------------
+ * Update to latest django to get security fix
+
 v8.1.21 (2023-02-06)
 -------------------------
  * Fix export > import path on new ui
