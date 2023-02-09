@@ -50,6 +50,7 @@ from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_str, datetime_to_timestamp
 from temba.utils.templatetags.temba import datetime as datetime_tag, duration
+from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import (
     URN,
@@ -507,6 +508,12 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # login as viewer
         self.login(self.user)
 
+        self.new_ui()
+        response = self.client.get(read_url)
+        self.assertContains(response, "Joe")
+        self.assertEqual("/contact/active", response.headers[TEMBA_MENU_SELECTION])
+
+        self.old_ui()
         response = self.client.get(read_url)
         self.assertContains(response, "Joe")
 
@@ -518,6 +525,12 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertTrue(Contact.objects.get(pk=joe.id, status="B"))
 
         self.assertContentMenu(read_url, self.admin, ["Edit", "Custom Fields"])
+
+        self.new_ui()
+        response = self.client.get(read_url)
+        self.assertContains(response, "Joe")
+        self.assertEqual("/contact/blocked", response.headers[TEMBA_MENU_SELECTION])
+        self.old_ui()
 
         # can't access a deleted contact
         joe.release(self.admin)

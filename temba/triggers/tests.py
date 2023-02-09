@@ -1379,6 +1379,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertEqual(("restore",), response.context["actions"])
 
+        self.new_ui()
         # can restore it
         self.client.post(reverse("triggers.trigger_archived"), {"action": "restore", "objects": trigger1.id})
 

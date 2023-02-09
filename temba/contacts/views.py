@@ -763,8 +763,6 @@ class ContactCRUDL(SmartCRUDL):
         select_related = ("current_flow",)
 
         def derive_menu_path(self):
-            if self.object.status == Contact.STATUS_ACTIVE:
-                return "contact/active"
             return f"/contact/{self.object.get_status_display().lower()}"
 
         def derive_title(self):

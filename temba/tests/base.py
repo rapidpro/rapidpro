@@ -167,6 +167,12 @@ class TembaTestMixin:
             session.update({"org_id": choose_org.id})
             session.save()
 
+    def old_ui(self):
+        self.client.cookies.load({"nav": "1"})
+
+    def new_ui(self):
+        self.client.cookies.load({"nav": "2"})
+
     def import_file(self, filename, site="http://rapidpro.io", substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
         self.org.import_app(data, self.admin, site=site)

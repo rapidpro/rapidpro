@@ -57,6 +57,7 @@ from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import brands, json, languages
+from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .context_processors import RolePermsWrapper
 from .models import BackupToken, Invitation, Org, OrgMembership, OrgRole, User
@@ -3849,9 +3850,11 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertStaffOnly(manage_url)
         self.assertStaffOnly(update_url)
+        self.new_ui()
 
         def assertOrgFilter(query: str, expected_orgs: list):
             response = self.client.get(manage_url + query)
+            self.assertIsNotNone(response.headers.get(TEMBA_MENU_SELECTION, None))
             self.assertEqual(expected_orgs, list(response.context["object_list"]))
 
         assertOrgFilter("", [self.org2, self.org])

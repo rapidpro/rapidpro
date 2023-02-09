@@ -88,7 +88,9 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         webhooks_url = reverse("request_logs.httplog_webhooks")
         log_url = reverse("request_logs.httplog_read", args=[l1.id])
 
-        response = self.assertListFetch(webhooks_url, allow_viewers=False, allow_editors=True, context_objects=[l1])
+        response = self.assertListFetch(
+            webhooks_url, allow_viewers=False, allow_editors=True, context_objects=[l1], new_ui=True
+        )
         self.assertContains(response, "Webhook Calls")
         self.assertContains(response, log_url)
 

@@ -253,6 +253,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         flow = self.get_flow("color")
 
         self.login(self.admin)
+        self.new_ui()
 
         flow_editor_url = reverse("flows.flow_editor", args=[flow.uuid])
 
