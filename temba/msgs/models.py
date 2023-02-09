@@ -215,13 +215,14 @@ class Broadcast(models.Model):
         cls,
         org,
         user,
-        text: dict,
+        text: dict[str, str],
         *,
+        attachments: dict[str, list] = None,
+        base_language: str = None,
         groups=None,
         contacts=None,
         urns: list[str] = None,
         contact_ids: list[int] = None,
-        base_language: str = None,
         channel: Channel = None,
         ticket=None,
         send_all: bool = False,
@@ -233,13 +234,21 @@ class Broadcast(models.Model):
         assert base_language in text, "no translation for base language"
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
 
+        # merge text and attachments into single dict of translations
+        translations = {lang: {"text": t} for lang, t in text.items()}
+        if attachments:
+            for lang, atts in attachments.items():
+                if lang not in translations:
+                    translations[lang] = {}
+                translations[lang]["attachments"] = atts
+
         broadcast = cls.objects.create(
             org=org,
             channel=channel,
             ticket=ticket,
             send_all=send_all,
+            translations=translations,
             base_language=base_language,
-            translations={lang: {"text": t} for lang, t in text.items()},
             created_by=user,
             modified_by=user,
             **kwargs,

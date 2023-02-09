@@ -184,15 +184,20 @@ class BroadcastReadSerializer(ReadSerializer):
         Broadcast.STATUS_FAILED: "failed",
     }
 
-    text = serializers.SerializerMethodField()
-    status = serializers.SerializerMethodField()
     urns = serializers.SerializerMethodField()
     contacts = fields.ContactField(many=True)
     groups = fields.ContactGroupField(many=True)
+    text = serializers.SerializerMethodField()
+    attachments = serializers.SerializerMethodField()
+    base_language = fields.LanguageField()
+    status = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_text(self, obj):
-        return {lang: trans["text"] for lang, trans in obj.translations.items()}
+        return {lang: trans.get("text") for lang, trans in obj.translations.items()}
+
+    def get_attachments(self, obj):
+        return {lang: trans.get("attachments", []) for lang, trans in obj.translations.items()}
 
     def get_status(self, obj):
         return self.STATUSES.get(obj.status, "sent")
@@ -205,19 +210,32 @@ class BroadcastReadSerializer(ReadSerializer):
 
     class Meta:
         model = Broadcast
-        fields = ("id", "urns", "contacts", "groups", "text", "status", "created_on")
+        fields = ("id", "urns", "contacts", "groups", "text", "attachments", "base_language", "status", "created_on")
 
 
 class BroadcastWriteSerializer(WriteSerializer):
-    text = fields.TranslatableField(required=True, max_length=Msg.MAX_TEXT_LEN)
     urns = fields.URNListField(required=False)
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
+    text = fields.TranslationsField(required=True, max_length=Msg.MAX_TEXT_LEN)
+    attachments = fields.TranslationsListField(required=False, max_items=10, max_length=2048)
+    base_language = fields.LanguageField(required=False)
     ticket = fields.TicketField(required=False)
 
     def validate(self, data):
+        text = data["text"]
+        attachments = data.get("attachments")
+        base_language = data.get("base_language")
+
         if not (data.get("urns") or data.get("contacts") or data.get("groups")):
-            raise serializers.ValidationError("Must provide either urns, contacts or groups")
+            raise serializers.ValidationError("Must provide either urns, contacts or groups.")
+
+        if base_language:
+            if base_language not in text:
+                raise serializers.ValidationError("No text translation provided in base language.")
+
+            if attachments and base_language not in attachments:
+                raise serializers.ValidationError("No attachment translations provided in base language.")
 
         return data
 
@@ -226,21 +244,18 @@ class BroadcastWriteSerializer(WriteSerializer):
         Create a new broadcast to send out
         """
 
-        text, base_language = self.validated_data["text"]
-
-        # create the broadcast
         broadcast = Broadcast.create(
             self.context["org"],
             self.context["user"],
-            text=text,
-            base_language=base_language,
+            text=self.validated_data["text"],
+            attachments=self.validated_data.get("attachments", {}),
+            base_language=self.validated_data.get("base_language"),
             groups=self.validated_data.get("groups", []),
             contacts=self.validated_data.get("contacts", []),
             urns=self.validated_data.get("urns", []),
             ticket=self.validated_data.get("ticket"),
         )
 
-        # send it
         on_transaction_commit(lambda: broadcast.send_async())
 
         return broadcast
@@ -351,7 +366,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
     unit = serializers.ChoiceField(required=True, choices=list(UNITS.keys()))
     delivery_hour = serializers.IntegerField(required=True, min_value=-1, max_value=23)
     relative_to = fields.ContactFieldField(required=True)
-    message = fields.TranslatableField(required=False, max_length=Msg.MAX_TEXT_LEN)
+    message = fields.TranslationsField(required=False, max_length=Msg.MAX_TEXT_LEN)
     flow = fields.FlowField(required=False)
 
     def validate_unit(self, value):
@@ -362,17 +377,18 @@ class CampaignEventWriteSerializer(WriteSerializer):
             raise serializers.ValidationError("Cannot change campaign for existing events")
         return value
 
+    def validate_message(self, value):
+        if value and not value.get(self.context["org"].flow_languages[0]):
+            raise serializers.ValidationError("Message text in default flow language is required.")
+
+        return value
+
     def validate(self, data):
         message = data.get("message")
         flow = data.get("flow")
 
-        if message and not flow:
-            translations, base_language = message
-            if not translations[base_language]:
-                raise serializers.ValidationError("Message text is required")
-
         if (message and flow) or (not message and not flow):
-            raise serializers.ValidationError("Flow UUID or a message text required.")
+            raise serializers.ValidationError("Flow or a message text required.")
 
         return data
 
@@ -380,6 +396,11 @@ class CampaignEventWriteSerializer(WriteSerializer):
         """
         Create or update our campaign event
         """
+
+        org = self.context["org"]
+        user = self.context["user"]
+        base_language = org.flow_languages[0]
+
         campaign = self.validated_data.get("campaign")
         offset = self.validated_data.get("offset")
         unit = self.validated_data.get("unit")
@@ -389,9 +410,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
         flow = self.validated_data.get("flow")
 
         if self.instance:
-
-            # we dont update, we only create
-            self.instance = self.instance.recreate()
+            self.instance = self.instance.recreate()  # don't update but re-create to invalidate existing event fires
 
             # we are being set to a flow
             if flow:
@@ -401,20 +420,17 @@ class CampaignEventWriteSerializer(WriteSerializer):
 
             # we are being set to a message
             else:
-                translations, base_language = message
-                self.instance.message = translations
+                self.instance.message = message
 
                 # if we aren't currently a message event, we need to create our hidden message flow
                 if self.instance.event_type != CampaignEvent.TYPE_MESSAGE:
-                    self.instance.flow = Flow.create_single_message(
-                        self.context["org"], self.context["user"], translations, base_language
-                    )
+                    self.instance.flow = Flow.create_single_message(org, user, message, base_language)
                     self.instance.event_type = CampaignEvent.TYPE_MESSAGE
 
                 # otherwise, we can just update that flow
                 else:
                     # set our single message on our flow
-                    self.instance.flow.update_single_message_flow(self.context["user"], translations, base_language)
+                    self.instance.flow.update_single_message_flow(user, message, base_language)
 
             # update our other attributes
             self.instance.offset = offset
@@ -427,21 +443,11 @@ class CampaignEventWriteSerializer(WriteSerializer):
         else:
             if flow:
                 self.instance = CampaignEvent.create_flow_event(
-                    self.context["org"], self.context["user"], campaign, relative_to, offset, unit, flow, delivery_hour
+                    org, user, campaign, relative_to, offset, unit, flow, delivery_hour
                 )
             else:
-                translations, base_language = message
-
                 self.instance = CampaignEvent.create_message_event(
-                    self.context["org"],
-                    self.context["user"],
-                    campaign,
-                    relative_to,
-                    offset,
-                    unit,
-                    translations,
-                    delivery_hour,
-                    base_language,
+                    org, user, campaign, relative_to, offset, unit, message, delivery_hour, base_language
                 )
 
             self.instance.update_flow_name()
