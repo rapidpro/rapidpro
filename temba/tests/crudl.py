@@ -75,7 +75,7 @@ class CRUDLTestMixin:
         context_objects=None,
         context_object_count=None,
         status=200,
-        new_ui=True,
+        new_ui=False,
     ):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
