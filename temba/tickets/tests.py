@@ -270,15 +270,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         menu = response.json()["results"]
         self.assertEqual(
             [
-                {"id": "mine", "name": "My Tickets", "icon": "icon.tickets_mine", "count": 2, "verbose_name": None},
+                {"id": "mine", "name": "My Tickets", "icon": "icon.tickets_mine", "count": 2},
                 {
                     "id": "unassigned",
                     "name": "Unassigned",
                     "icon": "icon.tickets_unassigned",
                     "count": 1,
-                    "verbose_name": "Unassigned Tickets",
                 },
-                {"id": "all", "name": "All", "icon": "icon.tickets_all", "count": 3, "verbose_name": "All Tickets"},
+                {"id": "all", "name": "All", "icon": "icon.tickets_all", "count": 3},
             ],
             menu,
         )

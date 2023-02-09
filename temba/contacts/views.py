@@ -577,7 +577,6 @@ class ContactCRUDL(SmartCRUDL):
                     "id": "active",
                     "count": counts[Contact.STATUS_ACTIVE],
                     "name": _("Active"),
-                    "verbose_name": _("Active Contacts"),
                     "href": reverse("contacts.contact_list"),
                     "icon": "icon.active",
                 },
@@ -586,14 +585,12 @@ class ContactCRUDL(SmartCRUDL):
                     "icon": "icon.archive",
                     "count": counts[Contact.STATUS_ARCHIVED],
                     "name": _("Archived"),
-                    "verbose_name": _("Archived Contacts"),
                     "href": reverse("contacts.contact_archived"),
                 },
                 {
                     "id": "blocked",
                     "count": counts[Contact.STATUS_BLOCKED],
                     "name": _("Blocked"),
-                    "verbose_name": _("Blocked Contacts"),
                     "href": reverse("contacts.contact_blocked"),
                     "icon": "icon.contact_blocked",
                 },
@@ -601,7 +598,6 @@ class ContactCRUDL(SmartCRUDL):
                     "id": "stopped",
                     "count": counts[Contact.STATUS_STOPPED],
                     "name": _("Stopped"),
-                    "verbose_name": _("Stopped Contacts"),
                     "href": reverse("contacts.contact_stopped"),
                     "icon": "icon.contact_stopped",
                 },
@@ -650,7 +646,7 @@ class ContactCRUDL(SmartCRUDL):
 
             if group_items:
                 menu.append(
-                    {"id": "groups", "icon": "users", "name": _("Groups"), "items": group_items, "inline": True}
+                    {"id": "filter", "icon": "users", "name": _("Groups"), "items": group_items, "inline": True}
                 )
 
             return JsonResponse({"results": menu})
@@ -765,6 +761,11 @@ class ContactCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
         fields = ("name",)
         select_related = ("current_flow",)
+
+        def derive_menu_path(self):
+            if self.object.status == Contact.STATUS_ACTIVE:
+                return "contact/active"
+            return f"/contact/{self.object.get_status_display().lower()}"
 
         def derive_title(self):
             return self.object.get_display()
@@ -1039,6 +1040,7 @@ class ContactCRUDL(SmartCRUDL):
     class List(ContentMenuMixin, ContactListView):
         title = _("Active Contacts")
         system_group = ContactGroup.TYPE_DB_ACTIVE
+        menu_path = "/contact/active"
 
         def get_bulk_actions(self):
             return ("block", "archive", "send", "start-flow") if self.has_org_perm("contacts.contact_update") else ()
@@ -1812,6 +1814,8 @@ class ContactFieldCRUDL(SmartCRUDL):
                 return HttpResponse(json.dumps(payload), status=400, content_type="application/json")
 
     class List(ContentMenuMixin, ContactFieldListView):
+        menu_path = "contact/fields"
+
         def build_content_menu(self, menu):
             menu.add_modax(
                 _("New Field"),
@@ -1892,6 +1896,7 @@ class ContactImportCRUDL(SmartCRUDL):
         form_class = Form
         success_message = ""
         success_url = "id@contacts.contactimport_preview"
+        menu_path = "contact/import"
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()

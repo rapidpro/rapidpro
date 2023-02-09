@@ -113,6 +113,9 @@ class TicketCRUDL(SmartCRUDL):
                 return "tickets:activity", ""
             return "", ""
 
+        def derive_menu_path(self):
+            return f"/ticket/{self.kwargs.get('folder', 'mine')}/"
+
         @cached_property
         def tickets_path(self) -> tuple:
             """
@@ -124,7 +127,7 @@ class TicketCRUDL(SmartCRUDL):
             in_page = False
 
             path = self.spa_referrer_path
-            if path and len(path) > 1 and path[0] == "tickets":
+            if path and len(path) > 1 and path[0] == "ticket":
                 if not folder and len(path) > 1:
                     folder = path[1]
                 if not status and len(path) > 2:
@@ -191,7 +194,6 @@ class TicketCRUDL(SmartCRUDL):
                     {
                         "id": folder.slug,
                         "name": folder.name,
-                        "verbose_name": folder.verbose_name,
                         "icon": folder.icon,
                         "count": counts[folder.slug],
                     }

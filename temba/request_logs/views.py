@@ -73,6 +73,9 @@ class HTTPLogCRUDL(SmartCRUDL):
         source_url = "uuid@classifiers.classifier_read"
         title = _("Recent Classifier Events")
 
+        def derive_menu_path(self):
+            return f"/settings/classifiers/{self.source.uuid}"
+
         def get_source(self, uuid):
             return Classifier.objects.filter(uuid=uuid, is_active=True)
 
@@ -91,8 +94,14 @@ class HTTPLogCRUDL(SmartCRUDL):
         def permission(self):
             return "request_logs.httplog_webhooks" if self.get_object().flow else "request_logs.httplog_read"
 
+        def derive_menu_path(self):
+            if self.get_object().classifier:
+                return f"/settings/classifiers/{self.object.classifier.uuid}"
+            return super().derive_menu_path()
+
         def build_content_menu(self, menu):
-            if self.object.classifier:
+            object = self.get_object()
+            if object and object.classifier:
                 menu.add_link(
-                    _("Classifier Log"), reverse("request_logs.httplog_classifier", args=[self.object.classifier.uuid])
+                    _("Classifier Log"), reverse("request_logs.httplog_classifier", args=[object.classifier.uuid])
                 )

@@ -4,14 +4,6 @@
 -block page-title
   {{ title }}
 
--block temba-store
-  -if not is_spa
-    %temba-store(
-      completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
-      fields="/api/v2/fields.json"
-      globals="/api/v2/globals.json"
-      groups="/api/v2/groups.json")
-
 -block extra-style
   {{block.super}}
   :css
@@ -78,6 +70,18 @@
 
 -block extra-script
   {{ block.super }}
+
+  -if not is_spa
+    :javascript
+      function handleTembaMenuClicked(event) {
+        var items = event.detail;
+        var item = items.item;
+        var parent = items.parent;
+        var selection = items.selection;
+        if (selection.length > 1 && selection[0] == "ticket") {
+          handleTicketsMenuChanged(item);
+        }
+      }
     
   :javascript
     // current state
@@ -86,13 +90,6 @@
     var ticketUUID = '{{uuid}}';
     var initialTicket = '{{uuid}}';
     var focusNext;
-
-    function handleTembaMenuClicked(event) {
-      var menuItem = event.detail.item;
-      if (menuItem.id !== "tickets") {
-        handleTicketsMenuChanged(menuItem);
-      }
-    }
 
     function handleTicketsMenuChanged(menuItem) {
       var statusSelect = document.querySelector('temba-select[name="ticket-status"]');
@@ -177,7 +174,7 @@
       var path = `${folder}/${status}/${ticketUUID || ''}`;
 
       {% if is_spa %}
-        var show = `/tickets/${path}`;
+        var show = `/ticket/${path}`;
       {% else %}
         var show = `/ticket/${path}`;
       {% endif %}
@@ -268,13 +265,12 @@
     }
 
 -block page-container
-  -block content
     .flex.flex-col.overflow-hidden.flex-grow
       .page.flex-grow.flex.flex-col.min-h-0
         .flex.widget-container(style="height:100%")
           -if not is_spa
             .folders
-              %temba-menu(endpoint="{%url 'orgs.org_menu'%}" submenu="tickets" -temba-button-clicked="handleTembaMenuClicked(event)" value="tickets/{{folder}}")
+              %temba-menu(endpoint="{%url 'orgs.org_menu'%}" submenu="ticket" -temba-button-clicked="handleTembaMenuClicked(event)" value="ticket/{{folder}}")
           
           .ticket-list.flex.flex-col(class="{% if is_spa%} {% else %}m-4 pt-4 mr-2{%endif%}")
             %temba-select(name="ticket-status" onchange="handleStatusChanged(event)" value="{{status}}")
