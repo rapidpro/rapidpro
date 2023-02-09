@@ -3725,6 +3725,15 @@ class ContactURNTest(TembaTest):
         with AnonymousOrg(self.org):
             self.assertEqual(urn.get_for_api(), "tel:********")
 
+    def test_ensure_normalization(self):
+        contact1 = self.create_contact("Bob", urns=["tel:+250788111111"])
+        contact2 = self.create_contact("Jim", urns=["tel:+0788222222"])
+
+        self.org.normalize_contact_tels()
+
+        self.assertEqual("+250788111111", contact1.urns.get().path)
+        self.assertEqual("+250788222222", contact2.urns.get().path)
+
 
 class ContactFieldTest(TembaTest):
     def setUp(self):
