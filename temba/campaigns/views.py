@@ -203,7 +203,7 @@ class CampaignCRUDL(SmartCRUDL):
         fields = ("name", "group")
         bulk_actions = ("archive",)
         search_fields = ("name__icontains", "group__name__icontains")
-        menu_path = "campaign/active"
+        menu_path = "/campaign/active"
 
         def derive_title(self):
             return _("Active Campaigns")
@@ -226,7 +226,7 @@ class CampaignCRUDL(SmartCRUDL):
     class Archived(BaseList):
         fields = ("name",)
         bulk_actions = ("restore",)
-        menu_path = "campaign/archived"
+        menu_path = "/campaign/archived"
 
         def derive_title(self):
             return _("Archived Campaigns")

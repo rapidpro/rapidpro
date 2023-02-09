@@ -201,7 +201,7 @@ class BroadcastCRUDL(SmartCRUDL):
         search_fields = ("translations__und__icontains", "contacts__urns__path__icontains")
         system_label = SystemLabel.TYPE_SCHEDULED
         default_order = ("-created_on",)
-        menu_path = "msg/scheduled"
+        menu_path = "/msg/scheduled"
 
         def build_content_menu(self, menu):
             if self.has_org_perm("msgs.broadcast_scheduled_create"):
@@ -299,7 +299,7 @@ class BroadcastCRUDL(SmartCRUDL):
             return self.render_modal_response(form)
 
     class ScheduledRead(SpaMixin, ContentMenuMixin, FormaxMixin, OrgObjPermsMixin, SmartReadView):
-        menu_path = "msg/scheduled"
+        menu_path = "/msg/scheduled"
 
         def derive_title(self):
             return _("Scheduled Message")

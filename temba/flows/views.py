@@ -809,7 +809,7 @@ class FlowCRUDL(SmartCRUDL):
     class List(BaseList):
         title = _("Active Flows")
         bulk_actions = ("archive", "label", "download-results")
-        menu_path = "flow/active"
+        menu_path = "/flow/active"
 
         def derive_queryset(self, *args, **kwargs):
             queryset = super().derive_queryset(*args, **kwargs)

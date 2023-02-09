@@ -55,7 +55,7 @@ class ArchiveCRUDL(SmartCRUDL):
             return context
 
     class Run(BaseList):
-        menu_path = "settings/archives/run"
+        menu_path = "/settings/archives/run"
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -68,7 +68,7 @@ class ArchiveCRUDL(SmartCRUDL):
             return Archive.TYPE_FLOWRUN
 
     class Message(BaseList):
-        menu_path = "settings/archives/message"
+        menu_path = "/settings/archives/message"
 
         @classmethod
         def derive_url_pattern(cls, path, action):

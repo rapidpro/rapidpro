@@ -1812,7 +1812,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 return HttpResponse(json.dumps(payload), status=400, content_type="application/json")
 
     class List(ContentMenuMixin, ContactFieldListView):
-        menu_path = "contact/fields"
+        menu_path = "/contact/fields"
 
         def build_content_menu(self, menu):
             menu.add_modax(
@@ -1894,7 +1894,7 @@ class ContactImportCRUDL(SmartCRUDL):
         form_class = Form
         success_message = ""
         success_url = "id@contacts.contactimport_preview"
-        menu_path = "contact/import"
+        menu_path = "/contact/import"
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()

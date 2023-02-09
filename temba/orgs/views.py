@@ -942,7 +942,7 @@ class UserCRUDL(SmartCRUDL):
         submit_button_name = _("Enable")
         permission = "orgs.org_two_factor"
         title = _("Enable Two-factor Authentication")
-        menu_path = "settings/2fa"
+        menu_path = "/settings/2fa"
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -989,7 +989,7 @@ class UserCRUDL(SmartCRUDL):
         submit_button_name = _("Disable")
         permission = "orgs.org_two_factor"
         title = _("Disable Two-factor Authentication")
-        menu_path = "settings/2fa"
+        menu_path = "/settings/2fa"
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -1007,7 +1007,7 @@ class UserCRUDL(SmartCRUDL):
     ):
         permission = "orgs.org_two_factor"
         title = _("Two-factor Authentication")
-        menu_path = "settings/2fa"
+        menu_path = "/settings/2fa"
 
         def pre_process(self, request, *args, **kwargs):
             # if 2FA isn't enabled for this user, take them to the enable view instead
@@ -1034,7 +1034,7 @@ class UserCRUDL(SmartCRUDL):
     class Account(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Account")
         permission = "orgs.org_account"
-        menu_path = "settings/account"
+        menu_path = "/settings/account"
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -2459,7 +2459,7 @@ class OrgCRUDL(SmartCRUDL):
         success_message = ""
         submit_button_name = _("Save Changes")
         title = _("Users")
-        menu_path = "settings/users"
+        menu_path = "/settings/users"
 
         def pre_process(self, request, *args, **kwargs):
             if Org.FEATURE_USERS not in request.org.features:
@@ -2582,7 +2582,7 @@ class OrgCRUDL(SmartCRUDL):
         fields = ("name", "contacts", "manage", "created_on")
         title = _("Workspaces")
         link_fields = []
-        menu_path = "settings/workspaces"
+        menu_path = "/settings/workspaces"
 
         def build_content_menu(self, menu):
             org = self.get_object()
@@ -3215,7 +3215,7 @@ class OrgCRUDL(SmartCRUDL):
         success_message = ""
         title = _("Resthooks")
         success_url = "@orgs.org_resthooks"
-        menu_path = "settings/resthooks"
+        menu_path = "/settings/resthooks"
 
         def get_form(self):
             form = super().get_form()
@@ -3288,7 +3288,7 @@ class OrgCRUDL(SmartCRUDL):
 
     class Workspace(SpaMixin, FormaxMixin, ContentMenuMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Workspace")
-        menu_path = "settings/workspace"
+        menu_path = "/settings/workspace"
 
         def build_content_menu(self, menu):
             menu.add_link(_("New Channel"), reverse("channels.channel_claim"), as_button=True)

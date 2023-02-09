@@ -253,7 +253,7 @@ class TriggerCRUDL(SmartCRUDL):
 
     class Create(SpaMixin, FormaxMixin, OrgFilterMixin, OrgPermsMixin, SmartTemplateView):
         title = _("New Trigger")
-        menu_path = "trigger/new-trigger"
+        menu_path = "/trigger/new-trigger"
 
         def derive_formax_sections(self, formax, context):
             def add_section(name, url, icon):
@@ -508,7 +508,7 @@ class TriggerCRUDL(SmartCRUDL):
 
         bulk_actions = ("archive",)
         title = _("Active Triggers")
-        menu_path = "trigger/active"
+        menu_path = "/trigger/active"
 
         def pre_process(self, request, *args, **kwargs):
             # if they have no triggers and no search performed, send them to create page
@@ -527,7 +527,7 @@ class TriggerCRUDL(SmartCRUDL):
 
         bulk_actions = ("restore",)
         title = _("Archived Triggers")
-        menu_path = "trigger/archived"
+        menu_path = "/trigger/archived"
 
         def get_queryset(self, *args, **kwargs):
             return super().get_queryset(*args, **kwargs).filter(is_archived=True)
