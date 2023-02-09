@@ -1,3 +1,8 @@
+v8.1.25 (2023-02-09)
+-------------------------
+ * Remove support for unused v1 omnibox format
+ * Update broadcasts API endpoint to support attachments
+
 v8.1.24 (2023-02-08)
 -------------------------
  * Update to latest cryptography library
