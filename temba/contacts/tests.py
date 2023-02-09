@@ -23,7 +23,7 @@ from django.utils import timezone
 
 from temba.airtime.models import AirtimeTransfer
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.channels.models import ChannelEvent, ChannelLog
 from temba.contacts.search import SearchException, search_contacts
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowSession, FlowStart
@@ -1966,11 +1966,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             response = self.client.get(f"{path}?{query}")
             return response.json()["results"]
 
-        # omnibox view will try to search it as a contact then as a URN so 2 calls to mailroom search endpoint
+        # configure mocking so we call actual search method but mailroom returns an error
         mr_mocks.error("ooh that doesn't look right")
-        mr_mocks.error("ooh that doesn't look right again")
-
-        # for this one test we want to call the actual search method..
         mock_search_contacts.side_effect = search_contacts
 
         # error is swallowed and we show no results
@@ -2003,37 +2000,16 @@ class ContactTest(TembaTest, CRUDLTestMixin):
                 omnibox_request(query=""),
             )
 
-        with self.assertNumQueries(17):
+        with self.assertNumQueries(14):
             mock_search_contacts.side_effect = [
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id], metadata=QueryMetadata()),
-                SearchResults(
-                    query="",
-                    total=2,
-                    contact_ids=[self.voldemort.id, self.frank.id],
-                    metadata=QueryMetadata(),
-                ),
             ]
 
             self.assertEqual(
                 [
-                    # 2 contacts
+                    # 2 contacts A-Z
                     {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact", "urn": ""},
                     {"id": str(self.frank.uuid), "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
-                    # 2 sendable URNs with contact names
-                    {
-                        "id": "tel:250768383383",
-                        "name": "250768383383",
-                        "contact": None,
-                        "scheme": "tel",
-                        "type": "urn",
-                    },
-                    {
-                        "id": "tel:250782222222",
-                        "name": "250782222222",
-                        "type": "urn",
-                        "contact": "Frank Smith",
-                        "scheme": "tel",
-                    },
                 ],
                 omnibox_request(query="search=250"),
             )
@@ -2041,7 +2017,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         with self.assertNumQueries(15):
             mock_search_contacts.side_effect = [
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id], metadata=QueryMetadata()),
-                SearchResults(query="", total=0, contact_ids=[], metadata=QueryMetadata()),
             ]
 
             self.assertEqual(
@@ -2080,127 +2055,10 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             omnibox_request("types=s"),
         )
 
-        mock_search_contacts.side_effect = [
-            SearchResults(
-                query="",
-                total=4,
-                contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
-                metadata=QueryMetadata(),
-            ),
-            SearchResults(
-                query="",
-                total=3,
-                contact_ids=[self.voldemort.id, self.joe.id, self.frank.id],
-                metadata=QueryMetadata(),
-            ),
-        ]
-        self.assertEqual(
-            [
-                {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact", "urn": ""},
-                {"id": str(self.frank.uuid), "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
-                {"id": str(self.joe.uuid), "name": "Joe Blow", "type": "contact", "urn": "blow80"},
-                {"id": str(self.voldemort.uuid), "name": "250768383383", "type": "contact", "urn": "250768383383"},
-                {
-                    "id": "tel:250768383383",
-                    "name": "250768383383",
-                    "contact": None,
-                    "scheme": "tel",
-                    "type": "urn",
-                },
-                {
-                    "id": "tel:250781111111",
-                    "name": "250781111111",
-                    "type": "urn",
-                    "contact": "Joe Blow",
-                    "scheme": "tel",
-                },
-                {
-                    "id": "tel:250782222222",
-                    "name": "250782222222",
-                    "type": "urn",
-                    "contact": "Frank Smith",
-                    "scheme": "tel",
-                },
-            ],
-            omnibox_request("search=250&types=c,u"),
-        )
-
-        # search for Frank by phone
-        mock_search_contacts.side_effect = [
-            SearchResults(query="name ~ 222", total=0, contact_ids=[], metadata=QueryMetadata()),
-            SearchResults(query="urn ~ 222", total=1, contact_ids=[self.frank.id], metadata=QueryMetadata()),
-        ]
-        self.assertEqual(
-            [
-                {
-                    "id": "tel:250782222222",
-                    "name": "250782222222",
-                    "type": "urn",
-                    "contact": "Frank Smith",
-                    "scheme": "tel",
-                }
-            ],
-            omnibox_request("search=222"),
-        )
-
-        # create twitter channel
-        self.create_channel("TT", "Twitter", "nyaruka")
-
-        # add add an external channel so numbers get normalized
-        Channel.create(self.org, self.user, "RW", "EX", schemes=[URN.TEL_SCHEME])
-
-        # search for Joe - match on last name and twitter handle
-        mock_search_contacts.side_effect = [
-            SearchResults(query="name ~ blow", total=1, contact_ids=[self.joe.id], metadata=QueryMetadata()),
-            SearchResults(query="urn ~ blow", total=1, contact_ids=[self.joe.id], metadata=QueryMetadata()),
-        ]
-        self.assertEqual(
-            [
-                {"id": str(self.joe.uuid), "name": "Joe Blow", "type": "contact", "urn": "blow80"},
-                {
-                    "id": "tel:+250781111111",
-                    "name": "0781 111 111",
-                    "type": "urn",
-                    "contact": "Joe Blow",
-                    "scheme": "tel",
-                },
-                {
-                    "id": "twitter:blow80",
-                    "name": "blow80",
-                    "type": "urn",
-                    "contact": "Joe Blow",
-                    "scheme": "twitter",
-                },
-            ],
-            omnibox_request("search=BLOW"),
-        )
-
         # lookup by group id
         self.assertEqual(
             [{"id": str(joe_and_frank.uuid), "name": "Joe and Frank", "type": "group", "count": 2}],
             omnibox_request(f"g={joe_and_frank.uuid}"),
-        )
-
-        # lookup by URN ids
-        urn_query = "u=%d,%d" % (self.joe.get_urn(URN.TWITTER_SCHEME).id, self.frank.get_urn(URN.TEL_SCHEME).id)
-        self.assertEqual(
-            [
-                {
-                    "id": "tel:+250782222222",
-                    "name": "0782 222 222",
-                    "type": "urn",
-                    "contact": "Frank Smith",
-                    "scheme": "tel",
-                },
-                {
-                    "id": "twitter:blow80",
-                    "name": "blow80",
-                    "type": "urn",
-                    "contact": "Joe Blow",
-                    "scheme": "twitter",
-                },
-            ],
-            omnibox_request(urn_query),
         )
 
         with AnonymousOrg(self.org):
@@ -2226,28 +2084,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # lookup by contact uuids
         self.assertEqual(omnibox_request("c=%s,%s" % (self.joe.uuid, self.frank.uuid)), [])
-
-        # but still lookup by URN ids
-        urn_query = "u=%d,%d" % (self.joe.get_urn(URN.TWITTER_SCHEME).id, self.frank.get_urn(URN.TEL_SCHEME).id)
-        self.assertEqual(
-            [
-                {
-                    "id": "tel:+250782222222",
-                    "name": "0782 222 222",
-                    "type": "urn",
-                    "contact": "Frank Smith",
-                    "scheme": "tel",
-                },
-                {
-                    "id": "twitter:blow80",
-                    "name": "blow80",
-                    "type": "urn",
-                    "contact": "Joe Blow",
-                    "scheme": "twitter",
-                },
-            ],
-            omnibox_request(urn_query),
-        )
 
     def test_history(self):
         url = reverse("contacts.contact_history", args=[self.joe.uuid])

@@ -226,14 +226,13 @@ class BroadcastCRUDL(SmartCRUDL):
             omnibox = OmniboxField(
                 label=_("Recipients"),
                 required=True,
-                help_text=_("The contacts to send the message to"),
+                help_text=_("The contacts to send the message to."),
                 widget=OmniboxChoice(
                     attrs={
-                        "placeholder": _("Recipients, enter contacts or groups"),
+                        "placeholder": _("Search for contacts or groups"),
                         "widget_only": True,
                         "groups": True,
                         "contacts": True,
-                        "urns": True,
                     }
                 ),
             )
@@ -252,7 +251,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             def clean_omnibox(self):
                 recipients = omnibox_deserialize(self.org, self.cleaned_data["omnibox"])
-                if not (recipients["groups"] or recipients["contacts"] or recipients["urns"]):
+                if not (recipients["groups"] or recipients["contacts"]):
                     raise forms.ValidationError(_("At least one recipient is required."))
                 return recipients
 
@@ -291,7 +290,6 @@ class BroadcastCRUDL(SmartCRUDL):
                 {"und": text},
                 groups=list(recipients["groups"]),
                 contacts=list(recipients["contacts"]),
-                urns=list(recipients["urns"]),
                 schedule=schedule,
             )
 
@@ -357,7 +355,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             # set our new message
             broadcast.translations = {broadcast.base_language: {"text": form.cleaned_data["message"]}}
-            broadcast.update_recipients(groups=omnibox["groups"], contacts=omnibox["contacts"], urns=omnibox["urns"])
+            broadcast.update_recipients(groups=omnibox["groups"], contacts=omnibox["contacts"])
 
             broadcast.save()
             return broadcast
@@ -381,14 +379,13 @@ class BroadcastCRUDL(SmartCRUDL):
             omnibox = OmniboxField(
                 label=_("Recipients"),
                 required=False,
-                help_text=_("The contacts to send the message to"),
+                help_text=_("The contacts to send the message to."),
                 widget=OmniboxChoice(
                     attrs={
-                        "placeholder": _("Recipients, enter contacts or groups"),
+                        "placeholder": _("Search for contacts or groups"),
                         "widget_only": True,
                         "groups": True,
                         "contacts": True,
-                        "urns": True,
                     }
                 ),
             )
@@ -432,17 +429,14 @@ class BroadcastCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             initial = super().derive_initial()
-            org = self.request.org
 
-            urn_ids = [_ for _ in self.request.GET.get("u", "").split(",") if _]
+            org = self.request.org
             contact_uuids = [_ for _ in self.request.GET.get("c", "").split(",") if _]
 
-            if contact_uuids or urn_ids:
+            if contact_uuids:
                 params = {}
                 if len(contact_uuids) > 0:
                     params["c"] = ",".join(contact_uuids)
-                if len(urn_ids) > 0:
-                    params["u"] = ",".join(urn_ids)
 
                 results = omnibox_query(org, **params)
                 initial["omnibox"] = omnibox_results_to_dict(org, results)
@@ -495,19 +489,16 @@ class BroadcastCRUDL(SmartCRUDL):
                 omnibox = omnibox_deserialize(org, form.cleaned_data["omnibox"])
                 groups = list(omnibox["groups"])
                 contacts = list(omnibox["contacts"])
-                urns = list(omnibox["urns"])
 
                 broadcast = Broadcast.create(
-                    org, user, {"und": text}, groups=groups, contacts=contacts, urns=urns, status=Msg.STATUS_QUEUED
+                    org, user, {"und": text}, groups=groups, contacts=contacts, status=Msg.STATUS_QUEUED
                 )
 
                 self.post_save(broadcast)
                 super().form_valid(form)
 
                 analytics.track(
-                    self.request.user,
-                    "temba.broadcast_created",
-                    dict(contacts=len(contacts), groups=len(groups), urns=len(urns)),
+                    self.request.user, "temba.broadcast_created", dict(contacts=len(contacts), groups=len(groups))
                 )
 
             response = self.render_to_response(self.get_context_data())

@@ -1755,14 +1755,13 @@ class FlowCRUDL(SmartCRUDL):
             recipients = OmniboxField(
                 label=_("Recipients"),
                 required=False,
-                help_text=_("The contacts to send the message to"),
+                help_text=_("The contacts to send the message to."),
                 widget=OmniboxChoice(
                     attrs={
-                        "placeholder": _("Recipients, enter contacts or groups"),
+                        "placeholder": _("Search for contacts or groups"),
                         "widget_only": True,
                         "groups": True,
                         "contacts": True,
-                        "urns": True,
                     }
                 ),
             )
