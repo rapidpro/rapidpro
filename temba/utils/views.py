@@ -32,7 +32,7 @@ class SpaMixin(View):
         return tuple(s for s in self.request.META.get("HTTP_TEMBA_REFERER_PATH", "").split("/") if s)
 
     def is_spa(self):
-        return self.request.COOKIES.get("nav") == "2"
+        return self.request.COOKIES.get("nav") == "2" or self.is_content_only()
 
     def is_content_only(self):
         return "HTTP_TEMBA_SPA" in self.request.META

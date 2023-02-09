@@ -25,6 +25,12 @@ class CRUDLTestMixin:
         for check in checks:
             check.pre_check(self, pre_msg_prefix)
 
+        if "HTTP_TEMBA_SPA" in kwargs:
+            self.client.cookies.load(
+                {
+                    "nav": "2",
+                }
+            )
         response = self.client.post(url, post_data, **kwargs) if method == "POST" else self.client.get(url, **kwargs)
 
         for check in checks:

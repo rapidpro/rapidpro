@@ -1046,7 +1046,6 @@ class ContactCRUDL(SmartCRUDL):
             return ("block", "archive", "send", "start-flow") if self.has_org_perm("contacts.contact_update") else ()
 
         def build_content_menu(self, menu):
-            is_spa = "HTTP_TEMBA_SPA" in self.request.META
             search = self.request.GET.get("search")
 
             # define save search conditions
@@ -1077,7 +1076,7 @@ class ContactCRUDL(SmartCRUDL):
                         _("New Group"), "new-group", reverse("contacts.contactgroup_create"), title=_("New Group")
                     )
 
-            if self.has_org_perm("contacts.contactfield_list") and not is_spa:
+            if self.has_org_perm("contacts.contactfield_list") and not self.is_spa():
                 menu.add_link(_("Manage Fields"), reverse("contacts.contactfield_list"))
 
             if self.has_org_perm("contacts.contact_export"):
@@ -1146,9 +1145,8 @@ class ContactCRUDL(SmartCRUDL):
         template_name = "contacts/contact_filter.haml"
 
         def build_content_menu(self, menu):
-            is_spa = "HTTP_TEMBA_SPA" in self.request.META
 
-            if self.has_org_perm("contacts.contactfield_list") and not is_spa:
+            if self.has_org_perm("contacts.contactfield_list") and not self.is_spa():
                 menu.add_link(_("Manage Fields"), reverse("contacts.contactfield_list"))
 
             if not self.group.is_system and self.has_org_perm("contacts.contactgroup_update"):
@@ -1231,7 +1229,7 @@ class ContactCRUDL(SmartCRUDL):
         submit_button_name = _("Save Changes")
 
         def get_success_url(self):
-            if "HTTP_TEMBA_SPA" in self.request.META:
+            if self.is_spa():
                 return "hide"
             return super().get_success_url()
 
