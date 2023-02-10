@@ -1,3 +1,13 @@
+v8.1.26 (2023-02-10)
+-------------------------
+ * Remove returning specific URNs from omniboxes and instead match contacts by URN
+ * Rework spa menu eliminate mapping
+
+v8.1.25 (2023-02-09)
+-------------------------
+ * Remove support for unused v1 omnibox format
+ * Update broadcasts API endpoint to support attachments
+
 v8.1.24 (2023-02-08)
 -------------------------
  * Update to latest cryptography library

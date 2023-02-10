@@ -12,11 +12,10 @@
   .flex.flex-wrap.flex-row.items-center
     .mr-3
       {{contact|name_or_urn:user_org|default:"Contact Details"}}
-    -for urn in contact_urns
-      -if not user_org.is_anon
+    -if not user_org.is_anon
+      -for urn in contact_urns
         -if urn.sendable
-          %temba-modax.text-base{ header:'Send Message', endpoint:"{% url 'msgs.broadcast_send' %}?u={{urn.id}}"}
-            .mr-3.hover-linked{class:"glyph {{urn|urn_icon}}", style:"margin-top:0px"}
+          .mr-3{class:"glyph {{urn|urn_icon}}", style:"margin-top:0px"}
 
 -block subtitle
 

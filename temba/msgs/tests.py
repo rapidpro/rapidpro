@@ -28,6 +28,7 @@ from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
+from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .tasks import squash_msg_counts
 from .templatetags.sms import as_icon
@@ -1693,7 +1694,8 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
         # can as org viewer user
-        response = self.requestView(label3_url, self.user)
+        response = self.requestView(label3_url, self.user, HTTP_TEMBA_SPA=1)
+        self.assertEqual(f"/msg/labels/{label3.uuid}", response.headers[TEMBA_MENU_SELECTION])
         self.assertEqual(200, response.status_code)
         self.assertEqual(("label",), response.context["actions"])
         self.assertContentMenu(label3_url, self.user, ["Download", "Usages"])  # no update or delete
@@ -1939,35 +1941,12 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             omnibox.value(),
         )
 
-        # initialize form based on an existing URN
-        response = self.client.get(f"{send_url}?u={self.joe.get_urn().id}")
-        omnibox = response.context["form"]["omnibox"]
-        self.assertEqual(
-            [
-                {
-                    "id": "tel:+12025550149",
-                    "name": "(202) 555-0149",
-                    "type": "urn",
-                    "contact": "Joe Blow",
-                    "scheme": "tel",
-                }
-            ],
-            omnibox.value(),
-        )
-
-        # submit with a send to a group, a contact, an existing URN and a raw URN
+        # submit with a send to a group and a contact
         response = self.client.post(
             send_url,
             {
                 "text": "Hey Joe, where you goin?",
-                "omnibox": omnibox_serialize(
-                    self.org,
-                    [self.joe_and_frank],
-                    [self.frank],
-                    urns=[self.joe.get_urn()],
-                    raw_urns=["tel:0780000001"],
-                    json_encode=True,
-                ),
+                "omnibox": omnibox_serialize(self.org, [self.joe_and_frank], [self.frank], json_encode=True),
             },
         )
         self.assertEqual(200, response.status_code)
@@ -1976,7 +1955,6 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({"und": {"text": "Hey Joe, where you goin?"}}, broadcast.translations)
         self.assertEqual({self.joe_and_frank}, set(broadcast.groups.all()))
         self.assertEqual({self.frank}, set(broadcast.contacts.all()))
-        self.assertEqual(["tel:+12025550149", "tel:0780000001"], broadcast.raw_urns)
 
         mock_queue_broadcast.assert_called_once_with(broadcast)
 
@@ -1985,16 +1963,6 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             send_url, {"text": "Broken", "omnibox": omnibox_serialize(self.org, [], [], json_encode=True)}
         )
         self.assertFormError(response, "form", "omnibox", "At least one recipient is required.")
-
-        # try to submit with an invalid URN
-        response = self.client.post(
-            send_url,
-            {
-                "text": "Broken",
-                "omnibox": omnibox_serialize(self.org, [], [], raw_urns=["tel:$$$$$$"], json_encode=True),
-            },
-        )
-        self.assertFormError(response, "form", "omnibox", "'tel:$$$$$$' is not a valid URN.")
 
         # if we release our send channel we also can't start send
         self.channel.release(self.admin)

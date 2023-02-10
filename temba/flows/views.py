@@ -228,14 +228,11 @@ class FlowCRUDL(SmartCRUDL):
 
             menu = []
             menu.append(
-                self.create_menu_item(
-                    name=_("Active"), verbose_name=_("Active Flows"), icon="icon.active", href="flows.flow_list"
-                )
+                self.create_menu_item(menu_id="", name=_("Active"), icon="icon.active", href="flows.flow_list")
             )
             menu.append(
                 self.create_menu_item(
                     name=_("Archived"),
-                    verbose_name=_("Archived Flows"),
                     icon="icon.archive",
                     href="flows.flow_archived",
                 )
@@ -812,6 +809,7 @@ class FlowCRUDL(SmartCRUDL):
     class List(BaseList):
         title = _("Active Flows")
         bulk_actions = ("archive", "label", "download-results")
+        menu_path = "/flow/active"
 
         def derive_queryset(self, *args, **kwargs):
             queryset = super().derive_queryset(*args, **kwargs)
@@ -903,43 +901,47 @@ class FlowCRUDL(SmartCRUDL):
     class Editor(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
+        def derive_menu_path(self):
+            if self.object.is_archived:
+                return "/flow/archived"
+            return "/flow/active"
+
         def derive_title(self):
             return self.object.name
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
 
-            if not self.is_spa():
-                dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
-                prefix = "/dev" if dev_mode else settings.STATIC_URL
+            dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
+            prefix = "/dev" if dev_mode else settings.STATIC_URL
 
-                # get our list of assets to incude
-                scripts = []
-                styles = []
+            # get our list of assets to incude
+            scripts = []
+            styles = []
 
-                if dev_mode:  # pragma: no cover
-                    response = requests.get("http://localhost:3000/asset-manifest.json")
-                    data = response.json()
-                else:
-                    with open("node_modules/@nyaruka/flow-editor/build/asset-manifest.json") as json_file:
-                        data = json.load(json_file)
+            if dev_mode:  # pragma: no cover
+                response = requests.get("http://localhost:3000/asset-manifest.json")
+                data = response.json()
+            else:
+                with open("node_modules/@nyaruka/flow-editor/build/asset-manifest.json") as json_file:
+                    data = json.load(json_file)
 
-                for key, filename in data.get("files").items():
+            for key, filename in data.get("files").items():
 
-                    # tack on our prefix for dev mode
-                    filename = prefix + filename
+                # tack on our prefix for dev mode
+                filename = prefix + filename
 
-                    # ignore precache manifest
-                    if key.startswith("precache-manifest") or key.startswith("service-worker"):
-                        continue
+                # ignore precache manifest
+                if key.startswith("precache-manifest") or key.startswith("service-worker"):
+                    continue
 
-                    # css files
-                    if key.endswith(".css") and filename.endswith(".css"):
-                        styles.append(filename)
+                # css files
+                if key.endswith(".css") and filename.endswith(".css"):
+                    styles.append(filename)
 
-                    # javascript
-                    if key.endswith(".js") and filename.endswith(".js"):
-                        scripts.append(filename)
+                # javascript
+                if key.endswith(".js") and filename.endswith(".js"):
+                    scripts.append(filename)
 
                 context["scripts"] = scripts
                 context["styles"] = styles
@@ -1755,14 +1757,13 @@ class FlowCRUDL(SmartCRUDL):
             recipients = OmniboxField(
                 label=_("Recipients"),
                 required=False,
-                help_text=_("The contacts to send the message to"),
+                help_text=_("The contacts to send the message to."),
                 widget=OmniboxChoice(
                     attrs={
-                        "placeholder": _("Recipients, enter contacts or groups"),
+                        "placeholder": _("Search for contacts or groups"),
                         "widget_only": True,
                         "groups": True,
                         "contacts": True,
-                        "urns": True,
                     }
                 ),
             )
