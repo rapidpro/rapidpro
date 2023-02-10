@@ -1,0 +1,92 @@
+name: Build Rapidpro in SP (Push Tag)
+
+on:
+  push:
+    tags:
+      - '*.*.*-develop'
+      - '*.*.*-staging'
+      - '*.*.*'
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest 
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v3
+        with:
+          ref: "${{env.GITHUB_SHA}}"
+
+      - name: Set variables
+        run: |
+            TAG="$( echo "${GITHUB_REF}" | cut -d'/' -f3 )"
+            if grep -qs -e '^.*.*-develop' <<< "${TAG}" ; then
+              echo "Found environment: DEVELOP - ${TAG}"
+              echo "MANIFESTS_ENVIRONMENT=develop" | tee -a "${GITHUB_ENV}"
+            elif grep -qs -e '^.*.*-staging' <<< "${TAG}" ; then
+              echo "Found environment: STAGING - ${TAG}"
+              echo "MANIFESTS_ENVIRONMENT=staging" | tee -a "${GITHUB_ENV}"
+            elif grep -qs -e '^.*.*' <<< "${TAG}" ; then
+              echo "No environment found, assuming: PRODUCTION - ${TAG}"
+              echo "MANIFESTS_ENVIRONMENT=production" | tee -a "${GITHUB_ENV}"
+            else
+              echo 'Not a valid tag. Skipping...'
+              exit 1
+            fi
+            echo "TAG=$TAG" | tee -a "${GITHUB_ENV}"
+            VERSION="${TAG}"
+            echo "VERSION=${VERSION}" | tee -a "${GITHUB_ENV}"
+            echo "COMMIT_SHA=$GITHUB_SHA" | tee -a "${GITHUB_ENV}"
+            echo "IMAGE_TAG=${{ secrets.ECR_SP }}/push-backend:$TAG" | tee -a "${GITHUB_ENV}"
+            echo "IMAGE_SOURCE_URL=https://github.com/Ilhasoft/rapidpro" | tee -a "${GITHUB_ENV}"
+
+            FLOWEDITOR_VERSION=$(jq -r '.dependencies["@nyaruka/flow-editor"]' < package.json)
+            echo "FLOWEDITOR_VERSION=${FLOWEDITOR_VERSION}" | tee -a "${GITHUB_ENV}"
+            echo "FLOWEDITOR_REPO=https://github.com/ilhasoft/floweditor" | tee -a "${GITHUB_ENV}"
+            echo "FLOWEDITOR_BRANCH=main" | tee -a "${GITHUB_ENV}"
+
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to ECR
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ secrets.ECR_SP }}
+          username: ${{ secrets.AWS_ACCESS_KEY_ID_SP }}      
+          password: ${{ secrets.AWS_SECRET_ACCESS_KEY_SP }}
+
+      - name: Build and push - Rapidpro Image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          labels: |
+            tag=${{env.TAG}}
+            commit=${{env.COMMIT_SHA}}
+            repository=${{env.IMAGE_SOURCE_URL}}
+          file: docker/Dockerfile
+          push: true
+          tags: "${{env.IMAGE_TAG}}"
+          no-cache: true
+          build-args: |
+            FLOWEDITOR_VERSION=${{ env.FLOWEDITOR_VERSION }}
+            FLOWEDITOR_REPO=${{ env.FLOWEDITOR_REPO }}
+            FLOWEDITOR_BRANCH=${{ env.FLOWEDITOR_BRANCH }}   
+
+      - name: Build and push - Flows Varnish Image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          labels: |
+            tag=${{env.TAG}}
+            commit=${{env.COMMIT_SHA}}
+            repository=${{env.IMAGE_SOURCE_URL}}
+          file: docker/Dockerfile.varnish
+          push: true
+          tags: "${{env.IMAGE_TAG}}-varnish"
+          no-cache: true
+          build-args: |
+            BACKEND_ADDRESS=push-${{env.MANIFESTS_ENVIRONMENT}}:8000
+
