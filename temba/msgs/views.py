@@ -201,6 +201,7 @@ class BroadcastCRUDL(SmartCRUDL):
         search_fields = ("translations__und__icontains", "contacts__urns__path__icontains")
         system_label = SystemLabel.TYPE_SCHEDULED
         default_order = ("-created_on",)
+        menu_path = "/msg/scheduled"
 
         def build_content_menu(self, menu):
             if self.has_org_perm("msgs.broadcast_scheduled_create"):
@@ -296,6 +297,8 @@ class BroadcastCRUDL(SmartCRUDL):
             return self.render_modal_response(form)
 
     class ScheduledRead(SpaMixin, ContentMenuMixin, FormaxMixin, OrgObjPermsMixin, SmartReadView):
+        menu_path = "/msg/scheduled"
+
         def derive_title(self):
             return _("Scheduled Message")
 
@@ -539,21 +542,21 @@ class MsgCRUDL(SmartCRUDL):
 
                 menu = [
                     self.create_menu_item(
+                        menu_id="inbox",
                         name=_("Inbox"),
                         href=reverse("msgs.msg_inbox"),
                         count=counts[SystemLabel.TYPE_INBOX],
                         icon="icon.inbox",
                     ),
                     self.create_menu_item(
+                        menu_id="flow",
                         name=_("Flows"),
-                        verbose_name=_("Flow Messages"),
                         href=reverse("msgs.msg_flow"),
                         count=counts[SystemLabel.TYPE_FLOWS],
                         icon="icon.flow",
                     ),
                     self.create_menu_item(
                         name=_("Archived"),
-                        verbose_name=_("Archived Messages"),
                         href=reverse("msgs.msg_archived"),
                         count=counts[SystemLabel.TYPE_ARCHIVED],
                         icon="icon.archive",
@@ -566,20 +569,17 @@ class MsgCRUDL(SmartCRUDL):
                     ),
                     self.create_menu_item(
                         name=_("Sent"),
-                        verbose_name=_("Sent Messages"),
                         href=reverse("msgs.msg_sent"),
                         count=counts[SystemLabel.TYPE_SENT],
                     ),
                     self.create_menu_item(
                         name=_("Failed"),
-                        verbose_name=_("Failed Messages"),
                         href=reverse("msgs.msg_failed"),
                         count=counts[SystemLabel.TYPE_FAILED],
                     ),
                     self.create_divider(),
                     self.create_menu_item(
                         name=_("Scheduled"),
-                        verbose_name=_("Scheduled Messages"),
                         href=reverse("msgs.broadcast_scheduled"),
                         count=counts[SystemLabel.TYPE_SCHEDULED],
                     ),
@@ -783,6 +783,9 @@ class MsgCRUDL(SmartCRUDL):
     class Filter(MsgListView):
         template_name = "msgs/msg_filter.haml"
         bulk_actions = ("label",)
+
+        def derive_menu_path(self):
+            return f"/msg/labels/{self.label.uuid}"
 
         def derive_title(self, *args, **kwargs):
             return self.label.name

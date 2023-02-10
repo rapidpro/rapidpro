@@ -10,6 +10,7 @@ from temba.classifiers.types.wit import WitType
 from temba.tests import CRUDLTestMixin, TembaTest, mock_object
 from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
+from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import HTTPLog
 from .tasks import trim_http_logs
@@ -88,7 +89,9 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         webhooks_url = reverse("request_logs.httplog_webhooks")
         log_url = reverse("request_logs.httplog_read", args=[l1.id])
 
-        response = self.assertListFetch(webhooks_url, allow_viewers=False, allow_editors=True, context_objects=[l1])
+        response = self.assertListFetch(
+            webhooks_url, allow_viewers=False, allow_editors=True, context_objects=[l1], new_ui=True
+        )
         self.assertContains(response, "Webhook Calls")
         self.assertContains(response, log_url)
 
@@ -128,14 +131,19 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         log_url = reverse("request_logs.httplog_read", args=[l1.id])
 
         response = self.assertListFetch(
-            list_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[l1]
+            list_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[l1], new_ui=True
         )
+
+        self.assertEqual(f"/settings/classifiers/{c1.uuid}", response.headers[TEMBA_MENU_SELECTION])
         self.assertContains(response, "Intents Synced")
         self.assertContains(response, log_url)
         self.assertNotContains(response, "Classifier Called")
 
         # view the individual log item
-        response = self.assertReadFetch(log_url, allow_viewers=False, allow_editors=False, context_object=l1)
+        response = self.assertReadFetch(
+            log_url, allow_viewers=False, allow_editors=False, context_object=l1, new_ui=True
+        )
+        self.assertEqual(f"/settings/classifiers/{c1.uuid}", response.headers[TEMBA_MENU_SELECTION])
         self.assertContains(response, "200")
         self.assertContains(response, "org1.bar")
         self.assertNotContains(response, "org2.bar")

@@ -28,6 +28,7 @@ from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
+from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .tasks import squash_msg_counts
 from .templatetags.sms import as_icon
@@ -1693,7 +1694,8 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
         # can as org viewer user
-        response = self.requestView(label3_url, self.user)
+        response = self.requestView(label3_url, self.user, HTTP_TEMBA_SPA=1)
+        self.assertEqual(f"/msg/labels/{label3.uuid}", response.headers[TEMBA_MENU_SELECTION])
         self.assertEqual(200, response.status_code)
         self.assertEqual(("label",), response.context["actions"])
         self.assertContentMenu(label3_url, self.user, ["Download", "Usages"])  # no update or delete

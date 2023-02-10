@@ -577,7 +577,6 @@ class ContactCRUDL(SmartCRUDL):
                     "id": "active",
                     "count": counts[Contact.STATUS_ACTIVE],
                     "name": _("Active"),
-                    "verbose_name": _("Active Contacts"),
                     "href": reverse("contacts.contact_list"),
                     "icon": "icon.active",
                 },
@@ -586,14 +585,12 @@ class ContactCRUDL(SmartCRUDL):
                     "icon": "icon.archive",
                     "count": counts[Contact.STATUS_ARCHIVED],
                     "name": _("Archived"),
-                    "verbose_name": _("Archived Contacts"),
                     "href": reverse("contacts.contact_archived"),
                 },
                 {
                     "id": "blocked",
                     "count": counts[Contact.STATUS_BLOCKED],
                     "name": _("Blocked"),
-                    "verbose_name": _("Blocked Contacts"),
                     "href": reverse("contacts.contact_blocked"),
                     "icon": "icon.contact_blocked",
                 },
@@ -601,7 +598,6 @@ class ContactCRUDL(SmartCRUDL):
                     "id": "stopped",
                     "count": counts[Contact.STATUS_STOPPED],
                     "name": _("Stopped"),
-                    "verbose_name": _("Stopped Contacts"),
                     "href": reverse("contacts.contact_stopped"),
                     "icon": "icon.contact_stopped",
                 },
@@ -650,7 +646,7 @@ class ContactCRUDL(SmartCRUDL):
 
             if group_items:
                 menu.append(
-                    {"id": "groups", "icon": "users", "name": _("Groups"), "items": group_items, "inline": True}
+                    {"id": "filter", "icon": "users", "name": _("Groups"), "items": group_items, "inline": True}
                 )
 
             return JsonResponse({"results": menu})
@@ -765,6 +761,9 @@ class ContactCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
         fields = ("name",)
         select_related = ("current_flow",)
+
+        def derive_menu_path(self):
+            return f"/contact/{self.object.get_status_display().lower()}"
 
         def derive_title(self):
             return self.object.get_display()
@@ -1039,12 +1038,12 @@ class ContactCRUDL(SmartCRUDL):
     class List(ContentMenuMixin, ContactListView):
         title = _("Active Contacts")
         system_group = ContactGroup.TYPE_DB_ACTIVE
+        menu_path = "/contact/active"
 
         def get_bulk_actions(self):
             return ("block", "archive", "send", "start-flow") if self.has_org_perm("contacts.contact_update") else ()
 
         def build_content_menu(self, menu):
-            is_spa = "HTTP_TEMBA_SPA" in self.request.META
             search = self.request.GET.get("search")
 
             # define save search conditions
@@ -1075,7 +1074,7 @@ class ContactCRUDL(SmartCRUDL):
                         _("New Group"), "new-group", reverse("contacts.contactgroup_create"), title=_("New Group")
                     )
 
-            if self.has_org_perm("contacts.contactfield_list") and not is_spa:
+            if self.has_org_perm("contacts.contactfield_list") and not self.is_spa():
                 menu.add_link(_("Manage Fields"), reverse("contacts.contactfield_list"))
 
             if self.has_org_perm("contacts.contact_export"):
@@ -1144,9 +1143,8 @@ class ContactCRUDL(SmartCRUDL):
         template_name = "contacts/contact_filter.haml"
 
         def build_content_menu(self, menu):
-            is_spa = "HTTP_TEMBA_SPA" in self.request.META
 
-            if self.has_org_perm("contacts.contactfield_list") and not is_spa:
+            if self.has_org_perm("contacts.contactfield_list") and not self.is_spa():
                 menu.add_link(_("Manage Fields"), reverse("contacts.contactfield_list"))
 
             if not self.group.is_system and self.has_org_perm("contacts.contactgroup_update"):
@@ -1229,7 +1227,7 @@ class ContactCRUDL(SmartCRUDL):
         submit_button_name = _("Save Changes")
 
         def get_success_url(self):
-            if "HTTP_TEMBA_SPA" in self.request.META:
+            if self.is_spa():
                 return "hide"
             return super().get_success_url()
 
@@ -1812,6 +1810,8 @@ class ContactFieldCRUDL(SmartCRUDL):
                 return HttpResponse(json.dumps(payload), status=400, content_type="application/json")
 
     class List(ContentMenuMixin, ContactFieldListView):
+        menu_path = "/contact/fields"
+
         def build_content_menu(self, menu):
             menu.add_modax(
                 _("New Field"),
@@ -1892,6 +1892,7 @@ class ContactImportCRUDL(SmartCRUDL):
         form_class = Form
         success_message = ""
         success_url = "id@contacts.contactimport_preview"
+        menu_path = "/contact/import"
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()

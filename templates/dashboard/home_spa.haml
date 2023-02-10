@@ -14,6 +14,8 @@
   {{block.super}}
 
   :javascript
+    var redrawMarker = null;
+
     function setChartOptions(begin, end, direction) {
       var from = Highcharts.dateFormat('%A, %B %e, %Y', begin);
       var to = Highcharts.dateFormat('%A, %B %e, %Y', end)
@@ -21,12 +23,6 @@
       document.querySelector("#range-from").innerText = from;
       document.querySelector("#range-to").innerText = to;
     }
-
-    Highcharts.setOptions({
-	  lang: {
-	    thousandsSep: ','
-	  }
-    });
 
     function selectionChanged(chart) {
       var direction = "";
@@ -42,7 +38,6 @@
       setChartOptions(axis.min, axis.max, direction);
     }
 
-    var redrawMarker = null;
     function markDirty(chart) {
       if (redrawMarker != null) {
         window.clearTimeout(redrawMarker);
@@ -50,55 +45,66 @@
       redrawMarker = window.setTimeout(selectionChanged.bind(null, chart), 200);
     }
 
-    var store = document.querySelector("temba-store");
-    store.getUrl('/dashboard/message_history').then(function(response){
-      var data = response.json;
-      // Create the chart
-      Highcharts.stockChart('message-chart', {
-        chart: {
-          zoomType: 'x',
-          events: {
-            // mark dirty out the gate
-            load: function(e) {
-              markDirty(this);
-            },
-            redraw: function(e) {
-              markDirty(this);
-            }
-          }
-        },
-        plotOptions: {
-          series: {
-            showInLegend: true,
-            stacking: 'normal'
-          }
-        },
-        legend: {
-          enabled: true
-        },
-        rangeSelector: {
-          buttons: [
-            {type: 'week', count: 1, text: 'W'},
-            {type: 'month', count: 1, text: 'M'},
-            {type: 'year', count: 1, text: 'Y'},
-            {type: 'all', count: 1, text: 'all'}
-          ],
-          inputEnabled: false,
-          selected: 1
-        },
-        xAxis: {
-          minRange: 3600000 * 24
-        },
-        credits: {
-          enabled: false
-        },
-        navigator: {
-          series: {
-            stacking: 'normal',
-            type: 'column'
-          }
-        },
-        series: data
+    function loadCharts() {
+      Highcharts.setOptions({
+        lang: {
+          thousandsSep: ','
+        }
       });
+    
+      var store = document.querySelector("temba-store");    
+      store.getUrl('/dashboard/message_history').then(function(response){
+        var data = response.json;
+        // Create the chart
+        Highcharts.stockChart('message-chart', {
+          chart: {
+            zoomType: 'x',
+            events: {
+              // mark dirty out the gate
+              load: function(e) {
+                markDirty(this);
+              },
+              redraw: function(e) {
+                markDirty(this);
+              }
+            }
+          },
+          plotOptions: {
+            series: {
+              showInLegend: true,
+              stacking: 'normal'
+            }
+          },
+          legend: {
+            enabled: true
+          },
+          rangeSelector: {
+            buttons: [
+              {type: 'week', count: 1, text: 'W'},
+              {type: 'month', count: 1, text: 'M'},
+              {type: 'year', count: 1, text: 'Y'},
+              {type: 'all', count: 1, text: 'all'}
+            ],
+            inputEnabled: false,
+            selected: 1
+          },
+          xAxis: {
+            minRange: 3600000 * 24
+          },
+          credits: {
+            enabled: false
+          },
+          navigator: {
+            series: {
+              stacking: 'normal',
+              type: 'column'
+            }
+          },
+          series: data
+        });
+  
+      });
+    }
 
-    });
+    onSpload(loadCharts);
+
