@@ -183,14 +183,8 @@ class Broadcast(models.Model):
     # recipients of this broadcast
     groups = models.ManyToManyField(ContactGroup, related_name="addressed_broadcasts")
     contacts = models.ManyToManyField(Contact, related_name="addressed_broadcasts")
-    urns = models.ManyToManyField(ContactURN, related_name="addressed_broadcasts")
     query = models.TextField(null=True)
-
-    # URN strings that mailroom will turn into contacts and URN objects
-    raw_urns = ArrayField(models.TextField(), null=True)
-
-    # whether this broadcast should send to all URNs for each contact
-    send_all = models.BooleanField(default=False)
+    raw_urns = ArrayField(models.TextField(), null=True)  # URN strings that mailroom will resolve
 
     # message content in different languages, e.g. {"eng": {"text": "Hello", "attachments": [...]}, "spa": ...}
     translations = models.JSONField()
@@ -210,6 +204,10 @@ class Broadcast(models.Model):
     parent = models.ForeignKey("Broadcast", on_delete=models.PROTECT, null=True, related_name="children")
     is_active = models.BooleanField(null=True, default=True)
 
+    # TODO drop
+    urns = models.ManyToManyField(ContactURN, related_name="addressed_broadcasts")
+    send_all = models.BooleanField(default=False, null=True)
+
     @classmethod
     def create(
         cls,
@@ -225,7 +223,6 @@ class Broadcast(models.Model):
         contact_ids: list[int] = None,
         channel: Channel = None,
         ticket=None,
-        send_all: bool = False,
         **kwargs,
     ):
         if not base_language:
@@ -246,7 +243,6 @@ class Broadcast(models.Model):
             org=org,
             channel=channel,
             ticket=ticket,
-            send_all=send_all,
             translations=translations,
             base_language=base_language,
             created_by=user,
