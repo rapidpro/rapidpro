@@ -1941,35 +1941,12 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             omnibox.value(),
         )
 
-        # initialize form based on an existing URN
-        response = self.client.get(f"{send_url}?u={self.joe.get_urn().id}")
-        omnibox = response.context["form"]["omnibox"]
-        self.assertEqual(
-            [
-                {
-                    "id": "tel:+12025550149",
-                    "name": "(202) 555-0149",
-                    "type": "urn",
-                    "contact": "Joe Blow",
-                    "scheme": "tel",
-                }
-            ],
-            omnibox.value(),
-        )
-
-        # submit with a send to a group, a contact, an existing URN and a raw URN
+        # submit with a send to a group and a contact
         response = self.client.post(
             send_url,
             {
                 "text": "Hey Joe, where you goin?",
-                "omnibox": omnibox_serialize(
-                    self.org,
-                    [self.joe_and_frank],
-                    [self.frank],
-                    urns=[self.joe.get_urn()],
-                    raw_urns=["tel:0780000001"],
-                    json_encode=True,
-                ),
+                "omnibox": omnibox_serialize(self.org, [self.joe_and_frank], [self.frank], json_encode=True),
             },
         )
         self.assertEqual(200, response.status_code)
@@ -1978,7 +1955,6 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({"und": {"text": "Hey Joe, where you goin?"}}, broadcast.translations)
         self.assertEqual({self.joe_and_frank}, set(broadcast.groups.all()))
         self.assertEqual({self.frank}, set(broadcast.contacts.all()))
-        self.assertEqual(["tel:+12025550149", "tel:0780000001"], broadcast.raw_urns)
 
         mock_queue_broadcast.assert_called_once_with(broadcast)
 
@@ -1987,16 +1963,6 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             send_url, {"text": "Broken", "omnibox": omnibox_serialize(self.org, [], [], json_encode=True)}
         )
         self.assertFormError(response, "form", "omnibox", "At least one recipient is required.")
-
-        # try to submit with an invalid URN
-        response = self.client.post(
-            send_url,
-            {
-                "text": "Broken",
-                "omnibox": omnibox_serialize(self.org, [], [], raw_urns=["tel:$$$$$$"], json_encode=True),
-            },
-        )
-        self.assertFormError(response, "form", "omnibox", "'tel:$$$$$$' is not a valid URN.")
 
         # if we release our send channel we also can't start send
         self.channel.release(self.admin)
