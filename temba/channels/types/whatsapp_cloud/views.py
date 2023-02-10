@@ -12,7 +12,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
 from temba.utils.text import truncate
-from temba.utils.views import ContentMenuMixin
+from temba.utils.views import ContentMenuMixin, SpaMixin
 
 from ...models import Channel
 from ...views import ClaimViewMixin
@@ -223,7 +223,7 @@ class ClearSessionToken(OrgPermsMixin, SmartTemplateView):
         return JsonResponse({})
 
 
-class RequestCode(ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
+class RequestCode(SpaMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
     class Form(forms.Form):
         pass
 
@@ -285,7 +285,7 @@ class RequestCode(ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActi
                 )
 
 
-class VerifyCode(ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
+class VerifyCode(SpaMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
     class Form(forms.Form):
         code = forms.CharField(
             min_length=6, required=True, help_text=_("The 6-digits number verification code"), widget=InputWidget()
