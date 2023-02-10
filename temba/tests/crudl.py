@@ -27,12 +27,17 @@ class CRUDLTestMixin:
 
         if new_ui or "HTTP_TEMBA_SPA" in kwargs:
             self.client.cookies.load({"nav": "2"})
+            if user:
+                self.make_beta(user)
 
         response = self.client.post(url, post_data, **kwargs) if method == "POST" else self.client.get(url, **kwargs)
 
         # remove our spa cookie if we added it
         if new_ui or "HTTP_TEMBA_SPA" in kwargs:
             self.client.cookies.load({"nav": "1"})
+
+            if user:
+                self.unbeta(user)
 
         for check in checks:
             check.check(self, response, msg_prefix)

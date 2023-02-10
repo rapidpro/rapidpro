@@ -470,6 +470,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # new ui path
         self.login(self.user)
+        self.make_beta(self.user)
         self.new_ui()
         response = self.client.get(tel_channel_read_url)
         self.assertEqual(f"/settings/channels/{self.tel_channel.uuid}", response.headers[TEMBA_MENU_SELECTION])

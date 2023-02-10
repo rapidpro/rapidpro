@@ -512,7 +512,6 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContains(response, "Joe")
 
         # login as admin
-        self.make_beta(self.admin)
         self.login(self.admin)
         self.new_ui()
 
