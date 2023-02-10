@@ -9,6 +9,7 @@ from temba.contacts.models import URN, Contact, ContactField as ContactFieldMode
 from temba.flows.models import Flow
 from temba.msgs.models import Label, Msg
 from temba.tickets.models import Ticket, Ticketer, Topic
+from temba.utils import languages
 from temba.utils.uuid import is_uuid
 
 # default maximum number of items in a posted list or dict
@@ -16,24 +17,44 @@ DEFAULT_MAX_LIST_ITEMS = 100
 DEFAULT_MAX_DICT_ITEMS = 100
 
 
-def validate_size(value, max_size):
+def validate_size(value, max_size: int):
     if hasattr(value, "__len__") and len(value) > max_size:
-        raise serializers.ValidationError("This field can only contain up to %d items." % max_size)
+        raise serializers.ValidationError(f"This field can only contain up to {max_size} items.")
 
 
-def validate_translations(value, base_language, max_length):
-    if len(value) == 0:
+def validate_language(value):
+    if not isinstance(value, str) or len(value) != 3 or not languages.get_name(value):
+        raise serializers.ValidationError("Not an allowed ISO 639-3 language code.")
+
+
+def validate_translations(value, *, max_length: int, lists: bool, max_items: int = 0):
+    if not isinstance(value, dict):
+        raise serializers.ValidationError("Must be a dictionary of languages to translated values.")
+    elif len(value) == 0:
         raise serializers.ValidationError("Must include at least one translation.")
-    if base_language not in value:
-        raise serializers.ValidationError("Must include translation for base language '%s'" % base_language)
 
     for lang, trans in value.items():
-        if not isinstance(lang, str) or len(lang) != 3:
-            raise serializers.ValidationError("Language code %s is not valid." % str(lang))
-        if not isinstance(trans, str):
-            raise serializers.ValidationError("Translations must be strings.")
-        if len(trans) > max_length:
-            raise serializers.ValidationError("Ensure translations have no more than %d characters." % max_length)
+        validate_language(lang)
+
+        if lists:
+            if not isinstance(trans, list) or not all([isinstance(t, str) for t in trans]):
+                raise serializers.ValidationError("Translations must be lists of strings.")
+
+            if len(trans) > max_items:
+                raise serializers.ValidationError(f"Translations can only contain up to {max_items} items.")
+
+            as_list = trans
+        else:
+            if not isinstance(trans, str):
+                raise serializers.ValidationError("Translations must be strings.")
+
+            as_list = [trans]
+
+        for t in as_list:
+            if not t.strip():
+                raise serializers.ValidationError("Translations cannot be empty or blank.")
+            if len(t) > max_length:
+                raise serializers.ValidationError("Translations must have no more than %d characters." % max_length)
 
 
 def validate_urn(value, strict=True, country_code=None):
@@ -47,33 +68,52 @@ def validate_urn(value, strict=True, country_code=None):
     return normalized
 
 
-class TranslatableField(serializers.Field):
+class LanguageField(serializers.CharField):
+    max_length = 3
+
+    def to_internal_value(self, data):
+        validate_language(data)
+
+        return super().to_internal_value(data)
+
+
+class TranslationsField(serializers.Field):
     """
-    A field which is either a simple string or a translations dict
+    A field which is either a string or a language -> string translations dict
     """
 
-    def __init__(self, **kwargs):
-        self.max_length = kwargs.pop("max_length", None)
+    def __init__(self, max_length, **kwargs):
+        self.max_length = max_length
+
         super().__init__(**kwargs)
 
     def to_internal_value(self, data):
-        org = self.context["org"]
-        base_language = org.flow_languages[0]
-
         if isinstance(data, str):
-            if len(data) > self.max_length:
-                raise serializers.ValidationError(
-                    "Ensure this field has no more than %d characters." % self.max_length
-                )
+            data = {self.context["org"].flow_languages[0]: data}
 
-            data = {base_language: data}
+        validate_translations(data, max_length=self.max_length, lists=False)
 
-        elif isinstance(data, dict):
-            validate_translations(data, base_language, self.max_length)
-        else:
-            raise serializers.ValidationError("Value must be a string or dict of strings.")
+        return data
 
-        return data, base_language
+
+class TranslationsListField(serializers.Field):
+    """
+    A field which is either a list of strings or a language -> list of strings translations dict
+    """
+
+    def __init__(self, max_items, max_length, **kwargs):
+        self.max_items = max_items
+        self.max_length = max_length
+
+        super().__init__(**kwargs)
+
+    def to_internal_value(self, data):
+        if isinstance(data, list):
+            data = {self.context["org"].flow_languages[0]: data}
+
+        validate_translations(data, max_length=self.max_length, lists=True, max_items=self.max_items)
+
+        return data
 
 
 class LimitedListField(serializers.ListField):

@@ -118,7 +118,7 @@ def omnibox_serialize(org, groups, contacts, *, urns=(), raw_urns=(), json_encod
     """
     Shortcut for proper way to serialize a queryset of groups and contacts for omnibox component
     """
-    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts) + list(urns), version="2")
+    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts) + list(urns))
 
     serialized += [{"type": "urn", "id": u} for u in raw_urns]
 
@@ -140,7 +140,7 @@ def omnibox_deserialize(org, omnibox):
     }
 
 
-def omnibox_results_to_dict(org, results, version: str = "1"):
+def omnibox_results_to_dict(org, results):
     """
     Converts the result of a omnibox query (queryset of contacts, groups or URNs, or a list) into a dict {id, text}
     """
@@ -151,43 +151,26 @@ def omnibox_results_to_dict(org, results, version: str = "1"):
 
     for obj in results:
         if isinstance(obj, ContactGroup):
-            if version == "1":
-                result = {"id": "g-%s" % obj.uuid, "text": obj.name, "extra": group_counts[obj]}
-            else:
-                result = {"id": obj.uuid, "name": obj.name, "type": "group", "count": group_counts[obj]}
+            result = {"id": str(obj.uuid), "name": obj.name, "type": "group", "count": group_counts[obj]}
         elif isinstance(obj, Contact):
-            if version == "1":
-                if org.is_anon:
-                    result = {"id": "c-%s" % obj.uuid, "text": obj.get_display(org)}
-                else:
-                    result = {"id": "c-%s" % obj.uuid, "text": obj.get_display(org), "extra": obj.get_urn_display()}
+            if org.is_anon:
+                result = {"id": str(obj.uuid), "name": obj.get_display(org), "type": "contact"}
             else:
-                if org.is_anon:
-                    result = {"id": obj.uuid, "name": obj.get_display(org), "type": "contact"}
-                else:
-                    result = {
-                        "id": obj.uuid,
-                        "name": obj.get_display(org),
-                        "type": "contact",
-                        "urn": obj.get_urn_display(),
-                    }
+                result = {
+                    "id": str(obj.uuid),
+                    "name": obj.get_display(org),
+                    "type": "contact",
+                    "urn": obj.get_urn_display(),
+                }
 
         elif isinstance(obj, ContactURN):
-            if version == "1":
-                result = {
-                    "id": "u-%d" % obj.id,
-                    "text": obj.get_display(org),
-                    "scheme": obj.scheme,
-                    "extra": obj.contact.name or None,
-                }
-            else:
-                result = {
-                    "id": obj.identity,
-                    "name": obj.get_display(org),
-                    "contact": obj.contact.name or None,
-                    "scheme": obj.scheme,
-                    "type": "urn",
-                }
+            result = {
+                "id": obj.identity,
+                "name": obj.get_display(org),
+                "contact": obj.contact.name or None,
+                "scheme": obj.scheme,
+                "type": "urn",
+            }
 
         formatted.append(result)
 

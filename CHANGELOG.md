@@ -1,3 +1,13 @@
+v8.1.25 (2023-02-09)
+-------------------------
+ * Remove support for unused v1 omnibox format
+ * Update broadcasts API endpoint to support attachments
+
+v8.1.24 (2023-02-08)
+-------------------------
+ * Update to latest cryptography library
+ * Add task to interrupt flow sessions after 90 days
+
 v8.1.23 (2023-02-06)
 -------------------------
  * Fix flow results redirecting to it's own page

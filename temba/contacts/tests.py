@@ -1965,11 +1965,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         unready.status = ContactGroup.STATUS_EVALUATING
         unready.save(update_fields=("status",))
 
-        joe_tel = self.joe.get_urn(URN.TEL_SCHEME)
-        joe_twitter = self.joe.get_urn(URN.TWITTER_SCHEME)
-        frank_tel = self.frank.get_urn(URN.TEL_SCHEME)
-        voldemort_tel = self.voldemort.get_urn(URN.TEL_SCHEME)
-
         # Postgres will defer to strcoll for ordering which even for en_US.UTF-8 will return different results on OSX
         # and Ubuntu. To keep ordering consistent for this test, we don't let URNs start with +
         # (see http://postgresql.nabble.com/a-strange-order-by-behavior-td4513038.html)
@@ -1979,9 +1974,9 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
 
-        def omnibox_request(query, version="1"):
+        def omnibox_request(query):
             path = reverse("contacts.contact_omnibox")
-            response = self.client.get(f"{path}?{query}&v={version}")
+            response = self.client.get(f"{path}?{query}")
             return response.json()["results"]
 
         # omnibox view will try to search it as a contact then as a URN so 2 calls to mailroom search endpoint
@@ -2008,17 +2003,17 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             self.assertEqual(
                 [
                     # all 4 groups A-Z
-                    {"id": joe_and_frank.uuid, "name": "Joe and Frank", "type": "group", "count": 2},
-                    {"id": men.uuid, "name": "Men", "type": "group", "count": 0},
-                    {"id": nobody.uuid, "name": "Nobody", "type": "group", "count": 0},
-                    {"id": open_tickets.uuid, "name": "Open Tickets", "type": "group", "count": 0},
+                    {"id": str(joe_and_frank.uuid), "name": "Joe and Frank", "type": "group", "count": 2},
+                    {"id": str(men.uuid), "name": "Men", "type": "group", "count": 0},
+                    {"id": str(nobody.uuid), "name": "Nobody", "type": "group", "count": 0},
+                    {"id": str(open_tickets.uuid), "name": "Open Tickets", "type": "group", "count": 0},
                     # all 4 contacts A-Z
-                    {"id": self.billy.uuid, "name": "Billy Nophone", "type": "contact", "urn": ""},
-                    {"id": self.frank.uuid, "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
-                    {"id": self.joe.uuid, "name": "Joe Blow", "type": "contact", "urn": "blow80"},
-                    {"id": self.voldemort.uuid, "name": "250768383383", "type": "contact", "urn": "250768383383"},
+                    {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact", "urn": ""},
+                    {"id": str(self.frank.uuid), "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
+                    {"id": str(self.joe.uuid), "name": "Joe Blow", "type": "contact", "urn": "blow80"},
+                    {"id": str(self.voldemort.uuid), "name": "250768383383", "type": "contact", "urn": "250768383383"},
                 ],
-                omnibox_request(query="", version="2"),
+                omnibox_request(query=""),
             )
 
         with self.assertNumQueries(17):
@@ -2035,8 +2030,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             self.assertEqual(
                 [
                     # 2 contacts
-                    {"id": self.billy.uuid, "name": "Billy Nophone", "type": "contact", "urn": ""},
-                    {"id": self.frank.uuid, "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
+                    {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact", "urn": ""},
+                    {"id": str(self.frank.uuid), "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
                     # 2 sendable URNs with contact names
                     {
                         "id": "tel:250768383383",
@@ -2053,7 +2048,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
                         "scheme": "tel",
                     },
                 ],
-                omnibox_request(query="search=250", version="2"),
+                omnibox_request(query="search=250"),
             )
 
         with self.assertNumQueries(15):
@@ -2065,13 +2060,13 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             self.assertEqual(
                 [
                     # all 4 groups A-Z
-                    {"id": f"g-{joe_and_frank.uuid}", "text": "Joe and Frank", "extra": 2},
-                    {"id": f"g-{men.uuid}", "text": "Men", "extra": 0},
-                    {"id": f"g-{nobody.uuid}", "text": "Nobody", "extra": 0},
-                    {"id": f"g-{open_tickets.uuid}", "text": "Open Tickets", "extra": 0},
+                    {"id": str(joe_and_frank.uuid), "name": "Joe and Frank", "type": "group", "count": 2},
+                    {"id": str(men.uuid), "name": "Men", "type": "group", "count": 0},
+                    {"id": str(nobody.uuid), "name": "Nobody", "type": "group", "count": 0},
+                    {"id": str(open_tickets.uuid), "name": "Open Tickets", "type": "group", "count": 0},
                     # 2 contacts A-Z
-                    {"id": f"c-{self.billy.uuid}", "text": "Billy Nophone", "extra": ""},
-                    {"id": f"c-{self.frank.uuid}", "text": "Frank Smith", "extra": "250782222222"},
+                    {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact", "urn": ""},
+                    {"id": str(self.frank.uuid), "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
                 ],
                 omnibox_request(query=""),
             )
@@ -2081,10 +2076,10 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         # g = just the 4 groups
         self.assertEqual(
             [
-                {"id": f"g-{joe_and_frank.uuid}", "text": "Joe and Frank", "extra": 2},
-                {"id": f"g-{men.uuid}", "text": "Men", "extra": 0},
-                {"id": f"g-{nobody.uuid}", "text": "Nobody", "extra": 0},
-                {"id": f"g-{open_tickets.uuid}", "text": "Open Tickets", "extra": 0},
+                {"id": str(joe_and_frank.uuid), "name": "Joe and Frank", "type": "group", "count": 2},
+                {"id": str(men.uuid), "name": "Men", "type": "group", "count": 0},
+                {"id": str(nobody.uuid), "name": "Nobody", "type": "group", "count": 0},
+                {"id": str(open_tickets.uuid), "name": "Open Tickets", "type": "group", "count": 0},
             ],
             omnibox_request("types=g"),
         )
@@ -2092,8 +2087,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         # s = just the 2 non-query manual groups
         self.assertEqual(
             [
-                {"id": f"g-{joe_and_frank.uuid}", "text": "Joe and Frank", "extra": 2},
-                {"id": f"g-{nobody.uuid}", "text": "Nobody", "extra": 0},
+                {"id": str(joe_and_frank.uuid), "name": "Joe and Frank", "type": "group", "count": 2},
+                {"id": str(nobody.uuid), "name": "Nobody", "type": "group", "count": 0},
             ],
             omnibox_request("types=s"),
         )
@@ -2114,13 +2109,31 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         ]
         self.assertEqual(
             [
-                {"id": f"c-{self.billy.uuid}", "text": "Billy Nophone", "extra": ""},
-                {"id": f"c-{self.frank.uuid}", "text": "Frank Smith", "extra": "250782222222"},
-                {"id": f"c-{self.joe.uuid}", "text": "Joe Blow", "extra": "blow80"},
-                {"id": f"c-{self.voldemort.uuid}", "text": "250768383383", "extra": "250768383383"},
-                {"id": f"u-{voldemort_tel.id}", "text": "250768383383", "extra": None, "scheme": "tel"},
-                {"id": f"u-{joe_tel.id}", "text": "250781111111", "extra": "Joe Blow", "scheme": "tel"},
-                {"id": f"u-{frank_tel.id}", "text": "250782222222", "extra": "Frank Smith", "scheme": "tel"},
+                {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact", "urn": ""},
+                {"id": str(self.frank.uuid), "name": "Frank Smith", "type": "contact", "urn": "250782222222"},
+                {"id": str(self.joe.uuid), "name": "Joe Blow", "type": "contact", "urn": "blow80"},
+                {"id": str(self.voldemort.uuid), "name": "250768383383", "type": "contact", "urn": "250768383383"},
+                {
+                    "id": "tel:250768383383",
+                    "name": "250768383383",
+                    "contact": None,
+                    "scheme": "tel",
+                    "type": "urn",
+                },
+                {
+                    "id": "tel:250781111111",
+                    "name": "250781111111",
+                    "type": "urn",
+                    "contact": "Joe Blow",
+                    "scheme": "tel",
+                },
+                {
+                    "id": "tel:250782222222",
+                    "name": "250782222222",
+                    "type": "urn",
+                    "contact": "Frank Smith",
+                    "scheme": "tel",
+                },
             ],
             omnibox_request("search=250&types=c,u"),
         )
@@ -2131,7 +2144,15 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             SearchResults(query="urn ~ 222", total=1, contact_ids=[self.frank.id], metadata=QueryMetadata()),
         ]
         self.assertEqual(
-            [{"id": f"u-{frank_tel.id}", "text": "250782222222", "extra": "Frank Smith", "scheme": "tel"}],
+            [
+                {
+                    "id": "tel:250782222222",
+                    "name": "250782222222",
+                    "type": "urn",
+                    "contact": "Frank Smith",
+                    "scheme": "tel",
+                }
+            ],
             omnibox_request("search=222"),
         )
 
@@ -2148,16 +2169,28 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         ]
         self.assertEqual(
             [
-                dict(id="c-%s" % self.joe.uuid, text="Joe Blow", extra="blow80"),
-                dict(id="u-%d" % joe_tel.pk, text="0781 111 111", extra="Joe Blow", scheme="tel"),
-                dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
+                {"id": str(self.joe.uuid), "name": "Joe Blow", "type": "contact", "urn": "blow80"},
+                {
+                    "id": "tel:+250781111111",
+                    "name": "0781 111 111",
+                    "type": "urn",
+                    "contact": "Joe Blow",
+                    "scheme": "tel",
+                },
+                {
+                    "id": "twitter:blow80",
+                    "name": "blow80",
+                    "type": "urn",
+                    "contact": "Joe Blow",
+                    "scheme": "twitter",
+                },
             ],
             omnibox_request("search=BLOW"),
         )
 
         # lookup by group id
         self.assertEqual(
-            [dict(id="g-%s" % joe_and_frank.uuid, text="Joe and Frank", extra=2)],
+            [{"id": str(joe_and_frank.uuid), "name": "Joe and Frank", "type": "group", "count": 2}],
             omnibox_request(f"g={joe_and_frank.uuid}"),
         )
 
@@ -2165,8 +2198,20 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         urn_query = "u=%d,%d" % (self.joe.get_urn(URN.TWITTER_SCHEME).id, self.frank.get_urn(URN.TEL_SCHEME).id)
         self.assertEqual(
             [
-                dict(id="u-%d" % frank_tel.pk, text="0782 222 222", extra="Frank Smith", scheme="tel"),
-                dict(id="u-%d" % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme="twitter"),
+                {
+                    "id": "tel:+250782222222",
+                    "name": "0782 222 222",
+                    "type": "urn",
+                    "contact": "Frank Smith",
+                    "scheme": "tel",
+                },
+                {
+                    "id": "twitter:blow80",
+                    "name": "blow80",
+                    "type": "urn",
+                    "contact": "Joe Blow",
+                    "scheme": "twitter",
+                },
             ],
             omnibox_request(urn_query),
         )
@@ -2177,33 +2222,15 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             ]
             self.assertEqual(
                 [
-                    # all 4 groups...
-                    {"id": f"g-{joe_and_frank.uuid}", "text": "Joe and Frank", "extra": 2},
-                    {"id": f"g-{men.uuid}", "text": "Men", "extra": 0},
-                    {"id": f"g-{nobody.uuid}", "text": "Nobody", "extra": 0},
-                    {"id": f"g-{open_tickets.uuid}", "text": "Open Tickets", "extra": 0},
+                    # all 4 groups A-Z
+                    {"id": str(joe_and_frank.uuid), "name": "Joe and Frank", "type": "group", "count": 2},
+                    {"id": str(men.uuid), "name": "Men", "type": "group", "count": 0},
+                    {"id": str(nobody.uuid), "name": "Nobody", "type": "group", "count": 0},
+                    {"id": str(open_tickets.uuid), "name": "Open Tickets", "type": "group", "count": 0},
                     # 1 contact
-                    {"id": f"c-{self.billy.uuid}", "text": "Billy Nophone"},
-                    # no urns
+                    {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact"},
                 ],
                 omnibox_request(""),
-            )
-
-            # same search but with v2 format
-            mock_search_contacts.side_effect = [
-                SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=QueryMetadata())
-            ]
-            self.assertEqual(
-                [
-                    # all 4 groups A-Z
-                    {"id": joe_and_frank.uuid, "name": "Joe and Frank", "type": "group", "count": 2},
-                    {"id": men.uuid, "name": "Men", "type": "group", "count": 0},
-                    {"id": nobody.uuid, "name": "Nobody", "type": "group", "count": 0},
-                    {"id": open_tickets.uuid, "name": "Open Tickets", "type": "group", "count": 0},
-                    # 1 contact
-                    {"id": self.billy.uuid, "name": "Billy Nophone", "type": "contact"},
-                ],
-                omnibox_request("", version="2"),
             )
 
         # exclude blocked and stopped contacts
@@ -2214,11 +2241,23 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(omnibox_request("c=%s,%s" % (self.joe.uuid, self.frank.uuid)), [])
 
         # but still lookup by URN ids
-        urn_query = "u=%d,%d" % (self.joe.get_urn(URN.TWITTER_SCHEME).pk, self.frank.get_urn(URN.TEL_SCHEME).pk)
+        urn_query = "u=%d,%d" % (self.joe.get_urn(URN.TWITTER_SCHEME).id, self.frank.get_urn(URN.TEL_SCHEME).id)
         self.assertEqual(
             [
-                {"id": f"u-{frank_tel.id}", "text": "0782 222 222", "extra": "Frank Smith", "scheme": "tel"},
-                {"id": f"u-{joe_twitter.id}", "text": "blow80", "extra": "Joe Blow", "scheme": "twitter"},
+                {
+                    "id": "tel:+250782222222",
+                    "name": "0782 222 222",
+                    "type": "urn",
+                    "contact": "Frank Smith",
+                    "scheme": "tel",
+                },
+                {
+                    "id": "twitter:blow80",
+                    "name": "blow80",
+                    "type": "urn",
+                    "contact": "Joe Blow",
+                    "scheme": "twitter",
+                },
             ],
             omnibox_request(urn_query),
         )

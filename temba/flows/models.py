@@ -1283,7 +1283,7 @@ class FlowRun(models.Model):
             self.save(update_fields=("delete_from_results",))
 
             if interrupt and self.session and self.session.status == FlowSession.STATUS_WAITING:
-                mailroom.queue_interrupt(self.org, session=self.session)
+                mailroom.queue_interrupt(self.org, sessions=[self.session])
 
             super().delete()
 

@@ -347,7 +347,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             return {
                 "message": self.object.get_text(),
-                "omnibox": omnibox_results_to_dict(org, recipients, version="2"),
+                "omnibox": omnibox_results_to_dict(org, recipients),
             }
 
         def save(self, *args, **kwargs):
@@ -448,7 +448,7 @@ class BroadcastCRUDL(SmartCRUDL):
                     params["u"] = ",".join(urn_ids)
 
                 results = omnibox_query(org, **params)
-                initial["omnibox"] = omnibox_results_to_dict(org, results, version="2")
+                initial["omnibox"] = omnibox_results_to_dict(org, results)
 
             initial["step_node"] = self.request.GET.get("step_node", None)
             return initial

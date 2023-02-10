@@ -539,7 +539,9 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **urns** - the URNs that received the broadcast (array of strings)
      * **contacts** - the contacts that received the broadcast (array of objects)
      * **groups** - the groups that received the broadcast (array of objects)
-     * **text** - the message text (string or translations object)
+     * **text** - the message text translations (dict of strings)
+     * **attachments** - the attachment translations (dict of lists of strings)
+     * **base_language** - the default translation language (string)
      * **status** - the status of the message (one of "queued", "sent", "failed").
      * **created_on** - when this broadcast was either created (datetime) (filterable as `before` and `after`).
 
@@ -558,7 +560,9 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                     "urns": ["tel:+250788123123", "tel:+250788123124"],
                     "contacts": [{"uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", "name": "Joe"}]
                     "groups": [],
-                    "text": "hello world",
+                    "text": {"eng", "hello world"},
+                    "attachments": {"eng", []},
+                    "base_language": "eng",
                     "created_on": "2013-03-02T17:28:12.123456Z"
                 },
                 ...
@@ -567,10 +571,12 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     A `POST` allows you to create and send new broadcasts, with the following JSON data:
 
-      * **text** - the text of the message to send (string, limited to 640 characters)
       * **urns** - the URNs of contacts to send to (array of up to 100 strings, optional)
       * **contacts** - the UUIDs of contacts to send to (array of up to 100 strings, optional)
       * **groups** - the UUIDs of contact groups to send to (array of up to 100 strings, optional)
+      * **text** - the message text translations (dict of strings)
+      * **attachments** - the attachment translations (dict of lists of strings)
+      * **base_language** - the default translation language (string, optional)
 
     Example:
 
@@ -578,7 +584,8 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         {
             "urns": ["tel:+250788123123", "tel:+250788123124"],
             "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"],
-            "text": "hello @contact.name"
+            "text": {"eng": "Hello @contact.name!", "spa": "Hola @contact.name!"},
+            "base_language": "eng"
         }
 
     You will receive a response containing the message broadcast created:
@@ -588,7 +595,9 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "urns": ["tel:+250788123123", "tel:+250788123124"],
             "contacts": [{"uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", "name": "Joe"}]
             "groups": [],
-            "text": "hello world",
+            "text": {"eng": "Hello @contact.name!", "spa": "Hola @contact.name!"},
+            "attachments": {"eng", [], "spa": []},
+            "base_language": "eng",
             "created_on": "2013-03-02T17:28:12.123456Z"
         }
     """
