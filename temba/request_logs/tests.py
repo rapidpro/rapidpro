@@ -133,13 +133,17 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertListFetch(
             list_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[l1], new_ui=True
         )
+
         self.assertEqual(f"/settings/classifiers/{c1.uuid}", response.headers[TEMBA_MENU_SELECTION])
         self.assertContains(response, "Intents Synced")
         self.assertContains(response, log_url)
         self.assertNotContains(response, "Classifier Called")
 
         # view the individual log item
-        response = self.assertReadFetch(log_url, allow_viewers=False, allow_editors=False, context_object=l1)
+        response = self.assertReadFetch(
+            log_url, allow_viewers=False, allow_editors=False, context_object=l1, new_ui=True
+        )
+        self.assertEqual(f"/settings/classifiers/{c1.uuid}", response.headers[TEMBA_MENU_SELECTION])
         self.assertContains(response, "200")
         self.assertContains(response, "org1.bar")
         self.assertNotContains(response, "org2.bar")

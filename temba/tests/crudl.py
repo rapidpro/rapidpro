@@ -40,7 +40,7 @@ class CRUDLTestMixin:
         return response
 
     def assertReadFetch(
-        self, url, *, allow_viewers, allow_editors, allow_agents=False, context_object=None, status=200
+        self, url, *, allow_viewers, allow_editors, allow_agents=False, context_object=None, status=200, new_ui=False
     ):
         """
         Fetches a read view as different users
@@ -55,7 +55,7 @@ class CRUDLTestMixin:
             else:
                 checks = [LoginRedirectOr404()]
 
-            return self.requestView(url, user, checks=checks, choose_org=self.org)
+            return self.requestView(url, user, checks=checks, choose_org=self.org, new_ui=new_ui)
 
         as_user(None, allowed=False)
         as_user(viewer, allowed=allow_viewers)
