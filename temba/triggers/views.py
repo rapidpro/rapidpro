@@ -37,6 +37,7 @@ class BaseTriggerForm(forms.ModelForm):
     flow = TembaChoiceField(
         Flow.objects.none(),
         label=_("Flow"),
+        help_text=_("Which flow will be started."),
         required=True,
         widget=SelectWidget(attrs={"placeholder": _("Select a flow"), "searchable": True}),
     )

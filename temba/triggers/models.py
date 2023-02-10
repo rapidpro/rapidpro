@@ -87,47 +87,18 @@ class Trigger(SmartModel):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="triggers")
     trigger_type = models.CharField(max_length=1, default=TYPE_KEYWORD)
     is_archived = models.BooleanField(default=False)
-
-    keyword = models.CharField(
-        max_length=KEYWORD_MAX_LEN,
-        null=True,
-        blank=True,
-        help_text=_("Word to match in the message text."),
-    )
-
-    referrer_id = models.CharField(max_length=255, null=True)
-
-    flow = models.ForeignKey(
-        Flow,
-        on_delete=models.PROTECT,
-        help_text=_("Which flow will be started."),
-        related_name="triggers",
-    )
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="triggers")
+    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, related_name="triggers")
 
     # who trigger applies to
     groups = models.ManyToManyField(ContactGroup, related_name="triggers_included")
     exclude_groups = models.ManyToManyField(ContactGroup, related_name="triggers_excluded")
     contacts = models.ManyToManyField(Contact, related_name="triggers")  # scheduled triggers only
 
+    keyword = models.CharField(max_length=KEYWORD_MAX_LEN, null=True)
+    match_type = models.CharField(max_length=1, choices=MATCH_TYPES, null=True)
+    referrer_id = models.CharField(max_length=255, null=True)
     schedule = models.OneToOneField("schedules.Schedule", on_delete=models.PROTECT, null=True, related_name="trigger")
-
-    match_type = models.CharField(
-        max_length=1,
-        choices=MATCH_TYPES,
-        default=MATCH_FIRST_WORD,
-        null=True,
-        verbose_name=_("Trigger When"),
-        help_text=_("How to match a message with a keyword."),
-    )
-
-    channel = models.ForeignKey(
-        Channel,
-        on_delete=models.PROTECT,
-        verbose_name=_("Channel"),
-        null=True,
-        related_name="triggers",
-        help_text=_("The associated channel."),
-    )
 
     @classmethod
     def create(

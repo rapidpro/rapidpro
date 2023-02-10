@@ -1147,10 +1147,16 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({group1, group2}, set(trigger.groups.all()))
         self.assertEqual({group3}, set(trigger.exclude_groups.all()))
 
-        # error if keyword is not defined
+        # error if keyword is not defined or invalid
         self.assertUpdateSubmit(
             update_url,
             {"keyword": "", "flow": flow.id, "match_type": "F"},
+            form_errors={"keyword": "This field is required."},
+            object_unchanged=trigger,
+        )
+        self.assertUpdateSubmit(
+            update_url,
+            {"keyword": "two words", "flow": flow.id, "match_type": "F"},
             form_errors={
                 "keyword": "Must be a single word containing only letters and numbers, or a single emoji character."
             },
