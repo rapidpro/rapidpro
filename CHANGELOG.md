@@ -1,3 +1,8 @@
+v8.1.27 (2023-02-10)
+-------------------------
+ * Move all form text from Trigger model to forms
+ * Add migration to convert URNs to contacts on scheduled broadcasts
+
 v8.1.26 (2023-02-10)
 -------------------------
  * Remove returning specific URNs from omniboxes and instead match contacts by URN
