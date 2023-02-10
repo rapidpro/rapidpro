@@ -15,6 +15,8 @@ from temba.utils.fields import CheckboxWidget, DateWidget, InputWidget, SelectMu
 
 logger = logging.getLogger(__name__)
 
+TEMBA_MENU_SELECTION = "temba_menu_selection"
+
 
 class SpaMixin(View):
     """
@@ -29,7 +31,17 @@ class SpaMixin(View):
     def spa_referrer_path(self) -> tuple:
         return tuple(s for s in self.request.META.get("HTTP_TEMBA_REFERER_PATH", "").split("/") if s)
 
+    def has_permission(self, request, *args, **kwargs):
+
+        is_beta = not request.user.is_anonymous and request.user.is_beta
+        if self.is_spa() and not self.is_content_only() and not is_beta:
+            return False
+        return super().has_permission(request, *args, **kwargs)
+
     def is_spa(self):
+        return self.request.COOKIES.get("nav") == "2" or self.is_content_only()
+
+    def is_content_only(self):
         return "HTTP_TEMBA_SPA" in self.request.META
 
     def get_template_names(self):
@@ -47,14 +59,29 @@ class SpaMixin(View):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
         if self.is_spa():
-            context["base_template"] = "spa.html"
+            if self.is_content_only():
+                context["base_template"] = "spa.html"
+            else:
+                context["base_template"] = "spa_frame.haml"
+
             context["is_spa"] = True
             context["temba_path"] = self.spa_path
             context["temba_referer"] = self.spa_referrer_path
+            context[TEMBA_MENU_SELECTION] = self.derive_menu_path()
 
         return context
+
+    def derive_menu_path(self):
+        if hasattr(self, "menu_path"):
+            return self.menu_path
+        return self.request.path
+
+    def render_to_response(self, context, **response_kwargs):
+        response = super().render_to_response(context, **response_kwargs)
+        if self.is_spa():
+            response.headers[TEMBA_MENU_SELECTION] = context[TEMBA_MENU_SELECTION]
+        return response
 
 
 class ComponentFormMixin(View):

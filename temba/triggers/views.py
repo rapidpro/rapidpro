@@ -219,7 +219,6 @@ class TriggerCRUDL(SmartCRUDL):
             menu.append(
                 self.create_menu_item(
                     name=_("Active"),
-                    verbose_name=_("Active Triggers"),
                     count=org_triggers.filter(is_archived=False).count(),
                     href=reverse("triggers.trigger_list"),
                     icon="icon.active",
@@ -229,7 +228,6 @@ class TriggerCRUDL(SmartCRUDL):
             menu.append(
                 self.create_menu_item(
                     name=_("Archived"),
-                    verbose_name=_("Archived Triggers"),
                     icon="icon.archive",
                     count=org_triggers.filter(is_archived=True).count(),
                     href=reverse("triggers.trigger_archived"),
@@ -255,6 +253,7 @@ class TriggerCRUDL(SmartCRUDL):
 
     class Create(SpaMixin, FormaxMixin, OrgFilterMixin, OrgPermsMixin, SmartTemplateView):
         title = _("New Trigger")
+        menu_path = "/trigger/new-trigger"
 
         def derive_formax_sections(self, formax, context):
             def add_section(name, url, icon):
@@ -509,6 +508,7 @@ class TriggerCRUDL(SmartCRUDL):
 
         bulk_actions = ("archive",)
         title = _("Active Triggers")
+        menu_path = "/trigger/active"
 
         def pre_process(self, request, *args, **kwargs):
             # if they have no triggers and no search performed, send them to create page
@@ -527,6 +527,7 @@ class TriggerCRUDL(SmartCRUDL):
 
         bulk_actions = ("restore",)
         title = _("Archived Triggers")
+        menu_path = "/trigger/archived"
 
         def get_queryset(self, *args, **kwargs):
             return super().get_queryset(*args, **kwargs).filter(is_archived=True)
@@ -547,6 +548,9 @@ class TriggerCRUDL(SmartCRUDL):
         @property
         def trigger_type(self):
             return Trigger.get_type(slug=self.kwargs["type"])
+
+        def derive_menu_path(self):
+            return f"/trigger/{self.trigger_type.slug}"
 
         def derive_title(self):
             return self.trigger_type.title

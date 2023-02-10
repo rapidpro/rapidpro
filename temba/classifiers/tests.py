@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from temba.request_logs.models import HTTPLog
 from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
+from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import Classifier
 from .types.luis import LuisType
@@ -125,11 +126,13 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("orgs.org_home"))
         self.assertContentMenuContains(reverse("orgs.org_home"), self.admin, "Add Classifier")
 
+        self.new_ui()
         read_url = reverse("classifiers.classifier_read", args=[self.c1.uuid])
         self.assertContains(response, read_url)
 
         # read page
         response = self.client.get(read_url)
+        self.assertEqual(f"/settings/classifiers/{self.c1.uuid}", response.headers[TEMBA_MENU_SELECTION])
 
         # contains intents
         self.assertContains(response, "book_flight")

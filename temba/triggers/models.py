@@ -89,7 +89,6 @@ class Trigger(SmartModel):
     is_archived = models.BooleanField(default=False)
 
     keyword = models.CharField(
-        verbose_name=_("Keyword"),
         max_length=KEYWORD_MAX_LEN,
         null=True,
         blank=True,
@@ -101,7 +100,6 @@ class Trigger(SmartModel):
     flow = models.ForeignKey(
         Flow,
         on_delete=models.PROTECT,
-        verbose_name=_("Flow"),
         help_text=_("Which flow will be started."),
         related_name="triggers",
     )

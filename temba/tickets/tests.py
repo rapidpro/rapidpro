@@ -239,7 +239,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # deep link into a page that doesn't have our ticket
         deep_link = f"{list_url}all/closed/{str(ticket.uuid)}/"
+        self.make_beta(self.admin)
         self.login(self.admin)
+
         response = self.client.get(deep_link)
 
         # now our ticket is listed as the uuid and we were redirected to all/open
@@ -248,13 +250,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(str(ticket.uuid), response.context["uuid"])
 
         # fetch with spa flag
+        self.new_ui()
         response = self.client.get(
             list_url,
             content_type="application/json",
-            HTTP_TEMBA_SPA="1",
             HTTP_TEMBA_REFERER_PATH=f"/tickets/mine/open/{ticket.uuid}",
         )
-        self.assertEqual("spa.html", response.context["base_template"])
+
+        self.assertEqual("spa_frame.haml", response.context["base_template"])
         self.assertEqual(("tickets", "mine", "open", str(ticket.uuid)), response.context["temba_referer"])
 
     def test_menu(self):
@@ -270,15 +273,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         menu = response.json()["results"]
         self.assertEqual(
             [
-                {"id": "mine", "name": "My Tickets", "icon": "icon.tickets_mine", "count": 2, "verbose_name": None},
+                {"id": "mine", "name": "My Tickets", "icon": "icon.tickets_mine", "count": 2},
                 {
                     "id": "unassigned",
                     "name": "Unassigned",
                     "icon": "icon.tickets_unassigned",
                     "count": 1,
-                    "verbose_name": "Unassigned Tickets",
                 },
-                {"id": "all", "name": "All", "icon": "icon.tickets_all", "count": 3, "verbose_name": "All Tickets"},
+                {"id": "all", "name": "All", "icon": "icon.tickets_all", "count": 3},
             ],
             menu,
         )

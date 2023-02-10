@@ -60,7 +60,6 @@ class CampaignCRUDL(SmartCRUDL):
                 self.create_menu_item(
                     menu_id="active",
                     name=_("Active"),
-                    verbose_name=_("Active Campaigns"),
                     icon="icon.active",
                     count=org.campaigns.filter(is_active=True, is_archived=False).count(),
                     href="campaigns.campaign_list",
@@ -71,7 +70,6 @@ class CampaignCRUDL(SmartCRUDL):
                 self.create_menu_item(
                     menu_id="archived",
                     name=_("Archived"),
-                    verbose_name=_("Archived Campaigns"),
                     icon="icon.archive",
                     count=org.campaigns.filter(is_active=True, is_archived=True).count(),
                     href="campaigns.campaign_archived",
@@ -205,6 +203,7 @@ class CampaignCRUDL(SmartCRUDL):
         fields = ("name", "group")
         bulk_actions = ("archive",)
         search_fields = ("name__icontains", "group__name__icontains")
+        menu_path = "/campaign/active"
 
         def derive_title(self):
             return _("Active Campaigns")
@@ -227,6 +226,7 @@ class CampaignCRUDL(SmartCRUDL):
     class Archived(BaseList):
         fields = ("name",)
         bulk_actions = ("restore",)
+        menu_path = "/campaign/archived"
 
         def derive_title(self):
             return _("Archived Campaigns")
