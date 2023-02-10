@@ -97,7 +97,6 @@ class HTTPLogCRUDL(SmartCRUDL):
         def derive_menu_path(self):
             if self.get_object().classifier:
                 return f"/settings/classifiers/{self.object.classifier.uuid}"
-            return super().derive_menu_path()
 
         def build_content_menu(self, menu):
             object = self.get_object()

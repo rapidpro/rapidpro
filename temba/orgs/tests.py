@@ -4134,8 +4134,9 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertStaffOnly(list_url)
 
-        response = self.requestView(list_url, self.customer_support)
+        response = self.requestView(list_url, self.customer_support, new_ui=True)
         self.assertEqual(9, len(response.context["object_list"]))
+        self.assertEqual("/staff/users/all", response.headers[TEMBA_MENU_SELECTION])
 
         response = self.requestView(list_url + "?filter=beta", self.customer_support)
         self.assertEqual(set(), set(response.context["object_list"]))
