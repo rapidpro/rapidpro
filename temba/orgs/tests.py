@@ -2842,15 +2842,6 @@ class AnonOrgTest(TembaTest):
 
 
 class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
-    def test_spa(self):
-        Group.objects.get(name="Beta").user_set.add(self.admin)
-
-        self.login(self.admin)
-
-        deep_link = reverse("spa.level_2", args=["tickets", "all", "open"])
-        response = self.client.get(deep_link)
-        self.assertEqual(200, response.status_code)
-
     def assertMenu(self, url, count, contains_names=[]):
         response = self.assertListFetch(url, allow_viewers=True, allow_editors=True, allow_agents=True)
         menu = response.json()["results"]

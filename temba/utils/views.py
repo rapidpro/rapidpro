@@ -31,6 +31,13 @@ class SpaMixin(View):
     def spa_referrer_path(self) -> tuple:
         return tuple(s for s in self.request.META.get("HTTP_TEMBA_REFERER_PATH", "").split("/") if s)
 
+    def has_permission(self, request, *args, **kwargs):
+
+        is_beta = not request.user.is_anonymous and request.user.is_beta
+        if self.is_spa() and not self.is_content_only() and not is_beta:
+            return False
+        return super().has_permission(request, *args, **kwargs)
+
     def is_spa(self):
         return self.request.COOKIES.get("nav") == "2" or self.is_content_only()
 

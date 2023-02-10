@@ -126,15 +126,6 @@ class TicketCRUDL(SmartCRUDL):
             uuid = self.kwargs.get("uuid")
             in_page = False
 
-            path = self.spa_referrer_path
-            if path and len(path) > 1 and path[0] == "ticket":
-                if not folder and len(path) > 1:
-                    folder = path[1]
-                if not status and len(path) > 2:
-                    status = path[2]
-                if not uuid and len(path) > 3:
-                    uuid = path[3]
-
             # if we have a uuid make sure it is in our first page of tickets
             if uuid:
                 status_code = Ticket.STATUS_OPEN if status == "open" else Ticket.STATUS_CLOSED

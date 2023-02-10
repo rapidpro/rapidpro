@@ -508,17 +508,18 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # login as viewer
         self.login(self.user)
 
-        self.new_ui()
-        response = self.client.get(read_url)
-        self.assertContains(response, "Joe")
-        self.assertEqual("/contact/active", response.headers[TEMBA_MENU_SELECTION])
-
-        self.old_ui()
         response = self.client.get(read_url)
         self.assertContains(response, "Joe")
 
         # login as admin
+        self.make_beta(self.admin)
         self.login(self.admin)
+        self.new_ui()
+
+        response = self.client.get(read_url)
+        self.assertContains(response, "Joe")
+        self.assertEqual("/contact/active", response.headers[TEMBA_MENU_SELECTION])
+        self.old_ui()
 
         # block the contact
         joe.block(self.admin)
