@@ -1,7 +1,11 @@
+import json
 import logging
 from urllib.parse import quote, urlencode
 
+import requests
+
 from django import forms
+from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
@@ -69,6 +73,43 @@ class SpaMixin(View):
             context["temba_path"] = self.spa_path
             context["temba_referer"] = self.spa_referrer_path
             context[TEMBA_MENU_SELECTION] = self.derive_menu_path()
+
+            # the base page should prep the flow editor
+            if not self.is_content_only():
+                dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
+                prefix = "/dev" if dev_mode else settings.STATIC_URL
+
+                # get our list of assets to incude
+                scripts = []
+                styles = []
+
+                if dev_mode:  # pragma: no cover
+                    response = requests.get("http://localhost:3000/asset-manifest.json")
+                    data = response.json()
+                else:
+                    with open("node_modules/@nyaruka/flow-editor/build/asset-manifest.json") as json_file:
+                        data = json.load(json_file)
+
+                for key, filename in data.get("files").items():
+
+                    # tack on our prefix for dev mode
+                    filename = prefix + filename
+
+                    # ignore precache manifest
+                    if key.startswith("precache-manifest") or key.startswith("service-worker"):
+                        continue
+
+                    # css files
+                    if key.endswith(".css") and filename.endswith(".css"):
+                        styles.append(filename)
+
+                    # javascript
+                    if key.endswith(".js") and filename.endswith(".js"):
+                        scripts.append(filename)
+
+                    context["scripts"] = scripts
+                    context["styles"] = styles
+                    context["dev_mode"] = dev_mode
 
         return context
 
