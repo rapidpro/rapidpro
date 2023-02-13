@@ -2076,7 +2076,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         with AnonymousOrg(self.org):
             mock_search_contacts.side_effect = [
-                SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=QueryMetadata())
+                SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=QueryMetadata()),
+                SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=QueryMetadata()),
             ]
             self.assertEqual(
                 [
@@ -2089,6 +2090,14 @@ class ContactTest(TembaTest, CRUDLTestMixin):
                     {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact"},
                 ],
                 omnibox_request(""),
+            )
+
+            self.assertEqual(
+                [
+                    # 1 contact
+                    {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact"},
+                ],
+                omnibox_request("search=Billy"),
             )
 
         # exclude blocked and stopped contacts
