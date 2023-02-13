@@ -1,3 +1,7 @@
+v8.1.30 (2023-02-13)
+-------------------------
+ * Fix keyword triggers match type
+
 v8.1.29 (2023-02-13)
 -------------------------
  * Fix omnibox search for anon org to allow search by contact name
