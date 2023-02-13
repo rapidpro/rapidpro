@@ -461,7 +461,9 @@ class FlowCRUDL(SmartCRUDL):
             if self.form.cleaned_data["keyword_triggers"]:
                 keywords = self.form.cleaned_data["keyword_triggers"].split(",")
                 for keyword in keywords:
-                    Trigger.create(org, user, Trigger.TYPE_KEYWORD, flow=obj, keyword=keyword)
+                    Trigger.create(
+                        org, user, Trigger.TYPE_KEYWORD, flow=obj, keyword=keyword, match_type=Trigger.MATCH_FIRST_WORD
+                    )
 
             return obj
 
@@ -673,6 +675,7 @@ class FlowCRUDL(SmartCRUDL):
                             org=org,
                             keyword=keyword,
                             trigger_type=Trigger.TYPE_KEYWORD,
+                            match_type=Trigger.MATCH_FIRST_WORD,
                             flow=obj,
                             created_by=user,
                             modified_by=user,

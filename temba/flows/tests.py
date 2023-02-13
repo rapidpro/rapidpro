@@ -1951,7 +1951,12 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # add a trigger on this flow
         Trigger.objects.create(
-            org=self.org, keyword="unique", flow=flow1, created_by=self.admin, modified_by=self.admin
+            org=self.org,
+            keyword="unique",
+            match_type=Trigger.MATCH_FIRST_WORD,
+            flow=flow1,
+            created_by=self.admin,
+            modified_by=self.admin,
         )
 
         # create a new surveyor flow
@@ -2014,7 +2019,12 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create another trigger so there are two in the way
         trigger = Trigger.objects.create(
-            org=self.org, keyword="this", flow=flow1, created_by=self.admin, modified_by=self.admin
+            org=self.org,
+            keyword="this",
+            match_type=Trigger.MATCH_FIRST_WORD,
+            flow=flow1,
+            created_by=self.admin,
+            modified_by=self.admin,
         )
 
         response = self.client.post(
@@ -2059,6 +2069,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(flow3.triggers.count(), 5)
         self.assertEqual(flow3.triggers.filter(is_archived=True).count(), 2)
         self.assertEqual(flow3.triggers.filter(is_archived=False).count(), 3)
+        self.assertEqual(flow3.triggers.filter(is_archived=False, match_type=Trigger.MATCH_FIRST_WORD).count(), 3)
         self.assertEqual(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
 
         # update flow with unformatted keyword
