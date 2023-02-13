@@ -70,8 +70,11 @@ def omnibox_mixed_search(org, query, types):
 
     if SEARCH_CONTACTS in search_types:
         try:
-            name_or_urn_query = f"name ~ {json.dumps(query)} OR urn ~ {json.dumps(query)}"
-            search_results = search_contacts(org, name_or_urn_query, group=org.active_contacts_group, sort="name")
+            if org.is_anon:
+                search_query = f"name ~ {json.dumps(query)}"
+            else:
+                search_query = f"name ~ {json.dumps(query)} OR urn ~ {json.dumps(query)}"
+            search_results = search_contacts(org, search_query, group=org.active_contacts_group, sort="name")
             contacts = IDSliceQuerySet(
                 Contact,
                 search_results.contact_ids,
