@@ -25,7 +25,7 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest, mock_uuids
+from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.utils.views import TEMBA_MENU_SELECTION
@@ -2717,45 +2717,3 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
         list_url = reverse("msgs.media_list")
 
         self.assertStaffOnly(list_url)
-
-
-class ScheduledBroadcastsConvertURNsToContactsTest(MigrationTest):
-    app = "msgs"
-    migrate_from = "0214_broadcast_query_msg_quick_replies"
-    migrate_to = "0215_scheduled_bcasts_urns_to_contacts"
-
-    def setUpBeforeMigration(self, apps):
-        self.contact1 = self.create_contact("Ann", urns=["tel:+593979111111"])
-        self.contact2 = self.create_contact("Bob", urns=["tel:+593979222222"])
-
-        self.contact1_urn = self.contact1.urns.get()
-        self.contact2_urn = self.contact2.urns.get()
-
-        self.bcast1 = Broadcast.objects.create(
-            org=self.org,
-            translations={"eng": {"text": "Hello"}},
-            base_language="eng",
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), "D"),
-            created_by=self.admin,
-        )
-        self.bcast1.contacts.add(self.contact1)
-        self.bcast1.urns.add(self.contact1_urn)
-        self.bcast1.urns.add(self.contact2_urn)
-
-        # ignore broadcasts without schedules
-        self.bcast2 = Broadcast.objects.create(
-            org=self.org,
-            translations={"eng": {"text": "Hello"}},
-            base_language="eng",
-            created_by=self.admin,
-        )
-        self.bcast2.urns.add(self.contact1_urn)
-
-    def test_migration(self):
-        # 1 should have its URNs converted to contacts
-        self.assertEqual({self.contact1, self.contact2}, set(self.bcast1.contacts.all()))
-        self.assertEqual(set(), set(self.bcast1.urns.all()))
-
-        # 2 should be unchanged
-        self.assertEqual(set(), set(self.bcast2.contacts.all()))
-        self.assertEqual({self.contact1_urn}, set(self.bcast2.urns.all()))

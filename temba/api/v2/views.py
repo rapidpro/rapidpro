@@ -610,7 +610,6 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     throttle_scope = "v2.broadcasts"
 
     def filter_queryset(self, queryset):
-        org = self.request.org
         queryset = queryset.filter(schedule=None, is_active=True)
 
         # filter by id (optional)
@@ -622,11 +621,6 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             Prefetch("contacts", queryset=Contact.objects.only("uuid", "name").order_by("id")),
             Prefetch("groups", queryset=ContactGroup.objects.only("uuid", "name").order_by("id")),
         )
-
-        if not org.is_anon:
-            queryset = queryset.prefetch_related(
-                Prefetch("urns", queryset=ContactURN.objects.only("scheme", "path", "display").order_by("id"))
-            )
 
         return self.filter_before_after(queryset, "created_on")
 

@@ -5,7 +5,7 @@ from django.db import migrations
 from temba.utils import chunk_list
 
 
-def convert_urns_to_contacts(apps, schema_editor):
+def convert_urns_to_contacts(apps, schema_editor):  # pragma: no cover
     Broadcast = apps.get_model("msgs", "Broadcast")
 
     # find non-deleted scheduled broadcasts with urns
@@ -31,7 +31,7 @@ def convert_urns_to_contacts(apps, schema_editor):
         print(f"Updated {num_updated} of {len(broadcasts)} scheduled broadcasts with URNs")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
