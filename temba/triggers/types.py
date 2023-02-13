@@ -55,7 +55,7 @@ class KeywordTriggerType(TriggerType):
     name = _("Keyword")
     title = _("Keyword Triggers")
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE)
-    export_fields = TriggerType.export_fields + ("keyword",)
+    export_fields = TriggerType.export_fields + ("keyword", "match_type")
     required_fields = TriggerType.required_fields + ("keyword",)
     form = Form
 
