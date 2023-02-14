@@ -1,3 +1,7 @@
+v8.1.32 (2023-02-14)
+-------------------------
+ * Drop Broadcast.urns and .send_all
+
 v8.1.30 (2023-02-13)
 -------------------------
  * Fix keyword triggers match type
