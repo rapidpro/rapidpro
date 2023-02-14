@@ -219,7 +219,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 .get_queryset(**kwargs)
                 .filter(is_active=True)
                 .select_related("org", "schedule")
-                .prefetch_related("groups", "contacts", "urns")
+                .prefetch_related("groups", "contacts")
             )
 
     class ScheduledCreate(OrgPermsMixin, ModalMixin, SmartFormView):
@@ -748,7 +748,7 @@ class MsgCRUDL(SmartCRUDL):
                     org=self.request.org, status=Broadcast.STATUS_QUEUED, schedule=None, is_active=True
                 )
                 .select_related("org")
-                .prefetch_related("groups", "contacts", "urns")
+                .prefetch_related("groups", "contacts")
                 .order_by("-created_on")
             )
             return context

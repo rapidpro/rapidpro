@@ -204,10 +204,6 @@ class Broadcast(models.Model):
     parent = models.ForeignKey("Broadcast", on_delete=models.PROTECT, null=True, related_name="children")
     is_active = models.BooleanField(null=True, default=True)
 
-    # TODO drop
-    urns = models.ManyToManyField(ContactURN, related_name="addressed_broadcasts")
-    send_all = models.BooleanField(default=False, null=True)
-
     @classmethod
     def create(
         cls,
