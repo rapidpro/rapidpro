@@ -1006,7 +1006,7 @@ class EndpointsTest(TembaTest):
             broadcast.translations,
         )
         self.assertEqual("eng", broadcast.base_language)
-        self.assertEqual(["twitter:franky"], broadcast.raw_urns)
+        self.assertEqual(["twitter:franky"], broadcast.urns)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
         self.assertEqual({reporters}, set(broadcast.groups.all()))
         self.assertEqual(ticket, broadcast.ticket)

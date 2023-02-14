@@ -9,7 +9,7 @@
     -render_field 'message'
 
 -block summary
-  -include "includes/recipients.haml" with groups=broadcast.groups.all contacts=broadcast.contacts.all urns=broadcast.raw_urns
+  -include "includes/recipients.haml" with groups=broadcast.groups.all contacts=broadcast.contacts.all
 
   .mt-2
     {{ object.get_text }}
