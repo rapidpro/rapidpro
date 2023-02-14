@@ -183,8 +183,8 @@ class Broadcast(models.Model):
     # recipients of this broadcast
     groups = models.ManyToManyField(ContactGroup, related_name="addressed_broadcasts")
     contacts = models.ManyToManyField(Contact, related_name="addressed_broadcasts")
+    urns = ArrayField(models.TextField(), null=True)
     query = models.TextField(null=True)
-    raw_urns = ArrayField(models.TextField(), null=True)  # URN strings that mailroom will resolve
 
     # message content in different languages, e.g. {"eng": {"text": "Hello", "attachments": [...]}, "spa": ...}
     translations = models.JSONField()
@@ -203,6 +203,9 @@ class Broadcast(models.Model):
     schedule = models.OneToOneField(Schedule, on_delete=models.PROTECT, null=True, related_name="broadcast")
     parent = models.ForeignKey("Broadcast", on_delete=models.PROTECT, null=True, related_name="children")
     is_active = models.BooleanField(null=True, default=True)
+
+    # TODO remove
+    raw_urns = ArrayField(models.TextField(), null=True)
 
     @classmethod
     def create(
@@ -324,8 +327,8 @@ class Broadcast(models.Model):
             self.contacts.add(*contacts)
 
         if urns:
-            self.raw_urns = urns
-            self.save(update_fields=("raw_urns",))
+            self.urns = urns
+            self.save(update_fields=("urns",))
 
         if contact_ids:
             RelatedModel = self.contacts.through

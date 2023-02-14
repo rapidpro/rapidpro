@@ -15,7 +15,7 @@
           %tr.select-row.cursor-pointer{class:'{% cycle row1 row1 %}', onclick:'document.location="{% url "msgs.broadcast_scheduled_read" object.id %}"'}
 
             %td.value-contacts.field_phone
-              -include "includes/recipients.haml" with groups=object.groups.all contacts=object.contacts.all urns=object.raw_urns
+              -include "includes/recipients.haml" with groups=object.groups.all contacts=object.contacts.all
 
             %td.value-text.field_text
               {{ object.get_text }}
