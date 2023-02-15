@@ -227,11 +227,11 @@ class BroadcastWriteSerializer(WriteSerializer):
         attachments = data.get("attachments")
         base_language = data.get("base_language")
 
-        if not (data.get("urns") or data.get("contacts") or data.get("groups")):
-            raise serializers.ValidationError("Must provide either urns, contacts or groups.")
-
         if not (data.get("text") or data.get("attachments")):
             raise serializers.ValidationError("Must provide either text or attachments.")
+
+        if not (data.get("urns") or data.get("contacts") or data.get("groups")):
+            raise serializers.ValidationError("Must provide either urns, contacts or groups.")
 
         if base_language:
             if base_language not in text:

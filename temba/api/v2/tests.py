@@ -950,7 +950,7 @@ class EndpointsTest(TembaTest):
 
         # try to create new broadcast with no data at all
         response = self.postJSON(url, None, {})
-        self.assertResponseError(response, "non_field_errors", "Must provide either urns, contacts or groups.")
+        self.assertResponseError(response, "non_field_errors", "Must provide either text or attachments.")
 
         # try to create new broadcast with no recipients
         response = self.postJSON(url, None, {"text": "Hello"})
@@ -1031,7 +1031,7 @@ class EndpointsTest(TembaTest):
         self.assertEqual("eng", broadcast.base_language)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
 
-        # create new broadcast with translations containing only text, no attachments
+        # create new broadcast without translations containing only text, no attachments
         response = self.postJSON(
             url,
             None,
@@ -1046,7 +1046,7 @@ class EndpointsTest(TembaTest):
             broadcast.translations,
         )
 
-        # create new broadcast with translations containing only attachments, no text
+        # create new broadcast without translations containing only attachments, no text
         response = self.postJSON(
             url,
             None,
@@ -1060,6 +1060,8 @@ class EndpointsTest(TembaTest):
             {"eng": {"attachments": ["http://example.com/test.jpg", "http://example.com/test.mp3"]}},
             broadcast.translations,
         )
+
+        # create new broadcast with 'und' base language
 
         # try sending as a flagged org
         self.org.flag()
