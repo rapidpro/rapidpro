@@ -471,3 +471,11 @@ FIXED_SUPER_ACCESS_TOKEN = env("FIXED_SUPER_ACCESS_TOKEN")
 # The list below excludes from the list the channels that go to the generic integrations channels
 # ----------------------------------------------------------------------------------------
 DISABLED_CHANNELS_INTEGRATIONS = env.list("DISABLED_CHANNELS_INTEGRATIONS", default=[])
+
+
+# ----------------------------------------------------------------------------------------
+# # Contact import settings
+# ----------------------------------------------------------------------------------------
+
+CONTACT_IMPORT_MAX_RECORDS = env.int("CONTACT_IMPORT_MAX_RECORDS", default=25_000)
+CONTACT_IMPORT_BATCH_SIZE = env.int("CONTACT_IMPORT_BATCH_SIZE", default=100)

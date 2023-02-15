@@ -2100,8 +2100,8 @@ def get_import_upload_path(instance: Any, filename: str):
 
 
 class ContactImport(SmartModel):
-    MAX_RECORDS = 25_000
-    BATCH_SIZE = 100
+    MAX_RECORDS = settings.CONTACT_IMPORT_MAX_RECORDS
+    BATCH_SIZE = settings.CONTACT_IMPORT_BATCH_SIZE
     EXPLICIT_CLEAR = "--"
 
     # how many sequential URNs triggers flagging

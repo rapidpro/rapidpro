@@ -111,3 +111,11 @@ warnings.filterwarnings(
 # Make our sitestatic URL be our static URL on development
 # -----------------------------------------------------------------------------------
 STATIC_URL = "/sitestatic/"
+
+
+# ----------------------------------------------------------------------------------------
+# # Contact import settings
+# ----------------------------------------------------------------------------------------
+
+CONTACT_IMPORT_MAX_RECORDS = 25_000
+CONTACT_IMPORT_BATCH_SIZE = 100
