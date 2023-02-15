@@ -520,12 +520,17 @@
     }
    
     function handleMenuClicked(event) {
+
       var menu = document.querySelector("temba-menu");
       var items = event.detail;
       var item = items.item;
       var parent = items.parent;
       var selection = items.selection;
-    
+
+      if (item.trigger) {
+        return;
+      }
+
       if (item.type == "modax-button") {
         var modaxOptions = { 
           disabled: false, 
