@@ -1,3 +1,7 @@
+1.6.20-rapidpro-7.1.27
+----------
+* Transforms ContactImport model constants into environment variables
+
 1.6.19-rapidpro-7.1.27
 ----------
 * Update gunicorn start
