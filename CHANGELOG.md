@@ -1,3 +1,8 @@
+v8.1.33 (2023-02-15)
+-------------------------
+ * Fix routing of current workspace to settings
+ * Add Broadcast.urns which matches the JSON and FlowStart.urns
+
 v8.1.32 (2023-02-14)
 -------------------------
  * Drop Broadcast.urns and .send_all
