@@ -121,7 +121,6 @@ class TriggerTest(TembaTest):
         # do import to clean workspace
         Trigger.objects.all().delete()
         self.org.import_app(export_def, self.admin)
-
         # should have a single identical trigger
         imported = Trigger.objects.get(
             org=trigger.org,
@@ -294,6 +293,7 @@ class TriggerTest(TembaTest):
             groups=[doctors, farmers],
             exclude_groups=[testers],
             keyword="join",
+            match_type=Trigger.MATCH_FIRST_WORD,
         )
 
         self.assert_export_import(
@@ -307,6 +307,7 @@ class TriggerTest(TembaTest):
                 ],
                 "exclude_groups": [{"uuid": str(testers.uuid), "name": "Testers"}],
                 "keyword": "join",
+                "match_type": "F",
             },
         )
 

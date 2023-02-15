@@ -2076,7 +2076,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         with AnonymousOrg(self.org):
             mock_search_contacts.side_effect = [
-                SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=QueryMetadata())
+                SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=QueryMetadata()),
+                SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=QueryMetadata()),
             ]
             self.assertEqual(
                 [
@@ -2089,6 +2090,14 @@ class ContactTest(TembaTest, CRUDLTestMixin):
                     {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact"},
                 ],
                 omnibox_request(""),
+            )
+
+            self.assertEqual(
+                [
+                    # 1 contact
+                    {"id": str(self.billy.uuid), "name": "Billy Nophone", "type": "contact"},
+                ],
+                omnibox_request("search=Billy"),
             )
 
         # exclude blocked and stopped contacts
@@ -2562,41 +2571,37 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         )
 
     def test_get_scheduled_messages(self):
-        self.just_joe = self.create_group("Just Joe", [self.joe])
+        just_joe = self.create_group("Just Joe", [self.joe])
 
-        self.assertFalse(self.joe.get_scheduled_broadcasts())
+        self.assertEqual(0, self.joe.get_scheduled_broadcasts().count())
 
         broadcast = Broadcast.create(self.org, self.admin, {"eng": "Hello"}, contacts=[self.frank])
-        self.assertFalse(self.joe.get_scheduled_broadcasts())
+        self.assertEqual(0, self.joe.get_scheduled_broadcasts().count())
 
         broadcast.contacts.add(self.joe)
 
-        self.assertFalse(self.joe.get_scheduled_broadcasts())
+        self.assertEqual(0, self.joe.get_scheduled_broadcasts().count())
 
         schedule_time = timezone.now() + timedelta(days=2)
         broadcast.schedule = Schedule.create_schedule(self.org, self.admin, schedule_time, Schedule.REPEAT_NEVER)
-        broadcast.save()
+        broadcast.save(update_fields=("schedule",))
 
         self.assertEqual(self.joe.get_scheduled_broadcasts().count(), 1)
-        self.assertTrue(broadcast in self.joe.get_scheduled_broadcasts())
+        self.assertIn(broadcast, self.joe.get_scheduled_broadcasts())
 
         broadcast.contacts.remove(self.joe)
-        self.assertFalse(self.joe.get_scheduled_broadcasts())
+        self.assertEqual(0, self.joe.get_scheduled_broadcasts().count())
 
-        broadcast.groups.add(self.just_joe)
+        broadcast.groups.add(just_joe)
         self.assertEqual(self.joe.get_scheduled_broadcasts().count(), 1)
-        self.assertTrue(broadcast in self.joe.get_scheduled_broadcasts())
+        self.assertIn(broadcast, self.joe.get_scheduled_broadcasts())
 
-        broadcast.groups.remove(self.just_joe)
-        self.assertFalse(self.joe.get_scheduled_broadcasts())
-
-        broadcast.urns.add(self.joe.get_urn())
-        self.assertEqual(self.joe.get_scheduled_broadcasts().count(), 1)
-        self.assertTrue(broadcast in self.joe.get_scheduled_broadcasts())
+        broadcast.groups.remove(just_joe)
+        self.assertEqual(0, self.joe.get_scheduled_broadcasts().count())
 
         broadcast.schedule.next_fire = None
         broadcast.schedule.save(update_fields=["next_fire"])
-        self.assertFalse(self.joe.get_scheduled_broadcasts())
+        self.assertEqual(0, self.joe.get_scheduled_broadcasts().count())
 
     def test_update_urns_field(self):
         update_url = reverse("contacts.contact_update", args=[self.joe.pk])

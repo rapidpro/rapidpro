@@ -14,17 +14,16 @@
     %meta{name:"description", content:"{% block page-description %}{{brand.name}} lets you visually build interactive SMS applications and launch them anywhere in the world.{% endblock %}"}
     %meta{name:"author", content:"Nyaruka Ltd"}
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
-
+    
     -if user.is_beta
       :javascript
-        window.STATIC_URL = "{{STATIC_URL}}";
         function switchToNewInterface() {
           document.cookie = "nav=2; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/;";
           document.location.reload();
         }
 
     :javascript
-
+      window.STATIC_URL = "{{STATIC_URL}}";
       window.supportEmail = '{{brand.support_email}}';
       function conditionalLoad(local, remote) {
         if (local != null && (window.location.hostname == "localhost" || remote == null)) {

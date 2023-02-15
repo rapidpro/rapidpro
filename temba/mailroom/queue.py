@@ -89,7 +89,7 @@ def queue_broadcast(broadcast):
         "translations": broadcast.translations,
         "template_state": "unevaluated",
         "base_language": broadcast.base_language,
-        "urns": broadcast.raw_urns or [],
+        "urns": broadcast.urns or [],
         "contact_ids": list(broadcast.contacts.values_list("id", flat=True)),
         "group_ids": list(broadcast.groups.values_list("id", flat=True)),
         "broadcast_id": broadcast.id,

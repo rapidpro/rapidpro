@@ -895,7 +895,7 @@ class EndpointsTest(TembaTest):
         bcast4.save(update_fields=("status",))
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
             response = self.fetchJSON(url, readonly_models={Broadcast})
 
         resp_json = response.json()
@@ -1006,7 +1006,7 @@ class EndpointsTest(TembaTest):
             broadcast.translations,
         )
         self.assertEqual("eng", broadcast.base_language)
-        self.assertEqual(["twitter:franky"], broadcast.raw_urns)
+        self.assertEqual(["twitter:franky"], broadcast.urns)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
         self.assertEqual({reporters}, set(broadcast.groups.all()))
         self.assertEqual(ticket, broadcast.ticket)

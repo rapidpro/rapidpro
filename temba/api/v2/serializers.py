@@ -206,7 +206,7 @@ class BroadcastReadSerializer(ReadSerializer):
         if self.context["org"].is_anon:
             return None
         else:
-            return obj.raw_urns or []
+            return obj.urns or []
 
     class Meta:
         model = Broadcast

@@ -615,9 +615,12 @@
     }
 
     function onSpload(fn) {
-      var eventContainer = document.querySelector(".spa-content > div");
-      eventContainer.addEventListener("temba-spa-ready", fn);
-      document.addEventListener("DOMContentLoaded", fn);
+      {% if self.is_spa %}
+        var eventContainer = document.querySelector(".spa-content > div");
+        eventContainer.addEventListener("temba-spa-ready", fn);
+      {% else %}
+        document.addEventListener("DOMContentLoaded", fn);
+      {% endif %}
     }
 
     document.addEventListener("temba-redirected", function(event){

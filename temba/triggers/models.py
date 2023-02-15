@@ -47,6 +47,7 @@ class TriggerType:
             "exclude_groups": [group.as_export_ref() for group in trigger.exclude_groups.order_by("name")],
             "channel": trigger.channel.uuid if trigger.channel else None,
             "keyword": trigger.keyword,
+            "match_type": trigger.match_type,
         }
         return {f: all_fields[f] for f in self.export_fields}
 
@@ -114,6 +115,7 @@ class Trigger(SmartModel):
         contacts=(),
         keyword=None,
         schedule=None,
+        match_type=None,
         **kwargs,
     ):
         assert flow.flow_type != Flow.TYPE_SURVEY, "can't create triggers for surveyor flows"
@@ -130,6 +132,7 @@ class Trigger(SmartModel):
             channel=channel,
             keyword=keyword,
             schedule=schedule,
+            match_type=match_type,
             created_by=user,
             modified_by=user,
             **kwargs,
@@ -208,6 +211,7 @@ class Trigger(SmartModel):
             return cls.objects.none()
 
         conflicts = org.triggers.filter(is_active=True, trigger_type=trigger_type)
+
         if not include_archived:
             conflicts = conflicts.filter(is_archived=False)
 
@@ -267,6 +271,10 @@ class Trigger(SmartModel):
         flow_uuid = trigger_def["flow"]["uuid"]
         flow = org.flows.get(uuid=flow_uuid, is_active=True)
 
+        match_type = None
+        if trigger_type.code == Trigger.TYPE_KEYWORD:
+            match_type = trigger_def.get("match_type", Trigger.MATCH_FIRST_WORD)
+
         # see if that trigger already exists
         conflicts = cls.get_conflicts(
             org,
@@ -298,6 +306,7 @@ class Trigger(SmartModel):
                 groups=groups,
                 exclude_groups=exclude_groups,
                 keyword=trigger_def.get("keyword"),
+                match_type=match_type,
             )
 
     @classmethod

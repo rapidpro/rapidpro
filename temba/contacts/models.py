@@ -692,7 +692,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         return (
             SystemLabel.get_queryset(self.org, SystemLabel.TYPE_SCHEDULED)
             .filter(schedule__next_fire__gte=timezone.now())
-            .filter(Q(contacts__in=[self]) | Q(urns__in=self.get_urns()) | Q(groups__in=self.groups.all()))
+            .filter(Q(contacts__in=[self]) | Q(groups__in=self.groups.all()))
             .select_related("org", "schedule")
         )
 
