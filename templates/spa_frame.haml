@@ -548,7 +548,7 @@
       // clicked inside our workspace popup
       if (parent && parent.id == "workspace") {
         if (item.id == "settings") {
-          menu.setSelectionPath("settings/workspace");
+          fetchURL("{% url 'orgs.org_workspace' %}");
         } else if (item.id == "logout") {
           posterize(item.href)
         }
