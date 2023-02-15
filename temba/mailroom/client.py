@@ -121,20 +121,6 @@ class MailroomClient:
     def version(self):
         return self._request("", post=False).get("version")
 
-    def expression_migrate(self, expression):
-        """
-        Migrates a legacy expression to latest engine version
-        """
-        if not expression:
-            return ""
-
-        try:
-            resp = self._request("expression/migrate", {"expression": expression})
-            return resp["migrated"]
-        except FlowValidationException:
-            # if the expression is invalid.. just return original
-            return expression
-
     def flow_migrate(self, definition, to_version=None):
         """
         Migrates a flow definition to the specified spec version
