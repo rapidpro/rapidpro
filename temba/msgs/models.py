@@ -232,7 +232,7 @@ class Broadcast(models.Model):
                 base_language = next(iter(attachments))
                 assert base_language in attachments, "no translation for base language"
             else:
-                base_language = 'und'
+                base_language = "und"
 
         assert text or attachments, "can't create broadcast without text or attachments"
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"

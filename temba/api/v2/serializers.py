@@ -229,7 +229,7 @@ class BroadcastWriteSerializer(WriteSerializer):
 
         if not (data.get("urns") or data.get("contacts") or data.get("groups")):
             raise serializers.ValidationError("Must provide either urns, contacts or groups.")
-        
+
         if not (data.get("text") or data.get("attachments")):
             raise serializers.ValidationError("Must provide either text or attachments.")
 
