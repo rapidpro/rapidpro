@@ -950,7 +950,7 @@ class EndpointsTest(TembaTest):
 
         # try to create new broadcast with no data at all
         response = self.postJSON(url, None, {})
-        self.assertResponseError(response, "text", "This field is required.")
+        self.assertResponseError(response, "non_field_errors", "Must provide either urns, contacts or groups.")
 
         # try to create new broadcast with no recipients
         response = self.postJSON(url, None, {"text": "Hello"})
@@ -992,7 +992,6 @@ class EndpointsTest(TembaTest):
                 "ticket": str(ticket.uuid),
             },
         )
-
         broadcast = Broadcast.objects.get(id=response.json()["id"])
         self.assertEqual(
             {
@@ -1031,6 +1030,36 @@ class EndpointsTest(TembaTest):
         )
         self.assertEqual("eng", broadcast.base_language)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
+
+        # create new broadcast with translations containing only text, no attachments
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "text": "Hello",
+                "contacts": [self.joe.uuid, self.frank.uuid],
+            },
+        )
+        broadcast = Broadcast.objects.get(id=response.json()["id"])
+        self.assertEqual(
+            {"eng": {"text": "Hello"}},
+            broadcast.translations,
+        )
+
+        # create new broadcast with translations containing only attachments, no text
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "attachments": ["http://example.com/test.jpg", "http://example.com/test.mp3"],
+                "contacts": [self.joe.uuid, self.frank.uuid],
+            },
+        )
+        broadcast = Broadcast.objects.get(id=response.json()["id"])
+        self.assertEqual(
+            {"eng": {"attachments": ["http://example.com/test.jpg", "http://example.com/test.mp3"]}},
+            broadcast.translations,
+        )
 
         # try sending as a flagged org
         self.org.flag()
