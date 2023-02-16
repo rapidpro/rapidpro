@@ -148,7 +148,7 @@ class LimitedDictField(serializers.DictField):
 
 class AttachmentField(serializers.CharField):
     def __init__(self, **kwargs):
-        super().__init__(max_length=2048, **kwargs)
+        super().__init__(max_length=Attachment.MAX_LEN, **kwargs)
 
     def to_internal_value(self, data):
         validate_attachment(str(data))

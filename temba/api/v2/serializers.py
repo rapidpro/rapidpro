@@ -22,7 +22,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.mailroom import modifiers
-from temba.msgs.models import Broadcast, Label, Msg
+from temba.msgs.models import Attachment, Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
@@ -218,7 +218,7 @@ class BroadcastWriteSerializer(WriteSerializer):
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
     text = fields.TranslationsField(required=True, max_length=Msg.MAX_TEXT_LEN)
-    attachments = fields.TranslationsListField(required=False, max_items=10, max_length=2048)
+    attachments = fields.TranslationsListField(required=False, max_items=10, max_length=Attachment.MAX_LEN)
     base_language = fields.LanguageField(required=False)
     ticket = fields.TicketField(required=False)
 
