@@ -367,13 +367,20 @@ class Attachment:
     Represents a message attachment stored as type:url
     """
 
+    content_type_regex = re.compile(r"^(image|audio|video|application|geo|unavailable|(\w+/[-+.\w]+))$")
+
     def __init__(self, content_type, url):
         self.content_type = content_type
         self.url = url
 
     @classmethod
     def parse(cls, s):
-        return cls(*s.split(":", 1))
+        if ":" in s:
+            content_type, url = s.split(":", 1)
+            if cls.content_type_regex.match(content_type) and url:
+                return cls(content_type, url)
+
+        raise ValueError(f"{s} is not a valid atttachment")
 
     @classmethod
     def parse_all(cls, attachments):

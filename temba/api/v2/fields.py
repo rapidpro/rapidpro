@@ -7,7 +7,7 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactField as ContactFieldModel, ContactGroup, ContactURN
 from temba.flows.models import Flow
-from temba.msgs.models import Label, Msg
+from temba.msgs.models import Attachment, Label, Msg
 from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import languages
 from temba.utils.uuid import is_uuid
@@ -55,6 +55,14 @@ def validate_translations(value, *, max_length: int, lists: bool, max_items: int
                 raise serializers.ValidationError("Translations cannot be empty or blank.")
             if len(t) > max_length:
                 raise serializers.ValidationError("Translations must have no more than %d characters." % max_length)
+
+
+def validate_attachment(value):
+    try:
+        Attachment.parse(value)
+    except ValueError:
+        raise serializers.ValidationError("Invalid attachment. Must be <content-type>:<url>.")
+    return value
 
 
 def validate_urn(value, strict=True, country_code=None):
@@ -138,8 +146,19 @@ class LimitedDictField(serializers.DictField):
         return super().to_internal_value(data)
 
 
+class AttachmentField(serializers.CharField):
+    def __init__(self, **kwargs):
+        super().__init__(max_length=2048, **kwargs)
+
+    def to_internal_value(self, data):
+        validate_attachment(str(data))
+
+        return super().to_internal_value(data)
+
+
 class URNField(serializers.CharField):
-    max_length = 255
+    def __init__(self, **kwargs):
+        super().__init__(max_length=255, **kwargs)
 
     def to_representation(self, obj):
         if self.context["org"].is_anon:

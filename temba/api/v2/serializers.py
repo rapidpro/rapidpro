@@ -1290,6 +1290,32 @@ class MsgReadSerializer(ReadSerializer):
         )
 
 
+class MsgWriteSerializer(WriteSerializer):
+    contact = fields.ContactField()
+    text = serializers.CharField(required=False, max_length=Msg.MAX_TEXT_LEN)
+    attachments = fields.LimitedListField(required=False, child=fields.AttachmentField(), max_length=10)
+    ticket = fields.TicketField(required=False)
+
+    def validate(self, data):
+        if not (data.get("text") or data.get("attachments")):
+            raise serializers.ValidationError("Must provide either text or attachments.")
+
+        return data
+
+    def save(self):
+        org = self.context["org"]
+        user = self.context["user"]
+        contact = self.validated_data["contact"]
+        text = self.validated_data.get("text")
+        attachments = self.validated_data.get("attachments")
+        ticket = self.validated_data.get("ticket")
+
+        resp = mailroom.get_client().msg_send(
+            org.id, user.id, contact.id, text or "", attachments or [], ticket.id if ticket else None
+        )
+        return Msg.objects.filter(id=resp["id"]).select_related("channel", "contact").get()
+
+
 class MsgBulkActionSerializer(WriteSerializer):
     LABEL = "label"
     UNLABEL = "unlabel"
