@@ -226,6 +226,7 @@ class TestClient(MailroomClient):
 
         msg = Msg.objects.create(
             org=org,
+            channel=channel,
             contact=contact,
             contact_urn=contact_urn,
             status=status,
@@ -244,7 +245,7 @@ class TestClient(MailroomClient):
             "attachments": msg.attachments,
             "status": msg.status,
             "created_on": msg.created_on.isoformat(),
-            "modified_on": msg.created_on.isoformat(),
+            "modified_on": msg.modified_on.isoformat(),
         }
 
     @_client_method

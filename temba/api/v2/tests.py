@@ -3484,9 +3484,9 @@ class EndpointsTest(TembaTest):
             {
                 "id": msg.id,
                 "broadcast": msg.broadcast,
-                "contact": {"uuid": msg.contact.uuid, "name": msg.contact.name},
+                "contact": {"uuid": str(msg.contact.uuid), "name": msg.contact.name},
                 "urn": str(msg.contact_urn),
-                "channel": {"uuid": msg.channel.uuid, "name": msg.channel.name},
+                "channel": {"uuid": str(msg.channel.uuid), "name": msg.channel.name} if msg.channel else None,
                 "direction": "in" if msg.direction == "I" else "out",
                 "type": msg_type,
                 "status": msg_status,
@@ -3663,9 +3663,13 @@ class EndpointsTest(TembaTest):
         response = self.postJSON(url, None, {"contact": self.joe.uuid})
         self.assertResponseError(response, "non_field_errors", "Must provide either text or attachments.")
 
-        # create a new message with just text...
-        response = self.postJSON(url, None, {"contact": self.joe.uuid, "text": "Interesting"})
+        # create a new message with just text - which shouldn't need to read anything about the msg from the db
+        with self.assertNumQueries(12):
+            response = self.postJSON(url, None, {"contact": self.joe.uuid, "text": "Interesting"})
         self.assertEqual(response.status_code, 201)
+
+        msg = Msg.objects.order_by("id").last()
+        self.assertMsgEqual(response.json(), msg, msg_type="flow", msg_status="queued", msg_visibility="visible")
 
         self.assertEqual(
             call(self.org.id, self.admin.id, self.joe.id, "Interesting", [], None),

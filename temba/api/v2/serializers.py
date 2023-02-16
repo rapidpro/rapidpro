@@ -17,7 +17,7 @@ from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
-from temba.contacts.models import Contact, ContactField, ContactGroup
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
@@ -1237,7 +1237,7 @@ class MsgReadSerializer(ReadSerializer):
     status = serializers.SerializerMethodField()
     archived = serializers.SerializerMethodField()
     visibility = serializers.SerializerMethodField()
-    labels = fields.LabelField(many=True)
+    labels = serializers.SerializerMethodField()
     media = serializers.SerializerMethodField()  # deprecated
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
@@ -1266,6 +1266,13 @@ class MsgReadSerializer(ReadSerializer):
 
     def get_visibility(self, obj):
         return self.VISIBILITIES.get(obj.visibility)
+
+    def get_labels(self, obj):
+        # to optimize the POST case that creates an outgoing message, don't even try to look for labels
+        if obj.direction == Msg.DIRECTION_IN:
+            return [{"uuid": str(lb.uuid), "name": lb.name} for lb in obj.labels.all()]
+        else:
+            return []
 
     class Meta:
         model = Msg
@@ -1313,7 +1320,32 @@ class MsgWriteSerializer(WriteSerializer):
         resp = mailroom.get_client().msg_send(
             org.id, user.id, contact.id, text or "", attachments or [], ticket.id if ticket else None
         )
-        return Msg.objects.filter(id=resp["id"]).select_related("channel", "contact").get()
+
+        # to avoid fetching the new msg from the database, construct transient instances to pass to the serializer
+        channel = Channel(uuid=resp["channel"]["uuid"], name=resp["channel"]["name"]) if resp.get("channel") else None
+        contact = Contact(uuid=resp["contact"]["uuid"], name=resp["contact"]["name"])
+
+        if resp.get("urn"):
+            urn_scheme, urn_path, _, urn_display = URN.to_parts(resp["urn"])
+            contact_urn = ContactURN(scheme=urn_scheme, path=urn_path, display=urn_display)
+        else:
+            contact_urn = None
+
+        return Msg(
+            id=resp["id"],
+            org=org,
+            contact=contact,
+            contact_urn=contact_urn,
+            channel=channel,
+            direction=Msg.DIRECTION_OUT,
+            msg_type=Msg.TYPE_FLOW,
+            status=resp["status"],
+            visibility=Msg.VISIBILITY_VISIBLE,
+            text=resp.get("text"),
+            attachments=resp.get("attachments"),
+            created_on=iso8601.parse_date(resp["created_on"]),
+            modified_on=iso8601.parse_date(resp["modified_on"]),
+        )
 
 
 class MsgBulkActionSerializer(WriteSerializer):
