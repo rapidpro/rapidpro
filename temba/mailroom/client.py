@@ -225,10 +225,12 @@ class MailroomClient:
 
         return self._request("contact/interrupt", payload)
 
-    def contact_search(self, org_id, group_uuid, query, sort, offset=0, exclude_ids=()) -> SearchResults:
+    def contact_search(
+        self, org_id: int, group_id: int, query: str, sort: str, offset=0, exclude_ids=()
+    ) -> SearchResults:
         payload = {
             "org_id": org_id,
-            "group_uuid": group_uuid,
+            "group_id": group_id,
             "exclude_ids": exclude_ids,
             "query": query,
             "sort": sort,

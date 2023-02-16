@@ -57,10 +57,10 @@ def search_contacts(
     org, query: str, *, group=None, sort: str = None, offset: int = None, exclude_ids=()
 ) -> mailroom.SearchResults:
     try:
-        group_uuid = group.uuid if group else None
+        group_id = group.id if group else None
 
         return mailroom.get_client().contact_search(
-            org.id, group_uuid=str(group_uuid), query=query, sort=sort, offset=offset, exclude_ids=exclude_ids
+            org.id, group_id=group_id, query=query, sort=sort, offset=offset, exclude_ids=exclude_ids
         )
     except mailroom.MailroomException as e:
         raise SearchException.from_mailroom_exception(e)
