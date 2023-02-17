@@ -220,7 +220,7 @@ class Broadcast(models.Model):
         channel: Channel = None,
         ticket=None,
         **kwargs,
-    ):  
+    ):
         # if base language is not provided
         if not base_language:
             # option 1
@@ -237,7 +237,7 @@ class Broadcast(models.Model):
         # option 4
         assert not text or base_language in text, "no translation for base language"
         assert not attachments or base_language in attachments, "no translation for base language"
-        
+
         assert text or attachments, "can't create broadcast without text or attachments"
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
 
