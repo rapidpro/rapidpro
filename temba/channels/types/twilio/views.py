@@ -90,7 +90,6 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
 
     form_class = Form
-    menu_path = "/settings/workspace/"
 
     def __init__(self, channel_type):
         super().__init__(channel_type)

@@ -2485,7 +2485,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # errored show retrying icon
         msg.status = Msg.STATUS_ERRORED
-        self.assertIn('"retry"', msg_status_badge(msg))
+        self.assertIn('"icon.retry"', msg_status_badge(msg))
 
         # failed messages show an x
         msg.status = Msg.STATUS_FAILED
