@@ -17,12 +17,12 @@ from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
-from temba.contacts.models import Contact, ContactField, ContactGroup
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.mailroom import modifiers
-from temba.msgs.models import Broadcast, Label, Msg
+from temba.msgs.models import Attachment, Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
@@ -218,7 +218,7 @@ class BroadcastWriteSerializer(WriteSerializer):
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
     text = fields.TranslationsField(required=True, max_length=Msg.MAX_TEXT_LEN)
-    attachments = fields.TranslationsListField(required=False, max_items=10, max_length=2048)
+    attachments = fields.TranslationsListField(required=False, max_items=10, max_length=Attachment.MAX_LEN)
     base_language = fields.LanguageField(required=False)
     ticket = fields.TicketField(required=False)
 
@@ -1237,7 +1237,7 @@ class MsgReadSerializer(ReadSerializer):
     status = serializers.SerializerMethodField()
     archived = serializers.SerializerMethodField()
     visibility = serializers.SerializerMethodField()
-    labels = fields.LabelField(many=True)
+    labels = serializers.SerializerMethodField()
     media = serializers.SerializerMethodField()  # deprecated
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
@@ -1267,6 +1267,13 @@ class MsgReadSerializer(ReadSerializer):
     def get_visibility(self, obj):
         return self.VISIBILITIES.get(obj.visibility)
 
+    def get_labels(self, obj):
+        # to optimize the POST case that creates an outgoing message, don't even try to look for labels
+        if obj.direction == Msg.DIRECTION_IN:
+            return [{"uuid": str(lb.uuid), "name": lb.name} for lb in obj.labels.all()]
+        else:
+            return []
+
     class Meta:
         model = Msg
         fields = (
@@ -1287,6 +1294,57 @@ class MsgReadSerializer(ReadSerializer):
             "sent_on",
             "modified_on",
             "media",
+        )
+
+
+class MsgWriteSerializer(WriteSerializer):
+    contact = fields.ContactField()
+    text = serializers.CharField(required=False, max_length=Msg.MAX_TEXT_LEN)
+    attachments = fields.LimitedListField(required=False, child=fields.AttachmentField(), max_length=10)
+    ticket = fields.TicketField(required=False)
+
+    def validate(self, data):
+        if not (data.get("text") or data.get("attachments")):
+            raise serializers.ValidationError("Must provide either text or attachments.")
+
+        return data
+
+    def save(self):
+        org = self.context["org"]
+        user = self.context["user"]
+        contact = self.validated_data["contact"]
+        text = self.validated_data.get("text")
+        attachments = self.validated_data.get("attachments")
+        ticket = self.validated_data.get("ticket")
+
+        resp = mailroom.get_client().msg_send(
+            org.id, user.id, contact.id, text or "", attachments or [], ticket.id if ticket else None
+        )
+
+        # to avoid fetching the new msg from the database, construct transient instances to pass to the serializer
+        channel = Channel(uuid=resp["channel"]["uuid"], name=resp["channel"]["name"]) if resp.get("channel") else None
+        contact = Contact(uuid=resp["contact"]["uuid"], name=resp["contact"]["name"])
+
+        if resp.get("urn"):
+            urn_scheme, urn_path, _, urn_display = URN.to_parts(resp["urn"])
+            contact_urn = ContactURN(scheme=urn_scheme, path=urn_path, display=urn_display)
+        else:
+            contact_urn = None
+
+        return Msg(
+            id=resp["id"],
+            org=org,
+            contact=contact,
+            contact_urn=contact_urn,
+            channel=channel,
+            direction=Msg.DIRECTION_OUT,
+            msg_type=Msg.TYPE_FLOW,
+            status=resp["status"],
+            visibility=Msg.VISIBILITY_VISIBLE,
+            text=resp.get("text"),
+            attachments=resp.get("attachments"),
+            created_on=iso8601.parse_date(resp["created_on"]),
+            modified_on=iso8601.parse_date(resp["modified_on"]),
         )
 
 

@@ -3,6 +3,7 @@ import mimetypes
 import os
 import re
 from array import array
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from fnmatch import fnmatch
 from urllib.parse import unquote, urlparse
@@ -359,18 +360,26 @@ class Broadcast(models.Model):
         ]
 
 
+@dataclass
 class Attachment:
     """
     Represents a message attachment stored as type:url
     """
 
-    def __init__(self, content_type, url):
-        self.content_type = content_type
-        self.url = url
+    content_type: str
+    url: str
+
+    MAX_LEN = 2048
+    CONTENT_TYPE_REGEX = re.compile(r"^(image|audio|video|application|geo|unavailable|(\w+/[-+.\w]+))$")
 
     @classmethod
     def parse(cls, s):
-        return cls(*s.split(":", 1))
+        if ":" in s:
+            content_type, url = s.split(":", 1)
+            if cls.CONTENT_TYPE_REGEX.match(content_type) and url:
+                return cls(content_type, url)
+
+        raise ValueError(f"{s} is not a valid attachment")
 
     @classmethod
     def parse_all(cls, attachments):
@@ -382,9 +391,6 @@ class Attachment:
 
     def as_json(self):
         return {"content_type": self.content_type, "url": self.url}
-
-    def __eq__(self, other):
-        return self.content_type == other.content_type and self.url == other.url
 
 
 class Msg(models.Model):
@@ -484,7 +490,7 @@ class Msg(models.Model):
     flow = models.ForeignKey("flows.Flow", on_delete=models.PROTECT, null=True, db_index=False)
 
     text = models.TextField()
-    attachments = ArrayField(models.URLField(max_length=2048), null=True)
+    attachments = ArrayField(models.URLField(max_length=Attachment.MAX_LEN), null=True)
     quick_replies = ArrayField(models.CharField(max_length=64), null=True)
     locale = models.CharField(max_length=6, null=True)  # eng, eng-US, por-BR, und etc
 

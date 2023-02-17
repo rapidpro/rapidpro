@@ -175,6 +175,18 @@ class MailroomClient:
             metadata=QueryMetadata(**response.get("metadata", {})),
         )
 
+    def msg_send(self, org_id: int, user_id: int, contact_id: int, text: str, attachments: list[str], ticket_id: int):
+        payload = {
+            "org_id": org_id,
+            "user_id": user_id,
+            "contact_id": contact_id,
+            "text": text,
+            "attachments": attachments,
+            "ticket_id": ticket_id,
+        }
+
+        return self._request("msg/send", payload)
+
     def msg_resend(self, org_id, msg_ids):
         payload = {"org_id": org_id, "msg_ids": msg_ids}
 

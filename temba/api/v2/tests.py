@@ -3,7 +3,7 @@ import time
 from collections import OrderedDict
 from datetime import datetime
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import call, patch
 from urllib.parse import quote_plus
 
 import iso8601
@@ -59,6 +59,7 @@ class FieldsTest(TembaTest):
         for submitted, expected in submissions.items():
             if isinstance(expected, type) and issubclass(expected, Exception):
                 with self.assertRaises(expected, msg=f"expected exception for '{submitted}'"):
+                    f.run_validation(submitted)
                     f.to_internal_value(submitted)
             else:
                 self.assertEqual(
@@ -247,6 +248,17 @@ class FieldsTest(TembaTest):
             self.org, self.admin, campaign, field_obj, 6, CampaignEvent.UNIT_HOURS, flow, delivery_hour=12
         )
 
+        self.assert_field(
+            fields.AttachmentField(source="test"),
+            submissions={
+                "image:https://test.jpg": "image:https://test.jpg",
+                "image/jpeg:https://test.jpg": "image/jpeg:https://test.jpg",
+                "https://test.jpg": serializers.ValidationError,
+                f"image:https://{'x' * 3000}/test.jpg": serializers.ValidationError,  # too long
+            },
+            representations={"image:https://test.jpg": "image:https://test.jpg"},
+        )
+
         field = fields.LimitedListField(child=serializers.IntegerField(), source="test")
 
         self.assertEqual(field.to_internal_value([1, 2, 3]), [1, 2, 3])
@@ -313,6 +325,7 @@ class FieldsTest(TembaTest):
                 "tel:(078) 812-3123": "tel:+250788123123",
                 "12345": serializers.ValidationError,  # un-parseable
                 "tel:800-123-4567": serializers.ValidationError,  # no country code
+                f"external:{'1' * 256}": serializers.ValidationError,  # too long
                 18_001_234_567: serializers.ValidationError,  # non-string
             },
             representations={"tel:+18001234567": "tel:+18001234567"},
@@ -448,9 +461,20 @@ class EndpointsTest(TembaTest):
         self.assertEqual(response.status_code, status_code)
         resp_json = response.json()
         if field:
+            if isinstance(field, tuple):
+                field, sub_field = field
+            else:
+                sub_field = None
+
             self.assertIn(field, resp_json)
-            self.assertIsInstance(resp_json[field], list)
-            self.assertIn(expected_message, resp_json[field])
+
+            if sub_field:
+                self.assertIsInstance(resp_json[field], dict)
+                self.assertIn(sub_field, resp_json[field])
+                self.assertIn(expected_message, resp_json[field][sub_field])
+            else:
+                self.assertIsInstance(resp_json[field], list)
+                self.assertIn(expected_message, resp_json[field])
         else:
             self.assertIsInstance(resp_json, dict)
             self.assertIn("detail", resp_json)
@@ -3460,9 +3484,9 @@ class EndpointsTest(TembaTest):
             {
                 "id": msg.id,
                 "broadcast": msg.broadcast,
-                "contact": {"uuid": msg.contact.uuid, "name": msg.contact.name},
+                "contact": {"uuid": str(msg.contact.uuid), "name": msg.contact.name},
                 "urn": str(msg.contact_urn),
-                "channel": {"uuid": msg.channel.uuid, "name": msg.channel.name},
+                "channel": {"uuid": str(msg.channel.uuid), "name": msg.channel.name} if msg.channel else None,
                 "direction": "in" if msg.direction == "I" else "out",
                 "type": msg_type,
                 "status": msg_status,
@@ -3478,7 +3502,8 @@ class EndpointsTest(TembaTest):
             },
         )
 
-    def test_messages(self):
+    @mock_mailroom
+    def test_messages(self, mr_mocks):
         url = reverse("api.v2.messages")
 
         # make sure user rights are correct
@@ -3629,6 +3654,58 @@ class EndpointsTest(TembaTest):
             # for anon orgs, don't return URN values
             response = self.fetchJSON(url, "id=%d" % joe_msg3.pk)
             self.assertIsNone(response.json()["results"][0]["urn"])
+
+        # try to create a message with empty request
+        response = self.postJSON(url, None, {})
+        self.assertResponseError(response, "contact", "This field is required.")
+
+        # try to create empty message
+        response = self.postJSON(url, None, {"contact": self.joe.uuid})
+        self.assertResponseError(response, "non_field_errors", "Must provide either text or attachments.")
+
+        # create a new message with just text - which shouldn't need to read anything about the msg from the db
+        with self.assertNumQueries(12):
+            response = self.postJSON(url, None, {"contact": self.joe.uuid, "text": "Interesting"})
+        self.assertEqual(response.status_code, 201)
+
+        msg = Msg.objects.order_by("id").last()
+        self.assertMsgEqual(response.json(), msg, msg_type="flow", msg_status="queued", msg_visibility="visible")
+
+        self.assertEqual(
+            call(self.org.id, self.admin.id, self.joe.id, "Interesting", [], None),
+            mr_mocks.calls["msg_send"][-1],
+        )
+
+        # try to create a message with an invalid attachment
+        response = self.postJSON(url, None, {"contact": self.joe.uuid, "text": "Hi", "attachments": ["xxxx"]})
+        self.assertResponseError(response, ("attachments", "0"), "Invalid attachment. Must be <content-type>:<url>.")
+
+        # try to create a message with an attachment that's too long
+        response = self.postJSON(
+            url, None, {"contact": self.joe.uuid, "text": "Hi", "attachments": [f"image:{'x' * 3000}"]}
+        )
+        self.assertResponseError(response, ("attachments", "0"), "Ensure this field has no more than 2048 characters.")
+
+        # create a new message with just an attachment...
+        response = self.postJSON(
+            url, None, {"contact": self.joe.uuid, "attachments": ["image/jpeg:https://example.com/test.mp3"]}
+        )
+        self.assertEqual(response.status_code, 201)
+
+        self.assertEqual(
+            call(self.org.id, self.admin.id, self.joe.id, "", ["image/jpeg:https://example.com/test.mp3"], None),
+            mr_mocks.calls["msg_send"][-1],
+        )
+
+        # try to create an unsendable message
+        billy_no_phone = self.create_contact("Billy", urns=[])
+        response = self.postJSON(url, None, {"contact": billy_no_phone.uuid, "text": "well?"})
+        self.assertEqual(response.status_code, 201)
+
+        msg_json = response.json()
+        self.assertIsNone(msg_json["channel"])
+        self.assertIsNone(msg_json["urn"])
+        self.assertEqual("failed", msg_json["status"])
 
     def test_workspace(self):
         url = reverse("api.v2.workspace")

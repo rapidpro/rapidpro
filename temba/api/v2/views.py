@@ -75,6 +75,7 @@ from .serializers import (
     LabelWriteSerializer,
     MsgBulkActionSerializer,
     MsgReadSerializer,
+    MsgWriteSerializer,
     ResthookReadSerializer,
     ResthookSubscriberReadSerializer,
     ResthookSubscriberWriteSerializer,
@@ -2418,7 +2419,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         }
 
 
-class MessagesEndpoint(ListAPIMixin, BaseAPIView):
+class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list messages in your account.
 
@@ -2498,6 +2499,8 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     permission = "msgs.msg_api"
     model = Msg
     serializer_class = MsgReadSerializer
+    write_serializer_class = MsgWriteSerializer
+    write_with_transaction = False
     pagination_class = Pagination
     exclusive_params = ("contact", "folder", "label", "broadcast")
     throttle_scope = "v2.messages"
