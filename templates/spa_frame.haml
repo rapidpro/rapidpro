@@ -604,7 +604,7 @@
       modax.open = true;
     }
 
-    var currentOrg = {{user_org.id}};
+    var currentOrg = "{{user_org.id}}";
     
     function handleWorkspaceChanged(orgId) {
       if (currentOrg != orgId) {
@@ -763,11 +763,11 @@
   .flex-col
     .flex.widget-container(style="height:100vh;overflow:hidden")
       -if request.user.is_staff
-        -if user_org not in user_orgs
+        -if user_org and user_org not in user_orgs
           .servicing.absolute.m-4(style="z-index:999999;right:0;bottom:0")
             .flex.items-center.bg-secondary.text-white.text-lg.rounded(style="opacity:1;padding:0em 1em;")
               .flex-grow
-              %temba-icon(name="icon.tickets")
+              %temba-icon(style="color:#fff" name="icon.tickets")
               .ml-1
                 {{user_org.name}}
               .flex-grow

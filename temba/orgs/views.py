@@ -1140,6 +1140,7 @@ class MenuMixin(OrgPermsMixin):
 class OrgCRUDL(SmartCRUDL):
     actions = (
         "signup",
+        "start",
         "home",
         "read",
         "token",
@@ -1605,6 +1606,7 @@ class OrgCRUDL(SmartCRUDL):
         submit_button_name = "Save"
         field_config = dict(account_sid=dict(label=""), account_token=dict(label=""))
         success_message = "Twilio Account successfully connected."
+        menu_path = "/settings/workspace"
 
         def get_success_url(self):
             claim_type = self.request.GET.get("claim_type", "twilio")
@@ -2658,7 +2660,28 @@ class OrgCRUDL(SmartCRUDL):
                 response["Temba-Success"] = success_url
                 return response
 
-    class Choose(SpaMixin, SmartFormView):
+    class StartMixin:
+        start_urls = {
+            OrgRole.ADMINISTRATOR: "msgs.msg_inbox",
+            OrgRole.EDITOR: "msgs.msg_inbox",
+            OrgRole.VIEWER: "msgs.msg_inbox",
+            OrgRole.AGENT: "tickets.ticket_list",
+            OrgRole.SURVEYOR: "orgs.org_surveyor",
+        }
+
+        def get_start_redirect(self):
+            user = self.request.user
+            if user.is_authenticated:
+                org = self.request.org
+                role = org.get_user_role(user)
+                return HttpResponseRedirect(reverse(self.start_urls[role]))
+            return HttpResponseRedirect(reverse("users.user_login"))
+
+    class Start(StartMixin, OrgPermsMixin, SmartTemplateView):
+        def pre_process(self, request, *args, **kwargs):
+            return self.get_start_redirect()
+
+    class Choose(StartMixin, SpaMixin, SmartFormView):
         class Form(forms.Form):
             organization = forms.ModelChoiceField(queryset=Org.objects.none(), empty_label=None)
 
@@ -2670,20 +2693,9 @@ class OrgCRUDL(SmartCRUDL):
         form_class = Form
         fields = ("organization",)
         title = _("Select your Workspace")
-        success_urls = {
-            OrgRole.ADMINISTRATOR: "msgs.msg_inbox",
-            OrgRole.EDITOR: "msgs.msg_inbox",
-            OrgRole.VIEWER: "msgs.msg_inbox",
-            OrgRole.AGENT: "tickets.ticket_list",
-            OrgRole.SURVEYOR: "orgs.org_surveyor",
-        }
 
         def get_user_orgs(self):
             return self.request.user.get_orgs(brand=self.request.branding["slug"])
-
-        def get_success_url(self, org):
-            role = org.get_user_role(self.request.user)
-            return reverse(self.success_urls[role])
 
         def pre_process(self, request, *args, **kwargs):
             user = self.request.user
@@ -2692,9 +2704,9 @@ class OrgCRUDL(SmartCRUDL):
                 if user_orgs.count() == 1:
                     org = user_orgs[0]
                     switch_to_org(self.request, org)
+                    self.request.org = org
                     analytics.identify(user, self.request.branding, org)
-
-                    return HttpResponseRedirect(self.get_success_url(org))
+                    return self.get_start_redirect()
 
                 elif user_orgs.count() == 0:
                     if user.is_staff:
@@ -2723,7 +2735,8 @@ class OrgCRUDL(SmartCRUDL):
             org = form.cleaned_data["organization"]
             switch_to_org(self.request, org)
             analytics.identify(self.request.user, self.request.branding, org)
-            return HttpResponseRedirect(self.get_success_url(org))
+            self.request.org = org
+            return self.get_start_redirect()
 
     class CreateLogin(SmartUpdateView):
         title = ""
@@ -3297,6 +3310,12 @@ class OrgCRUDL(SmartCRUDL):
 
     class Home(SpaMixin, FormaxMixin, ContentMenuMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
+
+        def pre_process(self, request, *args, **kwargs):
+            # home is not valid in the new interface, we use workspace instead
+            if self.is_spa():
+                return HttpResponseRedirect(reverse("orgs.org_workspace"))
+            return super().pre_process(request, *args, **kwargs)
 
         def build_content_menu(self, menu):
             if self.has_org_perm("channels.channel_claim"):

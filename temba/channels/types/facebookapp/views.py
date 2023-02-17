@@ -6,8 +6,9 @@ from django.conf import settings
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin
+from temba.orgs.views import OrgObjPermsMixin
 from temba.utils.text import truncate
+from temba.utils.views import SpaMixin
 
 from ...models import Channel
 from ...views import ClaimViewMixin
@@ -132,7 +133,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         return super().form_valid(form)
 
 
-class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+class RefreshToken(SpaMixin, OrgObjPermsMixin, SmartModelActionView):
     class Form(forms.Form):
         user_access_token = forms.CharField(min_length=32, required=True, help_text=_("The User Access Token"))
         fb_user_id = forms.CharField(
@@ -146,6 +147,7 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
     fields = ()
     template_name = "channels/types/facebookapp/refresh_token.html"
     title = _("Reconnect Facebook Page")
+    menu_path = "/settings/workspace"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
