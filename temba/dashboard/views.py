@@ -22,6 +22,7 @@ class Home(SpaMixin, OrgPermsMixin, SmartTemplateView):
     title = _("Dashboard")
     permission = "orgs.org_dashboard"
     template_name = "dashboard/home.haml"
+    menu_path = "/settings/dashboard"
 
 
 class MessageHistory(OrgPermsMixin, SmartTemplateView):

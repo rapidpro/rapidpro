@@ -207,16 +207,10 @@ class OmniboxField(JSONField):
     default_country = None
 
     def validate(self, value):
-        from temba.contacts.models import URN
-
         assert isinstance(value, list)
 
         for item in value:
             assert isinstance(item, dict) and "id" in item and "type" in item
-
-            if item["type"] == "urn":
-                if not URN.validate(item["id"], self.default_country):
-                    raise ValidationError(_("'%s' is not a valid URN.") % item["id"])
 
 
 class TembaChoiceIterator(forms.models.ModelChoiceIterator):

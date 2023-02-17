@@ -14,57 +14,17 @@
     %meta{name:"description", content:"{% block page-description %}{{brand.name}} lets you visually build interactive SMS applications and launch them anywhere in the world.{% endblock %}"}
     %meta{name:"author", content:"Nyaruka Ltd"}
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
-
-    -block ui-switch-js
-      -if user.is_beta
-        -compress js
-          %script(src="{{ STATIC_URL }}js/urls.js")
-
-        :javascript
-          window.STATIC_URL = "{{STATIC_URL}}";
-          function loadNewInterface(force) {
-            var location = window.location;
-            var excluded = window.excludeUrls.find(function(url) {
-              return location.pathname.indexOf(url) > -1;
-            });
-
-            if (!excluded) {
-              var newUrl = mapUrl(location.pathname + (location.search || ""));
-              if (newUrl != window.location.pathname) {
-                window.location = newUrl;
-              } else {
-                if (force) {
-                  window.location = "/messages/";
-                }
-              }
-            }
-
-          }
-          
-          function getCookie(name) {
-            var value = `; ${document.cookie}`;
-            var parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop().split(';').shift();
-          }
-
-          function switchToNewInterface() {
-            document.cookie = "nav=2; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/;";
-            loadNewInterface(true);
-          }
-
-        -block auto-route
-          :javascript
-            (function(){
-              var nav = getCookie("nav");
-              if (nav == "2") {
-                loadNewInterface(false);
-              }
-            })();
+    
+    -if user.is_beta
+      :javascript
+        function switchToNewInterface() {
+          document.cookie = "nav=2; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/;";
+          document.location.reload();
+        }
 
     :javascript
-
+      window.STATIC_URL = "{{STATIC_URL}}";
       window.supportEmail = '{{brand.support_email}}';
-
       function conditionalLoad(local, remote) {
         if (local != null && (window.location.hostname == "localhost" || remote == null)) {
           loadResource("{{ STATIC_URL }}" + local);
@@ -104,7 +64,115 @@
       %script{src:"{{ STATIC_URL }}js/temba.js"}
       %script{src:"{{ STATIC_URL }}js/labels.js"}
       
+      :javascript
+        function fetchPJAXContent(url, container, options) {    
+          options = options || {};
     
+          // hijack any pjax requests made from spa pages and route the content there instead
+          if (container == "#pjax" && document.querySelector(".spa-content")) {
+            container = ".spa-content";
+            options["headers"] = (options["headers"] || {})
+            options["headers"]["TEMBA-SPA"] = 1;
+          }
+    
+          var triggerEvents = true;
+          if (!!options["ignoreEvents"]) {
+            triggerEvents = false;
+          }
+    
+          var type = 'GET';
+          var data = undefined;
+          var processData = true;
+          var contentType = 'application/x-www-form-urlencoded; charset=UTF-8';
+    
+          if (options) {
+            if ('postData' in options) {
+              type = 'POST';
+              data = options['postData'];
+            }
+            
+            if('formData' in options) {
+              type = 'POST';
+              processData = false;
+              data = options['formData'];
+              contentType = false;
+            }
+          }
+    
+          var headers = { 'X-PJAX': true };
+          if (options && 'headers' in options) {
+            for (key in options['headers']) {
+              headers[key] = options['headers'][key];
+            }
+          }
+    
+          if (triggerEvents) {
+            document.dispatchEvent(new Event("temba-pjax-begin"));
+          }
+    
+          // see if we should skip our fetch
+          if (options) {
+            if ('shouldIgnore' in options && options['shouldIgnore']()) {
+              if ('onIgnore' in options) {
+                options['onIgnore']();
+              }
+              return;
+            }
+          }
+    
+          var request = {
+            headers: headers,
+            type: type,
+            url: url,
+            contentType: contentType,
+            processData: processData,
+            data: data,
+            success: function(response, status, jqXHR) {
+    
+              if ('followRedirects' in options && options['followRedirects'] == true) {
+                  var redirect = jqXHR.getResponseHeader('REDIRECT');
+                  if (redirect) {
+                    window.document.location.href = redirect;
+                    return;
+                  }
+              }
+    
+              // double check before replacing content
+              if (options) {
+                if (('shouldIgnore' in options && options['shouldIgnore'](response))) {
+                  if ('onIgnore' in options) {
+                      options['onIgnore'](jqXHR);
+                  }
+    
+                  return;
+                }
+              }
+    
+              $(container).html(response);
+    
+              if (triggerEvents) {
+                document.dispatchEvent(new Event("temba-pjax-complete"));
+              }
+    
+              if (options) {
+                if ('onSuccess' in options) {
+                  options['onSuccess']();
+                }
+              }
+            }
+          }
+          $.ajax(request);
+        }
+        
+    -block full-page-script
+      :javascript
+        document.addEventListener("temba-redirected", function(event){
+          document.location.href = event.detail.url;
+        });
+
+        
+
+
     -include "includes/frame_top.html"
 
     -if not COMPONENTS_DEV_MODE
@@ -404,11 +472,6 @@
           });
         }
 
-    -block full-page-script
-      :javascript
-        document.addEventListener("temba-redirected", function(event){
-          document.location.href = event.detail.url;
-        });
 
     <script type="text/javascript" src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
 

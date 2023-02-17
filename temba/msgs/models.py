@@ -183,14 +183,8 @@ class Broadcast(models.Model):
     # recipients of this broadcast
     groups = models.ManyToManyField(ContactGroup, related_name="addressed_broadcasts")
     contacts = models.ManyToManyField(Contact, related_name="addressed_broadcasts")
-    urns = models.ManyToManyField(ContactURN, related_name="addressed_broadcasts")
+    urns = ArrayField(models.TextField(), null=True)
     query = models.TextField(null=True)
-
-    # URN strings that mailroom will turn into contacts and URN objects
-    raw_urns = ArrayField(models.TextField(), null=True)
-
-    # whether this broadcast should send to all URNs for each contact
-    send_all = models.BooleanField(default=False)
 
     # message content in different languages, e.g. {"eng": {"text": "Hello", "attachments": [...]}, "spa": ...}
     translations = models.JSONField()
@@ -215,16 +209,16 @@ class Broadcast(models.Model):
         cls,
         org,
         user,
-        text: dict,
+        text: dict[str, str],
         *,
+        attachments: dict[str, list] = None,
+        base_language: str = None,
         groups=None,
         contacts=None,
         urns: list[str] = None,
         contact_ids: list[int] = None,
-        base_language: str = None,
         channel: Channel = None,
         ticket=None,
-        send_all: bool = False,
         **kwargs,
     ):
         if not base_language:
@@ -233,13 +227,20 @@ class Broadcast(models.Model):
         assert base_language in text, "no translation for base language"
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
 
+        # merge text and attachments into single dict of translations
+        translations = {lang: {"text": t} for lang, t in text.items()}
+        if attachments:
+            for lang, atts in attachments.items():
+                if lang not in translations:
+                    translations[lang] = {}
+                translations[lang]["attachments"] = atts
+
         broadcast = cls.objects.create(
             org=org,
             channel=channel,
             ticket=ticket,
-            send_all=send_all,
+            translations=translations,
             base_language=base_language,
-            translations={lang: {"text": t} for lang, t in text.items()},
             created_by=user,
             modified_by=user,
             **kwargs,
@@ -323,8 +324,8 @@ class Broadcast(models.Model):
             self.contacts.add(*contacts)
 
         if urns:
-            self.raw_urns = urns
-            self.save(update_fields=("raw_urns",))
+            self.urns = urns
+            self.save(update_fields=("urns",))
 
         if contact_ids:
             RelatedModel = self.contacts.through

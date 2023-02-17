@@ -26,6 +26,18 @@ class KeywordTriggerType(TriggerType):
     )
 
     class Form(BaseTriggerForm):
+        keyword = forms.CharField(
+            max_length=Trigger.KEYWORD_MAX_LEN,
+            label=_("Keyword"),
+            help_text=_("Word to match in the message text."),
+        )
+        match_type = forms.ChoiceField(
+            choices=Trigger.MATCH_TYPES,
+            initial=Trigger.MATCH_FIRST_WORD,
+            label=_("Trigger When"),
+            help_text=_("How to match a message with a keyword."),
+        )
+
         def __init__(self, org, user, *args, **kwargs):
             super().__init__(org, user, Trigger.TYPE_KEYWORD, *args, **kwargs)
 
@@ -43,7 +55,7 @@ class KeywordTriggerType(TriggerType):
     name = _("Keyword")
     title = _("Keyword Triggers")
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE)
-    export_fields = TriggerType.export_fields + ("keyword",)
+    export_fields = TriggerType.export_fields + ("keyword", "match_type")
     required_fields = TriggerType.required_fields + ("keyword",)
     form = Form
 
@@ -214,7 +226,9 @@ class NewConversationTriggerType(TriggerType):
     """
 
     class Form(BaseTriggerForm):
-        channel = TembaChoiceField(Channel.objects.none(), label=_("Channel"), required=True)
+        channel = TembaChoiceField(
+            Channel.objects.none(), label=_("Channel"), help_text=_("The associated channel."), required=True
+        )
 
         def __init__(self, org, user, *args, **kwargs):
             super().__init__(org, user, Trigger.TYPE_NEW_CONVERSATION, *args, **kwargs)

@@ -57,6 +57,7 @@ from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import brands, json, languages
+from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .context_processors import RolePermsWrapper
 from .models import BackupToken, Invitation, Org, OrgMembership, OrgRole, User
@@ -2841,15 +2842,6 @@ class AnonOrgTest(TembaTest):
 
 
 class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
-    def test_spa(self):
-        Group.objects.get(name="Beta").user_set.add(self.admin)
-
-        self.login(self.admin)
-
-        deep_link = reverse("spa.level_2", args=["tickets", "all", "open"])
-        response = self.client.get(deep_link)
-        self.assertEqual(200, response.status_code)
-
     def assertMenu(self, url, count, contains_names=[]):
         response = self.assertListFetch(url, allow_viewers=True, allow_editors=True, allow_agents=True)
         menu = response.json()["results"]
@@ -3849,9 +3841,11 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertStaffOnly(manage_url)
         self.assertStaffOnly(update_url)
+        self.new_ui()
 
         def assertOrgFilter(query: str, expected_orgs: list):
             response = self.client.get(manage_url + query)
+            self.assertIsNotNone(response.headers.get(TEMBA_MENU_SELECTION, None))
             self.assertEqual(expected_orgs, list(response.context["object_list"]))
 
         assertOrgFilter("", [self.org2, self.org])
@@ -4131,8 +4125,9 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertStaffOnly(list_url)
 
-        response = self.requestView(list_url, self.customer_support)
+        response = self.requestView(list_url, self.customer_support, new_ui=True)
         self.assertEqual(9, len(response.context["object_list"]))
+        self.assertEqual("/staff/users/all", response.headers[TEMBA_MENU_SELECTION])
 
         response = self.requestView(list_url + "?filter=beta", self.customer_support)
         self.assertEqual(set(), set(response.context["object_list"]))

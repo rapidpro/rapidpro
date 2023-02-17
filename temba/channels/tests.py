@@ -28,6 +28,7 @@ from temba.tests.crudl import StaffRedirect
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.models import generate_uuid
+from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
 from .tasks import (
@@ -466,6 +467,13 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         tel_channel_read_url = reverse("channels.channel_read", args=[self.tel_channel.uuid])
         response = self.client.get(tel_channel_read_url)
         self.assertRedirect(response, reverse("orgs.org_choose"))
+
+        # new ui path
+        self.login(self.user)
+        self.make_beta(self.user)
+        self.new_ui()
+        response = self.client.get(tel_channel_read_url)
+        self.assertEqual(f"/settings/channels/{self.tel_channel.uuid}", response.headers[TEMBA_MENU_SELECTION])
 
         # org users can
         response = self.fetch_protected(tel_channel_read_url, self.user)
@@ -1932,6 +1940,11 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log1, log2]
         )
 
+        self.login(self.admin)
+        self.new_ui()
+        response = self.client.get(msg1_url)
+        self.assertEqual(f"/settings/channels/{self.channel.uuid}", response.headers[TEMBA_MENU_SELECTION])
+
     def test_call(self):
         contact = self.create_contact("Fred", phone="+12067799191")
         flow = self.create_flow("IVR")
@@ -2104,6 +2117,11 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         # check our list page has both our channel logs
         response = self.client.get(list_url)
         self.assertEqual([failed_log, success_log], list(response.context["object_list"]))
+
+        self.new_ui()
+        response = self.client.get(list_url)
+        self.assertEqual(f"/settings/channels/{self.channel.uuid}", response.headers[TEMBA_MENU_SELECTION])
+        self.old_ui()
 
         # check error logs only
         response = self.client.get(list_url + "?errors=1")

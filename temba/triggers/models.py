@@ -47,6 +47,7 @@ class TriggerType:
             "exclude_groups": [group.as_export_ref() for group in trigger.exclude_groups.order_by("name")],
             "channel": trigger.channel.uuid if trigger.channel else None,
             "keyword": trigger.keyword,
+            "match_type": trigger.match_type,
         }
         return {f: all_fields[f] for f in self.export_fields}
 
@@ -87,49 +88,18 @@ class Trigger(SmartModel):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="triggers")
     trigger_type = models.CharField(max_length=1, default=TYPE_KEYWORD)
     is_archived = models.BooleanField(default=False)
-
-    keyword = models.CharField(
-        verbose_name=_("Keyword"),
-        max_length=KEYWORD_MAX_LEN,
-        null=True,
-        blank=True,
-        help_text=_("Word to match in the message text."),
-    )
-
-    referrer_id = models.CharField(max_length=255, null=True)
-
-    flow = models.ForeignKey(
-        Flow,
-        on_delete=models.PROTECT,
-        verbose_name=_("Flow"),
-        help_text=_("Which flow will be started."),
-        related_name="triggers",
-    )
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="triggers")
+    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, related_name="triggers")
 
     # who trigger applies to
     groups = models.ManyToManyField(ContactGroup, related_name="triggers_included")
     exclude_groups = models.ManyToManyField(ContactGroup, related_name="triggers_excluded")
     contacts = models.ManyToManyField(Contact, related_name="triggers")  # scheduled triggers only
 
+    keyword = models.CharField(max_length=KEYWORD_MAX_LEN, null=True)
+    match_type = models.CharField(max_length=1, choices=MATCH_TYPES, null=True)
+    referrer_id = models.CharField(max_length=255, null=True)
     schedule = models.OneToOneField("schedules.Schedule", on_delete=models.PROTECT, null=True, related_name="trigger")
-
-    match_type = models.CharField(
-        max_length=1,
-        choices=MATCH_TYPES,
-        default=MATCH_FIRST_WORD,
-        null=True,
-        verbose_name=_("Trigger When"),
-        help_text=_("How to match a message with a keyword."),
-    )
-
-    channel = models.ForeignKey(
-        Channel,
-        on_delete=models.PROTECT,
-        verbose_name=_("Channel"),
-        null=True,
-        related_name="triggers",
-        help_text=_("The associated channel."),
-    )
 
     @classmethod
     def create(
@@ -145,6 +115,7 @@ class Trigger(SmartModel):
         contacts=(),
         keyword=None,
         schedule=None,
+        match_type=None,
         **kwargs,
     ):
         assert flow.flow_type != Flow.TYPE_SURVEY, "can't create triggers for surveyor flows"
@@ -161,6 +132,7 @@ class Trigger(SmartModel):
             channel=channel,
             keyword=keyword,
             schedule=schedule,
+            match_type=match_type,
             created_by=user,
             modified_by=user,
             **kwargs,
@@ -239,6 +211,7 @@ class Trigger(SmartModel):
             return cls.objects.none()
 
         conflicts = org.triggers.filter(is_active=True, trigger_type=trigger_type)
+
         if not include_archived:
             conflicts = conflicts.filter(is_archived=False)
 
@@ -298,6 +271,10 @@ class Trigger(SmartModel):
         flow_uuid = trigger_def["flow"]["uuid"]
         flow = org.flows.get(uuid=flow_uuid, is_active=True)
 
+        match_type = None
+        if trigger_type.code == Trigger.TYPE_KEYWORD:
+            match_type = trigger_def.get("match_type", Trigger.MATCH_FIRST_WORD)
+
         # see if that trigger already exists
         conflicts = cls.get_conflicts(
             org,
@@ -329,6 +306,7 @@ class Trigger(SmartModel):
                 groups=groups,
                 exclude_groups=exclude_groups,
                 keyword=trigger_def.get("keyword"),
+                match_type=match_type,
             )
 
     @classmethod

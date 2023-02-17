@@ -742,7 +742,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "phonenumbers"
-version = "8.13.4"
+version = "8.13.6"
 description = "Python version of Google's common library for parsing, formatting, storing and validating international phone numbers."
 category = "main"
 optional = false
@@ -1311,7 +1311,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10"
-content-hash = "fd6b2c148fdcc95a34276c557be65e5b4677c5772d9e2d29398d87b8649481f8"
+content-hash = "1d8a004cbff4e7959d32df6e1242580620e0d32b8c4114f923451024f9ce4503"
 
 [metadata.files]
 amqp = []

@@ -4,15 +4,15 @@
 -block page-top
 -block header
 
--block auto-route
+
   :javascript
     function leaveNewInterface() {
       document.cookie = "nav=1; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/;";
-      document.location = "/msg/inbox";
+      document.location.reload();      
     }
 
 -block interface-option
-  
+
 -block extra-style
   {{block.super}}
 
@@ -348,7 +348,7 @@
 
           if (options) {
             if ('onSuccess' in options) {
-              options['onSuccess']();
+              options['onSuccess'](response);
             }
           }
 
@@ -363,219 +363,25 @@
       })
     }
 
-    function fetchPJAXContent(url, container, options) {
-
-      options = options || {};
-
-      // hijack any pjax requests made from spa pages and route the content there instead
-      if (container == "#pjax" && document.querySelector(".spa-content")) {
-        container = ".spa-content";
-        options["headers"] = (options["headers"] || {})
-        options["headers"]["TEMBA-SPA"] = 1;
-      }
-
-      var triggerEvents = true;
-      if (!!options["ignoreEvents"]) {
-        triggerEvents = false;
-      }
-
-      var type = 'GET';
-      var data = undefined;
-      var processData = true;
-      var contentType = 'application/x-www-form-urlencoded; charset=UTF-8';
-
-      if (options) {
-        if ('postData' in options) {
-          type = 'POST';
-          data = options['postData'];
-        }
-        
-        if('formData' in options) {
-          type = 'POST';
-          processData = false;
-          data = options['formData'];
-          contentType = false;
-        }
-      }
-
-      var headers = { 'X-PJAX': true };
-      if (options && 'headers' in options) {
-        for (key in options['headers']) {
-          headers[key] = options['headers'][key];
-        }
-      }
-
-      if (triggerEvents) {
-        document.dispatchEvent(new Event("temba-pjax-begin"));
-      }
-
-      // see if we should skip our fetch
-      if (options) {
-        if ('shouldIgnore' in options && options['shouldIgnore']()) {
-          if ('onIgnore' in options) {
-            options['onIgnore']();
-          }
-          return;
-        }
-      }
-
-      var request = {
-        headers: headers,
-        type: type,
-        url: url,
-        contentType: contentType,
-        processData: processData,
-        data: data,
-        success: function(response, status, jqXHR) {
-
-          if ('followRedirects' in options && options['followRedirects'] == true) {
-              var redirect = jqXHR.getResponseHeader('REDIRECT');
-              if (redirect) {
-                window.document.location.href = redirect;
-                return;
-              }
-          }
-
-          // double check before replacing content
-          if (options) {
-            if (('shouldIgnore' in options && options['shouldIgnore'](response))) {
-              if ('onIgnore' in options) {
-                  options['onIgnore'](jqXHR);
-              }
-
-              return;
-            }
-          }
-
-          $(container).html(response);
-
-          if (triggerEvents) {
-            document.dispatchEvent(new Event("temba-pjax-complete"));
-          }
-
-          if (options) {
-            if ('onSuccess' in options) {
-              options['onSuccess']();
-            }
-          }
-        }
-      }
-      $.ajax(request);
-    }
-
-  :javascript
-    document.addEventListener("temba-redirected", function(event){
-      fetchURL(event.detail.url, true);
-    });
-  
   :javascript
     function handleMenuReady() {
       var selection = window.location.pathname.split("/").filter(function(path){ return !!path});
       var menu = document.querySelector("temba-menu");
       if (menu) {
-        menu.setSelection(selection);
-        window.addEventListener('resize', function() {
-          // menu.collapsed = !!window.matchMedia("(max-width: 800px)").matches
-        });
+        {% if temba_menu_selection %}
+        menu.setFocusedItem("{{temba_menu_selection}}");
+        
+        // give our focus a chance, then update
+        window.setTimeout(function(){
+          updatePageTitle();
+        }, 100);
+        
+        {% endif %}
+        // window.addEventListener('resize', function() {
+        // menu.collapsed = !!window.matchMedia("(max-width: 800px)").matches
+        // });
       }
     }
-
-    document.addEventListener("temba-pjax-complete", function() {
-      hideLoading();
-      handleUpdateComplete();
-    })
-
-    document.querySelector(".spa-content").addEventListener("click", function(evt) {
-      var target = evt.target;
-      if (target.href && target.href.indexOf("xlsx") > -1) {
-        return;
-      }
-
-      if((target.classList.contains("show-loading") || target.classList.contains("label-checkbox") || target.classList.contains("button-action")) && !target.classList.contains("no-loading")) {
-        showLoading();
-      }
-
-      var a = target.closest("a");
-      if (!a) {
-        if (evt.path) {
-          a = evt.path.find(function(ele){ return  ele.tagName == "A" });
-        }
-      }
-
-      if (a && a.href) {
-        if (a.classList.contains("posterize")) {
-          evt.stopPropagation();
-          evt.preventDefault();
-          return;
-        }
-
-        evt.stopPropagation();
-        evt.preventDefault();
-        const url = new URL(a.href);
-
-        if (a.target) {
-          window.open(url, a.target, {popup: true});
-        } else {
-          fetchURL(url.pathname + url.search);
-        }
-      } 
-    });
-    
-    document.querySelector(".spa-content").addEventListener("submit", function(evt) {
-      var formEle = evt.target;
-      if(formEle.closest(".formax-section")) {
-        return;
-      }
-
-      if (formEle.method.toLowerCase() !== "post") {
-        evt.stopPropagation();
-        evt.preventDefault();
-        var formData = new FormData(formEle);
-        let queryString = new URLSearchParams(formData).toString();
-        showLoading();
-
-        var url = window.lastFetch;
-        if (queryString) {
-          if (url.indexOf("?") > 0) {
-            url += "&" + queryString;
-          } else {
-            url += "?" + queryString;
-          }
-        }
-
-        fetchPJAXContent(url, ".spa-content", {
-            "headers": { "TEMBA-SPA": "1"}, 
-            "onSuccess": hideLoading,  
-        });
-      } else {
-
-        evt.stopPropagation();
-        evt.preventDefault();
-        
-        if (window.lastFetch.indexOf("{% url 'orgs.org_service'%}") > -1) {
-          formEle.action = window.lastFetch;
-          formEle.submit();
-        } else {
-          var formData = new FormData(formEle);
-          showLoading();
-          fetchPJAXContent(window.lastFetch, ".spa-content", {
-              "headers": { "TEMBA-SPA": "1"},
-              "formData": formData,
-              "onSuccess": hideLoading,
-          });
-        }
-      }
-    });
-    
-    window.addEventListener("popstate", function (event){
-      let state = event.state;
-      if (state && state.url && state.show) {
-        showLoading();
-        gotoURL(state.url, state.show, false, true);
-        var menu = document.querySelector("temba-menu");
-        menu.setFocusedItem(state.show);
-      }
-    });
 
     function goto(event, ele) {
       var link = event.target.getAttribute('href');
@@ -657,7 +463,7 @@
       }
     }
 
-    function hideLoading() {
+    function hideLoading(response) {
       var containers = document.querySelectorAll(".spa-container, .widget-container");
       for(container of containers) {
         container.classList.remove("loading");
@@ -669,12 +475,21 @@
       
       updatePageTitle();
       var menu = document.querySelector("temba-menu");
+      if (menu && response) {
+        var menuSelection = response.headers.get("temba_menu_selection");
+        if (menu && menuSelection) {
+          menu.setFocusedItem(menuSelection);
+        }
+      }
 
       document.querySelectorAll(".posterize").forEach(function(ele){
         ele.addEventListener("click", function(){ 
           handlePosterize(ele);
         });
       });
+
+      var eventContainer = document.querySelector(".spa-content > div");
+      eventContainer.dispatchEvent(new CustomEvent("temba-spa-ready"));
     }
 
     function handleUpdateComplete() {
@@ -694,7 +509,7 @@
       window.lastFetch = urlToGo;
 
       if (!ignoreHistory) {
-        window.history.pushState({ url: urlToGo, show: urlToShow }, "", urlToShow);
+        window.history.pushState({ url: urlToGo, show: urlToGo }, "", urlToGo);
       }
 
       fetchAjax(urlToGo, ".spa-content", { "headers": {
@@ -706,60 +521,27 @@
       });
     }
 
-    var toMap = /(msg|contact|flow|ticket|channels|triggers|campaign|org|user|settings|httplog|classifier|workspace|dashboard).*/;
-
-    function handleNoPath(event) {
-      var details = event.detail;
-      var menu = document.querySelector("temba-menu");
-
-      var pathBits = details.path.split("?");
-      var path = details.selection + "/" + pathBits[0];
-      if (path[path.length-1] != "/") {
-        path += "/";
-      }
-
-      // add our query string if we have one
-      if (pathBits.length > 1) {
-        path += "?" + pathBits[1];
-      }
-
-      var mapped = mapUrl(path, true);
-
-      if (path != mapped){
-        gotoURL(mapped, path);
-      } else {
-        // set our menu to the proper focus, pruning the extras
-        menu.setFocusedItem(details.selection + "/" + details.path);
-      }
-    }
-
     function fetchURL(url, triggerEvents) {
  
       showLoading();
       var refererPath = window.location.pathname;
       window.lastFetch = url;
       var menu = document.querySelector("temba-menu");
-
-      var dest = {
-        url: url,
-        path: url,
-      }
-
-      // migrate our old urls
-      if (dest.path.match(toMap)) {
-        dest.path = mapUrl(dest.path);
-      }
-      gotoURL(dest.url, dest.path, !triggerEvents);
-      menu.setFocusedItem(dest.path);
+      gotoURL(url, !triggerEvents);
     }
    
     function handleMenuClicked(event) {
-      var menu = document.querySelector("temba-menu");
 
+      var menu = document.querySelector("temba-menu");
       var items = event.detail;
       var item = items.item;
       var parent = items.parent;
-    
+      var selection = items.selection;
+
+      if (item.trigger) {
+        return;
+      }
+
       if (item.type == "modax-button") {
         var modaxOptions = { 
           disabled: false, 
@@ -768,10 +550,16 @@
         showModax(item.name, item.href, modaxOptions);
       }
 
+      if (selection.length > 1 && selection[0] == "ticket") {
+        if (window.handleTicketsMenuChanged) {
+          handleTicketsMenuChanged(item);
+        }
+      }
+
       // clicked inside our workspace popup
       if (parent && parent.id == "workspace") {
         if (item.id == "settings") {
-          menu.setSelectionPath("settings/workspace");
+          fetchURL("{% url 'orgs.org_workspace' %}");
         } else if (item.id == "logout") {
           posterize(item.href)
         }
@@ -841,17 +629,128 @@
         });
       }
     }
+
+    function onSpload(fn) {
+      {% if self.is_spa %}
+        var eventContainer = document.querySelector(".spa-content > div");
+        eventContainer.addEventListener("temba-spa-ready", fn);
+      {% else %}
+        document.addEventListener("DOMContentLoaded", fn);
+      {% endif %}
+    }
+
+    document.addEventListener("temba-redirected", function(event){
+      fetchURL(event.detail.url, true);
+    });
+
+    document.addEventListener("temba-pjax-complete", function() {
+
+    
+      refreshMenu();
+      
+      hideLoading();
+      handleUpdateComplete();
+    })
+
+    window.addEventListener("popstate", function (event){
+      let state = event.state;
+      if (state && state.url && state.show) {
+        showLoading();
+        gotoURL(state.url, state.show, false, true);
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', function(){
+      document.querySelector(".spa-content").addEventListener("click", function(evt) {
+        var target = evt.target;
+        if (target.href && target.href.indexOf("xlsx") > -1) {
+          return;
+        }
+  
+        if((target.classList.contains("show-loading") || target.classList.contains("label-checkbox") || target.classList.contains("button-action")) && !target.classList.contains("no-loading")) {
+          showLoading();
+        }
+  
+        var a = target.closest("a");
+        if (!a) {
+          if (evt.path) {
+            a = evt.path.find(function(ele){ return  ele.tagName == "A" });
+          }
+        }
+  
+        if (a && a.href) {
+          if (a.classList.contains("posterize")) {
+            evt.stopPropagation();
+            evt.preventDefault();
+            return;
+          }
+  
+          evt.stopPropagation();
+          evt.preventDefault();
+          const url = new URL(a.href);
+  
+          if (a.target) {
+            window.open(url, a.target, {popup: true});
+          } else {
+            fetchURL(url.pathname + url.search);
+          }
+        } 
+      });
+      
+      
+      document.querySelector(".spa-content").addEventListener("submit", function(evt) {
+        var formEle = evt.target;
+        if(formEle.closest(".formax-section")) {
+          return;
+        }
+  
+        if (formEle.method.toLowerCase() !== "post") {
+          evt.stopPropagation();
+          evt.preventDefault();
+          var formData = new FormData(formEle);
+          let queryString = new URLSearchParams(formData).toString();
+          showLoading();
+  
+          var url = window.lastFetch;
+          if (queryString) {
+            if (url.indexOf("?") > 0) {
+              url += "&" + queryString;
+            } else {
+              url += "?" + queryString;
+            }
+          }
+  
+          fetchPJAXContent(url, ".spa-content", {
+              "headers": { "TEMBA-SPA": "1"}, 
+              "onSuccess": hideLoading,  
+          });
+        } else {
+  
+          evt.stopPropagation();
+          evt.preventDefault();
+          
+          if (window.lastFetch.indexOf("{% url 'orgs.org_service'%}") > -1) {
+            formEle.action = window.lastFetch;
+            formEle.submit();
+          } else {
+            var formData = new FormData(formEle);
+            showLoading();
+            fetchPJAXContent(window.lastFetch, ".spa-content", {
+                "headers": { "TEMBA-SPA": "1"},
+                "formData": formData,
+                "onSuccess": hideLoading,
+            });
+          }
+        }
+      });
+    })
+
+
+    
+    
 -block refresh-fn
   :javascript
     function refresh(onSuccess, forceReload){
-      var refererPath = window.location.pathname;
-      fetchPJAXContent(window.lastFetch, ".spa-content", { "headers": {
-        "TEMBA-SPA": "1", 
-        "TEMBA-REFERER-PATH": refererPath,
-        "TEMBA-PATH": refererPath,
-        }, 
-        "onSuccess": onSuccess, "ignoreEvents": false
-      });
     }
 
 -block temba-store
@@ -885,7 +784,7 @@
               .flex-grow
 
       .folders
-        %temba-menu#nav(class="{% if servicing %}{% endif%}" style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" -temba-button-clicked="handleMenuClicked(event)" -temba-no-path="handleNoPath(event)" -temba-ready="handleMenuReady"  wait="true")
+        %temba-menu#nav(class="{% if servicing %}{% endif%}" style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" -temba-button-clicked="handleMenuClicked(event)" -temba-ready="handleMenuReady")
           -block menu-header
 
       .flex-grow.spa-container.flex.flex-col
@@ -894,6 +793,33 @@
             %temba-loading(size=16 units=6)
 
         .spa-content.p-5.overflow-y-auto.overflow-x-hidden
+
+          -block page-header
+
+            -if title or has_content_menu
+              .spa-title.no-menu.flex.items-center.mb-4
+                .text-container.text-2xl.text-gray-700
+                  .flex.flex-row
+                    -block spa-title
+                      #title-text
+                        {{title}}
+                .line.flex-grow.mr-2.ml-6
+                  .h-0.border.border-gray-200
+                
+                -if has_content_menu
+                  -include "spa_page_menu.haml"
+          
+              -block subtitle
+          
+          -block alert-messages
+            -if user_org.is_suspended
+              -include "org_suspended_include.haml"
+            -if messages
+              -for msg in messages
+                %temba-alert.mb-3
+                  {{ msg }}
+
+          -block content
 
         -block footer
           .spa-footer.text-center.text-gray-500.mt-4

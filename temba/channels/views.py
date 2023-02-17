@@ -719,6 +719,9 @@ class ChannelCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
+        def derive_menu_path(self):
+            return f"/settings/channels/{self.get_object().uuid}"
+
         def get_queryset(self):
             return Channel.objects.filter(is_active=True)
 
@@ -1358,6 +1361,9 @@ class ChannelLogCRUDL(SmartCRUDL):
             else:
                 return self.FOLDER_MESSAGES
 
+        def derive_menu_path(self):
+            return f"/settings/channels/{self.channel.uuid}"
+
         def build_content_menu(self, menu):
             list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
 
@@ -1453,6 +1459,9 @@ class ChannelLogCRUDL(SmartCRUDL):
         @cached_property
         def msg(self):
             return get_object_or_404(Msg, id=self.kwargs["msg_id"])
+
+        def derive_menu_path(self):
+            return f"/settings/channels/{self.msg.channel.uuid}"
 
         def build_content_menu(self, menu):
             if not self.is_spa():

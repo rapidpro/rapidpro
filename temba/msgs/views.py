@@ -201,6 +201,7 @@ class BroadcastCRUDL(SmartCRUDL):
         search_fields = ("translations__und__icontains", "contacts__urns__path__icontains")
         system_label = SystemLabel.TYPE_SCHEDULED
         default_order = ("-created_on",)
+        menu_path = "/msg/scheduled"
 
         def build_content_menu(self, menu):
             if self.has_org_perm("msgs.broadcast_scheduled_create"):
@@ -218,7 +219,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 .get_queryset(**kwargs)
                 .filter(is_active=True)
                 .select_related("org", "schedule")
-                .prefetch_related("groups", "contacts", "urns")
+                .prefetch_related("groups", "contacts")
             )
 
     class ScheduledCreate(OrgPermsMixin, ModalMixin, SmartFormView):
@@ -226,14 +227,13 @@ class BroadcastCRUDL(SmartCRUDL):
             omnibox = OmniboxField(
                 label=_("Recipients"),
                 required=True,
-                help_text=_("The contacts to send the message to"),
+                help_text=_("The contacts to send the message to."),
                 widget=OmniboxChoice(
                     attrs={
-                        "placeholder": _("Recipients, enter contacts or groups"),
+                        "placeholder": _("Search for contacts or groups"),
                         "widget_only": True,
                         "groups": True,
                         "contacts": True,
-                        "urns": True,
                     }
                 ),
             )
@@ -252,7 +252,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             def clean_omnibox(self):
                 recipients = omnibox_deserialize(self.org, self.cleaned_data["omnibox"])
-                if not (recipients["groups"] or recipients["contacts"] or recipients["urns"]):
+                if not (recipients["groups"] or recipients["contacts"]):
                     raise forms.ValidationError(_("At least one recipient is required."))
                 return recipients
 
@@ -291,13 +291,14 @@ class BroadcastCRUDL(SmartCRUDL):
                 {"und": text},
                 groups=list(recipients["groups"]),
                 contacts=list(recipients["contacts"]),
-                urns=list(recipients["urns"]),
                 schedule=schedule,
             )
 
             return self.render_modal_response(form)
 
     class ScheduledRead(SpaMixin, ContentMenuMixin, FormaxMixin, OrgObjPermsMixin, SmartReadView):
+        menu_path = "/msg/scheduled"
+
         def derive_title(self):
             return _("Scheduled Message")
 
@@ -344,7 +345,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             return {
                 "message": self.object.get_text(),
-                "omnibox": omnibox_results_to_dict(org, recipients, version="2"),
+                "omnibox": omnibox_results_to_dict(org, recipients),
             }
 
         def save(self, *args, **kwargs):
@@ -357,7 +358,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             # set our new message
             broadcast.translations = {broadcast.base_language: {"text": form.cleaned_data["message"]}}
-            broadcast.update_recipients(groups=omnibox["groups"], contacts=omnibox["contacts"], urns=omnibox["urns"])
+            broadcast.update_recipients(groups=omnibox["groups"], contacts=omnibox["contacts"])
 
             broadcast.save()
             return broadcast
@@ -381,14 +382,13 @@ class BroadcastCRUDL(SmartCRUDL):
             omnibox = OmniboxField(
                 label=_("Recipients"),
                 required=False,
-                help_text=_("The contacts to send the message to"),
+                help_text=_("The contacts to send the message to."),
                 widget=OmniboxChoice(
                     attrs={
-                        "placeholder": _("Recipients, enter contacts or groups"),
+                        "placeholder": _("Search for contacts or groups"),
                         "widget_only": True,
                         "groups": True,
                         "contacts": True,
-                        "urns": True,
                     }
                 ),
             )
@@ -432,20 +432,17 @@ class BroadcastCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             initial = super().derive_initial()
-            org = self.request.org
 
-            urn_ids = [_ for _ in self.request.GET.get("u", "").split(",") if _]
+            org = self.request.org
             contact_uuids = [_ for _ in self.request.GET.get("c", "").split(",") if _]
 
-            if contact_uuids or urn_ids:
+            if contact_uuids:
                 params = {}
                 if len(contact_uuids) > 0:
                     params["c"] = ",".join(contact_uuids)
-                if len(urn_ids) > 0:
-                    params["u"] = ",".join(urn_ids)
 
                 results = omnibox_query(org, **params)
-                initial["omnibox"] = omnibox_results_to_dict(org, results, version="2")
+                initial["omnibox"] = omnibox_results_to_dict(org, results)
 
             initial["step_node"] = self.request.GET.get("step_node", None)
             return initial
@@ -495,19 +492,16 @@ class BroadcastCRUDL(SmartCRUDL):
                 omnibox = omnibox_deserialize(org, form.cleaned_data["omnibox"])
                 groups = list(omnibox["groups"])
                 contacts = list(omnibox["contacts"])
-                urns = list(omnibox["urns"])
 
                 broadcast = Broadcast.create(
-                    org, user, {"und": text}, groups=groups, contacts=contacts, urns=urns, status=Msg.STATUS_QUEUED
+                    org, user, {"und": text}, groups=groups, contacts=contacts, status=Msg.STATUS_QUEUED
                 )
 
                 self.post_save(broadcast)
                 super().form_valid(form)
 
                 analytics.track(
-                    self.request.user,
-                    "temba.broadcast_created",
-                    dict(contacts=len(contacts), groups=len(groups), urns=len(urns)),
+                    self.request.user, "temba.broadcast_created", dict(contacts=len(contacts), groups=len(groups))
                 )
 
             response = self.render_to_response(self.get_context_data())
@@ -548,21 +542,21 @@ class MsgCRUDL(SmartCRUDL):
 
                 menu = [
                     self.create_menu_item(
+                        menu_id="inbox",
                         name=_("Inbox"),
                         href=reverse("msgs.msg_inbox"),
                         count=counts[SystemLabel.TYPE_INBOX],
                         icon="icon.inbox",
                     ),
                     self.create_menu_item(
+                        menu_id="flow",
                         name=_("Flows"),
-                        verbose_name=_("Flow Messages"),
                         href=reverse("msgs.msg_flow"),
                         count=counts[SystemLabel.TYPE_FLOWS],
                         icon="icon.flow",
                     ),
                     self.create_menu_item(
                         name=_("Archived"),
-                        verbose_name=_("Archived Messages"),
                         href=reverse("msgs.msg_archived"),
                         count=counts[SystemLabel.TYPE_ARCHIVED],
                         icon="icon.archive",
@@ -575,20 +569,17 @@ class MsgCRUDL(SmartCRUDL):
                     ),
                     self.create_menu_item(
                         name=_("Sent"),
-                        verbose_name=_("Sent Messages"),
                         href=reverse("msgs.msg_sent"),
                         count=counts[SystemLabel.TYPE_SENT],
                     ),
                     self.create_menu_item(
                         name=_("Failed"),
-                        verbose_name=_("Failed Messages"),
                         href=reverse("msgs.msg_failed"),
                         count=counts[SystemLabel.TYPE_FAILED],
                     ),
                     self.create_divider(),
                     self.create_menu_item(
                         name=_("Scheduled"),
-                        verbose_name=_("Scheduled Messages"),
                         href=reverse("msgs.broadcast_scheduled"),
                         count=counts[SystemLabel.TYPE_SCHEDULED],
                     ),
@@ -757,7 +748,7 @@ class MsgCRUDL(SmartCRUDL):
                     org=self.request.org, status=Broadcast.STATUS_QUEUED, schedule=None, is_active=True
                 )
                 .select_related("org")
-                .prefetch_related("groups", "contacts", "urns")
+                .prefetch_related("groups", "contacts")
                 .order_by("-created_on")
             )
             return context
@@ -792,6 +783,9 @@ class MsgCRUDL(SmartCRUDL):
     class Filter(MsgListView):
         template_name = "msgs/msg_filter.haml"
         bulk_actions = ("label",)
+
+        def derive_menu_path(self):
+            return f"/msg/labels/{self.label.uuid}"
 
         def derive_title(self, *args, **kwargs):
             return self.label.name

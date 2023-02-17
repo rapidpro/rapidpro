@@ -12,6 +12,7 @@ from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, TembaTest
+from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import Trigger
 from .types import KeywordTriggerType
@@ -120,7 +121,6 @@ class TriggerTest(TembaTest):
         # do import to clean workspace
         Trigger.objects.all().delete()
         self.org.import_app(export_def, self.admin)
-
         # should have a single identical trigger
         imported = Trigger.objects.get(
             org=trigger.org,
@@ -293,6 +293,7 @@ class TriggerTest(TembaTest):
             groups=[doctors, farmers],
             exclude_groups=[testers],
             keyword="join",
+            match_type=Trigger.MATCH_FIRST_WORD,
         )
 
         self.assert_export_import(
@@ -306,6 +307,7 @@ class TriggerTest(TembaTest):
                 ],
                 "exclude_groups": [{"uuid": str(testers.uuid), "name": "Testers"}],
                 "keyword": "join",
+                "match_type": "F",
             },
         )
 
@@ -1146,10 +1148,16 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({group1, group2}, set(trigger.groups.all()))
         self.assertEqual({group3}, set(trigger.exclude_groups.all()))
 
-        # error if keyword is not defined
+        # error if keyword is not defined or invalid
         self.assertUpdateSubmit(
             update_url,
             {"keyword": "", "flow": flow.id, "match_type": "F"},
+            form_errors={"keyword": "This field is required."},
+            object_unchanged=trigger,
+        )
+        self.assertUpdateSubmit(
+            update_url,
+            {"keyword": "two words", "flow": flow.id, "match_type": "F"},
             form_errors={
                 "keyword": "Must be a single word containing only letters and numbers, or a single emoji character."
             },
@@ -1379,6 +1387,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertEqual(("restore",), response.context["actions"])
 
+        self.new_ui()
         # can restore it
         self.client.post(reverse("triggers.trigger_archived"), {"action": "restore", "objects": trigger1.id})
 
@@ -1462,8 +1471,9 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         catchall_url = reverse("triggers.trigger_type", kwargs={"type": "catch_all"})
 
         response = self.assertListFetch(
-            keyword_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1]
+            keyword_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1], new_ui=True
         )
+        self.assertEqual("/trigger/keyword", response.headers[TEMBA_MENU_SELECTION])
         self.assertEqual(("archive",), response.context["actions"])
 
         # can search by keyword
