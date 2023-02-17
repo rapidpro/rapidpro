@@ -1221,7 +1221,7 @@ class MsgReadSerializer(ReadSerializer):
         Msg.STATUS_ERRORED: "errored",
         Msg.STATUS_FAILED: "failed",
     }
-    TYPES = {Msg.TYPE_INBOX: "inbox", Msg.TYPE_FLOW: "flow", Msg.TYPE_IVR: "ivr"}
+    TYPES = {Msg.TYPE_INBOX: "inbox", Msg.TYPE_FLOW: "flow", Msg.TYPE_TEXT: "text", Msg.TYPE_VOICE: "ivr"}
     VISIBILITIES = {  # deleted messages should never be exposed over API
         Msg.VISIBILITY_VISIBLE: "visible",
         Msg.VISIBILITY_ARCHIVED: "archived",
@@ -1338,7 +1338,7 @@ class MsgWriteSerializer(WriteSerializer):
             contact_urn=contact_urn,
             channel=channel,
             direction=Msg.DIRECTION_OUT,
-            msg_type=Msg.TYPE_FLOW,
+            msg_type=Msg.TYPE_TEXT,
             status=resp["status"],
             visibility=Msg.VISIBILITY_VISIBLE,
             text=resp.get("text"),

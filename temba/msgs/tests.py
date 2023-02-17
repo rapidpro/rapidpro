@@ -1765,9 +1765,9 @@ class BroadcastTest(TembaTest):
         )
 
         # give joe some flow messages
-        self.create_outgoing_msg(self.joe, "what's your fav color?", msg_type="F")
+        self.create_outgoing_msg(self.joe, "what's your fav color?")
         msg_in3 = self.create_incoming_msg(self.joe, "red!", msg_type="F")
-        self.create_outgoing_msg(self.joe, "red is cool", msg_type="F")
+        self.create_outgoing_msg(self.joe, "red is cool")
 
         # mark all outgoing messages as sent except broadcast #2 to Joe
         Msg.objects.filter(direction="O").update(status="S")
