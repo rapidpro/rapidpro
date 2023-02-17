@@ -146,6 +146,7 @@ class RefreshToken(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
     fields = ()
     template_name = "channels/types/facebookapp/refresh_token.html"
     title = _("Reconnect Facebook Page")
+    menu_path = "/settings/workspace"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
