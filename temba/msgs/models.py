@@ -205,9 +205,6 @@ class Broadcast(models.Model):
     parent = models.ForeignKey("Broadcast", on_delete=models.PROTECT, null=True, related_name="children")
     is_active = models.BooleanField(null=True, default=True)
 
-    # TODO remove
-    raw_urns = ArrayField(models.TextField(), null=True)
-
     @classmethod
     def create(
         cls,

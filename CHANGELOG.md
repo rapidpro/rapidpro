@@ -1,3 +1,9 @@
+v8.1.34 (2023-02-16)
+-------------------------
+ * Drop raw_urns field on Broadcast
+ * Pass group id instead of uuid to contact_search mailroom endpoint
+ * Remove unused expression_migrate from mailroom client
+
 v8.1.33 (2023-02-15)
 -------------------------
  * Fix routing of current workspace to settings
