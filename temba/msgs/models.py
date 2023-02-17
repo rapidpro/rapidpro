@@ -220,15 +220,24 @@ class Broadcast(models.Model):
         channel: Channel = None,
         ticket=None,
         **kwargs,
-    ):
+    ):  
+        # if base language is not provided
         if not base_language:
+            # option 1
+            base_language = (text and next(iter(text))) or (attachments and next(iter(attachments)))
+            # option 2
             if text:
                 base_language = next(iter(text))
-                assert base_language in text, "no translation for base language"
             elif attachments:
                 base_language = next(iter(attachments))
-                assert base_language in attachments, "no translation for base language"
 
+        # option 3
+        assert (text and base_language in text) or not text, "no translation for base language"
+        assert (attachments and base_language in attachments) or not attachments, "no translation for base language"
+        # option 4
+        assert not text or base_language in text, "no translation for base language"
+        assert not attachments or base_language in attachments, "no translation for base language"
+        
         assert text or attachments, "can't create broadcast without text or attachments"
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
 
