@@ -2671,11 +2671,9 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_start_redirect(self):
             user = self.request.user
-            if user.is_authenticated:
-                org = self.request.org
-                role = org.get_user_role(user)
-                return HttpResponseRedirect(reverse(self.start_urls[role]))
-            return HttpResponseRedirect(reverse("users.user_login"))
+            org = self.request.org
+            role = org.get_user_role(user)
+            return HttpResponseRedirect(reverse(self.start_urls[role]))
 
     class Start(StartMixin, OrgPermsMixin, SmartTemplateView):
         def pre_process(self, request, *args, **kwargs):
