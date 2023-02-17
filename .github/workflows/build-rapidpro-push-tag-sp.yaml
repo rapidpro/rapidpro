@@ -21,13 +21,13 @@ jobs:
             TAG="$( echo "${GITHUB_REF}" | cut -d'/' -f3 )"
             if grep -qs -e '^.*.*-develop' <<< "${TAG}" ; then
               echo "Found environment: DEVELOP - ${TAG}"
-              echo "MANIFESTS_ENVIRONMENT=develop" | tee -a "${GITHUB_ENV}"
+              echo "ENVIRONMENT=develop" | tee -a "${GITHUB_ENV}"
             elif grep -qs -e '^.*.*-staging' <<< "${TAG}" ; then
               echo "Found environment: STAGING - ${TAG}"
-              echo "MANIFESTS_ENVIRONMENT=staging" | tee -a "${GITHUB_ENV}"
+              echo "ENVIRONMENT=staging" | tee -a "${GITHUB_ENV}"
             elif grep -qs -e '^.*.*' <<< "${TAG}" ; then
               echo "No environment found, assuming: PRODUCTION - ${TAG}"
-              echo "MANIFESTS_ENVIRONMENT=production" | tee -a "${GITHUB_ENV}"
+              echo "ENVIRONMENT=production" | tee -a "${GITHUB_ENV}"
             else
               echo 'Not a valid tag. Skipping...'
               exit 1
@@ -42,7 +42,8 @@ jobs:
             FLOWEDITOR_VERSION=$(jq -r '.dependencies["@nyaruka/flow-editor"]' < package.json)
             echo "FLOWEDITOR_VERSION=${FLOWEDITOR_VERSION}" | tee -a "${GITHUB_ENV}"
             echo "FLOWEDITOR_REPO=https://github.com/ilhasoft/floweditor" | tee -a "${GITHUB_ENV}"
-            echo "FLOWEDITOR_BRANCH=main" | tee -a "${GITHUB_ENV}"
+            FLOWEDITOR_BRANCH=$(jq -r '.weni["floweditor-branch"]' < package.json)
+            echo "FLOWEDITOR_BRANCH=$FLOWEDITOR_BRANCH" | tee -a "${GITHUB_ENV}"
 
 
       - name: Set up QEMU
@@ -88,4 +89,4 @@ jobs:
           tags: "${{env.IMAGE_TAG}}-varnish"
           no-cache: true
           build-args: |
-            BACKEND_ADDRESS=push-${{env.MANIFESTS_ENVIRONMENT}}:8000
+            BACKEND_ADDRESS=push-${{env.ENVIRONMENT}}:8000
