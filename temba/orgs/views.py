@@ -1091,6 +1091,7 @@ class MenuMixin(OrgPermsMixin):
         bottom=False,
         popup=False,
         event=False,
+        posterize=False,
     ):
 
         if perm and not self.has_org_perm(perm):  # pragma: no cover
@@ -1101,6 +1102,7 @@ class MenuMixin(OrgPermsMixin):
         menu_item["bottom"] = bottom
         menu_item["popup"] = popup
         menu_item["avatar"] = avatar
+        menu_item["posterize"] = posterize
 
         if icon:
             menu_item["icon"] = icon
@@ -1121,7 +1123,7 @@ class MenuMixin(OrgPermsMixin):
                 menu_item["href"] = reverse(href)
 
         if items:  # pragma: no cover
-            menu_item["items"] = items
+            menu_item["items"] = [item for item in items if item is not None]
 
         # only include the menu item if we have somewhere to go
         if "href" not in menu_item and "endpoint" not in menu_item and not inline and not popup and not event:
@@ -1130,8 +1132,7 @@ class MenuMixin(OrgPermsMixin):
         return menu_item
 
     def get_menu(self):
-        menu = [item for item in self.derive_menu() if item is not None]
-        return menu
+        return [item for item in self.derive_menu() if item is not None]
 
     def render_to_response(self, context, **response_kwargs):
         return JsonResponse({"results": self.get_menu()})
@@ -1348,8 +1349,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 if self.has_org_perm("orgs.org_create"):
                     if Org.FEATURE_NEW_ORGS in self.org.features and Org.FEATURE_CHILD_ORGS not in self.org.features:
-                        if len(other_org_items):
-                            other_org_items.append(self.create_divider())
+                        other_org_items.append(self.create_divider())
                         other_org_items.append(
                             self.create_modax_button(name=_("New Workspace"), href="orgs.org_create")
                         )
@@ -1367,9 +1367,19 @@ class OrgCRUDL(SmartCRUDL):
                             ),
                             self.create_divider(),
                             self.create_menu_item(
+                                menu_id="end",
+                                name=_("End"),
+                                icon="agent",
+                                posterize=True,
+                                href=f"{reverse('orgs.org_service')}",
+                            )
+                            if self.request.user.is_staff
+                            else None,
+                            self.create_menu_item(
                                 menu_id="logout",
                                 name=_("Sign Out"),
                                 icon="log-out-04",
+                                posterize=True,
                                 href=f"{reverse('users.user_logout')}?next={reverse('users.user_login')}",
                             ),
                             *other_org_items,
@@ -2672,10 +2682,17 @@ class OrgCRUDL(SmartCRUDL):
         def get_start_redirect(self):
             user = self.request.user
             org = self.request.org
+
+            if not org and user.is_staff:
+                return HttpResponseRedirect(reverse("orgs.org_manage"))
+
             role = org.get_user_role(user)
             return HttpResponseRedirect(reverse(self.start_urls[role]))
 
     class Start(StartMixin, OrgPermsMixin, SmartTemplateView):
+        def has_permission(self, request, *args, **kwargs):
+            return self.request.user.is_authenticated
+
         def pre_process(self, request, *args, **kwargs):
             return self.get_start_redirect()
 

@@ -549,7 +549,7 @@
       if (parent && parent.id == "workspace") {
         if (item.id == "settings") {
           fetchURL("{% url 'orgs.org_workspace' %}");
-        } else if (item.id == "logout") {
+        } else if (item.posterize) {
           posterize(item.href)
         }
         else {
@@ -604,19 +604,14 @@
       modax.open = true;
     }
 
-    var currentOrg = "{{user_org.id}}";
-    
     function handleWorkspaceChanged(orgId) {
-      if (currentOrg != orgId) {
-        currentOrg = orgId;
-        showLoading(true);
-        var store = document.querySelector("temba-store");
-        store.postUrl("/org/choose/", "organization=" + orgId, {}, 'application/x-www-form-urlencoded').then(function(response) {
-          if (response.redirected) {
-            document.location.href = response.url;
-          }
-        });
-      }
+      showLoading(true);
+      var store = document.querySelector("temba-store");
+      store.postUrl("/org/choose/", "organization=" + orgId, {}, 'application/x-www-form-urlencoded').then(function(response) {
+        if (response.redirected) {
+          document.location.href = response.url;
+        }
+      });
     }
 
     function onSpload(fn) {
