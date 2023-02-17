@@ -3697,6 +3697,16 @@ class EndpointsTest(TembaTest):
             mr_mocks.calls["msg_send"][-1],
         )
 
+        # try to create an unsendable message
+        billy_no_phone = self.create_contact("Billy", urns=[])
+        response = self.postJSON(url, None, {"contact": billy_no_phone.uuid, "text": "well?"})
+        self.assertEqual(response.status_code, 201)
+
+        msg_json = response.json()
+        self.assertIsNone(msg_json["channel"])
+        self.assertIsNone(msg_json["urn"])
+        self.assertEqual("failed", msg_json["status"])
+
     def test_workspace(self):
         url = reverse("api.v2.workspace")
         self.assertEndpointAccess(url)

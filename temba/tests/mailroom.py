@@ -220,27 +220,13 @@ class TestClient(MailroomClient):
     def msg_send(self, org_id: int, user_id: int, contact_id: int, text: str, attachments: list[str], ticket_id: int):
         org = Org.objects.get(id=org_id)
         contact = Contact.objects.get(org=org, id=contact_id)
-        contact_urn = contact.get_urn()
-        channel = Channel.objects.filter(org=org).first()
-        status = "Q" if channel and contact_urn else "F"
-
-        msg = Msg.objects.create(
-            org=org,
-            channel=channel,
-            contact=contact,
-            contact_urn=contact_urn,
-            status=status,
-            text=text or "",
-            attachments=attachments or [],
-            created_on=timezone.now(),
-            modified_on=timezone.now(),
-        )
+        msg = send_to_contact(org, contact, text, attachments)
 
         return {
             "id": msg.id,
-            "channel": {"uuid": str(channel.uuid), "name": channel.name} if channel else None,
-            "contact": {"uuid": str(contact.uuid), "name": contact.name},
-            "urn": str(contact_urn) if contact_urn else "",
+            "channel": {"uuid": str(msg.channel.uuid), "name": msg.channel.name} if msg.channel else None,
+            "contact": {"uuid": str(msg.contact.uuid), "name": msg.contact.name},
+            "urn": str(msg.contact_urn) if msg.contact_urn else "",
             "text": msg.text,
             "attachments": msg.attachments,
             "status": msg.status,
@@ -704,3 +690,30 @@ def exit_sessions(session_ids: list, status: str):
         session.contact.current_flow = None
         session.contact.modified_on = timezone.now()
         session.contact.save(update_fields=("current_flow", "modified_on"))
+
+
+def send_to_contact(org, contact, text, attachments) -> Msg:
+    contact_urn = contact.get_urn()
+    channel = Channel.objects.filter(org=org).first()
+
+    if contact_urn and channel:
+        status = "Q"
+        failed_reason = None
+    else:
+        contact_urn = None
+        channel = None
+        status = "F"
+        failed_reason = Msg.FAILED_NO_DESTINATION
+
+    return Msg.objects.create(
+        org=org,
+        channel=channel,
+        contact=contact,
+        contact_urn=contact_urn,
+        status=status,
+        failed_reason=failed_reason,
+        text=text or "",
+        attachments=attachments or [],
+        created_on=timezone.now(),
+        modified_on=timezone.now(),
+    )
