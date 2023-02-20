@@ -148,6 +148,10 @@ class MsgListView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Sm
 
     def build_content_menu(self, menu):
         if self.is_spa():
+            if self.has_org_perm("msgs.broadcast_send"):
+                menu.add_modax(
+                    _("Send Message"), "send-message", reverse("msgs.broadcast_send"), title=_("Send Message")
+                )
             if self.has_org_perm("msgs.label_create"):
                 menu.add_modax(_("New Label"), "new-msg-label", reverse("msgs.label_create"), title=_("New Label"))
 

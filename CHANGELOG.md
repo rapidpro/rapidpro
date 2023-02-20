@@ -1,3 +1,11 @@
+v8.1.35 (2023-02-17)
+-------------------------
+ * Add org start redirection view
+ * Convert Attachment to be a dataclass
+ * Rework msg write serializer to create a transient Msg instance that the read serializer can use without hitting the db
+ * Add unpublicized API endpoint to send a single message
+ * Add msg_send to mailroom client
+
 v8.1.34 (2023-02-16)
 -------------------------
  * Drop raw_urns field on Broadcast

@@ -50,9 +50,6 @@ NUM_BASE_REQUEST_QUERIES = 5  # number of db queries required for any API reques
 
 
 class FieldsTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
     def assert_field(self, f, *, submissions: dict, representations: dict):
         f._context = {"org": self.org}  # noqa
 
@@ -60,10 +57,9 @@ class FieldsTest(TembaTest):
             if isinstance(expected, type) and issubclass(expected, Exception):
                 with self.assertRaises(expected, msg=f"expected exception for '{submitted}'"):
                     f.run_validation(submitted)
-                    f.to_internal_value(submitted)
             else:
                 self.assertEqual(
-                    f.to_internal_value(submitted), expected, f"to_internal_value mismatch for '{submitted}'"
+                    f.run_validation(submitted), expected, f"to_internal_value mismatch for '{submitted}'"
                 )
 
         for value, expected in representations.items():
@@ -197,47 +193,60 @@ class FieldsTest(TembaTest):
             representations={"eng": "eng"},
         )
 
-        field = fields.TranslationsField(source="test", max_length=10)
+        field = fields.LimitedDictField(source="test", max_length=2)
+        self.assertEqual({"foo": "bar", "zed": 123}, field.run_validation({"foo": "bar", "zed": 123}))
+        self.assertRaises(serializers.ValidationError, field.run_validation, {"1": 1, "2": 2, "3": 3})
+
+        field = fields.LanguageDictField(source="test")
+        self.assertEqual(field.run_validation({"eng": "Hello"}), {"eng": "Hello"})
+        self.assertRaises(serializers.ValidationError, field.run_validation, {"base": ""})
+
+        field = fields.TranslatedTextField(source="test", max_length=10)
         field._context = {"org": self.org}
 
-        self.assertEqual(field.to_internal_value("Hello"), {"eng": "Hello"})
-        self.assertEqual(field.to_internal_value({"eng": "Hello"}), {"eng": "Hello"})
-        self.assertEqual(field.to_internal_value({"eng": "Hello", "spa": "Hola"}), {"eng": "Hello", "spa": "Hola"})
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, "")  # empty
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, "  ")  # blank
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, 123)  # not a string or dict
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {})  # no translations
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {123: "Hello"})  # lang not a str
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"base": "Hello"})  # lang not valid
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"kin": 123})  # translation not a str
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, "HelloHello1")  # translation too long
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"eng": "HelloHello1"})
+        self.assertEqual(field.run_validation("Hello"), {"eng": "Hello"})
+        self.assertEqual(field.run_validation({"eng": "Hello"}), {"eng": "Hello"})
+        self.assertEqual(field.run_validation({"eng": "Hello", "spa": "Hola"}), {"eng": "Hello", "spa": "Hola"})
+        self.assertRaises(serializers.ValidationError, field.run_validation, {"eng": ""})  # empty
+        self.assertRaises(serializers.ValidationError, field.run_validation, "")  # empty
+        self.assertRaises(serializers.ValidationError, field.run_validation, "  ")  # blank
+        self.assertRaises(serializers.ValidationError, field.run_validation, 123)  # not a string or dict
+        self.assertRaises(serializers.ValidationError, field.run_validation, {})  # no translations
+        self.assertRaises(serializers.ValidationError, field.run_validation, {123: "Hello"})  # lang not a str
+        self.assertRaises(serializers.ValidationError, field.run_validation, {"base": "Hello"})  # lang not valid
+        self.assertRaises(serializers.ValidationError, field.run_validation, "HelloHello1")  # translation too long
+        self.assertRaises(serializers.ValidationError, field.run_validation, {"eng": "HelloHello1"})
 
-        field = fields.TranslationsListField(source="test", max_items=2, max_length=10)
+        field = fields.TranslatedAttachmentsField(source="test")
         field._context = {"org": self.org}
 
-        self.assertEqual(field.to_internal_value(["Hello"]), {"eng": ["Hello"]})
-        self.assertEqual(field.to_internal_value({"eng": ["Hello"]}), {"eng": ["Hello"]})
+        self.assertEqual(field.run_validation(["image:http://test.jpg"]), {"eng": ["image:http://test.jpg"]})
+        self.assertEqual(field.run_validation({"eng": ["image:http://test.jpg"]}), {"eng": ["image:http://test.jpg"]})
         self.assertEqual(
-            field.to_internal_value({"eng": ["Hello", "Bye"], "spa": ["Hola"]}),
-            {"eng": ["Hello", "Bye"], "spa": ["Hola"]},
+            field.run_validation(
+                {"eng": ["image:http://test.jpg", "audio:http://test.mp3"], "spa": ["image:http://hola.jpg"]}
+            ),
+            {"eng": ["image:http://test.jpg", "audio:http://test.mp3"], "spa": ["image:http://hola.jpg"]},
         )
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, [""])  # empty
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, ["  "])  # blank
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, 123)  # not a string or dict
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {})  # no translations
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {123: ["Hello"]})  # lang not a str
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"base": ["Hello"]})  # lang not valid
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"kin": 123})  # translation not a list
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, ["HelloHello1"])  # too long
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"eng": ["x", "HelloHello1"]})
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, {"eng": ["x", "y", "z"]})  # too many
+        self.assertRaises(serializers.ValidationError, field.run_validation, {})  # empty
+        self.assertRaises(serializers.ValidationError, field.run_validation, {"eng": [""]})  # empty
+        self.assertRaises(serializers.ValidationError, field.run_validation, {"eng": [" "]})  # blank
+        self.assertRaises(serializers.ValidationError, field.run_validation, {"base": ["Hello"]})  # lang not valid
+        self.assertRaises(
+            serializers.ValidationError, field.run_validation, {"eng": ["Hello"]}
+        )  # translation not valid attachment
+        self.assertRaises(
+            serializers.ValidationError, field.run_validation, {"kin": "audio:http://test.mp3"}
+        )  # translation not a list
+        self.assertRaises(
+            serializers.ValidationError, field.run_validation, {"eng": ["audio:http://test.mp3"] * 11}
+        )  # too many
 
         # check that default language is based on first flow language
         self.org.flow_languages = ["spa", "kin"]
         self.org.save(update_fields=("flow_languages",))
 
-        self.assertEqual(field.to_internal_value(["Hello"]), {"spa": ["Hello"]})
+        self.assertEqual(field.to_internal_value(["image:http://test.jpg"]), {"spa": ["image:http://test.jpg"]})
 
     def test_others(self):
         group = self.create_group("Customers")
@@ -258,11 +267,6 @@ class FieldsTest(TembaTest):
             },
             representations={"image:https://test.jpg": "image:https://test.jpg"},
         )
-
-        field = fields.LimitedListField(child=serializers.IntegerField(), source="test")
-
-        self.assertEqual(field.to_internal_value([1, 2, 3]), [1, 2, 3])
-        self.assertRaises(serializers.ValidationError, field.to_internal_value, list(range(101)))  # too long
 
         field = fields.CampaignField(source="test")
         field._context = {"org": self.org}
@@ -992,7 +996,7 @@ class EndpointsTest(TembaTest):
             None,
             {
                 "text": {"eng": "Hello"},
-                "attachments": {"spa": ["http://text.mp3"]},
+                "attachments": {"spa": ["audio:http://text.mp3"]},
                 "base_language": "eng",
                 "contacts": [self.joe.uuid],
             },
@@ -1006,8 +1010,8 @@ class EndpointsTest(TembaTest):
             {
                 "text": {"eng": "Hello @contact.name", "spa": "Hola @contact.name"},
                 "attachments": {
-                    "eng": ["http://example.com/test.jpg", "http://example.com/test.mp3"],
-                    "kin": ["http://example.com/muraho.mp3"],
+                    "eng": ["image:http://example.com/test.jpg", "audio:http://example.com/test.mp3"],
+                    "kin": ["audio:http://example.com/muraho.mp3"],
                 },
                 "base_language": "eng",
                 "urns": ["twitter:franky"],
@@ -1022,10 +1026,10 @@ class EndpointsTest(TembaTest):
             {
                 "eng": {
                     "text": "Hello @contact.name",
-                    "attachments": ["http://example.com/test.jpg", "http://example.com/test.mp3"],
+                    "attachments": ["image:http://example.com/test.jpg", "audio:http://example.com/test.mp3"],
                 },
                 "spa": {"text": "Hola @contact.name"},
-                "kin": {"attachments": ["http://example.com/muraho.mp3"]},
+                "kin": {"attachments": ["audio:http://example.com/muraho.mp3"]},
             },
             broadcast.translations,
         )
@@ -1043,14 +1047,19 @@ class EndpointsTest(TembaTest):
             None,
             {
                 "text": "Hello",
-                "attachments": ["http://example.com/test.jpg", "http://example.com/test.mp3"],
+                "attachments": ["image:http://example.com/test.jpg", "audio:http://example.com/test.mp3"],
                 "contacts": [self.joe.uuid, self.frank.uuid],
             },
         )
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
         self.assertEqual(
-            {"eng": {"text": "Hello", "attachments": ["http://example.com/test.jpg", "http://example.com/test.mp3"]}},
+            {
+                "eng": {
+                    "text": "Hello",
+                    "attachments": ["image:http://example.com/test.jpg", "audio:http://example.com/test.mp3"],
+                }
+            },
             broadcast.translations,
         )
         self.assertEqual("eng", broadcast.base_language)
@@ -1480,7 +1489,7 @@ class EndpointsTest(TembaTest):
         )
 
         # we should have failed validation for sending an empty message
-        self.assertResponseError(response, "message", "Translations cannot be empty or blank.")
+        self.assertResponseError(response, ("message", "eng"), "This field may not be blank.")
 
         response = self.postJSON(
             url,
@@ -2224,11 +2233,11 @@ class EndpointsTest(TembaTest):
 
         # try to give a contact more than 100 URNs
         response = self.postJSON(url, "uuid=%s" % jean.uuid, {"urns": ["twitter:bob%d" % u for u in range(101)]})
-        self.assertResponseError(response, "urns", "This field can only contain up to 100 items.")
+        self.assertResponseError(response, "urns", "Ensure this field has no more than 100 elements.")
 
         # try to give a contact more than 100 contact fields
         response = self.postJSON(url, "uuid=%s" % jean.uuid, {"fields": {"field_%d" % f: f for f in range(101)}})
-        self.assertResponseError(response, "fields", "This field can only contain up to 100 items.")
+        self.assertResponseError(response, "fields", "Ensure this field has no more than 100 elements.")
 
         # ok to give them 100 URNs
         response = self.postJSON(url, "uuid=%s" % jean.uuid, {"urns": ["twitter:bob%d" % u for u in range(100)]})
@@ -2500,7 +2509,7 @@ class EndpointsTest(TembaTest):
         response = self.postJSON(
             url, None, {"contacts": [str(x) for x in range(101)], "action": "add", "group": "Testers"}
         )
-        self.assertResponseError(response, "contacts", "This field can only contain up to 100 items.")
+        self.assertResponseError(response, "contacts", "Ensure this field has no more than 100 elements.")
 
         # try adding all contacts to a group by its name
         response = self.postJSON(
@@ -4536,7 +4545,7 @@ class EndpointsTest(TembaTest):
             group_uuids.append(self.create_group("Group %d" % g).uuid)
 
         response = self.postJSON(url, None, dict(flow=flow.uuid, restart_participants=True, groups=group_uuids))
-        self.assertResponseError(response, "groups", "This field can only contain up to 100 items.")
+        self.assertResponseError(response, "groups", "Ensure this field has no more than 100 elements.")
 
         # check no params
         response = self.fetchJSON(url, readonly_models={FlowStart})
@@ -4979,7 +4988,7 @@ class EndpointsTest(TembaTest):
 
         # try actioning more tickets than this endpoint is allowed to operate on at one time
         response = self.postJSON(url, None, {"tickets": [str(x) for x in range(101)], "action": "close"})
-        self.assertResponseError(response, "tickets", "This field can only contain up to 100 items.")
+        self.assertResponseError(response, "tickets", "Ensure this field has no more than 100 elements.")
 
         # try actioning a ticket which is not in this org
         response = self.postJSON(
