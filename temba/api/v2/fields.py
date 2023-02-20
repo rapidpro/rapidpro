@@ -1,7 +1,8 @@
-from rest_framework import relations, serializers
+from rest_framework import fields, relations, serializers
 
 from django.contrib.auth.models import User
 from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
 
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
@@ -12,148 +13,138 @@ from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import languages
 from temba.utils.uuid import is_uuid
 
-# default maximum number of items in a posted list or dict
-DEFAULT_MAX_LIST_ITEMS = 100
-DEFAULT_MAX_DICT_ITEMS = 100
-
-
-def validate_size(value, max_size: int):
-    if hasattr(value, "__len__") and len(value) > max_size:
-        raise serializers.ValidationError(f"This field can only contain up to {max_size} items.")
-
-
-def validate_language(value):
-    if not isinstance(value, str) or len(value) != 3 or not languages.get_name(value):
-        raise serializers.ValidationError("Not an allowed ISO 639-3 language code.")
-
-
-def validate_translations(value, *, max_length: int, lists: bool, max_items: int = 0):
-    if not isinstance(value, dict):
-        raise serializers.ValidationError("Must be a dictionary of languages to translated values.")
-    elif len(value) == 0:
-        raise serializers.ValidationError("Must include at least one translation.")
-
-    for lang, trans in value.items():
-        validate_language(lang)
-
-        if lists:
-            if not isinstance(trans, list) or not all([isinstance(t, str) for t in trans]):
-                raise serializers.ValidationError("Translations must be lists of strings.")
-
-            if len(trans) > max_items:
-                raise serializers.ValidationError(f"Translations can only contain up to {max_items} items.")
-
-            as_list = trans
-        else:
-            if not isinstance(trans, str):
-                raise serializers.ValidationError("Translations must be strings.")
-
-            as_list = [trans]
-
-        for t in as_list:
-            if not t.strip():
-                raise serializers.ValidationError("Translations cannot be empty or blank.")
-            if len(t) > max_length:
-                raise serializers.ValidationError("Translations must have no more than %d characters." % max_length)
-
 
 def validate_attachment(value):
     try:
         Attachment.parse(value)
     except ValueError:
         raise serializers.ValidationError("Invalid attachment. Must be <content-type>:<url>.")
-    return value
 
 
-def validate_urn(value, strict=True, country_code=None):
+def validate_language(value):
+    if not languages.get_name(str(value)):
+        raise serializers.ValidationError("Not an allowed ISO 639-3 language code.")
+
+
+def validate_urn(value, country_code=None):
     try:
         normalized = URN.normalize(value, country_code=country_code)
 
-        if strict and not URN.validate(normalized, country_code=country_code):
+        if not URN.validate(normalized, country_code=country_code):
             raise ValueError()
     except ValueError:
         raise serializers.ValidationError("Invalid URN: %s. Ensure phone numbers contain country codes." % value)
     return normalized
 
 
+class AttachmentField(serializers.CharField):
+    def __init__(self, **kwargs):
+        super().__init__(max_length=Attachment.MAX_LEN, **kwargs)
+
+        self.validators.append(validate_attachment)
+
+
 class LanguageField(serializers.CharField):
-    max_length = 3
+    def __init__(self, **kwargs):
+        super().__init__(max_length=3, **kwargs)
 
-    def to_internal_value(self, data):
-        validate_language(data)
-
-        return super().to_internal_value(data)
+        self.validators.append(validate_language)
 
 
-class TranslationsField(serializers.Field):
+class LimitedDictField(serializers.DictField):
+    """
+    Adds max length validation to the standard DRF DictField
+    """
+
+    default_error_messages = {"max_length": _("Ensure this field has no more than {max_length} elements.")}
+
+    def __init__(self, **kwargs):
+        self.max_length = kwargs.pop("max_length", None)
+
+        super().__init__(**kwargs)
+
+        if self.max_length is not None:
+            message = fields.lazy_format(self.error_messages["max_length"], max_length=self.max_length)
+            self.validators.append(fields.MaxLengthValidator(self.max_length, message=message))
+
+
+class LanguageDictField(LimitedDictField):
+    """
+    Dict field where all the keys must be valid languages
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.validators.append(self.validate_keys_as_languages)
+
+    @staticmethod
+    def validate_keys_as_languages(value):
+        errors = {}
+        for key in value:
+            try:
+                validate_language(key)
+            except serializers.ValidationError as e:
+                errors[key] = e.detail
+        if errors:
+            raise serializers.ValidationError(errors)
+
+
+class TranslatedTextField(LanguageDictField):
     """
     A field which is either a string or a language -> string translations dict
     """
 
     def __init__(self, max_length, **kwargs):
-        self.max_length = max_length
-
-        super().__init__(**kwargs)
+        super().__init__(
+            allow_empty=False, max_length=50, child=serializers.CharField(max_length=max_length), **kwargs
+        )
 
     def to_internal_value(self, data):
         if isinstance(data, str):
             data = {self.context["org"].flow_languages[0]: data}
 
-        validate_translations(data, max_length=self.max_length, lists=False)
-
-        return data
+        return super().to_internal_value(data)
 
 
-class TranslationsListField(serializers.Field):
+class TranslatedAttachmentsField(LanguageDictField):
     """
     A field which is either a list of strings or a language -> list of strings translations dict
     """
 
-    def __init__(self, max_items, max_length, **kwargs):
-        self.max_items = max_items
-        self.max_length = max_length
-
-        super().__init__(**kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(
+            allow_empty=False,
+            max_length=50,
+            child=serializers.ListField(child=AttachmentField(), max_length=10),
+            **kwargs,
+        )
 
     def to_internal_value(self, data):
         if isinstance(data, list):
             data = {self.context["org"].flow_languages[0]: data}
 
-        validate_translations(data, max_length=self.max_length, lists=True, max_items=self.max_items)
-
-        return data
-
-
-class LimitedListField(serializers.ListField):
-    """
-    A list field which can be only be written to with a limited number of items
-    """
-
-    def to_internal_value(self, data):
-        validate_size(data, DEFAULT_MAX_LIST_ITEMS)
-
         return super().to_internal_value(data)
 
 
-class LimitedDictField(serializers.DictField):
+class LimitedManyRelatedField(serializers.ManyRelatedField):
     """
-    A dict field which can be only be written to with a limited number of items
+    Adds max_length to the standard DRF ManyRelatedField
     """
 
-    def to_internal_value(self, data):
-        validate_size(data, DEFAULT_MAX_DICT_ITEMS)
+    default_error_messages = {"max_length": _("Ensure this field has no more than {max_length} elements.")}
 
-        return super().to_internal_value(data)
-
-
-class AttachmentField(serializers.CharField):
     def __init__(self, **kwargs):
-        super().__init__(max_length=Attachment.MAX_LEN, **kwargs)
+        self.max_length = kwargs.pop("max_length", None)
 
-    def to_internal_value(self, data):
-        validate_attachment(str(data))
+        super().__init__(**kwargs)
 
-        return super().to_internal_value(data)
+    def run_validation(self, data=serializers.empty):
+        if self.max_length and hasattr(data, "__len__") and len(data) > self.max_length:
+            message = fields.lazy_format(self.error_messages["max_length"], max_length=self.max_length)
+            raise serializers.ValidationError(message)
+
+        return super().run_validation(data)
 
 
 class URNField(serializers.CharField):
@@ -171,10 +162,6 @@ class URNField(serializers.CharField):
         return validate_urn(str(data), country_code=country_code)
 
 
-class URNListField(LimitedListField):
-    child = URNField()
-
-
 class TembaModelField(serializers.RelatedField):
     model = None
     model_manager = "objects"
@@ -186,12 +173,6 @@ class TembaModelField(serializers.RelatedField):
     # throw validation exception if any object not found, otherwise returns none
     require_exists = True
 
-    class LimitedSizeList(serializers.ManyRelatedField):
-        def run_validation(self, data=serializers.empty):
-            validate_size(data, DEFAULT_MAX_LIST_ITEMS)
-
-            return super().run_validation(data)
-
     @classmethod
     def many_init(cls, *args, **kwargs):
         """
@@ -201,7 +182,7 @@ class TembaModelField(serializers.RelatedField):
         for key in kwargs.keys():
             if key in relations.MANY_RELATION_KWARGS:
                 list_kwargs[key] = kwargs[key]
-        return TembaModelField.LimitedSizeList(**list_kwargs)
+        return LimitedManyRelatedField(max_length=100, **list_kwargs)
 
     def get_queryset(self):
         manager = getattr(self.model, self.model_manager)
