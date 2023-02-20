@@ -1,3 +1,8 @@
+v8.1.36 (2023-02-20)
+-------------------------
+ * Cleanup use of validators in the API
+ * Add support for Msg.TYPE_TEXT to be used (for now) for outgoing messages
+
 v8.1.35 (2023-02-17)
 -------------------------
  * Add org start redirection view
