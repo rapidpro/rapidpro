@@ -527,9 +527,7 @@ class MailroomQueueTest(TembaTest):
         self.assertEqual(0, r.zcard(f"handler:{self.org.id}"))
         self.assertEqual(0, r.llen(f"c:{self.org.id}:{event.contact_id}"))
 
-        event = android.create__event(
-            self.channel, "tel:12065551515", ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now()
-        )
+        event = android.create_event(self.channel, "tel:12065551515", ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now())
 
         self.assert_org_queued(self.org, "handler")
         self.assert_contact_queued(event.contact)
