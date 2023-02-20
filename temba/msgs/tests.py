@@ -34,6 +34,27 @@ from .tasks import squash_msg_counts
 from .templatetags.sms import as_icon
 
 
+class AttachmentTest(TembaTest):
+    def test_attachments(self):
+        # check equality
+        self.assertEqual(
+            Attachment("image/jpeg", "http://example.com/test.jpg"),
+            Attachment("image/jpeg", "http://example.com/test.jpg"),
+        )
+
+        # check parsing
+        self.assertEqual(
+            Attachment("image", "http://example.com/test.jpg"),
+            Attachment.parse("image:http://example.com/test.jpg"),
+        )
+        self.assertEqual(
+            Attachment("image/jpeg", "http://example.com/test.jpg"),
+            Attachment.parse("image/jpeg:http://example.com/test.jpg"),
+        )
+        with self.assertRaises(ValueError):
+            Attachment.parse("http://example.com/test.jpg")
+
+
 class MediaTest(TembaTest):
     def tearDown(self):
         self.clear_storage()
@@ -1471,7 +1492,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({label1, label3}, set(msg1.labels.all()))
 
         self.assertContentMenu(inbox_url, self.user, legacy_items=["Download"], spa_items=["Download"])
-        self.assertContentMenu(inbox_url, self.admin, legacy_items=["Download"], spa_items=["New Label", "Download"])
+        self.assertContentMenu(
+            inbox_url, self.admin, legacy_items=["Download"], spa_items=["Send Message", "New Label", "Download"]
+        )
 
     def test_flows(self):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")

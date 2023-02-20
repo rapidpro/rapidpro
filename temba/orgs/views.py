@@ -1091,6 +1091,7 @@ class MenuMixin(OrgPermsMixin):
         bottom=False,
         popup=False,
         event=False,
+        posterize=False,
     ):
 
         if perm and not self.has_org_perm(perm):  # pragma: no cover
@@ -1101,6 +1102,7 @@ class MenuMixin(OrgPermsMixin):
         menu_item["bottom"] = bottom
         menu_item["popup"] = popup
         menu_item["avatar"] = avatar
+        menu_item["posterize"] = posterize
 
         if icon:
             menu_item["icon"] = icon
@@ -1121,7 +1123,7 @@ class MenuMixin(OrgPermsMixin):
                 menu_item["href"] = reverse(href)
 
         if items:  # pragma: no cover
-            menu_item["items"] = items
+            menu_item["items"] = [item for item in items if item is not None]
 
         # only include the menu item if we have somewhere to go
         if "href" not in menu_item and "endpoint" not in menu_item and not inline and not popup and not event:
@@ -1130,8 +1132,7 @@ class MenuMixin(OrgPermsMixin):
         return menu_item
 
     def get_menu(self):
-        menu = [item for item in self.derive_menu() if item is not None]
-        return menu
+        return [item for item in self.derive_menu() if item is not None]
 
     def render_to_response(self, context, **response_kwargs):
         return JsonResponse({"results": self.get_menu()})
@@ -1140,6 +1141,7 @@ class MenuMixin(OrgPermsMixin):
 class OrgCRUDL(SmartCRUDL):
     actions = (
         "signup",
+        "start",
         "home",
         "read",
         "token",
@@ -1347,8 +1349,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 if self.has_org_perm("orgs.org_create"):
                     if Org.FEATURE_NEW_ORGS in self.org.features and Org.FEATURE_CHILD_ORGS not in self.org.features:
-                        if len(other_org_items):
-                            other_org_items.append(self.create_divider())
+                        other_org_items.append(self.create_divider())
                         other_org_items.append(
                             self.create_modax_button(name=_("New Workspace"), href="orgs.org_create")
                         )
@@ -1366,9 +1367,19 @@ class OrgCRUDL(SmartCRUDL):
                             ),
                             self.create_divider(),
                             self.create_menu_item(
+                                menu_id="end",
+                                name=_("End"),
+                                icon="agent",
+                                posterize=True,
+                                href=f"{reverse('orgs.org_service')}",
+                            )
+                            if self.request.user.is_staff
+                            else None,
+                            self.create_menu_item(
                                 menu_id="logout",
                                 name=_("Sign Out"),
                                 icon="log-out-04",
+                                posterize=True,
                                 href=f"{reverse('users.user_logout')}?next={reverse('users.user_login')}",
                             ),
                             *other_org_items,
@@ -1605,6 +1616,7 @@ class OrgCRUDL(SmartCRUDL):
         submit_button_name = "Save"
         field_config = dict(account_sid=dict(label=""), account_token=dict(label=""))
         success_message = "Twilio Account successfully connected."
+        menu_path = "/settings/workspace"
 
         def get_success_url(self):
             claim_type = self.request.GET.get("claim_type", "twilio")
@@ -2658,7 +2670,33 @@ class OrgCRUDL(SmartCRUDL):
                 response["Temba-Success"] = success_url
                 return response
 
-    class Choose(SpaMixin, SmartFormView):
+    class StartMixin:
+        start_urls = {
+            OrgRole.ADMINISTRATOR: "msgs.msg_inbox",
+            OrgRole.EDITOR: "msgs.msg_inbox",
+            OrgRole.VIEWER: "msgs.msg_inbox",
+            OrgRole.AGENT: "tickets.ticket_list",
+            OrgRole.SURVEYOR: "orgs.org_surveyor",
+        }
+
+        def get_start_redirect(self):
+            user = self.request.user
+            org = self.request.org
+
+            if not org and user.is_staff:
+                return HttpResponseRedirect(reverse("orgs.org_manage"))
+
+            role = org.get_user_role(user)
+            return HttpResponseRedirect(reverse(self.start_urls[role]))
+
+    class Start(StartMixin, OrgPermsMixin, SmartTemplateView):
+        def has_permission(self, request, *args, **kwargs):
+            return self.request.user.is_authenticated
+
+        def pre_process(self, request, *args, **kwargs):
+            return self.get_start_redirect()
+
+    class Choose(StartMixin, SpaMixin, SmartFormView):
         class Form(forms.Form):
             organization = forms.ModelChoiceField(queryset=Org.objects.none(), empty_label=None)
 
@@ -2670,20 +2708,9 @@ class OrgCRUDL(SmartCRUDL):
         form_class = Form
         fields = ("organization",)
         title = _("Select your Workspace")
-        success_urls = {
-            OrgRole.ADMINISTRATOR: "msgs.msg_inbox",
-            OrgRole.EDITOR: "msgs.msg_inbox",
-            OrgRole.VIEWER: "msgs.msg_inbox",
-            OrgRole.AGENT: "tickets.ticket_list",
-            OrgRole.SURVEYOR: "orgs.org_surveyor",
-        }
 
         def get_user_orgs(self):
             return self.request.user.get_orgs(brand=self.request.branding["slug"])
-
-        def get_success_url(self, org):
-            role = org.get_user_role(self.request.user)
-            return reverse(self.success_urls[role])
 
         def pre_process(self, request, *args, **kwargs):
             user = self.request.user
@@ -2692,9 +2719,9 @@ class OrgCRUDL(SmartCRUDL):
                 if user_orgs.count() == 1:
                     org = user_orgs[0]
                     switch_to_org(self.request, org)
+                    self.request.org = org
                     analytics.identify(user, self.request.branding, org)
-
-                    return HttpResponseRedirect(self.get_success_url(org))
+                    return self.get_start_redirect()
 
                 elif user_orgs.count() == 0:
                     if user.is_staff:
@@ -2723,7 +2750,8 @@ class OrgCRUDL(SmartCRUDL):
             org = form.cleaned_data["organization"]
             switch_to_org(self.request, org)
             analytics.identify(self.request.user, self.request.branding, org)
-            return HttpResponseRedirect(self.get_success_url(org))
+            self.request.org = org
+            return self.get_start_redirect()
 
     class CreateLogin(SmartUpdateView):
         title = ""
@@ -3297,6 +3325,12 @@ class OrgCRUDL(SmartCRUDL):
 
     class Home(SpaMixin, FormaxMixin, ContentMenuMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
+
+        def pre_process(self, request, *args, **kwargs):
+            # home is not valid in the new interface, we use workspace instead
+            if self.is_spa():
+                return HttpResponseRedirect(reverse("orgs.org_workspace"))
+            return super().pre_process(request, *args, **kwargs)
 
         def build_content_menu(self, menu):
             if self.has_org_perm("channels.channel_claim"):
