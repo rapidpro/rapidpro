@@ -352,57 +352,6 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(2, Msg.objects.all().count())
         self.assertEqual(0, msg2.channel_logs.count())  # logs should be gone
 
-    def test_get_sync_commands(self):
-        msg1 = self.create_outgoing_msg(self.joe, "Hello, we heard from you.")
-        msg2 = self.create_outgoing_msg(self.frank, "Hello, we heard from you.")
-        msg3 = self.create_outgoing_msg(self.kevin, "Hello, we heard from you.")
-
-        commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg2.id, msg3.id)))
-
-        self.assertEqual(
-            commands,
-            [
-                {
-                    "cmd": "mt_bcast",
-                    "to": [
-                        {"phone": "123", "id": msg1.id},
-                        {"phone": "321", "id": msg2.id},
-                        {"phone": "987", "id": msg3.id},
-                    ],
-                    "msg": "Hello, we heard from you.",
-                }
-            ],
-        )
-
-        msg4 = self.create_outgoing_msg(self.kevin, "Hello, there")
-
-        commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg2.id, msg4.id)))
-
-        self.assertEqual(
-            commands,
-            [
-                {
-                    "cmd": "mt_bcast",
-                    "to": [{"phone": "123", "id": msg1.id}, {"phone": "321", "id": msg2.id}],
-                    "msg": "Hello, we heard from you.",
-                },
-                {"cmd": "mt_bcast", "to": [{"phone": "987", "id": msg4.id}], "msg": "Hello, there"},
-            ],
-        )
-
-        msg5 = self.create_outgoing_msg(self.frank, "Hello, we heard from you.")
-
-        commands = Msg.get_sync_commands(Msg.objects.filter(id__in=(msg1.id, msg4.id, msg5.id)))
-
-        self.assertEqual(
-            commands,
-            [
-                {"cmd": "mt_bcast", "to": [{"phone": "123", "id": msg1.id}], "msg": "Hello, we heard from you."},
-                {"cmd": "mt_bcast", "to": [{"phone": "987", "id": msg4.id}], "msg": "Hello, there"},
-                {"cmd": "mt_bcast", "to": [{"phone": "321", "id": msg5.id}], "msg": "Hello, we heard from you."},
-            ],
-        )
-
     def test_archive_and_release(self):
         msg1 = self.create_incoming_msg(self.joe, "Incoming")
         label = self.create_label("Spam")
@@ -1885,42 +1834,6 @@ class BroadcastTest(TembaTest):
         self.assertEqual("Hola a todos", broadcast.get_text(self.joe))  # but only if it's allowed
 
         self.assertEqual(f'<Broadcast: id={broadcast.id} text="Hola a todos">', repr(broadcast))
-
-    def test_message_parts(self):
-        contact = self.create_contact("Matt", phone="+12067778811")
-
-        sms = self.create_outgoing_msg(contact, "Text")
-
-        self.assertEqual(["Text"], Msg.get_text_parts(sms.text))
-        sms.text = ""
-        self.assertEqual([""], Msg.get_text_parts(sms.text))
-
-        # 160 chars
-        sms.text = "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-        self.assertEqual(1, len(Msg.get_text_parts(sms.text)))
-
-        # 161 characters with space
-        sms.text = "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890 1234567890"
-        parts = Msg.get_text_parts(sms.text)
-        self.assertEqual(2, len(parts))
-        self.assertEqual(150, len(parts[0]))
-        self.assertEqual(10, len(parts[1]))
-
-        # 161 characters without space
-        sms.text = "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901"
-        parts = Msg.get_text_parts(sms.text)
-        self.assertEqual(2, len(parts))
-        self.assertEqual(160, len(parts[0]))
-        self.assertEqual(1, len(parts[1]))
-
-        # 160 characters with max length 40
-        sms.text = "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890"
-        parts = Msg.get_text_parts(sms.text, max_length=40)
-        self.assertEqual(4, len(parts))
-        self.assertEqual(40, len(parts[0]))
-        self.assertEqual(40, len(parts[1]))
-        self.assertEqual(40, len(parts[2]))
-        self.assertEqual(40, len(parts[3]))
 
 
 class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):

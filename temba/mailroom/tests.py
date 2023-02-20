@@ -8,6 +8,7 @@ from django.test import override_settings
 from django.utils import timezone
 
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
+from temba.channels import android
 from temba.channels.models import ChannelEvent, ChannelLog
 from temba.flows.models import FlowRun, FlowStart
 from temba.ivr.models import Call
@@ -488,7 +489,7 @@ class MailroomQueueTest(TembaTest):
     @mock_mailroom(queue=False)
     def test_queue_msg_handling(self, mr_mocks):
         with override_settings(TESTING=False):
-            msg = Msg.create_relayer_incoming(self.org, self.channel, "tel:12065551212", "Hello World", timezone.now())
+            msg = android.create_incoming(self.org, self.channel, "tel:12065551212", "Hello World", timezone.now())
 
         self.assert_org_queued(self.org, "handler")
         self.assert_contact_queued(msg.contact)
@@ -517,9 +518,7 @@ class MailroomQueueTest(TembaTest):
     @mock_mailroom(queue=False)
     def test_queue_mo_miss_event(self, mr_mocks):
         get_redis_connection("default").flushall()
-        event = ChannelEvent.create_relayer_event(
-            self.channel, "tel:12065551212", ChannelEvent.TYPE_CALL_OUT, timezone.now()
-        )
+        event = android.create_event(self.channel, "tel:12065551212", ChannelEvent.TYPE_CALL_OUT, timezone.now())
 
         r = get_redis_connection()
 
@@ -528,7 +527,7 @@ class MailroomQueueTest(TembaTest):
         self.assertEqual(0, r.zcard(f"handler:{self.org.id}"))
         self.assertEqual(0, r.llen(f"c:{self.org.id}:{event.contact_id}"))
 
-        event = ChannelEvent.create_relayer_event(
+        event = android.create__event(
             self.channel, "tel:12065551515", ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now()
         )
 
