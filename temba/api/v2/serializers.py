@@ -22,7 +22,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.mailroom import modifiers
-from temba.msgs.models import Attachment, Broadcast, Label, Msg
+from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
@@ -214,11 +214,11 @@ class BroadcastReadSerializer(ReadSerializer):
 
 
 class BroadcastWriteSerializer(WriteSerializer):
-    urns = fields.URNListField(required=False)
+    urns = serializers.ListField(required=False, child=fields.URNField(), max_length=100)
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
-    text = fields.TranslationsField(required=True, max_length=Msg.MAX_TEXT_LEN)
-    attachments = fields.TranslationsListField(required=False, max_items=10, max_length=Attachment.MAX_LEN)
+    text = fields.TranslatedTextField(required=True, max_length=Msg.MAX_TEXT_LEN)
+    attachments = fields.TranslatedAttachmentsField(required=False)
     base_language = fields.LanguageField(required=False)
     ticket = fields.TicketField(required=False)
 
@@ -366,7 +366,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
     unit = serializers.ChoiceField(required=True, choices=list(UNITS.keys()))
     delivery_hour = serializers.IntegerField(required=True, min_value=-1, max_value=23)
     relative_to = fields.ContactFieldField(required=True)
-    message = fields.TranslationsField(required=False, max_length=Msg.MAX_TEXT_LEN)
+    message = fields.TranslatedTextField(required=False, max_length=Msg.MAX_TEXT_LEN)
     flow = fields.FlowField(required=False)
 
     def validate_unit(self, value):
@@ -589,9 +589,11 @@ class ContactReadSerializer(ReadSerializer):
 class ContactWriteSerializer(WriteSerializer):
     name = serializers.CharField(required=False, max_length=64, allow_null=True)
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
-    urns = fields.URNListField(required=False)
+    urns = serializers.ListField(required=False, child=fields.URNField(), max_length=100)
     groups = fields.ContactGroupField(many=True, required=False, allow_dynamic=False)
-    fields = fields.LimitedDictField(required=False, child=serializers.CharField(allow_blank=True, allow_null=True))
+    fields = fields.LimitedDictField(
+        required=False, child=serializers.CharField(allow_blank=True, allow_null=True), max_length=100
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1084,7 +1086,7 @@ class FlowStartWriteSerializer(WriteSerializer):
     flow = fields.FlowField()
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
-    urns = fields.URNListField(required=False)
+    urns = serializers.ListField(required=False, child=fields.URNField(), max_length=100)
     restart_participants = serializers.BooleanField(required=False)
     exclude_active = serializers.BooleanField(required=False)
     extra = serializers.JSONField(required=False)
@@ -1300,7 +1302,7 @@ class MsgReadSerializer(ReadSerializer):
 class MsgWriteSerializer(WriteSerializer):
     contact = fields.ContactField()
     text = serializers.CharField(required=False, max_length=Msg.MAX_TEXT_LEN)
-    attachments = fields.LimitedListField(required=False, child=fields.AttachmentField(), max_length=10)
+    attachments = serializers.ListField(required=False, child=fields.AttachmentField(), max_length=10)
     ticket = fields.TicketField(required=False)
 
     def validate(self, data):
