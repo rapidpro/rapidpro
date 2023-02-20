@@ -450,15 +450,15 @@ class Msg(models.Model):
     DIRECTION_OUT = "O"
     DIRECTION_CHOICES = ((DIRECTION_IN, "Incoming"), (DIRECTION_OUT, "Outgoing"))
 
-    TYPE_INBOX = "I"
-    TYPE_FLOW = "F"
-    TYPE_IVR = "V"
-    TYPE_USSD = "U"
+    TYPE_INBOX = "I"  # to be replaced with T
+    TYPE_FLOW = "F"  # to be replaced with T
+    TYPE_TEXT = "T"
+    TYPE_VOICE = "V"
     TYPE_CHOICES = (
         (TYPE_INBOX, "Inbox Message"),
         (TYPE_FLOW, "Flow Message"),
-        (TYPE_IVR, "IVR Message"),
-        (TYPE_USSD, "USSD Message"),
+        (TYPE_TEXT, "Text Message"),
+        (TYPE_VOICE, "Voice Message"),
     )
 
     FAILED_SUSPENDED = "S"

@@ -327,7 +327,7 @@ class TembaTestMixin:
         contact,
         text,
         channel=None,
-        msg_type=Msg.TYPE_INBOX,
+        msg_type=Msg.TYPE_TEXT,
         attachments=(),
         quick_replies=(),
         status=Msg.STATUS_SENT,
