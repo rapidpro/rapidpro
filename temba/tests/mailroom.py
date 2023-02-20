@@ -714,6 +714,7 @@ def send_to_contact(org, contact, text, attachments) -> Msg:
         failed_reason=failed_reason,
         text=text or "",
         attachments=attachments or [],
+        msg_type=Msg.TYPE_TEXT,
         created_on=timezone.now(),
         modified_on=timezone.now(),
     )

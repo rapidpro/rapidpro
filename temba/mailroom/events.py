@@ -108,7 +108,7 @@ class Event:
             }
         else:
             msg_event = {
-                "type": cls.TYPE_IVR_CREATED if obj.msg_type == Msg.TYPE_IVR else cls.TYPE_MSG_CREATED,
+                "type": cls.TYPE_IVR_CREATED if obj.msg_type == Msg.TYPE_VOICE else cls.TYPE_MSG_CREATED,
                 "created_on": get_event_time(obj).isoformat(),
                 "msg": _msg_out(obj),
                 # additional properties

@@ -3530,7 +3530,7 @@ class EndpointsTest(TembaTest):
         frank_msg4 = self.create_outgoing_msg(self.frank, "Ça va?", status="F")
 
         # add a surveyor message (no URN etc)
-        joe_msg4 = self.create_outgoing_msg(self.joe, "Surveys!", msg_type="F", surveyor=True)
+        joe_msg4 = self.create_outgoing_msg(self.joe, "Surveys!", surveyor=True)
 
         # add a deleted message
         deleted_msg = self.create_incoming_msg(self.frank, "!@$!%", visibility="D")
@@ -3678,7 +3678,7 @@ class EndpointsTest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         msg = Msg.objects.order_by("id").last()
-        self.assertMsgEqual(response.json(), msg, msg_type="flow", msg_status="queued", msg_visibility="visible")
+        self.assertMsgEqual(response.json(), msg, msg_type="text", msg_status="queued", msg_visibility="visible")
 
         self.assertEqual(
             call(self.org.id, self.admin.id, self.joe.id, "Interesting", [], None),
