@@ -13,11 +13,13 @@ from django.utils import timezone
 
 from temba import mailroom
 from temba.campaigns.models import CampaignEvent, EventFire
+from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import FlowRun, FlowSession
 from temba.locations.models import AdminBoundary
 from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
+from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.tests.dates import parse_datetime
 from temba.tickets.models import Ticket, TicketEvent, Topic
@@ -197,7 +199,7 @@ class TestClient(MailroomClient):
         )
 
     @_client_method
-    def contact_search(self, org_id, group_uuid, query, sort, offset=0, exclude_ids=()):
+    def contact_search(self, org_id, group_id, query, sort, offset=0, exclude_ids=()):
         mock = self.mocks._contact_search.get(query or "")
 
         assert mock, f"missing contact_search mock for query '{query}'"
@@ -213,6 +215,24 @@ class TestClient(MailroomClient):
         org = Org.objects.get(id=org_id)
 
         return mock(org)
+
+    @_client_method
+    def msg_send(self, org_id: int, user_id: int, contact_id: int, text: str, attachments: list[str], ticket_id: int):
+        org = Org.objects.get(id=org_id)
+        contact = Contact.objects.get(org=org, id=contact_id)
+        msg = send_to_contact(org, contact, text, attachments)
+
+        return {
+            "id": msg.id,
+            "channel": {"uuid": str(msg.channel.uuid), "name": msg.channel.name} if msg.channel else None,
+            "contact": {"uuid": str(msg.contact.uuid), "name": msg.contact.name},
+            "urn": str(msg.contact_urn) if msg.contact_urn else "",
+            "text": msg.text,
+            "attachments": msg.attachments,
+            "status": msg.status,
+            "created_on": msg.created_on.isoformat(),
+            "modified_on": msg.modified_on.isoformat(),
+        }
 
     @_client_method
     def ticket_assign(self, org_id, user_id, ticket_ids, assignee_id, note):
@@ -670,3 +690,31 @@ def exit_sessions(session_ids: list, status: str):
         session.contact.current_flow = None
         session.contact.modified_on = timezone.now()
         session.contact.save(update_fields=("current_flow", "modified_on"))
+
+
+def send_to_contact(org, contact, text, attachments) -> Msg:
+    contact_urn = contact.get_urn()
+    channel = Channel.objects.filter(org=org).first()
+
+    if contact_urn and channel:
+        status = "Q"
+        failed_reason = None
+    else:
+        contact_urn = None
+        channel = None
+        status = "F"
+        failed_reason = Msg.FAILED_NO_DESTINATION
+
+    return Msg.objects.create(
+        org=org,
+        channel=channel,
+        contact=contact,
+        contact_urn=contact_urn,
+        status=status,
+        failed_reason=failed_reason,
+        text=text or "",
+        attachments=attachments or [],
+        msg_type=Msg.TYPE_TEXT,
+        created_on=timezone.now(),
+        modified_on=timezone.now(),
+    )

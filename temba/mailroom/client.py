@@ -121,20 +121,6 @@ class MailroomClient:
     def version(self):
         return self._request("", post=False).get("version")
 
-    def expression_migrate(self, expression):
-        """
-        Migrates a legacy expression to latest engine version
-        """
-        if not expression:
-            return ""
-
-        try:
-            resp = self._request("expression/migrate", {"expression": expression})
-            return resp["migrated"]
-        except FlowValidationException:
-            # if the expression is invalid.. just return original
-            return expression
-
     def flow_migrate(self, definition, to_version=None):
         """
         Migrates a flow definition to the specified spec version
@@ -189,6 +175,18 @@ class MailroomClient:
             metadata=QueryMetadata(**response.get("metadata", {})),
         )
 
+    def msg_send(self, org_id: int, user_id: int, contact_id: int, text: str, attachments: list[str], ticket_id: int):
+        payload = {
+            "org_id": org_id,
+            "user_id": user_id,
+            "contact_id": contact_id,
+            "text": text,
+            "attachments": attachments,
+            "ticket_id": ticket_id,
+        }
+
+        return self._request("msg/send", payload)
+
     def msg_resend(self, org_id, msg_ids):
         payload = {"org_id": org_id, "msg_ids": msg_ids}
 
@@ -239,10 +237,12 @@ class MailroomClient:
 
         return self._request("contact/interrupt", payload)
 
-    def contact_search(self, org_id, group_uuid, query, sort, offset=0, exclude_ids=()) -> SearchResults:
+    def contact_search(
+        self, org_id: int, group_id: int, query: str, sort: str, offset=0, exclude_ids=()
+    ) -> SearchResults:
         payload = {
             "org_id": org_id,
-            "group_uuid": group_uuid,
+            "group_id": group_id,
             "exclude_ids": exclude_ids,
             "query": query,
             "sort": sort,

@@ -3,6 +3,7 @@ import mimetypes
 import os
 import re
 from array import array
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from fnmatch import fnmatch
 from urllib.parse import unquote, urlparse
@@ -183,14 +184,8 @@ class Broadcast(models.Model):
     # recipients of this broadcast
     groups = models.ManyToManyField(ContactGroup, related_name="addressed_broadcasts")
     contacts = models.ManyToManyField(Contact, related_name="addressed_broadcasts")
-    urns = models.ManyToManyField(ContactURN, related_name="addressed_broadcasts")
+    urns = ArrayField(models.TextField(), null=True)
     query = models.TextField(null=True)
-
-    # URN strings that mailroom will turn into contacts and URN objects
-    raw_urns = ArrayField(models.TextField(), null=True)
-
-    # whether this broadcast should send to all URNs for each contact
-    send_all = models.BooleanField(default=False)
 
     # message content in different languages, e.g. {"eng": {"text": "Hello", "attachments": [...]}, "spa": ...}
     translations = models.JSONField()
@@ -225,7 +220,6 @@ class Broadcast(models.Model):
         contact_ids: list[int] = None,
         channel: Channel = None,
         ticket=None,
-        send_all: bool = False,
         **kwargs,
     ):
         if not base_language:
@@ -246,7 +240,6 @@ class Broadcast(models.Model):
             org=org,
             channel=channel,
             ticket=ticket,
-            send_all=send_all,
             translations=translations,
             base_language=base_language,
             created_by=user,
@@ -332,8 +325,8 @@ class Broadcast(models.Model):
             self.contacts.add(*contacts)
 
         if urns:
-            self.raw_urns = urns
-            self.save(update_fields=("raw_urns",))
+            self.urns = urns
+            self.save(update_fields=("urns",))
 
         if contact_ids:
             RelatedModel = self.contacts.through
@@ -367,18 +360,26 @@ class Broadcast(models.Model):
         ]
 
 
+@dataclass
 class Attachment:
     """
     Represents a message attachment stored as type:url
     """
 
-    def __init__(self, content_type, url):
-        self.content_type = content_type
-        self.url = url
+    content_type: str
+    url: str
+
+    MAX_LEN = 2048
+    CONTENT_TYPE_REGEX = re.compile(r"^(image|audio|video|application|geo|unavailable|(\w+/[-+.\w]+))$")
 
     @classmethod
     def parse(cls, s):
-        return cls(*s.split(":", 1))
+        if ":" in s:
+            content_type, url = s.split(":", 1)
+            if cls.CONTENT_TYPE_REGEX.match(content_type) and url:
+                return cls(content_type, url)
+
+        raise ValueError(f"{s} is not a valid attachment")
 
     @classmethod
     def parse_all(cls, attachments):
@@ -390,9 +391,6 @@ class Attachment:
 
     def as_json(self):
         return {"content_type": self.content_type, "url": self.url}
-
-    def __eq__(self, other):
-        return self.content_type == other.content_type and self.url == other.url
 
 
 class Msg(models.Model):
@@ -446,15 +444,15 @@ class Msg(models.Model):
     DIRECTION_OUT = "O"
     DIRECTION_CHOICES = ((DIRECTION_IN, "Incoming"), (DIRECTION_OUT, "Outgoing"))
 
-    TYPE_INBOX = "I"
-    TYPE_FLOW = "F"
-    TYPE_IVR = "V"
-    TYPE_USSD = "U"
+    TYPE_INBOX = "I"  # to be replaced with T
+    TYPE_FLOW = "F"  # to be replaced with T
+    TYPE_TEXT = "T"
+    TYPE_VOICE = "V"
     TYPE_CHOICES = (
         (TYPE_INBOX, "Inbox Message"),
         (TYPE_FLOW, "Flow Message"),
-        (TYPE_IVR, "IVR Message"),
-        (TYPE_USSD, "USSD Message"),
+        (TYPE_TEXT, "Text Message"),
+        (TYPE_VOICE, "Voice Message"),
     )
 
     FAILED_SUSPENDED = "S"
@@ -492,7 +490,7 @@ class Msg(models.Model):
     flow = models.ForeignKey("flows.Flow", on_delete=models.PROTECT, null=True, db_index=False)
 
     text = models.TextField()
-    attachments = ArrayField(models.URLField(max_length=2048), null=True)
+    attachments = ArrayField(models.URLField(max_length=Attachment.MAX_LEN), null=True)
     quick_replies = ArrayField(models.CharField(max_length=64), null=True)
     locale = models.CharField(max_length=6, null=True)  # eng, eng-US, por-BR, und etc
 

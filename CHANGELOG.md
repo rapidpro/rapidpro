@@ -1,3 +1,45 @@
+v8.1.36 (2023-02-20)
+-------------------------
+ * Cleanup use of validators in the API
+ * Add support for Msg.TYPE_TEXT to be used (for now) for outgoing messages
+
+v8.1.35 (2023-02-17)
+-------------------------
+ * Add org start redirection view
+ * Convert Attachment to be a dataclass
+ * Rework msg write serializer to create a transient Msg instance that the read serializer can use without hitting the db
+ * Add unpublicized API endpoint to send a single message
+ * Add msg_send to mailroom client
+
+v8.1.34 (2023-02-16)
+-------------------------
+ * Drop raw_urns field on Broadcast
+ * Pass group id instead of uuid to contact_search mailroom endpoint
+ * Remove unused expression_migrate from mailroom client
+
+v8.1.33 (2023-02-15)
+-------------------------
+ * Fix routing of current workspace to settings
+ * Add Broadcast.urns which matches the JSON and FlowStart.urns
+
+v8.1.32 (2023-02-14)
+-------------------------
+ * Drop Broadcast.urns and .send_all
+
+v8.1.30 (2023-02-13)
+-------------------------
+ * Fix keyword triggers match type
+
+v8.1.29 (2023-02-13)
+-------------------------
+ * Fix omnibox search for anon org to allow search by contact name
+ * Prepare to drop Broadcast.send_all and .urns
+
+v8.1.27 (2023-02-10)
+-------------------------
+ * Move all form text from Trigger model to forms
+ * Add migration to convert URNs to contacts on scheduled broadcasts
+
 v8.1.26 (2023-02-10)
 -------------------------
  * Remove returning specific URNs from omniboxes and instead match contacts by URN

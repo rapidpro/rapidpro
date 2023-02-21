@@ -17,12 +17,12 @@ from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
-from temba.contacts.models import Contact, ContactField, ContactGroup
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.mailroom import modifiers
-from temba.msgs.models import Broadcast, Label, Msg
+from temba.msgs.models import Broadcast, Label, Media, Msg
 from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
@@ -206,7 +206,7 @@ class BroadcastReadSerializer(ReadSerializer):
         if self.context["org"].is_anon:
             return None
         else:
-            return obj.raw_urns or []
+            return obj.urns or []
 
     class Meta:
         model = Broadcast
@@ -214,11 +214,11 @@ class BroadcastReadSerializer(ReadSerializer):
 
 
 class BroadcastWriteSerializer(WriteSerializer):
-    urns = fields.URNListField(required=False)
+    urns = serializers.ListField(required=False, child=fields.URNField(), max_length=100)
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
-    text = fields.TranslationsField(required=True, max_length=Msg.MAX_TEXT_LEN)
-    attachments = fields.TranslationsListField(required=False, max_items=10, max_length=2048)
+    text = fields.TranslatedTextField(required=True, max_length=Msg.MAX_TEXT_LEN)
+    attachments = fields.TranslatedAttachmentsField(required=False)
     base_language = fields.LanguageField(required=False)
     ticket = fields.TicketField(required=False)
 
@@ -366,7 +366,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
     unit = serializers.ChoiceField(required=True, choices=list(UNITS.keys()))
     delivery_hour = serializers.IntegerField(required=True, min_value=-1, max_value=23)
     relative_to = fields.ContactFieldField(required=True)
-    message = fields.TranslationsField(required=False, max_length=Msg.MAX_TEXT_LEN)
+    message = fields.TranslatedTextField(required=False, max_length=Msg.MAX_TEXT_LEN)
     flow = fields.FlowField(required=False)
 
     def validate_unit(self, value):
@@ -589,9 +589,11 @@ class ContactReadSerializer(ReadSerializer):
 class ContactWriteSerializer(WriteSerializer):
     name = serializers.CharField(required=False, max_length=64, allow_null=True)
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
-    urns = fields.URNListField(required=False)
+    urns = serializers.ListField(required=False, child=fields.URNField(), max_length=100)
     groups = fields.ContactGroupField(many=True, required=False, allow_dynamic=False)
-    fields = fields.LimitedDictField(required=False, child=serializers.CharField(allow_blank=True, allow_null=True))
+    fields = fields.LimitedDictField(
+        required=False, child=serializers.CharField(allow_blank=True, allow_null=True), max_length=100
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1084,7 +1086,7 @@ class FlowStartWriteSerializer(WriteSerializer):
     flow = fields.FlowField()
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
-    urns = fields.URNListField(required=False)
+    urns = serializers.ListField(required=False, child=fields.URNField(), max_length=100)
     restart_participants = serializers.BooleanField(required=False)
     exclude_active = serializers.BooleanField(required=False)
     extra = serializers.JSONField(required=False)
@@ -1210,6 +1212,30 @@ class LabelWriteSerializer(WriteSerializer):
             return Label.create(self.context["org"], self.context["user"], name)
 
 
+class MediaReadSerializer(ReadSerializer):
+    class Meta:
+        model = Media
+        fields = ("uuid", "content_type", "url", "filename", "size")
+
+
+class MediaWriteSerializer(WriteSerializer):
+    file = serializers.FileField()
+
+    def validate_file(self, value):
+        if not Media.is_allowed_type(value.content_type):
+            raise serializers.ValidationError("Unsupported file type.")
+
+        if value.size > Media.MAX_UPLOAD_SIZE:
+            limit_MB = Media.MAX_UPLOAD_SIZE / (1024 * 1024)
+            raise serializers.ValidationError(f"Limit for file uploads is {limit_MB} MB.")
+
+        return value
+
+    def save(self):
+        file = self.validated_data["file"]
+        return Media.from_upload(self.context["org"], self.context["user"], file)
+
+
 class MsgReadSerializer(ReadSerializer):
     STATUSES = {
         Msg.STATUS_PENDING: "queued",  # same as far as users are concerned
@@ -1221,7 +1247,7 @@ class MsgReadSerializer(ReadSerializer):
         Msg.STATUS_ERRORED: "errored",
         Msg.STATUS_FAILED: "failed",
     }
-    TYPES = {Msg.TYPE_INBOX: "inbox", Msg.TYPE_FLOW: "flow", Msg.TYPE_IVR: "ivr"}
+    TYPES = {Msg.TYPE_INBOX: "inbox", Msg.TYPE_FLOW: "flow", Msg.TYPE_TEXT: "text", Msg.TYPE_VOICE: "ivr"}
     VISIBILITIES = {  # deleted messages should never be exposed over API
         Msg.VISIBILITY_VISIBLE: "visible",
         Msg.VISIBILITY_ARCHIVED: "archived",
@@ -1237,7 +1263,7 @@ class MsgReadSerializer(ReadSerializer):
     status = serializers.SerializerMethodField()
     archived = serializers.SerializerMethodField()
     visibility = serializers.SerializerMethodField()
-    labels = fields.LabelField(many=True)
+    labels = serializers.SerializerMethodField()
     media = serializers.SerializerMethodField()  # deprecated
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
@@ -1267,6 +1293,13 @@ class MsgReadSerializer(ReadSerializer):
     def get_visibility(self, obj):
         return self.VISIBILITIES.get(obj.visibility)
 
+    def get_labels(self, obj):
+        # to optimize the POST case that creates an outgoing message, don't even try to look for labels
+        if obj.direction == Msg.DIRECTION_IN:
+            return [{"uuid": str(lb.uuid), "name": lb.name} for lb in obj.labels.all()]
+        else:
+            return []
+
     class Meta:
         model = Msg
         fields = (
@@ -1287,6 +1320,57 @@ class MsgReadSerializer(ReadSerializer):
             "sent_on",
             "modified_on",
             "media",
+        )
+
+
+class MsgWriteSerializer(WriteSerializer):
+    contact = fields.ContactField()
+    text = serializers.CharField(required=False, max_length=Msg.MAX_TEXT_LEN)
+    attachments = serializers.ListField(required=False, child=fields.AttachmentField(), max_length=10)
+    ticket = fields.TicketField(required=False)
+
+    def validate(self, data):
+        if not (data.get("text") or data.get("attachments")):
+            raise serializers.ValidationError("Must provide either text or attachments.")
+
+        return data
+
+    def save(self):
+        org = self.context["org"]
+        user = self.context["user"]
+        contact = self.validated_data["contact"]
+        text = self.validated_data.get("text")
+        attachments = self.validated_data.get("attachments")
+        ticket = self.validated_data.get("ticket")
+
+        resp = mailroom.get_client().msg_send(
+            org.id, user.id, contact.id, text or "", attachments or [], ticket.id if ticket else None
+        )
+
+        # to avoid fetching the new msg from the database, construct transient instances to pass to the serializer
+        channel = Channel(uuid=resp["channel"]["uuid"], name=resp["channel"]["name"]) if resp.get("channel") else None
+        contact = Contact(uuid=resp["contact"]["uuid"], name=resp["contact"]["name"])
+
+        if resp.get("urn"):
+            urn_scheme, urn_path, _, urn_display = URN.to_parts(resp["urn"])
+            contact_urn = ContactURN(scheme=urn_scheme, path=urn_path, display=urn_display)
+        else:
+            contact_urn = None
+
+        return Msg(
+            id=resp["id"],
+            org=org,
+            contact=contact,
+            contact_urn=contact_urn,
+            channel=channel,
+            direction=Msg.DIRECTION_OUT,
+            msg_type=Msg.TYPE_TEXT,
+            status=resp["status"],
+            visibility=Msg.VISIBILITY_VISIBLE,
+            text=resp.get("text"),
+            attachments=resp.get("attachments"),
+            created_on=iso8601.parse_date(resp["created_on"]),
+            modified_on=iso8601.parse_date(resp["modified_on"]),
         )
 
 

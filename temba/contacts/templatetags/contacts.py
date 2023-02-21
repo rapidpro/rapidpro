@@ -149,7 +149,7 @@ def msg_status_badge(msg) -> str:
 
         # we are still working on errored messages, slightly different icon
         if msg.status == Msg.STATUS_ERRORED:
-            display["icon"] = "refresh-cw"
+            display["icon"] = "icon.retry"
 
     if len(display) >= 3:
         return mark_safe(
@@ -175,7 +175,7 @@ def history_icon(event: dict) -> str:
             variant = "delivered"
 
     elif event_type == Event.TYPE_MSG_RECEIVED:
-        if event["msg_type"] == Msg.TYPE_IVR:
+        if event["msg_type"] == Msg.TYPE_VOICE:
             variant = "voice"
 
     elif event_type == Event.TYPE_FLOW_EXITED:

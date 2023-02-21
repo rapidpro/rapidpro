@@ -3017,6 +3017,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # should have an extra menu option for our child (and section header)
         self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 9)
 
+        # going to home in the new ui should route to manage
+        self.login(self.admin)
+        self.new_ui()
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertRedirect(response, workspace_url)
+
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")
         response = self.client.get(grant_url)
@@ -3654,6 +3660,23 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # same if it's not a child of the request org
         response = self.client.get(f"{reverse('orgs.org_edit_sub_org')}?org={child1.id}")
         self.assertEqual(404, response.status_code)
+
+    def test_start(self):
+        # the start view routes users based on their role
+        start_url = reverse("orgs.org_start")
+
+        # not authenticated, you should get a login redirect
+        self.assertLoginRedirect(self.client.get(start_url))
+
+        # now for all our roles
+        self.assertRedirect(self.requestView(start_url, self.admin), "/msg/inbox/")
+        self.assertRedirect(self.requestView(start_url, self.editor), "/msg/inbox/")
+        self.assertRedirect(self.requestView(start_url, self.user), "/msg/inbox/")
+        self.assertRedirect(self.requestView(start_url, self.agent), "/ticket/")
+        self.assertRedirect(self.requestView(start_url, self.surveyor), "/org/surveyor/")
+
+        # now try as customer support
+        self.assertRedirect(self.requestView(start_url, self.customer_support), "/org/manage/")
 
     def test_choose(self):
         choose_url = reverse("orgs.org_choose")

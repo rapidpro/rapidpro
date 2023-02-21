@@ -322,7 +322,7 @@ class TriggerCRUDL(SmartCRUDL):
         trigger_type = Trigger.TYPE_KEYWORD
 
         def get_create_kwargs(self, user, cleaned_data):
-            return {"keyword": cleaned_data["keyword"]}
+            return {"keyword": cleaned_data["keyword"], "match_type": cleaned_data["match_type"]}
 
     class CreateRegister(BaseCreate):
         form_class = RegisterTriggerForm

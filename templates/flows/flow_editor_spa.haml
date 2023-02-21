@@ -75,7 +75,7 @@
     var api = '/api/v2/';
     var flowType = '{{ object.engine_type }}';
 
-    window.addEventListener("DOMContentLoaded", function() {
+    onSpload(function() {
       var confirmation = document.getElementById("confirm-language");
       confirmation.addEventListener("temba-button-clicked", function(event){
         var code = confirmation.dataset.code;
@@ -84,7 +84,7 @@
         }
         confirmation.open = false;
       });
-    });
+    })
 
     function handleEditorLoaded() {
       $('.editor-loader').hide();
@@ -180,7 +180,6 @@
             This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
 
 -block content
-
   %temba-modax#send-message-modal{ header:"Send Message" }
 
   %temba-dialog.hide#confirm-language(header='{{_("Change Language")|escapejs}}' primaryButtonName='{{_("Update")|escapejs}}')

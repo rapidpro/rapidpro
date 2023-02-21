@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temba"
-version = "8.1.26"
+version = "8.1.36"
 description = "Hosted service for visually building interactive messaging applications"
 authors = ["Nyaruka <code@nyaruka.com>"]
 license = "AGPL-3"
@@ -46,7 +46,7 @@ gunicorn = "^20.0.4"
 iptools = "^0.7.0"
 iso-639 = "^0.4.5"
 iso8601 = "^0.1.14"
-phonenumbers = "*"
+phonenumbers = "^8.13.6"
 pycountry = "^20.7.3"
 python-dateutil = "^2.8.2"
 psycopg2-binary = "^2.9.1"
