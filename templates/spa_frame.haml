@@ -479,6 +479,8 @@
 
       var eventContainer = document.querySelector(".spa-content > div");
       eventContainer.dispatchEvent(new CustomEvent("temba-spa-ready"));
+
+      refreshMenu();
     }
 
     function handleUpdateComplete() {

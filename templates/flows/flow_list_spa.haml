@@ -108,10 +108,7 @@
 
       function handleCreateLabelModalSubmitted(event) {
         refresh(function() { recheckIds(); }, true);
-        var menu = document.querySelector("temba-menu");
-        if (menu) {
-          menu.refresh();
-        }
+        refreshMenu();
       }
 
       function handleDownloadFlowResults(evt){

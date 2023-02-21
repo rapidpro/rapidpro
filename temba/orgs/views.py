@@ -1204,7 +1204,7 @@ class OrgCRUDL(SmartCRUDL):
                 menu = []
                 menu.append(
                     self.create_menu_item(
-                        menu_id="workspace", name=self.org.name, icon="icon.workspace", href="orgs.org_workspace"
+                        menu_id="workspace", name=self.org.name, icon="icon.settings", href="orgs.org_workspace"
                     )
                 )
 
@@ -1415,7 +1415,7 @@ class OrgCRUDL(SmartCRUDL):
                     {
                         "id": "settings",
                         "name": _("Settings"),
-                        "icon": "icon.settings",
+                        "icon": "icon.home",
                         "endpoint": f"{reverse('orgs.org_menu')}settings/",
                         "bottom": True,
                         "show_header": True,
