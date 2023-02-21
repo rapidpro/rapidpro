@@ -173,6 +173,12 @@ class TembaModelField(serializers.RelatedField):
     # throw validation exception if any object not found, otherwise returns none
     require_exists = True
 
+    lookup_validators = {
+        "uuid": is_uuid,
+        "id": lambda v: isinstance(v, int),
+        "name": lambda v: isinstance(v, str) and v,
+    }
+
     @classmethod
     def many_init(cls, *args, **kwargs):
         """
@@ -195,7 +201,8 @@ class TembaModelField(serializers.RelatedField):
         # ignore lookup fields that can't be queryed with the given value
         lookup_fields = []
         for lookup_field in self.lookup_fields:
-            if lookup_field != "uuid" or is_uuid(value):
+            validator = self.lookup_validators.get(lookup_field)
+            if not validator or validator(value):
                 lookup_fields.append(lookup_field)
 
         # if we have no possible lookup fields left, there's no matching object

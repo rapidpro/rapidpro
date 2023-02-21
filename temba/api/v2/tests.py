@@ -984,6 +984,10 @@ class EndpointsTest(TembaTest):
         response = self.postJSON(url, None, {"text": "Hello"})
         self.assertResponseError(response, "non_field_errors", "Must provide either urns, contacts or groups.")
 
+        # try to create new broadcast with invalid group lookup
+        response = self.postJSON(url, None, {"text": "Hello", "groups": [123456]})
+        self.assertResponseError(response, "groups", "No such object: 123456")
+
         # try to create new broadcast with translations that don't include base language
         response = self.postJSON(
             url, None, {"text": {"kin": "Muraho"}, "base_language": "eng", "contacts": [self.joe.uuid]}
