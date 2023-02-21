@@ -984,6 +984,10 @@ class EndpointsTest(TembaTest):
         response = self.postJSON(url, None, {"text": "Hello"})
         self.assertResponseError(response, "non_field_errors", "Must provide either urns, contacts or groups.")
 
+        # try to create new broadcast with invalid group lookup
+        response = self.postJSON(url, None, {"text": "Hello", "groups": [123456]})
+        self.assertResponseError(response, "groups", "No such object: 123456")
+
         # try to create new broadcast with translations that don't include base language
         response = self.postJSON(
             url, None, {"text": {"kin": "Muraho"}, "base_language": "eng", "contacts": [self.joe.uuid]}
@@ -3569,6 +3573,9 @@ class EndpointsTest(TembaTest):
         # add a surveyor message (no URN etc)
         joe_msg4 = self.create_outgoing_msg(self.joe, "Surveys!", surveyor=True)
 
+        # add an unhandled message
+        self.create_incoming_msg(self.joe, "Just in!", status="P")
+
         # add a deleted message
         deleted_msg = self.create_incoming_msg(self.frank, "!@$!%", visibility="D")
 
@@ -3585,6 +3592,10 @@ class EndpointsTest(TembaTest):
 
         frank_msg1.refresh_from_db(fields=("modified_on",))
         joe_msg3.refresh_from_db(fields=("modified_on",))
+
+        # make this message sent later than other sent message created before it to check ordering of sent messages
+        frank_msg2.sent_on = timezone.now()
+        frank_msg2.save(update_fields=("sent_on",))
 
         # default response is all messages sorted by created_on
         response = self.fetchJSON(url)
@@ -3630,7 +3641,7 @@ class EndpointsTest(TembaTest):
 
         # filter by folder (sent)
         response = self.fetchJSON(url, "folder=sent")
-        self.assertResultsById(response, [joe_msg4, frank_msg2])
+        self.assertResultsById(response, [frank_msg2, joe_msg4])
 
         # filter by folder (failed)
         response = self.fetchJSON(url, "folder=failed")

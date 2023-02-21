@@ -25,6 +25,7 @@ from temba.api.v2.views_base import (
     DeleteAPIMixin,
     ListAPIMixin,
     ModifiedOnCursorPagination,
+    SentOnCursorPagination,
     WriteAPIMixin,
 )
 from temba.archives.models import Archive
@@ -2475,11 +2476,10 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox`, `incoming`, `failed` or `sent`.
     Note that you cannot filter by more than one of `contact`, `folder`, `label` or `broadcast` at the same time.
 
-    Without any parameters this endpoint will return all incoming and outgoing messages ordered by creation date.
+    The sort order for the `incoming` folder is the last modified date, and the sort order for the `sent` folder is the
+    sent date. All other requests are sorted by the message creation date.
 
-    The sort order for all folders save for `incoming` is the message creation date. For the `incoming` folder (which
-    includes all incoming messages, regardless of visibility or type) messages are sorted by last modified date. This
-    allows clients to poll for updates to message labels and visibility changes.
+    Without any parameters this endpoint will return all incoming and outgoing messages ordered by creation date.
 
     Example:
 
@@ -2514,15 +2514,14 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     class Pagination(CreatedOnCursorPagination):
         """
-        Overridden paginator for Msg endpoint that switches from created_on to modified_on when looking
-        at all incoming messages.
+        Overridden paginator that switches depending on folder being requested.
         """
 
+        ordering = {"incoming": ModifiedOnCursorPagination.ordering, "sent": SentOnCursorPagination.ordering}
+
         def get_ordering(self, request, queryset, view=None):
-            if request.query_params.get("folder", "").lower() == "incoming":
-                return "-modified_on", "-id"
-            else:
-                return CreatedOnCursorPagination.ordering
+            folder = request.query_params.get("folder", "").lower()
+            return self.ordering.get(folder, CreatedOnCursorPagination.ordering)
 
     permission = "msgs.msg_api"
     model = Msg
@@ -2551,9 +2550,9 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             if sys_label:
                 return SystemLabel.get_queryset(org, sys_label)
             elif folder == "incoming":
-                return self.model.objects.filter(org=org, direction="I")
+                return self.model.objects.filter(org=org, direction=Msg.DIRECTION_IN, status=Msg.STATUS_HANDLED)
             else:
-                return self.model.objects.filter(pk=-1)
+                return self.model.objects.none()
         else:
             return self.model.objects.filter(
                 org=org, visibility__in=(Msg.VISIBILITY_VISIBLE, Msg.VISIBILITY_ARCHIVED)
