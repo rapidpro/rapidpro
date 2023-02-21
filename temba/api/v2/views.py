@@ -2551,9 +2551,9 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             if sys_label:
                 return SystemLabel.get_queryset(org, sys_label)
             elif folder == "incoming":
-                return self.model.objects.filter(org=org, direction="I")
+                return self.model.objects.filter(org=org, direction=Msg.DIRECTION_IN, status=Msg.STATUS_HANDLED)
             else:
-                return self.model.objects.filter(pk=-1)
+                return self.model.objects.none()
         else:
             return self.model.objects.filter(
                 org=org, visibility__in=(Msg.VISIBILITY_VISIBLE, Msg.VISIBILITY_ARCHIVED)

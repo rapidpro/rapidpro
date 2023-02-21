@@ -3569,6 +3569,9 @@ class EndpointsTest(TembaTest):
         # add a surveyor message (no URN etc)
         joe_msg4 = self.create_outgoing_msg(self.joe, "Surveys!", surveyor=True)
 
+        # add an unhandled message
+        self.create_incoming_msg(self.joe, "Just in!", status="P")
+
         # add a deleted message
         deleted_msg = self.create_incoming_msg(self.frank, "!@$!%", visibility="D")
 
