@@ -875,6 +875,9 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         """
         Releases this channel making it inactive
         """
+        self.is_active = False
+        self.save(update_fields=["is_active"])
+
         from temba.channels.tasks import interrupt_channel_task
 
         super().release(user)
@@ -883,10 +886,14 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         try:
             self.type.deactivate(self)
         except TwilioRestException as e:
+            self.is_active = True
+            self.save(update_fields=["is_active"])
             raise e
         except Exception as e:
             # proceed with removing this channel but log the problem
             logger.error(f"Unable to deactivate a channel: {str(e)}", exc_info=True)
+            self.is_active = True
+            self.save(update_fields=["is_active"])
 
         # release any channels working on our behalf
         for delegate_channel in self.org.channels.filter(parent=self):
