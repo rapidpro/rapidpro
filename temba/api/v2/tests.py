@@ -3589,6 +3589,10 @@ class EndpointsTest(TembaTest):
         frank_msg1.refresh_from_db(fields=("modified_on",))
         joe_msg3.refresh_from_db(fields=("modified_on",))
 
+        # make this message sent later than other sent message created before it to check ordering of sent messages
+        frank_msg2.sent_on = timezone.now()
+        frank_msg2.save(update_fields=("sent_on",))
+
         # default response is all messages sorted by created_on
         response = self.fetchJSON(url)
         self.assertResultsById(
@@ -3633,7 +3637,7 @@ class EndpointsTest(TembaTest):
 
         # filter by folder (sent)
         response = self.fetchJSON(url, "folder=sent")
-        self.assertResultsById(response, [joe_msg4, frank_msg2])
+        self.assertResultsById(response, [frank_msg2, joe_msg4])
 
         # filter by folder (failed)
         response = self.fetchJSON(url, "folder=failed")
