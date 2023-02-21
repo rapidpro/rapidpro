@@ -1215,7 +1215,7 @@ class OrgCRUDL(SmartCRUDL):
                         item["count"] = children
                     menu.append(item)
 
-                if self.has_org_perm("orgs.org_dashboard"):
+                if self.has_org_perm("orgs.org_dashboard") and Org.FEATURE_CHILD_ORGS in self.org.features:
                     menu.append(
                         self.create_menu_item(
                             menu_id="dashboard",
