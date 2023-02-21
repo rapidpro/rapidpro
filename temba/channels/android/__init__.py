@@ -56,7 +56,7 @@ def get_commands(channel, commands, sync_event=None):
     return commands
 
 
-def sync_channel_fcm(cls, registration_id, channel=None):  # pragma: no cover
+def sync_channel_fcm(registration_id, channel=None):  # pragma: no cover
     push_service = FCMNotification(api_key=settings.FCM_API_KEY)
     fcm_failed = False
     try:
