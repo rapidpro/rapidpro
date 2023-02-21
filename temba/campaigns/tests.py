@@ -12,6 +12,7 @@ from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
+from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import Campaign, CampaignEvent, EventFire
 from .tasks import trim_event_fires
@@ -1398,6 +1399,20 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Welcomes")
         self.assertContains(response, "1 week after")
         self.assertContains(response, "Registered")
+
+        # fetch in the new ui
+        response = self.assertReadFetch(
+            read_url, allow_viewers=True, allow_editors=True, context_object=event, new_ui=True
+        )
+        self.assertEqual("/campaign/active/", response.headers.get(TEMBA_MENU_SELECTION))
+        event.campaign.is_archived = True
+        event.campaign.save()
+
+        # archived campaigns should focus the archived menu
+        response = self.assertReadFetch(
+            read_url, allow_viewers=True, allow_editors=True, context_object=event, new_ui=True
+        )
+        self.assertEqual("/campaign/archived/", response.headers.get(TEMBA_MENU_SELECTION))
 
     def test_read_on_archived_campaign(self):
         event = self.campaign1.events.order_by("id").first()

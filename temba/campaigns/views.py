@@ -509,6 +509,9 @@ class CampaignEventCRUDL(SmartCRUDL):
         def derive_title(self):
             return _("Event History")
 
+        def derive_menu_path(self):
+            return f"/campaign/{'archived' if self.get_object().campaign.is_archived else 'active'}/"
+
         def pre_process(self, request, *args, **kwargs):
 
             event = self.get_object()

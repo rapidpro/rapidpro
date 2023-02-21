@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@nyaruka/flow-editor": "1.19.2",
-    "@nyaruka/temba-components": "0.41.1",
+    "@nyaruka/temba-components": "0.41.2",
     "codemirror": "5.18.2",
     "colorette": "1.2.2",
     "fa-icons": "0.2.0",

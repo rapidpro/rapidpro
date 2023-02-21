@@ -14,16 +14,14 @@
     %meta{name:"description", content:"{% block page-description %}{{brand.name}} lets you visually build interactive SMS applications and launch them anywhere in the world.{% endblock %}"}
     %meta{name:"author", content:"Nyaruka Ltd"}
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
-    
-    -if user.is_beta
-      :javascript
-        function switchToNewInterface() {
-          document.cookie = "nav=2; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/;";
-          document.location.reload();
-        }
 
     :javascript
       window.STATIC_URL = "{{STATIC_URL}}";
+      function switchToNewInterface() {
+        document.cookie = "nav=2; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/;";
+        document.location.reload();
+      }
+
       window.supportEmail = '{{brand.support_email}}';
       function conditionalLoad(local, remote) {
         if (local != null && (window.location.hostname == "localhost" || remote == null)) {
@@ -278,11 +276,10 @@
         -include 'includes/nav.html'
 
     -block interface-option
-      -if user.is_beta
-        #preview.text-center.px-3.text-sm.py-1(style='background:rgba(0,0,0,.75);z-index:10000;position:fixed;bottom:0px;width:100%;color:#fff')
-          Preview the
-          %span.linked(onclick="switchToNewInterface()" style="color:#43b1ff")<
-            new interface
+      #preview.text-center.px-3.text-sm.py-1(style='background:rgba(0,0,0,.75);z-index:10000;position:fixed;bottom:0px;width:100%;color:#fff')
+        Preview the
+        %span.linked(onclick="switchToNewInterface()" style="color:#43b1ff")<
+          new interface
 
     -if messages
       -block messages
