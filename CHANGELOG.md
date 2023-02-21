@@ -1,3 +1,8 @@
+v8.1.38 (2023-02-21)
+-------------------------
+ * Fix dashboard not loading when content
+ * Fix handling FCM sync failure
+
 v8.1.37 (2023-02-21)
 -------------------------
  * Don't lookup related fields in API if lookup value type is wrong
