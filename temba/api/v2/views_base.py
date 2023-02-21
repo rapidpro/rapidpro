@@ -274,12 +274,12 @@ class DeleteAPIMixin(mixins.DestroyModelMixin):
 
 class CreatedOnCursorPagination(CursorPagination):
     ordering = ("-created_on", "-id")
-    offset_cutoff = 10000
+    offset_cutoff = 100000
 
 
 class ModifiedOnCursorPagination(CursorPagination):
     ordering = ("-modified_on", "-id")
-    offset_cutoff = 10000
+    offset_cutoff = 100000
 
     def get_ordering(self, request, queryset, view):
         if str_to_bool(request.GET.get("reverse")):
@@ -290,9 +290,9 @@ class ModifiedOnCursorPagination(CursorPagination):
 
 class SentOnCursorPagination(CursorPagination):
     ordering = ("-sent_on", "-id")
-    offset_cutoff = 10000
+    offset_cutoff = 100000
 
 
 class DateJoinedCursorPagination(CursorPagination):
     ordering = ("-date_joined", "-id")
-    offset_cutoff = 10000
+    offset_cutoff = 100000
