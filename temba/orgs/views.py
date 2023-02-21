@@ -1675,6 +1675,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = Form
         success_message = ""
+        menu_path = "/settings/workspace"
 
         def derive_initial(self):
             initial = super().derive_initial()
@@ -1734,6 +1735,7 @@ class OrgCRUDL(SmartCRUDL):
         form_class = Form
         submit_button_name = "Save"
         success_message = "Vonage Account successfully connected."
+        menu_path = "/settings/workspace"
 
         def form_valid(self, form):
             api_key = form.cleaned_data["api_key"]

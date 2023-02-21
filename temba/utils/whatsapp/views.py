@@ -60,6 +60,9 @@ class TemplatesView(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartReadView):
         )
         return context
 
+    def derive_menu_path(self):
+        return f"/settings/channels/{self.get_object().uuid}"
+
 
 class SyncLogsView(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartReadView):
     """
@@ -80,6 +83,9 @@ class SyncLogsView(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartReadView):
     def get_queryset(self):
         queryset = super().get_queryset()
         return queryset.filter(org=self.request.org)
+
+    def derive_menu_path(self):
+        return f"/settings/channels/{self.get_object().uuid}"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

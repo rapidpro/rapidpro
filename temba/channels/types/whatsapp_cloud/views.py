@@ -242,6 +242,9 @@ class RequestCode(SpaMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, Smar
     def get_success_url(self):
         return reverse("channels.types.whatsapp_cloud.verify_code", args=[self.object.uuid])
 
+    def derive_menu_path(self):
+        return f"/settings/channels/{self.get_object().uuid}"
+
     def build_content_menu(self, menu):
         obj = self.get_object()
 
@@ -307,6 +310,9 @@ class VerifyCode(SpaMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, Smart
 
     def get_queryset(self):
         return Channel.objects.filter(is_active=True, org=self.request.org, channel_type="WAC")
+
+    def derive_menu_path(self):
+        return f"/settings/channels/{self.get_object().uuid}"
 
     def execute_action(self):
 
