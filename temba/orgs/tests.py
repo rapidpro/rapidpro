@@ -2932,7 +2932,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         menu_url = reverse("orgs.org_menu")
 
         self.assertMenu(menu_url, 8, ["Workspace/Child Workspace"])
-        self.assertMenu(f"{menu_url}settings/", 7)
+        self.assertMenu(f"{menu_url}settings/", 6)
 
         # agents should only see tickets and settings
         self.login(self.agent)
