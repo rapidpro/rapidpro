@@ -9,7 +9,6 @@ from xml.sax.saxutils import escape
 import phonenumbers
 from django_countries.fields import CountryField
 from phonenumbers import NumberParseException
-from pyfcm import FCMNotification
 from smartmin.models import SmartModel
 from twilio.base.exceptions import TwilioRestException
 
@@ -25,7 +24,6 @@ from django.urls import re_path
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from temba import mailroom
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import analytics, countries, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
@@ -943,24 +941,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
                     on_transaction_commit(lambda: sync_channel_fcm_task.delay(registration_id, channel_id=self.pk))
 
     @classmethod
-    def sync_channel_fcm(cls, registration_id, channel=None):  # pragma: no cover
-        push_service = FCMNotification(api_key=settings.FCM_API_KEY)
-        fcm_failed = False
-        try:
-            result = push_service.notify_single_device(registration_id=registration_id, data_message=dict(msg="sync"))
-            if not result.get("success", 0):
-                fcm_failed = True
-        except Exception:
-            fcm_failed = True
-
-        if fcm_failed:
-            valid_registration_ids = push_service.clean_registration_ids([registration_id])
-            if registration_id not in valid_registration_ids:
-                # this fcm id is invalid now, clear it out
-                channel.config.pop(Channel.CONFIG_FCM_ID, None)
-                channel.save(update_fields=["config"])
-
-    @classmethod
     def replace_variables(cls, text, variables, content_type=CONTENT_TYPE_URLENCODED):
         for key in variables.keys():
             replacement = str(variables[key])
@@ -1137,28 +1117,6 @@ class ChannelEvent(models.Model):
     created_on = models.DateTimeField(default=timezone.now)
 
     log_uuids = ArrayField(models.UUIDField(), null=True)
-
-    @classmethod
-    def create_relayer_event(cls, channel, urn, event_type, occurred_on, extra=None):
-        from temba.contacts.models import Contact
-
-        contact, contact_urn = Contact.resolve(channel, urn)
-
-        event = cls.objects.create(
-            org=channel.org,
-            channel=channel,
-            contact=contact,
-            contact_urn=contact_urn,
-            occurred_on=occurred_on,
-            event_type=event_type,
-            extra=extra,
-        )
-
-        if event_type == cls.TYPE_CALL_IN_MISSED:
-            # pass off handling of the message to mailroom after we commit
-            on_transaction_commit(lambda: mailroom.queue_mo_miss_event(event))
-
-        return event
 
     def release(self):
         self.delete()
