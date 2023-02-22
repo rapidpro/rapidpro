@@ -318,7 +318,7 @@
         addGroup = false;
       }
       jQuery.ajaxSettings.traditional = true;
-      fetchPJAXContent(window.lastFetch || document.location.href, "#pjax", { postData: {objects: window.lastChecked, label: groupId, add: addGroup, action: 'label', pjax: 'true'}, forceReload: true, onSuccess: function(){ recheckIds(); wireTableListeners()}});
+      fetchPJAXContent(document.location.href, "#pjax", { postData: {objects: window.lastChecked, label: groupId, add: addGroup, action: 'label', pjax: 'true'}, forceReload: true, onSuccess: function(){ recheckIds(); wireTableListeners()}});
     }
     {% endif %}
 
