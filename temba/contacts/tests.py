@@ -98,7 +98,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         mr_mocks.contact_search('name != ""', contacts=[])
         smart = self.create_group("No Name", query='name = ""')
 
-        with self.assertNumQueries(20):
+        with self.assertNumQueries(19):
             response = self.client.get(list_url)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))

@@ -22,7 +22,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.mailroom import modifiers
-from temba.msgs.models import Broadcast, Label, Msg
+from temba.msgs.models import Broadcast, Label, Media, Msg
 from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
@@ -1213,6 +1213,30 @@ class LabelWriteSerializer(WriteSerializer):
             return self.instance
         else:
             return Label.create(self.context["org"], self.context["user"], name)
+
+
+class MediaReadSerializer(ReadSerializer):
+    class Meta:
+        model = Media
+        fields = ("uuid", "content_type", "url", "filename", "size")
+
+
+class MediaWriteSerializer(WriteSerializer):
+    file = serializers.FileField()
+
+    def validate_file(self, value):
+        if not Media.is_allowed_type(value.content_type):
+            raise serializers.ValidationError("Unsupported file type.")
+
+        if value.size > Media.MAX_UPLOAD_SIZE:
+            limit_MB = Media.MAX_UPLOAD_SIZE / (1024 * 1024)
+            raise serializers.ValidationError(f"Limit for file uploads is {limit_MB} MB.")
+
+        return value
+
+    def save(self):
+        file = self.validated_data["file"]
+        return Media.from_upload(self.context["org"], self.context["user"], file)
 
 
 class MsgReadSerializer(ReadSerializer):

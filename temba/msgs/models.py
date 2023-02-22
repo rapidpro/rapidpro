@@ -33,7 +33,6 @@ from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel
 from temba.utils.s3 import public_file_storage
-from temba.utils.text import clean_string
 from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -583,66 +582,6 @@ class Msg(models.Model):
             "sent_on": self.sent_on.isoformat() if self.sent_on else None,
         }
 
-    @classmethod
-    def get_text_parts(cls, text, max_length=160):
-        """
-        Breaks our message into 160 character parts
-        """
-        if len(text) < max_length or max_length <= 0:
-            return [text]
-
-        else:
-
-            def next_part(text):
-                if len(text) <= max_length:
-                    return text, None
-
-                else:
-                    # search for a space to split on, up to 140 characters in
-                    index = max_length
-                    while index > max_length - 20:
-                        if text[index] == " ":
-                            break
-                        index -= 1
-
-                    # couldn't find a good split, oh well, 160 it is
-                    if index == max_length - 20:
-                        return text[:max_length], text[max_length:]
-                    else:
-                        return text[:index], text[index + 1 :]
-
-            parts = []
-            rest = text
-            while rest:
-                (part, rest) = next_part(rest)
-                parts.append(part)
-
-            return parts
-
-    @classmethod
-    def get_sync_commands(cls, msgs):
-        """
-        Returns the minimal # of broadcast commands for the given Android channel to uniquely represent all the
-        messages which are being sent to tel URNs. This will return an array of dicts that look like:
-             dict(cmd="mt_bcast", to=[dict(phone=msg.contact.tel, id=msg.pk) for msg in msgs], msg=broadcast.text))
-        """
-        commands = []
-        current_text = None
-        contact_id_pairs = []
-
-        for m in msgs.values("id", "text", "contact_urn__path").order_by("created_on"):
-            if m["text"] != current_text and contact_id_pairs:
-                commands.append(dict(cmd="mt_bcast", to=contact_id_pairs, msg=current_text))
-                contact_id_pairs = []
-
-            current_text = m["text"]
-            contact_id_pairs.append(dict(phone=m["contact_urn__path"], id=m["id"]))
-
-        if contact_id_pairs:
-            commands.append(dict(cmd="mt_bcast", to=contact_id_pairs, msg=current_text))
-
-        return commands
-
     def get_attachments(self):
         """
         Gets this message's attachments parsed into actual attachment objects
@@ -688,41 +627,6 @@ class Msg(models.Model):
 
     def __str__(self):  # pragma: needs cover
         return self.text
-
-    @classmethod
-    def create_relayer_incoming(cls, org, channel, urn, text, received_on, attachments=None):
-        contact, contact_urn = Contact.resolve(channel, urn)
-
-        # we limit our text message length and remove any invalid chars
-        if text:
-            text = clean_string(text[: cls.MAX_TEXT_LEN])
-
-        now = timezone.now()
-
-        # don't create duplicate messages
-        existing = Msg.objects.filter(text=text, sent_on=received_on, contact=contact, direction="I").first()
-        if existing:
-            return existing
-
-        msg = Msg.objects.create(
-            org=org,
-            channel=channel,
-            contact=contact,
-            contact_urn=contact_urn,
-            text=text,
-            sent_on=received_on,
-            created_on=now,
-            modified_on=now,
-            queued_on=now,
-            direction=cls.DIRECTION_IN,
-            attachments=attachments,
-            status=cls.STATUS_PENDING,
-        )
-
-        # pass off handling of the message after we commit
-        on_transaction_commit(lambda: msg.handle())
-
-        return msg
 
     def archive(self):
         """

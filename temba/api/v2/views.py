@@ -10,7 +10,6 @@ from rest_framework.reverse import reverse
 from smartmin.views import SmartFormView, SmartTemplateView
 
 from django import forms
-from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.db.models import Count, Prefetch, Q
 from django.http import HttpResponse, JsonResponse
@@ -26,6 +25,7 @@ from temba.api.v2.views_base import (
     DeleteAPIMixin,
     ListAPIMixin,
     ModifiedOnCursorPagination,
+    SentOnCursorPagination,
     WriteAPIMixin,
 )
 from temba.archives.models import Archive
@@ -36,13 +36,12 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGr
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
+from temba.msgs.models import Broadcast, Label, LabelCount, Media, Msg, SystemLabel
 from temba.orgs.models import OrgMembership, OrgRole, User
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import splitting_getlist, str_to_bool
-from temba.utils.s3 import public_file_storage
-from temba.utils.uuid import is_uuid, uuid4
+from temba.utils.uuid import is_uuid
 
 from ..models import SSLPermission
 from ..support import InvalidQueryError
@@ -73,6 +72,8 @@ from .serializers import (
     GlobalWriteSerializer,
     LabelReadSerializer,
     LabelWriteSerializer,
+    MediaReadSerializer,
+    MediaWriteSerializer,
     MsgBulkActionSerializer,
     MsgReadSerializer,
     MsgWriteSerializer,
@@ -2419,6 +2420,34 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         }
 
 
+class MediaEndpoint(WriteAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to upload new media objects for use as attachments on messages.
+
+    ## Uploading Media
+
+    A **POST** can be used to upload a new media object.
+
+    * **file** - the file data (bytes)
+
+    You will receive a media object as a response if successful:
+
+        {
+            "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
+            "content_type": "image/jpeg",
+            "url": "https://...test.jpg",
+            "filename": "test.jpg",
+            "size": 23452
+        }
+    """
+
+    parser_classes = (MultiPartParser, FormParser)
+    permission = "msgs.media_api"
+    model = Media
+    serializer_class = MediaReadSerializer
+    write_serializer_class = MediaWriteSerializer
+
+
 class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list messages in your account.
@@ -2447,11 +2476,10 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox`, `incoming`, `failed` or `sent`.
     Note that you cannot filter by more than one of `contact`, `folder`, `label` or `broadcast` at the same time.
 
-    Without any parameters this endpoint will return all incoming and outgoing messages ordered by creation date.
+    The sort order for the `incoming` folder is the last modified date, and the sort order for the `sent` folder is the
+    sent date. All other requests are sorted by the message creation date.
 
-    The sort order for all folders save for `incoming` is the message creation date. For the `incoming` folder (which
-    includes all incoming messages, regardless of visibility or type) messages are sorted by last modified date. This
-    allows clients to poll for updates to message labels and visibility changes.
+    Without any parameters this endpoint will return all incoming and outgoing messages ordered by creation date.
 
     Example:
 
@@ -2486,15 +2514,14 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     class Pagination(CreatedOnCursorPagination):
         """
-        Overridden paginator for Msg endpoint that switches from created_on to modified_on when looking
-        at all incoming messages.
+        Overridden paginator that switches depending on folder being requested.
         """
 
+        ordering = {"incoming": ModifiedOnCursorPagination.ordering, "sent": SentOnCursorPagination.ordering}
+
         def get_ordering(self, request, queryset, view=None):
-            if request.query_params.get("folder", "").lower() == "incoming":
-                return "-modified_on", "-id"
-            else:
-                return CreatedOnCursorPagination.ordering
+            folder = request.query_params.get("folder", "").lower()
+            return self.ordering.get(folder, CreatedOnCursorPagination.ordering)
 
     permission = "msgs.msg_api"
     model = Msg
@@ -2523,9 +2550,9 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             if sys_label:
                 return SystemLabel.get_queryset(org, sys_label)
             elif folder == "incoming":
-                return self.model.objects.filter(org=org, direction="I")
+                return self.model.objects.filter(org=org, direction=Msg.DIRECTION_IN, status=Msg.STATUS_HANDLED)
             else:
-                return self.model.objects.filter(pk=-1)
+                return self.model.objects.none()
         else:
             return self.model.objects.filter(
                 org=org, visibility__in=(Msg.VISIBILITY_VISIBLE, Msg.VISIBILITY_ARCHIVED)
@@ -3780,27 +3807,3 @@ class WorkspaceEndpoint(BaseAPIView):
             "url": reverse("api.v2.workspace"),
             "slug": "workspace-read",
         }
-
-
-class SurveyorAttachmentsEndpoint(BaseAPIView):
-    """
-    Undocumented endpoint used by Surveyor to submit response attachments.
-    """
-
-    parser_classes = (MultiPartParser, FormParser)
-    permission = "msgs.msg_api"
-
-    def post(self, request, format=None, *args, **kwargs):
-        org = self.request.org
-        file = request.data.get("media_file", None)
-        extension = request.data.get("extension", None)
-
-        if file and extension:
-            uuid = uuid4()
-            path = f"{settings.STORAGE_ROOT_DIR}/{org.id}/surveyor_attachments/{str(uuid)[0:4]}/{uuid}.{extension}"
-            public_file_storage.save(path, file)
-            url = public_file_storage.url(path)
-
-            return Response({"location": url}, status=status.HTTP_201_CREATED)
-
-        return Response({}, status=status.HTTP_400_BAD_REQUEST)

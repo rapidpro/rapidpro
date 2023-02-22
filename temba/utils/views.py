@@ -63,6 +63,7 @@ class SpaMixin(View):
                 context["base_template"] = "spa_frame.haml"
 
             context["is_spa"] = True
+            context["is_content_only"] = self.is_content_only()
             context["temba_path"] = self.spa_path
             context["temba_referer"] = self.spa_referrer_path
             context[TEMBA_MENU_SELECTION] = self.derive_menu_path()

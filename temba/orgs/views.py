@@ -1204,7 +1204,7 @@ class OrgCRUDL(SmartCRUDL):
                 menu = []
                 menu.append(
                     self.create_menu_item(
-                        menu_id="workspace", name=self.org.name, icon="icon.workspace", href="orgs.org_workspace"
+                        menu_id="workspace", name=self.org.name, icon="icon.settings", href="orgs.org_workspace"
                     )
                 )
 
@@ -1215,7 +1215,7 @@ class OrgCRUDL(SmartCRUDL):
                         item["count"] = children
                     menu.append(item)
 
-                if self.has_org_perm("orgs.org_dashboard"):
+                if self.has_org_perm("orgs.org_dashboard") and Org.FEATURE_CHILD_ORGS in self.org.features:
                     menu.append(
                         self.create_menu_item(
                             menu_id="dashboard",
@@ -1415,7 +1415,7 @@ class OrgCRUDL(SmartCRUDL):
                     {
                         "id": "settings",
                         "name": _("Settings"),
-                        "icon": "icon.settings",
+                        "icon": "icon.home",
                         "endpoint": f"{reverse('orgs.org_menu')}settings/",
                         "bottom": True,
                         "show_header": True,

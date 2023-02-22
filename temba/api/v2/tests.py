@@ -31,7 +31,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactUR
 from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, Msg
+from temba.msgs.models import Broadcast, Label, Media, Msg
 from temba.orgs.models import Org, OrgRole, User
 from temba.schedules.models import Schedule
 from temba.templates.models import Template, TemplateTranslation
@@ -983,6 +983,10 @@ class EndpointsTest(TembaTest):
         # try to create new broadcast with no recipients
         response = self.postJSON(url, None, {"text": "Hello"})
         self.assertResponseError(response, "non_field_errors", "Must provide either urns, contacts or groups.")
+
+        # try to create new broadcast with invalid group lookup
+        response = self.postJSON(url, None, {"text": "Hello", "groups": [123456]})
+        self.assertResponseError(response, "groups", "No such object: 123456")
 
         # try to create new broadcast with translations that don't include base language
         response = self.postJSON(
@@ -3518,6 +3522,43 @@ class EndpointsTest(TembaTest):
                 response, None, "Cannot create object because workspace has reached limit of 3.", status_code=409
             )
 
+    @mock_uuids
+    def test_media(self):
+        url = reverse("api.v2.media")
+        self.assertEndpointAccess(url, fetch_returns=405)
+
+        def upload(filename: str):
+            with open(filename, "rb") as data:
+                return self.client.post(url + ".json", {"file": data}, HTTP_X_FORWARDED_HTTPS="https")
+
+        response = self.client.post(url + ".json", {}, HTTP_X_FORWARDED_HTTPS="https")
+        self.assertResponseError(response, "file", "No file was submitted.")
+
+        response = upload(f"{settings.MEDIA_ROOT}/test_imports/simple.xls")
+        self.assertResponseError(response, "file", "Unsupported file type.")
+
+        with patch("temba.msgs.models.Media.MAX_UPLOAD_SIZE", 1024):
+            response = upload(f"{settings.MEDIA_ROOT}/test_media/snow.mp4")
+            self.assertResponseError(response, "file", "Limit for file uploads is 0.0009765625 MB.")
+
+        response = upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg")
+        self.assertEqual(201, response.status_code)
+        self.assertEqual(
+            {
+                "uuid": "14f6ea01-456b-4417-b0b8-35e942f549f1",
+                "content_type": "image/jpeg",
+                "url": f"/media/test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/steve%20marten.jpg",
+                "filename": "steve marten.jpg",
+                "size": 7461,
+            },
+            response.json(),
+        )
+
+        media = Media.objects.get()
+        self.assertEqual(Media.STATUS_READY, media.status)
+
+        self.clear_storage()
+
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
         self.assertEqual(
             msg_json,
@@ -3563,6 +3604,9 @@ class EndpointsTest(TembaTest):
         # add a surveyor message (no URN etc)
         joe_msg4 = self.create_outgoing_msg(self.joe, "Surveys!", surveyor=True)
 
+        # add an unhandled message
+        self.create_incoming_msg(self.joe, "Just in!", status="P")
+
         # add a deleted message
         deleted_msg = self.create_incoming_msg(self.frank, "!@$!%", visibility="D")
 
@@ -3579,6 +3623,10 @@ class EndpointsTest(TembaTest):
 
         frank_msg1.refresh_from_db(fields=("modified_on",))
         joe_msg3.refresh_from_db(fields=("modified_on",))
+
+        # make this message sent later than other sent message created before it to check ordering of sent messages
+        frank_msg2.sent_on = timezone.now()
+        frank_msg2.save(update_fields=("sent_on",))
 
         # default response is all messages sorted by created_on
         response = self.fetchJSON(url)
@@ -3624,7 +3672,7 @@ class EndpointsTest(TembaTest):
 
         # filter by folder (sent)
         response = self.fetchJSON(url, "folder=sent")
-        self.assertResultsById(response, [joe_msg4, frank_msg2])
+        self.assertResultsById(response, [frank_msg2, joe_msg4])
 
         # filter by folder (failed)
         response = self.fetchJSON(url, "folder=failed")
@@ -4756,38 +4804,6 @@ class EndpointsTest(TembaTest):
                 }
             ],
         )
-
-    @mock_uuids
-    def test_surveyor_attachments(self):
-        endpoint = reverse("api.v2.surveyor_attachments") + ".json"
-
-        self.login(self.admin)
-
-        def assert_media_upload(filename: str, ext: str, location: str):
-            with open(filename, "rb") as data:
-                response = self.client.post(
-                    endpoint, {"media_file": data, "extension": ext}, HTTP_X_FORWARDED_HTTPS="https"
-                )
-
-                self.assertEqual(response.status_code, 201)
-                self.assertEqual(location, response.json().get("location", None))
-
-        assert_media_upload(
-            f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg",
-            "jpg",
-            f"/media/test_orgs/{self.org.id}/surveyor_attachments/b97f/b97f69f7-5edf-45c7-9fda-d37066eae91d.jpg",
-        )
-        assert_media_upload(
-            f"{settings.MEDIA_ROOT}/test_media/snow.mp4",
-            "mp4",
-            f"/media/test_orgs/{self.org.id}/surveyor_attachments/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1.mp4",
-        )
-
-        # missing file
-        response = self.client.post(endpoint, dict(), HTTP_X_FORWARDED_HTTPS="https")
-        self.assertEqual(response.status_code, 400)
-
-        self.clear_storage()
 
     def test_classifiers(self):
         url = reverse("api.v2.classifiers")

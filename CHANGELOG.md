@@ -1,3 +1,24 @@
+v8.1.38 (2023-02-21)
+-------------------------
+ * Fix dashboard not loading when content
+ * Fix handling FCM sync failure
+
+v8.1.37 (2023-02-21)
+-------------------------
+ * Don't lookup related fields in API if lookup value type is wrong
+ * Update django 4.0.10
+ * Fetching sent folder on messages endpoint should return messages ordered by -sent_on same as UI
+ * Exclude unhandled messages from Incoming folder on messages API endpoint
+ * More agressive menu refreshing
+ * Move much of the old android relayer code into its own package
+ * Add media API endpoint, undocumented for now
+ * Open up new UI access to everyone
+
+v8.1.36 (2023-02-20)
+-------------------------
+ * Cleanup use of validators in the API
+ * Add support for Msg.TYPE_TEXT to be used (for now) for outgoing messages
+
 v8.1.35 (2023-02-17)
 -------------------------
  * Add org start redirection view

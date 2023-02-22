@@ -8,7 +8,7 @@
   :javascript
     function leaveNewInterface() {
       document.cookie = "nav=1; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/;";
-      document.location.reload();      
+      document.location.reload();
     }
 
 -block interface-option
@@ -477,8 +477,9 @@
         });
       });
 
-      var eventContainer = document.querySelector(".spa-content > div");
+      var eventContainer = document.querySelector(".spa-content");
       eventContainer.dispatchEvent(new CustomEvent("temba-spa-ready"));
+      refreshMenu();
     }
 
     function handleUpdateComplete() {
@@ -614,13 +615,13 @@
       });
     }
 
-    function onSpload(fn) {
-      {% if self.is_spa %}
-        var eventContainer = document.querySelector(".spa-content > div");
-        eventContainer.addEventListener("temba-spa-ready", fn);
-      {% else %}
+    function onSpload(fn, contentOnly) {
+      if (contentOnly) {
+        var eventContainer = document.querySelector(".spa-content");
+        eventContainer.addEventListener("temba-spa-ready", fn, {once: true});
+      } else {
         document.addEventListener("DOMContentLoaded", fn);
-      {% endif %}
+      }      
     }
 
     document.addEventListener("temba-redirected", function(event){
