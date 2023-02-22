@@ -1,3 +1,8 @@
+v8.1.39 (2023-02-22)
+-------------------------
+ * Move Msg.update into android package
+ * Make text optional on broadcasts endpoint (messages need text or attachments)
+
 v8.1.38 (2023-02-21)
 -------------------------
  * Fix dashboard not loading when content
