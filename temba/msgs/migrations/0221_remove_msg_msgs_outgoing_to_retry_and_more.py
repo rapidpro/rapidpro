@@ -35,6 +35,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 DROP INDEX msgs_msg_org_created_id_where_outbound_visible_outbox;
+DROP INDEX msgs_msg_org_created_id_where_outbound_visible_failed;
 """
 
 
@@ -83,9 +84,9 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="msg",
             index=models.Index(
-                condition=models.Q(("direction", "O"), ("status__in", ("I", "Q", "E")), ("visibility", "V")),
-                fields=["org", "-created_on", "-id"],
-                name="msgs_outbox",
+                condition=models.Q(("direction", "O"), ("status__in", ("I", "Q", "E", "F")), ("visibility", "V")),
+                fields=["org", "status", "-created_on", "-id"],
+                name="msgs_outbox_and_failed",
             ),
         ),
         migrations.AddIndex(

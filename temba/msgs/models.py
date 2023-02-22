@@ -718,13 +718,13 @@ class Msg(models.Model):
                 fields=["next_attempt", "created_on", "id"],
                 condition=Q(direction="O", status__in=("I", "E"), next_attempt__isnull=False),
             ),
-            # used for Outbox view / API folder
+            # used for Outbox and Failed views and API folders
             models.Index(
-                name="msgs_outbox",
-                fields=["org", "-created_on", "-id"],
-                condition=Q(direction="O", visibility="V", status__in=("I", "Q", "E")),
+                name="msgs_outbox_and_failed",
+                fields=["org", "status", "-created_on", "-id"],
+                condition=Q(direction="O", visibility="V", status__in=("I", "Q", "E", "F")),
             ),
-            # used for Sent view / API folder
+            # used for Sent view / API folder (distinct because of the ordering)
             models.Index(
                 name="msgs_sent",
                 fields=["org", "-sent_on", "-id"],
