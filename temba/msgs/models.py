@@ -4,12 +4,11 @@ import os
 import re
 from array import array
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from fnmatch import fnmatch
 from urllib.parse import unquote, urlparse
 
 import iso8601
-import pytz
 from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
@@ -209,7 +208,7 @@ class Broadcast(models.Model):
         cls,
         org,
         user,
-        text: dict[str, str],
+        text: dict[str, str] = None,
         *,
         attachments: dict[str, list] = None,
         base_language: str = None,
@@ -221,14 +220,20 @@ class Broadcast(models.Model):
         ticket=None,
         **kwargs,
     ):
+        # if base language is not provided
         if not base_language:
-            base_language = next(iter(text))
+            base_language = (text and next(iter(text))) or (attachments and next(iter(attachments)))
 
-        assert base_language in text, "no translation for base language"
+        assert not text or base_language in text, "no translation for base language"
+        assert not attachments or base_language in attachments, "no translation for base language"
+
+        assert text or attachments, "can't create broadcast without text or attachments"
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
 
         # merge text and attachments into single dict of translations
-        translations = {lang: {"text": t} for lang, t in text.items()}
+        translations = {}
+        if text:
+            translations = {lang: {"text": t} for lang, t in text.items()}
         if attachments:
             for lang, atts in attachments.items():
                 if lang not in translations:
@@ -587,45 +592,12 @@ class Msg(models.Model):
         """
         return Attachment.parse_all(self.attachments)
 
-    def update(self, cmd):
-        """
-        Updates our message according to the provided client command
-        """
-
-        date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
-        keyword = cmd["cmd"]
-        handled = False
-
-        if keyword == "mt_error":
-            self.status = self.STATUS_ERRORED
-            handled = True
-
-        elif keyword == "mt_fail":
-            self.status = self.STATUS_FAILED
-            handled = True
-
-        elif keyword == "mt_sent":
-            self.status = self.STATUS_SENT
-            self.sent_on = date
-            handled = True
-
-        elif keyword == "mt_dlvd":
-            self.status = self.STATUS_DELIVERED
-            self.sent_on = self.sent_on or date
-            handled = True
-
-        self.save(update_fields=("status", "sent_on"))
-        return handled
-
     def handle(self):
         """
         Queues this message to be handled
         """
 
         mailroom.queue_msg_handling(self)
-
-    def __str__(self):  # pragma: needs cover
-        return self.text
 
     def archive(self):
         """
@@ -709,6 +681,9 @@ class Msg(models.Model):
     def apply_action_resend(cls, user, msgs):
         if msgs:
             mailroom.get_client().msg_resend(msgs[0].org.id, [m.id for m in msgs])
+
+    def __str__(self):  # pragma: needs cover
+        return self.text
 
     class Meta:
         indexes = [

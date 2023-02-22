@@ -217,15 +217,18 @@ class BroadcastWriteSerializer(WriteSerializer):
     urns = serializers.ListField(required=False, child=fields.URNField(), max_length=100)
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
-    text = fields.TranslatedTextField(required=True, max_length=Msg.MAX_TEXT_LEN)
+    text = fields.TranslatedTextField(required=False, max_length=Msg.MAX_TEXT_LEN)
     attachments = fields.TranslatedAttachmentsField(required=False)
     base_language = fields.LanguageField(required=False)
     ticket = fields.TicketField(required=False)
 
     def validate(self, data):
-        text = data["text"]
+        text = data.get("text")
         attachments = data.get("attachments")
         base_language = data.get("base_language")
+
+        if not (data.get("text") or data.get("attachments")):
+            raise serializers.ValidationError("Must provide either text or attachments.")
 
         if not (data.get("urns") or data.get("contacts") or data.get("groups")):
             raise serializers.ValidationError("Must provide either urns, contacts or groups.")
@@ -247,7 +250,7 @@ class BroadcastWriteSerializer(WriteSerializer):
         broadcast = Broadcast.create(
             self.context["org"],
             self.context["user"],
-            text=self.validated_data["text"],
+            text=self.validated_data.get("text"),
             attachments=self.validated_data.get("attachments", {}),
             base_language=self.validated_data.get("base_language"),
             groups=self.validated_data.get("groups", []),
