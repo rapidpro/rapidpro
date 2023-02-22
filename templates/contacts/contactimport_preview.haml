@@ -8,9 +8,10 @@
   -trans "Preview Contact Import"
 
 -block content
-  -blocktrans trimmed with count=object.num_records
-    This import file contains <b>{{ count }}</b> records. Headers that didn't match existing fields
-    can be ignored or added as new custom fields by editing them below.
+  .summary
+    -blocktrans trimmed with count=object.num_records
+      This import file contains <b>{{ count }}</b> records. Headers that didn't match existing fields
+      can be ignored or added as new custom fields by editing them below.
 
   %form.smartmin-form.horizontal-form(method="post" enctype="multipart/form-data")
     -csrf_token
