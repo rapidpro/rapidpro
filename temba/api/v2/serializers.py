@@ -1243,6 +1243,7 @@ class MsgReadSerializer(ReadSerializer):
     STATUSES = {
         Msg.STATUS_PENDING: "queued",  # same as far as users are concerned
         Msg.STATUS_HANDLED: "handled",
+        Msg.STATUS_INITIALIZING: "queued",
         Msg.STATUS_QUEUED: "queued",
         Msg.STATUS_WIRED: "wired",
         Msg.STATUS_SENT: "sent",

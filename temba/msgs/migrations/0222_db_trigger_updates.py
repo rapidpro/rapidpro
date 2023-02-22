@@ -88,8 +88,6 @@ DROP FUNCTION temba_insert_broadcastmsgcount(INTEGER, INT);
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("msgs", "0220_alter_msg_msg_type"),
-    ]
+    dependencies = [("msgs", "0221_remove_msg_msgs_outgoing_to_retry_and_more")]
 
     operations = [migrations.RunSQL(SQL)]

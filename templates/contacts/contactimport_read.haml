@@ -4,6 +4,19 @@
 -block title
   -trans "Contact Import"
 
+-block spa-title
+  -trans "Contact Import"
+
+-block extra-script
+  {{block.super}}
+  -if not is_finished
+    :javascript
+      if (gotoURL) {
+        setTimeout(function(){
+          gotoURL(document.location.href);
+        }, 3000);
+      }
+
 -block content
   -block pjax
     #pjax

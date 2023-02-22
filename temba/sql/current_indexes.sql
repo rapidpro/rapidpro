@@ -81,14 +81,6 @@ WHERE external_id IS NOT NULL;
 
 CREATE INDEX msgs_msg_contact_id_created_on ON msgs_msg (contact_id, created_on desc);
 
-CREATE INDEX msgs_msg_org_created_id_where_outbound_visible_failed
-ON msgs_msg(org_id, created_on DESC, id DESC)
-WHERE direction = 'O' AND visibility = 'V' AND status = 'F';
-
-CREATE INDEX msgs_msg_org_created_id_where_outbound_visible_outbox
-ON msgs_msg(org_id, created_on DESC, id DESC)
-WHERE direction = 'O' AND visibility = 'V' AND status IN ('P', 'Q');
-
 CREATE INDEX IF NOT EXISTS msgs_msg_org_id_created_on_id_idx on msgs_msg(org_id, created_on, id);
 
 CREATE INDEX msgs_msg_org_modified_id_where_inbound

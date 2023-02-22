@@ -455,7 +455,7 @@ BEGIN
     END IF;
   ELSE
     IF _msg.VISIBILITY = 'V' THEN
-      IF _msg.status = 'P' OR _msg.status = 'Q' THEN
+      IF _msg.status = 'I' OR _msg.status = 'Q' OR _msg.status = 'E' THEN
         RETURN 'O';
       ELSIF _msg.status = 'W' OR _msg.status = 'S' OR _msg.status = 'D' THEN
         RETURN 'S';

@@ -7,12 +7,12 @@ from temba.channels.models import Channel
 from temba.orgs.views import OrgPermsMixin
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
-from temba.utils.views import ContentMenuMixin, PostOnlyMixin
+from temba.utils.views import ContentMenuMixin, PostOnlyMixin, SpaMixin
 
 from .tasks import refresh_whatsapp_contacts
 
 
-class RefreshView(PostOnlyMixin, OrgPermsMixin, SmartUpdateView):
+class RefreshView(SpaMixin, PostOnlyMixin, OrgPermsMixin, SmartUpdateView):
     """
     Responsible for firing off our contact refresh task
     """
@@ -32,7 +32,7 @@ class RefreshView(PostOnlyMixin, OrgPermsMixin, SmartUpdateView):
         return obj
 
 
-class TemplatesView(ContentMenuMixin, OrgPermsMixin, SmartReadView):
+class TemplatesView(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartReadView):
     """
     Displays a simple table of all the templates synced on this whatsapp channel
     """
@@ -60,8 +60,11 @@ class TemplatesView(ContentMenuMixin, OrgPermsMixin, SmartReadView):
         )
         return context
 
+    def derive_menu_path(self):
+        return f"/settings/channels/{self.get_object().uuid}"
 
-class SyncLogsView(ContentMenuMixin, OrgPermsMixin, SmartReadView):
+
+class SyncLogsView(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartReadView):
     """
     Displays a simple table of the WhatsApp Templates Synced requests for this channel
     """
@@ -80,6 +83,9 @@ class SyncLogsView(ContentMenuMixin, OrgPermsMixin, SmartReadView):
     def get_queryset(self):
         queryset = super().get_queryset()
         return queryset.filter(org=self.request.org)
+
+    def derive_menu_path(self):
+        return f"/settings/channels/{self.get_object().uuid}"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
