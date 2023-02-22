@@ -1114,7 +1114,6 @@ RETENTION_PERIODS = {
     "channellog": timedelta(days=3),
     "eventfire": timedelta(days=90),  # matches default rp-archiver behavior
     "flowsession": timedelta(days=7),
-    "flowstart": timedelta(days=7),
     "httplog": timedelta(days=3),
     "syncevent": timedelta(days=7),
     "webhookevent": timedelta(hours=48),
