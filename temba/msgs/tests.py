@@ -1783,6 +1783,7 @@ class BroadcastTest(TembaTest):
         broadcast2 = self.create_broadcast(self.admin, "Hi everyone", contacts=[self.kevin, self.lucy])
 
         self.assertEqual(2, broadcast2.msgs.count())
+        self.assertEqual(2, broadcast2.get_message_count())
 
         self.assertEqual(2, Broadcast.objects.count())
         self.assertEqual(2, Msg.objects.count())
