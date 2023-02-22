@@ -1050,6 +1050,7 @@ class EndpointsTest(TembaTest):
                 "contacts": [self.joe.uuid, self.frank.uuid],
             },
         )
+        self.assertEqual(201, response.status_code)
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
         self.assertEqual(
@@ -1073,28 +1074,27 @@ class EndpointsTest(TembaTest):
                 "contacts": [self.joe.uuid, self.frank.uuid],
             },
         )
+        self.assertEqual(201, response.status_code)
+
         broadcast = Broadcast.objects.get(id=response.json()["id"])
-        self.assertEqual(
-            {"eng": {"text": "Hello"}},
-            broadcast.translations,
-        )
+        self.assertEqual({"eng": {"text": "Hello"}}, broadcast.translations)
 
         # create new broadcast without translations containing only attachments, no text
         response = self.postJSON(
             url,
             None,
             {
-                "attachments": ["http://example.com/test.jpg", "http://example.com/test.mp3"],
+                "attachments": ["image:http://example.com/test.jpg", "audio/mp3:http://example.com/test.mp3"],
                 "contacts": [self.joe.uuid, self.frank.uuid],
             },
         )
+        self.assertEqual(201, response.status_code)
+
         broadcast = Broadcast.objects.get(id=response.json()["id"])
         self.assertEqual(
-            {"eng": {"attachments": ["http://example.com/test.jpg", "http://example.com/test.mp3"]}},
+            {"eng": {"attachments": ["image:http://example.com/test.jpg", "audio/mp3:http://example.com/test.mp3"]}},
             broadcast.translations,
         )
-
-        # create new broadcast with 'und' base language
 
         # try sending as a flagged org
         self.org.flag()
