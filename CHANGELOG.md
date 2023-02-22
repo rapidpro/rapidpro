@@ -1,3 +1,7 @@
+v8.1.41 (2023-02-22)
+-------------------------
+ * Remove suprious property
+
 v8.1.40 (2023-02-22)
 -------------------------
  * Fix contact imports in new ui
