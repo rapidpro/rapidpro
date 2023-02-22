@@ -1331,14 +1331,17 @@ files = [
 
 [[package]]
 name = "pycountry"
-version = "20.7.3"
+version = "22.3.5"
 description = "ISO country, subdivision, language, currency and script definitions and their translations"
 category = "main"
 optional = false
-python-versions = "*"
+python-versions = ">=3.6, <4"
 files = [
-    {file = "pycountry-20.7.3.tar.gz", hash = "sha256:81084a53d3454344c0292deebc20fcd0a1488c136d4900312cbd465cf552cb42"},
+    {file = "pycountry-22.3.5.tar.gz", hash = "sha256:b2163a246c585894d808f18783e19137cb70a0c18fb36748dc01fc6f109c1646"},
 ]
+
+[package.dependencies]
+setuptools = "*"
 
 [[package]]
 name = "pycparser"
@@ -2300,4 +2303,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "77bb6abc3e57fadd263af2675a654c9bc235d3b437fcd6d85229b7652ce794fe"
+content-hash = "f395ea39dc97cc92e8987c262ee94e825d47007d383e206da17f6a3bf9e1f1ae"

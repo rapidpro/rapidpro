@@ -350,7 +350,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         # test a hard delete as part of a contact removal
         msg2.delete()
         self.assertEqual(2, Msg.objects.all().count())
-        self.assertEqual(0, msg2.channel_logs.count())  # logs should be gone
+        self.assertEqual(0, ChannelLog.objects.filter(msg_id=msg2.id).count())  # logs should be gone
 
     def test_archive_and_release(self):
         msg1 = self.create_incoming_msg(self.joe, "Incoming")

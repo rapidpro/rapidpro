@@ -2617,7 +2617,7 @@ class OrgTest(TembaTest):
 
         # post without API token, should get validation error
         response = self.client.post(account_url, {"disconnect": "false"})
-        self.assertFormError(response, "form", "__all__", "You must enter your account API Key")
+        self.assertFormError(response, "form", None, "You must enter your account API Key")
 
         # vonage config should remain the same
         self.org.refresh_from_db()
@@ -3138,8 +3138,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             response, "form", "last_name", "Ensure this value has at most 150 characters (it has 162)."
         )
         self.assertFormError(response, "form", "name", "Ensure this value has at most 128 characters (it has 136).")
-        self.assertFormError(response, "form", "email", "Ensure this value has at most 150 characters (it has 159).")
-        self.assertFormError(response, "form", "email", "Enter a valid email address.")
+        self.assertFormError(
+            response,
+            "form",
+            "email",
+            ["Enter a valid email address.", "Ensure this value has at most 150 characters (it has 159)."],
+        )
 
     def test_org_grant_form_clean(self):
         grant_url = reverse("orgs.org_grant")

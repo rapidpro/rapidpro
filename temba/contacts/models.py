@@ -1231,6 +1231,9 @@ class Contact(LegacyUUIDMixin, SmartModel):
         if hasattr(self, cache_attr):
             return getattr(self, cache_attr)
 
+        if not self.id:
+            return []
+
         urns = self.urns.order_by("-priority", "pk").select_related("org")
         setattr(self, cache_attr, urns)
         return urns

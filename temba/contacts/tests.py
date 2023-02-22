@@ -2492,10 +2492,10 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertIn('"x"', msg_status_badge(msg))
 
     def test_history_templatetags(self):
-        item = {"type": "webhook_called", "url": "http://test.com", "status": "success"}
+        item = {"type": "webhook_called", "url": "http://example.com", "status": "success"}
         self.assertEqual(history_class(item), "non-msg detail-event")
 
-        item = {"type": "webhook_called", "url": "http://test.com", "status": "response_error"}
+        item = {"type": "webhook_called", "url": "http://exmaple.com", "status": "response_error"}
         self.assertEqual(history_class(item), "non-msg warning detail-event")
 
         item = {"type": "call_started", "status": "D"}

@@ -1592,7 +1592,7 @@ class ContactFieldForm(forms.ModelForm):
     def clean_value_type(self):
         value_type = self.cleaned_data["value_type"]
 
-        if self.instance and self.instance.campaign_events.filter(is_active=True).exists():
+        if self.instance and self.instance.id and self.instance.campaign_events.filter(is_active=True).exists():
             if value_type != ContactField.TYPE_DATETIME:
                 raise forms.ValidationError(_("Can't change type of date field being used by campaign events."))
 
