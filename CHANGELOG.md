@@ -1,3 +1,11 @@
+v8.1.40 (2023-02-22)
+-------------------------
+ * Fix contact imports in new ui
+ * Fix menu refresh race
+ * Remove window.lastFetch
+ * Adjust menu paths for new UI channel views
+ * Use SpaMixin to more channels extra views
+
 v8.1.39 (2023-02-22)
 -------------------------
  * Move Msg.update into android package
