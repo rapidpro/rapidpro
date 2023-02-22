@@ -1,3 +1,9 @@
+v8.1.42 (2023-02-22)
+-------------------------
+ * Only look at queued messages when syncing android channels
+ * Re-add Msg.STATUS_INITIALIZING to use for outgoing messages which fail to queue
+ * Include STATUS_ERRORED messages in Outbox views
+
 v8.1.41 (2023-02-22)
 -------------------------
  * Remove suprious property
