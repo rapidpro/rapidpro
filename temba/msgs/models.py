@@ -4,12 +4,11 @@ import os
 import re
 from array import array
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from fnmatch import fnmatch
 from urllib.parse import unquote, urlparse
 
 import iso8601
-import pytz
 from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
@@ -582,45 +581,12 @@ class Msg(models.Model):
         """
         return Attachment.parse_all(self.attachments)
 
-    def update(self, cmd):
-        """
-        Updates our message according to the provided client command
-        """
-
-        date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
-        keyword = cmd["cmd"]
-        handled = False
-
-        if keyword == "mt_error":
-            self.status = self.STATUS_ERRORED
-            handled = True
-
-        elif keyword == "mt_fail":
-            self.status = self.STATUS_FAILED
-            handled = True
-
-        elif keyword == "mt_sent":
-            self.status = self.STATUS_SENT
-            self.sent_on = date
-            handled = True
-
-        elif keyword == "mt_dlvd":
-            self.status = self.STATUS_DELIVERED
-            self.sent_on = self.sent_on or date
-            handled = True
-
-        self.save(update_fields=("status", "sent_on"))
-        return handled
-
     def handle(self):
         """
         Queues this message to be handled
         """
 
         mailroom.queue_msg_handling(self)
-
-    def __str__(self):  # pragma: needs cover
-        return self.text
 
     def archive(self):
         """
@@ -704,6 +670,9 @@ class Msg(models.Model):
     def apply_action_resend(cls, user, msgs):
         if msgs:
             mailroom.get_client().msg_resend(msgs[0].org.id, [m.id for m in msgs])
+
+    def __str__(self):  # pragma: needs cover
+        return self.text
 
     class Meta:
         indexes = [

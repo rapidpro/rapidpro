@@ -17,7 +17,7 @@ from temba.msgs.models import Msg
 from temba.utils import analytics, json
 
 from ..models import Alert, Channel, SyncEvent, UnsupportedAndroidChannelError
-from . import create_event, create_incoming, get_commands
+from . import create_event, create_incoming, get_commands, update_message
 
 
 @csrf_exempt
@@ -127,7 +127,7 @@ def sync(request, channel_id):
                 msg = Msg.objects.filter(id=msg_id, org=channel.org).first()
                 if msg:
                     if msg.direction == Msg.DIRECTION_OUT:
-                        handled = msg.update(cmd)
+                        handled = update_message(msg, cmd)
                     else:
                         handled = True
 
