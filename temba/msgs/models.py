@@ -209,7 +209,7 @@ class Broadcast(models.Model):
         cls,
         org,
         user,
-        text: dict[str, str],
+        text: dict[str, str] = None,
         *,
         attachments: dict[str, list] = None,
         base_language: str = None,
@@ -221,14 +221,20 @@ class Broadcast(models.Model):
         ticket=None,
         **kwargs,
     ):
+        # if base language is not provided
         if not base_language:
-            base_language = next(iter(text))
+            base_language = (text and next(iter(text))) or (attachments and next(iter(attachments)))
 
-        assert base_language in text, "no translation for base language"
+        assert not text or base_language in text, "no translation for base language"
+        assert not attachments or base_language in attachments, "no translation for base language"
+
+        assert text or attachments, "can't create broadcast without text or attachments"
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
 
         # merge text and attachments into single dict of translations
-        translations = {lang: {"text": t} for lang, t in text.items()}
+        translations = {}
+        if text:
+            translations = {lang: {"text": t} for lang, t in text.items()}
         if attachments:
             for lang, atts in attachments.items():
                 if lang not in translations:
