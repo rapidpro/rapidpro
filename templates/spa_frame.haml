@@ -351,12 +351,6 @@
               options['onSuccess'](response);
             }
           }
-
-          // we may have redirected
-          if (response.url) {
-            window.lastFetch = response.url;
-          }
-
         });
       }).catch(function(e) {
         // canceled
@@ -496,7 +490,6 @@
 
     function gotoURL(urlToGo, urlToShow, ignoreEvents, ignoreHistory) {
       var refererPath = window.location.pathname;
-      window.lastFetch = urlToGo;
 
       if (!ignoreHistory) {
         window.history.pushState({ url: urlToGo, show: urlToGo }, "", urlToGo);
@@ -515,7 +508,6 @@
  
       showLoading();
       var refererPath = window.location.pathname;
-      window.lastFetch = url;
       var menu = document.querySelector("temba-menu");
       gotoURL(url, !triggerEvents);
     }
@@ -689,6 +681,8 @@
           return;
         }
   
+        var url = document.location.href;
+
         if (formEle.method.toLowerCase() !== "post") {
           evt.stopPropagation();
           evt.preventDefault();
@@ -696,7 +690,6 @@
           let queryString = new URLSearchParams(formData).toString();
           showLoading();
   
-          var url = window.lastFetch;
           if (queryString) {
             if (url.indexOf("?") > 0) {
               url += "&" + queryString;
@@ -714,13 +707,12 @@
           evt.stopPropagation();
           evt.preventDefault();
           
-          if (window.lastFetch.indexOf("{% url 'orgs.org_service'%}") > -1) {
-            formEle.action = window.lastFetch;
+          if (url.indexOf("{% url 'orgs.org_service'%}") > -1) {
             formEle.submit();
           } else {
             var formData = new FormData(formEle);
             showLoading();
-            fetchPJAXContent(window.lastFetch, ".spa-content", {
+            fetchPJAXContent(url, ".spa-content", {
                 "headers": { "TEMBA-SPA": "1"},
                 "formData": formData,
                 "onSuccess": hideLoading,
