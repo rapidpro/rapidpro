@@ -1508,13 +1508,13 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         contact2 = self.create_contact("Joe Blow", phone="+250788000001")
         contact3 = self.create_contact("Frank Blow", phone="+250788000002")
 
-        # create a single message broadcast that's sent but it's message is still pending
+        # create a single message broadcast that's sent but it's message is still not sent
         broadcast1 = self.create_broadcast(
             self.admin,
             "How is it going?",
             contacts=[contact1],
             status=Broadcast.STATUS_SENT,
-            msg_status=Msg.STATUS_PENDING,
+            msg_status=Msg.STATUS_INITIALIZING,
         )
         msg1 = broadcast1.msgs.get()
 
@@ -1534,8 +1534,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         # create another broadcast this time with 3 messages
         contact4 = self.create_contact("Kevin", phone="+250788000003")
         group = self.create_group("Testers", contacts=[contact2, contact3])
-        broadcast2 = self.create_broadcast(self.admin, "kLab is awesome", contacts=[contact4], groups=[group])
-        broadcast2.msgs.update(status=Msg.STATUS_PENDING)
+        broadcast2 = self.create_broadcast(
+            self.admin, "kLab is awesome", contacts=[contact4], groups=[group], msg_status=Msg.STATUS_QUEUED
+        )
         msg4, msg3, msg2 = broadcast2.msgs.order_by("-id")
 
         broadcast3 = Broadcast.create(self.channel.org, self.admin, {"eng": "Pending broadcast"}, contacts=[contact4])
@@ -2431,7 +2432,7 @@ class SystemLabelTest(TembaTest):
         msg3.archive()
 
         bcast1 = self.create_broadcast(
-            self.user, "Broadcast 1", contacts=[contact1, contact2], msg_status=Msg.STATUS_PENDING
+            self.user, "Broadcast 1", contacts=[contact1, contact2], msg_status=Msg.STATUS_INITIALIZING
         )
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
 

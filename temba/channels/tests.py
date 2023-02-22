@@ -92,7 +92,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         group.contacts.add(*contacts)
 
-        broadcast = self.create_broadcast(user, message, groups=[group], msg_status="W")
+        broadcast = self.create_broadcast(user, message, groups=[group], msg_status="Q")
 
         msg = Msg.objects.filter(broadcast=broadcast).order_by("text", "pk")
         if len(numbers) == 1:

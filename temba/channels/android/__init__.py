@@ -39,15 +39,12 @@ def get_sync_commands(msgs):
     return commands
 
 
-def get_commands(channel, commands, sync_event=None):
+def get_channel_commands(channel, commands, sync_event=None):
     """
     Generates sync commands for all queued messages on the given channel
     """
-    msgs = Msg.objects.filter(
-        status__in=(Msg.STATUS_PENDING, Msg.STATUS_QUEUED, Msg.STATUS_WIRED),
-        channel=channel,
-        direction=Msg.DIRECTION_OUT,
-    )
+
+    msgs = Msg.objects.filter(status__in=Msg.STATUS_QUEUED, channel=channel, direction=Msg.DIRECTION_OUT)
 
     if sync_event:
         pending_msgs = sync_event.get_pending_messages()

@@ -399,24 +399,28 @@ class Attachment:
 
 class Msg(models.Model):
     """
-    Messages are the main building blocks of a RapidPro application. Channels send and receive
-    these, triggers and flows handle them when appropriate.
+    Messages are either inbound or outbound and can have varying statuses depending on their direction. Generally an
+    outbound message will go through the following statuses:
 
-    Messages are either inbound or outbound and can have varying states depending on their
-    direction. Generally an outbound message will go through the following states:
+      INITIALIZING > QUEUED > WIRED > SENT > DELIVERED
+                            |
+                            > ERRORED > FAILED
 
-      QUEUED > WIRED > SENT > DELIVERED
+    Though in practice to save a database update, messages are created in the database as QUEUED, and only if queueing
+    to courier fails, put back in INITIALIZING. If things go wrong during sending, they can be put into ERRORED where
+    they can be retried. Once they've exceeded the allowed number of errored sends, they become FAILED.
 
-    If things go wrong, they can be put into an ERRORED state where they can be retried. Once
-    we've given up then they can be put in the FAILED state.
+    Inbound messages are simpler:
 
-    Inbound messages are much simpler. They start as PENDING and the can be picked up by triggers
-    or Flows where they would get set to the HANDLED state once they've been dealt with.
+      PENDING > HANDLED
+
+    They are created in the database as PENDING and updated to HANDLED once they've been handled by the flow engine.
     """
 
-    STATUS_PENDING = "P"  # incoming msg created but not yet handled, or outgoing message that failed to queue
+    STATUS_PENDING = "P"  # incoming msg created but not yet handled
     STATUS_HANDLED = "H"  # incoming msg handled
-    STATUS_QUEUED = "Q"  # outgoing msg created and queued to courier
+    STATUS_INITIALIZING = "I"  # outgoing msg that hasn't yet been queued
+    STATUS_QUEUED = "Q"  # outgoing msg queued to courier for sending
     STATUS_WIRED = "W"  # outgoing msg requested to be sent via channel
     STATUS_SENT = "S"  # outgoing msg having received sent confirmation from channel
     STATUS_DELIVERED = "D"  # outgoing msg having received delivery confirmation from channel
@@ -425,6 +429,7 @@ class Msg(models.Model):
     STATUS_CHOICES = (
         (STATUS_PENDING, _("Pending")),
         (STATUS_HANDLED, _("Handled")),
+        (STATUS_INITIALIZING, _("Initializing")),
         (STATUS_QUEUED, _("Queued")),
         (STATUS_WIRED, _("Wired")),
         (STATUS_SENT, _("Sent")),
@@ -686,11 +691,17 @@ class Msg(models.Model):
             models.Index(
                 name="msgs_outgoing_to_retry",
                 fields=["next_attempt", "created_on", "id"],
-                condition=Q(direction="O", status__in=("P", "E"), next_attempt__isnull=False),
+                condition=Q(direction="O", status__in=("I", "E"), next_attempt__isnull=False),
             ),
-            # used for view of sent messages
+            # used for Outbox and Failed views and API folders
             models.Index(
-                name="msgs_outgoing_visible_sent",
+                name="msgs_outbox_and_failed",
+                fields=["org", "status", "-created_on", "-id"],
+                condition=Q(direction="O", visibility="V", status__in=("I", "Q", "E", "F")),
+            ),
+            # used for Sent view / API folder (distinct because of the ordering)
+            models.Index(
+                name="msgs_sent",
                 fields=["org", "-sent_on", "-id"],
                 condition=Q(direction="O", visibility="V", status__in=("W", "S", "D")),
             ),
@@ -761,7 +772,7 @@ class SystemLabel:
         Gets the queryset for the given system label. Any change here needs to be reflected in a change to the db
         trigger used to maintain the label counts.
         """
-        # TODO: (Indexing) Sent and Failed require full message history
+
         if label_type == cls.TYPE_INBOX:
             qs = Msg.objects.filter(
                 direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_VISIBLE, msg_type=Msg.TYPE_INBOX
@@ -776,7 +787,7 @@ class SystemLabel:
             qs = Msg.objects.filter(
                 direction=Msg.DIRECTION_OUT,
                 visibility=Msg.VISIBILITY_VISIBLE,
-                status__in=(Msg.STATUS_PENDING, Msg.STATUS_QUEUED),
+                status__in=(Msg.STATUS_INITIALIZING, Msg.STATUS_QUEUED, Msg.STATUS_ERRORED),
             )
         elif label_type == cls.TYPE_SENT:
             qs = Msg.objects.filter(
