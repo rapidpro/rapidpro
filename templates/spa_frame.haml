@@ -698,9 +698,12 @@
             }
           }
   
-          fetchPJAXContent(url, ".spa-content", {
-              "headers": { "TEMBA-SPA": "1"}, 
-              "onSuccess": hideLoading,  
+          fetchAjax(url, ".spa-content", { "headers": {
+            "TEMBA-SPA": "1",
+            "TEMBA-REFERER-PATH": refererPath,
+            "TEMBA-PATH": url
+            },
+          "onSuccess": hideLoading
           });
         } else {
   
@@ -712,11 +715,21 @@
           } else {
             var formData = new FormData(formEle);
             showLoading();
-            fetchPJAXContent(url, ".spa-content", {
-                "headers": { "TEMBA-SPA": "1"},
-                "formData": formData,
-                "onSuccess": hideLoading,
+
+            var store = document.querySelector("temba-store");
+            store.postUrl(url, formData, { "TEMBA-SPA": "1"}).then(function(response){
+              var content = document.querySelector(".spa-content");
+
+              // remove jquery use here
+              $(content).html(response.body);
+
+              if (response.redirected) {
+                window.history.pushState({ url: response.url, show: response.url }, "", response.url);
+              }
+
+              hideLoading(response);
             });
+
           }
         }
       });
