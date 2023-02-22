@@ -962,10 +962,11 @@ class ChannelCRUDL(SmartCRUDL):
 
             return recommended_channels, types_by_category, False
 
-    class BulkSenderOptions(OrgPermsMixin, SmartTemplateView):
-        pass
+    class BulkSenderOptions(SpaMixin, OrgPermsMixin, SmartTemplateView):
+        title = _("Enable Bulk Sending")
+        menu_path = "/settings/workspace"
 
-    class CreateBulkSender(OrgPermsMixin, SmartFormView):
+    class CreateBulkSender(SpaMixin, OrgPermsMixin, SmartFormView):
         class BulkSenderForm(forms.Form):
             connection = forms.CharField(max_length=2, widget=forms.HiddenInput, required=False)
             channel = forms.IntegerField(widget=forms.HiddenInput, required=False)
@@ -1058,6 +1059,9 @@ class ChannelCRUDL(SmartCRUDL):
 
     class Configuration(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
+
+        def derive_menu_path(self):
+            return f"/settings/channels/{self.object.uuid}"
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
