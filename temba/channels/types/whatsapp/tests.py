@@ -221,7 +221,7 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
 
             response = self.client.post(url, post_data)
             self.assertEqual(200, response.status_code)
-            self.assertFormError(response, "form", "__all__", "Number is already connected to this workspace")
+            self.assertFormError(response, "form", None, "Number is already connected to this workspace")
 
         channel.org = self.org2
         channel.save()
@@ -238,7 +238,7 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
             self.assertFormError(
                 response,
                 "form",
-                "__all__",
+                None,
                 "Number is already connected to another workspace",
             )
 

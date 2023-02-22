@@ -242,7 +242,7 @@ class UserTest(TembaTest):
         self.assertFormError(
             response,
             "form",
-            "__all__",
+            None,
             "Please enter a correct username and password. Note that both fields may be case-sensitive.",
         )
 
@@ -327,7 +327,7 @@ class UserTest(TembaTest):
         self.assertFormError(
             response,
             "form",
-            "__all__",
+            None,
             "Please enter a correct username and password. Note that both fields may be case-sensitive.",
         )
 
@@ -1669,7 +1669,7 @@ class OrgTest(TembaTest):
                 "invite_role": "V",
             },
         )
-        self.assertFormError(response, "form", "__all__", "A workspace must have at least one administrator.")
+        self.assertFormError(response, "form", None, "A workspace must have at least one administrator.")
 
         # try to downgrade ourselves to an editor
         response = self.client.post(
@@ -1683,7 +1683,7 @@ class OrgTest(TembaTest):
                 "invite_role": "V",
             },
         )
-        self.assertFormError(response, "form", "__all__", "A workspace must have at least one administrator.")
+        self.assertFormError(response, "form", None, "A workspace must have at least one administrator.")
 
         # finally upgrade agent to admin, downgrade editor to surveyor, remove ourselves entirely and remove last invite
         last_invite = Invitation.objects.last()
@@ -2109,7 +2109,7 @@ class OrgTest(TembaTest):
                 self.assertFormError(
                     response,
                     "form",
-                    "__all__",
+                    None,
                     "The Twilio account SID and Token seem invalid. " "Please check them again and retry.",
                 )
 
