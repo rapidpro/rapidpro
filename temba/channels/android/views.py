@@ -17,7 +17,7 @@ from temba.msgs.models import Msg
 from temba.utils import analytics, json
 
 from ..models import Alert, Channel, SyncEvent, UnsupportedAndroidChannelError
-from . import create_event, create_incoming, get_commands, update_message
+from . import create_event, create_incoming, get_channel_commands, update_message
 
 
 @csrf_exempt
@@ -210,7 +210,7 @@ def sync(request, channel_id):
 
             commands.append(ack)
 
-    outgoing_cmds = get_commands(channel, commands, sync_event)
+    outgoing_cmds = get_channel_commands(channel, commands, sync_event)
     result = dict(cmds=outgoing_cmds)
 
     if sync_event:
