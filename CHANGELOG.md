@@ -1,3 +1,8 @@
+v8.1.43 (2023-02-23)
+-------------------------
+ * Use statement level db trigger for broadcast msg counts
+ * Update django to 4.1.7
+
 v8.1.42 (2023-02-22)
 -------------------------
  * Only look at queued messages when syncing android channels
