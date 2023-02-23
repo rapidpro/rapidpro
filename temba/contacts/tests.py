@@ -2495,7 +2495,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         item = {"type": "webhook_called", "url": "http://example.com", "status": "success"}
         self.assertEqual(history_class(item), "non-msg detail-event")
 
-        item = {"type": "webhook_called", "url": "http://exmaple.com", "status": "response_error"}
+        item = {"type": "webhook_called", "url": "http://example.com", "status": "response_error"}
         self.assertEqual(history_class(item), "non-msg warning detail-event")
 
         item = {"type": "call_started", "status": "D"}
