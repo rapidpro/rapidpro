@@ -400,7 +400,10 @@ class ContactForm(forms.ModelForm):
         # add all URN scheme fields if org is not anon
         extra_fields = []
         if not self.org.is_anon:
-            urns = self.instance.get_urns()
+            if not self.instance.id:
+                urns = []
+            else:
+                urns = self.instance.get_urns()
 
             idx = 0
 
