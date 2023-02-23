@@ -57,6 +57,10 @@ class SpaMixin(View):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
+        # this is for the content menu to handle links differently
+        context["is_legacy"] = 0 if self.is_spa() or self.is_content_only() else 1
+
         if self.is_spa():
             if self.is_content_only():
                 context["base_template"] = "spa.html"
@@ -454,12 +458,6 @@ class ContentMenuMixin:
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
-        # is the page old (legacy) ui or new (spa) ui?
-        if "HTTP_TEMBA_SPA" in self.request.META:
-            context["is_legacy"] = 0
-        else:
-            context["is_legacy"] = 1
 
         # does the page have a content menu?
         context["has_content_menu"] = len(self._get_content_menu()) > 0
