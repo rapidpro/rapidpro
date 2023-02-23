@@ -295,14 +295,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     DEFAULT_ROLE = ROLE_SEND + ROLE_RECEIVE
 
-    ROLE_CONFIG = {
-        ROLE_SEND: "send",
-        ROLE_RECEIVE: "receive",
-        ROLE_CALL: "call",
-        ROLE_ANSWER: "answer",
-        ROLE_USSD: "ussd",
-    }
-
     CONTENT_TYPE_URLENCODED = "urlencoded"
     CONTENT_TYPE_JSON = "json"
     CONTENT_TYPE_XML = "xml"
@@ -345,44 +337,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         verbose_name=_("Country"), null=True, blank=True, help_text=_("Country which this channel is for")
     )
 
-    claim_code = models.CharField(
-        verbose_name=_("Claim Code"),
-        max_length=16,
-        blank=True,
-        null=True,
-        unique=True,
-        help_text=_("The token the user will us to claim this channel"),
-    )
-
-    secret = models.CharField(
-        verbose_name=_("Secret"),
-        max_length=64,
-        blank=True,
-        null=True,
-        unique=True,
-        help_text=_("The secret token this channel should use when signing requests"),
-    )
-
-    last_seen = models.DateTimeField(
-        verbose_name=_("Last Seen"), auto_now_add=True, help_text=_("The last time this channel contacted the server")
-    )
-
-    device = models.CharField(
-        verbose_name=_("Device"),
-        max_length=255,
-        null=True,
-        blank=True,
-        help_text=_("The type of Android device this channel is running on"),
-    )
-
-    os = models.CharField(
-        verbose_name=_("OS"),
-        max_length=255,
-        null=True,
-        blank=True,
-        help_text=_("What Android OS version this channel is running on"),
-    )
-
     alert_email = models.EmailField(
         verbose_name=_("Alert Email"),
         null=True,
@@ -391,20 +345,20 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     )
 
     config = JSONAsTextField(null=True, default=dict)
-
     schemes = ArrayField(models.CharField(max_length=16), default=_get_default_channel_scheme)
-
     role = models.CharField(max_length=4, default=DEFAULT_ROLE)
-
     parent = models.ForeignKey("self", on_delete=models.PROTECT, null=True)
+    tps = models.IntegerField(null=True)
 
+    # Android relayer specific fields
+    claim_code = models.CharField(max_length=16, blank=True, null=True, unique=True)
+    secret = models.CharField(max_length=64, blank=True, null=True, unique=True)
+    device = models.CharField(max_length=255, null=True, blank=True)
+    os = models.CharField(max_length=255, null=True, blank=True)
+    last_seen = models.DateTimeField(null=True)
+
+    # TODO drop
     bod = models.TextField(null=True)
-
-    tps = models.IntegerField(
-        verbose_name=_("Maximum Transactions per Second"),
-        null=True,
-        help_text=_("The max number of messages that will be sent per second"),
-    )
 
     @classmethod
     def create(
@@ -655,6 +609,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
             device=device,
             claim_code=claim_code,
             secret=secret,
+            last_seen=timezone.now(),
         )
 
     @classmethod
