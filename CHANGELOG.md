@@ -1,3 +1,7 @@
+v8.1.46 (2023-02-23)
+-------------------------
+ * Fix external links in old ui
+
 v8.1.45 (2023-02-23)
 -------------------------
  * Fix external channel links
