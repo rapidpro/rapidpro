@@ -27,7 +27,7 @@ class JustCallType(ChannelType):
     claim_view = ClaimView
 
     claim_blurb = _("If you have a %(link)s number, you can quickly connect it using their APIs.") % {
-        "link": '<a href="https://justcall.io/">JustCall</a>'
+        "link": '<a target="_blank" href="https://justcall.io/">JustCall</a>'
     }
 
     show_config_page = False

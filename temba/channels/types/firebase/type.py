@@ -21,7 +21,9 @@ class FirebaseCloudMessagingType(ChannelType):
 
     claim_blurb = _(
         "Add a %(link)s channel to send and receive messages. Your users will need an App to send and receive messages."
-    ) % {"link": '<a href="https://firebase.google.com/docs/cloud-messaging/">Firebase Cloud Messaging</a>'}
+    ) % {
+        "link": '<a target="_blank" href="https://firebase.google.com/docs/cloud-messaging/">Firebase Cloud Messaging</a>'
+    }
     claim_view = ClaimView
 
     schemes = [URN.FCM_SCHEME]

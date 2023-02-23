@@ -20,7 +20,7 @@ class AfricasTalkingType(ChannelType):
     icon = "icon-channel-external"
 
     claim_blurb = _("You can purchase a short code from %(link)s and connect it in a few simple steps.") % {
-        "link": """<a href="http://africastalking.com">Africa's Talking</a>"""
+        "link": """<a target="_blank" href="http://africastalking.com">Africa's Talking</a>"""
     }
     claim_view = ClaimView
 

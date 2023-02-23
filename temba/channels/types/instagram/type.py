@@ -32,7 +32,7 @@ class InstagramType(ChannelType):
     show_config_page = False
 
     claim_blurb = _("Add an %(link)s bot to send and receive messages on behalf of a business Instagram account.") % {
-        "link": '<a href="http://instagram.com">Instagram</a>',
+        "link": '<a target="_blank" href="http://instagram.com">Instagram</a>',
     }
     claim_view = ClaimView
 

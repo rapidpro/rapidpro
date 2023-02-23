@@ -23,7 +23,7 @@ class BongoLiveType(ChannelType):
 
     claim_view = ClaimView
     claim_blurb = _("If you have an %(link)s number, you can quickly connect it using their APIs.") % {
-        "link": '<a href="https://www.bongolive.co.tz/">Bongo Live</a>'
+        "link": '<a target="_blank" href="https://www.bongolive.co.tz/">Bongo Live</a>'
     }
 
     configuration_blurb = _(

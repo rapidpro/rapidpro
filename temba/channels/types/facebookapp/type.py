@@ -31,7 +31,7 @@ class FacebookAppType(ChannelType):
         "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will "
         "need to connect your page by logging into your Facebook and checking the Facebook page to connect. "
         "On the Facebook page, navigate Settings > Page roles and verify you have an admin page role on the page."
-    ) % {"link": '<a href="http://facebook.com">Facebook</a>'}
+    ) % {"link": '<a target="_blank" href="http://facebook.com">Facebook</a>'}
     claim_view = ClaimView
 
     schemes = [URN.FACEBOOK_SCHEME]

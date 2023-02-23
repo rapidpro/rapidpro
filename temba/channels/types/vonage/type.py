@@ -57,7 +57,7 @@ class VonageType(ChannelType):
     icon = "icon-vonage"
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
-        "link": '<a href="https://www.vonage.com/">Vonage</a>'
+        "link": '<a target="_blank" href="https://www.vonage.com/">Vonage</a>'
     }
     claim_view = ClaimView
     update_form = UpdateForm

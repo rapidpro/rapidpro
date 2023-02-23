@@ -22,7 +22,7 @@ class ClickMobileType(ChannelType):
     claim_blurb = _(
         "If you are based in Malawi or Ghana you can purchase a number from %(link)s and connect it in a few simple "
         "steps."
-    ) % {"link": '<a href="https://www.click-mobile.com/">Click Mobile</a>'}
+    ) % {"link": '<a target="_blank" href="https://www.click-mobile.com/">Click Mobile</a>'}
 
     claim_view = ClaimView
 

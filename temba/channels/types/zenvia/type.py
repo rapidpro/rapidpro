@@ -19,7 +19,7 @@ class ZenviaType(ChannelType):
 
     claim_blurb = _(
         "If you are based in Brazil, you can purchase a short code from %(link)s and connect it in a few simple steps."
-    ) % {"link": '<a href="http://www.zenvia.com.br/">Zenvia</a>'}
+    ) % {"link": '<a target="_blank" href="http://www.zenvia.com.br/">Zenvia</a>'}
     claim_view = ClaimView
 
     schemes = [URN.TEL_SCHEME]

@@ -30,7 +30,7 @@ class TwitterType(ChannelType):
         "Send and receive messages on Twitter using their %(link)s API. You will have to apply for Twitter API access "
         "and create a Twitter application."
     ) % {
-        "link": '<a href="https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/overview">Twitter Activity</a>'
+        "link": '<a target="_blank" href="https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/overview">Twitter Activity</a>'
     }
     claim_view = ClaimView
     update_form = UpdateForm

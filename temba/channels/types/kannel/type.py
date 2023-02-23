@@ -22,7 +22,7 @@ class KannelType(ChannelType):
     claim_blurb = _(
         "Connect your %(link)s instance, we'll walk you through the steps necessary to get your SMSC connection "
         "working in a few minutes."
-    ) % {"link": '<a href="http://www.kannel.org/">Kannel</a>'}
+    ) % {"link": '<a target="_blank" href="http://www.kannel.org/">Kannel</a>'}
     claim_view = ClaimView
 
     schemes = [URN.TEL_SCHEME]

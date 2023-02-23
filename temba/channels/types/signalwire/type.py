@@ -70,7 +70,7 @@ class SignalWireType(ChannelType):
     icon = "icon-signalwire"
 
     claim_blurb = _("Easily add a two way number you have with %(link)s using their APIs.") % {
-        "link": '<a href="http://www.signalwire.com/">SignalWire</a>'
+        "link": '<a target="_blank" href="http://www.signalwire.com/">SignalWire</a>'
     }
     claim_view = SignalWireClaimView
 

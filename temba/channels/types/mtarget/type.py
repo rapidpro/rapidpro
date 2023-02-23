@@ -27,7 +27,7 @@ class MtargetType(ChannelType):
 
     claim_view = ClaimView
     claim_blurb = _("If you have an %(link)s account, you can quickly connect it using their APIs.") % {
-        "link": '<a href="https://www.mtarget.fr/">Mtarget</a>'
+        "link": '<a target="_blank" href="https://www.mtarget.fr/">Mtarget</a>'
     }
 
     configuration_blurb = _(

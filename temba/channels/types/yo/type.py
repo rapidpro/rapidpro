@@ -27,7 +27,7 @@ class YoType(ChannelType):
     claim_view = ClaimView
     claim_blurb = _(
         "If you are based in Uganda, you can integrate with %(link)s to send and receive messages on your short code."
-    ) % {"link": '<a href="http://www.yo.co.ug/">Yo!</a>'}
+    ) % {"link": '<a target="_blank" href="http://www.yo.co.ug/">Yo!</a>'}
 
     configuration_blurb = _(
         "To finish configuring your Yo! connection you'll need to notify Yo! of the following inbound SMS URL."

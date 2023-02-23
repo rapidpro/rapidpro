@@ -32,7 +32,7 @@ class Dialog360Type(ChannelType):
 
     claim_blurb = _(
         "Activate your own enterprise WhatsApp account in %(link)s to communicate with your contacts. "
-    ) % {"link": '<a href="https://www.360dialog.com/">360Dialog</a>'}
+    ) % {"link": '<a target="_blank" href="https://www.360dialog.com/">360Dialog</a>'}
     claim_view = ClaimView
 
     schemes = [URN.WHATSAPP_SCHEME]

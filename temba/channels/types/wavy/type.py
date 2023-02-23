@@ -40,7 +40,7 @@ class WavyType(ChannelType):
 
     claim_view = ClaimView
     claim_blurb = _("If you have an %(link)s number, you can quickly connect it using their APIs.") % {
-        "link": '<a href="https://wavy.global/en/">Movile/Wavy</a>'
+        "link": '<a target="_blank" href="https://wavy.global/en/">Movile/Wavy</a>'
     }
 
     configuration_blurb = _(

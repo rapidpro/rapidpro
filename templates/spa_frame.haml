@@ -379,12 +379,16 @@
 
     function goto(event, ele) {
       var link = event.target.getAttribute('href');
+      
       if (link) {
         event.stopPropagation();
+        event.preventDefault();
         if (event.metaKey) {
-            window.open(link, '_blank');
+          window.open(link, '_blank');
+        } else if (event.target.target) {
+          window.open(link, event.target.target);
         } else {
-            document.location.href = link;
+          document.location.href = link;
         }
         return;
       }

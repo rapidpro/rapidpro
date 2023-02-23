@@ -19,7 +19,7 @@ class JasminType(ChannelType):
     name = "Jasmin"
 
     claim_blurb = _("Connect your %(link)s instance that you have already connected to an SMSC.") % {
-        "link": '<a href="http://www.jasminsms.com/">Jasmin</a>'
+        "link": '<a target="_blank" href="http://www.jasminsms.com/">Jasmin</a>'
     }
     claim_view = ClaimView
 

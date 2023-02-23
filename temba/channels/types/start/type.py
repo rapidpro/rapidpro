@@ -19,7 +19,7 @@ class StartType(ChannelType):
     name = "Start Mobile"
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
-        "link": '<a href="https://bulk.startmobile.ua/">Start Mobile</a>'
+        "link": '<a target="_blank" href="https://bulk.startmobile.ua/">Start Mobile</a>'
     }
     claim_view = AuthenticatedExternalClaimView
 
