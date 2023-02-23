@@ -90,3 +90,31 @@ jobs:
           no-cache: true
           build-args: |
             BACKEND_ADDRESS=push-${{env.ENVIRONMENT}}:8000
+
+      - name: Update WENI-CHANGELOG.md
+        if: ${{ !contains(env.TAG, 'develop') && !contains(env.TAG, 'staging') }}
+        run: |
+          TAG_ANT=$(git ls-remote --tags --sort=-creatordate | egrep -v '(develop|staging)' | head -n3 | tail -n1 | cut -f2)
+          pull_requests=$(curl -s -H "Authorization: Bearer ${{ secrets.DEVOPS_GITHUB_PERMANENT_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/pulls?state=closed&base=main&sort=created&direction=desc&per_page=15")
+          DATE_TAG=$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%dT%H:%M:%SZ' --format="%cd" ${TAG_ANT} | tail -1)
+          echo "" >> temp.md
+          echo "${{ env.TAG }}" > temp.md  
+          echo "----------" >> temp.md
+          echo "$pull_requests" | jq -r --arg DATE_TAG "$DATE_TAG" 'map(select(.created_at > $DATE_TAG)) | .[].title' | while read title; do
+            url=$(echo "$pull_requests" | jq -r --arg title "$title" 'map(select(.title == $title)) | .[].html_url')
+            echo "* [$title]($url)" >> temp.md
+          done
+          echo "" >> temp.md
+          cat WENI-CHANGELOG.md >> temp.md  
+          mv temp.md WENI-CHANGELOG.md
+          cat WENI-CHANGELOG.md
+          
+      - name: Commit & Push changes in repository
+        uses: actions-js/push@master
+        with:
+          github_token: "${{ secrets.GH_TOKEN }}"
+          repository: ${{ github.repository }}
+          directory: .
+          branch: main
+          message: "Update WENI-CHANGELOG.md"
+
