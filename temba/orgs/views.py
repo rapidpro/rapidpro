@@ -1612,6 +1612,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 return self.cleaned_data
 
+        title = _("Connect Twilio")
         form_class = TwilioConnectForm
         submit_button_name = "Save"
         field_config = dict(account_sid=dict(label=""), account_token=dict(label=""))

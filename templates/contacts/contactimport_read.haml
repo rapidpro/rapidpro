@@ -49,9 +49,9 @@
 
             {% url 'contacts.contact_filter' object.group.uuid as group_url %}
             -blocktrans trimmed count info.num_created|add:info.num_updated as count with group_url=group_url group_name=object.group.name
-              Added {{ count }} contact to the <a href="{{ group_url }}">{{ group_name }}</a> group
+              Added {{ count }} contact to the <span class="linked" onclick="goto(event)" href="{{ group_url }}">{{ group_name }}</span> group
               -plural
-                Added {{ count }} contacts to the <a href="{{ group_url }}">{{ group_name }}</a> group
+                Added {{ count }} contacts to the <span class="linked" onclick="goto(event)" href="{{ group_url }}">{{ group_name }}</span> group
 
         -if info.num_errored
           .import-result.text-lg.mt-2

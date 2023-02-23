@@ -13,6 +13,7 @@ from temba.apks.models import Apk
 from temba.public.models import Lead, Video
 from temba.utils import analytics, get_anonymous_user, json
 from temba.utils.text import random_string
+from temba.utils.views import SpaMixin
 
 
 class IndexView(SmartTemplateView):
@@ -67,8 +68,9 @@ class Android(SmartTemplateView):
             return HttpResponseRedirect(apk.apk_file.url)
 
 
-class Welcome(SmartTemplateView):
+class Welcome(SpaMixin, SmartTemplateView):
     template_name = "public/public_welcome.haml"
+    menu_path = "/settings"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

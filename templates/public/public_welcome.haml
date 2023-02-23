@@ -36,18 +36,10 @@
             that is tailored to their needs. Design a flow in minutes and start getting responses
             instantly. Once people start interacting with your flow, use real-time analytics to
             see how things are going.
-
-          -trans "To learn more about flows, visit the"
-            <a href="{% non_ssl_brand_url 'public.video_list'%}">{% trans "learning center" %}</a>.
     
           .mt-6
-            %temba-modax.inline-block.mb-1(endpoint="{% url 'flows.flow_create'%}" header='{{_("Create Flow")|escapejs}}')
-              .button-primary.lift.inline-block
-                -trans "Create Flow"
-            .button-light.lift.inline-block.mx-1.mb-1(href="{% url 'flows.flow_list' %}" onclick="goto(event)")
-              -trans "Sample Flows"
-            .button-light.lift.inline-block.mb-1(href="{% non_ssl_brand_url 'public.video_list'%}" onclick="goto(event)")
-              -trans "Tutorials"
+            %a.button-light.lift.inline-block(href="{% url 'flows.flow_list' %}" onclick="goto(event)")              
+                -trans "Create a Flow"
 
 
 
