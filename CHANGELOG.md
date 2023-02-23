@@ -1,3 +1,9 @@
+v8.1.44 (2023-02-23)
+-------------------------
+ * Exclude PENDING messages in contact history and API by org and contact
+ * Add -id to msg fetch ordering in Contact.get_history
+ * For both messages and tickets, replace the default indexes on org and contact with indexes that match the API ordering
+
 v8.1.43 (2023-02-23)
 -------------------------
  * Use statement level db trigger for broadcast msg counts
