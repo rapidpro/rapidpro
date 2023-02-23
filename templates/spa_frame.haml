@@ -378,6 +378,17 @@
     }
 
     function goto(event, ele) {
+      var link = event.target.getAttribute('href');
+      if (link) {
+        event.stopPropagation();
+        if (event.metaKey) {
+            window.open(link, '_blank');
+        } else {
+            document.location.href = link;
+        }
+        return;
+      }
+
       if (!ele) {
         ele = event.target;
       }
