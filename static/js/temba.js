@@ -50,25 +50,6 @@ function checkInner(event) {
     }
 }
 
-function goto(event, ele) {
-    if (!ele) {
-        ele = event.target;
-    }
-
-    event.stopPropagation();
-    if (ele.setActive) {
-        ele.setActive();
-    }
-    var href = ele.getAttribute('href');
-    if (href) {
-        if (event.metaKey) {
-            window.open(href, '_blank');
-        } else {
-            document.location.href = href;
-        }
-    }
-}
-
 function gotoLink(href) {
     document.location.href = href;
 }
