@@ -133,18 +133,6 @@ def ssl_brand_url(context, url_name, args=None):
         return path
 
 
-@register.simple_tag(takes_context=True)
-def non_ssl_brand_url(context, url_name, args=None):
-    hostname = settings.HOSTNAME
-    if "brand" in context:
-        hostname = context["brand"].get("domain", settings.HOSTNAME)
-
-    path = reverse(url_name, args)
-    if settings.HOSTNAME != "localhost":  # pragma: needs cover
-        return "http://%s%s" % (hostname, path)
-    return path
-
-
 @register.filter("delta", is_safe=False)
 def delta_filter(delta):
     """Humanizes a timedelta object on template (i.e. "2 months, 2 weeks")."""
