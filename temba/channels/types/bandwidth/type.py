@@ -30,7 +30,7 @@ class BandwidthType(ChannelType):
 
     claim_view = ClaimView
     claim_blurb = _("If you have an %(link)s number, you can quickly connect it using their APIs.") % {
-        "link": '<a href="https://www.bandwidth.com/">Bandwidth</a>'
+        "link": '<a target="_blank" href="https://www.bandwidth.com/">Bandwidth</a>'
     }
 
     show_config_page = True

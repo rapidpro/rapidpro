@@ -22,7 +22,7 @@ class ThinQType(ChannelType):
 
     claim_blurb = _(
         "If you have a number with %(link)s you can connect it in a few easy steps to automate your SMS numbers."
-    ) % {"link": '<a href="https://thinq.com">ThinQ</a>'}
+    ) % {"link": '<a target="_blank" href="https://thinq.com">ThinQ</a>'}
     claim_view = ClaimView
 
     show_public_addresses = True

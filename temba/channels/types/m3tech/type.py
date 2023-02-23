@@ -19,7 +19,7 @@ class M3TechType(ChannelType):
     name = "M3 Tech"
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
-        "link": '<a href="http://m3techservice.com">M3 Tech</a>'
+        "link": '<a target="_blank" href="http://m3techservice.com">M3 Tech</a>'
     }
     claim_view = AuthenticatedExternalClaimView
 

@@ -44,7 +44,7 @@ class BurstSMSType(ChannelType):
     }
 
     claim_blurb = _("If you have a %(link)s number, you can quickly connect it using their APIs.") % {
-        "link": '<a href="https://www.burstsms.com.au/">BurstSMS</a>'
+        "link": '<a target="_blank" href="https://www.burstsms.com.au/">BurstSMS</a>'
     }
 
     configuration_blurb = _(

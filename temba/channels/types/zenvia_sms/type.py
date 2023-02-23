@@ -26,7 +26,7 @@ class ZenviaSMSType(ChannelType):
     name = "Zenvia SMS"
 
     claim_blurb = _("If you have a %(link)s number, you can connect it to communicate with your contacts.") % {
-        "link": '<a href="https://www.zenvia.com/">Zenvia SMS</a>'
+        "link": '<a target="_blank" href="https://www.zenvia.com/">Zenvia SMS</a>'
     }
 
     claim_view = ClaimView

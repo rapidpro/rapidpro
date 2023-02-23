@@ -34,7 +34,7 @@ class ViberPublicType(ChannelType):
     claim_blurb = _(
         "Connect a %(link)s public channel to send and receive messages to Viber users for free. Your users will need "
         "an Android, Windows or iOS device and a Viber account to send and receive messages."
-    ) % {"link": '<a href="http://viber.com/en/">Viber</a>'}
+    ) % {"link": '<a target="_blank" href="http://viber.com/en/">Viber</a>'}
 
     configuration_blurb = _("Your Viber channel is connected. If needed the webhook endpoints are listed below.")
 

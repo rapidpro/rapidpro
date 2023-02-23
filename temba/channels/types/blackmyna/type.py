@@ -19,7 +19,7 @@ class BlackmynaType(ChannelType):
     name = "Blackmyna"
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
-        "link": '<a href="http://blackmyna.com">Blackmyna</a>'
+        "link": '<a target="_blank" href="http://blackmyna.com">Blackmyna</a>'
     }
     claim_view = AuthenticatedExternalClaimView
 

@@ -21,7 +21,7 @@ class ArabiaCellType(ChannelType):
 
     claim_view = ClaimView
     claim_blurb = _("If you have an %(link)s number, you can quickly connect it using their APIs.") % {
-        "link": '<a href="https://www.arabiacell.com/">ArabiaCell</a>'
+        "link": '<a target="_blank" href="https://www.arabiacell.com/">ArabiaCell</a>'
     }
 
     configuration_blurb = _(

@@ -19,7 +19,7 @@ class MbloxType(ChannelType):
     name = "Mblox"
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
-        "link": '<a href="https://www.mblox.com/">Mblox</a>'
+        "link": '<a target="_blank" href="https://www.mblox.com/">Mblox</a>'
     }
 
     claim_view = AuthenticatedExternalClaimView

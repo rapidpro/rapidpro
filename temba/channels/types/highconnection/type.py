@@ -21,7 +21,7 @@ class HighConnectionType(ChannelType):
 
     claim_blurb = _(
         "If you are based in France, you can purchase a number from %(link)s and connect it in a few simple steps."
-    ) % {"link": '<a href="http://www.highconnexion.com/en/">High Connection</a>'}
+    ) % {"link": '<a target="_blank" href="http://www.highconnexion.com/en/">High Connection</a>'}
     claim_view = AuthenticatedExternalCallbackClaimView
 
     schemes = [URN.TEL_SCHEME]

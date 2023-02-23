@@ -22,7 +22,7 @@ class LineType(ChannelType):
     claim_blurb = _(
         "Add a %(link)s bot to send and receive messages to LINE users for free. Your users will need an Android, "
         "Windows or iOS device and a LINE account to send and receive messages."
-    ) % {"link": '<a href="https://line.me">LINE</a>'}
+    ) % {"link": '<a target="_blank" href="https://line.me">LINE</a>'}
     claim_view = ClaimView
 
     schemes = [URN.LINE_SCHEME]

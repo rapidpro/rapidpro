@@ -28,7 +28,7 @@ class RocketChatType(ChannelType):
     show_config_page = False
 
     claim_blurb = _("Add a %(link)s bot to send and receive messages to Rocket.Chat users.") % {
-        "link": '<a href="https://rocket.chat/">Rocket.Chat</a>'
+        "link": '<a target="_blank" href="https://rocket.chat/">Rocket.Chat</a>'
     }
     claim_view = ClaimView
     schemes = [URN.ROCKETCHAT_SCHEME]

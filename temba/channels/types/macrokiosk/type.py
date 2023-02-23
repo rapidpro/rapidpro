@@ -19,7 +19,7 @@ class MacrokioskType(ChannelType):
     name = "Macrokiosk"
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
-        "link": '<a href="http://macrokiosk.com/">Macrokiosk</a>'
+        "link": '<a target="_blank" href="http://macrokiosk.com/">Macrokiosk</a>'
     }
     claim_view = ClaimView
 

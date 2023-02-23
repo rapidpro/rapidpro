@@ -15,7 +15,7 @@ class VerboiceType(ChannelType):
 
     claim_blurb = _(
         "Use a %(link)s connection to leverage in-country SIP connections for building voice (IVR) flows."
-    ) % {"link": '<a href="http://verboice.instedd.org">Verboice</a>'}
+    ) % {"link": '<a target="_blank" href="http://verboice.instedd.org">Verboice</a>'}
     claim_view = ClaimView
 
     max_length = 1600

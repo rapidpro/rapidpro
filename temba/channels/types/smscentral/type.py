@@ -20,7 +20,7 @@ class SMSCentralType(ChannelType):
     icon = "icon-channel-external"
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
-        "link": '<a href="http://smscentral.com.np/">SMSCentral</a>'
+        "link": '<a target="_blank" href="http://smscentral.com.np/">SMSCentral</a>'
     }
     claim_view = AuthenticatedExternalClaimView
 
