@@ -34,7 +34,7 @@ class ShaqodoonTypeTest(TembaTest):
         post_data["country"] = "SO"
         post_data["username"] = "uname"
         post_data["password"] = "pword"
-        post_data["url"] = "http://test.com/send.php"
+        post_data["url"] = "http://example.com/send.php"
         post_data["number"] = "301"
 
         response = self.client.post(url, post_data)

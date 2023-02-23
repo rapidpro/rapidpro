@@ -2492,10 +2492,10 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertIn('"x"', msg_status_badge(msg))
 
     def test_history_templatetags(self):
-        item = {"type": "webhook_called", "url": "http://test.com", "status": "success"}
+        item = {"type": "webhook_called", "url": "http://example.com", "status": "success"}
         self.assertEqual(history_class(item), "non-msg detail-event")
 
-        item = {"type": "webhook_called", "url": "http://test.com", "status": "response_error"}
+        item = {"type": "webhook_called", "url": "http://example.com", "status": "response_error"}
         self.assertEqual(history_class(item), "non-msg warning detail-event")
 
         item = {"type": "call_started", "status": "D"}
@@ -6180,7 +6180,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
             response = self.client.post(
                 preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "Import"}
             )
-            self.assertFormError(response, "form", "__all__", "This workspace has reached its limit of 2 groups.")
+            self.assertFormError(response, "form", None, "This workspace has reached its limit of 2 groups.")
 
         # finally create new group...
         response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "Import"})
@@ -6271,7 +6271,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
         self.assertEqual(1, len(response.context["form"].errors))
-        self.assertFormError(response, "form", "__all__", "Field name for 'Field:Sheep' matches an existing field.")
+        self.assertFormError(response, "form", None, "Field name for 'Field:Sheep' matches an existing field.")
 
         # if including a new fields, can't repeat names
         response = self.client.post(
@@ -6287,7 +6287,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
         self.assertEqual(1, len(response.context["form"].errors))
-        self.assertFormError(response, "form", "__all__", "Field name 'goats' is repeated.")
+        self.assertFormError(response, "form", None, "Field name 'goats' is repeated.")
 
         # if including a new field, name can't be invalid
         response = self.client.post(
@@ -6303,9 +6303,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
         self.assertEqual(1, len(response.context["form"].errors))
-        self.assertFormError(
-            response, "form", "__all__", "Field name for 'Field:Sheep' is invalid or a reserved word."
-        )
+        self.assertFormError(response, "form", None, "Field name for 'Field:Sheep' is invalid or a reserved word.")
 
         # or empty
         response = self.client.post(
@@ -6321,7 +6319,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
         self.assertEqual(1, len(response.context["form"].errors))
-        self.assertFormError(response, "form", "__all__", "Field name for 'Field:Sheep' can't be empty.")
+        self.assertFormError(response, "form", None, "Field name for 'Field:Sheep' can't be empty.")
 
         # unless you're ignoring it
         response = self.client.post(

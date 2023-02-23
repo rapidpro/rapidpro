@@ -32,7 +32,7 @@ class TelesomTypeTest(TembaTest):
         post_data = response.context["form"].initial
 
         post_data["country"] = "SO"
-        post_data["url"] = "http://test.com/send.php"
+        post_data["url"] = "http://example.com/send.php"
         post_data["username"] = "uname"
         post_data["password"] = "pword"
         post_data["secret"] = "secret"
