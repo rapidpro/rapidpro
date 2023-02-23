@@ -491,7 +491,7 @@ class Msg(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(null=True, default=uuid4)
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs", db_index=False)
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, related_name="msgs")
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="msgs", db_index=False)
     contact_urn = models.ForeignKey(ContactURN, on_delete=models.PROTECT, null=True, related_name="msgs")
@@ -687,6 +687,9 @@ class Msg(models.Model):
 
     class Meta:
         indexes = [
+            # used by API messages endpoint hence the ordering, and general fetching by org or contact
+            models.Index(name="msgs_by_org", fields=["org", "-created_on", "-id"]),
+            models.Index(name="msgs_by_contact", fields=["contact", "-created_on", "-id"]),
             # used for finding errored messages to retry
             models.Index(
                 name="msgs_outgoing_to_retry",
