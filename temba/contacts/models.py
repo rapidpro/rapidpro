@@ -764,7 +764,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
         msgs = (
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
-            .order_by("-created_on")
+            .order_by("-created_on", "-id")
             .select_related("channel", "contact_urn", "broadcast")
             .prefetch_related("channel_logs")[:limit]
         )
