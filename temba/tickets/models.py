@@ -213,9 +213,9 @@ class Ticket(models.Model):
     MAX_NOTE_LEN = 4096
 
     uuid = models.UUIDField(unique=True, default=uuid4)
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="tickets")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="tickets", db_index=False)  # indexed below
     ticketer = models.ForeignKey(Ticketer, on_delete=models.PROTECT, related_name="tickets")
-    contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="tickets")
+    contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="tickets", db_index=False)
 
     # ticket content
     topic = models.ForeignKey(Topic, on_delete=models.PROTECT, related_name="tickets")
@@ -304,7 +304,7 @@ class Ticket(models.Model):
                 fields=["ticketer", "external_id"],
                 condition=Q(external_id__isnull=False),
             ),
-            # used by API tickets endpoint
+            # used by API tickets endpoint hence the ordering, and general fetching by org or contact
             models.Index(name="tickets_api_by_org", fields=["org", "-modified_on", "-id"]),
             models.Index(name="tickets_api_by_contact", fields=["contact", "-modified_on", "-id"]),
         ]
