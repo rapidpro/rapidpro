@@ -9,6 +9,7 @@ from django.urls import reverse
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
 from temba.tests import MockResponse, TembaTest
+from temba.utils.views import TEMBA_MENU_SELECTION
 
 from ...models import Channel
 from .type import WhatsAppCloudType
@@ -363,6 +364,12 @@ class WhatsAppCloudTypeTest(TembaTest):
                 response = self.client.get(reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)))
                 self.assertEqual(200, response.status_code)
 
+                self.new_ui()
+                response = self.client.get(reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)))
+                self.assertEqual(200, response.status_code)
+                self.assertEqual(f"/settings/channels/{channel.uuid}", response.context[TEMBA_MENU_SELECTION])
+                self.old_ui()
+
                 # request verification code
                 response = self.client.post(
                     reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)), dict(), follow=True
@@ -385,6 +392,11 @@ class WhatsAppCloudTypeTest(TembaTest):
                 self.assertEqual(
                     {"messaging_product": "whatsapp", "pin": "111111"}, wa_cloud_post.call_args[1]["data"]
                 )
+
+                self.new_ui()
+                response = self.client.get(reverse("channels.types.whatsapp_cloud.verify_code", args=(channel.uuid,)))
+                self.assertEqual(f"/settings/channels/{channel.uuid}", response.context[TEMBA_MENU_SELECTION])
+                self.old_ui()
 
         # make sure the token is set on the session
         session = self.client.session

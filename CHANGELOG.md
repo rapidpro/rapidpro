@@ -1,3 +1,26 @@
+v8.1.42 (2023-02-22)
+-------------------------
+ * Only look at queued messages when syncing android channels
+ * Re-add Msg.STATUS_INITIALIZING to use for outgoing messages which fail to queue
+ * Include STATUS_ERRORED messages in Outbox views
+
+v8.1.41 (2023-02-22)
+-------------------------
+ * Remove suprious property
+
+v8.1.40 (2023-02-22)
+-------------------------
+ * Fix contact imports in new ui
+ * Fix menu refresh race
+ * Remove window.lastFetch
+ * Adjust menu paths for new UI channel views
+ * Use SpaMixin to more channels extra views
+
+v8.1.39 (2023-02-22)
+-------------------------
+ * Move Msg.update into android package
+ * Make text optional on broadcasts endpoint (messages need text or attachments)
+
 v8.1.38 (2023-02-21)
 -------------------------
  * Fix dashboard not loading when content

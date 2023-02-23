@@ -46,7 +46,7 @@ function getObjectRowLabels(objectId) {
 function runActionOnObjectRows(action, onSuccess) {
     var objectIds = getCheckedIds();
     jQuery.ajaxSettings.traditional = true;
-    fetchPJAXContent(window.lastFetch || '', '#pjax', {
+    fetchPJAXContent(document.location.href, '#pjax', {
         postData: { objects: objectIds, action: action, pjax: 'true' },
         onSuccess: onSuccess,
     });
@@ -57,7 +57,7 @@ function unlabelObjectRows(labelId, onSuccess) {
     var addLabel = false;
 
     jQuery.ajaxSettings.traditional = true;
-    fetchPJAXContent(window.lastFetch || '', '#pjax', {
+    fetchPJAXContent(document.location.href, '#pjax', {
         postData: {
             objects: objectsIds,
             label: labelId,
@@ -70,7 +70,7 @@ function unlabelObjectRows(labelId, onSuccess) {
 }
 
 function postLabelChanges(smsIds, labelId, addLabel, number, onError, onSuccess) {
-    fetchPJAXContent(window.lastFetch || '', '#pjax', {
+    fetchPJAXContent(document.location.href, '#pjax', {
         postData: {
             objects: smsIds,
             label: labelId,

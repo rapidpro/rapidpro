@@ -1,3 +1,6 @@
+from datetime import datetime
+
+import pytz
 from pyfcm import FCMNotification
 
 from django.conf import settings
@@ -36,15 +39,12 @@ def get_sync_commands(msgs):
     return commands
 
 
-def get_commands(channel, commands, sync_event=None):
+def get_channel_commands(channel, commands, sync_event=None):
     """
     Generates sync commands for all queued messages on the given channel
     """
-    msgs = Msg.objects.filter(
-        status__in=(Msg.STATUS_PENDING, Msg.STATUS_QUEUED, Msg.STATUS_WIRED),
-        channel=channel,
-        direction=Msg.DIRECTION_OUT,
-    )
+
+    msgs = Msg.objects.filter(status__in=Msg.STATUS_QUEUED, channel=channel, direction=Msg.DIRECTION_OUT)
 
     if sync_event:
         pending_msgs = sync_event.get_pending_messages()
@@ -127,3 +127,34 @@ def create_event(channel, urn, event_type, occurred_on, extra=None):
         on_transaction_commit(lambda: mailroom.queue_mo_miss_event(event))
 
     return event
+
+
+def update_message(msg, cmd):
+    """
+    Updates a message according to the provided client command
+    """
+
+    date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
+    keyword = cmd["cmd"]
+    handled = False
+
+    if keyword == "mt_error":
+        msg.status = Msg.STATUS_ERRORED
+        handled = True
+
+    elif keyword == "mt_fail":
+        msg.status = Msg.STATUS_FAILED
+        handled = True
+
+    elif keyword == "mt_sent":
+        msg.status = Msg.STATUS_SENT
+        msg.sent_on = date
+        handled = True
+
+    elif keyword == "mt_dlvd":
+        msg.status = Msg.STATUS_DELIVERED
+        msg.sent_on = msg.sent_on or date
+        handled = True
+
+    msg.save(update_fields=("status", "sent_on"))
+    return handled

@@ -92,7 +92,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         group.contacts.add(*contacts)
 
-        broadcast = self.create_broadcast(user, message, groups=[group], msg_status="W")
+        broadcast = self.create_broadcast(user, message, groups=[group], msg_status="Q")
 
         msg = Msg.objects.filter(broadcast=broadcast).order_by("text", "pk")
         if len(numbers) == 1:
@@ -1227,6 +1227,12 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(config_url)
         self.assertContains(response, "To finish configuring your connection")
 
+        self.new_ui()
+        response = self.client.get(config_url)
+        self.assertContains(response, "To finish configuring your connection")
+        self.assertEqual(f"/settings/channels/{self.ex_channel.uuid}", response.context[TEMBA_MENU_SELECTION])
+
+        self.old_ui()
         # can't view configuration of channel in other org
         response = self.client.get(reverse("channels.channel_configuration", args=[self.other_org_channel.uuid]))
         self.assertLoginRedirect(response)

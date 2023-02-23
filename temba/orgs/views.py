@@ -1675,6 +1675,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = Form
         success_message = ""
+        menu_path = "/settings/workspace"
 
         def derive_initial(self):
             initial = super().derive_initial()
@@ -1734,6 +1735,7 @@ class OrgCRUDL(SmartCRUDL):
         form_class = Form
         submit_button_name = "Save"
         success_message = "Vonage Account successfully connected."
+        menu_path = "/settings/workspace"
 
         def form_valid(self, form):
             api_key = form.cleaned_data["api_key"]
@@ -1750,7 +1752,7 @@ class OrgCRUDL(SmartCRUDL):
     class Plan(InferOrgMixin, OrgPermsMixin, SmartReadView):
         pass
 
-    class WhatsappCloudConnect(InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class WhatsappCloudConnect(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class WhatsappCloudConnectForm(forms.Form):
             user_access_token = forms.CharField(min_length=32, required=True)
 
@@ -1785,6 +1787,7 @@ class OrgCRUDL(SmartCRUDL):
         form_class = WhatsappCloudConnectForm
         success_url = "@channels.types.whatsapp_cloud.claim"
         field_config = dict(api_key=dict(label=""), api_secret=dict(label=""))
+        menu_path = "/settings/workspace"
 
         def pre_process(self, request, *args, **kwargs):
             session_token = self.request.session.get(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, None)

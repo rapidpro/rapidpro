@@ -9,6 +9,7 @@ from django.urls import reverse
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
+from temba.utils.views import TEMBA_MENU_SELECTION
 from temba.utils.whatsapp.tasks import refresh_whatsapp_contacts, refresh_whatsapp_templates
 
 from ...models import Channel
@@ -556,6 +557,11 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
         # check if templates view contains the sync logs link menu item
         self.assertContentMenu(templates_url, self.admin, ["Sync Logs"])
 
+        self.new_ui()
+        response = self.client.get(templates_url)
+        self.assertEqual(f"/settings/channels/{channel.uuid}", response.context[TEMBA_MENU_SELECTION])
+        self.old_ui()
+
         foo.is_active = False
         foo.save()
         response = self.client.get(templates_url)
@@ -567,6 +573,11 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(sync_url)
         self.assertContains(response, channel.name)
         self.assertContentMenu(sync_url, self.admin, ["Message Templates"])
+
+        self.new_ui()
+        response = self.client.get(sync_url)
+        self.assertEqual(f"/settings/channels/{channel.uuid}", response.context[TEMBA_MENU_SELECTION])
+        self.old_ui()
 
         # sync logs and message templates not accessible by user from other org
         self.login(self.admin2)

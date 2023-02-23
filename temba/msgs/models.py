@@ -4,12 +4,11 @@ import os
 import re
 from array import array
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from fnmatch import fnmatch
 from urllib.parse import unquote, urlparse
 
 import iso8601
-import pytz
 from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
@@ -209,7 +208,7 @@ class Broadcast(models.Model):
         cls,
         org,
         user,
-        text: dict[str, str],
+        text: dict[str, str] = None,
         *,
         attachments: dict[str, list] = None,
         base_language: str = None,
@@ -221,14 +220,20 @@ class Broadcast(models.Model):
         ticket=None,
         **kwargs,
     ):
+        # if base language is not provided
         if not base_language:
-            base_language = next(iter(text))
+            base_language = (text and next(iter(text))) or (attachments and next(iter(attachments)))
 
-        assert base_language in text, "no translation for base language"
+        assert not text or base_language in text, "no translation for base language"
+        assert not attachments or base_language in attachments, "no translation for base language"
+
+        assert text or attachments, "can't create broadcast without text or attachments"
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
 
         # merge text and attachments into single dict of translations
-        translations = {lang: {"text": t} for lang, t in text.items()}
+        translations = {}
+        if text:
+            translations = {lang: {"text": t} for lang, t in text.items()}
         if attachments:
             for lang, atts in attachments.items():
                 if lang not in translations:
@@ -394,24 +399,28 @@ class Attachment:
 
 class Msg(models.Model):
     """
-    Messages are the main building blocks of a RapidPro application. Channels send and receive
-    these, triggers and flows handle them when appropriate.
+    Messages are either inbound or outbound and can have varying statuses depending on their direction. Generally an
+    outbound message will go through the following statuses:
 
-    Messages are either inbound or outbound and can have varying states depending on their
-    direction. Generally an outbound message will go through the following states:
+      INITIALIZING > QUEUED > WIRED > SENT > DELIVERED
+                            |
+                            > ERRORED > FAILED
 
-      QUEUED > WIRED > SENT > DELIVERED
+    Though in practice to save a database update, messages are created in the database as QUEUED, and only if queueing
+    to courier fails, put back in INITIALIZING. If things go wrong during sending, they can be put into ERRORED where
+    they can be retried. Once they've exceeded the allowed number of errored sends, they become FAILED.
 
-    If things go wrong, they can be put into an ERRORED state where they can be retried. Once
-    we've given up then they can be put in the FAILED state.
+    Inbound messages are simpler:
 
-    Inbound messages are much simpler. They start as PENDING and the can be picked up by triggers
-    or Flows where they would get set to the HANDLED state once they've been dealt with.
+      PENDING > HANDLED
+
+    They are created in the database as PENDING and updated to HANDLED once they've been handled by the flow engine.
     """
 
-    STATUS_PENDING = "P"  # incoming msg created but not yet handled, or outgoing message that failed to queue
+    STATUS_PENDING = "P"  # incoming msg created but not yet handled
     STATUS_HANDLED = "H"  # incoming msg handled
-    STATUS_QUEUED = "Q"  # outgoing msg created and queued to courier
+    STATUS_INITIALIZING = "I"  # outgoing msg that hasn't yet been queued
+    STATUS_QUEUED = "Q"  # outgoing msg queued to courier for sending
     STATUS_WIRED = "W"  # outgoing msg requested to be sent via channel
     STATUS_SENT = "S"  # outgoing msg having received sent confirmation from channel
     STATUS_DELIVERED = "D"  # outgoing msg having received delivery confirmation from channel
@@ -420,6 +429,7 @@ class Msg(models.Model):
     STATUS_CHOICES = (
         (STATUS_PENDING, _("Pending")),
         (STATUS_HANDLED, _("Handled")),
+        (STATUS_INITIALIZING, _("Initializing")),
         (STATUS_QUEUED, _("Queued")),
         (STATUS_WIRED, _("Wired")),
         (STATUS_SENT, _("Sent")),
@@ -582,45 +592,12 @@ class Msg(models.Model):
         """
         return Attachment.parse_all(self.attachments)
 
-    def update(self, cmd):
-        """
-        Updates our message according to the provided client command
-        """
-
-        date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
-        keyword = cmd["cmd"]
-        handled = False
-
-        if keyword == "mt_error":
-            self.status = self.STATUS_ERRORED
-            handled = True
-
-        elif keyword == "mt_fail":
-            self.status = self.STATUS_FAILED
-            handled = True
-
-        elif keyword == "mt_sent":
-            self.status = self.STATUS_SENT
-            self.sent_on = date
-            handled = True
-
-        elif keyword == "mt_dlvd":
-            self.status = self.STATUS_DELIVERED
-            self.sent_on = self.sent_on or date
-            handled = True
-
-        self.save(update_fields=("status", "sent_on"))
-        return handled
-
     def handle(self):
         """
         Queues this message to be handled
         """
 
         mailroom.queue_msg_handling(self)
-
-    def __str__(self):  # pragma: needs cover
-        return self.text
 
     def archive(self):
         """
@@ -705,17 +682,26 @@ class Msg(models.Model):
         if msgs:
             mailroom.get_client().msg_resend(msgs[0].org.id, [m.id for m in msgs])
 
+    def __str__(self):  # pragma: needs cover
+        return self.text
+
     class Meta:
         indexes = [
             # used for finding errored messages to retry
             models.Index(
                 name="msgs_outgoing_to_retry",
                 fields=["next_attempt", "created_on", "id"],
-                condition=Q(direction="O", status__in=("P", "E"), next_attempt__isnull=False),
+                condition=Q(direction="O", status__in=("I", "E"), next_attempt__isnull=False),
             ),
-            # used for view of sent messages
+            # used for Outbox and Failed views and API folders
             models.Index(
-                name="msgs_outgoing_visible_sent",
+                name="msgs_outbox_and_failed",
+                fields=["org", "status", "-created_on", "-id"],
+                condition=Q(direction="O", visibility="V", status__in=("I", "Q", "E", "F")),
+            ),
+            # used for Sent view / API folder (distinct because of the ordering)
+            models.Index(
+                name="msgs_sent",
                 fields=["org", "-sent_on", "-id"],
                 condition=Q(direction="O", visibility="V", status__in=("W", "S", "D")),
             ),
@@ -786,7 +772,7 @@ class SystemLabel:
         Gets the queryset for the given system label. Any change here needs to be reflected in a change to the db
         trigger used to maintain the label counts.
         """
-        # TODO: (Indexing) Sent and Failed require full message history
+
         if label_type == cls.TYPE_INBOX:
             qs = Msg.objects.filter(
                 direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_VISIBLE, msg_type=Msg.TYPE_INBOX
@@ -801,7 +787,7 @@ class SystemLabel:
             qs = Msg.objects.filter(
                 direction=Msg.DIRECTION_OUT,
                 visibility=Msg.VISIBILITY_VISIBLE,
-                status__in=(Msg.STATUS_PENDING, Msg.STATUS_QUEUED),
+                status__in=(Msg.STATUS_INITIALIZING, Msg.STATUS_QUEUED, Msg.STATUS_ERRORED),
             )
         elif label_type == cls.TYPE_SENT:
             qs = Msg.objects.filter(

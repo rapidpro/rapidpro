@@ -1920,6 +1920,9 @@ class ContactImportCRUDL(SmartCRUDL):
             return obj
 
     class Preview(SpaMixin, OrgObjPermsMixin, SmartUpdateView):
+
+        menu_path = "/contact/import"
+
         class Form(forms.ModelForm):
             GROUP_MODE_NEW = "N"
             GROUP_MODE_EXISTING = "E"
@@ -2118,7 +2121,9 @@ class ContactImportCRUDL(SmartCRUDL):
             obj.start_async()
             return obj
 
-    class Read(OrgObjPermsMixin, NotificationTargetMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, NotificationTargetMixin, SmartReadView):
+        menu_path = "/contact/import"
+
         def get_notification_scope(self) -> tuple:
             return "import:finished", f"contact:{self.object.id}"
 
