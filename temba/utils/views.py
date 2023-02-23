@@ -20,6 +20,7 @@ from temba.utils.fields import CheckboxWidget, DateWidget, InputWidget, SelectMu
 logger = logging.getLogger(__name__)
 
 TEMBA_MENU_SELECTION = "temba_menu_selection"
+TEMBA_CONTENT_ONLY = "x-temba-content-only"
 
 
 class SpaMixin(View):
@@ -116,6 +117,7 @@ class SpaMixin(View):
         response = super().render_to_response(context, **response_kwargs)
         if self.is_spa():
             response.headers[TEMBA_MENU_SELECTION] = context[TEMBA_MENU_SELECTION]
+            response.headers[TEMBA_CONTENT_ONLY] = 1 if self.is_content_only() else 0
         return response
 
 

@@ -334,6 +334,11 @@
           document.location.href = url;
           return;
         }
+        
+        if(response.headers.get("x-temba-content-only") != 1) {
+          document.location.href = url;
+          return;
+        }
 
         response.text().then(function (body){
           var containerEle = document.querySelector(container);
@@ -343,7 +348,7 @@
           if (editor) {
             window.unmountEditor(editor);
           }
-          
+
           setInnerHTML(containerEle, body);
 
           if (options) {
@@ -499,17 +504,24 @@
       }
     }
 
-    function gotoURL(urlToGo, urlToShow, ignoreEvents, ignoreHistory) {
+    function addToHistory(url) {
+      if (url.indexOf("http") == -1) {
+        url = document.location.origin + url;
+      }
+      window.history.pushState({url: url}, "", url);
+    }
+
+    function gotoURL(url, ignoreEvents, ignoreHistory) {
       var refererPath = window.location.pathname;
 
       if (!ignoreHistory) {
-        window.history.pushState({ url: urlToGo, show: urlToGo }, "", urlToGo);
+        addToHistory(url);
       }
 
-      fetchAjax(urlToGo, ".spa-content", { "headers": {
+      fetchAjax(url, ".spa-content", { "headers": {
           "TEMBA-SPA": "1", 
           "TEMBA-REFERER-PATH": refererPath,
-          "TEMBA-PATH": urlToShow
+          "TEMBA-PATH": url
           }, 
         "onSuccess": hideLoading, "ignoreEvents": ignoreEvents, "cancel": true
       });
@@ -532,6 +544,9 @@
       var selection = items.selection;
 
       if (item.trigger) {
+        if (item.href) {
+          window.open(item.href, "_blank");
+        }
         return;
       }
 
@@ -569,10 +584,8 @@
 
       var body = document.querySelector(".spa-content");
       if (menuItem && menuItem.href) {
-        var menu = document.querySelector("temba-menu");
-        var path = "/" + menu.getSelection().join("/") + "/";
         showLoading();
-        gotoURL(menuItem.href, path);
+        gotoURL(menuItem.href);
       }
 
       if (selection.length > 1) {
@@ -632,60 +645,20 @@
     });
 
     document.addEventListener("temba-pjax-complete", function() {
-
-    
       refreshMenu();
-      
       hideLoading();
       handleUpdateComplete();
     })
 
     window.addEventListener("popstate", function (event){
       let state = event.state;
-      if (state && state.url && state.show) {
+      if (state && state.url) {
         showLoading();
-        gotoURL(state.url, state.show, false, true);
+        gotoURL(state.url, false, true);
       }
     });
 
-    document.addEventListener('DOMContentLoaded', function(){
-      document.querySelector(".spa-content").addEventListener("click", function(evt) {
-        var target = evt.target;
-        if (target.href && target.href.indexOf("xlsx") > -1) {
-          return;
-        }
-  
-        if((target.classList.contains("show-loading") || target.classList.contains("label-checkbox") || target.classList.contains("button-action")) && !target.classList.contains("no-loading")) {
-          showLoading();
-        }
-  
-        var a = target.closest("a");
-        if (!a) {
-          if (evt.path) {
-            a = evt.path.find(function(ele){ return  ele.tagName == "A" });
-          }
-        }
-  
-        if (a && a.href) {
-          if (a.classList.contains("posterize")) {
-            evt.stopPropagation();
-            evt.preventDefault();
-            return;
-          }
-  
-          evt.stopPropagation();
-          evt.preventDefault();
-          const url = new URL(a.href);
-  
-          if (a.target) {
-            window.open(url, a.target, {popup: true});
-          } else {
-            fetchURL(url.pathname + url.search);
-          }
-        } 
-      });
-      
-      
+    document.addEventListener('DOMContentLoaded', function(){      
       document.querySelector(".spa-content").addEventListener("submit", function(evt) {
         var formEle = evt.target;
         if(formEle.closest(".formax-section")) {
@@ -734,7 +707,7 @@
               $(content).html(response.body);
 
               if (response.redirected) {
-                window.history.pushState({ url: response.url, show: response.url }, "", response.url);
+                addToHistory(response.url);
               }
 
               hideLoading(response);

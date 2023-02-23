@@ -1341,7 +1341,7 @@ class FlowCRUDL(SmartCRUDL):
             response["REDIRECT"] = self.get_success_url()
             return response
 
-    class ActivityChart(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+    class ActivityChart(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         """
         Intercooler helper that renders a chart of activity by a given period
         """
@@ -1442,7 +1442,7 @@ class FlowCRUDL(SmartCRUDL):
 
             return context
 
-    class RunTable(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+    class RunTable(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         """
         Intercooler helper which renders rows of runs to be embedded in an existing table with infinite scrolling
         """
