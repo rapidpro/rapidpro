@@ -1,3 +1,10 @@
+v8.1.45 (2023-02-23)
+-------------------------
+ * Fix external channel links
+ * No longer intercept clicks in spa-content
+ * Cleanup Channel model fields
+ * Fix channel claim  external URLs in new UI
+
 v8.1.44 (2023-02-23)
 -------------------------
  * Exclude PENDING messages in contact history and API by org and contact
