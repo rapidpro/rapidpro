@@ -14,17 +14,23 @@ class ViberPublicTypeTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
-        self.channel = Channel.create(
-            self.org,
-            self.user,
-            None,
-            "VP",
-            name="Viber",
-            address="12345",
-            role="SR",
-            schemes=["viber"],
-            config={"auth_token": "abcd1234"},
-        )
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = (
+                MockResponse(
+                    200, json.dumps({"status": 0, "status_message": "ok", "id": "viberId", "uri": "viberName"})
+                ),
+            )
+            self.channel = Channel.create(
+                self.org,
+                self.user,
+                None,
+                "VP",
+                name="Viber",
+                address="12345",
+                role="SR",
+                schemes=["viber"],
+                config={"auth_token": "abcd1234"},
+            )
 
     @patch("requests.post")
     def test_claim(self, mock_post):

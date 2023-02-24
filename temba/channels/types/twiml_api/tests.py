@@ -50,7 +50,8 @@ class TwimlAPITypeTest(TembaTest):
 
     @patch("twilio.rest.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
-    def test_channel_claim_form_valid_data(self):
+    @patch("socket.gethostbyname", return_value="123.123.123.123")
+    def test_channel_claim_form_valid_data(self, mock_socket_hostname):
         claim_url = reverse("channels.types.twiml_api.claim")
 
         form_data = dict(
@@ -83,7 +84,8 @@ class TwimlAPITypeTest(TembaTest):
 
     @patch("twilio.rest.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
-    def test_channel_claim_form_valid_data_shortcode(self):
+    @patch("socket.gethostbyname", return_value="123.123.123.123")
+    def test_channel_claim_form_valid_data_shortcode(self, mock_socket_hostname):
         claim_url = reverse("channels.types.twiml_api.claim")
 
         form_data = dict(
@@ -116,7 +118,8 @@ class TwimlAPITypeTest(TembaTest):
 
     @patch("twilio.rest.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
-    def test_channel_claim_form_without_account_sid(self):
+    @patch("socket.gethostbyname", return_value="123.123.123.123")
+    def test_channel_claim_form_without_account_sid(self, mock_socket_hostname):
         claim_url = reverse("channels.types.twiml_api.claim")
 
         form_data = dict(country="US", number="8080", url="https://twilio.com", role="SR", account_token="abcd1234")

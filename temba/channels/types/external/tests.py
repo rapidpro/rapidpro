@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.urls import reverse
 
 from temba.tests import TembaTest
@@ -7,7 +9,9 @@ from .type import ExternalType
 
 
 class ExternalTypeTest(TembaTest):
-    def test_claim(self):
+    @patch("socket.gethostbyname")
+    def test_claim(self, mock_socket_hostname):
+        mock_socket_hostname.return_value = "127.0.0.1"
         url = reverse("channels.types.external.claim")
 
         self.login(self.admin)
@@ -37,6 +41,7 @@ class ExternalTypeTest(TembaTest):
         self.assertFormError(response, "form", "url", "Cannot be a local or private host.")
         self.assertFormError(response, "form", "number", "This field is required.")
 
+        mock_socket_hostname.return_value = "123.123.123.123"
         # change scheme to Ext and add valid URL
         ext_url = "http://example.com/send.php?from={{from}}&text={{text}}&to={{to}}"
         post_data["url"] = ext_url
@@ -137,7 +142,8 @@ class ExternalTypeTest(TembaTest):
         self.assertEqual("123456789", channel.address)
         self.assertIsNone(channel.country.code)
 
-    def test_claim_bulk_sender(self):
+    @patch("socket.gethostbyname", return_value="123.123.123.123")
+    def test_claim_bulk_sender(self, mock_socket_hostname):
         url = reverse("channels.types.external.claim") + "?role=S&channel=%s" % self.channel.pk
 
         self.login(self.admin)

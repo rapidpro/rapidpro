@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.urls import reverse
 
 from temba.tests import TembaTest
@@ -6,7 +8,8 @@ from ...models import Channel
 
 
 class JasminTypeTest(TembaTest):
-    def test_claim(self):
+    @patch("socket.gethostbyname", return_value="123.123.123.123")
+    def test_claim(self, mock_socket_hostname):
         Channel.objects.all().delete()
 
         url = reverse("channels.types.jasmin.claim")

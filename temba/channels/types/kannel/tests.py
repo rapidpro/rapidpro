@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -7,7 +9,8 @@ from ...models import Channel
 
 
 class KannelTypeTest(TembaTest):
-    def test_claim(self):
+    @patch("socket.gethostbyname", return_value="123.123.123.123")
+    def test_claim(self, mock_socket_hostname):
         Channel.objects.all().delete()
 
         # update the org brand to check the courier URL is set accordingly
