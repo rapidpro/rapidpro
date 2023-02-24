@@ -954,10 +954,11 @@ class TestValidators(TestCase):
 
                 self.assertEqual(tc[1], cm.exception.message)
             else:
-                try:
-                    validate_external_url(tc[0])
-                except Exception:
-                    self.fail(f"unexpected validation error for '{tc[0]}'")
+                with patch("socket.gethostbyname", return_value="123.123.123.123"):
+                    try:
+                        validate_external_url(tc[0])
+                    except Exception:
+                        self.fail(f"unexpected validation error for '{tc[0]}'")
 
 
 class TestUUIDs(TembaTest):
