@@ -137,10 +137,27 @@ function labelObjectRows(labelId, forceRemove, onSuccess) {
     postLabelChanges(objectRowsIds, labelId, addLabel, null, null, onSuccess);
 }
 
+function showPageTitle() {
+    var pageTitle = document.querySelector(".page-title");
+    if (pageTitle) {
+        pageTitle.classList.add('hidden');
+    }
+
+}
+
+function hidePageTitle() {
+    var pageTitle = document.querySelector(".page-title");
+    if (pageTitle) {
+        pageTitle.classList.remove('hidden');
+    }
+
+}
+
 /**
  * When we refresh the object list via pjax, we need to re-select the object rows that were previously selected
  */
 function recheckIds() {
+    
     if (window.lastChecked && window.lastChecked.length > 0) {
         for (var i = 0; i < window.lastChecked.length; i++) {
             var row = $(".object-row[data-object-id='" + window.lastChecked[i] + "']");
@@ -149,12 +166,12 @@ function recheckIds() {
         }
         $('.search-details').hide();
         $('.list-buttons-container').addClass('visible');
-        $('.page-title').hide();
+        hidePageTitle();
         updateLabelMenu();
     } else {
         $('.search-details').show();
         $('.list-buttons-container').removeClass('visible');
-        $('.page-title').show();
+        showPageTitle();
     }
 }
 
@@ -229,7 +246,6 @@ function handleRowSelection(checkbox) {
     var listButtons = document.querySelector(
         '.list-buttons-container'
     ).classList;
-    var pageTitle = document.querySelector('.page-title').classList;
 
     if (checkbox.checked) {
         row.add('checked');
@@ -239,10 +255,10 @@ function handleRowSelection(checkbox) {
 
     if (document.querySelector('tr.checked')) {
         listButtons.add('visible');
-        pageTitle.add('hidden');
+        hidePageTitle();
     } else {
         listButtons.remove('visible');
-        pageTitle.remove('hidden');
+        showPageTitle();
     }
 
     updateLabelMenu();
@@ -263,14 +279,14 @@ function handleRowSelections(row) {
         var checks = $('.object-row.checked');
         if (checks.length == 0) {
             $('.list-buttons-container').removeClass('visible');
-            $('.page-title').show();
+            showPageTitle();
         } else {
             $('.list-buttons-container').addClass('visible');
         }
     } else {
         $('.list-buttons-container').addClass('visible');
         row.addClass('checked');
-        $('.page-title').hide();
+        hidePageTitle();
     }
     updateLabelMenu();
 }

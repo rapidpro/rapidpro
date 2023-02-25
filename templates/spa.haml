@@ -28,20 +28,20 @@
 
 -block page-header
 
-  -if title or has_content_menu
-    .spa-title.no-menu.flex.items-center.mb-4
-      .text-container.text-2xl.text-gray-700
-        .flex.flex-row
-          -block spa-title
+  -if not is_modal
+    -if title or has_content_menu
+      .spa-title.no-menu.flex.items-center.mb-4
+        .text-container.text-2xl.text-gray-700
+          .flex.flex-row
             #title-text
               {{title}}
-      .line.flex-grow.mr-2.ml-6
-        .h-0.border.border-gray-200
-      
-      -if has_content_menu
-        -include "spa_page_menu.haml"
+        .line.flex-grow.mr-2.ml-6
+          .h-0.border.border-gray-200
+        
+        -if has_content_menu
+          -include "spa_page_menu.haml"
 
-    -block subtitle
+      -block subtitle
 
 -block alert-messages
   -if user_org.is_suspended

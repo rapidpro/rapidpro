@@ -199,6 +199,7 @@ class ModalMixin(SmartFormView):
 
         if "HTTP_X_PJAX" in self.request.META and "HTTP_X_FORMAX" not in self.request.META:  # pragma: no cover
             context["base_template"] = "smartmin/modal.html"
+            context["is_modal"] = True
         if "success_url" in kwargs:  # pragma: no cover
             context["success_url"] = kwargs["success_url"]
 
@@ -657,6 +658,7 @@ class UserCRUDL(SmartCRUDL):
 
     class Read(StaffOnlyMixin, ContentMenuMixin, SpaMixin, SmartReadView):
         fields = ("email", "date_joined")
+        menu_path = "/staff/users/all"
 
         def build_content_menu(self, menu):
             obj = self.get_object()

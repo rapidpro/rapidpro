@@ -68,7 +68,7 @@
               %temba-icon(name="icon.delete" clickable="true")
 
         -if 'unlabel' in actions
-          .linked.ml-4(onclick="unlabelObjectRows({{current_group.pk}}, false, refreshMenu);")
+          .linked.ml-4(onclick="unlabelObjectRows({{current_group.pk}}, refreshMenu);")
             %temba-tip(position="top" text='{{_("Remove from group")|escapejs}}')
               %temba-icon.show-loading(name="icon.delete_small" clickable="true")
 
