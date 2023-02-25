@@ -25,8 +25,9 @@ from .type import (
 
 
 class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
+    @patch("socket.gethostbyname", return_value="123.123.123.123")
     @patch("temba.channels.types.whatsapp.WhatsAppType.check_health")
-    def test_claim(self, mock_health):
+    def test_claim(self, mock_health, mock_socket_hostname):
         mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "v2.35.2"}}')
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
@@ -171,8 +172,9 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
         # deactivate our channel
         channel.release(self.admin)
 
+    @patch("socket.gethostbyname", return_value="123.123.123.123")
     @patch("temba.channels.types.whatsapp.WhatsAppType.check_health")
-    def test_duplicate_number_channels(self, mock_health):
+    def test_duplicate_number_channels(self, mock_health, mock_socket_hostname):
         mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "v2.35.2"}}')
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
@@ -305,8 +307,9 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
             self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
             self.assertEqual("abc098", channel2.config[Channel.CONFIG_AUTH_TOKEN])
 
+    @patch("socket.gethostbyname", return_value="123.123.123.123")
     @patch("temba.channels.types.whatsapp.WhatsAppType.check_health")
-    def test_claim_self_hosted_templates(self, mock_health):
+    def test_claim_self_hosted_templates(self, mock_health, mock_socket_hostname):
         mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "v2.35.2"}}')
         Channel.objects.all().delete()
 
