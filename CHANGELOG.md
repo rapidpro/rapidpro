@@ -1,3 +1,9 @@
+v8.1.47 (2023-02-27)
+-------------------------
+ * Be less clever with page titles. Fix label js errors.
+ * Make sure tests can run without making requests to external URLs
+ * Unpublicize folder=incoming on messages API docs and re-add index with status=H
+
 v8.1.46 (2023-02-23)
 -------------------------
  * Fix external links in old ui
