@@ -696,6 +696,24 @@ class Msg(models.Model):
                 fields=["next_attempt", "created_on", "id"],
                 condition=Q(direction="O", status__in=("I", "E"), next_attempt__isnull=False),
             ),
+            # used for Inbox view and API folder
+            models.Index(
+                name="msgs_inbox",
+                fields=["org", "-created_on", "-id"],
+                condition=Q(direction="I", visibility="V", status="H", flow__isnull=True),
+            ),
+            # used for Flows view and API folder
+            models.Index(
+                name="msgs_flows",
+                fields=["org", "-created_on", "-id"],
+                condition=Q(direction="I", visibility="V", status="H", flow__isnull=False),
+            ),
+            # used for Archived view and API folder
+            models.Index(
+                name="msgs_archived",
+                fields=["org", "-created_on", "-id"],
+                condition=Q(direction="I", visibility="A", status="H"),
+            ),
             # used for Outbox and Failed views and API folders
             models.Index(
                 name="msgs_outbox_and_failed",
