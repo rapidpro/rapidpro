@@ -708,6 +708,10 @@ class Msg(models.Model):
                 fields=["org", "-sent_on", "-id"],
                 condition=Q(direction="O", visibility="V", status__in=("W", "S", "D")),
             ),
+            # used for API incoming folder (unpublicized as could be dropped when CasePro is retired)
+            models.Index(
+                name="msgs_api_incoming", fields=["org", "-modified_on", "-id"], condition=Q(direction="I", status="H")
+            ),
         ]
         constraints = [
             models.CheckConstraint(

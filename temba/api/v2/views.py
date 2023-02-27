@@ -2473,11 +2473,10 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime).
      * **modified_on** - when the message was last modified (datetime)
 
-    You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox`, `incoming`, `failed` or `sent`.
+    You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox`, `sent` or `failed`.
     Note that you cannot filter by more than one of `contact`, `folder`, `label` or `broadcast` at the same time.
 
-    The sort order for the `incoming` folder is the last modified date, and the sort order for the `sent` folder is the
-    sent date. All other requests are sorted by the message creation date.
+    The sort order for the `sent` folder is the sent date. All other requests are sorted by the message creation date.
 
     Without any parameters this endpoint will return all incoming and outgoing messages ordered by creation date.
 
@@ -2628,7 +2627,7 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                 {
                     "name": "folder",
                     "required": False,
-                    "help": "A folder name to filter by, one of: inbox, flows, archived, outbox, sent, incoming",
+                    "help": "A folder name to filter by, one of: inbox, flows, archived, outbox, sent, failed",
                 },
                 {"name": "label", "required": False, "help": "A label name or UUID to filter by, ex: Spam"},
                 {
@@ -2642,7 +2641,7 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                     "help": "Only return messages created after this date, ex: 2015-01-28T18:00:00.000",
                 },
             ],
-            "example": {"query": "folder=incoming&after=2014-01-01T00:00:00.000"},
+            "example": {"query": "folder=inbox&after=2014-01-01T00:00:00.000"},
         }
 
 
