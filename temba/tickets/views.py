@@ -154,6 +154,7 @@ class TicketCRUDL(SmartCRUDL):
             context["folder"] = folder
             context["status"] = status
             context["has_tickets"] = self.request.org.tickets.exists()
+            context["title"] = TicketFolder.from_slug(folder).name
             if uuid:
                 context["nextUUID" if in_page else "uuid"] = uuid
 

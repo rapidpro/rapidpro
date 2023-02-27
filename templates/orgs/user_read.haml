@@ -12,5 +12,5 @@
       .p-4
         -for org in object.get_orgs
           .member
-            %a(href="{% url 'orgs.org_read' org.id %}")
+            .linked(onclick="goto(event, this)" href="{% url 'orgs.org_read' org.id %}")
               {{org.name}}

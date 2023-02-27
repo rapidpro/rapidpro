@@ -96,6 +96,10 @@
     var focusNext;
 
     function handleTicketsMenuChanged(menuItem) {
+
+      var pageTitle = document.querySelector("#title-text");
+      pageTitle.innerHTML = menuItem.name;
+
       var statusSelect = document.querySelector('temba-select[name="ticket-status"]');
       ticketUUID = null;
       focusNext = null;
@@ -108,13 +112,10 @@
           updateTicketList();
         }
       }                    
-
-      if (window.updatePageTitle) {
-        updatePageTitle(true);
-      }
     }
 
     function updateTicketList() {   
+
       var tickets = document.querySelector("temba-ticket-list");
       var chat = document.querySelector("temba-contact-chat");
 
@@ -271,6 +272,7 @@
 
 -block spa-title
   #title-text
+    {{title}}
 
 -block content
   .flex.flex-col.overflow-y-auto.overflow-x-hidden.rounded-b-lg.p-8.-m-8.pb-4.flex-grow

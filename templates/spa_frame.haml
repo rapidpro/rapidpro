@@ -279,7 +279,9 @@
      
 -block full-page-script
 
-  %script(src="{{ STATIC_URL }}js/labels.js")
+  -compress js
+    %script(src="{{ STATIC_URL }}js/labels.js")
+
   %script(src="{{ STATIC_URL }}highcharts/highstock.js?v=3.0")
   %script(src="{{ STATIC_URL }}highcharts/modules/drilldown.js")
   %script(src="{{ STATIC_URL }}qrious/dist/qrious.min.js")
@@ -369,11 +371,6 @@
         {% if temba_menu_selection %}
         menu.setFocusedItem("{{temba_menu_selection}}");
         
-        // give our focus a chance, then update
-        window.setTimeout(function(){
-          updatePageTitle();
-        }, 100);
-        
         {% endif %}
         // window.addEventListener('resize', function() {
         // menu.collapsed = !!window.matchMedia("(max-width: 800px)").matches
@@ -434,32 +431,6 @@
       }
     }
 
-    function updatePageTitle(force) {
-
-      var spaTitle = "";
-      var titleDiv = document.querySelector(".spa-title #title-text");
-      if (titleDiv && titleDiv.innerText) {
-        spaTitle = titleDiv.innerText.trim();
-      }
-
-      if (!spaTitle || force) {
-        var menu = document.querySelector("temba-menu");
-        if (menu) {
-          var item = menu.getMenuItem();
-          if (item) {
-            spaTitle = item.verbose_name || item.name;
-          }
-        }
-
-        if (spaTitle && titleDiv) {
-          titleDiv.innerText = spaTitle;
-        }
-      }
-
-      // try and set our window title
-      document.title = spaTitle || "";
-    }
-
     function refreshMenu() {
       var menu = document.querySelector("temba-menu");
       if (menu) {
@@ -477,7 +448,6 @@
       var content = document.querySelector(".spa-content");
       content.scrollTo(0, 0);
       
-      updatePageTitle();
       var menu = document.querySelector("temba-menu");
       if (menu && response) {
         var menuSelection = response.headers.get("temba_menu_selection");
@@ -641,7 +611,7 @@
         var eventContainer = document.querySelector(".spa-content");
         eventContainer.addEventListener("temba-spa-ready", fn, {once: true});
       } else {
-        document.addEventListener("DOMContentLoaded", fn);
+        document.addEventListener("DOMContentLoaded", fn, {once: true});
       }      
     }
 
@@ -741,7 +711,8 @@
       groups="/api/v2/groups.json"
       workspace="/api/v2/workspace.json"
     )
-   
+  -else
+    %temba-store
 
 -block page-container
   %temba-mask
