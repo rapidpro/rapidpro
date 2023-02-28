@@ -379,43 +379,35 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         msg2 = self.create_outgoing_msg(self.joe, "Outgoing")
         self.assertRaises(AssertionError, msg2.archive)
 
-    def assertReleaseCount(self, direction, status, visibility, msg_type, label):
-        if direction == Msg.DIRECTION_OUT:
-            msg = self.create_outgoing_msg(self.joe, "Whattup Joe")
-        else:
-            msg = self.create_incoming_msg(self.joe, "Hey hey")
-
-        Msg.objects.filter(id=msg.id).update(
-            status=status, direction=direction, visibility=visibility, msg_type=msg_type
-        )
-
-        # assert our folder count is right
-        counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(counts[label], 1)
-
-        # delete the msg, count should now be 0
-        msg.delete()
-        counts = SystemLabel.get_counts(self.org)
-        self.assertEqual(counts[label], 0)
-
     def test_release_counts(self):
+        flow = self.create_flow("Test")
+
+        def assertReleaseCount(direction, status, visibility, flow, label):
+            if direction == Msg.DIRECTION_OUT:
+                msg = self.create_outgoing_msg(self.joe, "Whattup Joe", flow=flow, status=status)
+            else:
+                msg = self.create_incoming_msg(self.joe, "Hey hey", flow=flow, status=status)
+
+            Msg.objects.filter(id=msg.id).update(visibility=visibility)
+
+            # assert our folder count is right
+            counts = SystemLabel.get_counts(self.org)
+            self.assertEqual(counts[label], 1)
+
+            # delete the msg, count should now be 0
+            msg.delete()
+            counts = SystemLabel.get_counts(self.org)
+            self.assertEqual(counts[label], 0)
+
         # outgoing labels
-        self.assertReleaseCount("O", Msg.STATUS_SENT, Msg.VISIBILITY_VISIBLE, Msg.TYPE_INBOX, SystemLabel.TYPE_SENT)
-        self.assertReleaseCount(
-            "O", Msg.STATUS_QUEUED, Msg.VISIBILITY_VISIBLE, Msg.TYPE_INBOX, SystemLabel.TYPE_OUTBOX
-        )
-        self.assertReleaseCount(
-            "O", Msg.STATUS_FAILED, Msg.VISIBILITY_VISIBLE, Msg.TYPE_INBOX, SystemLabel.TYPE_FAILED
-        )
+        assertReleaseCount("O", Msg.STATUS_SENT, Msg.VISIBILITY_VISIBLE, None, SystemLabel.TYPE_SENT)
+        assertReleaseCount("O", Msg.STATUS_QUEUED, Msg.VISIBILITY_VISIBLE, None, SystemLabel.TYPE_OUTBOX)
+        assertReleaseCount("O", Msg.STATUS_FAILED, Msg.VISIBILITY_VISIBLE, flow, SystemLabel.TYPE_FAILED)
 
         # incoming labels
-        self.assertReleaseCount(
-            "I", Msg.STATUS_HANDLED, Msg.VISIBILITY_VISIBLE, Msg.TYPE_INBOX, SystemLabel.TYPE_INBOX
-        )
-        self.assertReleaseCount(
-            "I", Msg.STATUS_HANDLED, Msg.VISIBILITY_ARCHIVED, Msg.TYPE_INBOX, SystemLabel.TYPE_ARCHIVED
-        )
-        self.assertReleaseCount("I", Msg.STATUS_HANDLED, Msg.VISIBILITY_VISIBLE, Msg.TYPE_FLOW, SystemLabel.TYPE_FLOWS)
+        assertReleaseCount("I", Msg.STATUS_HANDLED, Msg.VISIBILITY_VISIBLE, None, SystemLabel.TYPE_INBOX)
+        assertReleaseCount("I", Msg.STATUS_HANDLED, Msg.VISIBILITY_ARCHIVED, None, SystemLabel.TYPE_ARCHIVED)
+        assertReleaseCount("I", Msg.STATUS_HANDLED, Msg.VISIBILITY_VISIBLE, flow, SystemLabel.TYPE_FLOWS)
 
     @patch("temba.utils.email.send_temba_email")
     def test_message_export_from_archives(self, mock_send_temba_email):
@@ -1446,10 +1438,12 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     def test_flows(self):
+        flow = self.create_flow("Test")
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")
-        msg1 = self.create_incoming_msg(contact1, "test 1", msg_type="F")
-        msg2 = self.create_incoming_msg(contact1, "test 2", msg_type="F")
-        self.create_incoming_msg(contact1, "test 3", msg_type="I")
+        msg1 = self.create_incoming_msg(contact1, "test 1", status="H", flow=flow)
+        msg2 = self.create_incoming_msg(contact1, "test 2", status="H", flow=flow)
+        self.create_incoming_msg(contact1, "test 3", status="H", flow=None)
+        self.create_incoming_msg(contact1, "test 4", status="P", flow=None)
 
         flows_url = reverse("msgs.msg_flow")
 
@@ -1702,6 +1696,7 @@ class BroadcastTest(TembaTest):
         self.twitter = self.create_channel("TT", "Twitter", "nyaruka")
 
     def test_delete(self):
+        flow = self.create_flow("Test")
         label = self.create_label("Labeled")
 
         # create some incoming messages
@@ -1718,7 +1713,7 @@ class BroadcastTest(TembaTest):
 
         # give joe some flow messages
         self.create_outgoing_msg(self.joe, "what's your fav color?")
-        msg_in3 = self.create_incoming_msg(self.joe, "red!", msg_type="F")
+        msg_in3 = self.create_incoming_msg(self.joe, "red!", flow=flow)
         self.create_outgoing_msg(self.joe, "red is cool")
 
         # mark all outgoing messages as sent except broadcast #2 to Joe
