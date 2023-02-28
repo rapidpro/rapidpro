@@ -258,7 +258,7 @@ class FlowCRUDL(SmartCRUDL):
                     )
                 )
 
-            if self.has_org_perm("flows_flowstart_list"):
+            if self.has_org_perm("flows.flowstart_list"):
                 history_items.append(
                     self.create_menu_item(
                         menu_id="starts", name=_("Flow Starts"), href=reverse("flows.flowstart_list")

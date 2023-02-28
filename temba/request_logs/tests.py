@@ -89,6 +89,8 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         webhooks_url = reverse("request_logs.httplog_webhooks")
         log_url = reverse("request_logs.httplog_read", args=[l1.id])
 
+        self.assertContentMenuContains(webhooks_url, self.admin, "Flows")
+
         response = self.assertListFetch(
             webhooks_url, allow_viewers=False, allow_editors=True, context_objects=[l1], new_ui=True
         )
@@ -99,6 +101,11 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertReadFetch(log_url, allow_viewers=False, allow_editors=True, context_object=l1)
         self.assertContains(response, "200")
         self.assertContains(response, "org1.bar")
+
+        response = self.assertReadFetch(
+            log_url, allow_viewers=False, allow_editors=True, context_object=l1, new_ui=True
+        )
+        self.assertEqual("/flow/history/webhooks", response.headers.get(TEMBA_MENU_SELECTION))
 
     def test_classifier(self):
         c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)
