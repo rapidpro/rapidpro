@@ -250,18 +250,26 @@ class FlowCRUDL(SmartCRUDL):
                     )
                 )
 
+            history_items = []
             if self.has_org_perm("request_logs.httplog_webhooks"):
+                history_items.append(
+                    self.create_menu_item(
+                        menu_id="webhooks", name=_("Webhooks"), href=reverse("request_logs.httplog_webhooks")
+                    )
+                )
+
+            if self.has_org_perm("flows_flowstart_list"):
+                history_items.append(
+                    self.create_menu_item(
+                        menu_id="starts", name=_("Flow Starts"), href=reverse("flows.flowstart_list")
+                    )
+                )
+
+            if history_items:
                 menu.append(
                     self.create_menu_item(
                         name=_("History"),
-                        items=[
-                            self.create_menu_item(
-                                menu_id="starts", name=_("Flow Starts"), href=reverse("flows.flowstart_list")
-                            ),
-                            self.create_menu_item(
-                                menu_id="webhooks", name=_("Webhooks"), href=reverse("request_logs.httplog_webhooks")
-                            ),
-                        ],
+                        items=history_items,
                         inline=True,
                     )
                 )
