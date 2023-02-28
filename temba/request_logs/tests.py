@@ -92,7 +92,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertListFetch(
             webhooks_url, allow_viewers=False, allow_editors=True, context_objects=[l1], new_ui=True
         )
-        self.assertContains(response, "Webhook Calls")
+        self.assertContains(response, "Webhooks")
         self.assertContains(response, log_url)
 
         # view the individual log item
