@@ -5,33 +5,36 @@
   HTTP Log - {{ object.get_log_type_display }}
 
 -block title
-  -if object.flow
-    -trans "Flow Event"
-  -elif object.classifier
-    -trans "Classifier Event"
-  -elif object.channel
-    -trans "Channel Event"
--block subtitle
-  {{ object.get_log_type_display }}
+  -block spa-title
+    -if object.flow
+      -trans "Flow Event"
+    -elif object.classifier
+      -trans "Classifier Event"
+    -elif object.channel
+      -trans "Channel Event"
 
 -block content
-  .card.flex.mt-0
+  .card.flex.mt-0.flex-shrink-0.flex-wrap
+    
+    .inline-flex.font-normal.mr-8
+      {{ object.get_log_type_display }}
     .inline-flex.mr-8
       -if object.flow
         .font-normal.mr-2
           -trans "Flow"
-        %a(href='{% url "flows.flow_editor" object.flow.uuid %}')
+        .linked(onclick="goto(event, this)" href='{% url "flows.flow_editor" object.flow.uuid %}')
           {{ object.flow.name }}
-      -elif object.classifier
-        .font-normal.mr-2
-          -trans "Classifier"
-        %a(href='{% url "classifiers.classifier_read" object.classifier.uuid %}')
-          {{ object.classifier.name }}
-      -elif object.channel
-        .font-normal.mr-2
-          -trans "Channel"
-        %a(href='{% url "channels.channel_read" object.channel.uuid %}')
-          {{ object.channel.name }}
+      -elif not is_spa
+        -if object.classifier
+          .font-normal.mr-2
+            -trans "Classifier"
+          .linked(onclick="goto(event, this)" href='{% url "classifiers.classifier_read" object.classifier.uuid %}')
+            {{ object.classifier.name }}
+        -elif object.channel
+          .font-normal.mr-2
+            -trans "Channel"
+          .linked(onclick="goto(event,this)" href='{% url "channels.channel_read" object.channel.uuid %}')
+            {{ object.channel.name }}
 
     .inline-flex.mr-8
       .font-normal.mr-2
@@ -60,15 +63,6 @@
   -compress css inline
     {% lessblock %}
       :plain
-        table.list {
-          tbody {
-            tr:first-child {
-              td {
-                padding: 1.5rem;
-              }
-            }
-          }
-        }
 
         pre.prettyprint {
           margin: 0;

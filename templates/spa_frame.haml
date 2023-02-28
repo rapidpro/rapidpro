@@ -442,6 +442,7 @@
       var containers = document.querySelectorAll(".spa-container, .widget-container");
       for(container of containers) {
         container.classList.remove("loading");
+        container.classList.remove("initial-load");
       }
 
       // scroll our content to the top if needed
@@ -453,6 +454,13 @@
         var menuSelection = response.headers.get("temba_menu_selection");
         if (menu && menuSelection) {
           menu.setFocusedItem(menuSelection);
+        }
+      }
+
+      if (response) {
+        var pageTitle = response.headers.get("x-temba-page-title");
+        if (pageTitle) {
+          document.title = pageTitle;
         }
       }
 
@@ -606,15 +614,6 @@
       });
     }
 
-    function onSpload(fn, contentOnly) {
-      if (contentOnly) {
-        var eventContainer = document.querySelector(".spa-content");
-        eventContainer.addEventListener("temba-spa-ready", fn, {once: true});
-      } else {
-        document.addEventListener("DOMContentLoaded", fn, {once: true});
-      }      
-    }
-
     document.addEventListener("temba-redirected", function(event){
       fetchURL(event.detail.url, true);
     });
@@ -736,7 +735,7 @@
         %temba-menu#nav(class="{% if servicing %}{% endif%}" style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" -temba-button-clicked="handleMenuClicked(event)" -temba-ready="handleMenuReady")
           -block menu-header
 
-      .flex-grow.spa-container.flex.flex-col
+      .flex-grow.spa-container.flex.flex-col.initial-load
         .spa-loader.hide.absolute
           .wrapper(style="display:flex;z-index:100000;margin-top:0.1em;margin-left:1em")
             %temba-loading(size=16 units=6)
@@ -744,22 +743,23 @@
         .spa-content.p-5.overflow-y-auto.overflow-x-hidden
 
           -block page-header
-
             -if title or has_content_menu
-              .spa-title.no-menu.flex.items-center.mb-4
-                .text-container.text-2xl.text-gray-700
-                  .flex.flex-row
-                    -block spa-title
-                      #title-text
-                        {{title}}
-                .line.flex-grow.mr-2.ml-6
-                  .h-0.border.border-gray-200
-                
-                -if has_content_menu
-                  -include "spa_page_menu.haml"
-          
-              -block subtitle
-          
+              .mb-4
+                .spa-title.no-menu.flex.items-center
+                  .text-container.text-2xl.text-gray-700
+                    .flex.flex-row
+                      -block spa-title
+                        #title-text
+                          {{title}}
+                  .line.flex-grow.mr-2.ml-6
+                    .h-0.border.border-gray-200
+                  
+                  -if has_content_menu
+                    -include "spa_page_menu.haml"
+            
+                .text-lg.text-gray-600
+                    -block subtitle
+                  
           -block alert-messages
             -if user_org.is_suspended
               -include "org_suspended_include.haml"

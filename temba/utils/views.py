@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 TEMBA_MENU_SELECTION = "temba_menu_selection"
 TEMBA_CONTENT_ONLY = "x-temba-content-only"
+TEMBA_PAGE_TITLE = "x-temba-page-title"
 
 
 class SpaMixin(View):
@@ -122,6 +123,7 @@ class SpaMixin(View):
         if self.is_spa():
             response.headers[TEMBA_MENU_SELECTION] = context[TEMBA_MENU_SELECTION]
             response.headers[TEMBA_CONTENT_ONLY] = 1 if self.is_content_only() else 0
+            response.headers[TEMBA_PAGE_TITLE] = context["title"]
         return response
 
 

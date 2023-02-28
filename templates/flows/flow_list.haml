@@ -50,10 +50,10 @@
                   - trans "Labels"
 
                 -for label in labels
-                  .lp-nav-item{ class:'{% if current_label.pk == label.pk %}font-normal{% endif %}' }
-                    .name{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.uuid %}", class:'{% if current_label.pk == label.pk %}font-normal active{% endif %}' }
+                  .lp-nav-item{ class:'{% if current_label.id == label.id %}font-normal{% endif %}' }
+                    .name{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.uuid %}", class:'{% if current_label.id == label.id %}font-normal active{% endif %}' }
                       {{ label.name }}
-                    .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.uuid %}", class:'{% if current_label.pk == label.pk %}font-normal active{% endif %}' }
+                    .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.uuid %}", class:'{% if current_label.id == label.id %}font-normal active{% endif %}' }
                       {{ label.count | intcomma }}
 
           .flex-grow

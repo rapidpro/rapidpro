@@ -56,14 +56,16 @@ class HTTPLogCRUDL(SmartCRUDL):
     model = HTTPLog
     actions = ("webhooks", "classifier", "ticketer", "read")
 
-    class Webhooks(ContentMenuMixin, OrgPermsMixin, SmartListView):
-        title = _("Webhook Calls")
+    class Webhooks(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartListView):
+        title = _("Webhooks")
         default_order = ("-created_on",)
         select_related = ("flow",)
         fields = ("flow", "url", "status_code", "request_time", "created_on")
+        menu_path = "/flow/history/webhooks"
 
         def build_content_menu(self, menu):
-            menu.add_link(_("Flows"), reverse("flows.flow_list"))
+            if not self.is_spa():
+                menu.add_link(_("Flows"), reverse("flows.flow_list"))
 
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).filter(org=self.request.org, flow__isnull=False)
@@ -71,7 +73,7 @@ class HTTPLogCRUDL(SmartCRUDL):
     class Classifier(BaseObjLogsView):
         source_field = "classifier"
         source_url = "uuid@classifiers.classifier_read"
-        title = _("Recent Classifier Events")
+        title = _("Classifier History")
 
         def derive_menu_path(self):
             return f"/settings/classifiers/{self.source.uuid}"
@@ -95,12 +97,15 @@ class HTTPLogCRUDL(SmartCRUDL):
             return "request_logs.httplog_webhooks" if self.get_object().flow else "request_logs.httplog_read"
 
         def derive_menu_path(self):
-            if self.get_object().classifier:
-                return f"/settings/classifiers/{self.object.classifier.uuid}"
+            log = self.get_object()
+            if log.classifier:
+                return f"/settings/classifiers/{log.classifier.uuid}"
+            elif log.log_type == HTTPLog.WEBHOOK_CALLED:
+                return "/flow/history/webhooks"
 
         def build_content_menu(self, menu):
             object = self.get_object()
-            if object and object.classifier:
+            if object and object.classifier and not self.is_spa():
                 menu.add_link(
                     _("Classifier Log"), reverse("request_logs.httplog_classifier", args=[object.classifier.uuid])
                 )
