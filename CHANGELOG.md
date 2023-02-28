@@ -1,3 +1,13 @@
+v8.1.48 (2023-02-28)
+-------------------------
+ * Add more goto(event)  
+ * Fix content differing from page-load vs inline load  
+ * Add page title for spa response headers  
+ * Clean up subtitles on spa pages  
+ * Add link to flow starts (and clean up list page styling)
+ * Add link for webhook calls (and cleanup styling here too)  
+ * Update styling for log pages for both old / new ui
+
 v8.1.47 (2023-02-27)
 -------------------------
  * Be less clever with page titles. Fix label js errors.
