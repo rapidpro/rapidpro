@@ -250,6 +250,30 @@ class FlowCRUDL(SmartCRUDL):
                     )
                 )
 
+            history_items = []
+            if self.has_org_perm("request_logs.httplog_webhooks"):
+                history_items.append(
+                    self.create_menu_item(
+                        menu_id="webhooks", name=_("Webhooks"), href=reverse("request_logs.httplog_webhooks")
+                    )
+                )
+
+            if self.has_org_perm("flows.flowstart_list"):
+                history_items.append(
+                    self.create_menu_item(
+                        menu_id="starts", name=_("Flow Starts"), href=reverse("flows.flowstart_list")
+                    )
+                )
+
+            if history_items:
+                menu.append(
+                    self.create_menu_item(
+                        name=_("History"),
+                        items=history_items,
+                        inline=True,
+                    )
+                )
+
             if label_items:
                 menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
 
@@ -863,6 +887,9 @@ class FlowCRUDL(SmartCRUDL):
         bulk_actions = ("label",)
         slug_url_kwarg = "uuid"
 
+        def derive_menu_path(self):
+            return f"/flow/labels/{self.label.uuid}"
+
         def build_content_menu(self, menu):
             if self.has_org_perm("flows.flow_update"):
                 menu.add_modax(
@@ -875,7 +902,10 @@ class FlowCRUDL(SmartCRUDL):
 
             if self.has_org_perm("flows.flow_delete"):
                 menu.add_modax(
-                    _("Delete Label"), "delete-label", f"{reverse('flows.flowlabel_delete', args=[self.label.id])}"
+                    _("Delete"),
+                    "delete-label",
+                    f"{reverse('flows.flowlabel_delete', args=[self.label.id])}",
+                    title=_("Delete Label"),
                 )
 
         def get_context_data(self, *args, **kwargs):
@@ -1935,7 +1965,7 @@ class FlowLabelCRUDL(SmartCRUDL):
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         fields = ("uuid",)
-        redirect_url = "@flows.flow_list"
+        success_url = "@flows.flow_list"
         cancel_url = "@flows.flow_list"
         success_message = ""
         submit_button_name = _("Delete")
@@ -1960,10 +1990,12 @@ class FlowLabelCRUDL(SmartCRUDL):
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "flows")
-        success_url = "hide"
         form_class = FlowLabelForm
         success_message = ""
         submit_button_name = _("Create")
+
+        def get_success_url(self):
+            return reverse("flows.flow_filter", args=[self.object.uuid])
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -1992,13 +2024,15 @@ class FlowStartCRUDL(SmartCRUDL):
     actions = ("list",)
 
     class List(SpaMixin, OrgFilterMixin, OrgPermsMixin, ContentMenuMixin, SmartListView):
-        title = _("Flow Start Log")
+        title = _("Flow Starts")
         ordering = ("-created_on",)
         select_related = ("flow", "created_by")
         paginate_by = 25
+        menu_path = "/flow/history/starts"
 
         def build_content_menu(self, menu):
-            menu.add_link(_("Flows"), reverse("flows.flow_list"))
+            if not self.is_spa():
+                menu.add_link(_("Flows"), reverse("flows.flow_list"))
 
         def derive_queryset(self, *args, **kwargs):
             qs = super().derive_queryset(*args, **kwargs)

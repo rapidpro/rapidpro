@@ -34,6 +34,7 @@ from temba.tickets.models import Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.uuid import uuid4
+from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .checks import mailroom_url
 from .models import (
@@ -1745,7 +1746,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
         self.assertEqual(
-            ["Active", "Archived", "Labels"],
+            ["Active", "Archived", "History", "Labels"],
             [m.get("name") or m.get("type") for m in menu],
         )
 
@@ -2388,6 +2389,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.get(reverse("flows.flow_filter", args=[label2.uuid]))
         self.assertEqual([flow2], list(response.context["object_list"]))
+
+        self.new_ui()
+        response = self.client.get(reverse("flows.flow_filter", args=[label2.uuid]))
+        self.assertEquals(f"/flow/labels/{label2.uuid}", response.headers.get(TEMBA_MENU_SELECTION))
 
     def test_get_definition(self):
         flow = self.get_flow("color_v13")

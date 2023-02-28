@@ -20,28 +20,27 @@
     display: none;
   }
 
-
--block extra-style
--block extra-less
--block extra-script
-
-
 -block page-header
-
-  -if not is_modal
-    -if title or has_content_menu
-      .spa-title.no-menu.flex.items-center.mb-4
+  -if title or has_content_menu
+    .mb-4
+      .spa-title.no-menu.flex.items-center
         .text-container.text-2xl.text-gray-700
           .flex.flex-row
-            #title-text
-              {{title}}
+            -block spa-title
+              #title-text
+                {{title}}
         .line.flex-grow.mr-2.ml-6
           .h-0.border.border-gray-200
         
         -if has_content_menu
           -include "spa_page_menu.haml"
 
-      -block subtitle
+      .text-lg.text-gray-600
+        -block subtitle
+
+-block extra-style
+-block extra-less
+-block extra-script
 
 -block alert-messages
   -if user_org.is_suspended

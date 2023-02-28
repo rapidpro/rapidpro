@@ -19,6 +19,9 @@ from temba.utils.views import SpaMixin
 class IndexView(SmartTemplateView):
     template_name = "public/public_index.haml"
 
+    def derive_title(self):
+        return f"{self.request.branding['name']} - {self.request.branding['title']}"
+
     def pre_process(self, request, *args, **kwargs):
         response = super().pre_process(request, *args, **kwargs)
         redirect = self.request.branding.get("redirect")

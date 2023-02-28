@@ -89,16 +89,23 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         webhooks_url = reverse("request_logs.httplog_webhooks")
         log_url = reverse("request_logs.httplog_read", args=[l1.id])
 
+        self.assertContentMenuContains(webhooks_url, self.admin, "Flows")
+
         response = self.assertListFetch(
             webhooks_url, allow_viewers=False, allow_editors=True, context_objects=[l1], new_ui=True
         )
-        self.assertContains(response, "Webhook Calls")
+        self.assertContains(response, "Webhooks")
         self.assertContains(response, log_url)
 
         # view the individual log item
         response = self.assertReadFetch(log_url, allow_viewers=False, allow_editors=True, context_object=l1)
         self.assertContains(response, "200")
         self.assertContains(response, "org1.bar")
+
+        response = self.assertReadFetch(
+            log_url, allow_viewers=False, allow_editors=True, context_object=l1, new_ui=True
+        )
+        self.assertEqual("/flow/history/webhooks", response.headers.get(TEMBA_MENU_SELECTION))
 
     def test_classifier(self):
         c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)
@@ -134,19 +141,24 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
             list_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[l1], new_ui=True
         )
 
-        self.assertEqual(f"/settings/classifiers/{c1.uuid}", response.headers[TEMBA_MENU_SELECTION])
+        menu_path = f"/settings/classifiers/{c1.uuid}"
+
+        self.assertEqual(menu_path, response.headers[TEMBA_MENU_SELECTION])
         self.assertContains(response, "Intents Synced")
-        self.assertContains(response, log_url)
+        self.assertContains(response, menu_path)
         self.assertNotContains(response, "Classifier Called")
 
         # view the individual log item
         response = self.assertReadFetch(
             log_url, allow_viewers=False, allow_editors=False, context_object=l1, new_ui=True
         )
-        self.assertEqual(f"/settings/classifiers/{c1.uuid}", response.headers[TEMBA_MENU_SELECTION])
+        self.assertEqual(menu_path, response.headers[TEMBA_MENU_SELECTION])
         self.assertContains(response, "200")
         self.assertContains(response, "org1.bar")
         self.assertNotContains(response, "org2.bar")
+
+        # old ui should have a link back to the classifier
+        self.assertContentMenuContains(log_url, self.admin, "Classifier Log")
 
         # can't list logs for deleted classifier
         response = self.requestView(reverse("request_logs.httplog_classifier", args=[c2.uuid]), self.admin)
