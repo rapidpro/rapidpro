@@ -1,3 +1,7 @@
+v8.1.50 (2023-02-28)
+-------------------------
+ * Make spload universal
+
 v8.1.49 (2023-02-28)
 -------------------------
  * Make spload work on formax pages
