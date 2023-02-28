@@ -614,24 +614,6 @@
       });
     }
 
-    function onSpload(fn) {
-
-      var content = document.querySelector(".spa-container");
-      var isInitial = content.classList.contains("initial-load");
-      var isLoading = content.classList.contains("loading");
-
-      if (isInitial) {
-        document.addEventListener("DOMContentLoaded", fn, {once: true});
-      } else {
-        if (isLoading) {
-          var eventContainer = document.querySelector(".spa-content");
-          eventContainer.addEventListener("temba-spa-ready", fn, {once: true});
-        } else {
-          window.setTimeout(fn, 0);
-        }  
-      }
-    }
-
     document.addEventListener("temba-redirected", function(event){
       fetchURL(event.detail.url, true);
     });

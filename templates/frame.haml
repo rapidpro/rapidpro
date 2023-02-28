@@ -17,6 +17,27 @@
 
     :javascript
       window.STATIC_URL = "{{STATIC_URL}}";
+
+      function onSpload(fn) {
+        var container = document.querySelector(".spa-container");
+        if (!container) {
+          document.addEventListener("DOMContentLoaded", fn, {once: true});
+        } else {
+          var isInitial = container.classList.contains("initial-load");
+          var isLoading = container.classList.contains("loading");
+          if (isInitial) {
+            document.addEventListener("DOMContentLoaded", fn, {once: true});
+          } else {
+            if (isLoading) {
+              var eventContainer = document.querySelector(".spa-content");
+              eventContainer.addEventListener("temba-spa-ready", fn, {once: true});
+            } else {
+              window.setTimeout(fn, 0);
+            }
+          }
+        }
+      }
+
       function switchToNewInterface() {
         document.cookie = "nav=2; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/;";
         if (document.location.pathname == "/") {
