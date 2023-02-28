@@ -3591,12 +3591,13 @@ class EndpointsTest(TembaTest):
         self.assertEndpointAccess(url, "folder=inbox")
 
         # create some messages
-        joe_msg1 = self.create_incoming_msg(self.joe, "Howdy", msg_type="F")
-        frank_msg1 = self.create_incoming_msg(self.frank, "Bonjour", msg_type="I", channel=self.twitter)
+        flow = self.create_flow("Test")
+        joe_msg1 = self.create_incoming_msg(self.joe, "Howdy", flow=flow)
+        frank_msg1 = self.create_incoming_msg(self.frank, "Bonjour", channel=self.twitter)
         joe_msg2 = self.create_outgoing_msg(self.joe, "How are you?", status="Q")
         frank_msg2 = self.create_outgoing_msg(self.frank, "Ça va?", status="D")
         joe_msg3 = self.create_incoming_msg(
-            self.joe, "Good", msg_type="F", attachments=["image/jpeg:https://example.com/test.jpg"]
+            self.joe, "Good", flow=flow, attachments=["image/jpeg:https://example.com/test.jpg"]
         )
         frank_msg3 = self.create_incoming_msg(self.frank, "Bien", channel=self.twitter, visibility="A")
         frank_msg4 = self.create_outgoing_msg(self.frank, "Ça va?", status="F")

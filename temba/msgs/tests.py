@@ -240,11 +240,10 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         self.just_joe = self.create_group("Just Joe", [self.joe])
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
-    def test_msg_as_archive_json(self):
+    def test_as_archive_json(self):
         flow = self.create_flow("Color Flow")
         msg1 = self.create_incoming_msg(self.joe, "i'm having a problem", flow=flow)
         self.assertEqual(
-            msg1.as_archive_json(),
             {
                 "id": msg1.id,
                 "contact": {"uuid": str(self.joe.uuid), "name": "Joe Blow"},
@@ -252,7 +251,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
                 "flow": {"uuid": str(flow.uuid), "name": "Color Flow"},
                 "urn": "tel:123",
                 "direction": "in",
-                "type": "inbox",
+                "type": "flow",
                 "status": "handled",
                 "visibility": "visible",
                 "text": "i'm having a problem",
@@ -261,6 +260,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
                 "created_on": msg1.created_on.isoformat(),
                 "sent_on": None,
             },
+            msg1.as_archive_json(),
         )
 
         # label first message
@@ -268,7 +268,6 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         label.toggle_label([msg1], add=True)
 
         self.assertEqual(
-            msg1.as_archive_json(),
             {
                 "id": msg1.id,
                 "contact": {"uuid": str(self.joe.uuid), "name": "Joe Blow"},
@@ -276,7 +275,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
                 "flow": {"uuid": str(flow.uuid), "name": "Color Flow"},
                 "urn": "tel:123",
                 "direction": "in",
-                "type": "inbox",
+                "type": "flow",
                 "status": "handled",
                 "visibility": "visible",
                 "text": "i'm having a problem",
@@ -285,6 +284,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
                 "created_on": msg1.created_on.isoformat(),
                 "sent_on": None,
             },
+            msg1.as_archive_json(),
         )
 
         msg2 = self.create_incoming_msg(
@@ -292,7 +292,6 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         )
 
         self.assertEqual(
-            msg2.as_archive_json(),
             {
                 "id": msg2.id,
                 "contact": {"uuid": str(self.joe.uuid), "name": "Joe Blow"},
@@ -309,6 +308,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
                 "created_on": msg2.created_on.isoformat(),
                 "sent_on": None,
             },
+            msg2.as_archive_json(),
         )
 
     @patch("django.core.files.storage.default_storage.delete")
@@ -423,11 +423,9 @@ class MsgTest(TembaTest, CRUDLTestMixin):
 
         flow = self.create_flow("Color Flow")
 
-        msg1 = self.create_incoming_msg(
-            self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC), flow=flow
-        )
+        msg1 = self.create_incoming_msg(self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
         msg2 = self.create_incoming_msg(
-            self.frank, "hello 2", msg_type="F", created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC)
+            self.frank, "hello 2", created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC), flow=flow
         )
         msg3 = self.create_incoming_msg(self.joe, "hello 3", created_on=datetime(2017, 1, 3, 10, tzinfo=pytz.UTC))
 
@@ -549,7 +547,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
                     "Joe Blow",
                     "tel",
                     "123",
-                    "Color Flow",
+                    "",
                     "IN",
                     "hello 1",
                     "",
@@ -563,7 +561,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
                     "Frank Blow",
                     "tel",
                     "321",
-                    "",
+                    "Color Flow",
                     "IN",
                     "hello 2",
                     "",
@@ -727,7 +725,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
                     "Frank Blow",
                     "tel",
                     "321",
-                    "",
+                    "Color Flow",
                     "IN",
                     "hello 2",
                     "",
@@ -754,7 +752,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
                     "Joe Blow",
                     "tel",
                     "123",
-                    "Color Flow",
+                    "",
                     "IN",
                     "hello 1",
                     "",

@@ -1251,7 +1251,6 @@ class MsgReadSerializer(ReadSerializer):
         Msg.STATUS_ERRORED: "errored",
         Msg.STATUS_FAILED: "failed",
     }
-    TYPES = {Msg.TYPE_INBOX: "inbox", Msg.TYPE_FLOW: "flow", Msg.TYPE_TEXT: "text", Msg.TYPE_VOICE: "ivr"}
     VISIBILITIES = {  # deleted messages should never be exposed over API
         Msg.VISIBILITY_VISIBLE: "visible",
         Msg.VISIBILITY_ARCHIVED: "archived",
@@ -1280,7 +1279,11 @@ class MsgReadSerializer(ReadSerializer):
         return "in" if obj.direction == Msg.DIRECTION_IN else "out"
 
     def get_type(self, obj):
-        return self.TYPES.get(obj.msg_type)
+        # for CasePro's sake we still need to return legacy msg_type values for incoming messages
+        if obj.direction == Msg.DIRECTION_IN:
+            return "flow" if obj.flow_id else "inbox"
+
+        return "voice" if obj.msg_type == Msg.TYPE_VOICE else "text"
 
     def get_status(self, obj):
         return self.STATUSES.get(obj.status)
