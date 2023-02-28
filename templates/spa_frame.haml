@@ -442,6 +442,7 @@
       var containers = document.querySelectorAll(".spa-container, .widget-container");
       for(container of containers) {
         container.classList.remove("loading");
+        container.classList.remove("initial-load");
       }
 
       // scroll our content to the top if needed
@@ -613,13 +614,22 @@
       });
     }
 
-    function onSpload(fn, contentOnly) {
-      if (contentOnly) {
-        var eventContainer = document.querySelector(".spa-content");
-        eventContainer.addEventListener("temba-spa-ready", fn, {once: true});
-      } else {
+    function onSpload(fn) {
+
+      var content = document.querySelector(".spa-container");
+      var isInitial = content.classList.contains("initial-load");
+      var isLoading = content.classList.contains("loading");
+
+      if (isInitial) {
         document.addEventListener("DOMContentLoaded", fn, {once: true});
-      }      
+      } else {
+        if (isLoading) {
+          var eventContainer = document.querySelector(".spa-content");
+          eventContainer.addEventListener("temba-spa-ready", fn, {once: true});
+        } else {
+          window.setTimeout(fn, 0);
+        }  
+      }
     }
 
     document.addEventListener("temba-redirected", function(event){
@@ -743,7 +753,7 @@
         %temba-menu#nav(class="{% if servicing %}{% endif%}" style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" -temba-button-clicked="handleMenuClicked(event)" -temba-ready="handleMenuReady")
           -block menu-header
 
-      .flex-grow.spa-container.flex.flex-col
+      .flex-grow.spa-container.flex.flex-col.initial-load
         .spa-loader.hide.absolute
           .wrapper(style="display:flex;z-index:100000;margin-top:0.1em;margin-left:1em")
             %temba-loading(size=16 units=6)
