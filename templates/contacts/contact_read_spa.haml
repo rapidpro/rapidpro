@@ -106,11 +106,10 @@
   %temba-contact-name-fetch(contact="{{object.uuid}}" -temba-refreshed="handleContactRefreshed")
 
 -block subtitle
-  .summary.-mt-2
+  .summary.text-base.mt-1.-mb-4
     %temba-contact-badges(contact="{{object.uuid}}")
     
 -block content
-
   %temba-tabs.flex-grow.mt-4(-temba-context-changed="handleTabChanged" index="{{request.GET.tab}}" collapses="true")
     %temba-tab(icon="icon.message" name='{{_("Chat")|escapejs}}')
       .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")

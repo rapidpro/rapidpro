@@ -140,7 +140,7 @@ function labelObjectRows(labelId, forceRemove, onSuccess) {
 function showPageTitle() {
     var pageTitle = document.querySelector(".page-title");
     if (pageTitle) {
-        pageTitle.classList.add('hidden');
+        pageTitle.classList.remove('hidden');
     }
 
 }
@@ -148,7 +148,7 @@ function showPageTitle() {
 function hidePageTitle() {
     var pageTitle = document.querySelector(".page-title");
     if (pageTitle) {
-        pageTitle.classList.remove('hidden');
+        pageTitle.classList.add('hidden');
     }
 
 }

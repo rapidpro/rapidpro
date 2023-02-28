@@ -10,17 +10,17 @@
   {{title}}
 
 
--block content
-  %table.list.lined
+-block table
+  %table.list.lined.header
     %thead
       %tr
         %th(colspan="3")
           .flex.justify-end
-            .flow-start-type-selector
-              %a(href="{% url 'flows.flowstart_list' %}" class="{% if not filtered %}is-active{% endif %}")
+            .flow-start-type-selector.flex
+              .linked.mr-1(onclick="goto(event, this)" href="{% url 'flows.flowstart_list' %}" class="{% if not filtered %}is-active{% endif %}")
                 - trans "All"
               |
-              %a(href="{% url 'flows.flowstart_list' %}?type=manual" class="{% if filtered %}is-active{% endif %}")
+              .linked.ml-1(onclick="goto(event, this)" href="{% url 'flows.flowstart_list' %}?type=manual" class="{% if filtered %}is-active{% endif %}")
                 -trans "Manual"
 
     %tbody
@@ -34,7 +34,7 @@
             -elif obj.status == "F"
               %span.icon-warning(title="{{ obj.get_status_display }}")
           %td
-            %a(href="{% url 'flows.flow_editor' obj.flow.uuid %}")
+            .linked.inline(onclick="goto(event, this)" href="{% url 'flows.flow_editor' obj.flow.uuid %}")<
               {{ obj.flow.name }}
 
             -if obj.start_type == "M"
@@ -70,6 +70,3 @@
         %tr.empty_list
           %td(colspan='99')
             -trans "No flow starts"
-
-  -block paginator
-    -include "includes/pagination.haml"

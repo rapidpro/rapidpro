@@ -1748,6 +1748,19 @@ table.list.selectable tbody tr.checked td {
           border-color: rgba(var(--selection-light-rgb), 1);
         }
 
+table.header {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.linked.is-active {
+  cursor: none;
+  color: #999999;
+  cursor: text;
+  text-decoration: none;
+  pointer-events: none;
+}
+
 .flow-start-type-selector a {
     display: inline-block;
   }
@@ -1757,6 +1770,7 @@ table.list.selectable tbody tr.checked td {
       color: #999999;
       cursor: text;
       text-decoration: none;
+      pointer-events: none;
     }
 
 .gear-links {
