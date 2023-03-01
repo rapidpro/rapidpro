@@ -77,7 +77,7 @@
                 {% endblocktrans %}
 
       -else
-        -if object.channel_type == 'A'
+        -if object.is_android
           -if last_sync
             -trans "Last synced"
             -blocktrans trimmed with last_sync.created_on|timesince as last_sync
@@ -269,7 +269,7 @@
                 %td
                   = month_data.outgoing_ivr_count|intcomma
 
-  -if object.channel_type == 'A'
+  -if object.is_android
     %table.list.lined.mt-4
       %thead
         %tr
