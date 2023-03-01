@@ -305,6 +305,7 @@ class Msg(models.Model):
     STATUS_ERRORED = "E"  # there was an error during delivery
     STATUS_FAILED = "F"  # we gave up on sending this message
     STATUS_RESENT = "R"  # we retried this message (no longer used)
+    STATUS_READ = "V" # the message was read
     STATUS_CHOICES = (
         (STATUS_INITIALIZING, _("Initializing")),
         (STATUS_PENDING, _("Pending")),
@@ -316,6 +317,7 @@ class Msg(models.Model):
         (STATUS_ERRORED, _("Error")),
         (STATUS_FAILED, _("Failed")),
         (STATUS_RESENT, _("Resent")),
+        (STATUS_READ, _("Read")),
     )
 
     VISIBILITY_VISIBLE = "V"
