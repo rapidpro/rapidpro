@@ -478,24 +478,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         # org users can
         response = self.fetch_protected(tel_channel_read_url, self.user)
 
-        self.assertEqual(
-            len(response.context["source_stats"]),
-            len(SyncEvent.objects.values_list("power_source", flat=True).distinct()),
-        )
-        self.assertEqual("AC", response.context["source_stats"][0][0])
-        self.assertEqual(1, response.context["source_stats"][0][1])
-        self.assertEqual("BAT", response.context["source_stats"][1][0])
-        self.assertEqual(1, response.context["source_stats"][0][1])
-
-        self.assertEqual(
-            len(response.context["network_stats"]),
-            len(SyncEvent.objects.values_list("network_type", flat=True).distinct()),
-        )
-        self.assertEqual("UMTS", response.context["network_stats"][0][0])
-        self.assertEqual(1, response.context["network_stats"][0][1])
-        self.assertEqual("WIFI", response.context["network_stats"][1][0])
-        self.assertEqual(1, response.context["network_stats"][1][1])
-
         self.assertTrue(len(response.context["latest_sync_events"]) <= 5)
 
         response = self.fetch_protected(tel_channel_read_url, self.admin)

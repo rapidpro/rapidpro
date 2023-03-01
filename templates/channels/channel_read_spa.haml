@@ -65,7 +65,7 @@
                 {% endblocktrans %}
 
       -else
-        -if object.channel_type == 'A'
+        -if object.is_android
           -if last_sync
             -trans "Last synced"
             -blocktrans trimmed with last_sync.created_on|timesince as last_sync
