@@ -77,7 +77,7 @@
                 {% endblocktrans %}
 
       -else
-        -if object.channel_type == 'A'
+        -if object.is_android
           -if last_sync
             -trans "Last synced"
             -blocktrans trimmed with last_sync.created_on|timesince as last_sync
@@ -101,7 +101,7 @@
 
   -with object.get_sender as sender and object.get_caller as caller
 
-    -if object.channel_type == 'A'      
+    -if object.is_android
       .device
         -if channel.name
           {{ channel.name }}
@@ -148,7 +148,7 @@
       -if channel.is_delegate_caller
         -trans "Voice calls"
   
-    -if object.channel_type == 'A'      
+    -if object.is_android
       -if unsent_msgs_count
         .text-error
           {{unsent_msgs_count|intcomma}}
@@ -161,8 +161,7 @@
 -block content
   -block charts-zone
     -if start_date
-      -if object.channel_type == 'A'
-
+      -if object.is_android
         -if last_sync
           .sync-summary.mb-4
             .flex.text-gray-600
@@ -172,15 +171,9 @@
                 -else
                   .icon-radio{style:"font-size: 16px"}
 
-              .perc
-                -for net in network_share
-                  -if net.0 == last_sync.network_type
-                    {{ net.1 }}%
-              
-              .t-status.px-2
+              .t-status
                 -trans "ON"
-                = last_sync.network_type
-
+                {{ last_sync.network_type }}
 
             .flex.text-gray-600
               .i-status.w-12.px-3
@@ -203,8 +196,6 @@
                   -trans "CHARGING"
                 -if last_sync.power_status == 'FUL'
                   -trans "FULLY CHARGED"
-
-
 
       -else
 
@@ -246,7 +237,8 @@
 
       -if ivr_count
         .minutes-disclaimer
-          In many cases operators round up to the nearest minute for billing. Minutes shown here are only a usage guideline.
+          -blocktrans trimmed
+            In many cases operators round up to the nearest minute for billing. Minutes shown here are only a usage guideline.
 
       %table.list.lined
         %thead
@@ -277,7 +269,7 @@
                 %td
                   = month_data.outgoing_ivr_count|intcomma
 
-  -if object.channel_type == 'A'
+  -if object.is_android
     %table.list.lined.mt-4
       %thead
         %tr

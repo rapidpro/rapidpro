@@ -21,8 +21,8 @@ from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.db.models import Count, Sum
-from django.http import Http404, HttpResponse, HttpResponseRedirect
+from django.db.models import Sum
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
@@ -38,7 +38,7 @@ from temba.utils.fields import SelectWidget
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
-from .models import Channel, ChannelCount, ChannelLog, SyncEvent
+from .models import Channel, ChannelCount, ChannelLog
 
 logger = logging.getLogger(__name__)
 
@@ -568,68 +568,21 @@ class ChannelCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             channel = self.object
 
-            sync_events = SyncEvent.objects.filter(channel=channel.id).order_by("-created_on")
-            context["last_sync"] = sync_events.first()
+            context["last_sync"] = channel.last_sync
 
-            if "HTTP_X_FORMAX" in self.request.META:  # no additional data needed if request is only for formax
+            if "HTTP_X_FORMAX" in self.request.META:  # no additional data needed if request is for old UI formax
                 return context
-
-            if not channel.is_active:  # pragma: needs cover
-                raise Http404("No active channel with that id")
 
             context["msg_count"] = channel.get_msg_count()
             context["ivr_count"] = channel.get_ivr_count()
 
-            # power source stats data
-            source_stats = [
-                [event["power_source"], event["count"]]
-                for event in sync_events.order_by("power_source")
-                .values("power_source")
-                .annotate(count=Count("power_source"))
-            ]
-            context["source_stats"] = source_stats
+            if channel.is_android():
+                context["latest_sync_events"] = channel.sync_events.order_by("-created_on")[:10]
 
-            # network connected to stats
-            network_stats = [
-                [event["network_type"], event["count"]]
-                for event in sync_events.order_by("network_type")
-                .values("network_type")
-                .annotate(count=Count("network_type"))
-            ]
-            context["network_stats"] = network_stats
-
-            total_network = 0
-            network_share = []
-
-            for net in network_stats:
-                total_network += net[1]
-
-            total_share = 0
-            for net_stat in network_stats:
-                share = int(round((100 * net_stat[1]) / float(total_network)))
-                net_name = net_stat[0]
-
-                if net_name != "NONE" and net_name != "UNKNOWN" and share > 0:
-                    network_share.append([net_name, share])
-                    total_share += share
-
-            other_share = 100 - total_share
-            if other_share > 0:
-                network_share.append(["OTHER", other_share])
-
-            context["network_share"] = sorted(network_share, key=lambda _: _[1], reverse=True)
-
-            # add to context the latest sync events to display in a table
-            context["latest_sync_events"] = sync_events[:10]
-
-            # delayed sync event
             if not channel.is_new():
-                if sync_events:
-                    latest_sync_event = sync_events[0]
-                    interval = timezone.now() - latest_sync_event.created_on
-                    seconds = interval.seconds + interval.days * 24 * 3600
-                    if seconds > 3600:
-                        context["delayed_sync_event"] = latest_sync_event
+                # if the last sync event was more than an hour ago, we have a problem
+                if channel.last_sync and (timezone.now() - channel.last_sync.created_on).total_seconds() > 3600:
+                    context["delayed_sync_event"] = True
 
                 # unsent messages
                 unsent_msgs = channel.get_delayed_outgoing_messages()
@@ -753,8 +706,6 @@ class ChannelCRUDL(SmartCRUDL):
             # reverse our table so most recent is first
             message_stats_table.reverse()
             context["message_stats_table"] = message_stats_table
-
-            context["delayed_syncevents"] = not channel.get_recent_syncs().exists()
 
             return context
 

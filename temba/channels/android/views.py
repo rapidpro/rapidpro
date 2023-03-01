@@ -16,8 +16,9 @@ from temba.contacts.models import URN
 from temba.msgs.models import Msg
 from temba.utils import analytics, json
 
-from ..models import Alert, Channel, SyncEvent, UnsupportedAndroidChannelError
-from . import create_event, create_incoming, get_channel_commands, update_message
+from ..models import Alert, Channel, SyncEvent
+from .claim import UnsupportedAndroidChannelError, get_or_create_channel
+from .sync import create_event, create_incoming, get_channel_commands, update_message
 
 
 @csrf_exempt
@@ -33,7 +34,7 @@ def register(request):
 
     try:
         # look up a channel with that id
-        channel = Channel.get_or_create_android(cmds[0], cmds[1])
+        channel = get_or_create_channel(cmds[0], cmds[1])
         cmd = dict(
             cmd="reg", relayer_claim_code=channel.claim_code, relayer_secret=channel.secret, relayer_id=channel.id
         )

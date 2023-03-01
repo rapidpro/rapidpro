@@ -1,3 +1,7 @@
+v8.1.52 (2023-03-01)
+-------------------------
+ * Simplify what we display for Android channels on read page
+
 v8.1.50 (2023-02-28)
 -------------------------
  * Make spload universal

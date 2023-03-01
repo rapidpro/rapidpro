@@ -476,10 +476,10 @@ class ChannelReadSerializer(ReadSerializer):
 
         return {
             "name": obj.device,
-            "power_level": obj.get_last_power(),
-            "power_status": obj.get_last_power_status(),
-            "power_source": obj.get_last_power_source(),
-            "network_type": obj.get_last_network_type(),
+            "power_level": obj.last_sync.power_level if obj.last_sync else -1,
+            "power_status": obj.last_sync.power_status if obj.last_sync else None,
+            "power_source": obj.last_sync.power_source if obj.last_sync else None,
+            "network_type": obj.last_sync.network_type if obj.last_sync else None,
         }
 
     class Meta:

@@ -22,10 +22,11 @@ from django.dispatch import receiver
 from django.template import Context, Engine, TemplateDoesNotExist
 from django.urls import re_path
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import DependencyMixin, Org
-from temba.utils import analytics, countries, get_anonymous_user, json, on_transaction_commit, redact
+from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
@@ -222,11 +223,6 @@ class ChannelType(metaclass=ABCMeta):
 
 def _get_default_channel_scheme():
     return ["tel"]
-
-
-class UnsupportedAndroidChannelError(Exception):
-    def __init__(self, message):
-        self.message = message
 
 
 class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
@@ -554,75 +550,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         )
 
     @classmethod
-    def get_or_create_android(cls, registration_data, status):
-        """
-        Creates a new Android channel from the fcm and status commands sent during device registration
-        """
-        fcm_id = registration_data.get("fcm_id")
-        uuid = registration_data.get("uuid")
-        country = status.get("cc")
-        device = status.get("dev")
-
-        if not fcm_id or not uuid:
-            gcm_id = registration_data.get("gcm_id")
-            if gcm_id:
-                raise UnsupportedAndroidChannelError("Unsupported Android client app.")
-            else:
-                raise ValueError("Can't create Android channel without UUID or FCM ID")
-
-        # look for existing active channel with this UUID
-        existing = Channel.objects.filter(uuid=uuid, is_active=True).first()
-
-        # if device exists reset some of the settings (ok because device clearly isn't in use if it's registering)
-        if existing:
-            config = existing.config
-            config.update({Channel.CONFIG_FCM_ID: fcm_id})
-            existing.config = config
-            existing.claim_code = cls.generate_claim_code()
-            existing.secret = cls.generate_secret()
-            existing.country = country
-            existing.device = device
-            existing.save(update_fields=("config", "secret", "claim_code", "country", "device"))
-
-            return existing
-
-        # if any inactive channel has this UUID, we can steal it
-        for ch in Channel.objects.filter(uuid=uuid, is_active=False):
-            ch.uuid = generate_uuid()
-            ch.save(update_fields=("uuid",))
-
-        # generate random secret and claim code
-        claim_code = cls.generate_claim_code()
-        secret = cls.generate_secret()
-        anon = get_anonymous_user()
-        config = {Channel.CONFIG_FCM_ID: fcm_id}
-
-        return Channel.create(
-            None,
-            anon,
-            country,
-            cls.get_type_from_code("A"),
-            None,
-            None,
-            config=config,
-            uuid=uuid,
-            device=device,
-            claim_code=claim_code,
-            secret=secret,
-            last_seen=timezone.now(),
-        )
-
-    @classmethod
-    def generate_claim_code(cls):
-        """
-        Generates a random and guaranteed unique claim code
-        """
-        code = random_string(9)
-        while cls.objects.filter(claim_code=code):  # pragma: no cover
-            code = random_string(9)
-        return code
-
-    @classmethod
     def generate_secret(cls, length=64):
         """
         Generates a secret value used for command signing
@@ -632,7 +559,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
             code = random_string(length)
         return code
 
-    def is_android(self):
+    def is_android(self) -> bool:
         """
         Is this an Android channel
         """
@@ -770,32 +697,12 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         return messages
 
-    def get_recent_syncs(self):
-        return self.sync_events.filter(created_on__gt=timezone.now() - timedelta(hours=1)).order_by("-created_on")
-
-    def get_last_sync(self):
-        if not hasattr(self, "_last_sync"):
-            last_sync = self.sync_events.order_by("-created_on").first()
-
-            self._last_sync = last_sync
-
-        return self._last_sync
-
-    def get_last_power(self):
-        last = self.get_last_sync()
-        return last.power_level if last else -1
-
-    def get_last_power_status(self):
-        last = self.get_last_sync()
-        return last.power_status if last else None
-
-    def get_last_power_source(self):
-        last = self.get_last_sync()
-        return last.power_source if last else None
-
-    def get_last_network_type(self):
-        last = self.get_last_sync()
-        return last.network_type if last else None
+    @cached_property
+    def last_sync(self):
+        """
+        Gets the last sync event for this channel (only applies to Android channels)
+        """
+        return self.sync_events.order_by("id").last()
 
     def get_unsent_messages(self):
         # use our optimized index for our org outbox
@@ -805,24 +712,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     def is_new(self):
         # is this channel newer than an hour
-        return self.created_on > timezone.now() - timedelta(hours=1) or not self.get_last_sync()
-
-    def claim(self, org, user, phone):
-        """
-        Claims this channel for the given org/user
-        """
-
-        if not self.country:  # pragma: needs cover
-            self.country = countries.from_tel(phone)
-
-        self.alert_email = user.email
-        self.org = org
-        self.is_active = True
-        self.claim_code = None
-        self.address = phone
-        self.save()
-
-        org.normalize_contact_tels()
+        return self.created_on > timezone.now() - timedelta(hours=1) or not self.last_sync
 
     def release(self, user, *, trigger_sync: bool = True):
         """

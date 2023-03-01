@@ -6,7 +6,7 @@ from temba.msgs.models import Msg
 from temba.tests import TembaTest
 from temba.utils import json
 
-from . import get_sync_commands
+from .sync import get_sync_commands
 
 
 class AndroidTest(TembaTest):
