@@ -22,6 +22,7 @@ from django.dispatch import receiver
 from django.template import Context, Engine, TemplateDoesNotExist
 from django.urls import re_path
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import DependencyMixin, Org
@@ -632,7 +633,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
             code = random_string(length)
         return code
 
-    def is_android(self):
+    def is_android(self) -> bool:
         """
         Is this an Android channel
         """
@@ -770,32 +771,12 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         return messages
 
-    def get_recent_syncs(self):
-        return self.sync_events.filter(created_on__gt=timezone.now() - timedelta(hours=1)).order_by("-created_on")
-
-    def get_last_sync(self):
-        if not hasattr(self, "_last_sync"):
-            last_sync = self.sync_events.order_by("-created_on").first()
-
-            self._last_sync = last_sync
-
-        return self._last_sync
-
-    def get_last_power(self):
-        last = self.get_last_sync()
-        return last.power_level if last else -1
-
-    def get_last_power_status(self):
-        last = self.get_last_sync()
-        return last.power_status if last else None
-
-    def get_last_power_source(self):
-        last = self.get_last_sync()
-        return last.power_source if last else None
-
-    def get_last_network_type(self):
-        last = self.get_last_sync()
-        return last.network_type if last else None
+    @cached_property
+    def last_sync(self):
+        """
+        Gets the last sync event for this channel (only applies to Android channels)
+        """
+        return self.sync_events.order_by("id").last()
 
     def get_unsent_messages(self):
         # use our optimized index for our org outbox
@@ -805,7 +786,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     def is_new(self):
         # is this channel newer than an hour
-        return self.created_on > timezone.now() - timedelta(hours=1) or not self.get_last_sync()
+        return self.created_on > timezone.now() - timedelta(hours=1) or not self.last_sync
 
     def claim(self, org, user, phone):
         """
