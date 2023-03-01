@@ -1,3 +1,9 @@
+v8.1.53 (2023-03-01)
+-------------------------
+ * Add compose component to contact chat
+ * Pixel tweak on contact read page
+ * Move more Android relayer code out of Channel
+
 v8.1.52 (2023-03-01)
 -------------------------
  * Simplify what we display for Android channels on read page
