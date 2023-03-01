@@ -148,6 +148,12 @@ html {
   --menu-padding: 1em;
   --bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
+  --temba-charcount-counts-margin-top: 4px;
+  --temba-charcount-summary-margin-top: 5px;
+  --temba-charcount-summary-position: absolute;
+  --temba-charcount-summary-right: 0px;
+  --temba-charcount-summary-bottom: 0px;
+
 }
 
 temba-button {
