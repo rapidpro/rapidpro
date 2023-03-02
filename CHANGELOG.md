@@ -1,3 +1,8 @@
+v8.1.55 (2023-03-02)
+-------------------------
+ * Fix import for sync fcm task
+ * Create new filters and partial indexes for Inbox, Flows and Archived
+
 v8.1.54 (2023-03-02)
 -------------------------
  * Fix enter on compose
