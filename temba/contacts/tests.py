@@ -2505,8 +2505,11 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         item = {"type": "call_started", "status": "F"}
         self.assertEqual(history_class(item), "non-msg warning")
 
-        # inbound
+        # inbound (legacy msg_type)
         item = {"type": "msg_received", "msg": {"text": "Hi"}, "msg_type": "I"}
+        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-user"></span>')
+
+        item = {"type": "msg_received", "msg": {"text": "Hi"}, "msg_type": "T"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-user"></span>')
 
         # outgoing sent

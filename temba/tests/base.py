@@ -288,26 +288,21 @@ class TembaTestMixin:
         contact,
         text,
         channel=None,
-        msg_type=None,
         attachments=(),
         status=Msg.STATUS_HANDLED,
         visibility=Msg.VISIBILITY_VISIBLE,
         created_on=None,
         external_id=None,
+        voice=False,
         surveyor=False,
         flow=None,
     ):
-        assert not msg_type or status != Msg.STATUS_PENDING, "pending messages don't have a msg type"
-
-        if status == Msg.STATUS_HANDLED and not msg_type:
-            msg_type = Msg.TYPE_INBOX
-
         return self._create_msg(
             contact,
             text,
             Msg.DIRECTION_IN,
             channel=channel,
-            msg_type=msg_type,
+            msg_type=Msg.TYPE_VOICE if voice else Msg.TYPE_TEXT,
             attachments=attachments,
             quick_replies=None,
             status=status,
@@ -327,13 +322,13 @@ class TembaTestMixin:
         contact,
         text,
         channel=None,
-        msg_type=Msg.TYPE_TEXT,
         attachments=(),
         quick_replies=(),
         status=Msg.STATUS_SENT,
         created_on=None,
         sent_on=None,
         high_priority=False,
+        voice=False,
         surveyor=False,
         next_attempt=None,
         failed_reason=None,
@@ -351,7 +346,7 @@ class TembaTestMixin:
             text,
             Msg.DIRECTION_OUT,
             channel=channel,
-            msg_type=msg_type,
+            msg_type=Msg.TYPE_VOICE if voice else Msg.TYPE_TEXT,
             attachments=attachments,
             quick_replies=quick_replies,
             status=status,

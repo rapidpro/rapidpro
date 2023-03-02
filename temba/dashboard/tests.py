@@ -16,8 +16,8 @@ class DashboardTest(TembaTest):
         self.create_outgoing_msg(joe, "Tea of coffee?")
         self.create_incoming_msg(joe, "Coffee")
         self.create_outgoing_msg(joe, "OK")
-        self.create_outgoing_msg(joe, "Wanna hang?", msg_type="V")
-        self.create_incoming_msg(joe, "Sure", msg_type="V")
+        self.create_outgoing_msg(joe, "Wanna hang?", voice=True)
+        self.create_incoming_msg(joe, "Sure", voice=True)
 
     def test_dashboard_home(self):
         dashboard_url = reverse("dashboard.dashboard_home")

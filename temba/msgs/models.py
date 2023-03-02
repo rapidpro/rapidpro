@@ -532,23 +532,6 @@ class Msg(models.Model):
     log_uuids = ArrayField(models.UUIDField(), null=True)
 
     @classmethod
-    def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
-        messages = cls.objects.filter(org=org)
-
-        if is_archived:  # pragma: needs cover
-            messages = messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)
-        else:
-            messages = messages.filter(visibility=Msg.VISIBILITY_VISIBLE)
-
-        if direction:  # pragma: needs cover
-            messages = messages.filter(direction=direction)
-
-        if msg_type:  # pragma: needs cover
-            messages = messages.filter(msg_type=msg_type)
-
-        return messages
-
-    @classmethod
     def fail_old_messages(cls):  # pragma: needs cover
         """
         Looks for any errored or queued messages more than a week old and fails them. Messages that old would
@@ -1181,7 +1164,7 @@ class ExportMessagesTask(BaseItemWithContactExport):
         elif label:
             messages = label.get_messages()
         else:
-            messages = Msg.get_messages(self.org)
+            messages = self.org.msgs.filter(visibility=Msg.VISIBILITY_VISIBLE)
 
         messages = messages.filter(created_on__gte=start_date, created_on__lte=end_date)
 

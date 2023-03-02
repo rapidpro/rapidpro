@@ -553,8 +553,8 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             self.tel_channel.save()
 
             # now let's create an ivr interaction
-            self.create_incoming_msg(joe, "incoming ivr", channel=self.tel_channel, msg_type=Msg.TYPE_VOICE)
-            self.create_outgoing_msg(joe, "outgoing ivr", channel=self.tel_channel, msg_type=Msg.TYPE_VOICE)
+            self.create_incoming_msg(joe, "incoming ivr", channel=self.tel_channel, voice=True)
+            self.create_outgoing_msg(joe, "outgoing ivr", channel=self.tel_channel, voice=True)
             response = self.fetch_protected(tel_channel_read_url, self.admin)
 
             self.assertEqual(4, len(response.context["message_stats"]))
@@ -1680,7 +1680,7 @@ class ChannelCountTest(TembaTest):
         ChannelCount.objects.all().delete()
 
         # incoming IVR
-        msg4 = self.create_incoming_msg(contact, "Test Message", msg_type=Msg.TYPE_VOICE)
+        msg4 = self.create_incoming_msg(contact, "Test Message", voice=True)
         self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg4.created_on.date())
         msg4.delete()
         self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg4.created_on.date())
@@ -1688,7 +1688,7 @@ class ChannelCountTest(TembaTest):
         ChannelCount.objects.all().delete()
 
         # outgoing ivr
-        msg5 = self.create_outgoing_msg(contact, "Real Voice", msg_type=Msg.TYPE_VOICE)
+        msg5 = self.create_outgoing_msg(contact, "Real Voice", voice=True)
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg5.created_on.date())
         msg5.delete()
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg5.created_on.date())
