@@ -1,3 +1,7 @@
+v8.1.54 (2023-03-02)
+-------------------------
+ * Fix enter on compose
+
 v8.1.53 (2023-03-01)
 -------------------------
  * Add compose component to contact chat
