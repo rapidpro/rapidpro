@@ -698,6 +698,12 @@ class Msg(models.Model):
                 fields=["next_attempt", "created_on", "id"],
                 condition=Q(direction="O", status__in=("I", "E"), next_attempt__isnull=False),
             ),
+            # used by courier to lookup messages by external id
+            models.Index(
+                name="msgs_by_external_id",
+                fields=["channel_id", "external_id"],
+                condition=Q(external_id__isnull=False),
+            ),
             # used for Inbox view and API folder
             models.Index(
                 name="msgs_inbox",
