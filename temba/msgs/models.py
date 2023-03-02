@@ -569,16 +569,18 @@ class Msg(models.Model):
         """
         from temba.api.v2.serializers import MsgReadSerializer
 
+        serializer = MsgReadSerializer()
+
         return {
             "id": self.id,
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "channel": {"uuid": str(self.channel.uuid), "name": self.channel.name} if self.channel else None,
             "flow": {"uuid": str(self.flow.uuid), "name": self.flow.name} if self.flow else None,
             "urn": self.contact_urn.identity if self.contact_urn else None,
-            "direction": "in" if self.direction == Msg.DIRECTION_IN else "out",
-            "type": MsgReadSerializer.TYPES.get(self.msg_type),
-            "status": MsgReadSerializer.STATUSES.get(self.status),
-            "visibility": MsgReadSerializer.VISIBILITIES.get(self.visibility),
+            "direction": serializer.get_direction(self),
+            "type": serializer.get_type(self),
+            "status": serializer.get_status(self),
+            "visibility": serializer.get_visibility(self),
             "text": self.text,
             "attachments": [attachment.as_json() for attachment in Attachment.parse_all(self.attachments)],
             "labels": [{"uuid": str(lb.uuid), "name": lb.name} for lb in self.labels.all()],
@@ -696,6 +698,28 @@ class Msg(models.Model):
                 fields=["next_attempt", "created_on", "id"],
                 condition=Q(direction="O", status__in=("I", "E"), next_attempt__isnull=False),
             ),
+            # used for Inbox view and API folder
+            models.Index(
+                name="msgs_inbox",
+                fields=["org", "-created_on", "-id"],
+                condition=Q(
+                    direction="I", visibility="V", status="H", flow__isnull=True, msg_type__in=("I", "F", "T")
+                ),
+            ),
+            # used for Flows view and API folder
+            models.Index(
+                name="msgs_flows",
+                fields=["org", "-created_on", "-id"],
+                condition=Q(
+                    direction="I", visibility="V", status="H", flow__isnull=False, msg_type__in=("I", "F", "T")
+                ),
+            ),
+            # used for Archived view and API folder
+            models.Index(
+                name="msgs_archived",
+                fields=["org", "-created_on", "-id"],
+                condition=Q(direction="I", visibility="A", status="H", msg_type__in=("I", "F", "T")),
+            ),
             # used for Outbox and Failed views and API folders
             models.Index(
                 name="msgs_outbox_and_failed",
@@ -782,14 +806,27 @@ class SystemLabel:
 
         if label_type == cls.TYPE_INBOX:
             qs = Msg.objects.filter(
-                direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_VISIBLE, msg_type=Msg.TYPE_INBOX
+                direction=Msg.DIRECTION_IN,
+                visibility=Msg.VISIBILITY_VISIBLE,
+                status=Msg.STATUS_HANDLED,
+                flow__isnull=True,
+                msg_type__in=(Msg.TYPE_INBOX, Msg.TYPE_FLOW, Msg.TYPE_TEXT),
             )
         elif label_type == cls.TYPE_FLOWS:
             qs = Msg.objects.filter(
-                direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_VISIBLE, msg_type=Msg.TYPE_FLOW
+                direction=Msg.DIRECTION_IN,
+                visibility=Msg.VISIBILITY_VISIBLE,
+                status=Msg.STATUS_HANDLED,
+                flow__isnull=False,
+                msg_type__in=(Msg.TYPE_INBOX, Msg.TYPE_FLOW, Msg.TYPE_TEXT),
             )
         elif label_type == cls.TYPE_ARCHIVED:
-            qs = Msg.objects.filter(direction=Msg.DIRECTION_IN, visibility=Msg.VISIBILITY_ARCHIVED)
+            qs = Msg.objects.filter(
+                direction=Msg.DIRECTION_IN,
+                visibility=Msg.VISIBILITY_ARCHIVED,
+                status=Msg.STATUS_HANDLED,
+                msg_type__in=(Msg.TYPE_INBOX, Msg.TYPE_FLOW, Msg.TYPE_TEXT),
+            )
         elif label_type == cls.TYPE_OUTBOX:
             qs = Msg.objects.filter(
                 direction=Msg.DIRECTION_OUT,

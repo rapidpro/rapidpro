@@ -1722,9 +1722,10 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
     @mock_mailroom
     def test_status_changes_and_release(self, mr_mocks):
-        msg1 = self.create_incoming_msg(self.joe, "Test 1", msg_type="I")
-        msg2 = self.create_incoming_msg(self.joe, "Test 2", msg_type="F")
-        msg3 = self.create_incoming_msg(self.joe, "Test 3", msg_type="I", visibility="A")
+        flow = self.create_flow("Test")
+        msg1 = self.create_incoming_msg(self.joe, "Test 1")
+        msg2 = self.create_incoming_msg(self.joe, "Test 2", flow=flow)
+        msg3 = self.create_incoming_msg(self.joe, "Test 3", visibility="A")
         label = self.create_label("Interesting")
         label.toggle_label([msg1, msg2, msg3], add=True)
         static_group = self.create_group("Just Joe", [self.joe])

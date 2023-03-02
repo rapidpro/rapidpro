@@ -2827,7 +2827,8 @@ class AnonOrgTest(TembaTest):
         self.assertContains(response, masked)
 
         # create an incoming flow message, check number doesn't appear in inbox
-        msg3 = self.create_incoming_msg(contact, "ok", msg_type="F")
+        flow = self.create_flow("Test")
+        msg3 = self.create_incoming_msg(contact, "ok", flow=flow)
 
         response = self.client.get(reverse("msgs.msg_flow"))
 
