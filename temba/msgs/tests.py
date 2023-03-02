@@ -28,6 +28,7 @@ from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
+from temba.utils import s3
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .tasks import squash_msg_counts
@@ -2362,24 +2363,37 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
 
 
 class SystemLabelTest(TembaTest):
-    def test_get_archive_attributes(self):
-        self.assertEqual(("visible", "in", None, None), SystemLabel.get_archive_attributes(""))
-        self.assertEqual(("visible", "in", "inbox", None), SystemLabel.get_archive_attributes(SystemLabel.TYPE_INBOX))
-        self.assertEqual(("visible", "in", "flow", None), SystemLabel.get_archive_attributes(SystemLabel.TYPE_FLOWS))
-        self.assertEqual(("archived", "in", None, None), SystemLabel.get_archive_attributes(SystemLabel.TYPE_ARCHIVED))
-        self.assertEqual(
-            ("visible", "out", None, ["pending", "queued"]),
-            SystemLabel.get_archive_attributes(SystemLabel.TYPE_OUTBOX),
-        )
-        self.assertEqual(
-            ("visible", "out", None, ["wired", "sent", "delivered"]),
-            SystemLabel.get_archive_attributes(SystemLabel.TYPE_SENT),
-        )
-        self.assertEqual(
-            ("visible", "out", None, ["failed"]), SystemLabel.get_archive_attributes(SystemLabel.TYPE_FAILED)
+    def test_get_archive_query(self):
+        tcs = (
+            (
+                SystemLabel.TYPE_INBOX,
+                "SELECT s.* FROM s3object s WHERE s.direction = 'in' AND s.visibility = 'visible' AND s.status = 'handled' AND s.flow IS NULL AND s.type != 'voice'",
+            ),
+            (
+                SystemLabel.TYPE_FLOWS,
+                "SELECT s.* FROM s3object s WHERE s.direction = 'in' AND s.visibility = 'visible' AND s.status = 'handled' AND s.flow IS NOT NULL AND s.type != 'voice'",
+            ),
+            (
+                SystemLabel.TYPE_ARCHIVED,
+                "SELECT s.* FROM s3object s WHERE s.direction = 'in' AND s.visibility = 'archived' AND s.status = 'handled' AND s.type != 'voice'",
+            ),
+            (
+                SystemLabel.TYPE_OUTBOX,
+                "SELECT s.* FROM s3object s WHERE s.direction = 'out' AND s.visibility = 'visible' AND s.status IN ('initializing', 'queued', 'errored')",
+            ),
+            (
+                SystemLabel.TYPE_SENT,
+                "SELECT s.* FROM s3object s WHERE s.direction = 'out' AND s.visibility = 'visible' AND s.status IN ('wired', 'sent', 'delivered')",
+            ),
+            (
+                SystemLabel.TYPE_FAILED,
+                "SELECT s.* FROM s3object s WHERE s.direction = 'out' AND s.visibility = 'visible' AND s.status = 'failed'",
+            ),
         )
 
-        self.assertEqual(("visible", "in", None, None), SystemLabel.get_archive_attributes(SystemLabel.TYPE_SCHEDULED))
+        for (label_type, expected_select) in tcs:
+            select = s3.compile_select(where=SystemLabel.get_archive_query(label_type))
+            self.assertEqual(expected_select, select, f"select s3 mismatch for label {label_type}")
 
     def test_get_counts(self):
         self.assertEqual(

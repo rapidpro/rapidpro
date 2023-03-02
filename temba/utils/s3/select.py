@@ -1,6 +1,6 @@
 from datetime import datetime
 
-LOOKUPS = {"gt": ">", "gte": ">=", "lte": "<=", "lt": "<", "in": "IN"}
+LOOKUPS = {"gt": ">", "gte": ">=", "lte": "<=", "lt": "<", "in": "IN", "ne": "!=", "isnull": "IS NULL"}
 
 
 def compile_select(*, fields=(), alias: str = "s", where: dict = None) -> str:
@@ -30,8 +30,11 @@ def _compile_condition(alias: str, field: str, val) -> str:
         field = "__".join(field_parts[:-1])
 
     column = _compile_column(alias, field, cast="TIMESTAMP" if isinstance(val, datetime) else None)
-    value = _compile_value(val)
 
+    if op == "IS NULL":
+        return f"{column} IS NULL" if val else f"{column} IS NOT NULL"
+
+    value = _compile_value(val)
     return f"{column} {op} {value}"
 
 

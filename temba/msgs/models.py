@@ -851,29 +851,19 @@ class SystemLabel:
         return qs.filter(org=org)
 
     @classmethod
-    def get_archive_attributes(cls, label_type: str) -> tuple:
-        visibility = "visible"
-        msg_type = None
-        direction = "in"
-        statuses = None
-
+    def get_archive_query(cls, label_type: str) -> dict:
         if label_type == cls.TYPE_INBOX:
-            msg_type = "inbox"
+            return dict(direction="in", visibility="visible", status="handled", flow__isnull=True, type__ne="voice")
         elif label_type == cls.TYPE_FLOWS:
-            msg_type = "flow"
+            return dict(direction="in", visibility="visible", status="handled", flow__isnull=False, type__ne="voice")
         elif label_type == cls.TYPE_ARCHIVED:
-            visibility = "archived"
+            return dict(direction="in", visibility="archived", status="handled", type__ne="voice")
         elif label_type == cls.TYPE_OUTBOX:
-            direction = "out"
-            statuses = ["pending", "queued"]
+            return dict(direction="out", visibility="visible", status__in=("initializing", "queued", "errored"))
         elif label_type == cls.TYPE_SENT:
-            direction = "out"
-            statuses = ["wired", "sent", "delivered"]
+            return dict(direction="out", visibility="visible", status__in=("wired", "sent", "delivered"))
         elif label_type == cls.TYPE_FAILED:
-            direction = "out"
-            statuses = ["failed"]
-
-        return (visibility, direction, msg_type, statuses)
+            return dict(direction="out", visibility="visible", status="failed")
 
 
 class SystemLabelCount(SquashableModel):
@@ -1152,16 +1142,12 @@ class ExportMessagesTask(BaseItemWithContactExport):
         from temba.flows.models import Flow
 
         # firstly get msgs from archives
-        where = {"visibility": "visible"}
         if system_label:
-            visibility, direction, msg_type, statuses = SystemLabel.get_archive_attributes(system_label)
-            where["direction"] = direction
-            if msg_type:
-                where["type"] = msg_type
-            if statuses:
-                where["status__in"] = statuses
+            where = SystemLabel.get_archive_query(system_label)
         elif label:
-            where["__raw__"] = f"'{label.uuid}' IN s.labels[*].uuid[*]"
+            where = {"visibility": "visible", "__raw__": f"'{label.uuid}' IN s.labels[*].uuid[*]"}
+        else:
+            where = {"visibility": "visible"}
 
         records = Archive.iter_all_records(self.org, Archive.TYPE_MSG, start_date, end_date, where=where)
         last_created_on = None
