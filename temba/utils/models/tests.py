@@ -176,8 +176,8 @@ class TestJSONAsTextField(TestCase):
             cur.execute("select * from utils_jsonmodeltestdefaultnull")
 
             data = cur.fetchall()
-        # but in the database the field is saved as null
-        self.assertEqual(data[0][1], None)
+        # and in the database the field saved as default value
+        self.assertEqual(data[0][1], "{}")
 
     def test_default_without_null(self):
         model = JsonModelTestDefault()
