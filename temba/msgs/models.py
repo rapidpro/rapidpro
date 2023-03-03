@@ -492,18 +492,22 @@ class Msg(models.Model):
     id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(null=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs", db_index=False)
+
+    # message destination
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, related_name="msgs")
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="msgs", db_index=False)
     contact_urn = models.ForeignKey(ContactURN, on_delete=models.PROTECT, null=True, related_name="msgs")
+
+    # message origin
     broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, null=True, related_name="msgs")
     flow = models.ForeignKey("flows.Flow", on_delete=models.PROTECT, null=True, db_index=False)
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, db_index=False)
 
+    # message content
     text = models.TextField()
     attachments = ArrayField(models.URLField(max_length=Attachment.MAX_LEN), null=True)
     quick_replies = ArrayField(models.CharField(max_length=64), null=True)
     locale = models.CharField(max_length=6, null=True)  # eng, eng-US, por-BR, und etc
-
-    high_priority = models.BooleanField(null=True)
 
     created_on = models.DateTimeField(db_index=True)
     modified_on = models.DateTimeField(null=True, blank=True, auto_now=True)
@@ -520,7 +524,8 @@ class Msg(models.Model):
     # the number of actual messages the channel sent this as (outgoing only)
     msg_count = models.IntegerField(default=1)
 
-    # sending issues (outgoing only)
+    # sending (outgoing only)
+    high_priority = models.BooleanField(null=True)
     error_count = models.IntegerField(default=0)  # number of times this message has errored
     next_attempt = models.DateTimeField(null=True)  # when we'll next retry
     failed_reason = models.CharField(null=True, max_length=1, choices=FAILED_CHOICES)  # why we've failed
