@@ -290,6 +290,9 @@ class Broadcast(models.Model):
         if soft:
             assert self.schedule, "can only soft delete scheduled broadcasts"
 
+            self.schedule.is_active = False
+            self.schedule.save(update_fields=("is_active",))
+
             self.modified_by = user
             self.modified_on = timezone.now()
             self.is_active = False
