@@ -155,6 +155,8 @@ def _condition_matches(lh, op, rh, record: dict) -> bool:
 
     if op == "=":
         return lh == rh
+    if op == "!=":
+        return lh != rh
     elif op == ">=":
         return lh >= rh
     elif op == ">":
@@ -165,6 +167,10 @@ def _condition_matches(lh, op, rh, record: dict) -> bool:
         return lh < rh
     elif op == "IN":
         return lh in rh
+    elif op == "IS":
+        return lh is None
+    elif op == "IS NOT":
+        return lh is not None
 
 
 def _parse_expression(exp: str) -> list:
@@ -174,7 +180,7 @@ def _parse_expression(exp: str) -> list:
     conditions = exp[33:].split(" AND ")
     parsed = []
     for con in conditions:
-        match = regex.match(r"(.*)\s(=|!=|>|>=|<|<=|IN)\s(.+)", con)
+        match = regex.match(r"(.*)\s(=|!=|>|>=|<|<=|IN|IS NOT|IS)\s(.+)", con)
         lh, op, rh = match.group(1), match.group(2), match.group(3)
 
         parsed.append((_parse_value(lh), op, _parse_value(rh)))
@@ -201,3 +207,5 @@ def _parse_value(val: str):
         return True
     elif val == "FALSE":
         return False
+    elif val == "NULL":
+        return None
