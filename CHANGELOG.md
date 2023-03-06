@@ -1,3 +1,7 @@
+v8.1.57 (2023-03-06)
+-------------------------
+ * Move index on msg.external_id onto the model
+
 v8.1.56 (2023-03-06)
 -------------------------
  * Fix soft deleting of scheduled messages so schedule is deleted too
