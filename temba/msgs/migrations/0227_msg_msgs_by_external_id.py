@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("msgs", "0225_new_inbound_filtering"),
+        ("msgs", "0226_msg_created_by"),
     ]
 
     operations = [
