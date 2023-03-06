@@ -75,6 +75,14 @@ class SelectTest(TembaTest):
             "SELECT s.* FROM s3object s WHERE s.flow.uuid IN ('1234', '2345')",
             compile_select(where={"flow__uuid__in": ("1234", "2345")}),
         )
+        self.assertEqual(
+            "SELECT s.* FROM s3object s WHERE s.flow IS NULL",
+            compile_select(where={"flow__isnull": True}),
+        )
+        self.assertEqual(
+            "SELECT s.* FROM s3object s WHERE s.flow IS NOT NULL",
+            compile_select(where={"flow__isnull": False}),
+        )
 
         # a where clause can also be raw S3-select-SQL (used by search_archives command)
         self.assertEqual(
