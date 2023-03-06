@@ -857,7 +857,7 @@ class EventTest(TembaTest):
         )
 
         msg_out = self.create_outgoing_msg(
-            contact1, "Hello", channel=self.channel, status="E", quick_replies=("yes", "no")
+            contact1, "Hello", channel=self.channel, status="E", quick_replies=("yes", "no"), created_by=self.agent
         )
         ChannelLog.objects.create(
             channel=self.channel, is_error=True, log_type=ChannelLog.LOG_TYPE_MSG_SEND, msg=msg_out
@@ -875,6 +875,18 @@ class EventTest(TembaTest):
                     "text": "Hello",
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     "quick_replies": ["yes", "no"],
+                    "created_by": {
+                        "id": self.agent.id,
+                        "email": "agent@nyaruka.com",
+                        "first_name": "Agnes",
+                        "last_name": "",
+                    },
+                },
+                "created_by": {
+                    "id": self.agent.id,
+                    "email": "agent@nyaruka.com",
+                    "first_name": "Agnes",
+                    "last_name": "",
                 },
                 "status": "E",
                 "logs_url": f"/channels/{str(self.channel.uuid)}/logs/msg/{msg_out.id}/",
@@ -896,7 +908,9 @@ class EventTest(TembaTest):
                     "urn": "tel:+250979111111",
                     "text": "Hello",
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    "created_by": None,
                 },
+                "created_by": None,
                 "status": "F",
                 "failed_reason": "D",
                 "failed_reason_display": "No suitable channel found",
@@ -917,7 +931,9 @@ class EventTest(TembaTest):
                     "urn": "tel:+250979111111",
                     "text": "Hello",
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    "created_by": None,
                 },
+                "created_by": None,
                 "status": "S",
                 "logs_url": None,
             },
@@ -939,6 +955,12 @@ class EventTest(TembaTest):
                     "urn": "tel:+250979111111",
                     "text": "Hi there",
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                },
+                "created_by": {
+                    "id": self.admin.id,
+                    "email": "admin@nyaruka.com",
+                    "first_name": "Andy",
+                    "last_name": "",
                 },
                 "status": "S",
                 "recipient_count": 2,
