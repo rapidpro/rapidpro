@@ -495,18 +495,22 @@ class Msg(models.Model):
     id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(null=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs", db_index=False)
+
+    # message destination
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, related_name="msgs")
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="msgs", db_index=False)
     contact_urn = models.ForeignKey(ContactURN, on_delete=models.PROTECT, null=True, related_name="msgs")
+
+    # message origin
     broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, null=True, related_name="msgs")
     flow = models.ForeignKey("flows.Flow", on_delete=models.PROTECT, null=True, db_index=False)
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, db_index=False)
 
+    # message content
     text = models.TextField()
     attachments = ArrayField(models.URLField(max_length=Attachment.MAX_LEN), null=True)
     quick_replies = ArrayField(models.CharField(max_length=64), null=True)
     locale = models.CharField(max_length=6, null=True)  # eng, eng-US, por-BR, und etc
-
-    high_priority = models.BooleanField(null=True)
 
     created_on = models.DateTimeField(db_index=True)
     modified_on = models.DateTimeField(null=True, blank=True, auto_now=True)
@@ -523,7 +527,8 @@ class Msg(models.Model):
     # the number of actual messages the channel sent this as (outgoing only)
     msg_count = models.IntegerField(default=1)
 
-    # sending issues (outgoing only)
+    # sending (outgoing only)
+    high_priority = models.BooleanField(null=True)
     error_count = models.IntegerField(default=0)  # number of times this message has errored
     next_attempt = models.DateTimeField(null=True)  # when we'll next retry
     failed_reason = models.CharField(null=True, max_length=1, choices=FAILED_CHOICES)  # why we've failed
@@ -854,29 +859,19 @@ class SystemLabel:
         return qs.filter(org=org)
 
     @classmethod
-    def get_archive_attributes(cls, label_type: str) -> tuple:
-        visibility = "visible"
-        msg_type = None
-        direction = "in"
-        statuses = None
-
+    def get_archive_query(cls, label_type: str) -> dict:
         if label_type == cls.TYPE_INBOX:
-            msg_type = "inbox"
+            return dict(direction="in", visibility="visible", status="handled", flow__isnull=True, type__ne="voice")
         elif label_type == cls.TYPE_FLOWS:
-            msg_type = "flow"
+            return dict(direction="in", visibility="visible", status="handled", flow__isnull=False, type__ne="voice")
         elif label_type == cls.TYPE_ARCHIVED:
-            visibility = "archived"
+            return dict(direction="in", visibility="archived", status="handled", type__ne="voice")
         elif label_type == cls.TYPE_OUTBOX:
-            direction = "out"
-            statuses = ["pending", "queued"]
+            return dict(direction="out", visibility="visible", status__in=("initializing", "queued", "errored"))
         elif label_type == cls.TYPE_SENT:
-            direction = "out"
-            statuses = ["wired", "sent", "delivered"]
+            return dict(direction="out", visibility="visible", status__in=("wired", "sent", "delivered"))
         elif label_type == cls.TYPE_FAILED:
-            direction = "out"
-            statuses = ["failed"]
-
-        return (visibility, direction, msg_type, statuses)
+            return dict(direction="out", visibility="visible", status="failed")
 
 
 class SystemLabelCount(SquashableModel):
@@ -1155,16 +1150,12 @@ class ExportMessagesTask(BaseItemWithContactExport):
         from temba.flows.models import Flow
 
         # firstly get msgs from archives
-        where = {"visibility": "visible"}
         if system_label:
-            visibility, direction, msg_type, statuses = SystemLabel.get_archive_attributes(system_label)
-            where["direction"] = direction
-            if msg_type:
-                where["type"] = msg_type
-            if statuses:
-                where["status__in"] = statuses
+            where = SystemLabel.get_archive_query(system_label)
         elif label:
-            where["__raw__"] = f"'{label.uuid}' IN s.labels[*].uuid[*]"
+            where = {"visibility": "visible", "__raw__": f"'{label.uuid}' IN s.labels[*].uuid[*]"}
+        else:
+            where = {"visibility": "visible"}
 
         records = Archive.iter_all_records(self.org, Archive.TYPE_MSG, start_date, end_date, where=where)
         last_created_on = None
