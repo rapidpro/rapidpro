@@ -101,33 +101,31 @@ class Event:
                 "translations": obj.broadcast.translations,
                 "base_language": obj.broadcast.base_language,
                 # additional properties
+                "created_by": _user(obj.broadcast.created_by) if obj.broadcast.created_by else None,
                 "msg": _msg_out(obj),
                 "status": obj.status,
                 "recipient_count": obj.broadcast.get_message_count(),
                 "logs_url": logs_url,
             }
         else:
+            created_by = obj.broadcast.created_by if obj.broadcast else obj.created_by
+
             msg_event = {
                 "type": cls.TYPE_IVR_CREATED if obj.msg_type == Msg.TYPE_VOICE else cls.TYPE_MSG_CREATED,
                 "created_on": get_event_time(obj).isoformat(),
                 "msg": _msg_out(obj),
                 # additional properties
+                "created_by": _user(created_by) if created_by else None,
                 "status": obj.status,
                 "logs_url": logs_url,
             }
 
+            # TODO remove once chat component uses .created_by
+            msg_event["msg"]["created_by"] = msg_event["created_by"]
+
             if obj.status == Msg.STATUS_FAILED:
                 msg_event["failed_reason"] = obj.failed_reason
                 msg_event["failed_reason_display"] = obj.get_failed_reason_display()
-
-            if obj.broadcast and obj.broadcast.created_by:
-                user = obj.broadcast.created_by
-                msg_event["msg"]["created_by"] = {
-                    "id": user.id,
-                    "first_name": user.first_name,
-                    "last_name": user.last_name,
-                    "email": user.email,
-                }
 
             return msg_event
 

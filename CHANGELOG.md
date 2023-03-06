@@ -1,3 +1,14 @@
+v8.1.57 (2023-03-06)
+-------------------------
+ * Move index on msg.external_id onto the model
+
+v8.1.56 (2023-03-06)
+-------------------------
+ * Fix soft deleting of scheduled messages so schedule is deleted too
+ * Stop saving JSONAsTextField values as null for empty dicts and lists
+ * Update select s3 usage for msg exports to not rely on type=inbox|flow
+ * Add created_by to Msg and populate on events in contact histories
+
 v8.1.55 (2023-03-02)
 -------------------------
  * Fix import for sync fcm task
