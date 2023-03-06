@@ -919,7 +919,7 @@ class EventTest(TembaTest):
             Event.from_msg(self.org, self.admin, msg_out),
         )
 
-        ivr_out = self.create_outgoing_msg(contact1, "Hello", msg_type="V")
+        ivr_out = self.create_outgoing_msg(contact1, "Hello", voice=True)
 
         self.assertEqual(
             {

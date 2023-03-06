@@ -3644,7 +3644,7 @@ class EndpointsTest(TembaTest):
         self.assertEqual(resp_json["next"], None)
         self.assertResultsById(response, [frank_msg1])
         self.assertMsgEqual(
-            resp_json["results"][0], frank_msg1, msg_type="text", msg_status="handled", msg_visibility="visible"
+            resp_json["results"][0], frank_msg1, msg_type="inbox", msg_status="handled", msg_visibility="visible"
         )
 
         # filter by incoming, should get deleted messages too
@@ -3656,7 +3656,7 @@ class EndpointsTest(TembaTest):
         self.assertEqual(resp_json["next"], None)
         self.assertResultsById(response, [joe_msg3, frank_msg1, frank_msg3, deleted_msg, joe_msg1])
         self.assertMsgEqual(
-            resp_json["results"][0], joe_msg3, msg_type="text", msg_status="handled", msg_visibility="visible"
+            resp_json["results"][0], joe_msg3, msg_type="flow", msg_status="handled", msg_visibility="visible"
         )
 
         # filter by folder (flow)
