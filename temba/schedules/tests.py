@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.msgs.models import Broadcast
-from temba.tests import CRUDLTestMixin, TembaTest
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
 from temba.utils.dates import datetime_to_str
 
 from .models import Schedule
@@ -413,3 +413,28 @@ class ScheduleCRUDLTest(TembaTest, CRUDLTestMixin):
         schedule.refresh_from_db()
         self.assertEqual("O", schedule.repeat_period)
         self.assertIsNone(schedule.next_fire)
+
+
+class FixDeletedSchedulesTest(MigrationTest):
+    app = "schedules"
+    migrate_from = "0018_squashed"
+    migrate_to = "0019_fix_deleted_schedules"
+
+    def setUpBeforeMigration(self, apps):
+        group = self.create_group("Testers")
+
+        self.schedule1 = Schedule.create_schedule(self.org, self.editor, timezone.now(), Schedule.REPEAT_MONTHLY)
+        self.create_broadcast(self.admin, {"eng": "Hi"}, groups=[group], schedule=self.schedule1)
+
+        self.schedule2 = Schedule.create_schedule(self.org, self.editor, timezone.now(), Schedule.REPEAT_MONTHLY)
+        bcast2 = self.create_broadcast(self.admin, {"eng": "Hi"}, groups=[group], schedule=self.schedule2)
+
+        bcast2.is_active = False
+        bcast2.save(update_fields=("is_active",))
+
+    def test_migration(self):
+        self.schedule1.refresh_from_db()
+        self.schedule2.refresh_from_db()
+
+        self.assertTrue(self.schedule1.is_active)
+        self.assertFalse(self.schedule2.is_active)

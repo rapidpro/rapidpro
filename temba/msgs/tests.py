@@ -1757,6 +1757,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(1, ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today))
 
     def test_model(self):
+        schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY)
         broadcast1 = Broadcast.create(
             self.org,
             self.user,
@@ -1764,7 +1765,7 @@ class BroadcastTest(TembaTest):
             base_language="eng",
             groups=[self.joe_and_frank],
             contacts=[self.kevin, self.lucy],
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
+            schedule=schedule,
         )
         self.assertEqual("Q", broadcast1.status)
         self.assertEqual(True, broadcast1.is_active)
@@ -1789,6 +1790,10 @@ class BroadcastTest(TembaTest):
         self.assertEqual(2, Broadcast.objects.count())
         self.assertEqual(2, Msg.objects.count())
         self.assertEqual(1, Schedule.objects.count())
+
+        # schedule should also be inactive
+        schedule.refresh_from_db()
+        self.assertFalse(schedule.is_active)
 
         broadcast1.delete(self.admin, soft=False)
         broadcast2.delete(self.admin, soft=False)
