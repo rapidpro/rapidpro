@@ -1329,7 +1329,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
             text="Hi there",
             channel=self.channel,
             status="H",
-            msg_type="I",
+            msg_type="T",
             visibility="V",
             created_on=timezone.now(),
         )
@@ -1630,6 +1630,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotIn("resend", response.context["actions"])
 
     def test_filter(self):
+        flow = self.create_flow("Flow")
         joe = self.create_contact("Joe Blow", phone="+250788000001")
         frank = self.create_contact("Frank Blow", phone="250788000002")
         billy = self.create_contact("Billy Bob", urns=["twitter:billy_bob"])
@@ -1645,7 +1646,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         msg3 = self.create_incoming_msg(billy, "test3")
         msg4 = self.create_incoming_msg(joe, "test4", visibility=Msg.VISIBILITY_ARCHIVED)
         msg5 = self.create_incoming_msg(joe, "test5", visibility=Msg.VISIBILITY_DELETED_BY_USER)
-        msg6 = self.create_incoming_msg(joe, "flow test", msg_type="F")
+        msg6 = self.create_incoming_msg(joe, "IVR test", flow=flow)
 
         # apply the labels
         label1.toggle_label([msg1, msg2], add=True)

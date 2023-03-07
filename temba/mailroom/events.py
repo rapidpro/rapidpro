@@ -90,7 +90,7 @@ class Event:
                 "created_on": get_event_time(obj).isoformat(),
                 "msg": _msg_in(obj),
                 # additional properties
-                "msg_type": obj.msg_type,
+                "msg_type": Msg.TYPE_VOICE if obj.msg_type == Msg.TYPE_VOICE else Msg.TYPE_TEXT,
                 "visibility": obj.visibility,
                 "logs_url": logs_url,
             }

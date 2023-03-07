@@ -363,12 +363,12 @@ class MockSessionWriter:
             contact=self.contact,
             contact_urn=self.contact.get_urn(),
             channel=Channel.objects.get(uuid=channel_ref["uuid"]) if channel_ref else None,
-            direction="O",
+            direction=Msg.DIRECTION_OUT,
             text=event["msg"]["text"],
             attachments=attachments,
             created_on=event["created_on"],
-            msg_type="F",
-            status="S",
+            msg_type=Msg.TYPE_TEXT,
+            status=Msg.STATUS_SENT,
             sent_on=event["created_on"],
         )
 

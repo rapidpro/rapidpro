@@ -803,7 +803,7 @@ class EventTest(TembaTest):
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     "external_id": "12345",
                 },
-                "msg_type": "I",
+                "msg_type": "T",
                 "visibility": "V",
                 "logs_url": None,
             },
@@ -826,7 +826,7 @@ class EventTest(TembaTest):
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     "external_id": "12345",
                 },
-                "msg_type": "I",
+                "msg_type": "T",
                 "visibility": "D",
                 "logs_url": None,
             },
@@ -849,7 +849,7 @@ class EventTest(TembaTest):
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     "external_id": "12345",
                 },
-                "msg_type": "I",
+                "msg_type": "T",
                 "visibility": "X",
                 "logs_url": None,
             },
@@ -919,7 +919,7 @@ class EventTest(TembaTest):
             Event.from_msg(self.org, self.admin, msg_out),
         )
 
-        ivr_out = self.create_outgoing_msg(contact1, "Hello", msg_type="V")
+        ivr_out = self.create_outgoing_msg(contact1, "Hello", voice=True)
 
         self.assertEqual(
             {
