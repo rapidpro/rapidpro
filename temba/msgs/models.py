@@ -50,8 +50,8 @@ class Media(models.Model):
     STATUS_FAILED = "F"
     STATUS_CHOICES = ((STATUS_PENDING, "Pending"), (STATUS_READY, "Ready"), (STATUS_FAILED, "Failed"))
 
-    uuid = models.UUIDField(default=uuid4, db_index=True, unique=True)
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    uuid = models.UUIDField(default=uuid4, unique=True)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="media")
     url = models.URLField(max_length=2048)
     content_type = models.CharField(max_length=255)
     path = models.CharField(max_length=2048)
@@ -161,6 +161,11 @@ class Media(models.Model):
         assert not self.original, "only original uploads can be processed"
 
         process_upload(self)
+
+    class Meta:
+        indexes = [
+            models.Index(name="media_originals_by_org", fields=["org", "-created_on"], condition=Q(original=None))
+        ]
 
 
 class Broadcast(models.Model):
