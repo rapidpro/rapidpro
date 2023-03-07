@@ -1,3 +1,9 @@
+v8.1.58 (2023-03-07)
+-------------------------
+ * Add missing channels migration
+ * Use msg.created_by if set in ticket list view
+ * Remove SMS type channel alerts
+
 v8.1.57 (2023-03-06)
 -------------------------
  * Move index on msg.external_id onto the model
