@@ -1,7 +1,7 @@
 import logging
 from collections import defaultdict
 from datetime import timedelta
-from typing import Any, Dict
+from typing import Any
 
 import nexmo
 import phonenumbers
@@ -425,10 +425,16 @@ class UpdateChannelForm(forms.ModelForm):
         self.fields[config_key] = field
         self.config_fields.append(config_key)
 
-    def clean(self) -> Dict[str, Any]:
+    def transform_form_data_credentials_config(self, cleaned_data: dict, extra: dict) -> dict:
+        config = cleaned_data.copy()
+        config.update(**extra)
+        return config
+
+    def clean(self) -> dict[str, Any]:
         cleaned_data = super().clean()
-        if not Channel.get_type_from_code(self.object.channel_type).check_credentials(cleaned_data):
-            raise ValidationError(_("Error checking credentials for channel type %s" % self.object.channel_type))
+        credentials_config = self.transform_form_data_credentials_config(cleaned_data, {})
+        if not Channel.get_type_from_code(self.object.channel_type).check_credentials(credentials_config):
+            raise ValidationError(_("Channel credentials don't appear to be valid."))
         return cleaned_data
 
     class Meta:

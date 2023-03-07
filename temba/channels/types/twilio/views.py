@@ -329,7 +329,7 @@ class UpdateForm(UpdateChannelForm):
             "account_sid",
             forms.CharField(
                 max_length=128,
-                label=_("Your Twilio Account SID"),
+                label=_("Twilio Account SID"),
                 required=True,
                 widget=InputWidget(attrs={"disabled": "disabled"}),
             ),
@@ -340,13 +340,14 @@ class UpdateForm(UpdateChannelForm):
             "auth_token",
             forms.CharField(
                 max_length=128,
-                label=_("Your Twilio Account Auth Token"),
+                label=_("Twilio Account Auth Token"),
                 required=True,
                 widget=InputWidget(),
             ),
             default="",
         )
 
+    # We override the clean method for Twilio we need to make sure we grab the primary auth tokens
     def clean(self) -> Dict[str, Any]:
         account_sid = self.cleaned_data.get("account_sid", None)
         account_token = self.cleaned_data.get("account_token", None)
