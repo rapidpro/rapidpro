@@ -349,7 +349,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     "last_msg": {
                         "text": "Hello?",
                         "direction": "I",
-                        "type": "I",
+                        "type": "T",
                         "created_on": matchers.ISODate(),
                         "sender": None,
                         "attachments": [],
@@ -370,7 +370,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     "last_msg": {
                         "text": "We can help",
                         "direction": "O",
-                        "type": "I",
+                        "type": "T",
                         "created_on": matchers.ISODate(),
                         "sender": {"id": self.admin.id, "email": "admin@nyaruka.com"},
                         "attachments": [],
@@ -391,7 +391,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     "last_msg": {
                         "text": "We can help",
                         "direction": "O",
-                        "type": "I",
+                        "type": "T",
                         "created_on": matchers.ISODate(),
                         "sender": {"id": self.admin.id, "email": "admin@nyaruka.com"},
                         "attachments": [],
