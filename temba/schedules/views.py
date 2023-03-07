@@ -2,6 +2,7 @@ from smartmin.views import SmartCRUDL, SmartUpdateView
 
 from django import forms
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.views import OrgObjPermsMixin
@@ -51,6 +52,8 @@ class ScheduleFormMixin(forms.Form):
         if self.is_valid():
             if cleaned_data["repeat_period"] == Schedule.REPEAT_WEEKLY and not cleaned_data.get("repeat_days_of_week"):
                 self.add_error("repeat_days_of_week", _("Must specify at least one day of the week."))
+            if cleaned_data["repeat_period"] == Schedule.REPEAT_NEVER and cleaned_data.get("start_datetime") < timezone.now():
+                self.add_error("repeat_period", _("Must specify a start time that is in the future."))
 
         return cleaned_data
 
