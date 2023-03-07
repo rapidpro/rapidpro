@@ -1,3 +1,7 @@
+v8.1.61 (2023-03-07)
+-------------------------
+ * Tweak simulator placement in new ui
+
 v8.1.60 (2023-03-07)
 -------------------------
  * Encourage users to try the new interface
