@@ -1,3 +1,8 @@
+v8.1.60 (2023-03-07)
+-------------------------
+ * Encourage users to try the new interface
+ * Add lightbox for contact history
+
 v8.1.59 (2023-03-07)
 -------------------------
  * Rework code depending on msg_type=I|F
