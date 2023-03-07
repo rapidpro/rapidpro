@@ -1,5 +1,7 @@
 from twilio.base.exceptions import TwilioRestException
+from twilio.rest import Client as TwilioClient
 
+from django.core.exceptions import ValidationError
 from django.urls import re_path
 from django.utils.translation import gettext_lazy as _
 
@@ -85,3 +87,22 @@ class TwilioType(ChannelType):
 
     def get_error_ref_url(self, channel, code: str) -> str:
         return f"https://www.twilio.com/docs/api/errors/{code}"
+
+    def check_credentials(self, cleaned_data):
+        account_sid = cleaned_data.get("account_sid", None)
+        account_token = cleaned_data.get("auth_token", None)
+
+        try:
+            client = TwilioClient(account_sid, account_token)
+            # get the actual primary auth tokens from twilio and use them
+            account = client.api.account.fetch()
+            cleaned_data["account_sid"] = account.sid
+            cleaned_data["auth_token"] = account.auth_token
+        except Exception:  # pragma: needs cover
+            return (
+                ValidationError(
+                    _("The Twilio account SID and Token seem invalid. Please check them again and retry.")
+                ),
+                cleaned_data,
+            )
+        return None, cleaned_data

@@ -140,6 +140,9 @@ class ChannelType(metaclass=ABCMeta):
             return UpdateChannelForm
         return self.update_form
 
+    def check_credentials(self, cleaned_data):
+        return None, cleaned_data
+
     def activate(self, channel):
         """
         Called when a channel of this type has been created. Can be used to setup things like callbacks required by the
