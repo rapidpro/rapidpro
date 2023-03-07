@@ -28,6 +28,7 @@ from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
+from temba.utils import s3
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .tasks import squash_msg_counts
@@ -1328,7 +1329,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
             text="Hi there",
             channel=self.channel,
             status="H",
-            msg_type="I",
+            msg_type="T",
             visibility="V",
             created_on=timezone.now(),
         )
@@ -1629,6 +1630,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotIn("resend", response.context["actions"])
 
     def test_filter(self):
+        flow = self.create_flow("Flow")
         joe = self.create_contact("Joe Blow", phone="+250788000001")
         frank = self.create_contact("Frank Blow", phone="250788000002")
         billy = self.create_contact("Billy Bob", urns=["twitter:billy_bob"])
@@ -1644,7 +1646,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         msg3 = self.create_incoming_msg(billy, "test3")
         msg4 = self.create_incoming_msg(joe, "test4", visibility=Msg.VISIBILITY_ARCHIVED)
         msg5 = self.create_incoming_msg(joe, "test5", visibility=Msg.VISIBILITY_DELETED_BY_USER)
-        msg6 = self.create_incoming_msg(joe, "flow test", msg_type="F")
+        msg6 = self.create_incoming_msg(joe, "IVR test", flow=flow)
 
         # apply the labels
         label1.toggle_label([msg1, msg2], add=True)
@@ -1756,6 +1758,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(1, ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today))
 
     def test_model(self):
+        schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY)
         broadcast1 = Broadcast.create(
             self.org,
             self.user,
@@ -1763,7 +1766,7 @@ class BroadcastTest(TembaTest):
             base_language="eng",
             groups=[self.joe_and_frank],
             contacts=[self.kevin, self.lucy],
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
+            schedule=schedule,
         )
         self.assertEqual("Q", broadcast1.status)
         self.assertEqual(True, broadcast1.is_active)
@@ -1788,6 +1791,10 @@ class BroadcastTest(TembaTest):
         self.assertEqual(2, Broadcast.objects.count())
         self.assertEqual(2, Msg.objects.count())
         self.assertEqual(1, Schedule.objects.count())
+
+        # schedule should also be inactive
+        schedule.refresh_from_db()
+        self.assertFalse(schedule.is_active)
 
         broadcast1.delete(self.admin, soft=False)
         broadcast2.delete(self.admin, soft=False)
@@ -2362,24 +2369,37 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
 
 
 class SystemLabelTest(TembaTest):
-    def test_get_archive_attributes(self):
-        self.assertEqual(("visible", "in", None, None), SystemLabel.get_archive_attributes(""))
-        self.assertEqual(("visible", "in", "inbox", None), SystemLabel.get_archive_attributes(SystemLabel.TYPE_INBOX))
-        self.assertEqual(("visible", "in", "flow", None), SystemLabel.get_archive_attributes(SystemLabel.TYPE_FLOWS))
-        self.assertEqual(("archived", "in", None, None), SystemLabel.get_archive_attributes(SystemLabel.TYPE_ARCHIVED))
-        self.assertEqual(
-            ("visible", "out", None, ["pending", "queued"]),
-            SystemLabel.get_archive_attributes(SystemLabel.TYPE_OUTBOX),
-        )
-        self.assertEqual(
-            ("visible", "out", None, ["wired", "sent", "delivered"]),
-            SystemLabel.get_archive_attributes(SystemLabel.TYPE_SENT),
-        )
-        self.assertEqual(
-            ("visible", "out", None, ["failed"]), SystemLabel.get_archive_attributes(SystemLabel.TYPE_FAILED)
+    def test_get_archive_query(self):
+        tcs = (
+            (
+                SystemLabel.TYPE_INBOX,
+                "SELECT s.* FROM s3object s WHERE s.direction = 'in' AND s.visibility = 'visible' AND s.status = 'handled' AND s.flow IS NULL AND s.type != 'voice'",
+            ),
+            (
+                SystemLabel.TYPE_FLOWS,
+                "SELECT s.* FROM s3object s WHERE s.direction = 'in' AND s.visibility = 'visible' AND s.status = 'handled' AND s.flow IS NOT NULL AND s.type != 'voice'",
+            ),
+            (
+                SystemLabel.TYPE_ARCHIVED,
+                "SELECT s.* FROM s3object s WHERE s.direction = 'in' AND s.visibility = 'archived' AND s.status = 'handled' AND s.type != 'voice'",
+            ),
+            (
+                SystemLabel.TYPE_OUTBOX,
+                "SELECT s.* FROM s3object s WHERE s.direction = 'out' AND s.visibility = 'visible' AND s.status IN ('initializing', 'queued', 'errored')",
+            ),
+            (
+                SystemLabel.TYPE_SENT,
+                "SELECT s.* FROM s3object s WHERE s.direction = 'out' AND s.visibility = 'visible' AND s.status IN ('wired', 'sent', 'delivered')",
+            ),
+            (
+                SystemLabel.TYPE_FAILED,
+                "SELECT s.* FROM s3object s WHERE s.direction = 'out' AND s.visibility = 'visible' AND s.status = 'failed'",
+            ),
         )
 
-        self.assertEqual(("visible", "in", None, None), SystemLabel.get_archive_attributes(SystemLabel.TYPE_SCHEDULED))
+        for (label_type, expected_select) in tcs:
+            select = s3.compile_select(where=SystemLabel.get_archive_query(label_type))
+            self.assertEqual(expected_select, select, f"select s3 mismatch for label {label_type}")
 
     def test_get_counts(self):
         self.assertEqual(
