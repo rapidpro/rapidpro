@@ -315,8 +315,11 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         c1_t1.assign(self.admin, assignee=self.admin, note="I've got this")
         c1_t2 = self.create_ticket(self.mailgun, contact1, "Question 2")
 
+        # give contact1 and old style broadcast message that doesn't have created_by set
         self.create_incoming_msg(contact1, "I have an issue")
-        self.create_broadcast(self.admin, "We can help", contacts=[contact1]).msgs.first()
+        c1_msg1 = self.create_broadcast(self.admin, "We can help", contacts=[contact1]).msgs.first()
+        c1_msg1.created_by = None
+        c1_msg1.save(update_fields=("created_by",))
 
         # contact 2 has an open ticket and a closed ticket
         c2_t1 = self.create_ticket(self.mailgun, contact2, "Question 3")
@@ -328,6 +331,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # contact 3 has two closed tickets
         c3_t1 = self.create_ticket(self.mailgun, contact3, "Question 5", closed_on=timezone.now())
         c3_t2 = self.create_ticket(self.mailgun, contact3, "Question 6", closed_on=timezone.now())
+
+        self.create_outgoing_msg(contact3, "Yes", created_by=self.agent)
 
         # fetching open folder returns all open tickets
         response = self.client.get(open_url)
@@ -427,6 +432,30 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # fetching closed folder returns all closed tickets
         response = self.client.get(closed_url)
         assert_tickets(response, [c3_t2, c3_t1, c2_t2])
+        self.assertEqual(
+            {
+                "uuid": str(contact3.uuid),
+                "name": "Anne",
+                "last_seen_on": matchers.ISODate(),
+                "last_msg": {
+                    "text": "Yes",
+                    "direction": "O",
+                    "type": "T",
+                    "created_on": matchers.ISODate(),
+                    "sender": {"id": self.agent.id, "email": "agent@nyaruka.com"},
+                    "attachments": [],
+                },
+                "ticket": {
+                    "uuid": str(c3_t2.uuid),
+                    "assignee": None,
+                    "topic": {"uuid": matchers.UUID4String(), "name": "General"},
+                    "body": "Question 6",
+                    "last_activity_on": matchers.ISODate(),
+                    "closed_on": matchers.ISODate(),
+                },
+            },
+            response.json()["results"][0],
+        )
 
         # deep linking to a single ticket returns just that ticket
         response = self.client.get(f"{open_url}{str(c1_t1.uuid)}")
