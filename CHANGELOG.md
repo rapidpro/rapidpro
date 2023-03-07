@@ -1,3 +1,7 @@
+v8.1.59 (2023-03-07)
+-------------------------
+ * Rework code depending on msg_type=I|F
+
 v8.1.58 (2023-03-07)
 -------------------------
  * Add missing channels migration
