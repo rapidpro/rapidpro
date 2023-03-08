@@ -35,15 +35,16 @@ class ScheduleTest(TembaTest):
         default_tz = pytz.timezone("Africa/Kigali")
 
         tcs = [
-            dict(
-                label="one time in the past (noop)",
-                trigger_date=datetime(2013, 1, 2, hour=10),
-                now=datetime(2013, 1, 3, hour=9),
-                repeat_period=Schedule.REPEAT_NEVER,
-                first=None,
-                next=[None],
-                display="",
-            ),
+            # todo confirm if this should be removed from the tcs array
+            # dict(
+            #     label="one time in the past (noop)",
+            #     trigger_date=datetime(2013, 1, 2, hour=10),
+            #     now=datetime(2013, 1, 3, hour=9),
+            #     repeat_period=Schedule.REPEAT_NEVER,
+            #     first=None,
+            #     next=[None],
+            #     display="",
+            # ),
             dict(
                 label="one time in the future (fire once)",
                 trigger_date=datetime(2013, 1, 2, hour=10),
@@ -350,12 +351,13 @@ class ScheduleCRUDLTest(TembaTest, CRUDLTestMixin):
         yesterday = today - timedelta(days=1)
         tomorrow = today + timedelta(days=1)
 
-        # update to start in past with no repeat
-        self.assertUpdateSubmit(update_url, {"start_datetime": datepicker_fmt(yesterday), "repeat_period": "O"})
-
-        schedule.refresh_from_db()
-        self.assertEqual("O", schedule.repeat_period)
-        self.assertIsNone(schedule.next_fire)
+        # try to submit in past with no repeat
+        self.assertUpdateSubmit(
+            update_url,
+            {"start_datetime": datepicker_fmt(yesterday), "repeat_period": "O"},
+            form_errors={"start_datetime": "Must specify a start time that is in the future."},
+            object_unchanged=schedule,
+        )
 
         # update to start in future with no repeat
         self.assertUpdateSubmit(update_url, {"start_datetime": datepicker_fmt(tomorrow), "repeat_period": "O"})
@@ -407,12 +409,13 @@ class ScheduleCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("M", schedule.repeat_period)
         self.assertIsNone(schedule.repeat_days_of_week)
 
+        # todo - confirm this should be removed as we no longer offer unscheduling
         # update with empty start date to signify unscheduling
-        self.assertUpdateSubmit(update_url, {"start_datetime": "", "repeat_period": "O"})
+        # self.assertUpdateSubmit(update_url, {"start_datetime": "", "repeat_period": "O"})
 
-        schedule.refresh_from_db()
-        self.assertEqual("O", schedule.repeat_period)
-        self.assertIsNone(schedule.next_fire)
+        # schedule.refresh_from_db()
+        # self.assertEqual("O", schedule.repeat_period)
+        # self.assertIsNone(schedule.next_fire)
 
 
 class FixDeletedSchedulesTest(MigrationTest):

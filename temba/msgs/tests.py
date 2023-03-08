@@ -2015,6 +2015,21 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
 
+        # todo - confirm if this should be tested here as well vs only in schedules/tests.py
+        # try to submit in the past with no repeat
+        self.assertCreateSubmit(
+            create_url,
+            {
+                "omnibox": omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True),
+                "text": "Daily reminder",
+                "start_datetime": "2021-06-24 12:00",
+                "repeat_period": "O",
+            },
+            form_errors={
+                "start_datetime": "Must specify a start time that is in the future."
+            },
+        )
+
         response = self.assertCreateSubmit(
             create_url,
             {
