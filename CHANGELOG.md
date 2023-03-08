@@ -1,3 +1,8 @@
+v8.1.63 (2023-03-08)
+-------------------------
+ * Adjust export download page for new UI
+ * Make media list page (still staff only) filter by org and add index
+
 v8.1.62 (2023-03-08)
 -------------------------
  * Small z-index tweak
