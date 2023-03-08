@@ -1,3 +1,7 @@
+v8.1.62 (2023-03-08)
+-------------------------
+ * Small z-index tweak
+
 v8.1.61 (2023-03-07)
 -------------------------
  * Tweak simulator placement in new ui
