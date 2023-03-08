@@ -460,13 +460,11 @@ class Msg(models.Model):
     DIRECTION_OUT = "O"
     DIRECTION_CHOICES = ((DIRECTION_IN, "Incoming"), (DIRECTION_OUT, "Outgoing"))
 
-    TYPE_INBOX = "I"  # to be replaced with T
-    TYPE_FLOW = "F"  # to be replaced with T
+    TYPE_INBOX = "I"  # no longer used
+    TYPE_FLOW = "F"  # no longer used
     TYPE_TEXT = "T"
     TYPE_VOICE = "V"
     TYPE_CHOICES = (
-        (TYPE_INBOX, "Inbox Message"),
-        (TYPE_FLOW, "Flow Message"),
         (TYPE_TEXT, "Text Message"),
         (TYPE_VOICE, "Voice Message"),
     )
@@ -497,7 +495,7 @@ class Msg(models.Model):
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
 
     id = models.BigAutoField(primary_key=True)
-    uuid = models.UUIDField(null=True, default=uuid4)
+    uuid = models.UUIDField(default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs", db_index=False)
 
     # message destination
@@ -521,7 +519,7 @@ class Msg(models.Model):
     sent_on = models.DateTimeField(null=True)
     queued_on = models.DateTimeField(null=True)
 
-    msg_type = models.CharField(max_length=1, choices=TYPE_CHOICES, null=True)
+    msg_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
     visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE)
