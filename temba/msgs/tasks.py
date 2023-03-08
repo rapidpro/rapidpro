@@ -1,8 +1,10 @@
 import logging
+from datetime import timedelta
 
 from celery import shared_task
 
 from django.db.models import Prefetch
+from django.utils import timezone
 
 from temba.contacts.models import ContactField, ContactGroup
 from temba.utils import analytics
@@ -43,8 +45,20 @@ def send_to_flow_node(org_id, user_id, text: str, **kwargs):
 
 
 @cron_task()
-def fail_old_messages():  # pragma: needs cover
-    Msg.fail_old_messages()
+def fail_old_messages():
+    """
+    Looks for any stalled outgoing messages older than 1 week. These are typically from Android relayers which have
+    stopped syncing, and would be confusing to go out.
+    """
+    one_week_ago = timezone.now() - timedelta(days=7)
+    too_old = Msg.objects.filter(
+        created_on__lte=one_week_ago,
+        direction=Msg.DIRECTION_OUT,
+        status__in=(Msg.STATUS_INITIALIZING, Msg.STATUS_QUEUED, Msg.STATUS_ERRORED),
+    )
+    num_failed = too_old.update(status=Msg.STATUS_FAILED, failed_reason=Msg.FAILED_TOO_OLD, modified_on=timezone.now())
+
+    return {"failed": num_failed}
 
 
 @shared_task
