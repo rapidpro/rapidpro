@@ -4,7 +4,6 @@ import os
 import re
 from array import array
 from dataclasses import dataclass
-from datetime import timedelta
 from fnmatch import fnmatch
 from urllib.parse import unquote, urlparse
 
@@ -543,21 +542,6 @@ class Msg(models.Model):
 
     metadata = JSONAsTextField(null=True, default=dict)
     log_uuids = ArrayField(models.UUIDField(), null=True)
-
-    @classmethod
-    def fail_old_messages(cls):  # pragma: needs cover
-        """
-        Looks for any errored or queued messages more than a week old and fails them. Messages that old would
-        probably be confusing to go out.
-        """
-        one_week_ago = timezone.now() - timedelta(days=7)
-        statuses = (cls.STATUS_QUEUED, cls.STATUS_PENDING, cls.STATUS_ERRORED)
-        failed_messages = Msg.objects.filter(
-            created_on__lte=one_week_ago, direction=Msg.DIRECTION_OUT, status__in=statuses
-        )
-
-        # fail our messages
-        failed_messages.update(status=cls.STATUS_FAILED, failed_reason=Msg.FAILED_TOO_OLD, modified_on=timezone.now())
 
     def as_archive_json(self):
         """
