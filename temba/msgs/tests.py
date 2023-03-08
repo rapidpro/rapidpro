@@ -31,7 +31,7 @@ from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.utils import s3
 from temba.utils.views import TEMBA_MENU_SELECTION
 
-from .tasks import squash_msg_counts
+from .tasks import fail_old_messages, squash_msg_counts
 from .templatetags.sms import as_icon
 
 
@@ -1317,6 +1317,29 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         self.assertModalResponse(response, redirect="/msg/inbox/")
 
         self.clear_storage()
+
+    def test_fail_old_messages(self):
+        msg1 = self.create_outgoing_msg(self.joe, "Hello", status=Msg.STATUS_QUEUED)
+        msg2 = self.create_outgoing_msg(
+            self.joe, "Hello", status=Msg.STATUS_QUEUED, created_on=timezone.now() - timedelta(days=8)
+        )
+        msg3 = self.create_outgoing_msg(
+            self.joe, "Hello", status=Msg.STATUS_ERRORED, created_on=timezone.now() - timedelta(days=8)
+        )
+        msg4 = self.create_outgoing_msg(
+            self.joe, "Hello", status=Msg.STATUS_SENT, created_on=timezone.now() - timedelta(days=8)
+        )
+
+        fail_old_messages()
+
+        def assert_status(msg, status):
+            msg.refresh_from_db()
+            self.assertEqual(status, msg.status)
+
+        assert_status(msg1, Msg.STATUS_QUEUED)
+        assert_status(msg2, Msg.STATUS_FAILED)
+        assert_status(msg3, Msg.STATUS_FAILED)
+        assert_status(msg4, Msg.STATUS_SENT)
 
     def test_big_ids(self):
         # create an incoming message with big id
