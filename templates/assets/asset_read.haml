@@ -19,13 +19,13 @@
 
           .flex.w-full.mb-4
             .flex-grow.ml-1
-              - if not file_error
+              -if not file_error
                 .mb-12
-                  - blocktrans trimmed
+                  -blocktrans trimmed
                     Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.
                 %a.button-primary{ href: "{{ download_url }}" }
-                  - trans "Download Now"
-              - else
+                  -trans "Download Now"
+              -else
                 .alert.alert-warning
                   {{ file_error }}
 
