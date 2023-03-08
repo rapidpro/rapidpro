@@ -52,7 +52,7 @@ class ScheduleFormMixin(forms.Form):
         if self.is_valid():
             if cleaned_data["repeat_period"] == Schedule.REPEAT_WEEKLY and not cleaned_data.get("repeat_days_of_week"):
                 self.add_error("repeat_days_of_week", _("Must specify at least one day of the week."))
-            
+
             # todo - confirm whether we should actually check for this to be x amount of minutes or seconds ahead of "now"
             # todo - so that if it is scheduled to be sent very close in time to when created or updated
             # todo - there's enough time to save before sending
@@ -60,7 +60,10 @@ class ScheduleFormMixin(forms.Form):
             # todo - fix ERROR: test_scheduled_create (temba.msgs.tests.BroadcastCRUDLTest.test_scheduled_create)
             # todo - TypeError: can't compare offset-naive and offset-aware datetimes
 
-            if cleaned_data["repeat_period"] == Schedule.REPEAT_NEVER and cleaned_data["start_datetime"] < timezone.now():
+            if (
+                cleaned_data["repeat_period"] == Schedule.REPEAT_NEVER
+                and cleaned_data["start_datetime"] < timezone.now()
+            ):
                 self.add_error("start_datetime", _("Must specify a start time that is in the future."))
 
         return cleaned_data

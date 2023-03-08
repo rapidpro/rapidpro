@@ -2025,9 +2025,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
                 "start_datetime": "2021-06-24 12:00",
                 "repeat_period": "O",
             },
-            form_errors={
-                "start_datetime": "Must specify a start time that is in the future."
-            },
+            form_errors={"start_datetime": "Must specify a start time that is in the future."},
         )
 
         response = self.assertCreateSubmit(
