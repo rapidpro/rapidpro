@@ -2609,7 +2609,7 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
             self.login(user)
 
             with open(filename, "rb") as data:
-                response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
+                response = self.client.post(upload_url, {"file": data}, HTTP_X_FORWARDED_HTTPS="https")
 
             self.assertEqual(response.status_code, 200)
             self.assertEqual(expected_json, response.json())
@@ -2653,18 +2653,34 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # error message if you upload something unsupported
         with open(f"{settings.MEDIA_ROOT}/test_imports/simple.xls", "rb") as data:
-            response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
+            response = self.client.post(upload_url, {"file": data}, HTTP_X_FORWARDED_HTTPS="https")
             self.assertEqual({"error": "Unsupported file type"}, response.json())
 
         # error message if upload is too big
         with patch("temba.msgs.models.Media.MAX_UPLOAD_SIZE", 1024):
             with open(f"{settings.MEDIA_ROOT}/test_media/snow.mp4", "rb") as data:
-                response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
+                response = self.client.post(upload_url, {"file": data}, HTTP_X_FORWARDED_HTTPS="https")
                 self.assertEqual({"error": "Limit for file uploads is 0.0009765625 MB"}, response.json())
 
         self.clear_storage()
 
     def test_list(self):
+        upload_url = reverse("msgs.media_upload")
         list_url = reverse("msgs.media_list")
 
-        self.assertStaffOnly(list_url)
+        def upload(user, path):
+            self.login(user)
+
+            with open(path, "rb") as data:
+                self.client.post(upload_url, {"file": data}, HTTP_X_FORWARDED_HTTPS="https")
+                return self.org.media.filter(original=None).order_by("id").last()
+
+        media1 = upload(self.admin, f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg")
+        media2 = upload(self.admin, f"{settings.MEDIA_ROOT}/test_media/bubbles.m4a")
+        upload(self.admin2, f"{settings.MEDIA_ROOT}/test_media/bubbles.m4a")  # other org
+
+        self.login(self.customer_support, choose_org=self.org)
+        response = self.client.get(list_url)
+        self.assertEqual([media2, media1], list(response.context["object_list"]))
+
+        self.clear_storage()
