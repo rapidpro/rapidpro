@@ -407,6 +407,8 @@ class Connect(SpaMixin, OrgPermsMixin, SmartFormView):
     field_config = dict(account_sid=dict(label=""), account_token=dict(label=""))
     success_message = "Twilio Account successfully connected."
     template_name = "channels/types/twilio/connect.html"
+    menu_path = "/settings/workspace"
+    title = "Connect Twilio"
 
     def get_object(self, *args, **kwargs):
         return self.request.org
@@ -476,6 +478,7 @@ class Account(SpaMixin, OrgPermsMixin, SmartFormView):
     form_class = TwilioKeys
     permission = "channels.channel_claim"
     template_name = "channels/types/twilio/account.html"
+    menu_path = "/settings/workspace"
 
     def pre_process(self, request, *args, **kwargs):
         super().pre_process(request, *args, **kwargs)
