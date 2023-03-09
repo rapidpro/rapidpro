@@ -1347,7 +1347,7 @@ class MsgWriteSerializer(WriteSerializer):
         user = self.context["user"]
         contact = self.validated_data["contact"]
         text = self.validated_data.get("text")
-        attachments = [m.as_attachment() for m in self.validated_data.get("attachments", [])]
+        attachments = [str(m) for m in self.validated_data.get("attachments", [])]
         ticket = self.validated_data.get("ticket")
 
         resp = mailroom.get_client().msg_send(

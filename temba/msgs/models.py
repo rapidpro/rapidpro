@@ -153,9 +153,6 @@ class Media(models.Model):
     def filename(self) -> str:
         return os.path.basename(self.path)
 
-    def as_attachment(self) -> str:
-        return f"{self.content_type}:{self.url}"
-
     def process_upload(self):
         from .media import process_upload
 
@@ -163,6 +160,9 @@ class Media(models.Model):
         assert not self.original, "only original uploads can be processed"
 
         process_upload(self)
+
+    def __str__(self) -> str:
+        return f"{self.content_type}:{self.url}"
 
     class Meta:
         indexes = [
@@ -245,7 +245,9 @@ class Broadcast(models.Model):
             for lang, atts in attachments.items():
                 if lang not in translations:
                     translations[lang] = {}
-                translations[lang]["attachments"] = atts
+
+                # TODO update broadcast sending to allow media objects to stay as UUIDs for longer
+                translations[lang]["attachments"] = [str(m) for m in atts]
 
         broadcast = cls.objects.create(
             org=org,

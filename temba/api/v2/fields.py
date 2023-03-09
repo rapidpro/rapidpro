@@ -14,13 +14,6 @@ from temba.utils import languages
 from temba.utils.uuid import find_uuid, is_uuid
 
 
-def validate_attachment(value):
-    try:
-        Attachment.parse(value)
-    except ValueError:
-        raise serializers.ValidationError("Invalid attachment. Must be <content-type>:<url>.")
-
-
 def validate_language(value):
     if not languages.get_name(str(value)):
         raise serializers.ValidationError("Not an allowed ISO 639-3 language code.")
@@ -35,13 +28,6 @@ def validate_urn(value, country_code=None):
     except ValueError:
         raise serializers.ValidationError("Invalid URN: %s. Ensure phone numbers contain country codes." % value)
     return normalized
-
-
-class AttachmentField(serializers.CharField):
-    def __init__(self, **kwargs):
-        super().__init__(max_length=Attachment.MAX_LEN, **kwargs)
-
-        self.validators.append(validate_attachment)
 
 
 class LanguageField(serializers.CharField):
@@ -113,12 +99,7 @@ class TranslatedAttachmentsField(LanguageDictField):
     """
 
     def __init__(self, **kwargs):
-        super().__init__(
-            allow_empty=False,
-            max_length=50,
-            child=serializers.ListField(child=AttachmentField(), max_length=10),
-            **kwargs,
-        )
+        super().__init__(allow_empty=False, max_length=50, child=MediaField(many=True, max_items=10), **kwargs)
 
     def to_internal_value(self, data):
         if isinstance(data, list):

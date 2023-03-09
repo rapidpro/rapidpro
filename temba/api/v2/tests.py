@@ -230,16 +230,17 @@ class FieldsTest(APITest):
         self.assertRaises(serializers.ValidationError, field.run_validation, "HelloHello1")  # translation too long
         self.assertRaises(serializers.ValidationError, field.run_validation, {"eng": "HelloHello1"})
 
+        media1 = self.upload_media(self.admin, f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg")
+        media2 = self.upload_media(self.admin, f"{settings.MEDIA_ROOT}/test_media/snow.mp4")
+
         field = fields.TranslatedAttachmentsField(source="test")
         field._context = {"org": self.org}
 
-        self.assertEqual(field.run_validation(["image:http://test.jpg"]), {"eng": ["image:http://test.jpg"]})
-        self.assertEqual(field.run_validation({"eng": ["image:http://test.jpg"]}), {"eng": ["image:http://test.jpg"]})
+        self.assertEqual(field.run_validation([f"image/jpeg:{media1.url}"]), {"eng": [media1]})
+        self.assertEqual(field.run_validation({"eng": [str(media1.uuid)]}), {"eng": [media1]})
         self.assertEqual(
-            field.run_validation(
-                {"eng": ["image:http://test.jpg", "audio:http://test.mp3"], "spa": ["image:http://hola.jpg"]}
-            ),
-            {"eng": ["image:http://test.jpg", "audio:http://test.mp3"], "spa": ["image:http://hola.jpg"]},
+            field.run_validation({"eng": [str(media1.uuid), str(media2.uuid)], "spa": [str(media1.uuid)]}),
+            {"eng": [media1, media2], "spa": [media1]},
         )
         self.assertRaises(serializers.ValidationError, field.run_validation, {})  # empty
         self.assertRaises(serializers.ValidationError, field.run_validation, {"eng": [""]})  # empty
@@ -249,17 +250,17 @@ class FieldsTest(APITest):
             serializers.ValidationError, field.run_validation, {"eng": ["Hello"]}
         )  # translation not valid attachment
         self.assertRaises(
-            serializers.ValidationError, field.run_validation, {"kin": "audio:http://test.mp3"}
+            serializers.ValidationError, field.run_validation, {"kin": f"image/jpeg:{media1.url}"}
         )  # translation not a list
         self.assertRaises(
-            serializers.ValidationError, field.run_validation, {"eng": ["audio:http://test.mp3"] * 11}
+            serializers.ValidationError, field.run_validation, {"eng": [f"image/jpeg:{media1.url}"] * 11}
         )  # too many
 
         # check that default language is based on first flow language
         self.org.flow_languages = ["spa", "kin"]
         self.org.save(update_fields=("flow_languages",))
 
-        self.assertEqual(field.to_internal_value(["image:http://test.jpg"]), {"spa": ["image:http://test.jpg"]})
+        self.assertEqual(field.to_internal_value([str(media1.uuid)]), {"spa": [media1]})
 
     def test_others(self):
         group = self.create_group("Customers")
@@ -270,17 +271,6 @@ class FieldsTest(APITest):
             self.org, self.admin, campaign, field_obj, 6, CampaignEvent.UNIT_HOURS, flow, delivery_hour=12
         )
         media = self.upload_media(self.admin, f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg")
-
-        self.assert_field(
-            fields.AttachmentField(source="test"),
-            submissions={
-                "image:https://test.jpg": "image:https://test.jpg",
-                "image/jpeg:https://test.jpg": "image/jpeg:https://test.jpg",
-                "https://test.jpg": serializers.ValidationError,
-                f"image:https://{'x' * 3000}/test.jpg": serializers.ValidationError,  # too long
-            },
-            representations={"image:https://test.jpg": "image:https://test.jpg"},
-        )
 
         field = fields.CampaignField(source="test")
         field._context = {"org": self.org}
@@ -1014,13 +1004,16 @@ class EndpointsTest(APITest):
         )
         self.assertResponseError(response, "non_field_errors", "No text translation provided in base language.")
 
+        media1 = self.upload_media(self.admin, f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg")
+        media2 = self.upload_media(self.admin, f"{settings.MEDIA_ROOT}/test_media/snow.mp4")
+
         # try to create new broadcast with translations that don't include base language
         response = self.postJSON(
             url,
             None,
             {
                 "text": {"eng": "Hello"},
-                "attachments": {"spa": ["audio:http://text.mp3"]},
+                "attachments": {"spa": [str(media1.uuid)]},
                 "base_language": "eng",
                 "contacts": [self.joe.uuid],
             },
@@ -1034,8 +1027,8 @@ class EndpointsTest(APITest):
             {
                 "text": {"eng": "Hello @contact.name", "spa": "Hola @contact.name"},
                 "attachments": {
-                    "eng": ["image:http://example.com/test.jpg", "audio:http://example.com/test.mp3"],
-                    "kin": ["audio:http://example.com/muraho.mp3"],
+                    "eng": [str(media1.uuid), f"video/mp4:http://example.com/{media2.uuid}.mp4"],
+                    "kin": [str(media2.uuid)],
                 },
                 "base_language": "eng",
                 "urns": ["twitter:franky"],
@@ -1049,10 +1042,10 @@ class EndpointsTest(APITest):
             {
                 "eng": {
                     "text": "Hello @contact.name",
-                    "attachments": ["image:http://example.com/test.jpg", "audio:http://example.com/test.mp3"],
+                    "attachments": [f"image/jpeg:{media1.url}", f"video/mp4:{media2.url}"],
                 },
                 "spa": {"text": "Hola @contact.name"},
-                "kin": {"attachments": ["audio:http://example.com/muraho.mp3"]},
+                "kin": {"attachments": [f"video/mp4:{media2.url}"]},
             },
             broadcast.translations,
         )
@@ -1070,7 +1063,7 @@ class EndpointsTest(APITest):
             None,
             {
                 "text": "Hello",
-                "attachments": ["image:http://example.com/test.jpg", "audio:http://example.com/test.mp3"],
+                "attachments": [str(media1.uuid), str(media2.uuid)],
                 "contacts": [self.joe.uuid, self.frank.uuid],
             },
         )
@@ -1081,7 +1074,7 @@ class EndpointsTest(APITest):
             {
                 "eng": {
                     "text": "Hello",
-                    "attachments": ["image:http://example.com/test.jpg", "audio:http://example.com/test.mp3"],
+                    "attachments": [f"image/jpeg:{media1.url}", f"video/mp4:{media2.url}"],
                 }
             },
             broadcast.translations,
@@ -1090,14 +1083,7 @@ class EndpointsTest(APITest):
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
 
         # create new broadcast without translations containing only text, no attachments
-        response = self.postJSON(
-            url,
-            None,
-            {
-                "text": "Hello",
-                "contacts": [self.joe.uuid, self.frank.uuid],
-            },
-        )
+        response = self.postJSON(url, None, {"text": "Hello", "contacts": [self.joe.uuid, self.frank.uuid]})
         self.assertEqual(201, response.status_code)
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
@@ -1107,16 +1093,13 @@ class EndpointsTest(APITest):
         response = self.postJSON(
             url,
             None,
-            {
-                "attachments": ["image:http://example.com/test.jpg", "audio/mp3:http://example.com/test.mp3"],
-                "contacts": [self.joe.uuid, self.frank.uuid],
-            },
+            {"attachments": [str(media1.uuid), str(media2.uuid)], "contacts": [self.joe.uuid, self.frank.uuid]},
         )
         self.assertEqual(201, response.status_code)
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
         self.assertEqual(
-            {"eng": {"attachments": ["image:http://example.com/test.jpg", "audio/mp3:http://example.com/test.mp3"]}},
+            {"eng": {"attachments": [f"image/jpeg:{media1.url}", f"video/mp4:{media2.url}"]}},
             broadcast.translations,
         )
 

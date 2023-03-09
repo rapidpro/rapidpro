@@ -573,7 +573,8 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     ## Sending Broadcasts
 
-    A `POST` allows you to create and send new broadcasts, with the following JSON data:
+    A `POST` allows you to create and send new broadcasts. Attachments are media object UUIDs returned from POSTing
+    to the [media](/api/v2/media) endpoint.
 
       * **urns** - the URNs of contacts to send to (array of up to 100 strings, optional)
       * **contacts** - the UUIDs of contacts to send to (array of up to 100 strings, optional)
@@ -2515,7 +2516,7 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     ## Sending a Message
 
     A **POST** can be used to create and send a new message. Attachments are media object UUIDs returned from POSTing
-    to the media endpoint.
+    to the [media](/api/v2/media) endpoint.
 
      * **contact** - the UUID of the contact (string)
      * **text** - the text of the message (string)
