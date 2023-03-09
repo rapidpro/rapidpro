@@ -36,15 +36,6 @@ class ScheduleTest(TembaTest):
 
         tcs = [
             dict(
-                label="one time in the past (noop)",
-                trigger_date=datetime(2013, 1, 2, hour=10),
-                now=datetime(2013, 1, 3, hour=9),
-                repeat_period=Schedule.REPEAT_NEVER,
-                first=None,
-                next=[None],
-                display="",
-            ),
-            dict(
                 label="one time in the future (fire once)",
                 trigger_date=datetime(2013, 1, 2, hour=10),
                 now=datetime(2013, 1, 1, hour=9),
@@ -350,12 +341,13 @@ class ScheduleCRUDLTest(TembaTest, CRUDLTestMixin):
         yesterday = today - timedelta(days=1)
         tomorrow = today + timedelta(days=1)
 
-        # update to start in past with no repeat
-        self.assertUpdateSubmit(update_url, {"start_datetime": datepicker_fmt(yesterday), "repeat_period": "O"})
-
-        schedule.refresh_from_db()
-        self.assertEqual("O", schedule.repeat_period)
-        self.assertIsNone(schedule.next_fire)
+        # try to submit in past with no repeat
+        self.assertUpdateSubmit(
+            update_url,
+            {"start_datetime": datepicker_fmt(yesterday), "repeat_period": "O"},
+            form_errors={"start_datetime": "Must specify a start time that is in the future."},
+            object_unchanged=schedule,
+        )
 
         # update to start in future with no repeat
         self.assertUpdateSubmit(update_url, {"start_datetime": datepicker_fmt(tomorrow), "repeat_period": "O"})

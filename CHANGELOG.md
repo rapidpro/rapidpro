@@ -1,3 +1,12 @@
+v8.1.66 (2023-03-09)
+-------------------------
+ * Fix initial editor load
+ * Schedule message validation
+
+v8.1.65 (2023-03-09)
+-------------------------
+ * Update endpoints for messages and media
+
 v8.1.64 (2023-03-08)
 -------------------------
  * Tweak layout for editor
