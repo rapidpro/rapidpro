@@ -399,7 +399,7 @@ class ScheduleCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("M", schedule.repeat_period)
         self.assertIsNone(schedule.repeat_days_of_week)
 
-        # update with empty start date to signify unscheduling 
+        # update with empty start date to signify unscheduling
         self.assertUpdateSubmit(update_url, {"start_datetime": "", "repeat_period": "O"})
 
         schedule.refresh_from_db()
