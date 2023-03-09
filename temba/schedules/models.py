@@ -135,8 +135,6 @@ class Schedule(SmartModel):
         Get the next point in the future when our schedule should fire again. Note this should only be called to find
         the next scheduled event as it will force the next date to meet the criteria in day_of_month, days_of_week etc..
         """
-        if self.repeat_period == Schedule.REPEAT_NEVER:
-            return None
 
         tz = self.org.timezone
         hour = self.repeat_hour_of_day
