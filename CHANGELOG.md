@@ -1,3 +1,7 @@
+v8.1.65 (2023-03-09)
+-------------------------
+ * Update endpoints for messages and media
+
 v8.1.64 (2023-03-08)
 -------------------------
  * Tweak layout for editor
