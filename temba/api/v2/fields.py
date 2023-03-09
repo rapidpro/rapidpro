@@ -8,10 +8,10 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactField as ContactFieldModel, ContactGroup, ContactURN
 from temba.flows.models import Flow
-from temba.msgs.models import Attachment, Label, Msg
+from temba.msgs.models import Attachment, Label, Media, Msg
 from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import languages
-from temba.utils.uuid import is_uuid
+from temba.utils.uuid import find_uuid, is_uuid
 
 
 def validate_attachment(value):
@@ -173,6 +173,8 @@ class TembaModelField(serializers.RelatedField):
     # throw validation exception if any object not found, otherwise returns none
     require_exists = True
 
+    default_max_items = 100  # when many=True this is the default max number of many
+
     lookup_validators = {
         "uuid": is_uuid,
         "id": lambda v: isinstance(v, int),
@@ -180,15 +182,19 @@ class TembaModelField(serializers.RelatedField):
     }
 
     @classmethod
-    def many_init(cls, *args, **kwargs):
+    def many_init(cls, max_items=None, *args, **kwargs):
         """
         Overridden to provide a custom ManyRelated which limits number of items
         """
+
+        max_items = max_items or cls.default_max_items
+
         list_kwargs = {"child_relation": cls(*args, **kwargs)}
         for key in kwargs.keys():
             if key in relations.MANY_RELATION_KWARGS:
                 list_kwargs[key] = kwargs[key]
-        return LimitedManyRelatedField(max_length=100, **list_kwargs)
+
+        return LimitedManyRelatedField(max_length=max_items, **list_kwargs)
 
     def get_queryset(self):
         manager = getattr(self.model, self.model_manager)
@@ -333,6 +339,27 @@ class LabelField(TembaModelField):
     model = Label
     lookup_fields = ("uuid", "name")
     ignore_case_for_fields = ("name",)
+
+
+class MediaField(TembaModelField):
+    model = Media
+
+    def _value_to_uuid(self, value) -> str | None:
+        if is_uuid(value):
+            return value
+        try:
+            att = Attachment.parse(value)  # try as a <content-type>:<url> attachment string
+            return find_uuid(att.url)
+        except ValueError:
+            pass
+        return None
+
+    def get_object(self, value):
+        uuid = self._value_to_uuid(value)
+        return self.get_queryset().filter(uuid=uuid).first() if uuid else None
+
+    def to_representation(self, obj):
+        return str(obj.uuid)
 
 
 class MessageField(TembaModelField):

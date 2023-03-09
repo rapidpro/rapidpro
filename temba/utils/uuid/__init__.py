@@ -1,8 +1,11 @@
 import random
+import re
 import sys
 from uuid import UUID, uuid4 as real_uuid4
 
 default_generator = real_uuid4
+
+UUID_REGEX = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 
 def uuid4() -> UUID:
@@ -26,8 +29,19 @@ def seeded_generator(seed: int):
 
 
 def is_uuid(val: str) -> bool:
+    """
+    Returns whether the given string is a valid UUID
+    """
     try:
         UUID(val)
         return True
     except Exception:
         return False
+
+
+def find_uuid(val: str) -> str | None:
+    """
+    Finds and returns the first valid UUID in the given string
+    """
+    match = UUID_REGEX.search(val)
+    return match.group(0) if match else None

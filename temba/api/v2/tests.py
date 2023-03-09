@@ -49,7 +49,20 @@ from .serializers import format_datetime, normalize_extra
 NUM_BASE_REQUEST_QUERIES = 5  # number of db queries required for any API request
 
 
-class FieldsTest(TembaTest):
+class APITest(TembaTest):
+    def upload_media(self, user, filename: str):
+        self.login(user)
+
+        with open(filename, "rb") as data:
+            response = self.client.post(
+                reverse("api.v2.media") + ".json", {"file": data}, HTTP_X_FORWARDED_HTTPS="https"
+            )
+            self.assertEqual(201, response.status_code)
+
+        return Media.objects.get(uuid=response.json()["uuid"])
+
+
+class FieldsTest(APITest):
     def assert_field(self, f, *, submissions: dict, representations: dict):
         f._context = {"org": self.org}  # noqa
 
@@ -256,6 +269,7 @@ class FieldsTest(TembaTest):
         event = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, field_obj, 6, CampaignEvent.UNIT_HOURS, flow, delivery_hour=12
         )
+        media = self.upload_media(self.admin, f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg")
 
         self.assert_field(
             fields.AttachmentField(source="test"),
@@ -314,6 +328,12 @@ class FieldsTest(TembaTest):
         )
 
         self.assert_field(
+            fields.MediaField(source="test"),
+            submissions={str(media.uuid): media, "xyz": serializers.ValidationError},
+            representations={media: str(media.uuid)},
+        )
+
+        self.assert_field(
             fields.TopicField(source="test"),
             submissions={str(self.org.default_ticket_topic.uuid): self.org.default_ticket_topic},
             representations={
@@ -362,7 +382,7 @@ class FieldsTest(TembaTest):
         )
 
 
-class EndpointsTest(TembaTest):
+class EndpointsTest(APITest):
     def setUp(self):
         super().setUp()
 
@@ -3765,26 +3785,41 @@ class EndpointsTest(TembaTest):
             mr_mocks.calls["msg_send"][-1],
         )
 
-        # try to create a message with an invalid attachment
+        # try to create a message with an invalid attachment media UUID
         response = self.postJSON(url, None, {"contact": self.joe.uuid, "text": "Hi", "attachments": ["xxxx"]})
-        self.assertResponseError(response, ("attachments", "0"), "Invalid attachment. Must be <content-type>:<url>.")
+        self.assertResponseError(response, "attachments", "No such object: xxxx")
 
-        # try to create a message with an attachment that's too long
+        # try to create a message with an non-existent attachment media UUID
         response = self.postJSON(
-            url, None, {"contact": self.joe.uuid, "text": "Hi", "attachments": [f"image:{'x' * 3000}"]}
+            url,
+            None,
+            {"contact": self.joe.uuid, "text": "Hi", "attachments": ["67ffe746-8771-40fb-89c1-5388e7ddd439"]},
         )
-        self.assertResponseError(response, ("attachments", "0"), "Ensure this field has no more than 2048 characters.")
+        self.assertResponseError(response, "attachments", "No such object: 67ffe746-8771-40fb-89c1-5388e7ddd439")
 
-        # create a new message with just an attachment...
-        response = self.postJSON(
-            url, None, {"contact": self.joe.uuid, "attachments": ["image/jpeg:https://example.com/test.mp3"]}
-        )
+        upload = self.upload_media(self.admin, f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg")
+
+        # create a new message with an attachment as the media UUID...
+        response = self.postJSON(url, None, {"contact": self.joe.uuid, "attachments": [str(upload.uuid)]})
         self.assertEqual(response.status_code, 201)
-
-        self.assertEqual(
-            call(self.org.id, self.admin.id, self.joe.id, "", ["image/jpeg:https://example.com/test.mp3"], None),
+        self.assertEqual(  # check that was sent via mailroom
+            call(self.org.id, self.admin.id, self.joe.id, "", [f"image/jpeg:{upload.url}"], None),
             mr_mocks.calls["msg_send"][-1],
         )
+
+        # create a new message with an attachment as <content-type>:<url>...
+        response = self.postJSON(
+            url, None, {"contact": self.joe.uuid, "attachments": [f"image/jpeg:https://example.com/{upload.uuid}.jpg"]}
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            call(self.org.id, self.admin.id, self.joe.id, "", [f"image/jpeg:{upload.url}"], None),
+            mr_mocks.calls["msg_send"][-1],
+        )
+
+        # try to create a message with too many attachments
+        response = self.postJSON(url, None, {"contact": self.joe.uuid, "attachments": [str(upload.uuid)] * 11})
+        self.assertResponseError(response, "attachments", "Ensure this field has no more than 10 elements.")
 
         # try to create an unsendable message
         billy_no_phone = self.create_contact("Billy", urns=[])
@@ -3795,6 +3830,8 @@ class EndpointsTest(TembaTest):
         self.assertIsNone(msg_json["channel"])
         self.assertIsNone(msg_json["urn"])
         self.assertEqual("failed", msg_json["status"])
+
+        self.clear_storage()
 
     def test_workspace(self):
         url = reverse("api.v2.workspace")

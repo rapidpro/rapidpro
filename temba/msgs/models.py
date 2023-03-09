@@ -153,6 +153,9 @@ class Media(models.Model):
     def filename(self) -> str:
         return os.path.basename(self.path)
 
+    def as_attachment(self) -> str:
+        return f"{self.content_type}:{self.url}"
+
     def process_upload(self):
         from .media import process_upload
 
