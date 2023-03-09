@@ -262,7 +262,7 @@ class TicketCRUDL(SmartCRUDL):
                 Msg.objects.filter(contact_id__in=contact_ids).values("contact").annotate(last_msg=Max("id"))
             )
             last_msgs = Msg.objects.filter(id__in=[m["last_msg"] for m in last_msg_ids]).select_related(
-                "broadcast__created_by"
+                "created_by", "broadcast__created_by"  # TODO remove broadcast__created_by once msgs have created_by
             )
 
             context["last_msgs"] = {m.contact: m for m in last_msgs}
@@ -273,16 +273,13 @@ class TicketCRUDL(SmartCRUDL):
                 return {"uuid": str(t.uuid), "name": t.name}
 
             def user_as_json(u):
-                return {
-                    "id": u.id,
-                    "first_name": u.first_name,
-                    "last_name": u.last_name,
-                    "email": u.email,
-                }
+                return {"id": u.id, "first_name": u.first_name, "last_name": u.last_name, "email": u.email}
 
             def msg_as_json(m):
                 sender = None
-                if m.broadcast and m.broadcast.created_by:
+                if m.created_by:
+                    sender = {"id": m.created_by.id, "email": m.created_by.email}
+                elif m.broadcast and m.broadcast.created_by:
                     sender = {"id": m.broadcast.created_by.id, "email": m.broadcast.created_by.email}
 
                 return {

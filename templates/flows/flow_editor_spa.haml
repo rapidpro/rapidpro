@@ -1,7 +1,7 @@
 -extends "smartmin/base.html"
 -load compress temba i18n
 
--block extra-style
+-block spa-style
   {{block.super}}
   :css
     .spa-content {
@@ -25,6 +25,38 @@
       margin-bottom: 2.5em;
       margin-top: 0px;
       height: 100%;
+    }
+
+    .simulator {
+      top: 59px !important;
+    }
+
+    .simulator .popped {
+      top: 17px !important;
+    }
+
+    .revisions {
+      top: 110px !important;
+    }
+
+    .revisions .popped {
+      top: -33px !important;
+    }
+
+    .translations {
+      top: 161px !important;
+    }
+
+    .translations .popped {
+      top: -84px !important;
+    }
+
+    .issues {
+      top: 8px !important;
+    }
+
+    .issues .popped {
+      top: 70px !important;
     }
 
     #simulator-tab {

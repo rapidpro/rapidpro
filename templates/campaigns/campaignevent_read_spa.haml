@@ -10,7 +10,7 @@
 
 -block subtitle
 
-  .event-details.p-4.bg-gray-200.rounded-lg.mb-6
+  .event-details.p-4.bg-gray-200.rounded-lg.mt-4
     {{ object.offset_display }} {{ object.relative_to.name }}
 
 
@@ -193,6 +193,7 @@
     {% endlessblock %}
 
 -block extra-style
+  {{block.super}}
   :css
     span.strong {
       font-weight:400;

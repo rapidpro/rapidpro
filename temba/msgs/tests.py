@@ -31,7 +31,7 @@ from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.utils import s3
 from temba.utils.views import TEMBA_MENU_SELECTION
 
-from .tasks import squash_msg_counts
+from .tasks import fail_old_messages, squash_msg_counts
 from .templatetags.sms import as_icon
 
 
@@ -1318,6 +1318,29 @@ class MsgTest(TembaTest, CRUDLTestMixin):
 
         self.clear_storage()
 
+    def test_fail_old_messages(self):
+        msg1 = self.create_outgoing_msg(self.joe, "Hello", status=Msg.STATUS_QUEUED)
+        msg2 = self.create_outgoing_msg(
+            self.joe, "Hello", status=Msg.STATUS_QUEUED, created_on=timezone.now() - timedelta(days=8)
+        )
+        msg3 = self.create_outgoing_msg(
+            self.joe, "Hello", status=Msg.STATUS_ERRORED, created_on=timezone.now() - timedelta(days=8)
+        )
+        msg4 = self.create_outgoing_msg(
+            self.joe, "Hello", status=Msg.STATUS_SENT, created_on=timezone.now() - timedelta(days=8)
+        )
+
+        fail_old_messages()
+
+        def assert_status(msg, status):
+            msg.refresh_from_db()
+            self.assertEqual(status, msg.status)
+
+        assert_status(msg1, Msg.STATUS_QUEUED)
+        assert_status(msg2, Msg.STATUS_FAILED)
+        assert_status(msg3, Msg.STATUS_FAILED)
+        assert_status(msg4, Msg.STATUS_SENT)
+
     def test_big_ids(self):
         # create an incoming message with big id
         msg = Msg.objects.create(
@@ -1329,7 +1352,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
             text="Hi there",
             channel=self.channel,
             status="H",
-            msg_type="I",
+            msg_type="T",
             visibility="V",
             created_on=timezone.now(),
         )
@@ -1630,6 +1653,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotIn("resend", response.context["actions"])
 
     def test_filter(self):
+        flow = self.create_flow("Flow")
         joe = self.create_contact("Joe Blow", phone="+250788000001")
         frank = self.create_contact("Frank Blow", phone="250788000002")
         billy = self.create_contact("Billy Bob", urns=["twitter:billy_bob"])
@@ -1645,7 +1669,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         msg3 = self.create_incoming_msg(billy, "test3")
         msg4 = self.create_incoming_msg(joe, "test4", visibility=Msg.VISIBILITY_ARCHIVED)
         msg5 = self.create_incoming_msg(joe, "test5", visibility=Msg.VISIBILITY_DELETED_BY_USER)
-        msg6 = self.create_incoming_msg(joe, "flow test", msg_type="F")
+        msg6 = self.create_incoming_msg(joe, "IVR test", flow=flow)
 
         # apply the labels
         label1.toggle_label([msg1, msg2], add=True)
@@ -2608,7 +2632,7 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
             self.login(user)
 
             with open(filename, "rb") as data:
-                response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
+                response = self.client.post(upload_url, {"file": data}, HTTP_X_FORWARDED_HTTPS="https")
 
             self.assertEqual(response.status_code, 200)
             self.assertEqual(expected_json, response.json())
@@ -2652,18 +2676,34 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # error message if you upload something unsupported
         with open(f"{settings.MEDIA_ROOT}/test_imports/simple.xls", "rb") as data:
-            response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
+            response = self.client.post(upload_url, {"file": data}, HTTP_X_FORWARDED_HTTPS="https")
             self.assertEqual({"error": "Unsupported file type"}, response.json())
 
         # error message if upload is too big
         with patch("temba.msgs.models.Media.MAX_UPLOAD_SIZE", 1024):
             with open(f"{settings.MEDIA_ROOT}/test_media/snow.mp4", "rb") as data:
-                response = self.client.post(upload_url, {"file": data, "action": ""}, HTTP_X_FORWARDED_HTTPS="https")
+                response = self.client.post(upload_url, {"file": data}, HTTP_X_FORWARDED_HTTPS="https")
                 self.assertEqual({"error": "Limit for file uploads is 0.0009765625 MB"}, response.json())
 
         self.clear_storage()
 
     def test_list(self):
+        upload_url = reverse("msgs.media_upload")
         list_url = reverse("msgs.media_list")
 
-        self.assertStaffOnly(list_url)
+        def upload(user, path):
+            self.login(user)
+
+            with open(path, "rb") as data:
+                self.client.post(upload_url, {"file": data}, HTTP_X_FORWARDED_HTTPS="https")
+                return self.org.media.filter(original=None).order_by("id").last()
+
+        media1 = upload(self.admin, f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg")
+        media2 = upload(self.admin, f"{settings.MEDIA_ROOT}/test_media/bubbles.m4a")
+        upload(self.admin2, f"{settings.MEDIA_ROOT}/test_media/bubbles.m4a")  # other org
+
+        self.login(self.customer_support, choose_org=self.org)
+        response = self.client.get(list_url)
+        self.assertEqual([media2, media1], list(response.context["object_list"]))
+
+        self.clear_storage()

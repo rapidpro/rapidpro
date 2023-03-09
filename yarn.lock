@@ -40,18 +40,18 @@
   resolved "https://registry.npmjs.org/@lit/reactive-element/-/reactive-element-1.4.1.tgz"
   integrity sha512-qDv4851VFSaBWzpS02cXHclo40jsbAjRXnebNXpm0uVg32kCneZPo9RYVQtrTNICtZ+1wAYHu1ZtxWSWMbKrBw==
 
-"@nyaruka/flow-editor@1.19.2":
-  version "1.19.2"
-  resolved "https://registry.npmjs.org/@nyaruka/flow-editor/-/flow-editor-1.19.2.tgz#1a0dcb154248b712c4210147d2454014f6768daf"
-  integrity sha512-Knqc6fbM2qTnLrmZhnuANShAkW6B6LyJPUb5afAm9azLSU+YTwAv3V2CwQQ2n4i507F4HGERYxfmf5JBbLEU1Q==
+"@nyaruka/flow-editor@1.18.4":
+  version "1.18.4"
+  resolved "https://registry.npmjs.org/@nyaruka/flow-editor/-/flow-editor-1.18.4.tgz#6fb33b38ef4cf7278fdd46816360342da60f5f7e"
+  integrity sha512-okvFPvdkAPRVKQKX7U6QQ82Svh6XV3KoJF12ZG4PKYcTdkIefBHJ8lWsnAAZgk4Jxjf/8xE4JgN/LN28OhGjjg==
   dependencies:
     react "^16.8.6"
     react-dom "^16.8.6"
 
-"@nyaruka/temba-components@0.42.1":
-  version "0.42.1"
-  resolved "https://registry.npmjs.org/@nyaruka/temba-components/-/temba-components-0.42.1.tgz#2d589cd4646f7ab604b8b1a25c7ff2704658f88b"
-  integrity sha512-uN2m1qebACaevQVogd+xit7UMWb7zYio4nDc83aSBPL+9v9znKPDMi2f7+xHNWZu4rzefIeKRPGqiVm2meXWZw==
+"@nyaruka/temba-components@0.43.1":
+  version "0.43.1"
+  resolved "https://registry.npmjs.org/@nyaruka/temba-components/-/temba-components-0.43.1.tgz#ba00ab5f1e9b22a1a7156d146d138b5929a021dd"
+  integrity sha512-7J4321hPcrVxfA7QwdylAV0iHyX1aCKq/kUBCwnGs9Tx8zZvzX6/SUXcv5w4Xpj+gUidreR4fJO2UT9qO/rADw==
   dependencies:
     color-hash "^2.0.2"
     geojson "^0.5.0"

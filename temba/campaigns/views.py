@@ -116,6 +116,7 @@ class CampaignCRUDL(SmartCRUDL):
 
     class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
+        menu_path = "/campaign/active"
 
         def derive_title(self):
             return self.object.name

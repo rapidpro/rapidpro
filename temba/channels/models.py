@@ -16,7 +16,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from django.db.models import Max, Q, Sum
+from django.db.models import Q, Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template import Context, Engine, TemplateDoesNotExist
@@ -1199,13 +1199,11 @@ def pre_save(sender, instance, **kwargs):
 class Alert(SmartModel):
     TYPE_DISCONNECTED = "D"
     TYPE_POWER = "P"
-    TYPE_SMS = "S"
 
     TYPE_CHOICES = (
         (TYPE_POWER, _("Power")),  # channel has low power
         (TYPE_DISCONNECTED, _("Disconnected")),  # channel hasn't synced in a while
-        (TYPE_SMS, _("SMS")),
-    )  # channel has many unsent messages
+    )
 
     channel = models.ForeignKey(
         Channel,
@@ -1272,7 +1270,6 @@ class Alert(SmartModel):
     @classmethod
     def check_alerts(cls):
         from temba.channels.types.android import AndroidType
-        from temba.msgs.models import Msg
 
         thirty_minutes_ago = timezone.now() - timedelta(minutes=30)
 
@@ -1292,65 +1289,6 @@ class Alert(SmartModel):
             # have we already sent an alert for this channel
             if not Alert.objects.filter(channel=channel, alert_type=cls.TYPE_DISCONNECTED, ended_on=None):
                 cls.create_and_send(channel, cls.TYPE_DISCONNECTED)
-
-        day_ago = timezone.now() - timedelta(days=1)
-        six_hours_ago = timezone.now() - timedelta(hours=6)
-
-        # end any sms alerts that are open and no longer seem valid
-        for alert in Alert.objects.filter(alert_type=cls.TYPE_SMS, ended_on=None).distinct("channel_id"):
-            # are there still queued messages?
-
-            if (
-                not Msg.objects.filter(
-                    status__in=["Q", "P"], channel_id=alert.channel_id, created_on__lte=thirty_minutes_ago
-                )
-                .exclude(created_on__lte=day_ago)
-                .exists()
-            ):
-                Alert.objects.filter(alert_type=cls.TYPE_SMS, ended_on=None, channel_id=alert.channel_id).update(
-                    ended_on=timezone.now()
-                )
-
-        # now look for channels that have many unsent messages
-        queued_messages = (
-            Msg.objects.filter(status__in=["Q", "P"])
-            .order_by("channel", "created_on")
-            .exclude(created_on__gte=thirty_minutes_ago)
-            .exclude(created_on__lte=day_ago)
-            .exclude(channel=None)
-            .values("channel")
-            .annotate(latest_queued=Max("created_on"))
-        )
-        sent_messages = (
-            Msg.objects.filter(status__in=["S", "D"])
-            .exclude(created_on__lte=day_ago)
-            .exclude(channel=None)
-            .order_by("channel", "sent_on")
-            .values("channel")
-            .annotate(latest_sent=Max("sent_on"))
-        )
-
-        channels = dict()
-        for queued in queued_messages:
-            if queued["channel"]:
-                channels[queued["channel"]] = dict(queued=queued["latest_queued"], sent=None)
-
-        for sent in sent_messages:
-            existing = channels.get(sent["channel"], dict(queued=None))
-            existing["sent"] = sent["latest_sent"]
-
-        for (channel_id, value) in channels.items():
-            # we haven't sent any messages in the past six hours
-            if not value["sent"] or value["sent"] < six_hours_ago:
-                channel = Channel.objects.get(pk=channel_id)
-
-                # never alert on channels that have no org
-                if channel.org is None:  # pragma: no cover
-                    continue
-
-                # if we haven't sent an alert in the past six ours
-                if not Alert.objects.filter(channel=channel).filter(Q(created_on__gt=six_hours_ago)).exists():
-                    cls.create_and_send(channel, cls.TYPE_SMS)
 
     def send_alert(self):
         from .tasks import send_alert_task
@@ -1389,9 +1327,6 @@ class Alert(SmartModel):
                 subject = "Your Android phone is disconnected"
                 template = "channels/email/disconnected_alert"
 
-        elif self.alert_type == self.TYPE_SMS:
-            subject = "Your %s is having trouble sending messages" % self.channel.get_channel_type_name()
-            template = "channels/email/sms_alert"
         else:  # pragma: no cover
             raise Exception(_("Unknown alert type: %(alert)s") % {"alert": self.alert_type})
 

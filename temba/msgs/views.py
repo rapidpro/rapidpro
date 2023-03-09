@@ -946,6 +946,10 @@ class MediaCRUDL(SmartCRUDL):
     actions = ("upload", "list")
 
     class Upload(OrgPermsMixin, SmartCreateView):
+        """
+        TODO deprecated, migrate usages to /api/v2/media.json
+        """
+
         def post(self, request, *args, **kwargs):
             file = request.FILES["file"]
 
@@ -961,7 +965,7 @@ class MediaCRUDL(SmartCRUDL):
                 {
                     "uuid": str(media.uuid),
                     "content_type": media.content_type,
-                    "type": media.content_type,  # deprecated
+                    "type": media.content_type,
                     "url": media.url,
                     "name": media.filename,
                     "size": media.size,
@@ -970,3 +974,7 @@ class MediaCRUDL(SmartCRUDL):
 
     class List(StaffOnlyMixin, OrgPermsMixin, SmartListView):
         fields = ("url", "content_type", "size", "created_by", "created_on")
+        default_order = ("-created_on",)
+
+        def get_queryset(self, **kwargs):
+            return super().get_queryset(**kwargs).filter(org=self.request.org, original=None)

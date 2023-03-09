@@ -23,7 +23,7 @@ PLAYABLE_CONTENT_TYPES = {
 def as_icon(contact_event):
     icon = "icon-bubble-dots-2 green"
     direction = getattr(contact_event, "direction", "O")
-    msg_type = getattr(contact_event, "msg_type", "I")
+    msg_type = getattr(contact_event, "msg_type", "T")
 
     if hasattr(contact_event, "status"):
         status = contact_event.status

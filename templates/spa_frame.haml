@@ -732,7 +732,7 @@
               .flex-grow
 
       .folders
-        %temba-menu#nav(class="{% if servicing %}{% endif%}" style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" -temba-button-clicked="handleMenuClicked(event)" -temba-ready="handleMenuReady")
+        %temba-menu.relative.z-0#nav(class="{% if servicing %}{% endif%}" style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" -temba-button-clicked="handleMenuClicked(event)" -temba-ready="handleMenuReady")
           -block menu-header
 
       .flex-grow.spa-container.flex.flex-col.initial-load
@@ -741,6 +741,8 @@
             %temba-loading(size=16 units=6)
 
         .spa-content.p-5.overflow-y-auto.overflow-x-hidden
+
+          -block spa-style
 
           -block page-header
             -if title or has_content_menu
@@ -782,3 +784,5 @@
     Go back to the
     %span.linked(onclick="leaveNewInterface()" style="color:#43b1ff")<
       old interface
+
+  %temba-lightbox

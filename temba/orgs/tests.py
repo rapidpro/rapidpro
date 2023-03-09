@@ -734,7 +734,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             [],
         )
         Alert.objects.create(
-            channel=self.channel, alert_type=Alert.TYPE_SMS, created_by=self.admin, modified_by=self.admin
+            channel=self.channel, alert_type=Alert.TYPE_POWER, created_by=self.admin, modified_by=self.admin
         )
 
         # create a second child org

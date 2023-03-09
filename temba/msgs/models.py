@@ -4,7 +4,6 @@ import os
 import re
 from array import array
 from dataclasses import dataclass
-from datetime import timedelta
 from fnmatch import fnmatch
 from urllib.parse import unquote, urlparse
 
@@ -50,8 +49,8 @@ class Media(models.Model):
     STATUS_FAILED = "F"
     STATUS_CHOICES = ((STATUS_PENDING, "Pending"), (STATUS_READY, "Ready"), (STATUS_FAILED, "Failed"))
 
-    uuid = models.UUIDField(default=uuid4, db_index=True, unique=True)
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    uuid = models.UUIDField(default=uuid4, unique=True)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="media")
     url = models.URLField(max_length=2048)
     content_type = models.CharField(max_length=255)
     path = models.CharField(max_length=2048)
@@ -161,6 +160,11 @@ class Media(models.Model):
         assert not self.original, "only original uploads can be processed"
 
         process_upload(self)
+
+    class Meta:
+        indexes = [
+            models.Index(name="media_originals_by_org", fields=["org", "-created_on"], condition=Q(original=None))
+        ]
 
 
 class Broadcast(models.Model):
@@ -538,38 +542,6 @@ class Msg(models.Model):
 
     metadata = JSONAsTextField(null=True, default=dict)
     log_uuids = ArrayField(models.UUIDField(), null=True)
-
-    @classmethod
-    def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
-        messages = cls.objects.filter(org=org)
-
-        if is_archived:  # pragma: needs cover
-            messages = messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)
-        else:
-            messages = messages.filter(visibility=Msg.VISIBILITY_VISIBLE)
-
-        if direction:  # pragma: needs cover
-            messages = messages.filter(direction=direction)
-
-        if msg_type:  # pragma: needs cover
-            messages = messages.filter(msg_type=msg_type)
-
-        return messages
-
-    @classmethod
-    def fail_old_messages(cls):  # pragma: needs cover
-        """
-        Looks for any errored or queued messages more than a week old and fails them. Messages that old would
-        probably be confusing to go out.
-        """
-        one_week_ago = timezone.now() - timedelta(days=7)
-        statuses = (cls.STATUS_QUEUED, cls.STATUS_PENDING, cls.STATUS_ERRORED)
-        failed_messages = Msg.objects.filter(
-            created_on__lte=one_week_ago, direction=Msg.DIRECTION_OUT, status__in=statuses
-        )
-
-        # fail our messages
-        failed_messages.update(status=cls.STATUS_FAILED, failed_reason=Msg.FAILED_TOO_OLD, modified_on=timezone.now())
 
     def as_archive_json(self):
         """
@@ -1181,7 +1153,7 @@ class ExportMessagesTask(BaseItemWithContactExport):
         elif label:
             messages = label.get_messages()
         else:
-            messages = Msg.get_messages(self.org)
+            messages = self.org.msgs.filter(visibility=Msg.VISIBILITY_VISIBLE)
 
         messages = messages.filter(created_on__gte=start_date, created_on__lte=end_date)
 

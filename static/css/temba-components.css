@@ -154,6 +154,8 @@ html {
   --temba-charcount-summary-right: 0px;
   --temba-charcount-summary-bottom: 0px;
 
+  --color-automated: rgb(78,205,106);
+
 }
 
 temba-button {
