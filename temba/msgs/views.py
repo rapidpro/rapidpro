@@ -246,7 +246,7 @@ class BroadcastCRUDL(SmartCRUDL):
             #         attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True, "counter": "temba-charcount"}
             #     )
             # )
-            text = forms.CharField(widget=forms.HiddenInput(attrs={"id":"id_text"}), required=False)
+            text = forms.CharField(widget=forms.HiddenInput(attrs={"id": "id_text"}), required=False)
             # attachments = forms.CharField(widget=forms.HiddenInput(attrs={"id":"id_attachments"}), required=False)
 
             def __init__(self, org, *args, **kwargs):
