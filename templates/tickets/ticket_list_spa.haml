@@ -82,7 +82,7 @@
         var item = items.item;
         var parent = items.parent;
         var selection = items.selection;
-        if (selection.length > 1 && selection[0] == "ticket") {
+        if (!item.popup && selection.length > 1 && selection[0] == "ticket") {
           handleTicketsMenuChanged(item);
         }
       }
@@ -98,7 +98,9 @@
     function handleTicketsMenuChanged(menuItem) {
 
       var pageTitle = document.querySelector("#title-text");
-      pageTitle.innerHTML = menuItem.name;
+      if (pageTitle) {
+        pageTitle.innerHTML = menuItem.name;
+      }
 
       var statusSelect = document.querySelector('temba-select[name="ticket-status"]');
       ticketUUID = null;
@@ -277,7 +279,7 @@
 -block content
   .flex.flex-col.overflow-y-auto.overflow-x-hidden.rounded-b-lg.p-8.-m-8.pb-4.flex-grow
     .page.flex-grow.flex.flex-col.min-h-0
-      .flex.widget-container(style="{% if is_spa%}margin:0;padding:0;height:100%{%else%}height:100vh; margin-top:-121px;padding-top:121px;margin-bottom:-100px;padding-bottom:100px;{%endif%}")
+      .flex.widget-container(style="{% if is_spa%}position:relative;z-index:0;margin:0;padding:0;height:100%{%else%}height:100vh; margin-top:-121px;padding-top:121px;margin-bottom:-100px;padding-bottom:100px;{%endif%}")
         -if not is_spa
           .folders
             %temba-menu(endpoint="{%url 'orgs.org_menu'%}" submenu="tickets" onchange="handleTicketsMenuChanged(event)" value="ticket/{{folder}}")
