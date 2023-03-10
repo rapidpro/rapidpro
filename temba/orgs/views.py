@@ -1390,6 +1390,7 @@ class OrgCRUDL(SmartCRUDL):
                 ]
 
             menu += [
+                self.create_space(),
                 self.create_menu_item(
                     menu_id="msg", name=_("Messages"), icon="icon.messages", endpoint="msgs.msg_menu"
                 ),
