@@ -2932,7 +2932,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.child.add_user(self.admin, OrgRole.ADMINISTRATOR)
         menu_url = reverse("orgs.org_menu")
 
-        self.assertMenu(menu_url, 8, ["Workspace/Child Workspace"])
+        self.assertMenu(menu_url, 9, ["Workspace/Child Workspace"])
         self.assertMenu(f"{menu_url}settings/", 6)
 
         # agents should only see tickets and settings
@@ -2942,13 +2942,13 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             response = self.client.get(menu_url)
 
         menu = response.json()["results"]
-        self.assertEqual(3, len(menu))
+        self.assertEqual(4, len(menu))
 
         # customer support should only see the staff option
         self.login(self.customer_support)
         menu = self.client.get(menu_url).json()["results"]
-        self.assertEqual(1, len(menu))
-        self.assertEqual("Staff", menu[0]["name"])
+        self.assertEqual(2, len(menu))
+        self.assertEqual("Staff", menu[1]["name"])
 
         menu = self.client.get(f"{menu_url}staff/").json()["results"]
         self.assertEqual(2, len(menu))
