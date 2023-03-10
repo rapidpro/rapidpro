@@ -241,11 +241,13 @@ class BroadcastCRUDL(SmartCRUDL):
                     }
                 ),
             )
-            text = forms.CharField(
-                widget=CompletionTextarea(
-                    attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True, "counter": "temba-charcount"}
-                )
-            )
+            # text = forms.CharField(
+            #     widget=CompletionTextarea(
+            #         attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True, "counter": "temba-charcount"}
+            #     )
+            # )
+            text = forms.CharField(widget=forms.HiddenInput(attrs={"id":"id_text"}), required=False)
+            # attachments = forms.CharField(widget=forms.HiddenInput(attrs={"id":"id_attachments"}), required=False)
 
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -269,6 +271,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
         form_class = Form
         fields = ("omnibox", "text") + ScheduleFormMixin.Meta.fields
+        # fields = ("omnibox", "text", "attachments") + ScheduleFormMixin.Meta.fields
         success_url = "id@msgs.broadcast_scheduled_read"
         submit_button_name = _("Create")
 
@@ -281,6 +284,7 @@ class BroadcastCRUDL(SmartCRUDL):
             user = self.request.user
             org = self.request.org
             text = form.cleaned_data["text"]
+            # attachments = form.cleaned_data["attachments"]
             recipients = form.cleaned_data["omnibox"]
             start_time = form.cleaned_data["start_datetime"]
             repeat_period = form.cleaned_data["repeat_period"]
@@ -293,6 +297,8 @@ class BroadcastCRUDL(SmartCRUDL):
                 org,
                 user,
                 {"und": text},
+                # {"und": text_new},
+                # {"und": attachments_new},
                 groups=list(recipients["groups"]),
                 contacts=list(recipients["contacts"]),
                 schedule=schedule,
