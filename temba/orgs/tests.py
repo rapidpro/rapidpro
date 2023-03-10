@@ -2958,7 +2958,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # if our org has new orgs but not child orgs, we should have a New Workspace button in the menu
         self.org.features = [Org.FEATURE_NEW_ORGS]
         self.org.save()
-        self.assertMenu(menu_url, 8, ["Workspace/New Workspace"])
+        self.assertMenu(menu_url, 9, ["Workspace/New Workspace"])
 
     def test_read(self):
         read_url = reverse("orgs.org_read", args=[self.org.id])
