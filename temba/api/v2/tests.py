@@ -3578,6 +3578,7 @@ class EndpointsTest(APITest):
                 "visibility": msg_visibility,
                 "text": msg.text,
                 "labels": [{"uuid": str(lb.uuid), "name": lb.name} for lb in msg.labels.all()],
+                "flow": {"uuid": str(msg.flow.uuid), "name": msg.flow.name} if msg.flow else None,
                 "attachments": [{"content_type": a.content_type, "url": a.url} for a in msg.get_attachments()],
                 "created_on": format_datetime(msg.created_on),
                 "sent_on": format_datetime(msg.sent_on),
@@ -3651,7 +3652,7 @@ class EndpointsTest(APITest):
         )
 
         # filter by incoming, should get deleted messages too
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url, "folder=incoming")
 
         resp_json = response.json()
