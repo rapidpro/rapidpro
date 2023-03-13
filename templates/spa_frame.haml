@@ -380,6 +380,7 @@
     }
 
     function goto(event, ele) {
+      
       if (event.target != ele) {
         if (event.target.href) {
           event.stopPropagation();
@@ -416,11 +417,11 @@
       }
 
       if (href) {
-          if (event.metaKey) {
-              window.open(href, '_blank');
-          } else {
-              fetchURL(href);
-          }
+        if (event.metaKey) {
+          window.open(href, '_blank');
+        } else {
+          fetchURL(href);
+        }
       }    
     }
 
