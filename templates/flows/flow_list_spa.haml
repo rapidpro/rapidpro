@@ -31,8 +31,7 @@
 
         %tbody
           -for object in object_list
-            %tr.object-row.select-row(onclick='handleRowClicked(event)' data-uuid="{{object.uuid}}" data-object-id="{{object.id}}")
-
+            %tr.object-row.select-row(onclick='handleRowClicked(event)' data-uuid="{{object.uuid}}" data-object-id="{{object.id}}" href="{% url 'flows.flow_editor' object.uuid %}")
               -if org_perms.flows.flow_update
                 %td.checkbox.object-row-checkbox(onclick="checkInner(event);" style="width:0px")
                   %temba-checkbox{onclick:"handleRowSelection(this)"}
@@ -89,7 +88,7 @@
 
       var row = event.target.closest("tr");
       var uuid = row.getAttribute("data-uuid");
-      fetchURL("/flow/editor/" + uuid + "/");
+      goto(event, row);
     }
 
     {% if org_perms.flows.flow_update %}
