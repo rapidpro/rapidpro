@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 import phonenumbers
 from phonenumbers.phonenumberutil import region_code_for_number
@@ -347,7 +347,7 @@ class UpdateForm(UpdateChannelForm):
             default="",
         )
 
-    def clean(self) -> Dict[str, Any]:
+    def clean(self) -> dict[str, Any]:
         """
         We override the clean method for Twilio we need to make sure we grab the primary auth tokens
         """

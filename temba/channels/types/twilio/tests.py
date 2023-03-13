@@ -300,7 +300,7 @@ class TwilioTypeTest(TembaTest):
             mock_check_credentials.return_value = False
 
             response = self.client.post(update_url, post_data)
-            self.assertFormError(response, "form", None, "Channel credentials don't appear to be valid.")
+            self.assertFormError(response, "form", None, "Credentials don't appear to be valid.")
 
     @patch("temba.orgs.models.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
