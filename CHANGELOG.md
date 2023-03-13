@@ -1,3 +1,8 @@
+v8.1.68 (2023-03-13)
+-------------------------
+ * Rework messages and broadcasts API endpoints to accept media ojects UUIDs as attachments
+ * Make Msg.uuid and msg_type non-null
+
 v8.1.67 (2023-03-10)
 -------------------------
  * Fix layering for menu
