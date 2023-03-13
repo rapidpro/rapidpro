@@ -346,7 +346,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         help_text=_("We will send email alerts to this address if experiencing issues sending"),
     )
 
-    config = JSONAsTextField(null=True, default=dict)
+    config = JSONAsTextField(default=dict)
     schemes = ArrayField(models.CharField(max_length=16), default=_get_default_channel_scheme)
     role = models.CharField(max_length=4, default=DEFAULT_ROLE)
     parent = models.ForeignKey("self", on_delete=models.PROTECT, null=True)
