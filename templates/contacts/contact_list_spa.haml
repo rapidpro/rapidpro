@@ -118,7 +118,7 @@
                       -trans "Created On"
                       %span.sort.icon.icon-arrow-down-2.sort-desc
           -for object in contacts
-            %tr.contact.select-row.object-row(onclick='handleRowClicked(event)' data-uuid="{{object.uuid}}" data-object-id="{{object.id}}")
+            %tr.contact.select-row.object-row(onclick='handleRowClicked(event)' data-uuid="{{object.uuid}}" data-object-id="{{object.id}}" href="{% url 'contacts.contact_read' object.uuid %}")
 
               -if org_perms.contacts.contact_update or org_perms.msgs.broadcast_send
                 %td.contact.checkbox.object-row-checkbox(onclick="checkInner(event);")

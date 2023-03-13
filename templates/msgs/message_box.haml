@@ -221,7 +221,7 @@
       var uuid = row.getAttribute("data-sender-uuid");
 
       {% if is_spa %}
-      fetchURL("/contact/read/" + uuid + "/");
+      goto(event, row);
       {% else %}
       gotoLink("/contact/read/" + uuid + "/");
       {% endif %}
