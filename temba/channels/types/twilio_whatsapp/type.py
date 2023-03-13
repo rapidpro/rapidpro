@@ -1,5 +1,7 @@
 from django.utils.translation import gettext_lazy as _
 
+from temba.channels.types.twilio.type import TwilioType
+from temba.channels.types.twilio.views import UpdateForm
 from temba.contacts.models import URN
 
 from ...models import ChannelType
@@ -24,6 +26,7 @@ class TwilioWhatsappType(ChannelType):
     ) % {"link": '<a target="_blank" href="https://www.twilio.com/whatsapp/">Twilio WhatsApp</a>'}
 
     claim_view = ClaimView
+    update_form = UpdateForm
 
     schemes = [URN.WHATSAPP_SCHEME]
     max_length = 1600
@@ -58,3 +61,6 @@ class TwilioWhatsappType(ChannelType):
 
     def get_error_ref_url(self, channel, code: str) -> str:
         return f"https://www.twilio.com/docs/api/errors/{code}"
+
+    def check_credentials(self, config: dict) -> bool:
+        return TwilioType().check_credentials(config)

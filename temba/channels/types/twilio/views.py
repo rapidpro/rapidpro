@@ -1,10 +1,14 @@
+from typing import Any, Dict
+
 import phonenumbers
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartFormView
 from twilio.base.exceptions import TwilioException, TwilioRestException
+from twilio.rest import Client as TwilioClient
 
 from django import forms
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -12,12 +16,12 @@ from django.utils.translation import gettext_lazy as _
 from temba.orgs.models import Org
 from temba.orgs.views import OrgPermsMixin
 from temba.utils import countries
-from temba.utils.fields import SelectWidget
+from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
 
 from ...models import Channel
-from ...views import ALL_COUNTRIES, BaseClaimNumberMixin, ClaimViewMixin
+from ...views import ALL_COUNTRIES, BaseClaimNumberMixin, ClaimViewMixin, UpdateChannelForm
 
 SUPPORTED_COUNTRIES = {
     "AU",  # Australia
@@ -315,3 +319,54 @@ class SearchView(OrgPermsMixin, SmartFormView):
             return JsonResponse({"error": str(msg)})
 
         return JsonResponse(numbers, safe=False)
+
+
+class UpdateForm(UpdateChannelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.add_config_field(
+            "account_sid",
+            forms.CharField(
+                max_length=128,
+                label=_("Twilio Account SID"),
+                required=True,
+                widget=InputWidget(attrs={"disabled": "disabled"}),
+            ),
+            default="",
+        )
+
+        self.add_config_field(
+            "auth_token",
+            forms.CharField(
+                max_length=128,
+                label=_("Twilio Account Auth Token"),
+                required=True,
+                widget=InputWidget(),
+            ),
+            default="",
+        )
+
+    def clean(self) -> Dict[str, Any]:
+        """
+        We override the clean method for Twilio we need to make sure we grab the primary auth tokens
+        """
+        account_sid = self.cleaned_data.get("account_sid", None)
+        account_token = self.cleaned_data.get("auth_token", None)
+
+        try:
+            client = TwilioClient(account_sid, account_token)
+
+            # get the actual primary auth tokens from twilio and use them
+            account = client.api.account.fetch()
+            self.cleaned_data["account_sid"] = account.sid
+            self.cleaned_data["auth_token"] = account.auth_token
+        except Exception:  # pragma: needs cover
+            raise ValidationError(
+                _("The Twilio account SID and Token seem invalid. Please check them again and retry.")
+            )
+
+        return super().clean()
+
+    class Meta(UpdateChannelForm.Meta):
+        fields = ("name",)

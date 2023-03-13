@@ -1,4 +1,5 @@
 from twilio.base.exceptions import TwilioRestException
+from twilio.rest import Client as TwilioClient
 
 from django.urls import re_path
 from django.utils.translation import gettext_lazy as _
@@ -7,7 +8,7 @@ from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
 from ...models import ChannelType
-from .views import SUPPORTED_COUNTRIES, ClaimView, SearchView
+from .views import SUPPORTED_COUNTRIES, ClaimView, SearchView, UpdateForm
 
 
 class TwilioType(ChannelType):
@@ -27,6 +28,7 @@ class TwilioType(ChannelType):
         "link": '<a target="_blank" href="https://www.twilio.com/">Twilio</a>'
     }
     claim_view = ClaimView
+    update_form = UpdateForm
 
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
@@ -84,3 +86,15 @@ class TwilioType(ChannelType):
 
     def get_error_ref_url(self, channel, code: str) -> str:
         return f"https://www.twilio.com/docs/api/errors/{code}"
+
+    def check_credentials(self, config: dict) -> bool:
+        account_sid = config.get("account_sid", None)
+        account_token = config.get("auth_token", None)
+
+        try:
+            client = TwilioClient(account_sid, account_token)
+            # get the actual primary auth tokens from twilio and use them
+            client.api.account.fetch()
+        except Exception:  # pragma: needs cover
+            return False
+        return True
