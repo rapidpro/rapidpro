@@ -1,3 +1,9 @@
+v8.1.69 (2023-03-13)
+-------------------------
+ * Simplify use of config fields on channel update forms
+ * Fix alias editor to use the new UI frame
+ * Support updating Twilio credentials for T, TMS and TWA channels
+
 v8.1.68 (2023-03-13)
 -------------------------
  * Rework messages and broadcasts API endpoints to accept media ojects UUIDs as attachments
