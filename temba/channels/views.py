@@ -396,21 +396,18 @@ class UpdateChannelForm(forms.ModelForm):
     )
 
     def __init__(self, *args, **kwargs):
-        self.object = kwargs["object"]
-        del kwargs["object"]
-
         super().__init__(*args, **kwargs)
 
         self.config_fields = []
 
-        if URN.TEL_SCHEME in self.object.schemes:
+        if URN.TEL_SCHEME in self.instance.schemes:
             self.add_config_field(
                 Channel.CONFIG_ALLOW_INTERNATIONAL,
                 forms.BooleanField(required=False, help_text=_("Allow sending to and calling international numbers.")),
                 default=False,
             )
 
-        if Channel.ROLE_CALL in self.object.role:
+        if Channel.ROLE_CALL in self.instance.role:
             self.add_config_field(
                 Channel.CONFIG_MACHINE_DETECTION,
                 forms.BooleanField(
@@ -425,12 +422,15 @@ class UpdateChannelForm(forms.ModelForm):
         self.fields[config_key] = field
         self.config_fields.append(config_key)
 
+    def get_config_values(self):
+        return {k: v for k, v in self.cleaned_data.items() if k in self.config_fields}
+
     def clean(self) -> dict[str, Any]:
         cleaned_data = super().clean()
-        updated_config = self.object.config | cleaned_data
+        updated_config = self.instance.config | self.get_config_values()
 
-        if not Channel.get_type_from_code(self.object.channel_type).check_credentials(updated_config):
-            raise ValidationError(_("Channel credentials don't appear to be valid."))
+        if not Channel.get_type_from_code(self.instance.channel_type).check_credentials(updated_config):
+            raise ValidationError(_("Credentials don't appear to be valid."))
         return cleaned_data
 
     class Meta:
@@ -833,19 +833,13 @@ class ChannelCRUDL(SmartCRUDL):
         def get_form_class(self):
             return Channel.get_type_from_code(self.object.channel_type).get_update_form()
 
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["object"] = self.object
-            return kwargs
-
         def derive_initial(self):
             initial = super().derive_initial()
             initial["role"] = [char for char in self.object.role]
             return initial
 
         def pre_save(self, obj):
-            for field in self.form.config_fields:
-                obj.config[field] = self.form.cleaned_data[field]
+            obj.config.update(self.form.get_config_values())
             return obj
 
         def post_save(self, obj):
