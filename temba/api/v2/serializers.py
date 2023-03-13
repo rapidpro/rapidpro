@@ -1267,6 +1267,7 @@ class MsgReadSerializer(ReadSerializer):
     archived = serializers.SerializerMethodField()
     visibility = serializers.SerializerMethodField()
     labels = serializers.SerializerMethodField()
+    flow = fields.FlowField()
     media = serializers.SerializerMethodField()  # deprecated
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
@@ -1322,6 +1323,7 @@ class MsgReadSerializer(ReadSerializer):
             "visibility",
             "text",
             "labels",
+            "flow",
             "attachments",
             "created_on",
             "sent_on",
