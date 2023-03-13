@@ -31,7 +31,7 @@ from temba.locations.models import AdminBoundary
 from temba.utils import brands, chunk_list, json, languages
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
-from temba.utils.models import JSONAsTextField, JSONField
+from temba.utils.models import JSONField
 from temba.utils.text import generate_token, random_string
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
@@ -471,7 +471,7 @@ class Org(SmartModel):
         help_text="The country this organization should map results for.",
     )
 
-    config = JSONAsTextField(default=dict)
+    config = models.JSONField(default=dict)
 
     slug = models.SlugField(
         verbose_name=_("Slug"),
