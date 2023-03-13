@@ -471,12 +471,7 @@ class Org(SmartModel):
         help_text="The country this organization should map results for.",
     )
 
-    config = JSONAsTextField(
-        null=True,
-        default=dict,
-        verbose_name=_("Configuration"),
-        help_text=_("More Organization specific configuration"),
-    )
+    config = JSONAsTextField(default=dict)
 
     slug = models.SlugField(
         verbose_name=_("Slug"),
