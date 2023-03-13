@@ -83,11 +83,6 @@ class Command(BaseCommand):
         settings.DATABASES["default"]["NAME"] = "mailroom_test"
         settings.DATABASES["default"]["USER"] = "mailroom_test"
 
-        # patch UUID generation so it's deterministic
-        from temba.utils import uuid
-
-        uuid.default_generator = uuid.seeded_generator(1234)
-
         self._log("Running migrations...\n")
 
         # run our migrations to put our database in the right state
@@ -107,6 +102,11 @@ class Command(BaseCommand):
         input(f"\nPlease start mailroom:\n   % ./{mr_cmd}\n\nPress enter when ready.\n")
 
         country = self.load_locations(LOCATIONS_DUMP)
+
+        # patch UUID generation so it's deterministic
+        from temba.utils import uuid
+
+        uuid.default_generator = uuid.seeded_generator(1234)
 
         # create each of our orgs
         for spec in orgs_spec["orgs"]:
