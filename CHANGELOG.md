@@ -1,3 +1,8 @@
+v8.1.70 (2023-03-13)
+-------------------------
+ * Broad support for meta click for new tabs
+ * Make Org.config and Channel.config non-null
+
 v8.1.69 (2023-03-13)
 -------------------------
  * Simplify use of config fields on channel update forms
