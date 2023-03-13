@@ -1333,7 +1333,7 @@ class MsgReadSerializer(ReadSerializer):
 class MsgWriteSerializer(WriteSerializer):
     contact = fields.ContactField()
     text = serializers.CharField(required=False, max_length=Msg.MAX_TEXT_LEN)
-    attachments = serializers.ListField(required=False, child=fields.AttachmentField(), max_length=10)
+    attachments = fields.MediaField(required=False, many=True, max_items=10)
     ticket = fields.TicketField(required=False)
 
     def validate(self, data):
@@ -1347,11 +1347,11 @@ class MsgWriteSerializer(WriteSerializer):
         user = self.context["user"]
         contact = self.validated_data["contact"]
         text = self.validated_data.get("text")
-        attachments = self.validated_data.get("attachments")
+        attachments = [str(m) for m in self.validated_data.get("attachments", [])]
         ticket = self.validated_data.get("ticket")
 
         resp = mailroom.get_client().msg_send(
-            org.id, user.id, contact.id, text or "", attachments or [], ticket.id if ticket else None
+            org.id, user.id, contact.id, text or "", attachments, ticket.id if ticket else None
         )
 
         # to avoid fetching the new msg from the database, construct transient instances to pass to the serializer

@@ -49,7 +49,20 @@ from .serializers import format_datetime, normalize_extra
 NUM_BASE_REQUEST_QUERIES = 5  # number of db queries required for any API request
 
 
-class FieldsTest(TembaTest):
+class APITest(TembaTest):
+    def upload_media(self, user, filename: str):
+        self.login(user)
+
+        with open(filename, "rb") as data:
+            response = self.client.post(
+                reverse("api.v2.media") + ".json", {"file": data}, HTTP_X_FORWARDED_HTTPS="https"
+            )
+            self.assertEqual(201, response.status_code)
+
+        return Media.objects.get(uuid=response.json()["uuid"])
+
+
+class FieldsTest(APITest):
     def assert_field(self, f, *, submissions: dict, representations: dict):
         f._context = {"org": self.org}  # noqa
 
@@ -217,16 +230,17 @@ class FieldsTest(TembaTest):
         self.assertRaises(serializers.ValidationError, field.run_validation, "HelloHello1")  # translation too long
         self.assertRaises(serializers.ValidationError, field.run_validation, {"eng": "HelloHello1"})
 
+        media1 = self.upload_media(self.admin, f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg")
+        media2 = self.upload_media(self.admin, f"{settings.MEDIA_ROOT}/test_media/snow.mp4")
+
         field = fields.TranslatedAttachmentsField(source="test")
         field._context = {"org": self.org}
 
-        self.assertEqual(field.run_validation(["image:http://test.jpg"]), {"eng": ["image:http://test.jpg"]})
-        self.assertEqual(field.run_validation({"eng": ["image:http://test.jpg"]}), {"eng": ["image:http://test.jpg"]})
+        self.assertEqual(field.run_validation([f"image/jpeg:{media1.url}"]), {"eng": [media1]})
+        self.assertEqual(field.run_validation({"eng": [str(media1.uuid)]}), {"eng": [media1]})
         self.assertEqual(
-            field.run_validation(
-                {"eng": ["image:http://test.jpg", "audio:http://test.mp3"], "spa": ["image:http://hola.jpg"]}
-            ),
-            {"eng": ["image:http://test.jpg", "audio:http://test.mp3"], "spa": ["image:http://hola.jpg"]},
+            field.run_validation({"eng": [str(media1.uuid), str(media2.uuid)], "spa": [str(media1.uuid)]}),
+            {"eng": [media1, media2], "spa": [media1]},
         )
         self.assertRaises(serializers.ValidationError, field.run_validation, {})  # empty
         self.assertRaises(serializers.ValidationError, field.run_validation, {"eng": [""]})  # empty
@@ -236,17 +250,17 @@ class FieldsTest(TembaTest):
             serializers.ValidationError, field.run_validation, {"eng": ["Hello"]}
         )  # translation not valid attachment
         self.assertRaises(
-            serializers.ValidationError, field.run_validation, {"kin": "audio:http://test.mp3"}
+            serializers.ValidationError, field.run_validation, {"kin": f"image/jpeg:{media1.url}"}
         )  # translation not a list
         self.assertRaises(
-            serializers.ValidationError, field.run_validation, {"eng": ["audio:http://test.mp3"] * 11}
+            serializers.ValidationError, field.run_validation, {"eng": [f"image/jpeg:{media1.url}"] * 11}
         )  # too many
 
         # check that default language is based on first flow language
         self.org.flow_languages = ["spa", "kin"]
         self.org.save(update_fields=("flow_languages",))
 
-        self.assertEqual(field.to_internal_value(["image:http://test.jpg"]), {"spa": ["image:http://test.jpg"]})
+        self.assertEqual(field.to_internal_value([str(media1.uuid)]), {"spa": [media1]})
 
     def test_others(self):
         group = self.create_group("Customers")
@@ -256,17 +270,7 @@ class FieldsTest(TembaTest):
         event = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, field_obj, 6, CampaignEvent.UNIT_HOURS, flow, delivery_hour=12
         )
-
-        self.assert_field(
-            fields.AttachmentField(source="test"),
-            submissions={
-                "image:https://test.jpg": "image:https://test.jpg",
-                "image/jpeg:https://test.jpg": "image/jpeg:https://test.jpg",
-                "https://test.jpg": serializers.ValidationError,
-                f"image:https://{'x' * 3000}/test.jpg": serializers.ValidationError,  # too long
-            },
-            representations={"image:https://test.jpg": "image:https://test.jpg"},
-        )
+        media = self.upload_media(self.admin, f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg")
 
         field = fields.CampaignField(source="test")
         field._context = {"org": self.org}
@@ -311,6 +315,12 @@ class FieldsTest(TembaTest):
             fields.FlowField(source="test"),
             submissions={flow.uuid: flow},
             representations={flow: {"uuid": str(flow.uuid), "name": flow.name}},
+        )
+
+        self.assert_field(
+            fields.MediaField(source="test"),
+            submissions={str(media.uuid): media, "xyz": serializers.ValidationError},
+            representations={media: str(media.uuid)},
         )
 
         self.assert_field(
@@ -362,7 +372,7 @@ class FieldsTest(TembaTest):
         )
 
 
-class EndpointsTest(TembaTest):
+class EndpointsTest(APITest):
     def setUp(self):
         super().setUp()
 
@@ -994,13 +1004,16 @@ class EndpointsTest(TembaTest):
         )
         self.assertResponseError(response, "non_field_errors", "No text translation provided in base language.")
 
+        media1 = self.upload_media(self.admin, f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg")
+        media2 = self.upload_media(self.admin, f"{settings.MEDIA_ROOT}/test_media/snow.mp4")
+
         # try to create new broadcast with translations that don't include base language
         response = self.postJSON(
             url,
             None,
             {
                 "text": {"eng": "Hello"},
-                "attachments": {"spa": ["audio:http://text.mp3"]},
+                "attachments": {"spa": [str(media1.uuid)]},
                 "base_language": "eng",
                 "contacts": [self.joe.uuid],
             },
@@ -1014,8 +1027,8 @@ class EndpointsTest(TembaTest):
             {
                 "text": {"eng": "Hello @contact.name", "spa": "Hola @contact.name"},
                 "attachments": {
-                    "eng": ["image:http://example.com/test.jpg", "audio:http://example.com/test.mp3"],
-                    "kin": ["audio:http://example.com/muraho.mp3"],
+                    "eng": [str(media1.uuid), f"video/mp4:http://example.com/{media2.uuid}.mp4"],
+                    "kin": [str(media2.uuid)],
                 },
                 "base_language": "eng",
                 "urns": ["twitter:franky"],
@@ -1029,10 +1042,10 @@ class EndpointsTest(TembaTest):
             {
                 "eng": {
                     "text": "Hello @contact.name",
-                    "attachments": ["image:http://example.com/test.jpg", "audio:http://example.com/test.mp3"],
+                    "attachments": [f"image/jpeg:{media1.url}", f"video/mp4:{media2.url}"],
                 },
                 "spa": {"text": "Hola @contact.name"},
-                "kin": {"attachments": ["audio:http://example.com/muraho.mp3"]},
+                "kin": {"attachments": [f"video/mp4:{media2.url}"]},
             },
             broadcast.translations,
         )
@@ -1050,7 +1063,7 @@ class EndpointsTest(TembaTest):
             None,
             {
                 "text": "Hello",
-                "attachments": ["image:http://example.com/test.jpg", "audio:http://example.com/test.mp3"],
+                "attachments": [str(media1.uuid), str(media2.uuid)],
                 "contacts": [self.joe.uuid, self.frank.uuid],
             },
         )
@@ -1061,7 +1074,7 @@ class EndpointsTest(TembaTest):
             {
                 "eng": {
                     "text": "Hello",
-                    "attachments": ["image:http://example.com/test.jpg", "audio:http://example.com/test.mp3"],
+                    "attachments": [f"image/jpeg:{media1.url}", f"video/mp4:{media2.url}"],
                 }
             },
             broadcast.translations,
@@ -1070,14 +1083,7 @@ class EndpointsTest(TembaTest):
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
 
         # create new broadcast without translations containing only text, no attachments
-        response = self.postJSON(
-            url,
-            None,
-            {
-                "text": "Hello",
-                "contacts": [self.joe.uuid, self.frank.uuid],
-            },
-        )
+        response = self.postJSON(url, None, {"text": "Hello", "contacts": [self.joe.uuid, self.frank.uuid]})
         self.assertEqual(201, response.status_code)
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
@@ -1087,16 +1093,13 @@ class EndpointsTest(TembaTest):
         response = self.postJSON(
             url,
             None,
-            {
-                "attachments": ["image:http://example.com/test.jpg", "audio/mp3:http://example.com/test.mp3"],
-                "contacts": [self.joe.uuid, self.frank.uuid],
-            },
+            {"attachments": [str(media1.uuid), str(media2.uuid)], "contacts": [self.joe.uuid, self.frank.uuid]},
         )
         self.assertEqual(201, response.status_code)
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
         self.assertEqual(
-            {"eng": {"attachments": ["image:http://example.com/test.jpg", "audio/mp3:http://example.com/test.mp3"]}},
+            {"eng": {"attachments": [f"image/jpeg:{media1.url}", f"video/mp4:{media2.url}"]}},
             broadcast.translations,
         )
 
@@ -3765,26 +3768,41 @@ class EndpointsTest(TembaTest):
             mr_mocks.calls["msg_send"][-1],
         )
 
-        # try to create a message with an invalid attachment
+        # try to create a message with an invalid attachment media UUID
         response = self.postJSON(url, None, {"contact": self.joe.uuid, "text": "Hi", "attachments": ["xxxx"]})
-        self.assertResponseError(response, ("attachments", "0"), "Invalid attachment. Must be <content-type>:<url>.")
+        self.assertResponseError(response, "attachments", "No such object: xxxx")
 
-        # try to create a message with an attachment that's too long
+        # try to create a message with an non-existent attachment media UUID
         response = self.postJSON(
-            url, None, {"contact": self.joe.uuid, "text": "Hi", "attachments": [f"image:{'x' * 3000}"]}
+            url,
+            None,
+            {"contact": self.joe.uuid, "text": "Hi", "attachments": ["67ffe746-8771-40fb-89c1-5388e7ddd439"]},
         )
-        self.assertResponseError(response, ("attachments", "0"), "Ensure this field has no more than 2048 characters.")
+        self.assertResponseError(response, "attachments", "No such object: 67ffe746-8771-40fb-89c1-5388e7ddd439")
 
-        # create a new message with just an attachment...
-        response = self.postJSON(
-            url, None, {"contact": self.joe.uuid, "attachments": ["image/jpeg:https://example.com/test.mp3"]}
-        )
+        upload = self.upload_media(self.admin, f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg")
+
+        # create a new message with an attachment as the media UUID...
+        response = self.postJSON(url, None, {"contact": self.joe.uuid, "attachments": [str(upload.uuid)]})
         self.assertEqual(response.status_code, 201)
-
-        self.assertEqual(
-            call(self.org.id, self.admin.id, self.joe.id, "", ["image/jpeg:https://example.com/test.mp3"], None),
+        self.assertEqual(  # check that was sent via mailroom
+            call(self.org.id, self.admin.id, self.joe.id, "", [f"image/jpeg:{upload.url}"], None),
             mr_mocks.calls["msg_send"][-1],
         )
+
+        # create a new message with an attachment as <content-type>:<url>...
+        response = self.postJSON(
+            url, None, {"contact": self.joe.uuid, "attachments": [f"image/jpeg:https://example.com/{upload.uuid}.jpg"]}
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            call(self.org.id, self.admin.id, self.joe.id, "", [f"image/jpeg:{upload.url}"], None),
+            mr_mocks.calls["msg_send"][-1],
+        )
+
+        # try to create a message with too many attachments
+        response = self.postJSON(url, None, {"contact": self.joe.uuid, "attachments": [str(upload.uuid)] * 11})
+        self.assertResponseError(response, "attachments", "Ensure this field has no more than 10 elements.")
 
         # try to create an unsendable message
         billy_no_phone = self.create_contact("Billy", urns=[])
@@ -3795,6 +3813,8 @@ class EndpointsTest(TembaTest):
         self.assertIsNone(msg_json["channel"])
         self.assertIsNone(msg_json["urn"])
         self.assertEqual("failed", msg_json["status"])
+
+        self.clear_storage()
 
     def test_workspace(self):
         url = reverse("api.v2.workspace")

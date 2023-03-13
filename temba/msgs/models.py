@@ -161,6 +161,9 @@ class Media(models.Model):
 
         process_upload(self)
 
+    def __str__(self) -> str:
+        return f"{self.content_type}:{self.url}"
+
     class Meta:
         indexes = [
             models.Index(name="media_originals_by_org", fields=["org", "-created_on"], condition=Q(original=None))
@@ -242,7 +245,9 @@ class Broadcast(models.Model):
             for lang, atts in attachments.items():
                 if lang not in translations:
                     translations[lang] = {}
-                translations[lang]["attachments"] = atts
+
+                # TODO update broadcast sending to allow media objects to stay as UUIDs for longer
+                translations[lang]["attachments"] = [str(m) for m in atts]
 
         broadcast = cls.objects.create(
             org=org,
