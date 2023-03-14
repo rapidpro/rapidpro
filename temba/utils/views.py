@@ -3,6 +3,7 @@ import logging
 from urllib.parse import quote, urlencode
 
 import requests
+from gunicorn.http.wsgi import HEADER_VALUE_RE
 
 from django import forms
 from django.conf import settings
@@ -123,7 +124,11 @@ class SpaMixin(View):
         if self.is_spa():
             response.headers[TEMBA_MENU_SELECTION] = context[TEMBA_MENU_SELECTION]
             response.headers[TEMBA_CONTENT_ONLY] = 1 if self.is_content_only() else 0
-            response.headers[TEMBA_PAGE_TITLE] = context["title"]
+
+            # TODO find alternative way to pass back page titles and toast errors
+            title = context["title"]
+            if title:
+                response.headers[TEMBA_PAGE_TITLE] = HEADER_VALUE_RE.sub("", str(title))
         return response
 
 
@@ -269,7 +274,7 @@ class BulkActionMixin:
 
         response = self.get(request, *args, **kwargs)
         if action_error:
-            response["Temba-Toast"] = action_error
+            response["Temba-Toast"] = HEADER_VALUE_RE.sub("", str(action_error))
 
         return response
 
