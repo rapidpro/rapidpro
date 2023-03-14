@@ -127,7 +127,8 @@ class SpaMixin(View):
 
             # TODO find alternative way to pass back page titles and toast errors
             title = context["title"]
-            response.headers[TEMBA_PAGE_TITLE] = HEADER_VALUE_RE.sub("", str(title)) if title else None
+            if title:
+                response.headers[TEMBA_PAGE_TITLE] = HEADER_VALUE_RE.sub("", str(title))
         return response
 
 
