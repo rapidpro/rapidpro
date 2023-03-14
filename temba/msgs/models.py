@@ -179,7 +179,8 @@ class Broadcast(models.Model):
     STATUS_FAILED = "F"
     STATUS_CHOICES = ((STATUS_QUEUED, "Queued"), (STATUS_SENT, "Sent"), (STATUS_FAILED, "Failed"))
 
-    MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
+    MAX_TEXT_LEN = settings.MSG_FIELD_SIZE  # max chars allowed in a broadcast
+    MAX_ATTACHMENT_LEN = settings.MSG_ATTACHMENT_SIZE  # max attachments allowed in a broadcast
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
 
@@ -289,6 +290,9 @@ class Broadcast(models.Model):
             return self.translations[self.org.flow_languages[0]]["text"]
 
         return self.translations[self.base_language]["text"]  # should always be a base language translation
+
+    def get_attachments(self, contact=None):
+        pass
 
     def delete(self, user, *, soft: bool):
         if soft:
@@ -494,7 +498,8 @@ class Msg(models.Model):
     MEDIA_AUDIO = "audio"
     MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
 
-    MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
+    MAX_TEXT_LEN = settings.MSG_FIELD_SIZE  # max chars allowed in a message
+    MAX_ATTACHMENT_LEN = settings.MSG_ATTACHMENT_SIZE  # max attachments allowed in a message
 
     id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(null=True, default=uuid4)

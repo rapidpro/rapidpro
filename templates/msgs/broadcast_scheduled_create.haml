@@ -3,11 +3,10 @@
 
 -block fields
   -if form.omnibox
-      -render_field 'omnibox'
+    -render_field 'omnibox'
 
-  -render_field 'text'
-
-  %temba-compose(chatbox="true" attachments="true" counter="true" onchange="handleComposeChanged(event)")
+  -if form.compose
+    -render_field 'compose'
 
   -include 'includes/schedule_fields.haml' with form=form
 
@@ -41,16 +40,4 @@
           repeatDays.classList.add("hidden");
         }
       });
-    }
-
-    function handleComposeChanged(event){
-      debugger;
-      var compose = modalBody.querySelector("temba-compose");
-      if(compose){
-        var text = compose.currentChat;
-        var form_text = modalBody.querySelector("#id_text");
-        if(form_text){
-          form_text.value = text;
-        }
-      }        
     }
