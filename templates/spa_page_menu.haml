@@ -6,7 +6,8 @@
 
   function handleContentMenuSelected(event) {
     // handles when items are clicked in the top right hamburger menu
-    var item = event.detail;
+    var item = event.detail.item;
+    var click = event.detail.event;
     
     if (item.type === 'link') {
       var contentMenu = document.querySelector("temba-content-menu");
@@ -14,6 +15,15 @@
         gotoURL_legacy(event);
       }
       else{
+        if (click) {
+          click.preventDefault();
+          click.stopPropagation();   
+          if (click.metaKey && item.url) {
+            window.open(item.url, '_blank');
+            return;
+          }  
+        }
+    
         fetchURL(item.url);
       }
     }

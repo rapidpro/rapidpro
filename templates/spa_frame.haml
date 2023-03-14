@@ -252,6 +252,7 @@
 
     temba-menu {
       background: #fff;
+      border-right: 1px solid #eee;
     }
 
     temba-menu.servicing {
@@ -379,6 +380,7 @@
     }
 
     function goto(event, ele) {
+      
       if (event.target != ele) {
         if (event.target.href) {
           event.stopPropagation();
@@ -415,11 +417,11 @@
       }
 
       if (href) {
-          if (event.metaKey) {
-              window.open(href, '_blank');
-          } else {
-              fetchURL(href);
-          }
+        if (event.metaKey) {
+          window.open(href, '_blank');
+        } else {
+          fetchURL(href);
+        }
       }    
     }
 
@@ -541,7 +543,7 @@
         showModax(item.name, item.href, modaxOptions);
       }
 
-      if (selection.length > 1 && selection[0] == "ticket") {
+      if (!item.popup && selection.length > 1 && selection[0] == "ticket") {
         if (window.handleTicketsMenuChanged) {
           handleTicketsMenuChanged(item);
         }
@@ -732,7 +734,7 @@
               .flex-grow
 
       .folders
-        %temba-menu.relative.z-0#nav(class="{% if servicing %}{% endif%}" style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" -temba-button-clicked="handleMenuClicked(event)" -temba-ready="handleMenuReady")
+        %temba-menu#nav(class="{% if servicing %}{% endif%}" style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" -temba-button-clicked="handleMenuClicked(event)" -temba-ready="handleMenuReady")
           -block menu-header
 
       .flex-grow.spa-container.flex.flex-col.initial-load

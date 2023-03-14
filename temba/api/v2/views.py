@@ -99,7 +99,7 @@ class RootView(views.APIView):
 
      * [/api/v2/archives](/api/v2/archives) - to list archives of messages and runs
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
-     * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send message broadcasts
+     * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send broadcasts
      * [/api/v2/campaigns](/api/v2/campaigns) - to list, create, or update campaigns
      * [/api/v2/campaign_events](/api/v2/campaign_events) - to list, create, update or delete campaign events
      * [/api/v2/channels](/api/v2/channels) - to list channels
@@ -114,7 +114,8 @@ class RootView(views.APIView):
      * [/api/v2/globals](/api/v2/globals) - to list globals
      * [/api/v2/groups](/api/v2/groups) - to list, create, update or delete contact groups
      * [/api/v2/labels](/api/v2/labels) - to list, create, update or delete message labels
-     * [/api/v2/messages](/api/v2/messages) - to list messages
+     * [/api/v2/media](/api/v2/media) - to upload media for messages
+     * [/api/v2/messages](/api/v2/messages) - to list and send messages
      * [/api/v2/message_actions](/api/v2/message_actions) - to perform bulk message actions
      * [/api/v2/runs](/api/v2/runs) - to list flow runs
      * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
@@ -223,6 +224,7 @@ class RootView(views.APIView):
                 "globals": reverse("api.v2.globals", request=request),
                 "groups": reverse("api.v2.groups", request=request),
                 "labels": reverse("api.v2.labels", request=request),
+                "media": reverse("api.v2.media", request=request),
                 "messages": reverse("api.v2.messages", request=request),
                 "message_actions": reverse("api.v2.message_actions", request=request),
                 "resthooks": reverse("api.v2.resthooks", request=request),
@@ -571,7 +573,8 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     ## Sending Broadcasts
 
-    A `POST` allows you to create and send new broadcasts, with the following JSON data:
+    A `POST` allows you to create and send new broadcasts. Attachments are media object UUIDs returned from POSTing
+    to the [media](/api/v2/media) endpoint.
 
       * **urns** - the URNs of contacts to send to (array of up to 100 strings, optional)
       * **contacts** - the UUIDs of contacts to send to (array of up to 100 strings, optional)
@@ -2469,6 +2472,7 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **text** - the text of the message received (string). Note this is the logical view and the message may have been received as multiple physical messages.
      * **attachments** - the attachments on the message (array of objects).
      * **labels** - any labels set on this message (array of objects), filterable as `label` with label name or UUID.
+     * **flow** - the UUID and name of the flow if message was part of a flow (object, optional).
      * **created_on** - when this message was either received by the channel or created (datetime) (filterable as `before` and `after`).
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime).
      * **modified_on** - when the message was last modified (datetime)
@@ -2494,20 +2498,60 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                 "id": 4105426,
                 "broadcast": 2690007,
                 "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
-                "urn": "twitter:textitin",
+                "urn": "tel:+1234567890",
                 "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Vonage"},
                 "direction": "out",
-                "type": "inbox",
+                "type": "text",
                 "status": "wired",
                 "visibility": "visible",
                 "text": "How are you?",
                 "attachments": [{"content_type": "audio/wav" "url": "http://domain.com/recording.wav"}],
                 "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
+                "flow": {"uuid": "254fd2ff-4990-4621-9536-0a448d313692", "name": "Registration"},
                 "created_on": "2016-01-06T15:33:00.813162Z",
                 "sent_on": "2016-01-06T15:35:03.675716Z",
                 "modified_on": "2016-01-06T15:35:03.675716Z"
             },
             ...
+        }
+
+    ## Sending a Message
+
+    A **POST** can be used to create and send a new message. Attachments are media object UUIDs returned from POSTing
+    to the [media](/api/v2/media) endpoint.
+
+     * **contact** - the UUID of the contact (string)
+     * **text** - the text of the message (string)
+     * **attachments** - the attachments of the message (list of strings, maximum 10)
+
+    Example:
+
+        POST /api/v2/messages.json
+        {
+            "contact": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d",
+            "text": "Hi Bob",
+            "attachments": []
+        }
+
+    You will receive the new message object as a response if successful:
+
+        {
+            "id": 4105426,
+            "broadcast": null,
+            "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
+            "urn": "tel:+1234567890",
+            "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Vonage"},
+            "direction": "out",
+            "type": "text",
+            "status": "queued",
+            "visibility": "visible",
+            "text": "Hi Bob",
+            "attachments": [],
+            "labels": [],
+            "flow": null,
+            "created_on": "2023-01-06T15:33:00.813162Z",
+            "sent_on": "2023-01-06T15:35:03.675716Z",
+            "modified_on": "2023-01-06T15:35:03.675716Z"
         }
     """
 
@@ -2599,6 +2643,7 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             Prefetch("contact_urn", queryset=ContactURN.objects.only("scheme", "path", "display")),
             Prefetch("channel", queryset=Channel.objects.only("uuid", "name")),
             Prefetch("labels", queryset=Label.objects.only("uuid", "name").order_by("pk")),
+            Prefetch("flow", queryset=Flow.objects.only("uuid", "name")),
         )
 
         # incoming folder gets sorted by 'modified_on'

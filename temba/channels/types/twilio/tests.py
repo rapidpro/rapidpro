@@ -265,14 +265,42 @@ class TwilioTypeTest(TembaTest):
                 mock_numbers.call_args_list[-1][1], dict(voice_application_sid="", sms_application_sid="")
             )
 
+    @patch("temba.channels.types.twilio.views.TwilioClient", MockTwilioClient)
+    @patch("temba.channels.types.twilio.type.TwilioClient", MockTwilioClient)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_update(self):
-        update_url = reverse("channels.channel_update", args=[self.channel.id])
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        twilio_channel = self.org.channels.all().first()
+        twilio_channel.channel_type = "T"
+        twilio_channel.save()
+
+        update_url = reverse("channels.channel_update", args=[twilio_channel.id])
 
         self.login(self.admin)
         response = self.client.get(update_url)
         self.assertEqual(
-            ["name", "alert_email", "allow_international", "loc"], list(response.context["form"].fields.keys())
+            ["name", "allow_international", "account_sid", "auth_token", "loc"],
+            list(response.context["form"].fields.keys()),
         )
+
+        post_data = dict(name="Foo channel", allow_international=False, account_sid="ACC_SID", auth_token="ACC_Token")
+
+        response = self.client.post(update_url, post_data)
+
+        self.assertEqual(response.status_code, 302)
+
+        twilio_channel.refresh_from_db()
+        self.assertEqual(twilio_channel.name, "Foo channel")
+        # we used the primary credentials returned on the account fetch even though we submit the others
+        self.assertEqual(twilio_channel.config[Channel.CONFIG_ACCOUNT_SID], "AccountSid")
+        self.assertEqual(twilio_channel.config[Channel.CONFIG_AUTH_TOKEN], "AccountToken")
+        self.assertTrue(twilio_channel.check_credentials())
+
+        with patch("temba.channels.types.twilio.type.TwilioType.check_credentials") as mock_check_credentials:
+            mock_check_credentials.return_value = False
+
+            response = self.client.post(update_url, post_data)
+            self.assertFormError(response, "form", None, "Credentials don't appear to be valid.")
 
     @patch("temba.orgs.models.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
@@ -297,3 +325,14 @@ class TwilioTypeTest(TembaTest):
 
     def test_get_error_ref_url(self):
         self.assertEqual("https://www.twilio.com/docs/api/errors/30006", TwilioType().get_error_ref_url(None, "30006"))
+
+    @patch("temba.channels.types.twilio.type.TwilioClient", MockTwilioClient)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    def test_check_credentials(self):
+        self.assertTrue(TwilioType().check_credentials({"account_sid": "AccountSid", "auth_token": "AccountToken"}))
+
+        with patch("temba.tests.twilio.MockTwilioClient.MockAccount.fetch") as mock_fetch:
+            mock_fetch.side_effect = Exception("blah!")
+            self.assertFalse(
+                TwilioType().check_credentials({"account_sid": "AccountSid", "auth_token": "AccountToken"})
+            )

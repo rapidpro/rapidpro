@@ -8,7 +8,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.orgs.views import OrgPermsMixin
+from temba.orgs.views import OrgPermsMixin, SpaMixin
 from temba.utils import json
 from temba.utils.views import ContentMenuMixin
 
@@ -17,7 +17,9 @@ class BoundaryCRUDL(SmartCRUDL):
     actions = ("alias", "geometry", "boundaries")
     model = AdminBoundary
 
-    class Alias(OrgPermsMixin, ContentMenuMixin, SmartReadView):
+    class Alias(SpaMixin, OrgPermsMixin, ContentMenuMixin, SmartReadView):
+        menu_path = "/settings/workspace"
+
         @classmethod
         def derive_url_pattern(cls, path, action):
             # though we are a read view, we don't actually need an id passed

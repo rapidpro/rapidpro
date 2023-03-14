@@ -1,3 +1,23 @@
+v8.1.70 (2023-03-13)
+-------------------------
+ * Broad support for meta click for new tabs
+ * Make Org.config and Channel.config non-null
+
+v8.1.69 (2023-03-13)
+-------------------------
+ * Simplify use of config fields on channel update forms
+ * Fix alias editor to use the new UI frame
+ * Support updating Twilio credentials for T, TMS and TWA channels
+
+v8.1.68 (2023-03-13)
+-------------------------
+ * Rework messages and broadcasts API endpoints to accept media ojects UUIDs as attachments
+ * Make Msg.uuid and msg_type non-null
+
+v8.1.67 (2023-03-10)
+-------------------------
+ * Fix layering for menu
+
 v8.1.66 (2023-03-09)
 -------------------------
  * Fix initial editor load

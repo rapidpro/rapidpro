@@ -24,8 +24,14 @@
       %table.list.object-list.lined.scrolled{class: '{% if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send %}selectable{% endif %}'}
         %tbody
           -for object in object_list
-            %tr.sms.object-row{id: 'id-row-{{object.id}}', data-object-id:'{{ object.id }}',
-                          data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', onclick:'handleRowClicked(event)'}
+            %tr.sms.object-row(
+                id='id-row-{{object.id}}' 
+                data-object-id='{{ object.id }}'
+                data-sender-id='{{object.contact.id}}' 
+                data-sender-uuid='{{object.contact.uuid}}' 
+                onclick='handleRowClicked(event)' 
+                href="{% url 'contacts.contact_read' object.contact.uuid %}")
+
               -if actions
                 - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
                   %td.checkbox.sms.object-row-check(onclick="checkInner(event);")

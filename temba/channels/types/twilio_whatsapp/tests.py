@@ -140,3 +140,42 @@ class TwilioWhatsappTypeTest(TembaTest):
         self.assertEqual(
             "https://www.twilio.com/docs/api/errors/30006", TwilioWhatsappType().get_error_ref_url(None, "30006")
         )
+
+    @patch("temba.channels.types.twilio.views.TwilioClient", MockTwilioClient)
+    @patch("temba.channels.types.twilio.type.TwilioClient", MockTwilioClient)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    def test_update(self):
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        twilio_whatsapp = self.org.channels.all().first()
+        twilio_whatsapp.channel_type = "TWA"
+        twilio_whatsapp.save()
+
+        update_url = reverse("channels.channel_update", args=[twilio_whatsapp.id])
+
+        self.login(self.admin)
+        response = self.client.get(update_url)
+        self.assertEqual(
+            ["name", "allow_international", "account_sid", "auth_token", "loc"],
+            list(response.context["form"].fields.keys()),
+        )
+
+        post_data = dict(name="Foo channel", allow_international=False, account_sid="ACC_SID", auth_token="ACC_Token")
+
+        response = self.client.post(update_url, post_data)
+
+        self.assertEqual(response.status_code, 302)
+
+        twilio_whatsapp.refresh_from_db()
+        self.assertEqual(twilio_whatsapp.name, "Foo channel")
+        # we used the primary credentials returned on the account fetch even though we submit the others
+        self.assertEqual(twilio_whatsapp.config[Channel.CONFIG_ACCOUNT_SID], "AccountSid")
+        self.assertEqual(twilio_whatsapp.config[Channel.CONFIG_AUTH_TOKEN], "AccountToken")
+        self.assertTrue(twilio_whatsapp.check_credentials())
+
+        with patch(
+            "temba.channels.types.twilio_whatsapp.type.TwilioWhatsappType.check_credentials"
+        ) as mock_check_credentials:
+            mock_check_credentials.return_value = False
+
+            response = self.client.post(update_url, post_data)
+            self.assertFormError(response, "form", None, "Credentials don't appear to be valid.")
