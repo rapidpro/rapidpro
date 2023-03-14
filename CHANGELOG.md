@@ -1,3 +1,7 @@
+v8.1.72 (2023-03-14)
+-------------------------
+ * Convert Org.config and Channel.config to be real JSON
+
 v8.1.71 (2023-03-14)
 -------------------------
  * Strip out invalid HTTP header characters from page title response headers
