@@ -2086,7 +2086,7 @@ class OrgCRUDL(SmartCRUDL):
             ("anon", _("Anonymous"), dict(is_anon=True, is_suspended=False), None),
             ("flagged", _("Flagged"), dict(is_flagged=True, is_suspended=False), None),
             ("suspended", _("Suspended"), dict(is_suspended=True), None),
-            ("verified", _("Verified"), dict(config__contains='"verified": true', is_suspended=False), None),
+            ("verified", _("Verified"), dict(config__verified=True, is_suspended=False), None),
         )
 
         @csrf_exempt
