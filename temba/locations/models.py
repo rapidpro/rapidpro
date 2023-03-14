@@ -4,7 +4,7 @@ from smartmin.models import SmartModel
 
 from django.contrib.gis.db import models
 from django.db.models import F, Value
-from django.db.models.functions import Concat
+from django.db.models.functions import Concat, Upper
 
 
 # default manager for AdminBoundary, doesn't load geometries
@@ -159,6 +159,9 @@ class AdminBoundary(MPTTModel, models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        indexes = [models.Index(Upper("name"), name="adminboundaries_by_name")]
+
 
 class BoundaryAlias(SmartModel):
     """
@@ -172,3 +175,6 @@ class BoundaryAlias(SmartModel):
     @classmethod
     def create(cls, org, user, boundary, name):
         return cls.objects.create(org=org, boundary=boundary, name=name, created_by=user, modified_by=user)
+
+    class Meta:
+        indexes = [models.Index(Upper("name"), name="boundaryaliases_by_name")]
