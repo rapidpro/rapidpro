@@ -1,3 +1,9 @@
+v8.1.71 (2023-03-14)
+-------------------------
+ * Strip out invalid HTTP header characters from page title response headers
+ * Fix mailroom db command to patch uuid generation after migrations are run
+ * Expose flow on messages API endpoint
+
 v8.1.70 (2023-03-13)
 -------------------------
  * Broad support for meta click for new tabs
