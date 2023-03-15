@@ -1,3 +1,9 @@
+v8.1.74 (2023-03-15)
+-------------------------
+ * Show version number on public index page
+ * Add poetry plugin to maintain version number in temba/__init__.py
+ * Fix textinput inner scrolling
+
 v8.1.73 (2023-03-15)
 -------------------------
  * Stop returning type=flow|inbox on messages endpoint
