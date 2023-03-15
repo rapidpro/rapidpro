@@ -66,6 +66,8 @@ responses = "^0.12.1"
 beautifulsoup4 = "^4.9.3"
 ruff = "^0.0.166"
 
+[tool.poetry_bumpversion.file."temba/__init__.py"]
+
 [tool.black]
 line-length = 119
 
