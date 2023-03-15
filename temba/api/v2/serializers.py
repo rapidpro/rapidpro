@@ -220,7 +220,6 @@ class BroadcastWriteSerializer(WriteSerializer):
     text = fields.TranslatedTextField(required=False, max_length=Msg.MAX_TEXT_LEN)
     attachments = fields.TranslatedAttachmentsField(required=False)
     base_language = fields.LanguageField(required=False)
-    ticket = fields.TicketField(required=False)
 
     def validate(self, data):
         text = data.get("text")
@@ -256,7 +255,6 @@ class BroadcastWriteSerializer(WriteSerializer):
             groups=self.validated_data.get("groups", []),
             contacts=self.validated_data.get("contacts", []),
             urns=self.validated_data.get("urns", []),
-            ticket=self.validated_data.get("ticket"),
         )
 
         on_transaction_commit(lambda: broadcast.send_async())

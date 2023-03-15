@@ -196,10 +196,7 @@ class Broadcast(models.Model):
     translations = models.JSONField()
     base_language = models.CharField(max_length=3)  # ISO-639-3
 
-    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True)
-    ticket = models.ForeignKey("tickets.Ticket", on_delete=models.PROTECT, null=True, related_name="broadcasts")
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_QUEUED)
-
     created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_creations")
     created_on = models.DateTimeField(default=timezone.now, db_index=True)  # TODO remove index
     modified_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_modifications")
@@ -209,6 +206,10 @@ class Broadcast(models.Model):
     schedule = models.OneToOneField(Schedule, on_delete=models.PROTECT, null=True, related_name="broadcast")
     parent = models.ForeignKey("Broadcast", on_delete=models.PROTECT, null=True, related_name="children")
     is_active = models.BooleanField(null=True, default=True)
+
+    # TODO remove
+    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True)
+    ticket = models.ForeignKey("tickets.Ticket", on_delete=models.PROTECT, null=True, related_name="broadcasts")
 
     @classmethod
     def create(
@@ -223,8 +224,6 @@ class Broadcast(models.Model):
         contacts=None,
         urns: list[str] = None,
         contact_ids: list[int] = None,
-        channel: Channel = None,
-        ticket=None,
         **kwargs,
     ):
         # if base language is not provided
@@ -251,8 +250,6 @@ class Broadcast(models.Model):
 
         broadcast = cls.objects.create(
             org=org,
-            channel=channel,
-            ticket=ticket,
             translations=translations,
             base_language=base_language,
             created_by=user,

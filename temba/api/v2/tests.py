@@ -905,8 +905,6 @@ class EndpointsTest(APITest):
         self.assertEndpointAccess(url)
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
-        ticketer = Ticketer.create(self.org, self.admin, "mailgun", "Support Tickets", {})
-        ticket = self.create_ticket(ticketer, self.joe, "Help!")
 
         bcast1 = Broadcast.create(self.org, self.admin, {"eng": "Hello 1"}, urns=["twitter:franky"])
         bcast2 = Broadcast.create(self.org, self.admin, {"eng": "Hello 2"}, contacts=[self.joe])
@@ -918,7 +916,6 @@ class EndpointsTest(APITest):
             urns=["twitter:franky"],
             contacts=[self.joe],
             groups=[reporters],
-            ticket=ticket,
         )
         Broadcast.create(
             self.org,
@@ -1034,7 +1031,6 @@ class EndpointsTest(APITest):
                 "urns": ["twitter:franky"],
                 "contacts": [self.joe.uuid, self.frank.uuid],
                 "groups": [reporters.uuid],
-                "ticket": str(ticket.uuid),
             },
         )
         broadcast = Broadcast.objects.get(id=response.json()["id"])
@@ -1053,7 +1049,6 @@ class EndpointsTest(APITest):
         self.assertEqual(["twitter:franky"], broadcast.urns)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
         self.assertEqual({reporters}, set(broadcast.groups.all()))
-        self.assertEqual(ticket, broadcast.ticket)
 
         mock_queue_broadcast.assert_called_once_with(broadcast)
 
