@@ -213,7 +213,7 @@ class ScheduleTest(TembaTest):
         schedule = Schedule.create_schedule(self.org, self.admin, None, Schedule.REPEAT_NEVER)
         bcast = self.create_broadcast(
             self.admin,
-            "A scheduled message to Joe",
+            "A broadcast to Joe",
             contacts=[self.joe],
             schedule=schedule,
         )
@@ -225,13 +225,13 @@ class ScheduleTest(TembaTest):
         self.client.post(
             update_bcast_url,
             {
-                "message": "An updated scheduled message",
+                "message": "An updated broadcast",
                 "omnibox": omnibox_serialize(self.org, [], [self.joe], json_encode=True),
             },
         )
 
         bcast.refresh_from_db()
-        self.assertEqual({"und": {"text": "An updated scheduled message"}}, bcast.translations)
+        self.assertEqual({"und": {"text": "An updated broadcast"}}, bcast.translations)
         self.assertEqual(self.editor, bcast.modified_by)
 
         start = datetime(2045, 9, 19, hour=10, minute=15, second=0, microsecond=0)
@@ -273,7 +273,7 @@ class ScheduleTest(TembaTest):
             reverse("msgs.broadcast_scheduled_create"),
             {
                 "omnibox": omnibox_serialize(self.org, [], [self.joe], json_encode=True),
-                "text": "A scheduled message to Joe",
+                "text": "A broadcast to Joe",
                 "start_datetime": "2021-06-24 12:00",
                 "repeat_period": "D",
             },

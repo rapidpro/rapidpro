@@ -127,7 +127,7 @@ class MsgListView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Sm
             dict(count=counts[SystemLabel.TYPE_SENT], label=_("Sent"), url=reverse("msgs.msg_sent")),
             dict(count=counts[SystemLabel.TYPE_FAILED], label=_("Failed"), url=reverse("msgs.msg_failed")),
             dict(
-                count=counts[SystemLabel.TYPE_SCHEDULED], label=_("Scheduled"), url=reverse("msgs.broadcast_scheduled")
+                count=counts[SystemLabel.TYPE_SCHEDULED], label=_("Broadcasts"), url=reverse("msgs.broadcast_scheduled")
             ),
         ]
 
@@ -209,7 +209,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
     class Scheduled(MsgListView):
         refresh = 30000
-        title = _("Scheduled Messages")
+        title = _("Broadcasts")
         fields = ("contacts", "msgs", "sent", "status")
         search_fields = ("translations__und__icontains", "contacts__urns__path__icontains")
         system_label = SystemLabel.TYPE_SCHEDULED
@@ -219,10 +219,10 @@ class BroadcastCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             if self.has_org_perm("msgs.broadcast_scheduled_create"):
                 menu.add_modax(
-                    _("Schedule Message"),
+                    _("New Broadcast"),
                     "new-scheduled",
                     reverse("msgs.broadcast_scheduled_create"),
-                    title=_("New Scheduled Message"),
+                    title=_("New Broadcast"),
                     as_button=True,
                 )
 
@@ -274,13 +274,18 @@ class BroadcastCRUDL(SmartCRUDL):
                 return recipients
 
             # todo - if we get the "this field is required" from settings required=True above - do we need this?
-            # def clean_compose(self, text, attachments):
-            #     compose = compose_deserialize(self.cleaned_data["compose"])
-            #     text = compose["text"]
-            #     attachments = compose["attachments"]
-            #     if not (text or attachments):
-            #         raise forms.ValidationError(_("At least one (text or attachments) is required."))
-            #     return text
+            def clean_compose(self):
+                compose = self.cleaned_data["compose"]
+                # compose = compose_deserialize(self.cleaned_data["compose"])
+                text = compose["text"]
+                attachments = compose["attachments"]
+                if not (text or attachments):
+                    raise forms.ValidationError(_("At least one (text or attachments) is required."))
+                if text and len(text) > 640:
+                    raise forms.ValidationError(_("640 characters."))
+                if attachments and len(attachments) > 10:
+                    raise forms.ValidationError(_("10 elements."))
+                return compose
 
             def clean(self):
                 cleaned_data = super().clean()
@@ -303,13 +308,10 @@ class BroadcastCRUDL(SmartCRUDL):
         def form_valid(self, form):
             user = self.request.user
             org = self.request.org
-
-            text = form.cleaned_data["text"]
-            # compose = compose_deserialize(self.cleaned_data["compose"])
-            # text = compose["text"]
-            # attachments = compose["attachments"]
-
             recipients = form.cleaned_data["omnibox"]
+            compose = form.cleaned_data["compose"]
+            text = compose["text"]
+            attachments = compose["attachments"]
             start_time = form.cleaned_data["start_datetime"]
             repeat_period = form.cleaned_data["repeat_period"]
             repeat_days_of_week = form.cleaned_data["repeat_days_of_week"]
@@ -320,8 +322,8 @@ class BroadcastCRUDL(SmartCRUDL):
             self.object = Broadcast.create(
                 org,
                 user,
-                {"und": text},
-                # {"und": attachments},
+                text={"und": text},
+                attachments={"und": attachments},
                 groups=list(recipients["groups"]),
                 contacts=list(recipients["contacts"]),
                 schedule=schedule,
@@ -333,7 +335,7 @@ class BroadcastCRUDL(SmartCRUDL):
         menu_path = "/msg/scheduled"
 
         def derive_title(self):
-            return _("Scheduled Message")
+            return _("Broadcast")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -348,7 +350,7 @@ class BroadcastCRUDL(SmartCRUDL):
                     _("Delete"),
                     "delete-scheduled",
                     reverse("msgs.broadcast_scheduled_delete", args=[obj.id]),
-                    title=_("Delete Scheduled Message"),
+                    title=_("Delete Broadcast"),
                 )
 
         def derive_formax_sections(self, formax, context):
@@ -624,7 +626,7 @@ class MsgCRUDL(SmartCRUDL):
                     ),
                     self.create_divider(),
                     self.create_menu_item(
-                        name=_("Scheduled"),
+                        name=_("Broadcasts"),
                         href=reverse("msgs.broadcast_scheduled"),
                         count=counts[SystemLabel.TYPE_SCHEDULED],
                     ),

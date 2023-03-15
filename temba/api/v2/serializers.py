@@ -1335,7 +1335,7 @@ class MsgReadSerializer(ReadSerializer):
 class MsgWriteSerializer(WriteSerializer):
     contact = fields.ContactField()
     text = serializers.CharField(required=False, max_length=Msg.MAX_TEXT_LEN)
-    attachments = fields.MediaField(required=False, many=True, max_items=10)
+    attachments = fields.MediaField(required=False, many=True, max_items=Msg.MAX_ATTACHMENT_LEN)
     ticket = fields.TicketField(required=False)
 
     def validate(self, data):

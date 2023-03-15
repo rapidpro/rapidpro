@@ -784,7 +784,7 @@ class SystemLabel:
         (TYPE_OUTBOX, "Outbox"),
         (TYPE_SENT, "Sent"),
         (TYPE_FAILED, "Failed"),
-        (TYPE_SCHEDULED, "Scheduled"),
+        (TYPE_SCHEDULED, "Broadcasts"),
     )
 
     @classmethod
