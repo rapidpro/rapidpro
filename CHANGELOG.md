@@ -1,3 +1,8 @@
+v8.1.73 (2023-03-15)
+-------------------------
+ * Stop returning type=flow|inbox on messages endpoint
+ * Cleanup location app models
+
 v8.1.72 (2023-03-14)
 -------------------------
  * Convert Org.config and Channel.config to be real JSON
