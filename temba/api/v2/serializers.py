@@ -1280,10 +1280,6 @@ class MsgReadSerializer(ReadSerializer):
         return "in" if obj.direction == Msg.DIRECTION_IN else "out"
 
     def get_type(self, obj):
-        # for CasePro's sake we still need to return legacy msg_type values for incoming messages
-        if obj.direction == Msg.DIRECTION_IN:
-            return "flow" if obj.flow_id else "inbox"
-
         return "voice" if obj.msg_type == Msg.TYPE_VOICE else "text"
 
     def get_status(self, obj):
