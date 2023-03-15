@@ -14,6 +14,8 @@ class MtnType(ChannelType):
     code = "MTN"
     category = ChannelType.Category.PHONE
 
+    beta_only = True
+
     courier_url = r"^mtn/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
 
     name = "MTN Developer Portal"

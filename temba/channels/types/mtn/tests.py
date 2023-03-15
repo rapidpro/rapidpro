@@ -15,8 +15,12 @@ class MtnTypeTest(TembaTest):
         self.org.save(update_fields=("brand",))
 
         self.login(self.admin)
-
         url = reverse("channels.types.mtn.claim")
+
+        response = self.client.get(reverse("channels.channel_claim"))
+        self.assertNotContains(response, url)
+
+        self.make_beta(self.admin)
 
         # should see the general channel claim page
         response = self.client.get(reverse("channels.channel_claim"))
