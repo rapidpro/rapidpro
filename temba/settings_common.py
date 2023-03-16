@@ -995,6 +995,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.macrokiosk.MacrokioskType",
     "temba.channels.types.mblox.MbloxType",
     "temba.channels.types.messangi.MessangiType",
+    "temba.channels.types.mtn.MtnType",
     "temba.channels.types.mtarget.MtargetType",
     "temba.channels.types.novo.NovoType",
     "temba.channels.types.playmobile.PlayMobileType",
