@@ -1,3 +1,7 @@
+v8.1.77 (2023-03-16)
+-------------------------
+ * Limit groups to a single line on contact page
+
 v8.1.76 (2023-03-16)
 -------------------------
  * Remove unused fields and indexes on broadcast model
