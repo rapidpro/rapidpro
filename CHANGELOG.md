@@ -1,3 +1,9 @@
+v8.1.76 (2023-03-16)
+-------------------------
+ * Remove unused fields and indexes on broadcast model
+ * Reload page on version mismatch
+ * Add support for MTN Developer Portal channel
+
 v8.1.75 (2023-03-16)
 -------------------------
  * Add menu path for org export and import
