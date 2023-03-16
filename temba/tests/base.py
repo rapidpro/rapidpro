@@ -439,7 +439,6 @@ class TembaTestMixin:
         msg_status=Msg.STATUS_SENT,
         parent=None,
         schedule=None,
-        ticket=None,
         created_on=None,
     ):
         bcast = Broadcast.create(
@@ -450,7 +449,6 @@ class TembaTestMixin:
             groups=groups,
             parent=parent,
             schedule=schedule,
-            ticket=ticket,
             created_on=created_on or timezone.now(),
             status=status,
         )

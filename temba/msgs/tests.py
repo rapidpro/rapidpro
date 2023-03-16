@@ -25,7 +25,7 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest, mock_uuids
+from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.utils import s3
@@ -2707,26 +2707,3 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([media2, media1], list(response.context["object_list"]))
 
         self.clear_storage()
-
-
-class BackfillMsgUUIDTest(MigrationTest):
-    app = "msgs"
-    migrate_from = "0228_alter_media_org_alter_media_uuid_and_more"
-    migrate_to = "0229_backfill_msg_uuid"
-
-    def setUpBeforeMigration(self, apps):
-        contact = self.create_contact("Bob", phone="1234567890")
-
-        self.msg1 = self.create_outgoing_msg(contact, "1")
-        self.msg1_uuid = self.msg1.uuid
-
-        self.msg2 = self.create_outgoing_msg(contact, "2")
-        self.msg2.uuid = None
-        self.msg2.save(update_fields=("uuid",))
-
-    def test_migration(self):
-        self.msg1.refresh_from_db()
-        self.msg2.refresh_from_db()
-
-        self.assertEqual(self.msg1_uuid, self.msg1.uuid)  # unchanged
-        self.assertTrue(self.msg2.uuid)
