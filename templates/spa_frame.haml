@@ -302,8 +302,9 @@
   -include "full_page_script.haml"
 
   :javascript
-
     var static_url = "{{STATIC_URL}}";
+
+    var tembaVersion= "{{temba_version}}";
     var pendingRequests = [];
     function fetchAjax(url, container, options) {
 
@@ -335,6 +336,13 @@
             return response.controller === controller;
           }
         );
+
+        // if we have a version mismatch, reload the page
+        var version = response.headers.get("x-temba-version");
+        if (tembaVersion != version) {
+          document.location.href = url;
+          return;
+        }
 
         if (response.status < 200 || response.status > 299) {
           return;
@@ -724,6 +732,7 @@
     %temba-store
 
 -block page-container
+  <!-- {{temba_version}} -->
   %temba-mask
   %temba-modax#shared-modax
   %temba-dialog#shared-dialog
