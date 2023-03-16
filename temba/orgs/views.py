@@ -1442,6 +1442,8 @@ class OrgCRUDL(SmartCRUDL):
             # Wit.ai, Luis, Bothub, ZenDesk, DT One, Chatbase, Prometheus, Zapier/Resthooks
 
     class Import(SpaMixin, NonAtomicMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+        menu_path = "/settings/workspace"
+
         class FlowImportForm(Form):
             import_file = forms.FileField(help_text=_("The import file"))
             update = forms.BooleanField(help_text=_("Update all flows and campaigns"), required=False)
@@ -1494,6 +1496,7 @@ class OrgCRUDL(SmartCRUDL):
 
     class Export(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         title = _("Create Export")
+        menu_path = "/settings/workspace"
 
         def post(self, request, *args, **kwargs):
             org = self.get_object()
