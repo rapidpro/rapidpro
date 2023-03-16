@@ -112,6 +112,7 @@ html {
   --button-font-size: 1.125rem;
 
   --icon-color: var(--text-color);
+  --icon-color-circle: rgb(240, 240, 240);
   --icon-color-circle-hover: rgba(245, 245, 245, .8);
   
   --transition-speed: 250ms;
