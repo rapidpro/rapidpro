@@ -281,7 +281,7 @@ class Ticket(models.Model):
 
     def delete(self):
         self.events.all().delete()
-        self.broadcasts.update(ticket=None)
+
         super().delete()
 
     def __str__(self):

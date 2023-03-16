@@ -1722,9 +1722,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         Flow.objects.get(id=ivr_flow.id)
         self.assertEqual(1, Ticket.objects.count())
 
-        bcast2.refresh_from_db()
-        self.assertIsNone(bcast2.ticket)
-
     @mock_mailroom
     def test_status_changes_and_release(self, mr_mocks):
         flow = self.create_flow("Test")
