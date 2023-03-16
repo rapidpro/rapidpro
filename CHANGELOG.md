@@ -1,3 +1,10 @@
+v8.1.75 (2023-03-16)
+-------------------------
+ * Add menu path for org export and import
+ * Fix legacy goto function for old UI
+ * Warn users who go back to the old interface
+ * Remove support for broadcasts with associated tickets
+
 v8.1.74 (2023-03-15)
 -------------------------
  * Show version number on public index page
