@@ -1240,12 +1240,12 @@ class Org(SmartModel):
 
     def release(self, user, *, release_users=True):
         """
-        Releases this org, marking it as inactive. Actual deletion of org data won't happen until after 7 days unless
-        delete is True.
+        Releases this org, marking it as inactive. Actual deletion of org data won't happen until after 7 days.
         """
 
-        # free our children
-        Org.objects.filter(parent=self).update(parent=None)
+        # release any child orgs
+        for child in self.children.all():
+            child.release(user, release_users=release_users)
 
         # deactivate ourselves
         self.is_active = False
@@ -1332,9 +1332,8 @@ class Org(SmartModel):
         self.urns.all().delete()
 
         # delete our fields
-        for contactfield in self.fields.all():
-            contactfield.release(user)
-            contactfield.delete()
+        for field in self.fields.all():
+            field.delete()
 
         # delete our groups
         for group in self.groups.all():
@@ -1349,15 +1348,13 @@ class Org(SmartModel):
 
             channel.delete()
 
-        for g in self.globals.all():
-            g.release(user)
+        for glob in self.globals.all():
+            glob.delete()
 
-        # delete our classifiers
         for classifier in self.classifiers.all():
             classifier.release(user)
             classifier.delete()
 
-        # delete our ticketers
         for ticketer in self.ticketers.all():
             ticketer.release(user)
             ticketer.delete()
@@ -1407,6 +1404,9 @@ class Org(SmartModel):
             "default_country": self.default_country_code,
             "redaction_policy": "urns" if self.is_anon else "none",
         }
+
+    def __repr__(self):
+        return f'<Org: name="{self.name}">'
 
     def __str__(self):
         return self.name

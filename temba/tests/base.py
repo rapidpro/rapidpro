@@ -440,9 +440,10 @@ class TembaTestMixin:
         parent=None,
         schedule=None,
         created_on=None,
+        org=None,
     ):
         bcast = Broadcast.create(
-            self.org,
+            org or self.org,
             user,
             {"und": text} if isinstance(text, str) else text,
             contacts=contacts,
