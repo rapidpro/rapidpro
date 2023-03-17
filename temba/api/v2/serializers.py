@@ -220,7 +220,6 @@ class BroadcastWriteSerializer(WriteSerializer):
     text = fields.TranslatedTextField(required=False, max_length=Msg.MAX_TEXT_LEN)
     attachments = fields.TranslatedAttachmentsField(required=False)
     base_language = fields.LanguageField(required=False)
-    ticket = fields.TicketField(required=False)
 
     def validate(self, data):
         text = data.get("text")
@@ -256,7 +255,6 @@ class BroadcastWriteSerializer(WriteSerializer):
             groups=self.validated_data.get("groups", []),
             contacts=self.validated_data.get("contacts", []),
             urns=self.validated_data.get("urns", []),
-            ticket=self.validated_data.get("ticket"),
         )
 
         on_transaction_commit(lambda: broadcast.send_async())
@@ -1280,10 +1278,6 @@ class MsgReadSerializer(ReadSerializer):
         return "in" if obj.direction == Msg.DIRECTION_IN else "out"
 
     def get_type(self, obj):
-        # for CasePro's sake we still need to return legacy msg_type values for incoming messages
-        if obj.direction == Msg.DIRECTION_IN:
-            return "flow" if obj.flow_id else "inbox"
-
         return "voice" if obj.msg_type == Msg.TYPE_VOICE else "text"
 
     def get_status(self, obj):

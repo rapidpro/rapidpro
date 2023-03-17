@@ -2466,7 +2466,7 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **urn** - the URN of the sender or receiver, depending on direction (string).
      * **channel** - the UUID and name of the channel that handled this message (object).
      * **direction** - the direction of the message (one of "incoming" or "outgoing").
-     * **type** - the type of the message (one of "inbox", "flow", "ivr").
+     * **type** - the type of the message (one of "text" or "voice").
      * **status** - the status of the message (one of "initializing", "queued", "wired", "sent", "delivered", "handled", "errored", "failed", "resent").
      * **visibility** - the visibility of the message (one of "visible", "archived" or "deleted")
      * **text** - the text of the message received (string). Note this is the logical view and the message may have been received as multiple physical messages.

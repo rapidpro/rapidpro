@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 from django.core.files import File
 from django.urls import reverse
 
+from temba import __version__ as temba_version
 from temba.apks.models import Apk
 from temba.tests import TembaTest
 
@@ -14,6 +15,7 @@ class PublicTest(TembaTest):
         home_url = reverse("public.public_index")
         response = self.client.get(home_url, follow=True)
         self.assertEqual(response.request["PATH_INFO"], "/")
+        self.assertContains(response, temba_version)
 
         response = self.client.get(home_url + "?errors=&foo", follow=True)
         self.assertEqual(response.request["PATH_INFO"], "/")

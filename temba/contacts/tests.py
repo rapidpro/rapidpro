@@ -550,6 +550,11 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
 
+        # check that names inserted as page title headers are encoded properly
+        joe_flow = self.create_contact("Joe\t\nFlow", phone="123567")
+        response = self.client.get(reverse("contacts.contact_read", args=[joe_flow.uuid]), HTTP_TEMBA_SPA=True)
+        self.assertEqual("JoeFlow", response["X-Temba-Page-Title"])
+
     def test_read_language(self):
         joe = self.create_contact("Joe", phone="123")
         read_url = reverse("contacts.contact_read", args=[joe.uuid])
@@ -1716,9 +1721,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         Flow.objects.get(id=msg_flow.id)
         Flow.objects.get(id=ivr_flow.id)
         self.assertEqual(1, Ticket.objects.count())
-
-        bcast2.refresh_from_db()
-        self.assertIsNone(bcast2.ticket)
 
     @mock_mailroom
     def test_status_changes_and_release(self, mr_mocks):

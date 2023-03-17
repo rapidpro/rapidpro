@@ -1,3 +1,41 @@
+v8.1.77 (2023-03-16)
+-------------------------
+ * Limit groups to a single line on contact page
+
+v8.1.76 (2023-03-16)
+-------------------------
+ * Remove unused fields and indexes on broadcast model
+ * Reload page on version mismatch
+ * Add support for MTN Developer Portal channel
+
+v8.1.75 (2023-03-16)
+-------------------------
+ * Add menu path for org export and import
+ * Fix legacy goto function for old UI
+ * Warn users who go back to the old interface
+ * Remove support for broadcasts with associated tickets
+
+v8.1.74 (2023-03-15)
+-------------------------
+ * Show version number on public index page
+ * Add poetry plugin to maintain version number in temba/__init__.py
+ * Fix textinput inner scrolling
+
+v8.1.73 (2023-03-15)
+-------------------------
+ * Stop returning type=flow|inbox on messages endpoint
+ * Cleanup location app models
+
+v8.1.72 (2023-03-14)
+-------------------------
+ * Convert Org.config and Channel.config to be real JSON
+
+v8.1.71 (2023-03-14)
+-------------------------
+ * Strip out invalid HTTP header characters from page title response headers
+ * Fix mailroom db command to patch uuid generation after migrations are run
+ * Expose flow on messages API endpoint
+
 v8.1.70 (2023-03-13)
 -------------------------
  * Broad support for meta click for new tabs

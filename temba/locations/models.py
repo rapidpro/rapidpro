@@ -1,14 +1,10 @@
-import logging
-
 import geojson
 from mptt.models import MPTTModel, TreeForeignKey
 from smartmin.models import SmartModel
 
 from django.contrib.gis.db import models
 from django.db.models import F, Value
-from django.db.models.functions import Concat
-
-logger = logging.getLogger(__name__)
+from django.db.models.functions import Concat, Upper
 
 
 # default manager for AdminBoundary, doesn't load geometries
@@ -33,36 +29,19 @@ class AdminBoundary(MPTTModel, models.Model):
     LEVEL_DISTRICT = 2
     LEVEL_WARD = 3
 
-    # used to separate segments in a hierarchy of boundaries. Has the advantage of being a character in GSM7 and
+    MAX_NAME_LEN = 128
+
+    # Used to separate segments in a hierarchy of boundaries. Has the advantage of being a character in GSM7 and
     # being very unlikely to show up in an admin boundary name.
     PATH_SEPARATOR = ">"
     PADDED_PATH_SEPARATOR = " > "
 
-    osm_id = models.CharField(
-        max_length=15, unique=True, help_text="This is the OSM id for this administrative boundary"
-    )
-
-    name = models.CharField(max_length=128, help_text="The name of our administrative boundary")
-
-    level = models.IntegerField(
-        help_text="The level of the boundary, 0 for country, 1 for state, 2 for district, 3 for ward"
-    )
-
-    parent = TreeForeignKey(
-        "self",
-        null=True,
-        on_delete=models.PROTECT,
-        blank=True,
-        related_name="children",
-        db_index=True,
-        help_text="The parent to this political boundary if any",
-    )
-
-    path = models.CharField(max_length=768, help_text="The full path name for this location")
-
-    simplified_geometry = models.MultiPolygonField(
-        null=True, help_text="The simplified geometry of this administrative boundary"
-    )
+    osm_id = models.CharField(max_length=15, unique=True)
+    name = models.CharField(max_length=MAX_NAME_LEN)
+    level = models.IntegerField()
+    parent = TreeForeignKey("self", null=True, on_delete=models.PROTECT, related_name="children", db_index=True)
+    path = models.CharField(max_length=768)  # e.g. Rwanda > Kigali
+    simplified_geometry = models.MultiPolygonField(null=True)
 
     objects = NoGeometryManager()
     geometries = GeometryManager()
@@ -121,6 +100,19 @@ class AdminBoundary(MPTTModel, models.Model):
 
         _update_child_paths(self)
 
+    def update_aliases(self, org, user, aliases: list):
+        siblings = self.parent.children.all()
+
+        self.aliases.all().delete()  # delete any existing aliases
+
+        for new_alias in aliases:
+            assert new_alias and len(new_alias) < AdminBoundary.MAX_NAME_LEN
+
+            # aliases are only allowed to exist on one boundary with same parent at a time
+            BoundaryAlias.objects.filter(name=new_alias, boundary__in=siblings, org=org).delete()
+
+            BoundaryAlias.objects.create(boundary=self, org=org, name=new_alias, created_by=user, modified_by=user)
+
     def release(self):
         for child_boundary in AdminBoundary.objects.filter(parent=self):  # pragma: no cover
             child_boundary.release()
@@ -165,25 +157,24 @@ class AdminBoundary(MPTTModel, models.Model):
         return boundary
 
     def __str__(self):
-        return "%s" % self.name
+        return self.name
+
+    class Meta:
+        indexes = [models.Index(Upper("name"), name="adminboundaries_by_name")]
 
 
 class BoundaryAlias(SmartModel):
     """
-    Alternative names for a boundaries
+    An org specific alias for a boundary name
     """
 
-    name = models.CharField(max_length=128, help_text="The name for our alias")
-
-    boundary = models.ForeignKey(
-        AdminBoundary,
-        on_delete=models.PROTECT,
-        help_text="The admin boundary this alias applies to",
-        related_name="aliases",
-    )
-
-    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, help_text="The org that owns this alias")
+    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT)
+    boundary = models.ForeignKey(AdminBoundary, on_delete=models.PROTECT, related_name="aliases")
+    name = models.CharField(max_length=AdminBoundary.MAX_NAME_LEN, help_text="The name for our alias")
 
     @classmethod
     def create(cls, org, user, boundary, name):
         return cls.objects.create(org=org, boundary=boundary, name=name, created_by=user, modified_by=user)
+
+    class Meta:
+        indexes = [models.Index(Upper("name"), name="boundaryaliases_by_name")]

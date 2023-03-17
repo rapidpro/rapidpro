@@ -74,26 +74,6 @@ class BoundaryCRUDL(SmartCRUDL):
             return AdminBoundary.geometries.get(osm_id=self.kwargs["osmId"])
 
         def post(self, request, *args, **kwargs):
-            def update_aliases(boundary, new_aliases):
-                boundary_siblings = boundary.parent.children.all()
-                # for now, nuke and recreate all aliases
-                BoundaryAlias.objects.filter(boundary=boundary, org=org).delete()
-                unique_new_aliases = list(set(new_aliases.split("\n")))
-                for new_alias in unique_new_aliases:
-                    if new_alias:
-                        new_alias = new_alias.strip()
-
-                        # aliases are only allowed to exist on one boundary with same parent at a time
-                        BoundaryAlias.objects.filter(name=new_alias, boundary__in=boundary_siblings, org=org).delete()
-
-                        BoundaryAlias.objects.create(
-                            boundary=boundary,
-                            org=org,
-                            name=new_alias,
-                            created_by=self.request.user,
-                            modified_by=self.request.user,
-                        )
-
             # try to parse our body
             json_string = request.body
             org = request.org
@@ -106,7 +86,9 @@ class BoundaryCRUDL(SmartCRUDL):
             boundary = AdminBoundary.objects.filter(osm_id=boundary_update["osm_id"]).first()
             aliases = boundary_update.get("aliases", "")
             if boundary:
-                update_aliases(boundary, aliases)
+                unique_new_aliases = [a.strip() for a in set(aliases.split("\n")) if a]
+
+                boundary.update_aliases(org, self.request.user, unique_new_aliases)
 
             return JsonResponse(boundary_update, safe=False)
 

@@ -3,6 +3,7 @@ import logging
 from urllib.parse import quote, urlencode
 
 import requests
+from gunicorn.http.wsgi import HEADER_VALUE_RE
 
 from django import forms
 from django.conf import settings
@@ -15,6 +16,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
+from temba import __version__ as temba_version
 from temba.utils.fields import CheckboxWidget, DateWidget, InputWidget, SelectMultipleWidget, SelectWidget
 
 logger = logging.getLogger(__name__)
@@ -22,6 +24,7 @@ logger = logging.getLogger(__name__)
 TEMBA_MENU_SELECTION = "temba_menu_selection"
 TEMBA_CONTENT_ONLY = "x-temba-content-only"
 TEMBA_PAGE_TITLE = "x-temba-page-title"
+TEMBA_VERSION = "x-temba-version"
 
 
 class SpaMixin(View):
@@ -61,6 +64,7 @@ class SpaMixin(View):
 
         # this is for the content menu to handle links differently
         context["is_legacy"] = 0 if self.is_spa() or self.is_content_only() else 1
+        context["temba_version"] = temba_version
 
         if self.is_spa():
             if self.is_content_only():
@@ -120,10 +124,15 @@ class SpaMixin(View):
 
     def render_to_response(self, context, **response_kwargs):
         response = super().render_to_response(context, **response_kwargs)
+        response.headers[TEMBA_VERSION] = temba_version
         if self.is_spa():
             response.headers[TEMBA_MENU_SELECTION] = context[TEMBA_MENU_SELECTION]
             response.headers[TEMBA_CONTENT_ONLY] = 1 if self.is_content_only() else 0
-            response.headers[TEMBA_PAGE_TITLE] = context["title"]
+
+            # TODO find alternative way to pass back page titles and toast errors
+            title = context["title"]
+            if title:
+                response.headers[TEMBA_PAGE_TITLE] = HEADER_VALUE_RE.sub("", str(title))
         return response
 
 
@@ -269,7 +278,7 @@ class BulkActionMixin:
 
         response = self.get(request, *args, **kwargs)
         if action_error:
-            response["Temba-Toast"] = action_error
+            response["Temba-Toast"] = HEADER_VALUE_RE.sub("", str(action_error))
 
         return response
 

@@ -5,7 +5,7 @@ from django.db import migrations
 import temba.utils.uuid
 
 
-def backfill_old_msg_uuids(apps, schema_editor):
+def backfill_old_msg_uuids(apps, schema_editor):  # pragma: no cover
     Msg = apps.get_model("msgs", "Msg")
 
     num_updated = 0
@@ -18,7 +18,7 @@ def backfill_old_msg_uuids(apps, schema_editor):
         print(f"Updated {num_updated} msgs without UUIDs")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

@@ -12,48 +12,37 @@ from ...views import ClaimViewMixin
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         channel_id = forms.CharField(
-            label=_("Channel ID"), required=True, help_text=_("The Channel ID of the LINE channel for the Bot")
+            label=_("Channel ID"), required=True, help_text=_("Channel ID of the LINE channel for the bot.")
         )
-        name = forms.CharField(label=_("Name"), max_length=64, required=True, help_text=_("The Name of the Bot"))
-        access_token = forms.CharField(
-            label=_("Access Token"), required=True, help_text=_("The Access Token of the LINE Bot")
-        )
-        secret = forms.CharField(label=_("Secret"), required=True, help_text=_("The Secret of the LINE Bot"))
+        name = forms.CharField(label=_("Name"), max_length=64, required=True, help_text=_("Name of the bot."))
+        access_token = forms.CharField(label=_("Access Token"), required=True, help_text=_("Access token of the bot."))
+        secret = forms.CharField(label=_("Secret"), required=True, help_text=_("Secret of the bot."))
 
         def clean(self):
-            access_token = self.cleaned_data.get("access_token")
-            secret = self.cleaned_data.get("secret")
-            channel_id = self.cleaned_data.get("channel_id")
-            name = self.cleaned_data.get("name")
+            cleaned_data = super().clean()
 
-            credentials = {
-                "channel_id": channel_id,
-                "channel_access_token": access_token,
-                "channel_secret": secret,
-                "name": name,
-            }
+            channel_id = cleaned_data.get("channel_id")
+            access_token = cleaned_data.get("access_token")
+            secret = cleaned_data.get("secret")
 
             existing = Channel.objects.filter(
-                Q(config__contains=channel_id) | Q(config__contains=secret) | Q(config__contains=access_token),
+                Q(config__channel_id=channel_id) | Q(config__secret=secret) | Q(config__auth_token=access_token),
                 channel_type=self.channel_type.code,
                 address=channel_id,
                 is_active=True,
-            ).first()
+            ).exists()
             if existing:
                 raise ValidationError(_("A channel with this configuration already exists."))
-
-            return credentials
 
     form_class = Form
 
     def form_valid(self, form):
-        credentials = form.cleaned_data
-        name = credentials.get("name")
-        channel_id = credentials.get("channel_id")
-        channel_secret = credentials.get("channel_secret")
-        channel_access_token = credentials.get("channel_access_token")
+        name = form.cleaned_data.get("name")
+        channel_id = form.cleaned_data.get("channel_id")
+        secret = form.cleaned_data.get("secret")
+        access_token = form.cleaned_data.get("access_token")
 
-        config = {"auth_token": channel_access_token, "secret": channel_secret, "channel_id": channel_id}
+        config = {"auth_token": access_token, "secret": secret, "channel_id": channel_id}
 
         self.object = Channel.create(
             self.request.org, self.request.user, None, self.channel_type, name=name, address=channel_id, config=config
