@@ -279,10 +279,10 @@ class BroadcastCRUDL(SmartCRUDL):
                 attachments = compose["attachments"]
                 if not (text or attachments):
                     raise forms.ValidationError(_("Text or attachments are required."))
-                if text and len(text) > Broadcast.MAX_TEXT_LEN:
-                    raise forms.ValidationError(_("Maximum allowed text is 640 characters."))
+                if text and len(text) > Broadcast.MAX_TEXT_LEN:                    
+                    raise forms.ValidationError(_(f'Maximum allowed text is {Broadcast.MAX_TEXT_LEN} characters.'))
                 if attachments and len(attachments) > Broadcast.MAX_ATTACHMENT_LEN:
-                    raise forms.ValidationError(_("Maximum allowed attachments is 10 files."))
+                    raise forms.ValidationError(_(f'Maximum allowed attachments is {Broadcast.MAX_ATTACHMENT_LEN} files.'))
                 return compose
 
             def clean(self):

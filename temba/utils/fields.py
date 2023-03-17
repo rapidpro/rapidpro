@@ -217,13 +217,6 @@ class ComposeWidget(forms.Widget):
     template_name = "utils/forms/compose.haml"
     is_annotated = True
 
-    def __init__(self, attrs=None):
-        super().__init__(attrs)
-    
-    def get_context(self, name, value, attrs):
-        context = super().get_context(name, value, attrs)
-        return context
-
     def render(self, name, value, attrs=None, renderer=None):
         value = {
             'text': '', 
