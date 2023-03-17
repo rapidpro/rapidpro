@@ -22,6 +22,10 @@
 
             %td.value-text.field_text
               {{ object.get_text }}
+            
+            %td.value-text.field_text
+              {{ object.get_attachments }}
+
             %td.value-next
               .whitespace-nowrap.pr-2.pointer-events-none
                 -if object.schedule.next_fire

@@ -232,8 +232,10 @@ class ComposeWidget(forms.Widget):
     def value_from_datadict(self, data, files, name):
         list_items = data.getlist(name)
         list_item = list_items[0]
-        compose_item = json.loads(list_item)
-        value = compose_item
+        # todo - is there a way to simply this logic / do this better?
+        # aka - is there a way to avoid doing a loads() twice?
+        compose_item = json.loads(list_item) # returns a string
+        value = json.loads(compose_item) # returns a dict
         return value
 
 

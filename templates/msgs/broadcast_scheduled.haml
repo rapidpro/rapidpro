@@ -19,6 +19,10 @@
 
             %td.value-text.field_text
               {{ object.get_text }}
+
+            %td.value-text.field_text
+              {{ object.get_attachments }}
+              
             %td.value-next
               -if object.schedule.next_fire
                 .glyph.icon-clock
