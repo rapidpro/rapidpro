@@ -185,7 +185,7 @@ class Broadcast(models.Model):
     STATUS_CHOICES = ((STATUS_QUEUED, "Queued"), (STATUS_SENT, "Sent"), (STATUS_FAILED, "Failed"))
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE  # max chars allowed in a broadcast
-    MAX_ATTACHMENT_LEN = 10 # settings.MSG_ATTACHMENT_SIZE  # max attachments allowed in a broadcast
+    MAX_ATTACHMENT_LEN = 10  # settings.MSG_ATTACHMENT_SIZE  # max attachments allowed in a broadcast
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
 
@@ -303,27 +303,32 @@ class Broadcast(models.Model):
         Gets the attachments that will be sent. If contact is provided and their language is a valid flow language and there's
         a translation for it then that will be used (used when rendering upcoming scheduled broadcasts).
         """
+        attachments = None
         if not self.translations:
             return attachments
-        
-        translations = self.translations        
-        language = None
-        translation = None
-        attachments = None
 
-        if contact and contact.language and contact.language in self.org.flow_languages and contact.language in translations:  # try contact language
+        translations = self.translations
+        language = None
+        translation = None        
+
+        if (
+            contact
+            and contact.language
+            and contact.language in self.org.flow_languages
+            and contact.language in translations
+        ):  # try contact language
             if contact.language in translations:
                 language = contact.language
         elif self.org.flow_languages[0] in translations:  # try org primary language
             language = self.org.flow_languages[0]
         else:
-            language = self.base_language # should always be a base language translation
-            
+            language = self.base_language  # should always be a base language translation
+
         if not language:
-            return attachments        
+            return attachments
         translation = translations.get(language)
         if not translation:
-            return attachments        
+            return attachments
         attachments = translation.get("attachments")
         if not attachments:
             return attachments
@@ -332,13 +337,13 @@ class Broadcast(models.Model):
             # todo - is there a way to simplify this logic / do this better?
             # aka - is there a way to avoid doing a literal_eval(), then a dumps(), then a loads()?
             # also - i don't see literal_eval used anywhere else
-            a0 = ast.literal_eval(attachment) # returns a dict
-            a1 = json.dumps(a0) # returns a string
-            a2 = json.loads(a1) # returns a dict
+            a0 = ast.literal_eval(attachment)  # returns a dict
+            a1 = json.dumps(a0)  # returns a string
+            a2 = json.loads(a1)  # returns a dict
             name = f"{a2['filename']} ({a2['size']}) {a2['content_type']}"
-            names.append(name)        
+            names.append(name)
         return names
-        
+
         # todo format attachment display names
         # attrs = ['filename', 'size', 'content_type']
         # [[getattr(attachment, attr) for attr in attrs] for attachment in attachments]
@@ -547,7 +552,7 @@ class Msg(models.Model):
     MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE  # max chars allowed in a message
-    MAX_ATTACHMENT_LEN = 10 # settings.MSG_ATTACHMENT_SIZE  # max attachments allowed in a message
+    MAX_ATTACHMENT_LEN = 10  # settings.MSG_ATTACHMENT_SIZE  # max attachments allowed in a message
 
     id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(default=uuid4)

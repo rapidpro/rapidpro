@@ -218,12 +218,9 @@ class ComposeWidget(forms.Widget):
     is_annotated = True
 
     def render(self, name, value, attrs=None, renderer=None):
-        value = {
-            'text': '', 
-            'attachments': []
-        }
+        value = {"text": "", "attachments": []}
         # value = {
-        #     'text': 'blah render', 
+        #     'text': 'blah render',
         #     'attachments': []
         # }
         value = json.dumps(value)
@@ -234,8 +231,8 @@ class ComposeWidget(forms.Widget):
         list_item = list_items[0]
         # todo - is there a way to simply this logic / do this better?
         # aka - is there a way to avoid doing a loads() twice?
-        compose_item = json.loads(list_item) # returns a string
-        value = json.loads(compose_item) # returns a dict
+        compose_item = json.loads(list_item)  # returns a string
+        value = json.loads(compose_item)  # returns a dict
         return value
 
 
