@@ -229,19 +229,18 @@ class ComposeWidget(forms.Widget):
             'text': '', 
             'attachments': []
         }
-        if value:
-            value = json.dumps(value)
+        # value = {
+        #     'text': 'blah render', 
+        #     'attachments': []
+        # }
+        value = json.dumps(value)
         return super().render(name, value, attrs)
 
     def value_from_datadict(self, data, files, name):
-        value = {
-            'text': '', 
-            'attachments': []
-        }
-        compose_items = data.getlist(name)
-        compose_item = compose_items[0]
-        compose_json = json.loads(compose_item)        
-        value = compose_json
+        list_items = data.getlist(name)
+        list_item = list_items[0]
+        compose_item = json.loads(list_item)
+        value = compose_item
         return value
 
 

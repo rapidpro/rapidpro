@@ -273,18 +273,16 @@ class BroadcastCRUDL(SmartCRUDL):
                     raise forms.ValidationError(_("At least one recipient is required."))
                 return recipients
 
-            # todo - if we get the "this field is required" from settings required=True above - do we need this?
             def clean_compose(self):
                 compose = self.cleaned_data["compose"]
-                # compose = compose_deserialize(self.cleaned_data["compose"])
                 text = compose["text"]
                 attachments = compose["attachments"]
                 if not (text or attachments):
-                    raise forms.ValidationError(_("At least one (text or attachments) is required."))
-                if text and len(text) > 640:
-                    raise forms.ValidationError(_("640 characters."))
-                if attachments and len(attachments) > 10:
-                    raise forms.ValidationError(_("10 elements."))
+                    raise forms.ValidationError(_("Text or attachments are required."))
+                if text and len(text) > Broadcast.MAX_TEXT_LEN:
+                    raise forms.ValidationError(_("Maximum allowed text is 640 characters."))
+                if attachments and len(attachments) > Broadcast.MAX_ATTACHMENT_LEN:
+                    raise forms.ValidationError(_("Maximum allowed attachments is 10 files."))
                 return compose
 
             def clean(self):
@@ -297,7 +295,7 @@ class BroadcastCRUDL(SmartCRUDL):
         form_class = Form
         # fields = ("omnibox", "text") + ScheduleFormMixin.Meta.fields
         fields = ("omnibox", "compose") + ScheduleFormMixin.Meta.fields
-        success_url = "id@msgs.broadcast_scheduled_read"
+        success_url = "@msgs.broadcast_scheduled"
         submit_button_name = _("Create")
 
         def get_form_kwargs(self):
