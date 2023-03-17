@@ -40,6 +40,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
+from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, ESMockWithScroll, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
@@ -725,6 +726,7 @@ class OrgTest(TembaTest):
         self.assertEqual("D", new_org.date_format)
         self.assertEqual(str(new_org.timezone), "Africa/Kigali")
         self.assertIn(self.admin, self.org.get_admins())
+        self.assertEqual('<Org: name="Cool Stuff">', repr(new_org))
 
         # if timezone is US, should get MMDDYYYY dates
         new_org = Org.create(
@@ -2556,6 +2558,18 @@ class OrgDeleteTest(TembaTest):
         add(self.create_outgoing_msg(contact=contacts[0], text="synced", channel=channels[1]))
 
         add(self.create_broadcast(user, "Announcement", contacts=contacts, groups=groups, org=org))
+
+        scheduled = add(
+            self.create_broadcast(
+                user,
+                "Reminder",
+                contacts=contacts,
+                groups=groups,
+                org=org,
+                schedule=Schedule.create_schedule(org, user, timezone.now(), Schedule.REPEAT_DAILY),
+            )
+        )
+        add(self.create_broadcast(user, "Reminder", contacts=contacts, groups=groups, org=org, parent=scheduled))
 
         label1 = add(self.create_label("Spam", org=org))
         label2 = add(self.create_label("Important", org=org))
