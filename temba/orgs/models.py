@@ -1284,10 +1284,14 @@ class Org(SmartModel):
         # delete notifications and exports
         self.incidents.all().delete()
         self.notifications.all().delete()
+        self.notification_counts.all().delete()
         self.exportcontactstasks.all().delete()
         self.exportmessagestasks.all().delete()
         self.exportflowresultstasks.all().delete()
         self.exportticketstasks.all().delete()
+
+        for imp in self.contact_imports.all():
+            imp.delete()
 
         for label in self.msgs_labels.all():
             label.release(user)
@@ -1322,6 +1326,7 @@ class Org(SmartModel):
         self.sessions.all().delete()
         self.ticket_events.all().delete()
         self.tickets.all().delete()
+        self.ticket_counts.all().delete()
         self.topics.all().delete()
         self.airtime_transfers.all().delete()
 

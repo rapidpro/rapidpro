@@ -12,6 +12,7 @@ from smartmin.users.models import FailedLogin, RecoveryToken
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core import mail
+from django.db.models import Model
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -2677,6 +2678,7 @@ class OrgDeleteTest(TembaTest):
         org.refresh_from_db()
 
         self.assertFalse(org.is_active)
+        self.assertEqual({}, org.config)
         self.assertIsNotNone(org.released_on)
         self.assertIsNotNone(org.deleted_on)
 
@@ -2755,6 +2757,11 @@ class OrgDeleteTest(TembaTest):
             ],
             list(self.mock_s3.objects.keys()),
         )
+
+        # we don't actually delete org objects but at this point there should be no related fields preventing that
+        Model.delete(org1_child1)
+        Model.delete(org1_child2)
+        Model.delete(self.org)
 
 
 class AnonOrgTest(TembaTest):
