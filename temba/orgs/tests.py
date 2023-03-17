@@ -2721,9 +2721,11 @@ class OrgDeleteTest(TembaTest):
         self.assertOrgReleased(org1_child2)
         self.assertOrgActive(self.org2, org2_content)
 
-        with patch("temba.orgs.models.Org.DELETE_DELAY_DAYS", 0):
-            with patch("temba.utils.s3.client", return_value=self.mock_s3):
-                delete_released_orgs()
+        # make it look like released orgs were released over a week ago
+        Org.objects.exclude(released_on=None).update(released_on=timezone.now() - timedelta(days=8))
+
+        with patch("temba.utils.s3.client", return_value=self.mock_s3):
+            delete_released_orgs()
 
         self.assertOrgDeleted(self.org, org1_content)
         self.assertOrgDeleted(org1_child1)

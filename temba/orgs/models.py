@@ -3,6 +3,7 @@ import logging
 import os
 from abc import ABCMeta
 from collections import defaultdict
+from datetime import timedelta
 from enum import Enum
 from urllib.parse import quote, urlencode, urlparse
 
@@ -1274,8 +1275,9 @@ class Org(SmartModel):
         Does an actual delete of this org
         """
 
-        assert not self.is_active and self.released_on, "can't delete an org which hasn't been released"
-        assert not self.deleted_on, "can't delete an org twice"
+        assert not self.is_active and self.released_on, "can't delete org which hasn't been released"
+        assert self.released_on < timezone.now() - timedelta(days=7), "can't delete org which was released recently"
+        assert not self.deleted_on, "can't delete org twice"
 
         user = self.modified_by
 
