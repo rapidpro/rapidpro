@@ -103,6 +103,8 @@
     }
 
 -block spa-title
+  #title-text.hidden
+    {{title}}    
   %temba-contact-name-fetch(contact="{{object.uuid}}" -temba-refreshed="handleContactRefreshed")
 
 -block subtitle

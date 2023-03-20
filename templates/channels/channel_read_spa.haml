@@ -4,7 +4,7 @@
 -block spa-title
   %temba-urn.mr-2(scheme="{{channel.schemes|first}}")
   .flex.items-start.flex-col
-    .name
+    #title-text.name
       -if object.parent
         {{ object.parent.name }}
       -else
