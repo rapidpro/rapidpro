@@ -287,7 +287,6 @@ class Broadcast(models.Model):
         if attachments and len(attachments) > 0:
             for attachment in attachments:
                 attachment = json.loads(attachment.replace("'", "\""))
-                attachment = json.loads(attachment.replace("'", '"'))
                 # return list of attachments in the format <content-type>:<url>
                 formatted_attachments.append(f"{attachment['content_type']}:{attachment['url']}")
         return formatted_attachments
