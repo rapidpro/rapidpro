@@ -1,3 +1,9 @@
+v8.1.78 (2023-03-20)
+-------------------------
+ * Add globals to new ui
+ * Make it harder to accidentally delete an org
+ * Rewrite org deletion test and fix deletion issues
+
 v8.1.77 (2023-03-16)
 -------------------------
  * Limit groups to a single line on contact page
