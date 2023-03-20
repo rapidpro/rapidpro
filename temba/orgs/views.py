@@ -2096,6 +2096,18 @@ class OrgCRUDL(SmartCRUDL):
         def dispatch(self, *args, **kwargs):
             return super().dispatch(*args, **kwargs)
 
+        def get_filter(self):
+            obj_filter = self.request.GET.get("filter", "all")
+            for filter in self.filters:
+                if filter[0] == obj_filter:
+                    return filter
+
+        def derive_title(self):
+            filter = self.get_filter()
+            if filter:
+                return filter[1]
+            return super().derive_title()
+
         def derive_menu_path(self):
             return f"/staff/{self.request.GET.get('filter', 'all')}"
 
@@ -2104,19 +2116,16 @@ class OrgCRUDL(SmartCRUDL):
             return f"{owner.name} ({owner.email})"
 
         def derive_queryset(self, **kwargs):
-            obj_filter = self.request.GET.get("filter", "all")
-
             qs = super().derive_queryset(**kwargs).filter(is_active=True)
             qs = qs.filter(brand=self.request.branding["slug"])
-
-            for filter_key, _, filter_kwargs, ordering in self.filters:
-                if filter_key == obj_filter:
-                    qs = qs.filter(**filter_kwargs)
-                    if ordering:
-                        qs = qs.order_by(*ordering)
-                    else:
-                        qs = qs.order_by(*self.default_order)
-                    break
+            filter = self.get_filter()
+            if filter:
+                _, _, filter_kwargs, ordering = filter
+                qs = qs.filter(**filter_kwargs)
+                if ordering:
+                    qs = qs.order_by(*ordering)
+                else:
+                    qs = qs.order_by(*self.default_order)
             else:
                 qs = qs.filter(is_suspended=False).order_by(*self.default_order)
 

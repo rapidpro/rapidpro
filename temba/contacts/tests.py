@@ -550,11 +550,6 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
 
-        # check that names inserted as page title headers are encoded properly
-        joe_flow = self.create_contact("Joe\t\nFlow", phone="123567")
-        response = self.client.get(reverse("contacts.contact_read", args=[joe_flow.uuid]), HTTP_TEMBA_SPA=True)
-        self.assertEqual("JoeFlow", response["X-Temba-Page-Title"])
-
     def test_read_language(self):
         joe = self.create_contact("Joe", phone="123")
         read_url = reverse("contacts.contact_read", args=[joe.uuid])

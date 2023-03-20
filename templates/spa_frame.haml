@@ -374,6 +374,10 @@
           }
 
           setInnerHTML(containerEle, body);
+          var title = document.querySelector("#title-text");
+          if (title) {
+            document.title = title.innerText;
+          }
 
           if (options) {
             if ('onSuccess' in options) {
@@ -483,13 +487,6 @@
         var menuSelection = response.headers.get("temba_menu_selection");
         if (menu && menuSelection) {
           menu.setFocusedItem(menuSelection);
-        }
-      }
-
-      if (response) {
-        var pageTitle = response.headers.get("x-temba-page-title");
-        if (pageTitle) {
-          document.title = pageTitle;
         }
       }
 
