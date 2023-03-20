@@ -216,6 +216,17 @@ class OmniboxField(JSONField):
 class ComposeWidget(forms.Widget):
     template_name = "utils/forms/compose.haml"
     is_annotated = True
+    
+    # todo - infinite loop troubleshooting
+    # text: str = ...
+    # attachments: str = ...
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+
+        # todo - infinite loop troubleshooting
+        # context["widget"]["text"] = self.text
+        # context["widget"]["attachments"] = self.attachments
 
     def render(self, name, value, attrs=None, renderer=None):
         value = {"text": "", "attachments": []}
@@ -238,6 +249,10 @@ class ComposeWidget(forms.Widget):
 
 class ComposeField(JSONField):
     widget = ComposeWidget
+    
+    # todo - infinite loop troubleshooting
+    # text = None
+    # attachments = None
 
 
 class TembaChoiceIterator(forms.models.ModelChoiceIterator):

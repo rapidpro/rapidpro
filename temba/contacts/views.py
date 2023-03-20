@@ -1964,7 +1964,6 @@ class ContactImportCRUDL(SmartCRUDL):
                         include_field = forms.BooleanField(
                             label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True})
                         )
-                        # the only example that i could find of an InputWidget (aka temba-textinput) with an initial param being set
                         name_field = forms.CharField(
                             label=" ", initial=mapping["name"], required=False, widget=InputWidget()
                         )

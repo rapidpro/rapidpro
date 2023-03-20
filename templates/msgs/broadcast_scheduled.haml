@@ -17,11 +17,14 @@
             %td.value-contacts.field_phone
               -include "includes/recipients.haml" with groups=object.groups.all contacts=object.contacts.all
 
-            %td.value-text.field_text
-              {{ object.get_text }}
-
-            %td.value-text.field_text
-              {{ object.get_attachments }}
+            -if object.get_text
+              %td.value-text.field_text
+                {{ object.get_text }}
+            
+            -if object.get_attachments
+              %td.value-attachments{ style:"margin-top: 5px" }
+                - for attachment in object.get_attachments
+                  {% attachment_button attachment %}
               
             %td.value-next
               -if object.schedule.next_fire

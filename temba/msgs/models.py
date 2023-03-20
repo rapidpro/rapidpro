@@ -277,39 +277,27 @@ class Broadcast(models.Model):
         return BroadcastMsgCount.get_count(self)
 
     def get_text(self, contact=None):
+        content = self.get_content(contact);
+        return content["text"]
+    
+    def get_attachments(self, contact=None):
+        content = self.get_content(contact);
+        return content["attachments"]
+
+    def get_content(self, contact=None):
         """
-        Gets the text that will be sent. If contact is provided and their language is a valid flow language and there's
-        a translation for it then that will be used (used when rendering upcoming scheduled broadcasts).
+        Gets the content that will be sent. If contact is provided and their language is a valid flow language and there's
+        a translation for it, then that will be used (used when rendering upcoming scheduled broadcasts).
         """
+        content = {
+            "text": "",
+            "attachments": []
+        }
+        translations = self.translations
+        if not translations:
+            return content
 
         if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
-            if contact.language in self.translations:
-                return self.translations[contact.language]["text"]
-
-        if self.org.flow_languages[0] in self.translations:  # try org primary language
-            return self.translations[self.org.flow_languages[0]]["text"]
-
-        return self.translations[self.base_language]["text"]  # should always be a base language translation
-
-    def get_attachments(self, contact=None):
-        """
-        Gets the attachments that will be sent. If contact is provided and their language is a valid flow language and there's
-        a translation for it then that will be used (used when rendering upcoming scheduled broadcasts).
-        """
-        attachments = None
-        if not self.translations:
-            return attachments
-
-        translations = self.translations
-        language = None
-        translation = None        
-
-        if (
-            contact
-            and contact.language
-            and contact.language in self.org.flow_languages
-            and contact.language in translations
-        ):  # try contact language
             if contact.language in translations:
                 language = contact.language
         elif self.org.flow_languages[0] in translations:  # try org primary language
@@ -317,30 +305,11 @@ class Broadcast(models.Model):
         else:
             language = self.base_language  # should always be a base language translation
 
-        if not language:
-            return attachments
         translation = translations.get(language)
-        if not translation:
-            return attachments
-        attachments = translation.get("attachments")
-        if not attachments:
-            return attachments
-        names = []
-        for attachment in attachments:
-            # todo - is there a way to simplify this logic / do this better?
-            # aka - is there a way to avoid doing a literal_eval(), then a dumps(), then a loads()?
-            # also - i don't see literal_eval used anywhere else
-            a0 = ast.literal_eval(attachment)  # returns a dict
-            a1 = json.dumps(a0)  # returns a string
-            a2 = json.loads(a1)  # returns a dict
-            name = f"{a2['filename']} ({a2['size']}) {a2['content_type']}"
-            names.append(name)
-        return names
+        content["text"] = translation.get("text")
+        content["attachments"] = translation.get("attachments")
 
-        # todo format attachment display names
-        # attrs = ['filename', 'size', 'content_type']
-        # [[getattr(attachment, attr) for attr in attrs] for attachment in attachments]
-        # display_names = "{truncate(filename, 25)} ({size}) {format(content_type)}"
+        return content
 
     def delete(self, user, *, soft: bool):
         if soft:

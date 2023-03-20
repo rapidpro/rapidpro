@@ -252,11 +252,12 @@ class BroadcastCRUDL(SmartCRUDL):
                     }
                 ),
             )
-            # text = forms.CharField(
-            #     widget=CompletionTextarea(
-            #         attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True, "counter": "temba-charcount"}
-            #     )
-            # )
+            # todo - infinite loop troubleshooting - try getting this to set an initial value
+            text = forms.CharField(
+                widget=CompletionTextarea(
+                    attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True, "counter": "temba-charcount"}
+                )
+            )
             compose = ComposeField(
                 required=True, widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True})
             )
@@ -267,7 +268,6 @@ class BroadcastCRUDL(SmartCRUDL):
                 self.set_org(org)
                 self.org = org
                 self.fields["omnibox"].default_country = org.default_country_code
-                # self.fields["compose"] = compose_serialize(text, attachments, json_encode=True)
 
             def clean_omnibox(self):
                 recipients = omnibox_deserialize(self.org, self.cleaned_data["omnibox"])
@@ -297,8 +297,8 @@ class BroadcastCRUDL(SmartCRUDL):
                 return cleaned_data
 
         form_class = Form
-        # fields = ("omnibox", "text") + ScheduleFormMixin.Meta.fields
-        fields = ("omnibox", "compose") + ScheduleFormMixin.Meta.fields
+        fields = ("omnibox", "text", "compose") + ScheduleFormMixin.Meta.fields
+        # fields = ("omnibox", "compose") + ScheduleFormMixin.Meta.fields
         success_url = "@msgs.broadcast_scheduled"
         submit_button_name = _("Create")
 
