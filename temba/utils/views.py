@@ -125,6 +125,7 @@ class SpaMixin(View):
         response = super().render_to_response(context, **response_kwargs)
         response.headers[TEMBA_VERSION] = temba_version
         if self.is_spa():
+            response.headers[TEMBA_MENU_SELECTION] = context[TEMBA_MENU_SELECTION]
             response.headers[TEMBA_CONTENT_ONLY] = 1 if self.is_content_only() else 0
         return response
 
