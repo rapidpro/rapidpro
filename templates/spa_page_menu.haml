@@ -31,7 +31,8 @@
     if (item.type == 'modax') {
       var modaxOptions = {
         disabled: item.disabled,
-        onSubmit: item.on_submit
+        onSubmit: item.on_submit,
+        onRedirect: item.on_redirect
       }
       showModax(item.title, item.url, modaxOptions);
     }

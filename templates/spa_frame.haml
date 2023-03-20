@@ -456,6 +456,11 @@
       }
     }
 
+    function refreshGlobals() {
+      var store = document.querySelector("temba-store");
+      store.refreshGlobals();
+    }
+
     function hideLoading(response) {
       var containers = document.querySelectorAll(".spa-container, .widget-container");
       for(container of containers) {
@@ -615,7 +620,13 @@
       } else {
         modax["-temba-submitted"] = undefined;
       }
-      modax["-temba-redirected"] = refreshMenu;
+
+      if (options.onRedirect) {
+        modax["-temba-redirected"] = Function(options.onRedirect);
+      } else {
+        modax["-temba-redirected"] = refreshMenu;
+      }
+
       modax.headers = { "TEMBA-SPA": 1};
       modax.header = header;
       modax.endpoint = endpoint;
