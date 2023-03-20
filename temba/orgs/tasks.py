@@ -61,8 +61,15 @@ def resume_failed_tasks():
 def delete_released_orgs():
     # for each org that was released over 7 days ago, delete it for real
     week_ago = timezone.now() - timedelta(days=Org.DELETE_DELAY_DAYS)
+
+    num_deleted, num_failed = 0, 0
+
     for org in Org.objects.filter(is_active=False, released_on__lt=week_ago, deleted_on=None):
         try:
             org.delete()
+            num_deleted += 1
         except Exception:  # pragma: no cover
             logging.exception(f"exception while deleting {org.name}")
+            num_failed += 1
+
+    return {"deleted": num_deleted, "failed": num_failed}
