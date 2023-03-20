@@ -7,6 +7,7 @@ from django.urls import reverse
 
 from temba.orgs.views import DependencyDeleteModal, DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
+from temba.utils.views import ContentMenuMixin, SpaMixin
 
 from .models import Global
 
@@ -113,12 +114,24 @@ class GlobalCRUDL(SmartCRUDL):
         success_url = "@globals.global_list"
         success_message = ""
 
-    class List(OrgPermsMixin, SmartListView):
+    class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartListView):
         title = _("Manage Globals")
         fields = ("name", "key", "value")
         search_fields = ("name__icontains", "key__icontains")
         default_order = ("key",)
         paginate_by = 250
+        menu_path = "/flow/globals"
+
+        def build_content_menu(self, menu):
+            if self.is_spa() and self.has_org_perm("globals.global_create"):
+                menu.add_modax(
+                    _("New Global"),
+                    "new-global",
+                    reverse("globals.global_create"),
+                    title=_("New Global"),
+                    as_button=True,
+                    on_redirect="refreshGlobals()",
+                )
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs).filter(org=self.org, is_active=True)

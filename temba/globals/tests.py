@@ -102,6 +102,8 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertListFetch(unused_url, allow_viewers=False, allow_editors=False, context_objects=[self.global2])
 
+        self.assertContentMenu(list_url, self.admin, [], spa_items=["New Global"])
+
     @override_settings(ORG_LIMIT_DEFAULTS={"globals": 4})
     def test_create(self):
         create_url = reverse("globals.global_create")

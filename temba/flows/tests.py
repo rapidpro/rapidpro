@@ -1746,7 +1746,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
         menu = response.json()["results"]
         self.assertEqual(
-            ["Active", "Archived", "History", "Labels"],
+            ["Active", "Archived", "divider", "Globals", "History", "Labels"],
             [m.get("name") or m.get("type") for m in menu],
         )
 
