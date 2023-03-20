@@ -216,40 +216,39 @@ class OmniboxField(JSONField):
 class ComposeWidget(forms.Widget):
     template_name = "utils/forms/compose.haml"
     is_annotated = True
-    
     # todo - infinite loop troubleshooting
     # text: str = ...
     # attachments: str = ...
 
-    def get_context(self, name, value, attrs):
-        context = super().get_context(name, value, attrs)
+    # todo - infinite loop troubleshooting
+    # def __init__(self, attrs=None):
+    #     default_attrs = {}
+    #     if attrs:
+    #         default_attrs.update(attrs)
+    #     super().__init__(default_attrs)
 
-        # todo - infinite loop troubleshooting
-        # context["widget"]["text"] = self.text
-        # context["widget"]["attachments"] = self.attachments
+    # todo - infinite loop troubleshooting
+    # def get_context(self, name, value, attrs):
+    #     context = super().get_context(name, value, attrs)
+    #     context["widget"]["text"] = self.text
+    #     context["widget"]["attachments"] = self.attachments
 
     def render(self, name, value, attrs=None, renderer=None):
         value = {"text": "", "attachments": []}
-        # value = {
-        #     'text': 'blah render',
-        #     'attachments': []
-        # }
+        # value = {"text": "blah render", "attachments": []}
         value = json.dumps(value)
         return super().render(name, value, attrs)
 
     def value_from_datadict(self, data, files, name):
         list_items = data.getlist(name)
-        list_item = list_items[0]
-        # todo - is there a way to simply this logic / do this better?
-        # aka - is there a way to avoid doing a loads() twice?
-        compose_item = json.loads(list_item)  # returns a string
-        value = json.loads(compose_item)  # returns a dict
+        list_item = list_items[0]  # returns a string of double-escaped quotes i.e. \\"
+        compose_item = json.loads(list_item)  # returns a string of single-escaped quotes i.e. \"
+        value = json.loads(compose_item)  # returns a dict, yay!
         return value
 
 
 class ComposeField(JSONField):
     widget = ComposeWidget
-    
     # todo - infinite loop troubleshooting
     # text = None
     # attachments = None

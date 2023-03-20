@@ -184,7 +184,7 @@ class Broadcast(models.Model):
     STATUS_CHOICES = ((STATUS_QUEUED, "Queued"), (STATUS_SENT, "Sent"), (STATUS_FAILED, "Failed"))
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE  # max chars allowed in a broadcast
-    MAX_ATTACHMENT_LEN = 10 # max attachments allowed in a broadcast
+    MAX_ATTACHMENT_LEN = 10  # max attachments allowed in a broadcast
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
 
@@ -279,7 +279,7 @@ class Broadcast(models.Model):
         content = self.get_content(contact)
         text = content["text"]
         return text
-    
+
     def get_attachments(self, contact=None):
         content = self.get_content(contact)
         attachments = content["attachments"]
@@ -287,6 +287,7 @@ class Broadcast(models.Model):
         if attachments and len(attachments) > 0:
             for attachment in attachments:
                 attachment = json.loads(attachment.replace("'", "\""))
+                attachment = json.loads(attachment.replace("'", '"'))
                 # return list of attachments in the format <content-type>:<url>
                 formatted_attachments.append(f"{attachment['content_type']}:{attachment['url']}")
         return formatted_attachments
@@ -296,10 +297,7 @@ class Broadcast(models.Model):
         Gets the content that will be sent. If contact is provided and their language is a valid flow language and there's
         a translation for it, then that will be used (used when rendering upcoming scheduled broadcasts).
         """
-        content = {
-            "text": "",
-            "attachments": []
-        }
+        content = {"text": "", "attachments": []}
         translations = self.translations
         if not translations:
             return content
@@ -524,7 +522,7 @@ class Msg(models.Model):
     MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE  # max chars allowed in a message
-    MAX_ATTACHMENT_LEN = 10 # max attachments allowed in a message
+    MAX_ATTACHMENT_LEN = 10  # max attachments allowed in a message
 
     id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(default=uuid4)

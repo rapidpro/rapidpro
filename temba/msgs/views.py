@@ -253,11 +253,11 @@ class BroadcastCRUDL(SmartCRUDL):
                 ),
             )
             # todo - infinite loop troubleshooting - try getting this to set an initial value
-            text = forms.CharField(
-                widget=CompletionTextarea(
-                    attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True, "counter": "temba-charcount"}
-                )
-            )
+            # text = forms.CharField(
+            #     widget=CompletionTextarea(
+            #         attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True, "counter": "temba-charcount"}
+            #     )
+            # )
             compose = ComposeField(
                 required=True, widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True})
             )
@@ -297,8 +297,8 @@ class BroadcastCRUDL(SmartCRUDL):
                 return cleaned_data
 
         form_class = Form
-        fields = ("omnibox", "text", "compose") + ScheduleFormMixin.Meta.fields
-        # fields = ("omnibox", "compose") + ScheduleFormMixin.Meta.fields
+        # fields = ("omnibox", "text", "compose") + ScheduleFormMixin.Meta.fields
+        fields = ("omnibox", "compose") + ScheduleFormMixin.Meta.fields
         success_url = "@msgs.broadcast_scheduled"
         submit_button_name = _("Create")
 
