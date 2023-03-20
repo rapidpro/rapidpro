@@ -1,4 +1,3 @@
-import ast
 import json
 import logging
 import mimetypes
@@ -277,12 +276,20 @@ class Broadcast(models.Model):
         return BroadcastMsgCount.get_count(self)
 
     def get_text(self, contact=None):
-        content = self.get_content(contact);
-        return content["text"]
+        content = self.get_content(contact)
+        text = content["text"]
+        return text
     
     def get_attachments(self, contact=None):
-        content = self.get_content(contact);
-        return content["attachments"]
+        content = self.get_content(contact)
+        attachments = content["attachments"]
+        formatted_attachments = []
+        if attachments and len(attachments) > 0:
+            for attachment in attachments:
+                attachment = json.loads(attachment.replace("'", "\""))
+                # return list of attachments in the format <content-type>:<url>
+                formatted_attachments.append(f"{attachment['content_type']}:{attachment['url']}")
+        return formatted_attachments
 
     def get_content(self, contact=None):
         """
@@ -306,9 +313,12 @@ class Broadcast(models.Model):
             language = self.base_language  # should always be a base language translation
 
         translation = translations.get(language)
-        content["text"] = translation.get("text")
-        content["attachments"] = translation.get("attachments")
-
+        text = translation.get("text")
+        if text and len(text) > 0:
+            content["text"] = text
+        attachments = translation.get("attachments")
+        if attachments and len(attachments) > 0:
+            content["attachments"] = attachments
         return content
 
     def delete(self, user, *, soft: bool):
