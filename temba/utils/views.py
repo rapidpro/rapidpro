@@ -66,8 +66,8 @@ class SpaMixin(View):
         context["is_legacy"] = 0 if self.is_spa() or self.is_content_only() else 1
         context["temba_version"] = temba_version
 
-        if self.org:
-            context["org"] = self.org
+        if self.request.org:
+            context["org"] = self.request.org
 
         if self.is_spa():
             if self.is_content_only():
