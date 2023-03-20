@@ -1,3 +1,9 @@
+v8.1.79 (2023-03-20)
+-------------------------
+ * Add mouseover text for temba-date
+ * Reload page on org mismatch
+ * Use embedded title instead of response header
+
 v8.1.78 (2023-03-20)
 -------------------------
  * Add globals to new ui
