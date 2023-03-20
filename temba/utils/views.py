@@ -66,6 +66,9 @@ class SpaMixin(View):
         context["is_legacy"] = 0 if self.is_spa() or self.is_content_only() else 1
         context["temba_version"] = temba_version
 
+        if self.request.org:
+            context["org"] = self.request.org
+
         if self.is_spa():
             if self.is_content_only():
                 context["base_template"] = "spa.html"
@@ -125,6 +128,7 @@ class SpaMixin(View):
     def render_to_response(self, context, **response_kwargs):
         response = super().render_to_response(context, **response_kwargs)
         response.headers[TEMBA_VERSION] = temba_version
+
         if self.is_spa():
             response.headers[TEMBA_MENU_SELECTION] = context[TEMBA_MENU_SELECTION]
             response.headers[TEMBA_CONTENT_ONLY] = 1 if self.is_content_only() else 0

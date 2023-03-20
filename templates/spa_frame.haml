@@ -305,6 +305,7 @@
     var static_url = "{{STATIC_URL}}";
 
     var tembaVersion= "{{temba_version}}";
+    var org = {% if org %}{{org.id}}{% else %}null{%endif%};
     var pendingRequests = [];
     function fetchAjax(url, container, options) {
 
@@ -340,6 +341,11 @@
         // if we have a version mismatch, reload the page
         var version = response.headers.get("x-temba-version");
         if (tembaVersion != version) {
+          document.location.href = url;
+          return;
+        }
+
+        if (org != response.headers.get("x-temba-org")) {
           document.location.href = url;
           return;
         }
