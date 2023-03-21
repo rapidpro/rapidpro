@@ -217,8 +217,8 @@ class BroadcastWriteSerializer(WriteSerializer):
     urns = serializers.ListField(required=False, child=fields.URNField(), max_length=100)
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
-    text = fields.TranslatedTextField(required=False, max_length=Msg.MAX_TEXT_LEN)
-    attachments = fields.TranslatedAttachmentsField(required=False)
+    text = fields.TranslatedTextField(required=False, max_length=Broadcast.MAX_TEXT_LEN)
+    attachments = fields.TranslatedAttachmentsField(required=False, max_items=Broadcast.MAX_ATTACHMENTS)
     base_language = fields.LanguageField(required=False)
 
     def validate(self, data):
@@ -1329,7 +1329,7 @@ class MsgReadSerializer(ReadSerializer):
 class MsgWriteSerializer(WriteSerializer):
     contact = fields.ContactField()
     text = serializers.CharField(required=False, max_length=Msg.MAX_TEXT_LEN)
-    attachments = fields.MediaField(required=False, many=True, max_items=Msg.MAX_ATTACHMENT_LEN)
+    attachments = fields.MediaField(required=False, many=True, max_items=Msg.MAX_ATTACHMENTS)
     ticket = fields.TicketField(required=False)
 
     def validate(self, data):

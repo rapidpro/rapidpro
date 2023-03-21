@@ -184,7 +184,7 @@ class Broadcast(models.Model):
     STATUS_CHOICES = ((STATUS_QUEUED, "Queued"), (STATUS_SENT, "Sent"), (STATUS_FAILED, "Failed"))
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE  # max chars allowed in a broadcast
-    MAX_ATTACHMENT_LEN = 10  # max attachments allowed in a broadcast
+    MAX_ATTACHMENTS = 10  # max attachments allowed in a broadcast
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
 
@@ -521,7 +521,7 @@ class Msg(models.Model):
     MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE  # max chars allowed in a message
-    MAX_ATTACHMENT_LEN = 10  # max attachments allowed in a message
+    MAX_ATTACHMENTS = 10  # max attachments allowed in a message
 
     id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(default=uuid4)
