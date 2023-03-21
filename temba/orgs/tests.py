@@ -1,6 +1,6 @@
 import io
 import smtplib
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import urlencode
@@ -12,6 +12,7 @@ from smartmin.users.models import FailedLogin, RecoveryToken
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core import mail
+from django.db.models import Model
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -34,29 +35,22 @@ from temba.contacts.models import (
     ContactURN,
     ExportContactsTask,
 )
-from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
+from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowSession, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, ExportMessagesTask, Label, Msg
+from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
-from temba.templates.models import Template, TemplateTranslation
-from temba.tests import (
-    CRUDLTestMixin,
-    ESMockWithScroll,
-    MockResponse,
-    TembaNonAtomicTest,
-    TembaTest,
-    matchers,
-    mock_mailroom,
-)
-from temba.tests.engine import MockSessionWriter
+from temba.schedules.models import Schedule
+from temba.templates.models import TemplateTranslation
+from temba.tests import CRUDLTestMixin, ESMockWithScroll, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
-from temba.tickets.models import Ticketer
+from temba.tickets.models import ExportTicketsTask, Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import brands, json, languages
+from temba.utils.uuid import uuid4
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .context_processors import RolePermsWrapper
@@ -722,377 +716,6 @@ class UserTest(TembaTest):
         self.assertFalse(self.org.is_active)
 
 
-class OrgDeleteTest(TembaNonAtomicTest):
-    def setUp(self):
-        self.setUpOrgs()
-        self.setUpLocations()
-
-        # set up a sync event and alert on our channel
-        SyncEvent.create(
-            self.channel,
-            dict(pending=[], retry=[], power_source="P", power_status="full", power_level="100", network_type="W"),
-            [],
-        )
-        Alert.objects.create(
-            channel=self.channel, alert_type=Alert.TYPE_POWER, created_by=self.admin, modified_by=self.admin
-        )
-
-        # create a second child org
-        self.child_org = Org.objects.create(
-            name="Child Org",
-            timezone=pytz.timezone("Africa/Kigali"),
-            country=self.country,
-            brand=settings.DEFAULT_BRAND,
-            flow_languages=["eng"],
-            created_by=self.user,
-            modified_by=self.user,
-        )
-
-        # and give it its own channel
-        self.child_channel = self.create_channel(
-            "A",
-            "Test Channel",
-            "+250785551212",
-            secret="54321",
-            config={Channel.CONFIG_FCM_ID: "123"},
-            country="RW",
-            org=self.child_org,
-        )
-
-        # add a classifier
-        self.c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)
-
-        # add a global
-        self.global1 = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Ltd")
-
-        HTTPLog.objects.create(
-            classifier=self.c1,
-            url="http://org2.bar/zap",
-            request="GET /zap",
-            response=" OK 200",
-            is_error=False,
-            log_type=HTTPLog.CLASSIFIER_CALLED,
-            request_time=10,
-            org=self.org,
-        )
-
-        # our user is a member of two orgs
-        self.parent_org = self.org
-        self.child_org.add_user(self.user, OrgRole.ADMINISTRATOR)
-        self.child_org.initialize()
-        self.child_org.parent = self.parent_org
-        self.child_org.save()
-
-        parent_contact = self.create_contact("Parent Contact", phone="+2345123", org=self.parent_org)
-        child_contact = self.create_contact("Child Contact", phone="+3456123", org=self.child_org)
-
-        # add some fields
-        parent_field = self.create_field("age", "Parent Age", org=self.parent_org)
-        parent_datetime_field = self.create_field(
-            "planting_date", "Planting Date", value_type=ContactField.TYPE_DATETIME, org=self.parent_org
-        )
-        child_field = self.create_field("age", "Child Age", org=self.child_org)
-
-        # add some groups
-        parent_group = self.create_group("Parent Customers", contacts=[parent_contact], org=self.parent_org)
-        child_group = self.create_group("Parent Customers", contacts=[child_contact], org=self.child_org)
-
-        # create an import for child group
-        im = ContactImport.objects.create(
-            org=self.org, group=child_group, mappings={}, num_records=0, created_by=self.admin, modified_by=self.admin
-        )
-
-        # and a batch for that import
-        ContactImportBatch.objects.create(contact_import=im, specs={}, record_start=0, record_end=0)
-
-        # add some labels
-        parent_label = self.create_label("Parent Spam", org=self.parent_org)
-        child_label = self.create_label("Child Spam", org=self.child_org)
-
-        # bring in some flows
-        parent_flow = self.get_flow("color_v13")
-        flow_nodes = parent_flow.get_definition()["nodes"]
-        (
-            MockSessionWriter(parent_contact, parent_flow)
-            .visit(flow_nodes[0])
-            .send_msg("What is your favorite color?", self.channel)
-            .visit(flow_nodes[4])
-            .wait()
-            .resume(msg=self.create_incoming_msg(parent_contact, "blue"))
-            .set_result("Color", "blue", "Blue", "blue")
-            .complete()
-            .save()
-        )
-        parent_flow.channel_dependencies.add(self.channel)
-
-        # and our child org too
-        self.org = self.child_org
-        child_flow = self.get_flow("color")
-
-        FlowRun.objects.create(
-            org=self.org,
-            flow=child_flow,
-            contact=child_contact,
-            status=FlowRun.STATUS_COMPLETED,
-            exited_on=timezone.now(),
-        )
-
-        # labels for our flows
-        flow_label1 = FlowLabel.create(self.parent_org, self.admin, "Cool Flows")
-        flow_label2 = FlowLabel.create(self.parent_org, self.admin, "Crazy Flows")
-        parent_flow.labels.add(flow_label1)
-        child_flow.labels.add(flow_label2)
-
-        # add a campaign, event and fire to our parent org
-        campaign = Campaign.create(self.parent_org, self.admin, "Reminders", parent_group)
-        event1 = CampaignEvent.create_flow_event(
-            self.parent_org,
-            self.admin,
-            campaign,
-            parent_datetime_field,
-            offset=1,
-            unit="W",
-            flow=parent_flow,
-            delivery_hour="13",
-        )
-        EventFire.objects.create(event=event1, contact=parent_contact, scheduled=timezone.now())
-
-        # triggers for our flows
-        parent_trigger = Trigger.create(
-            self.parent_org,
-            flow=parent_flow,
-            trigger_type=Trigger.TYPE_KEYWORD,
-            user=self.user,
-            channel=self.channel,
-            keyword="favorites",
-        )
-        parent_trigger.groups.add(self.parent_org.groups.all().first())
-
-        FlowStart.objects.create(org=self.parent_org, flow=parent_flow)
-
-        child_trigger = Trigger.create(
-            self.child_org,
-            flow=child_flow,
-            trigger_type=Trigger.TYPE_KEYWORD,
-            user=self.user,
-            channel=self.child_channel,
-            keyword="color",
-        )
-        child_trigger.groups.add(self.child_org.groups.all().first())
-
-        # use a credit on each
-        self.create_outgoing_msg(parent_contact, "Hola hija!", channel=self.channel)
-        self.create_outgoing_msg(child_contact, "Hola mama!", channel=self.child_channel)
-
-        # create a broadcast and some counts
-        bcast1 = self.create_broadcast(self.user, "Broadcast with messages", contacts=[parent_contact])
-        self.create_broadcast(self.user, "Broadcast with messages", contacts=[parent_contact], parent=bcast1)
-
-        # create some archives
-        self.mock_s3 = MockS3Client()
-
-        # make some exports with logs
-        export = ExportFlowResultsTask.create(
-            self.parent_org,
-            self.admin,
-            start_date=date.today(),
-            end_date=date.today(),
-            flows=[parent_flow],
-            with_fields=[parent_field],
-            with_groups=(),
-            responded_only=True,
-            extra_urns=(),
-        )
-        ExportFinishedNotificationType.create(export)
-        ExportFlowResultsTask.create(
-            self.child_org,
-            self.admin,
-            start_date=date.today(),
-            end_date=date.today(),
-            flows=[child_flow],
-            with_fields=[child_field],
-            with_groups=(),
-            responded_only=True,
-            extra_urns=(),
-        )
-
-        export = ExportContactsTask.create(self.parent_org, self.admin, group=parent_group)
-        ExportFinishedNotificationType.create(export)
-        ExportContactsTask.create(self.child_org, self.admin, group=child_group)
-
-        export = ExportMessagesTask.create(
-            self.parent_org, self.admin, start_date=date.today(), end_date=date.today(), label=parent_label
-        )
-        ExportFinishedNotificationType.create(export)
-        ExportMessagesTask.create(
-            self.child_org,
-            self.admin,
-            start_date=date.today(),
-            end_date=date.today(),
-            label=child_label,
-        )
-
-        def create_archive(org, period, rollup=None):
-            file = f"{org.id}/archive{Archive.objects.all().count()}.jsonl.gz"
-            body, md5, size = jsonlgz_encode([{"id": 1}])
-            archive = Archive.objects.create(
-                org=org,
-                url=f"http://{settings.ARCHIVE_BUCKET}.aws.com/{file}",
-                start_date=timezone.now(),
-                build_time=100,
-                archive_type=Archive.TYPE_MSG,
-                period=period,
-                rollup=rollup,
-                size=size,
-                hash=md5,
-            )
-            self.mock_s3.put_object(settings.ARCHIVE_BUCKET, file, body)
-            return archive
-
-        # parent archives
-        daily = create_archive(self.parent_org, Archive.PERIOD_DAILY)
-        create_archive(self.parent_org, Archive.PERIOD_MONTHLY, daily)
-
-        # child archives
-        daily = create_archive(self.child_org, Archive.PERIOD_DAILY)
-        create_archive(self.child_org, Archive.PERIOD_MONTHLY, daily)
-
-        # extra S3 file in child archive dir
-        self.mock_s3.put_object(settings.ARCHIVE_BUCKET, f"{self.child_org.id}/extra_file.json", io.StringIO("[]"))
-
-        # add a ticketer and ticket
-        ticketer = Ticketer.create(self.org, self.admin, MailgunType.slug, "Email (bob)", {})
-        ticket = self.create_ticket(ticketer, self.org.contacts.first(), "Help")
-        ticket.events.create(org=self.org, contact=ticket.contact, event_type="N", note="spam", created_by=self.admin)
-
-    def release_org(self, org, child_org=None, delete=False, expected_files=3):
-
-        with patch("temba.utils.s3.client", return_value=self.mock_s3):
-            # save off the ids of our current users
-            org_user_ids = list(org.users.values_list("id", flat=True))
-
-            # we should be starting with some mock s3 objects
-            self.assertEqual(5, len(self.mock_s3.objects))
-
-            # add in some webhook results
-            resthook = Resthook.get_or_create(org, "registration", self.admin)
-            resthook.subscribers.create(target_url="http://foo.bar", created_by=self.admin, modified_by=self.admin)
-            WebHookEvent.objects.create(org=org, resthook=resthook, data={})
-
-            TemplateTranslation.get_or_create(
-                self.channel,
-                "hello",
-                "eng",
-                "US",
-                "Hello {{1}}",
-                1,
-                TemplateTranslation.STATUS_APPROVED,
-                "1234",
-                "foo_namespace",
-            )
-
-            # release our primary org
-            org.release(self.customer_support)
-            if delete:
-                org.delete()
-
-            # all our users not in the other org should be inactive
-            self.assertEqual(len(org_user_ids) - 1, User.objects.filter(id__in=org_user_ids, is_active=False).count())
-            self.assertEqual(1, User.objects.filter(id__in=org_user_ids, is_active=True).count())
-
-            # our child org lost it's parent, but maintains an active lifestyle
-            if child_org:
-                child_org.refresh_from_db()
-                self.assertIsNone(child_org.parent)
-
-            if delete:
-                # oh noes, we deleted our archive files!
-                self.assertEqual(expected_files, len(self.mock_s3.objects))
-
-                # no template translations
-                self.assertFalse(TemplateTranslation.objects.filter(template__org=org).exists())
-                self.assertFalse(Template.objects.filter(org=org).exists())
-
-                # our channels are gone too
-                self.assertFalse(Channel.objects.filter(org=org).exists())
-
-                # as are our webhook events
-                self.assertFalse(WebHookEvent.objects.filter(org=org).exists())
-
-                # and labels
-                self.assertFalse(org.msgs_labels.exists())
-
-                # contacts, groups
-                self.assertFalse(Contact.objects.filter(org=org).exists())
-                self.assertFalse(ContactGroup.objects.filter(org=org).exists())
-
-                # flows, campaigns
-                self.assertFalse(Flow.objects.filter(org=org).exists())
-                self.assertFalse(Campaign.objects.filter(org=org).exists())
-
-                # msgs, broadcasts
-                self.assertFalse(Msg.objects.filter(org=org).exists())
-                self.assertFalse(Broadcast.objects.filter(org=org).exists())
-
-                # org is still around but has been released
-                self.assertTrue(Org.objects.filter(id=org.id, is_active=False).exclude(deleted_on=None).exists())
-            else:
-
-                org.refresh_from_db()
-                self.assertIsNone(org.deleted_on)
-                self.assertFalse(org.is_active)
-
-                # our channel should have been made inactive
-                self.assertFalse(Channel.objects.filter(org=org, is_active=True).exists())
-                self.assertTrue(Channel.objects.filter(org=org, is_active=False).exists())
-
-    def test_release_parent(self):
-        self.release_org(self.parent_org, self.child_org)
-
-    def test_release_child(self):
-        self.release_org(self.child_org)
-
-    def test_release_parent_and_delete(self):
-        with patch("temba.mailroom.client.MailroomClient.ticket_close"):
-            self.release_org(self.parent_org, self.child_org, delete=True)
-
-    def test_release_child_and_delete(self):
-        self.release_org(self.child_org, delete=True, expected_files=2)
-
-    def test_delete_task(self):
-        # can't delete an unreleased org
-        with self.assertRaises(AssertionError):
-            self.child_org.delete()
-
-        self.release_org(self.child_org, delete=False)
-
-        self.child_org.refresh_from_db()
-        self.assertFalse(self.child_org.is_active)
-        self.assertIsNotNone(self.child_org.released_on)
-        self.assertIsNone(self.child_org.deleted_on)
-
-        # push the released on date back in time
-        Org.objects.filter(id=self.child_org.id).update(released_on=timezone.now() - timedelta(days=10))
-
-        with patch("temba.utils.s3.client", return_value=self.mock_s3):
-            delete_released_orgs()
-
-        self.child_org.refresh_from_db()
-        self.assertFalse(self.child_org.is_active)
-        self.assertIsNotNone(self.child_org.released_on)
-        self.assertIsNotNone(self.child_org.deleted_on)
-
-        # parent org unaffected
-        self.parent_org.refresh_from_db()
-        self.assertTrue(self.parent_org.is_active)
-        self.assertIsNone(self.parent_org.released_on)
-        self.assertIsNone(self.parent_org.deleted_on)
-
-        # can't double delete an org
-        with self.assertRaises(AssertionError):
-            self.child_org.delete()
-
-
 class OrgTest(TembaTest):
     def test_create(self):
         new_org = Org.create(self.admin, brands.get_by_slug("rapidpro"), "Cool Stuff", pytz.timezone("Africa/Kigali"))
@@ -1104,6 +727,7 @@ class OrgTest(TembaTest):
         self.assertEqual("D", new_org.date_format)
         self.assertEqual(str(new_org.timezone), "Africa/Kigali")
         self.assertIn(self.admin, self.org.get_admins())
+        self.assertEqual('<Org: name="Cool Stuff">', repr(new_org))
 
         # if timezone is US, should get MMDDYYYY dates
         new_org = Org.create(
@@ -2778,6 +2402,366 @@ class OrgTest(TembaTest):
         mock_export_contacts_task.assert_called_once()
         mock_export_flow_results_task.assert_called_once()
         mock_export_messages_task.assert_called_once()
+
+
+class OrgDeleteTest(TembaTest):
+    def setUp(self):
+        super().setUp()
+
+        self.mock_s3 = MockS3Client()
+
+    def create_content(self, org, user) -> list:
+        # add child workspaces
+        org.features = [Org.FEATURE_CHILD_ORGS]
+        org.save(update_fields=("features",))
+        org.create_new(user, "Child 1", "Africa/Kigali", as_child=True)
+        org.create_new(user, "Child 2", "Africa/Kigali", as_child=True)
+
+        content = []
+
+        def add(obj):
+            content.append(obj)
+            return obj
+
+        channels = self._create_channel_content(org, add)
+        contacts, fields, groups = self._create_contact_content(org, add)
+        flows = self._create_flow_content(org, user, channels, contacts, groups, add)
+        labels = self._create_message_content(org, user, channels, contacts, groups, add)
+        self._create_campaign_content(org, user, fields, groups, flows, contacts, add)
+        self._create_ticket_content(org, user, contacts, add)
+        self._create_export_content(org, user, flows, groups, fields, labels, add)
+        self._create_archive_content(org, add)
+
+        return content
+
+    def _create_channel_content(self, org, add) -> tuple:
+        channel1 = add(self.create_channel("TG", "Telegram", "+250785551212", org=org))
+        channel2 = add(self.create_channel("A", "Android", "+1234567890", org=org))
+        SyncEvent.create(
+            channel2,
+            dict(pending=[], retry=[], power_source="P", power_status="full", power_level="100", network_type="W"),
+            [],
+        )
+        Alert.objects.create(
+            channel=channel2, alert_type=Alert.TYPE_POWER, created_by=self.admin, modified_by=self.admin
+        )
+
+        return (channel1, channel2)
+
+    def _create_flow_content(self, org, user, channels, contacts, groups, add) -> tuple:
+        flow1 = add(self.create_flow("Registration", org=org))
+        flow2 = add(self.create_flow("Goodbye", org=org))
+
+        add(FlowStart.objects.create(org=org, flow=flow1))
+        add(
+            Trigger.create(
+                org,
+                user,
+                flow=flow1,
+                trigger_type=Trigger.TYPE_KEYWORD,
+                channel=channels[0],
+                keyword="color",
+                groups=groups,
+            )
+        )
+        session1 = add(
+            FlowSession.objects.create(
+                uuid=uuid4(),
+                org=org,
+                contact=contacts[0],
+                current_flow=flow1,
+                status=FlowSession.STATUS_WAITING,
+                output_url="http://sessions.com/123.json",
+                wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
+                wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC),
+                wait_resume_on_expire=False,
+            )
+        )
+        add(
+            FlowRun.objects.create(
+                org=org,
+                flow=flow1,
+                contact=contacts[0],
+                session=session1,
+                status=FlowRun.STATUS_COMPLETED,
+                exited_on=timezone.now(),
+            )
+        )
+
+        flow_label1 = add(FlowLabel.create(org, user, "Cool Flows"))
+        flow_label2 = add(FlowLabel.create(org, user, "Crazy Flows"))
+        flow1.labels.add(flow_label1)
+        flow2.labels.add(flow_label2)
+
+        global1 = add(Global.get_or_create(org, user, "org_name", "Org Name", "Acme Ltd"))
+        flow1.global_dependencies.add(global1)
+
+        classifier1 = add(Classifier.create(org, user, WitType.slug, "Booker", {}, sync=False))
+        add(
+            HTTPLog.objects.create(
+                classifier=classifier1,
+                url="http://org2.bar/zap",
+                request="GET /zap",
+                response=" OK 200",
+                is_error=False,
+                log_type=HTTPLog.CLASSIFIER_CALLED,
+                request_time=10,
+                org=org,
+            )
+        )
+        flow1.classifier_dependencies.add(classifier1)
+
+        resthook = add(Resthook.get_or_create(org, "registration", user))
+        resthook.subscribers.create(target_url="http://foo.bar", created_by=user, modified_by=user)
+
+        add(WebHookEvent.objects.create(org=org, resthook=resthook, data={}))
+
+        template_trans1 = add(
+            TemplateTranslation.get_or_create(
+                channels[0],
+                "hello",
+                "eng",
+                "US",
+                "Hello {{1}}",
+                1,
+                TemplateTranslation.STATUS_APPROVED,
+                "1234",
+                "foo_namespace",
+            )
+        )
+        add(template_trans1.template)
+        flow1.template_dependencies.add(template_trans1.template)
+
+        return (flow1, flow2)
+
+    def _create_contact_content(self, org, add) -> tuple[tuple]:
+        contact1 = add(self.create_contact("Bob", phone="+5931234111111", org=org))
+        contact2 = add(self.create_contact("Jim", phone="+5931234222222", org=org))
+
+        field1 = add(self.create_field("age", "Age", org=org))
+        field2 = add(self.create_field("joined", "Joined", value_type=ContactField.TYPE_DATETIME, org=org))
+
+        group1 = add(self.create_group("Adults", query="age >= 18", org=org))
+        group2 = add(self.create_group("Testers", contacts=[contact1, contact2], org=org))
+
+        # create a contact import
+        group3 = add(self.create_group("Imported", contacts=[], org=org))
+        imp = ContactImport.objects.create(
+            org=self.org, group=group3, mappings={}, num_records=0, created_by=self.admin, modified_by=self.admin
+        )
+        ContactImportBatch.objects.create(contact_import=imp, specs={}, record_start=0, record_end=0)
+
+        return (contact1, contact2), (field1, field2), (group1, group2, group3)
+
+    def _create_message_content(self, org, user, channels, contacts, groups, add) -> tuple:
+        msg1 = add(self.create_incoming_msg(contact=contacts[0], text="hi", channel=channels[0]))
+        add(self.create_outgoing_msg(contact=contacts[0], text="cool story", channel=channels[0]))
+        add(self.create_outgoing_msg(contact=contacts[0], text="synced", channel=channels[1]))
+
+        add(self.create_broadcast(user, "Announcement", contacts=contacts, groups=groups, org=org))
+
+        scheduled = add(
+            self.create_broadcast(
+                user,
+                "Reminder",
+                contacts=contacts,
+                groups=groups,
+                org=org,
+                schedule=Schedule.create_schedule(org, user, timezone.now(), Schedule.REPEAT_DAILY),
+            )
+        )
+        add(self.create_broadcast(user, "Reminder", contacts=contacts, groups=groups, org=org, parent=scheduled))
+
+        label1 = add(self.create_label("Spam", org=org))
+        label2 = add(self.create_label("Important", org=org))
+
+        label1.toggle_label([msg1], add=True)
+        label2.toggle_label([msg1], add=True)
+
+        return (label1, label2)
+
+    def _create_campaign_content(self, org, user, fields, groups, flows, contacts, add):
+        campaign = add(Campaign.create(org, user, "Reminders", groups[0]))
+        event1 = add(
+            CampaignEvent.create_flow_event(
+                org, user, campaign, fields[1], offset=1, unit="W", flow=flows[0], delivery_hour="13"
+            )
+        )
+        add(EventFire.objects.create(event=event1, contact=contacts[0], scheduled=timezone.now()))
+
+    def _create_ticket_content(self, org, user, contacts, add):
+        ticket1 = add(self.create_ticket(org.ticketers.get(), contacts[0], "Help"))
+        ticket1.events.create(org=org, contact=contacts[0], event_type="N", note="spam", created_by=user)
+
+        ticketer = add(Ticketer.create(org, user, MailgunType.slug, "Email (bob)", {}))
+        add(self.create_ticket(ticketer, contacts[0], "Help"))
+
+    def _create_export_content(self, org, user, flows, groups, fields, labels, add):
+        results = add(
+            ExportFlowResultsTask.create(
+                org,
+                user,
+                start_date=date.today(),
+                end_date=date.today(),
+                flows=flows,
+                with_fields=fields,
+                with_groups=groups,
+                responded_only=True,
+                extra_urns=(),
+            )
+        )
+        ExportFinishedNotificationType.create(results)
+
+        contacts = add(ExportContactsTask.create(org, user, group=groups[0]))
+        ExportFinishedNotificationType.create(contacts)
+
+        messages = add(
+            ExportMessagesTask.create(org, user, start_date=date.today(), end_date=date.today(), label=labels[0])
+        )
+        ExportFinishedNotificationType.create(messages)
+
+        tickets = add(
+            ExportTicketsTask.create(
+                org, user, start_date=date.today(), end_date=date.today(), with_groups=groups, with_fields=fields
+            )
+        )
+        ExportFinishedNotificationType.create(tickets)
+
+    def _create_archive_content(self, org, add):
+        def create_archive(org, period, rollup=None):
+            file = f"{org.id}/archive{Archive.objects.all().count()}.jsonl.gz"
+            body, md5, size = jsonlgz_encode([{"id": 1}])
+            archive = Archive.objects.create(
+                org=org,
+                url=f"http://{settings.ARCHIVE_BUCKET}.aws.com/{file}",
+                start_date=timezone.now(),
+                build_time=100,
+                archive_type=Archive.TYPE_MSG,
+                period=period,
+                rollup=rollup,
+                size=size,
+                hash=md5,
+            )
+            self.mock_s3.put_object(settings.ARCHIVE_BUCKET, file, body)
+            return archive
+
+        daily = add(create_archive(org, Archive.PERIOD_DAILY))
+        add(create_archive(org, Archive.PERIOD_MONTHLY, daily))
+
+        # extra S3 file in child archive dir
+        self.mock_s3.put_object(settings.ARCHIVE_BUCKET, f"{org.id}/extra_file.json", io.StringIO("[]"))
+
+    def _exists(self, obj) -> bool:
+        return obj._meta.model.objects.filter(id=obj.id).exists()
+
+    def assertOrgActive(self, org, org_content=()):
+        org.refresh_from_db()
+
+        self.assertTrue(org.is_active)
+        self.assertIsNone(org.released_on)
+        self.assertIsNone(org.deleted_on)
+
+        for o in org_content:
+            self.assertTrue(self._exists(o), f"{repr(o)} should still exist")
+
+    def assertOrgReleased(self, org, org_content=()):
+        org.refresh_from_db()
+
+        self.assertFalse(org.is_active)
+        self.assertIsNotNone(org.released_on)
+        self.assertIsNone(org.deleted_on)
+
+        for o in org_content:
+            self.assertTrue(self._exists(o), f"{repr(o)} should still exist")
+
+    def assertOrgDeleted(self, org, org_content=()):
+        org.refresh_from_db()
+
+        self.assertFalse(org.is_active)
+        self.assertEqual({}, org.config)
+        self.assertIsNotNone(org.released_on)
+        self.assertIsNotNone(org.deleted_on)
+
+        for o in org_content:
+            self.assertFalse(self._exists(o), f"{repr(o)} shouldn't still exist")
+
+    def assertUserActive(self, user):
+        user.refresh_from_db()
+
+        self.assertTrue(user.is_active)
+        self.assertNotEqual("", user.password)
+
+    def assertUserReleased(self, user):
+        user.refresh_from_db()
+
+        self.assertFalse(user.is_active)
+        self.assertEqual("", user.password)
+
+    @mock_mailroom
+    def test_release_and_delete(self, mr_mocks):
+        org1_content = self.create_content(self.org, self.admin)
+        org2_content = self.create_content(self.org2, self.admin2)
+
+        org1_child1 = self.org.children.get(name="Child 1")
+        org1_child2 = self.org.children.get(name="Child 2")
+
+        # add editor to second org as agent
+        self.org2.add_user(self.editor, OrgRole.AGENT)
+
+        # can't delete an org that wasn't previously released
+        with self.assertRaises(AssertionError):
+            self.org.delete()
+
+        self.assertOrgActive(self.org, org1_content)
+        self.assertOrgActive(self.org2, org2_content)
+
+        self.org.release(self.customer_support)
+
+        # org and its children should be marked for deletion
+        self.assertOrgReleased(self.org, org1_content)
+        self.assertOrgReleased(org1_child1)
+        self.assertOrgReleased(org1_child2)
+        self.assertOrgActive(self.org2, org2_content)
+
+        self.assertUserReleased(self.admin)
+        self.assertUserActive(self.editor)  # because they're also in org #2
+        self.assertUserReleased(self.user)
+        self.assertUserReleased(self.agent)
+        self.assertUserReleased(self.admin)
+        self.assertUserActive(self.admin2)
+
+        delete_released_orgs()
+
+        self.assertOrgReleased(self.org, org1_content)  # deletion hasn't occured yet because releasing was too soon
+        self.assertOrgReleased(org1_child1)
+        self.assertOrgReleased(org1_child2)
+        self.assertOrgActive(self.org2, org2_content)
+
+        # make it look like released orgs were released over a week ago
+        Org.objects.exclude(released_on=None).update(released_on=timezone.now() - timedelta(days=8))
+
+        with patch("temba.utils.s3.client", return_value=self.mock_s3):
+            delete_released_orgs()
+
+        self.assertOrgDeleted(self.org, org1_content)
+        self.assertOrgDeleted(org1_child1)
+        self.assertOrgDeleted(org1_child2)
+        self.assertOrgActive(self.org2, org2_content)
+
+        # only org 2 files left in S3
+        self.assertEqual(
+            [
+                ("dl-temba-archives", f"{self.org2.id}/archive2.jsonl.gz"),
+                ("dl-temba-archives", f"{self.org2.id}/archive3.jsonl.gz"),
+                ("dl-temba-archives", f"{self.org2.id}/extra_file.json"),
+            ],
+            list(self.mock_s3.objects.keys()),
+        )
+
+        # we don't actually delete org objects but at this point there should be no related fields preventing that
+        Model.delete(org1_child1)
+        Model.delete(org1_child2)
+        Model.delete(self.org)
 
 
 class AnonOrgTest(TembaTest):

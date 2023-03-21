@@ -23,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 TEMBA_MENU_SELECTION = "temba_menu_selection"
 TEMBA_CONTENT_ONLY = "x-temba-content-only"
-TEMBA_PAGE_TITLE = "x-temba-page-title"
 TEMBA_VERSION = "x-temba-version"
 
 
@@ -65,6 +64,9 @@ class SpaMixin(View):
         # this is for the content menu to handle links differently
         context["is_legacy"] = 0 if self.is_spa() or self.is_content_only() else 1
         context["temba_version"] = temba_version
+
+        if self.request.org:
+            context["org"] = self.request.org
 
         if self.is_spa():
             if self.is_content_only():
@@ -125,14 +127,10 @@ class SpaMixin(View):
     def render_to_response(self, context, **response_kwargs):
         response = super().render_to_response(context, **response_kwargs)
         response.headers[TEMBA_VERSION] = temba_version
+
         if self.is_spa():
             response.headers[TEMBA_MENU_SELECTION] = context[TEMBA_MENU_SELECTION]
             response.headers[TEMBA_CONTENT_ONLY] = 1 if self.is_content_only() else 0
-
-            # TODO find alternative way to pass back page titles and toast errors
-            title = context["title"]
-            if title:
-                response.headers[TEMBA_PAGE_TITLE] = HEADER_VALUE_RE.sub("", str(title))
         return response
 
 

@@ -305,6 +305,7 @@
     var static_url = "{{STATIC_URL}}";
 
     var tembaVersion= "{{temba_version}}";
+    var org = {% if org %}{{org.id}}{% else %}null{%endif%};
     var pendingRequests = [];
     function fetchAjax(url, container, options) {
 
@@ -344,6 +345,11 @@
           return;
         }
 
+        if (org != response.headers.get("x-temba-org")) {
+          document.location.href = url;
+          return;
+        }
+
         if (response.status < 200 || response.status > 299) {
           return;
         }
@@ -368,6 +374,10 @@
           }
 
           setInnerHTML(containerEle, body);
+          var title = document.querySelector("#title-text");
+          if (title) {
+            document.title = title.innerText;
+          }
 
           if (options) {
             if ('onSuccess' in options) {
@@ -477,13 +487,6 @@
         var menuSelection = response.headers.get("temba_menu_selection");
         if (menu && menuSelection) {
           menu.setFocusedItem(menuSelection);
-        }
-      }
-
-      if (response) {
-        var pageTitle = response.headers.get("x-temba-page-title");
-        if (pageTitle) {
-          document.title = pageTitle;
         }
       }
 
