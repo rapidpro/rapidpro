@@ -57,14 +57,13 @@ openpyxl = "^3.0.9"
 ffmpeg-python = "^0.2.0"
 slack-sdk = "3.17.0"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 black = "^23.1.0"
 coverage = {extras = ["toml"], version = "^6.5.0"}
-isort = "^5.10.1"
-codecov = "^2.1.11"
+isort = "^5.12.0"
 responses = "^0.12.1"
 beautifulsoup4 = "^4.9.3"
-ruff = "^0.0.166"
+ruff = "^0.0.257"
 
 [tool.poetry_bumpversion.file."temba/__init__.py"]
 
