@@ -245,7 +245,6 @@ class Archive(models.Model):
             s3_client.delete_object(Bucket=bucket, Key=key)
 
     def release(self):
-
         # detach us from our rollups
         Archive.objects.filter(rollup=self).update(rollup=None)
 

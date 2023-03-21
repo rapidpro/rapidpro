@@ -348,7 +348,6 @@ class Command(BaseCommand):
                     f"{type[0]}_{period}_{start.year}_{start.month}_{start.day}_{archive_hash}.jsonl.gz"
                 )
             else:
-
                 archive_url = (
                     f"https://dl-rapidpro-archives.s3.amazonaws.com/{org.id}/"
                     f"{type[0]}_{period}_{start.year}_{start.month}_{archive_hash}.jsonl.gz"

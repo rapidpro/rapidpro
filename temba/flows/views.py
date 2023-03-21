@@ -965,7 +965,6 @@ class FlowCRUDL(SmartCRUDL):
                         data = json.load(json_file)
 
                 for key, filename in data.get("files").items():
-
                     # tack on our prefix for dev mode
                     filename = prefix + filename
 
@@ -1387,7 +1386,6 @@ class FlowCRUDL(SmartCRUDL):
         PERIOD_MIN = 0
 
         def get_context_data(self, *args, **kwargs):
-
             total_responses = 0
             context = super().get_context_data(*args, **kwargs)
 
@@ -1696,7 +1694,6 @@ class FlowCRUDL(SmartCRUDL):
             return blockers
 
         def get_warnings(self, flow, query, total) -> list:
-
             warnings = []
 
             # if we are over our threshold, show the amount warning
@@ -1783,7 +1780,6 @@ class FlowCRUDL(SmartCRUDL):
 
     class Broadcast(OrgPermsMixin, ModalMixin):
         class Form(forms.ModelForm):
-
             flow = TembaChoiceField(
                 queryset=Flow.objects.none(),
                 required=True,

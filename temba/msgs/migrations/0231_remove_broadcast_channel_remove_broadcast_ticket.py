@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("msgs", "0230_alter_msg_msg_type_alter_msg_uuid"),
     ]

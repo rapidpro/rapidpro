@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("orgs", "0119_squashed"),
         ("contacts", "0172_remove_indexes"),

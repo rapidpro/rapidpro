@@ -7,7 +7,6 @@ import temba.utils.uuid
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("orgs", "0119_squashed"),
         ("msgs", "0227_msg_msgs_by_external_id"),

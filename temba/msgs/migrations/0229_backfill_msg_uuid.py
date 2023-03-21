@@ -23,7 +23,6 @@ def reverse(apps, schema_editor):  # pragma: no cover
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("msgs", "0228_alter_media_org_alter_media_uuid_and_more"),
     ]

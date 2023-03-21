@@ -149,7 +149,6 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
         self.c1.intents.all().delete()
 
         with patch("temba.classifiers.models.Classifier.sync") as mock_sync:
-
             # request a sync
             response = self.client.post(reverse("classifiers.classifier_sync", args=[self.c1.id]), follow=True)
             self.assertEqual(200, response.status_code)

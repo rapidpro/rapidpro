@@ -32,7 +32,6 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-
         destination_dir = options["dir"]
         relation_ids = options["relation_ids"]
         repo = options["repo"]

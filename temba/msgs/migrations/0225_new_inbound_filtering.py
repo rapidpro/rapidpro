@@ -42,7 +42,6 @@ DROP INDEX msgs_msg_visibility_type_created_id_where_inbound;
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("msgs", "0224_msg_msgs_api_incoming"),
     ]

@@ -438,7 +438,6 @@ class TriggerTest(TembaTest):
 
 class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_menu(self):
-
         self.login(self.admin)
         menu_url = reverse("triggers.trigger_menu")
         response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)

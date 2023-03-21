@@ -211,7 +211,6 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         else:
             twilio_phone = next(twilio_phones, None)
             if twilio_phone:
-
                 client.api.incoming_phone_numbers.get(twilio_phone.sid).update(
                     voice_application_sid=new_app.sid, sms_application_sid=new_app.sid
                 )

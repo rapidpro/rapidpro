@@ -9,7 +9,6 @@ def replace_base(apps, schema_editor):  # pragma: no cover
 
 
 class Migration(migrations.Migration):
-
     dependencies = [("flows", "0315_squashed")]
 
     operations = [migrations.RunPython(replace_base)]

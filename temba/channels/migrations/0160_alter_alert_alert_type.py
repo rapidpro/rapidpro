@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("channels", "0159_alter_channel_claim_code_alter_channel_device_and_more"),
     ]
