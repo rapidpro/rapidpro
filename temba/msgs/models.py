@@ -318,6 +318,23 @@ class Broadcast(models.Model):
             content["attachments"] = attachments
         return content
 
+    def get_translation(self, contact=None) -> dict:
+        """
+        Gets a translation to use to display this broadcast. If contact is provided and their language is a valid flow
+        language and there's a translation for it then that will be used.
+        """
+        def trans(d):
+            return {"text": "", "attachments": []} | d # ensure we always have text+attachments
+
+            if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
+                if contact.language in self.translations:
+                    return trans(self.translations[contact.language])
+
+            if self.org.flow_languages[0] in self.translations:  # try org primary language
+                return trans(self.translations[self.org.flow_languages[0]])
+
+        return trans(self.translations[self.base_language])  # should always be a base language translation
+
     def delete(self, user, *, soft: bool):
         if soft:
             assert self.schedule, "can only soft delete scheduled broadcasts"
@@ -803,7 +820,7 @@ class SystemLabel:
         (TYPE_OUTBOX, "Outbox"),
         (TYPE_SENT, "Sent"),
         (TYPE_FAILED, "Failed"),
-        (TYPE_SCHEDULED, "Broadcasts"),
+        (TYPE_SCHEDULED, "Scheduled"), # todo - rename to Broadcasts
     )
 
     @classmethod

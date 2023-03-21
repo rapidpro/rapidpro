@@ -218,7 +218,7 @@ class BroadcastWriteSerializer(WriteSerializer):
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
     text = fields.TranslatedTextField(required=False, max_length=Broadcast.MAX_TEXT_LEN)
-    attachments = fields.TranslatedAttachmentsField(required=False, max_items=Broadcast.MAX_ATTACHMENTS)
+    attachments = fields.TranslatedAttachmentsField(required=False)
     base_language = fields.LanguageField(required=False)
 
     def validate(self, data):
