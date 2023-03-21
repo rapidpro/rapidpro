@@ -22,7 +22,6 @@ def reverse(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [("campaigns", "0052_squashed")]
 
     operations = [migrations.RunPython(migrate_base_to_und, reverse)]

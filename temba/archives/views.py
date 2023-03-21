@@ -13,7 +13,6 @@ from .models import Archive
 
 
 class ArchiveCRUDL(SmartCRUDL):
-
     model = Archive
     actions = ("read", "run", "message")
     permissions = True

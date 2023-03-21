@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("msgs", "0217_remove_broadcast_send_all_remove_broadcast_urns"),
     ]

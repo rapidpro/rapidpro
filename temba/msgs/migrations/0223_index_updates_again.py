@@ -10,7 +10,6 @@ DROP INDEX msgs_msg_org_id_created_on_id_idx;
 
 
 class Migration(migrations.Migration):
-
     dependencies = [("orgs", "0119_squashed"), ("msgs", "0222_db_trigger_updates")]
 
     operations = [

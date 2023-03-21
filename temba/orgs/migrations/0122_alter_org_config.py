@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [("orgs", "0121_alter_org_config")]
 
     operations = [

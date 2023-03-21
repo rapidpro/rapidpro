@@ -130,7 +130,6 @@ class SelectWidget(forms.Select):
     option_inherits_attrs = True
 
     def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
-
         if hasattr(self.choices, "option_attrs_by_value"):
             attrs = self.choices.option_attrs_by_value.get(value)
         attrs = attrs if attrs else {}

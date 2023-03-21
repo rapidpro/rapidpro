@@ -36,7 +36,6 @@ def reverse(apps, schema_editor):  # pragma: no cover
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("msgs", "0214_broadcast_query_msg_quick_replies"),
     ]

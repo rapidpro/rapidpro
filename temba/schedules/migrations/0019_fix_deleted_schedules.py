@@ -19,7 +19,6 @@ def reverse(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("schedules", "0018_squashed"),
     ]

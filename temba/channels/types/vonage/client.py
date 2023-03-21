@@ -32,7 +32,6 @@ class VonageClient:
         return response["numbers"] if int(response.get("count", 0)) else []
 
     def search_numbers(self, country, pattern):
-
         response = self._with_retry(
             self.base.get_available_numbers,
             country_code=country,

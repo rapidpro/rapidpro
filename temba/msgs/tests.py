@@ -2420,7 +2420,7 @@ class SystemLabelTest(TembaTest):
             ),
         )
 
-        for (label_type, expected_select) in tcs:
+        for label_type, expected_select in tcs:
             select = s3.compile_select(where=SystemLabel.get_archive_query(label_type))
             self.assertEqual(expected_select, select, f"select s3 mismatch for label {label_type}")
 

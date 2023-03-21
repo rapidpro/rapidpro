@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("channels", "0158_squashed"),
         ("flows", "0317_alter_flow_base_language"),

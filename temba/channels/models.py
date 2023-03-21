@@ -467,7 +467,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         role=DEFAULT_ROLE,
         extra_config=None,
     ):
-
         try:
             parsed = phonenumbers.parse(phone_number, None)
             phone = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
@@ -1258,7 +1257,6 @@ class Alert(SmartModel):
             in (SyncEvent.STATUS_DISCHARGING, SyncEvent.STATUS_UNKNOWN, SyncEvent.STATUS_NOT_CHARGING)
             and int(sync.power_level) < 25
         ):
-
             alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
 
             if not alerts:

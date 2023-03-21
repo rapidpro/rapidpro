@@ -135,7 +135,6 @@ def urn_icon(urn):
 
 @register.filter
 def msg_status_badge(msg) -> str:
-
     display = {}
 
     if msg.status == Msg.STATUS_DELIVERED:

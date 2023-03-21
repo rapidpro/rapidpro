@@ -10,7 +10,6 @@ from ...models import Channel
 class BandwidthTypeTest(TembaTest):
     @patch("requests.post")
     def test_claim(self, mock_post):
-
         mock_post.return_value = MockResponse(
             200,
             "<ApplicationProvisioningResponse><Application><ApplicationId>e5a9e103-application_id</ApplicationId></Application></ApplicationProvisioningResponse>",

@@ -305,7 +305,6 @@ class TwilioTypeTest(TembaTest):
     @patch("temba.orgs.models.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_deactivate(self):
-
         # make our channel of the twilio ilk
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
         twilio_channel = self.org.channels.all().first()

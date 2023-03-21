@@ -40,7 +40,6 @@ DROP INDEX msgs_msg_org_created_id_where_outbound_visible_failed;
 
 
 class Migration(migrations.Migration):
-
     dependencies = [("msgs", "0220_alter_msg_msg_type")]
 
     operations = [

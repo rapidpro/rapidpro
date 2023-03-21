@@ -67,7 +67,6 @@ def oxford(forloop, punctuation=""):
 
 @register.filter
 def icon(o):
-
     if isinstance(o, Campaign):
         return "icon-campaign"
 

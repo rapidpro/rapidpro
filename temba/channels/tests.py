@@ -143,7 +143,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             self.assertContentMenuContains(read_url, self.admin, link_text)
 
     def test_delegate_channels(self):
-
         self.login(self.admin)
 
         # we don't support IVR yet
@@ -240,7 +239,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(norm_c3.get_urn(URN.TEL_SCHEME).path, "+18006927753")
 
     def test_channel_create(self):
-
         # can't use an invalid scheme for a fixed-scheme channel type
         with self.assertRaises(ValueError):
             Channel.create(
@@ -571,7 +569,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.requestView(tel_channel_read_url, self.customer_support, checks=[StaffRedirect()])
 
     def test_invalid(self):
-
         # Must be POST
         response = self.client.get(
             "%s?signature=sig&ts=123" % (reverse("sync", args=[100])), content_type="application/json"
@@ -1129,7 +1126,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
     @mock_mailroom
     def test_inbox_duplication(self, mr_mocks):
-
         # if the connection gets interrupted but some messages succeed, we want to make sure subsequent
         # syncs do not result in duplication of messages from the inbox
         date = timezone.now()

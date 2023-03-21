@@ -304,7 +304,6 @@ class BaseClaimNumberMixin(ClaimViewMixin):
         pass
 
     def form_valid(self, form, *args, **kwargs):
-
         # must have an org
         org = self.request.org
         if not org:  # pragma: needs cover
@@ -860,7 +859,6 @@ class ChannelCRUDL(SmartCRUDL):
             return obj
 
     class Claim(SpaMixin, OrgPermsMixin, SmartTemplateView):
-
         title = _("New Channel")
         menu_path = "/settings/workspace"
 

@@ -315,7 +315,6 @@ class VerifyCode(SpaMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, Smart
         return f"/settings/channels/{self.get_object().uuid}"
 
     def execute_action(self):
-
         form = self.form
         channel = self.object
 

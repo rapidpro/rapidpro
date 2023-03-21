@@ -8,7 +8,6 @@ DROP INDEX msgs_msg_org_modified_id_where_inbound;
 
 
 class Migration(migrations.Migration):
-
     dependencies = [("msgs", "0223_index_updates_again")]
 
     operations = [

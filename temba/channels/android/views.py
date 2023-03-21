@@ -119,7 +119,6 @@ def sync(request, channel_id):
 
             # catchall for commands that deal with a single message
             if "msg_id" in cmd:
-
                 # make sure the negative ids are converted to long
                 msg_id = cmd["msg_id"]
                 if msg_id < 0:

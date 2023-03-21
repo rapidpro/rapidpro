@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [("channels", "0162_alter_channel_config")]
 
     operations = [
