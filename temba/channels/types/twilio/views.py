@@ -372,6 +372,8 @@ class UpdateForm(UpdateChannelForm):
 
     class Meta(UpdateChannelForm.Meta):
         fields = ("name",)
+
+
 class Connect(SpaMixin, OrgPermsMixin, SmartFormView):
     class TwilioConnectForm(forms.Form):
         account_sid = forms.CharField(help_text=_("Your Twilio Account SID"), widget=InputWidget())

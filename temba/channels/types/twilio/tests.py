@@ -335,6 +335,7 @@ class TwilioTypeTest(TembaTest):
             self.assertFalse(
                 TwilioType().check_credentials({"account_sid": "AccountSid", "auth_token": "AccountToken"})
             )
+
     @patch("temba.channels.types.twilio.views.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_twilio_connect(self):
