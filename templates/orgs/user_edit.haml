@@ -59,12 +59,12 @@
       }, 0);
       
     }
-    
-    window.addEventListener("DOMContentLoaded", function (){
-      wireHandlers();
 
+    onSpload(function(){
+      wireHandlers();
       // also wire them if our formax submits
       document.addEventListener("temba-formax-ready", function(){
         wireHandlers();
       });
-    });
+    })
+    
