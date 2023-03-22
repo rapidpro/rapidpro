@@ -1,3 +1,7 @@
+v8.1.83 (2023-03-22)
+-------------------------
+ * Use onSpload to wire handlers on account form
+
 v8.1.82 (2023-03-22)
 -------------------------
  * Support setting and removing the subscription URL for MTN channels
