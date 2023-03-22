@@ -273,7 +273,7 @@ class Broadcast(models.Model):
 
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
-    
+
     def get_text(self, contact=None):
         translation = self.get_translation(contact)
         text = translation["text"]
@@ -295,8 +295,9 @@ class Broadcast(models.Model):
         Gets a translation to use to display this broadcast. If contact is provided and their language is a valid flow
         language and there's a translation for it then that will be used.
         """
+
         def trans(d):
-            return {"text": "", "attachments": []} | d # ensure we always have text+attachments
+            return {"text": "", "attachments": []} | d  # ensure we always have text+attachments
 
         if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
             if contact.language in self.translations:
@@ -792,7 +793,7 @@ class SystemLabel:
         (TYPE_OUTBOX, "Outbox"),
         (TYPE_SENT, "Sent"),
         (TYPE_FAILED, "Failed"),
-        (TYPE_SCHEDULED, "Scheduled"), # todo - rename to Broadcasts
+        (TYPE_SCHEDULED, "Scheduled")
     )
 
     @classmethod
