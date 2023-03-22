@@ -1,3 +1,7 @@
+v8.1.84 (2023-03-22)
+-------------------------
+ * Update to coverage 7.x
+
 v8.1.83 (2023-03-22)
 -------------------------
  * Use onSpload to wire handlers on account form
