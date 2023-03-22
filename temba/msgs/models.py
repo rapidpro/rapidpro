@@ -273,49 +273,22 @@ class Broadcast(models.Model):
 
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
+    
+    def get_text(self, contact=None):
+        translation = self.get_translation(contact)
+        text = translation["text"]
+        return text
 
-    # def get_text(self, contact=None):
-    #     content = self.get_content(contact)
-    #     text = content["text"]
-    #     return text
-
-    # def get_attachments(self, contact=None):
-    #     content = self.get_content(contact)
-    #     attachments = content["attachments"]
-    #     formatted_attachments = []
-    #     if attachments and len(attachments) > 0:
-    #         for attachment in attachments:
-    #             attachment = json.loads(attachment.replace("'", '"'))
-    #             # return list of attachments in the format <content-type>:<url>
-    #             formatted_attachments.append(f"{attachment['content_type']}:{attachment['url']}")
-    #     return formatted_attachments
-
-    # def get_content(self, contact=None):
-    #     """
-    #     Gets the content that will be sent. If contact is provided and their language is a valid flow language and there's
-    #     a translation for it, then that will be used (used when rendering upcoming scheduled broadcasts).
-    #     """
-    #     content = {"text": "", "attachments": []}
-    #     translations = self.translations
-    #     if not translations:
-    #         return content
-
-    #     if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
-    #         if contact.language in translations:
-    #             language = contact.language
-    #     elif self.org.flow_languages[0] in translations:  # try org primary language
-    #         language = self.org.flow_languages[0]
-    #     else:
-    #         language = self.base_language  # should always be a base language translation
-
-    #     translation = translations.get(language)
-    #     text = translation.get("text")
-    #     if text and len(text) > 0:
-    #         content["text"] = text
-    #     attachments = translation.get("attachments")
-    #     if attachments and len(attachments) > 0:
-    #         content["attachments"] = attachments
-    #     return content
+    def get_attachments(self, contact=None):
+        translation = self.get_translation(contact)
+        attachments = translation["attachments"]
+        formatted_attachments = []
+        if attachments and len(attachments) > 0:
+            for attachment in attachments:
+                attachment = json.loads(attachment.replace("'", '"'))
+                # return list of attachments in the format <content-type>:<url>
+                formatted_attachments.append(f"{attachment['content_type']}:{attachment['url']}")
+        return formatted_attachments
 
     def get_translation(self, contact=None) -> dict:
         """
