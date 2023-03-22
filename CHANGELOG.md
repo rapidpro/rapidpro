@@ -1,3 +1,7 @@
+v8.1.82 (2023-03-22)
+-------------------------
+ * Support setting and removing the subscription URL for MTN channels
+
 v8.1.81 (2023-03-21)
 -------------------------
  * Update ruff and isort
