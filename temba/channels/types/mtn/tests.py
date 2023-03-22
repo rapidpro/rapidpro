@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.forms import ValidationError
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -7,6 +8,7 @@ from temba.tests import TembaTest
 from temba.tests.requests import MockResponse
 
 from ...models import Channel
+from .type import MtnType
 
 
 class MtnTypeTest(TembaTest):
@@ -107,3 +109,34 @@ class MtnTypeTest(TembaTest):
             mock_delete.call_args_list[0][0][0],
             "https://api.mtn.com/v2/messages/sms/outbound/3071/subscription/sub-123",
         )
+
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(400, '{"error": "Error"}')
+
+            try:
+                MtnType().get_token(channel)
+                self.fail("Should have thrown error getting token for channel channel")
+            except ValidationError:
+                pass
+
+        with patch("requests.post") as mock_post:
+            mock_post.side_effect = [
+                MockResponse(200, '{"access_token": "token-123"}'),
+                MockResponse(400, '{"error": "Error"}'),
+            ]
+
+            try:
+                MtnType().activate(channel)
+                self.fail("Should have thrown error activating channel")
+            except ValidationError:
+                pass
+
+        with patch("requests.post") as mock_post, patch("requests.delete") as mock_delete:
+            mock_post.return_value = MockResponse(200, '{"access_token": "token-123"}')
+            mock_delete.return_value = MockResponse(400, '{"error": "Error"}')
+
+            try:
+                MtnType().deactivate(channel)
+                self.fail("Should have thrown error deactivating channel")
+            except ValidationError:
+                pass
