@@ -283,9 +283,9 @@ class BroadcastCRUDL(SmartCRUDL):
                     raise forms.ValidationError(_("Text or attachments are required."))
                 if text and len(text) > Broadcast.MAX_TEXT_LEN:
                     raise forms.ValidationError(_(f"Maximum allowed text is {Broadcast.MAX_TEXT_LEN} characters."))
-                if attachments and len(attachments) > Broadcast.MAX_ATTACHMENTS:
+                if attachments and len(attachments) > Msg.MAX_ATTACHMENTS:
                     raise forms.ValidationError(
-                        _(f"Maximum allowed attachments is {Broadcast.MAX_ATTACHMENTS} files.")
+                        _(f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files.")
                     )
                 return compose
 

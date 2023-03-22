@@ -184,7 +184,6 @@ class Broadcast(models.Model):
     STATUS_CHOICES = ((STATUS_QUEUED, "Queued"), (STATUS_SENT, "Sent"), (STATUS_FAILED, "Failed"))
 
     MAX_TEXT_LEN = settings.MSG_FIELD_SIZE  # max chars allowed in a broadcast
-    MAX_ATTACHMENTS = 10  # max attachments allowed in a broadcast
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
 
@@ -275,48 +274,48 @@ class Broadcast(models.Model):
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
 
-    def get_text(self, contact=None):
-        content = self.get_content(contact)
-        text = content["text"]
-        return text
+    # def get_text(self, contact=None):
+    #     content = self.get_content(contact)
+    #     text = content["text"]
+    #     return text
 
-    def get_attachments(self, contact=None):
-        content = self.get_content(contact)
-        attachments = content["attachments"]
-        formatted_attachments = []
-        if attachments and len(attachments) > 0:
-            for attachment in attachments:
-                attachment = json.loads(attachment.replace("'", '"'))
-                # return list of attachments in the format <content-type>:<url>
-                formatted_attachments.append(f"{attachment['content_type']}:{attachment['url']}")
-        return formatted_attachments
+    # def get_attachments(self, contact=None):
+    #     content = self.get_content(contact)
+    #     attachments = content["attachments"]
+    #     formatted_attachments = []
+    #     if attachments and len(attachments) > 0:
+    #         for attachment in attachments:
+    #             attachment = json.loads(attachment.replace("'", '"'))
+    #             # return list of attachments in the format <content-type>:<url>
+    #             formatted_attachments.append(f"{attachment['content_type']}:{attachment['url']}")
+    #     return formatted_attachments
 
-    def get_content(self, contact=None):
-        """
-        Gets the content that will be sent. If contact is provided and their language is a valid flow language and there's
-        a translation for it, then that will be used (used when rendering upcoming scheduled broadcasts).
-        """
-        content = {"text": "", "attachments": []}
-        translations = self.translations
-        if not translations:
-            return content
+    # def get_content(self, contact=None):
+    #     """
+    #     Gets the content that will be sent. If contact is provided and their language is a valid flow language and there's
+    #     a translation for it, then that will be used (used when rendering upcoming scheduled broadcasts).
+    #     """
+    #     content = {"text": "", "attachments": []}
+    #     translations = self.translations
+    #     if not translations:
+    #         return content
 
-        if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
-            if contact.language in translations:
-                language = contact.language
-        elif self.org.flow_languages[0] in translations:  # try org primary language
-            language = self.org.flow_languages[0]
-        else:
-            language = self.base_language  # should always be a base language translation
+    #     if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
+    #         if contact.language in translations:
+    #             language = contact.language
+    #     elif self.org.flow_languages[0] in translations:  # try org primary language
+    #         language = self.org.flow_languages[0]
+    #     else:
+    #         language = self.base_language  # should always be a base language translation
 
-        translation = translations.get(language)
-        text = translation.get("text")
-        if text and len(text) > 0:
-            content["text"] = text
-        attachments = translation.get("attachments")
-        if attachments and len(attachments) > 0:
-            content["attachments"] = attachments
-        return content
+    #     translation = translations.get(language)
+    #     text = translation.get("text")
+    #     if text and len(text) > 0:
+    #         content["text"] = text
+    #     attachments = translation.get("attachments")
+    #     if attachments and len(attachments) > 0:
+    #         content["attachments"] = attachments
+    #     return content
 
     def get_translation(self, contact=None) -> dict:
         """
@@ -326,12 +325,12 @@ class Broadcast(models.Model):
         def trans(d):
             return {"text": "", "attachments": []} | d # ensure we always have text+attachments
 
-            if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
-                if contact.language in self.translations:
-                    return trans(self.translations[contact.language])
+        if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
+            if contact.language in self.translations:
+                return trans(self.translations[contact.language])
 
-            if self.org.flow_languages[0] in self.translations:  # try org primary language
-                return trans(self.translations[self.org.flow_languages[0]])
+        if self.org.flow_languages[0] in self.translations:  # try org primary language
+            return trans(self.translations[self.org.flow_languages[0]])
 
         return trans(self.translations[self.base_language])  # should always be a base language translation
 
