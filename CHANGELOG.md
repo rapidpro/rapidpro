@@ -1,3 +1,7 @@
+v8.1.85 (2023-03-23)
+-------------------------
+ * Handle short screens better on run list page
+
 v8.1.84 (2023-03-22)
 -------------------------
  * Update to coverage 7.x
