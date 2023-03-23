@@ -2571,7 +2571,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     @mock_mailroom
     @patch("temba.flows.models.Flow.is_starting")
     def test_preview_start(self, mr_mocks, mock_flow_is_starting):
-
         mock_flow_is_starting.return_value = False
 
         # now set our brand to redirect

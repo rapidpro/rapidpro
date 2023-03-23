@@ -24,7 +24,6 @@ class APIPermission(BasePermission):
     """
 
     def has_permission(self, request, view):
-
         if getattr(view, "permission", None):
             # no anon access to API endpoints
             if request.user.is_anonymous:

@@ -6,7 +6,6 @@ import temba.utils.models.fields
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("channels", "0161_backfill_empty_configs"),
     ]

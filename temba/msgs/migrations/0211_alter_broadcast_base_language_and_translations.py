@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("msgs", "0210_remove_broadcast_media_remove_broadcast_metadata_and_more"),
     ]

@@ -13,7 +13,6 @@ def reverse(apps, schema_editor):  # pragma: no cover
 
 
 class Migration(migrations.Migration):
-
     dependencies = [("channels", "0160_alter_alert_alert_type")]
 
     operations = [migrations.RunPython(backfill_empty_configs, reverse)]

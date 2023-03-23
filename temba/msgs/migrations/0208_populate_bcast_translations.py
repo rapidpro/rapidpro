@@ -40,7 +40,6 @@ def apply_manual():  # pragma: no cover
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("msgs", "0207_broadcast_translations_alter_broadcast_status_and_more"),
     ]

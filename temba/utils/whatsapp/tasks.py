@@ -90,12 +90,10 @@ def _calculate_variable_count(content):
 
 
 def update_local_templates(channel, templates_data):
-
     channel_namespace = channel.config.get("fb_namespace", "")
     # run through all our templates making sure they are present in our DB
     seen = []
     for template in templates_data:
-
         template_status = template["status"]
 
         template_status = template_status.upper()
@@ -165,14 +163,12 @@ def refresh_whatsapp_templates():
     with r.lock("refresh_whatsapp_templates", 1800):
         # for every whatsapp channel
         for channel in Channel.objects.filter(is_active=True, channel_type__in=["WA", "D3", "WAC"]):
-
             # update the version only when have it set in the config
             if channel.config.get("version"):
                 # fetches API version and saves on channel.config
                 update_api_version(channel)
             # fetch all our templates
             try:
-
                 templates_data, valid = channel.type.get_api_templates(channel)
                 if not valid:
                     continue

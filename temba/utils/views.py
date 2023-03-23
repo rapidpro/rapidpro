@@ -97,7 +97,6 @@ class SpaMixin(View):
                         data = json.load(json_file)
 
                 for key, filename in data.get("files").items():
-
                     # tack on our prefix for dev mode
                     filename = prefix + filename
 

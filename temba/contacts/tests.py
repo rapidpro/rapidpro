@@ -2468,7 +2468,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "this is a failure")
 
     def test_msg_status_badge(self):
-
         msg = self.create_outgoing_msg(self.joe, "This is an outgoing message")
 
         # wired has a primary color check
@@ -4915,7 +4914,6 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     def test_create_warnings(self):
-
         self.login(self.admin)
         create_url = reverse("contacts.contactfield_create")
         response = self.client.get(create_url)
@@ -5057,7 +5055,6 @@ class URNTest(TembaTest):
         self.assertFalse(URN.validate("freshchat:+12065551212"))
 
     def test_from_parts(self):
-
         self.assertEqual(URN.from_parts("deleted", "12345"), "deleted:12345")
         self.assertEqual(URN.from_parts("tel", "12345"), "tel:12345")
         self.assertEqual(URN.from_parts("tel", "+12345"), "tel:+12345")

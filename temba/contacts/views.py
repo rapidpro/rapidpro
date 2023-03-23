@@ -237,14 +237,12 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
             sort_field = sort_on
 
         if sort_field == "created_on":
-
             return (
                 sort_field,
                 sort_direction,
                 {"field_type": "attribute", "sort_direction": sort_direction, "field_name": "created_on"},
             )
         if sort_field == "last_seen_on":
-
             return (
                 sort_field,
                 sort_direction,
@@ -655,7 +653,6 @@ class ContactCRUDL(SmartCRUDL):
             return JsonResponse({"results": menu})
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
-
         form_class = ExportForm
         submit_button_name = _("Export")
         success_url = "@contacts.contact_list"
@@ -1012,7 +1009,6 @@ class ContactCRUDL(SmartCRUDL):
             # serialize our contact sample
             json_contacts = []
             for contact in summary["sample"]:
-
                 primary_urn = contact.get_urn()
                 if primary_urn:
                     primary_urn = primary_urn.get_display(org=org, international=True)
@@ -1146,7 +1142,6 @@ class ContactCRUDL(SmartCRUDL):
         template_name = "contacts/contact_filter.haml"
 
         def build_content_menu(self, menu):
-
             if self.has_org_perm("contacts.contactfield_list") and not self.is_spa():
                 menu.add_link(_("Manage Fields"), reverse("contacts.contactfield_list"))
 
@@ -1695,7 +1690,6 @@ class ContactFieldCRUDL(SmartCRUDL):
 
     class Menu(OrgPermsMixin, SmartTemplateView):
         def render_to_response(self, context, **response_kwargs):
-
             org = self.request.org
             menu = []
 
@@ -1796,7 +1790,6 @@ class ContactFieldCRUDL(SmartCRUDL):
 
     class UpdatePriority(OrgPermsMixin, SmartView, View):
         def post(self, request, *args, **kwargs):
-
             try:
                 post_data = json.loads(request.body)
                 with transaction.atomic():
@@ -1923,7 +1916,6 @@ class ContactImportCRUDL(SmartCRUDL):
             return obj
 
     class Preview(SpaMixin, OrgObjPermsMixin, SmartUpdateView):
-
         menu_path = "/contact/import"
 
         class Form(forms.ModelForm):

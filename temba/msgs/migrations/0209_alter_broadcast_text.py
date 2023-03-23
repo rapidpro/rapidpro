@@ -6,7 +6,6 @@ import temba.utils.models.fields
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("msgs", "0208_populate_bcast_translations"),
     ]

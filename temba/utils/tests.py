@@ -416,7 +416,6 @@ class EmailTest(TembaTest):
         self.assertOutbox(1, "no-reply@foo.com", "Test Subject", "Test Body", ["recipient@bar.com"])
 
     def test_is_valid_address(self):
-
         valid_emails = [
             # Cases from https://en.wikipedia.org/wiki/Email_address
             "prettyandsimple@example.com",

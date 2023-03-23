@@ -13,7 +13,6 @@ import temba.utils.uuid
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [

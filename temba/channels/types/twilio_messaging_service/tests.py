@@ -17,7 +17,6 @@ class TwilioMessagingServiceTypeTest(TembaTest):
     @patch("temba.orgs.models.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_claim(self):
-
         self.login(self.admin)
 
         claim_twilio_ms = reverse("channels.types.twilio_messaging_service.claim")

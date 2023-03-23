@@ -238,7 +238,6 @@ class CampaignCRUDL(SmartCRUDL):
             return qs
 
     class Archive(OrgFilterMixin, OrgPermsMixin, SmartUpdateView):
-
         fields = ()
         success_url = "uuid@campaigns.campaign_read"
         success_message = _("Campaign archived")
@@ -258,7 +257,6 @@ class CampaignCRUDL(SmartCRUDL):
 
 
 class CampaignEventForm(forms.ModelForm):
-
     event_type = forms.ChoiceField(
         choices=((CampaignEvent.TYPE_MESSAGE, "Send a message"), (CampaignEvent.TYPE_FLOW, "Start a flow")),
         required=True,
@@ -514,7 +512,6 @@ class CampaignEventCRUDL(SmartCRUDL):
             return f"/campaign/{'archived' if self.get_object().campaign.is_archived else 'active'}/"
 
         def pre_process(self, request, *args, **kwargs):
-
             event = self.get_object()
             if not event.is_active:
                 messages.error(self.request, "Campaign event no longer exists")
@@ -561,7 +558,6 @@ class CampaignEventCRUDL(SmartCRUDL):
                 )
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-
         default_template = "smartmin/delete_confirm.html"
         submit_button_name = _("Delete")
         fields = ("uuid",)
@@ -618,7 +614,6 @@ class CampaignEventCRUDL(SmartCRUDL):
             return context
 
         def derive_fields(self):
-
             from copy import deepcopy
 
             fields = deepcopy(self.default_fields)
@@ -657,7 +652,6 @@ class CampaignEventCRUDL(SmartCRUDL):
             return obj
 
         def pre_save(self, obj):
-
             obj = super().pre_save(obj)
             self.form.pre_save(self.request, obj)
 
@@ -687,7 +681,6 @@ class CampaignEventCRUDL(SmartCRUDL):
             return reverse("campaigns.campaignevent_read", args=[self.object.campaign.uuid, self.object.pk])
 
     class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
-
         default_fields = [
             "event_type",
             "flow_to_start",

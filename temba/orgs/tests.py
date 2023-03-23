@@ -206,7 +206,7 @@ class UserTest(TembaTest):
                 },
             ),
         )
-        for (org, perm, checks) in tests:
+        for org, perm, checks in tests:
             for user, has_perm in checks.items():
                 self.assertEqual(
                     has_perm,
@@ -603,7 +603,6 @@ class UserTest(TembaTest):
         self.assertTrue(self.editor.is_active)
 
     def test_ui_management(self):
-
         # only customer support gets in on this sweet action
         self.login(self.customer_support)
 
@@ -693,7 +692,6 @@ class UserTest(TembaTest):
         self.assertRedirect(response, "/msg/inbox/")
 
     def test_release(self):
-
         # admin doesn't "own" any orgs
         self.assertEqual(0, len(self.admin.get_owned_orgs()))
 
@@ -867,7 +865,6 @@ class OrgTest(TembaTest):
 
     @patch("temba.utils.email.send_temba_email")
     def test_user_forget(self, mock_send_temba_email):
-
         invitation = Invitation.objects.create(
             org=self.org,
             user_group="A",
@@ -2876,7 +2873,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(15, len(response.context["formax"].sections))
 
     def test_manage_sub_orgs(self):
-
         # give our org the multi users feature
         self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS]
         self.org.save()
@@ -4309,7 +4305,6 @@ class BulkExportTest(TembaTest):
         self.assertEqual(voice_flow.expires_after_minutes, 5)
 
     def test_import(self):
-
         self.login(self.admin)
 
         post_data = dict(import_file=open("%s/test_flows/too_old.json" % settings.MEDIA_ROOT, "rb"))

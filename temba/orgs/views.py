@@ -140,7 +140,6 @@ class OrgPermsMixin:
         return self.has_org_perm(self.permission)
 
     def dispatch(self, request, *args, **kwargs):
-
         # non admin authenticated users without orgs get the org chooser
         user = self.get_user()
         if user.is_authenticated and not user.is_staff:
@@ -176,7 +175,6 @@ class OrgObjPermsMixin(OrgPermsMixin):
         return False
 
     def has_permission(self, request, *args, **kwargs):
-
         user = self.request.user
         if user.is_staff:
             return True
@@ -784,7 +782,6 @@ class UserCRUDL(SmartCRUDL):
         fields = ("email",)
 
         def form_valid(self, form):
-
             email = form.cleaned_data["email"]
             user = User.objects.filter(email__iexact=email).first()
 
@@ -1095,7 +1092,6 @@ class MenuMixin(OrgPermsMixin):
         event=False,
         posterize=False,
     ):
-
         if perm and not self.has_org_perm(perm):  # pragma: no cover
             return
 
@@ -1202,7 +1198,6 @@ class OrgCRUDL(SmartCRUDL):
             # how this menu is made up is a wip
             # TODO: remove pragma
             if submenu == "settings":  # pragma: no cover
-
                 menu = []
                 menu.append(
                     self.create_menu_item(
@@ -1302,7 +1297,6 @@ class OrgCRUDL(SmartCRUDL):
                         menu.append(self.create_menu_item(name=_("Classifiers"), items=items, inline=True))
 
                 if self.has_org_perm("archives.archive_message"):
-
                     items = [
                         self.create_menu_item(
                             menu_id="message",
@@ -1853,7 +1847,6 @@ class OrgCRUDL(SmartCRUDL):
         success_message = "Plivo credentials verified. You can now add a Plivo channel."
 
         def form_valid(self, form):
-
             auth_id = form.cleaned_data["auth_id"]
             auth_token = form.cleaned_data["auth_token"]
 
@@ -3047,7 +3040,6 @@ class OrgCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             if self.get_step() == 1:
-
                 org = self.form.cleaned_data.get("org", None)
 
                 context = self.get_context_data()
@@ -3380,14 +3372,12 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def add_channel_section(self, formax, channel):
-
             if self.has_org_perm("channels.channel_read"):
                 from temba.channels.views import get_channel_read_url
 
                 formax.add_section("channel", get_channel_read_url(channel), icon=channel.type.icon, action="link")
 
         def add_classifier_section(self, formax, classifier):
-
             if self.has_org_perm("classifiers.classifier_read"):
                 formax.add_section(
                     "classifier",
@@ -3491,7 +3481,6 @@ class OrgCRUDL(SmartCRUDL):
             formax.add_section("archives", reverse("archives.archive_message"), icon="icon-box", action="link")
 
     class TwilioAccount(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-
         success_message = ""
 
         class TwilioKeys(forms.ModelForm):

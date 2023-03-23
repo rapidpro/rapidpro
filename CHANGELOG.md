@@ -1,3 +1,23 @@
+v8.1.84 (2023-03-22)
+-------------------------
+ * Update to coverage 7.x
+
+v8.1.83 (2023-03-22)
+-------------------------
+ * Use onSpload to wire handlers on account form
+
+v8.1.82 (2023-03-22)
+-------------------------
+ * Support setting and removing the subscription URL for MTN channels
+
+v8.1.81 (2023-03-21)
+-------------------------
+ * Update ruff and isort
+
+v8.1.80 (2023-03-21)
+-------------------------
+ * Update black
+
 v8.1.79 (2023-03-20)
 -------------------------
  * Add mouseover text for temba-date

@@ -15,7 +15,6 @@ def ensure_anon_user_exists(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [("auth_tweaks", "0001_initial")]
 
     operations = [migrations.RunPython(ensure_anon_user_exists)]
