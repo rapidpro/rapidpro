@@ -65,6 +65,23 @@ class IncidentTest(TembaTest):
         self.assertEqual("org:flagged", incident.incident_type)
         self.assertIsNotNone(incident.ended_on)
 
+    def test_org_suspended(self):
+        self.org.suspend()
+
+        incident = Incident.objects.get()
+        self.assertEqual("org:suspended", incident.incident_type)
+        self.assertEqual({self.admin}, set(n.user for n in incident.notifications.all()))
+
+        self.assertEqual(
+            {"type": "org:suspended", "started_on": matchers.ISODate(), "ended_on": None}, incident.as_json()
+        )
+
+        self.org.unsuspend()
+
+        incident = Incident.objects.get()  # still only have 1 incident, but now it has ended
+        self.assertEqual("org:suspended", incident.incident_type)
+        self.assertIsNotNone(incident.ended_on)
+
     def test_webhooks_unhealthy(self):
         incident = Incident.objects.create(  # mailroom will create these
             org=self.org,

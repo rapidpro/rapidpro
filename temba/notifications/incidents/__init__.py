@@ -1,4 +1,4 @@
-from .builtin import OrgFlaggedIncidentType, WebhooksUnhealthyIncidentType
+from .builtin import OrgFlaggedIncidentType, OrgSuspendedIncidentType, WebhooksUnhealthyIncidentType
 
 TYPES = {}
 
@@ -15,4 +15,5 @@ def register_incident_type(typ):
 
 
 register_incident_type(OrgFlaggedIncidentType())
+register_incident_type(OrgSuspendedIncidentType())
 register_incident_type(WebhooksUnhealthyIncidentType())
