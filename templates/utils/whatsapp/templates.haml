@@ -16,7 +16,7 @@
     -trans "Templates are synced from your account every 15 minutes."
 
 -block content
-  .card.p-0#templates
+  .card.p-0.overflow-y-scroll#templates
     -for translation in translations
       -ifchanged translation.template.name
         .block.template-name
