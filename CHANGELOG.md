@@ -1,3 +1,7 @@
+v8.1.87 (2023-03-23)
+-------------------------
+ * Manually fix version number
+
 v8.1.86 (2023-03-23)
 -------------------------
  * Fix scrolling on WhatsApp templates page
