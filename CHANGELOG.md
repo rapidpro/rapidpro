@@ -1,3 +1,7 @@
+v8.1.86 (2023-03-23)
+-------------------------
+ * Fix scrolling on WhatsApp templates page
+
 v8.1.85 (2023-03-23)
 -------------------------
  * Handle short screens better on run list page
