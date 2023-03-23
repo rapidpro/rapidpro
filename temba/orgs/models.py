@@ -562,7 +562,7 @@ class Org(SmartModel):
 
         if as_child:
             assert Org.FEATURE_CHILD_ORGS in self.features, "only orgs with this feature enabled can create child orgs"
-            assert not self.parent_id, "child orgs can't create children"
+            assert not self.is_child, "child orgs can't create children"
         else:
             assert Org.FEATURE_NEW_ORGS in self.features, "only orgs with this feature enabled can create new orgs"
 
@@ -583,6 +583,17 @@ class Org(SmartModel):
         org.initialize()
         return org
 
+    @property
+    def is_child(self) -> bool:
+        return bool(self.parent_id)
+
+    @property
+    def is_verified(self):
+        """
+        A verified org is not subject to automatic flagging for suspicious activity
+        """
+        return self.config.get(Org.CONFIG_VERIFIED, False)
+
     @cached_property
     def branding(self):
         return brands.get_by_slug(self.brand)
@@ -600,22 +611,48 @@ class Org(SmartModel):
     def get_limit(self, limit_type):
         return int(self.limits.get(limit_type, settings.ORG_LIMIT_DEFAULTS.get(limit_type)))
 
+    def suspend(self):
+        """
+        Suspends this org and any children.
+        """
+        assert not self.is_child
+
+        if not self.is_suspended:
+            self.is_suspended = True
+            self.modified_on = timezone.now()
+            self.save(update_fields=("is_suspended", "modified_on"))
+
+            self.children.filter(is_active=True).update(is_suspended=True, modified_on=timezone.now())
+
+    def unsuspend(self):
+        """
+        Unsuspends this org and any children.
+        """
+        assert not self.is_child
+
+        if self.is_suspended:
+            self.is_suspended = False
+            self.modified_on = timezone.now()
+            self.save(update_fields=("is_suspended", "modified_on"))
+
+            self.children.filter(is_active=True).update(is_suspended=False, modified_on=timezone.now())
+
     def flag(self):
         """
         Flags this org for suspicious activity
         """
         from temba.notifications.incidents.builtin import OrgFlaggedIncidentType
 
-        self.is_flagged = True
-        self.save(update_fields=("is_flagged", "modified_on"))
+        if not self.is_flagged:
+            self.is_flagged = True
+            self.save(update_fields=("is_flagged", "modified_on"))
 
-        OrgFlaggedIncidentType.get_or_create(self)  # create incident which will notify admins
+            OrgFlaggedIncidentType.get_or_create(self)  # create incident which will notify admins
 
     def unflag(self):
         """
         Unflags this org if they previously were flagged
         """
-
         from temba.notifications.incidents.builtin import OrgFlaggedIncidentType
 
         if self.is_flagged:
@@ -631,12 +668,6 @@ class Org(SmartModel):
         self.unflag()
         self.config[Org.CONFIG_VERIFIED] = True
         self.save(update_fields=("config", "modified_on"))
-
-    def is_verified(self):
-        """
-        A verified org is not subject to automatic flagging for suspicious activity
-        """
-        return self.config.get(Org.CONFIG_VERIFIED, False)
 
     def import_app(self, export_json, user, site=None):
         """
