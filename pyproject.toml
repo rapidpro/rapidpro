@@ -100,7 +100,7 @@ exclude_lines = [
     "raise AssertionError",
     "raise NotImplementedError",
 ]
-omit = ["**/tests*", "*settings*", "temba/*/management/commands/*", "temba/tests/*"]
+omit = ["**/tests*", "**/tests/*", "*settings*", "**/management/commands/*"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
