@@ -279,25 +279,27 @@ class Broadcast(models.Model):
             translation = self.get_translation()
         text = translation["text"]
         return text
-
-    def get_attachments_for_widget(self, translation=None):
+    
+    def get_attachments(self, translation=None):
         if not translation:
             translation = self.get_translation()
         attachments = translation["attachments"]
         return attachments
 
+    def get_attachments_for_widget(self, translation=None):        
+        attachments = self.get_attachments(translation)
+        parsed_attachments = Attachment.parse_all(attachments)
+        widget_attachments = []
+        for parsed_attachment in parsed_attachments:
+            query = Q(content_type=parsed_attachment.content_type) and Q(url=parsed_attachment.url) # and Q(uuid__in=parsed_attachment.url)
+            media = Media.objects.filter(query).first()
+            widget_attachment = {'uuid': str(media.uuid), 'content_type': media.content_type, 'url': media.url, 'filename': media.filename, 'size': str(media.size)}
+            widget_attachments.append(widget_attachment)
+        return widget_attachments
+
     def get_attachments_for_display(self, translation=None):
-        if not translation:
-            translation = self.get_translation()
-        attachments = self.get_attachments_for_widget(translation)
-        formatted_attachments = []
-        if attachments and len(attachments) > 0:
-            for attachment in attachments:
-                attachment = json.loads(attachment.replace("'", '"'))
-                # todo replace with call to Attachment.parse_all(attachment)
-                # return list of attachments in the format <content-type>:<url>
-                formatted_attachments.append(f"{attachment['content_type']}:{attachment['url']}")
-        return formatted_attachments
+        attachments = self.get_attachments(translation)
+        return attachments
 
     def get_translation(self, contact=None) -> dict:
         """

@@ -1,5 +1,5 @@
 -extends 'smartmin/form.html'
--load smartmin i18n
+-load smartmin sms i18n
 
 -block fields
   .title
@@ -14,6 +14,6 @@
   .mt-2
     {{ object.get_text }}
   
-    .value-attachments{ style:"margin-top: 5px" }
+  .value-attachments{ style:"margin-top: 5px" }
     -for attachment in object.get_attachments_for_display
       {% attachment_button attachment %}

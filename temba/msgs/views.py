@@ -53,7 +53,7 @@ from temba.utils.fields import (
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
 
-from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, SystemLabel
+from .models import Attachment, Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, SystemLabel
 from .tasks import export_messages_task
 
 
@@ -303,10 +303,18 @@ class BroadcastCRUDL(SmartCRUDL):
             user = self.request.user
             org = self.request.org
             recipients = form.cleaned_data["omnibox"]
-            compose = form.cleaned_data["compose"]["text"]
+
+            compose = form.cleaned_data["compose"]
             text = compose["text"]
-            attachments = compose["attachments"]
-            # todo add call to Attachment.parse_all(attachment) before saving
+            compose_attachments = compose["attachments"]
+            # attachments = [f"{a['content_type']}:{a['url']}" for a in compose_attachments]
+            attachments=[]
+            for compose_attachment in compose_attachments:
+                content_type = compose_attachment['content_type']
+                url = compose_attachment['url']        
+                attachment = f"{content_type}:{url}"
+                attachments.append(attachment)
+
             start_time = form.cleaned_data["start_datetime"]
             repeat_period = form.cleaned_data["repeat_period"]
             repeat_days_of_week = form.cleaned_data["repeat_days_of_week"]
@@ -375,10 +383,9 @@ class BroadcastCRUDL(SmartCRUDL):
             omnibox_initial = omnibox_results_to_dict(org, recipients)
 
             compose_translation = self.object.get_translation()
-            compose_text = self.object.get_text(compose_translation)
-            compose_attachments = self.object.get_attachments_for_widget(compose_translation)
-            # todo get attachments from media table based on <content_type>:<url>
-            compose_initial = {"text": compose_text, "attachments": compose_attachments}
+            text = self.object.get_text(compose_translation)
+            attachments = self.object.get_attachments_for_widget(compose_translation)
+            compose_initial = {"text": text, "attachments": attachments}
 
             return {"omnibox": omnibox_initial, "compose": compose_initial}
 
@@ -394,7 +401,6 @@ class BroadcastCRUDL(SmartCRUDL):
             compose = form.cleaned_data["compose"]
             text = compose["text"]
             attachments = compose["attachments"]
-            # todo add call to Attachment.parse_all(attachment) before saving
 
             # set updated recipients (groups and contacts) and translations (text and attachments)
             broadcast.update_recipients(groups=omnibox["groups"], contacts=omnibox["contacts"])
