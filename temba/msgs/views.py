@@ -53,7 +53,7 @@ from temba.utils.fields import (
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
 
-from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, SystemLabel
+from .models import Attachment, Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, SystemLabel
 from .tasks import export_messages_task
 
 
@@ -171,12 +171,6 @@ class MsgListView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Sm
 
 
 class BroadcastForm(forms.ModelForm):
-    message = forms.CharField(
-        required=True,
-        widget=CompletionTextarea(attrs={"placeholder": _("Hi @contact.name!")}),
-        max_length=Broadcast.MAX_TEXT_LEN,
-    )
-
     omnibox = JSONField(
         label=_("Recipients"),
         required=False,
@@ -190,6 +184,10 @@ class BroadcastForm(forms.ModelForm):
             }
         ),
     )
+    
+    compose = ComposeField(
+                required=True, widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True})
+            )
 
     def is_valid(self):
         valid = super().is_valid()
@@ -197,6 +195,7 @@ class BroadcastForm(forms.ModelForm):
             if "omnibox" not in self.data or len(self.data["omnibox"].strip()) == 0:  # pragma: needs cover
                 self.errors["__all__"] = self.error_class([_("At least one recipient is required.")])
                 return False
+            # todo add compose validations
 
         return valid
 
@@ -253,7 +252,9 @@ class BroadcastCRUDL(SmartCRUDL):
                 ),
             )
             compose = ComposeField(
-                required=True, widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True})
+                required=True, 
+                initial={"text": "", "attachments": []},
+                widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True})
             )
 
             def __init__(self, org, *args, **kwargs):
@@ -302,9 +303,10 @@ class BroadcastCRUDL(SmartCRUDL):
             user = self.request.user
             org = self.request.org
             recipients = form.cleaned_data["omnibox"]
-            compose = form.cleaned_data["compose"]
+            compose = form.cleaned_data["compose"]["text"]
             text = compose["text"]
             attachments = compose["attachments"]
+            # todo add call to Attachment.parse_all(attachment) before saving
             start_time = form.cleaned_data["start_datetime"]
             repeat_period = form.cleaned_data["repeat_period"]
             repeat_days_of_week = form.cleaned_data["repeat_days_of_week"]
@@ -362,42 +364,44 @@ class BroadcastCRUDL(SmartCRUDL):
 
     class ScheduledUpdate(OrgObjPermsMixin, ComponentFormMixin, SmartUpdateView):
         form_class = BroadcastForm
-        fields = ("message", "omnibox")
-        # fields = ("omnibox", "compose")
-        field_config = {"restrict": {"label": ""}, "omnibox": {"label": ""}, "message": {"label": "", "help": ""}}
+        fields = ("omnibox", "compose")
+        field_config = {"restrict": {"label": ""}, "omnibox": {"label": ""}, "compose": {}}
         success_message = ""
         success_url = "msgs.broadcast_scheduled"
 
         def derive_initial(self):
             org = self.object.org
             recipients = [*self.object.groups.all(), *self.object.contacts.all()]
-            # text = self.object.get_text()
-            # attachments = self.objects.get_attachments()
+            omnibox_value = omnibox_results_to_dict(org, recipients)
+
+            compose_translation = self.object.get_translation()
+            compose_text = self.object.get_text(compose_translation)
+            compose_attachments = self.object.get_attachments_for_widget(compose_translation)
+            # todo get attachments from media table based on <content_type>:<url>
+            compose_value = {"text": compose_text, "attachments": compose_attachments }
 
             return {
-                "message": self.object.get_text(),
-                "omnibox": omnibox_results_to_dict(org, recipients),
+                "omnibox": omnibox_value,
+                "compose": compose_value
             }
-            # return {
-            #     "omnibox": omnibox_results_to_dict(org, recipients),
-            #     "compose": compose_serialize(text, attachments, json_encode=True)
-            # }
 
         def save(self, *args, **kwargs):
             form = self.form
             broadcast = self.object
             org = broadcast.org
 
-            # get updated recipients (groups and contacts) and translations (text and attachments)
+            # get updated recipients (groups and contacts)
             omnibox = omnibox_deserialize(org, self.form.cleaned_data["omnibox"])
-            message = form.cleaned_data["message"]
-            # compose = compose_deserialize(self.cleaned_data["compose"])
-            # text = compose["text"]
-            # attachments = compose["attachments"]
+            
+            # get updated translations (text and attachments)
+            compose = form.cleaned_data["compose"]
+            text = compose["text"]
+            attachments = compose["attachments"]
+            # todo add call to Attachment.parse_all(attachment) before saving
 
             # set updated recipients (groups and contacts) and translations (text and attachments)
             broadcast.update_recipients(groups=omnibox["groups"], contacts=omnibox["contacts"])
-            broadcast.translations = {broadcast.base_language: {"text": message}}
+            broadcast.translations = {broadcast.base_language: {"text": text, "attachments": attachments}}
             # broadcast.translations = {broadcast.base_language: {"text": text, "attachments": attachments}}
 
             broadcast.save()

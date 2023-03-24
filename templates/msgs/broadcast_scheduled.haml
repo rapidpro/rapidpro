@@ -12,25 +12,18 @@
     %table.list.lined.w-full
       %tbody
         -for object in object_list
-          -# TODO - confirm with translation=object.get_translation vs. with object.get_translation as translation
+          -with object.get_translation as translation
 
           %tr.select-row.cursor-pointer{class:'{% cycle row1 row1 %}', onclick:'document.location="{% url "msgs.broadcast_scheduled_read" object.id %}"'}
 
             %td.value-contacts.field_phone
               -include "includes/recipients.haml" with groups=object.groups.all contacts=object.contacts.all
 
-            -# TODO - display using translation["text"]
-              %td.value-text.field_text
-                {{ translation["text"] }}
             %td.value-text.field_text
               {{ object.get_text }}
-            
-            -# TODO - display using translation["attachments"]
-              %td.value-attachments{ style:"margin-top: 5px" }
-                -for attachment in translation["attachments"]
-                  {% attachment_button attachment %}              
+
             %td.value-attachments{ style:"margin-top: 5px" }
-              -for attachment in object.get_attachments
+              -for attachment in object.get_attachments_for_display
                 {% attachment_button attachment %}
               
             %td.value-next

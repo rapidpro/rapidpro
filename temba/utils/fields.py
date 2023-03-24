@@ -217,16 +217,12 @@ class ComposeWidget(forms.Widget):
     is_annotated = True
 
     def render(self, name, value, attrs=None, renderer=None):
-        if not value:
-            value = {"text": "", "attachments": []}
-        value = json.dumps(value)
-        return super().render(name, value, attrs)
+        render_value = json.dumps(value)
+        return super().render(name, render_value, attrs)
 
     def value_from_datadict(self, data, files, name):
-        list_items = data.getlist(name)
-        list_item = list_items[0]  # returns a string of double-escaped quotes i.e. \\"
-        compose_item = json.loads(list_item)  # returns a string of single-escaped quotes i.e. \"
-        value = json.loads(compose_item)  # returns a dict, yay!
+        item = data[name]
+        value = json.loads(item)
         return value
 
 

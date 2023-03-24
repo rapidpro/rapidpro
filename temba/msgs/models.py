@@ -274,18 +274,27 @@ class Broadcast(models.Model):
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
 
-    def get_text(self, contact=None):
-        translation = self.get_translation(contact)
+    def get_text(self, translation=None):
+        if not translation:
+            translation = self.get_translation()
         text = translation["text"]
         return text
 
-    def get_attachments(self, contact=None):
-        translation = self.get_translation(contact)
+    def get_attachments_for_widget(self, translation=None):
+        if not translation:
+            translation = self.get_translation()
         attachments = translation["attachments"]
+        return attachments
+
+    def get_attachments_for_display(self, translation=None):
+        if not translation:
+            translation = self.get_translation()
+        attachments = self.get_attachments_for_widget(translation)
         formatted_attachments = []
         if attachments and len(attachments) > 0:
             for attachment in attachments:
                 attachment = json.loads(attachment.replace("'", '"'))
+                # todo replace with call to Attachment.parse_all(attachment)
                 # return list of attachments in the format <content-type>:<url>
                 formatted_attachments.append(f"{attachment['content_type']}:{attachment['url']}")
         return formatted_attachments
@@ -295,7 +304,6 @@ class Broadcast(models.Model):
         Gets a translation to use to display this broadcast. If contact is provided and their language is a valid flow
         language and there's a translation for it then that will be used.
         """
-
         def trans(d):
             return {"text": "", "attachments": []} | d  # ensure we always have text+attachments
 
