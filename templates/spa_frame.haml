@@ -305,7 +305,7 @@
     var static_url = "{{STATIC_URL}}";
 
     var tembaVersion= "{{temba_version}}";
-    var org = {% if org %}{{org.id}}{% else %}null{%endif%};
+    var org = {% if active_org %}{{active_org.id}}{% else %}null{%endif%};
     var pendingRequests = [];
     function fetchAjax(url, container, options) {
 

@@ -2272,7 +2272,7 @@ class ContactImport(SmartModel):
             batch.import_async()
 
         # flag org if the set of imported URNs looks suspicious
-        if not self.org.is_verified() and self._detect_spamminess(urns):
+        if not self.org.is_verified and self._detect_spamminess(urns):
             self.org.flag()
 
     def _batches_generator(self, row_iter):

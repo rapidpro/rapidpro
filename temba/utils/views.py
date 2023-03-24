@@ -66,7 +66,7 @@ class SpaMixin(View):
         context["temba_version"] = temba_version
 
         if self.request.org:
-            context["org"] = self.request.org
+            context["active_org"] = self.request.org
 
         if self.is_spa():
             if self.is_content_only():

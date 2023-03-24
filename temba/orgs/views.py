@@ -2035,14 +2035,21 @@ class OrgCRUDL(SmartCRUDL):
                 on_submit="handleWorkspaceUpdated()",
             )
 
-            if obj.is_flagged:
-                menu.add_url_post(_("Unflag"), f"{reverse('orgs.org_update', args=[obj.id])}?action=unflag")
-            else:  # pragma: needs cover
+            if not obj.is_flagged:
                 menu.add_url_post(_("Flag"), f"{reverse('orgs.org_update', args=[obj.id])}?action=flag")
+            else:
+                menu.add_url_post(_("Unflag"), f"{reverse('orgs.org_update', args=[obj.id])}?action=unflag")
 
-            if not obj.is_verified():
+            if not obj.is_child:
+                if not obj.is_suspended:
+                    menu.add_url_post(_("Suspend"), f"{reverse('orgs.org_update', args=[obj.id])}?action=suspend")
+                else:
+                    menu.add_url_post(_("Unsuspend"), f"{reverse('orgs.org_update', args=[obj.id])}?action=unsuspend")
+
+            if not obj.is_verified:
                 menu.add_url_post(_("Verify"), f"{reverse('orgs.org_update', args=[obj.id])}?action=verify")
 
+            menu.new_group()
             menu.add_modax(
                 _("Delete"),
                 "delete-org",
@@ -2141,6 +2148,12 @@ class OrgCRUDL(SmartCRUDL):
             return super().lookup_field_link(context, field, obj)
 
     class Update(StaffOnlyMixin, SpaMixin, ModalMixin, ComponentFormMixin, SmartUpdateView):
+        ACTION_FLAG = "flag"
+        ACTION_UNFLAG = "unflag"
+        ACTION_SUSPEND = "suspend"
+        ACTION_UNSUSPEND = "unsuspend"
+        ACTION_VERIFY = "verify"
+
         class Form(forms.ModelForm):
             features = forms.MultipleChoiceField(
                 choices=Org.FEATURES_CHOICES, widget=SelectMultipleWidget(), required=False
@@ -2179,13 +2192,7 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
-                fields = (
-                    "name",
-                    "features",
-                    "is_anon",
-                    "is_suspended",
-                    "is_flagged",
-                )
+                fields = ("name", "features", "is_anon")
 
         form_class = Form
         success_url = "hide"
@@ -2201,13 +2208,20 @@ class OrgCRUDL(SmartCRUDL):
         def post(self, request, *args, **kwargs):
             if "action" in request.POST:
                 action = request.POST["action"]
-                if action == "flag":
-                    self.get_object().flag()
-                elif action == "verify":
-                    self.get_object().verify()
-                elif action == "unflag":
-                    self.get_object().unflag()
-                return HttpResponseRedirect(self.get_success_url())
+                obj = self.get_object()
+
+                if action == self.ACTION_FLAG:
+                    obj.flag()
+                elif action == self.ACTION_UNFLAG:
+                    obj.unflag()
+                elif action == self.ACTION_SUSPEND:
+                    obj.suspend()
+                elif action == self.ACTION_UNSUSPEND:
+                    obj.unsuspend()
+                elif action == self.ACTION_VERIFY:
+                    obj.verify()
+
+                return HttpResponseRedirect(reverse("orgs.org_read", args=[obj.id]))
 
             return super().post(request, *args, **kwargs)
 
@@ -2232,7 +2246,7 @@ class OrgCRUDL(SmartCRUDL):
         def has_org_perm(self, codename):
             # users can't delete the primary org
             org = self.get_object()
-            if not org.parent:
+            if not org.is_child:
                 return False
 
             return super().has_org_perm(codename)
@@ -2240,7 +2254,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_object_org(self):
             # child orgs work in the context of their parent
             org = self.get_object()
-            return org if not org.parent else org.parent
+            return org if not org.is_child else org.parent
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -2439,7 +2453,7 @@ class OrgCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse("orgs.org_home"))
 
         def derive_title(self):
-            if self.object.parent and self.is_spa():
+            if self.object.is_child and self.is_spa():
                 return self.object.name
             else:
                 return super().derive_title()
@@ -2573,7 +2587,7 @@ class OrgCRUDL(SmartCRUDL):
                     f'<a href="{reverse("orgs.org_manage_accounts")}" class="float-right pr-4"><div class="button-light inline-block ">{_("Manage Logins")}</div></a>'
                 )
 
-            if obj.parent:
+            if obj.is_child:
                 return mark_safe(
                     f'<a href="{reverse("orgs.org_manage_accounts_sub_org")}?org={obj.id}" class="float-right pr-4"><div class="button-light inline-block">{_("Manage Logins")}</div></a>'
                 )
@@ -2583,7 +2597,7 @@ class OrgCRUDL(SmartCRUDL):
             return obj.get_contact_count()
 
         def get_name(self, obj):
-            if self.has_org_perm("orgs.org_edit_sub_org") and obj.parent:  # pragma: needs cover
+            if self.has_org_perm("orgs.org_edit_sub_org") and obj.is_child:  # pragma: needs cover
                 return mark_safe(
                     f"<temba-modax header={_('Update')} endpoint={reverse('orgs.org_edit_sub_org')}?org={obj.id} ><div class='child-org-name linked'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div></temba-modax>"
                 )
@@ -2649,7 +2663,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_success_url(self):
             # if we created a child org, redirect to its management
-            if self.object.parent:
+            if self.object.is_child:
                 return reverse("orgs.org_sub_orgs")
 
             # if we created a new separate org, switch to it

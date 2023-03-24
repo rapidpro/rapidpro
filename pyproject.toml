@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temba"
-version = "8.1.84"
+version = "8.1.88"
 description = "Hosted service for visually building interactive messaging applications"
 authors = ["Nyaruka <code@nyaruka.com>"]
 license = "AGPL-3"
@@ -100,7 +100,7 @@ exclude_lines = [
     "raise AssertionError",
     "raise NotImplementedError",
 ]
-omit = ["**/tests*", "*settings*", "temba/*/management/commands/*", "temba/tests/*"]
+omit = ["**/tests*", "**/tests/*", "*settings*", "**/management/commands/*"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

@@ -1,3 +1,20 @@
+v8.1.88 (2023-03-23)
+-------------------------
+ * Fix suspending and unsuspending orgs so that it correctly updates children
+ * Use a name for the active org that doesn't collide
+
+v8.1.87 (2023-03-23)
+-------------------------
+ * Manually fix version number
+
+v8.1.86 (2023-03-23)
+-------------------------
+ * Fix scrolling on WhatsApp templates page
+
+v8.1.85 (2023-03-23)
+-------------------------
+ * Handle short screens better on run list page
+
 v8.1.84 (2023-03-22)
 -------------------------
  * Update to coverage 7.x

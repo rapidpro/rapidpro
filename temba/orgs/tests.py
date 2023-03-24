@@ -786,6 +786,32 @@ class OrgTest(TembaTest):
         self.assertEqual(Org.get_unique_slug("Which part?"), "which-part")
         self.assertEqual(Org.get_unique_slug("Allo"), "allo-2")
 
+    def test_suspend_and_unsuspend(self):
+        def assert_org(org, is_suspended):
+            org.refresh_from_db()
+            self.assertEqual(is_suspended, org.is_suspended)
+
+        self.org.features += [Org.FEATURE_CHILD_ORGS]
+        org1_child1 = self.org.create_new(self.admin, "Child 1", timezone.utc, as_child=True)
+        org1_child2 = self.org.create_new(self.admin, "Child 2", timezone.utc, as_child=True)
+
+        self.org.suspend()
+
+        assert_org(self.org, is_suspended=True)
+        assert_org(org1_child1, is_suspended=True)
+        assert_org(org1_child2, is_suspended=True)
+        assert_org(self.org2, is_suspended=False)
+
+        self.org.suspend()  # noop
+
+        assert_org(self.org, is_suspended=True)
+
+        self.org.unsuspend()
+
+        assert_org(self.org, is_suspended=False)
+        assert_org(org1_child1, is_suspended=False)
+        assert_org(self.org2, is_suspended=False)
+
     def test_set_flow_languages(self):
         self.org.set_flow_languages(self.admin, ["eng", "fra"])
         self.org.refresh_from_db()
@@ -2952,13 +2978,18 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # we should have a child in our context
         self.assertEqual(1, len(response.context["children"]))
 
-        # we should have an option to flag
-        self.assertContentMenu(read_url, self.customer_support, ["Edit", "Flag", "Verify", "Delete", "-", "Service"])
+        # we should have options to flag and suspend
+        self.assertContentMenu(
+            read_url, self.customer_support, ["Edit", "Flag", "Suspend", "Verify", "-", "Delete", "-", "Service"]
+        )
 
         # flag and content menu option should be inverted
         self.org.flag()
-        response = self.client.get(read_url)
-        self.assertContentMenu(read_url, self.customer_support, ["Edit", "Unflag", "Verify", "Delete", "-", "Service"])
+        self.org.suspend()
+
+        self.assertContentMenu(
+            read_url, self.customer_support, ["Edit", "Unflag", "Unsuspend", "Verify", "-", "Delete", "-", "Service"]
+        )
 
         # no menu for inactive orgs
         self.org.is_active = False
@@ -3880,8 +3911,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "name",
                 "features",
                 "is_anon",
-                "is_suspended",
-                "is_flagged",
                 "channels_limit",
                 "fields_limit",
                 "globals_limit",
@@ -3901,8 +3930,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "name": "Temba II",
                 "features": ["new_orgs"],
                 "is_anon": False,
-                "is_suspended": False,
-                "is_flagged": False,
                 "channels_limit": 20,
                 "fields_limit": 300,
                 "globals_limit": "",
@@ -3922,20 +3949,30 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 400)
         self.assertEqual(self.org.get_limit(Org.LIMIT_CHANNELS), 20)
 
+        # flag org
+        self.client.post(update_url, {"action": "flag"})
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.is_flagged)
+
         # unflag org
         self.client.post(update_url, {"action": "unflag"})
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_flagged)
 
+        # suspend org
+        self.client.post(update_url, {"action": "suspend"})
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.is_suspended)
+
+        # unsuspend org
+        self.client.post(update_url, {"action": "unsuspend"})
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_suspended)
+
         # verify
         self.client.post(update_url, {"action": "verify"})
         self.org.refresh_from_db()
-        self.assertTrue(self.org.is_verified())
-
-        # flag org
-        self.client.post(update_url, {"action": "flag"})
-        self.org.refresh_from_db()
-        self.assertTrue(self.org.is_flagged)
+        self.assertTrue(self.org.is_verified)
 
     def test_urn_schemes(self):
         # remove existing channels
