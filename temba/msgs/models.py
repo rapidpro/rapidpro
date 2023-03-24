@@ -1,4 +1,3 @@
-import json
 import logging
 import mimetypes
 import os
@@ -279,21 +278,27 @@ class Broadcast(models.Model):
             translation = self.get_translation()
         text = translation["text"]
         return text
-    
+
     def get_attachments(self, translation=None):
         if not translation:
             translation = self.get_translation()
         attachments = translation["attachments"]
         return attachments
 
-    def get_attachments_for_widget(self, translation=None):        
+    def get_attachments_for_widget(self, translation=None):
         attachments = self.get_attachments(translation)
         parsed_attachments = Attachment.parse_all(attachments)
         widget_attachments = []
         for parsed_attachment in parsed_attachments:
-            query = Q(content_type=parsed_attachment.content_type) and Q(url=parsed_attachment.url) # and Q(uuid__in=parsed_attachment.url)
+            query = Q(content_type=parsed_attachment.content_type) and Q(url=parsed_attachment.url)
             media = Media.objects.filter(query).first()
-            widget_attachment = {'uuid': str(media.uuid), 'content_type': media.content_type, 'url': media.url, 'filename': media.filename, 'size': str(media.size)}
+            widget_attachment = {
+                "uuid": str(media.uuid),
+                "content_type": media.content_type,
+                "url": media.url,
+                "filename": media.filename,
+                "size": str(media.size),
+            }
             widget_attachments.append(widget_attachment)
         return widget_attachments
 

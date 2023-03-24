@@ -53,7 +53,7 @@ from temba.utils.fields import (
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
 
-from .models import Attachment, Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, SystemLabel
+from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, SystemLabel
 from .tasks import export_messages_task
 
 
@@ -308,10 +308,10 @@ class BroadcastCRUDL(SmartCRUDL):
             text = compose["text"]
             compose_attachments = compose["attachments"]
             # attachments = [f"{a['content_type']}:{a['url']}" for a in compose_attachments]
-            attachments=[]
+            attachments = []
             for compose_attachment in compose_attachments:
-                content_type = compose_attachment['content_type']
-                url = compose_attachment['url']        
+                content_type = compose_attachment["content_type"]
+                url = compose_attachment["url"]
                 attachment = f"{content_type}:{url}"
                 attachments.append(attachment)
 
