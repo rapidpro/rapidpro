@@ -53,7 +53,7 @@ from temba.utils.fields import (
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
 
-from .models import Attachment, Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, SystemLabel
+from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, SystemLabel
 from .tasks import export_messages_task
 
 
@@ -184,10 +184,10 @@ class BroadcastForm(forms.ModelForm):
             }
         ),
     )
-    
+
     compose = ComposeField(
-                required=True, widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True})
-            )
+        required=True, widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True})
+    )
 
     def is_valid(self):
         valid = super().is_valid()
@@ -252,9 +252,9 @@ class BroadcastCRUDL(SmartCRUDL):
                 ),
             )
             compose = ComposeField(
-                required=True, 
+                required=True,
                 initial={"text": "", "attachments": []},
-                widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True})
+                widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True}),
             )
 
             def __init__(self, org, *args, **kwargs):
@@ -372,18 +372,15 @@ class BroadcastCRUDL(SmartCRUDL):
         def derive_initial(self):
             org = self.object.org
             recipients = [*self.object.groups.all(), *self.object.contacts.all()]
-            omnibox_value = omnibox_results_to_dict(org, recipients)
+            omnibox_initial = omnibox_results_to_dict(org, recipients)
 
             compose_translation = self.object.get_translation()
             compose_text = self.object.get_text(compose_translation)
             compose_attachments = self.object.get_attachments_for_widget(compose_translation)
             # todo get attachments from media table based on <content_type>:<url>
-            compose_value = {"text": compose_text, "attachments": compose_attachments }
+            compose_initial = {"text": compose_text, "attachments": compose_attachments}
 
-            return {
-                "omnibox": omnibox_value,
-                "compose": compose_value
-            }
+            return {"omnibox": omnibox_initial, "compose": compose_initial}
 
         def save(self, *args, **kwargs):
             form = self.form
@@ -392,7 +389,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             # get updated recipients (groups and contacts)
             omnibox = omnibox_deserialize(org, self.form.cleaned_data["omnibox"])
-            
+
             # get updated translations (text and attachments)
             compose = form.cleaned_data["compose"]
             text = compose["text"]
