@@ -182,7 +182,7 @@ class Broadcast(models.Model):
     STATUS_FAILED = "F"
     STATUS_CHOICES = ((STATUS_QUEUED, "Queued"), (STATUS_SENT, "Sent"), (STATUS_FAILED, "Failed"))
 
-    MAX_TEXT_LEN = settings.MSG_FIELD_SIZE  # max chars allowed in a broadcast
+    # MAX_TEXT_LEN = settings.MSG_FIELD_SIZE  # max chars allowed in a broadcast
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
 

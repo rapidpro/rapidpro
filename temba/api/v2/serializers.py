@@ -217,7 +217,7 @@ class BroadcastWriteSerializer(WriteSerializer):
     urns = serializers.ListField(required=False, child=fields.URNField(), max_length=100)
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
-    text = fields.TranslatedTextField(required=False, max_length=Broadcast.MAX_TEXT_LEN)
+    text = fields.TranslatedTextField(required=False, max_length=Msg.MAX_TEXT_LEN)
     attachments = fields.TranslatedAttachmentsField(required=False)
     base_language = fields.LanguageField(required=False)
 
