@@ -12,19 +12,27 @@
     %table.list.lined.w-full
       %tbody
         -for object in object_list
-          -with translation=object.get_translation
-
           %tr.select-row.cursor-pointer{class:'{% cycle row1 row1 %}', onclick:'document.location="{% url "msgs.broadcast_scheduled_read" object.id %}"'}
+            -with translation=object.get_translation
 
             %td.value-contacts.field_phone
               -include "includes/recipients.haml" with groups=object.groups.all contacts=object.contacts.all
 
+            -# figure out why this isn't working
             %td.value-text.field_text
               {{ translation }}
 
             %td.value-text.field_text
+              {{ object.get_translation }}
+
+            -# figure out why this isn't working
+            %td.value-text.field_text
+              {{ translation.text }}
+
+            %td.value-text.field_text
               {{ object.get_text }}
 
+            -# figure out why this isn't working
             %td.value-attachments{ style:"margin-top: 5px" }
               -for attachment in translation.attachments
                 {% attachment_button attachment %}
