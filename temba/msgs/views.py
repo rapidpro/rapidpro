@@ -386,7 +386,6 @@ class BroadcastCRUDL(SmartCRUDL):
     class ScheduledUpdate(OrgObjPermsMixin, ComponentFormMixin, SmartUpdateView):
         form_class = BroadcastForm
         fields = ("omnibox", "compose")
-        # todo confirm there's no other field_config we need for compose
         field_config = {"restrict": {"label": ""}, "omnibox": {"label": ""}, "compose": {"label": ""}}
         success_message = ""
         success_url = "msgs.broadcast_scheduled"
