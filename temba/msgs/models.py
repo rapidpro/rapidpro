@@ -581,10 +581,11 @@ class Msg(models.Model):
         """
         Archives this message
         """
-        assert self.direction == self.DIRECTION_IN and self.visibility == Msg.VISIBILITY_VISIBLE
+        assert self.direction == self.DIRECTION_IN
 
-        self.visibility = self.VISIBILITY_ARCHIVED
-        self.save(update_fields=("visibility", "modified_on"))
+        if self.visibility == self.VISIBILITY_VISIBLE:
+            self.visibility = self.VISIBILITY_ARCHIVED
+            self.save(update_fields=("visibility", "modified_on"))
 
     @classmethod
     def archive_all_for_contacts(cls, contacts):
@@ -603,10 +604,11 @@ class Msg(models.Model):
         """
         Restores (i.e. un-archives) this message
         """
-        assert self.direction == self.DIRECTION_IN and self.visibility == Msg.VISIBILITY_ARCHIVED
+        assert self.direction == self.DIRECTION_IN
 
-        self.visibility = self.VISIBILITY_VISIBLE
-        self.save(update_fields=("visibility", "modified_on"))
+        if self.visibility == self.VISIBILITY_ARCHIVED:
+            self.visibility = self.VISIBILITY_VISIBLE
+            self.save(update_fields=("visibility", "modified_on"))
 
     def delete(self, soft: bool = False):
         """
