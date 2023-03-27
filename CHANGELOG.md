@@ -1,3 +1,7 @@
+v8.1.90 (2023-03-27)
+-------------------------
+ * NOOP instead of assert if archiving msg which is already archived etc
+
 v8.1.89 (2023-03-27)
 -------------------------
  * Do not fail to release channel when missing mtn subscription id in config
