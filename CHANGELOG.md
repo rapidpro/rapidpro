@@ -1,3 +1,8 @@
+v8.1.89 (2023-03-27)
+-------------------------
+ * Do not fail to release channel when missing mtn subscription id in config
+ * Add incident type for org suspension
+
 v8.1.88 (2023-03-23)
 -------------------------
  * Fix suspending and unsuspending orgs so that it correctly updates children
