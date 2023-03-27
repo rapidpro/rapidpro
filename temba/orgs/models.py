@@ -615,6 +615,8 @@ class Org(SmartModel):
         """
         Suspends this org and any children.
         """
+        from temba.notifications.incidents.builtin import OrgSuspendedIncidentType
+
         assert not self.is_child
 
         if not self.is_suspended:
@@ -624,10 +626,14 @@ class Org(SmartModel):
 
             self.children.filter(is_active=True).update(is_suspended=True, modified_on=timezone.now())
 
+            OrgSuspendedIncidentType.get_or_create(self)  # create incident which will notify admins
+
     def unsuspend(self):
         """
         Unsuspends this org and any children.
         """
+        from temba.notifications.incidents.builtin import OrgSuspendedIncidentType
+
         assert not self.is_child
 
         if self.is_suspended:
@@ -636,6 +642,8 @@ class Org(SmartModel):
             self.save(update_fields=("is_suspended", "modified_on"))
 
             self.children.filter(is_active=True).update(is_suspended=False, modified_on=timezone.now())
+
+            OrgSuspendedIncidentType.get_or_create(self).end()
 
     def flag(self):
         """
