@@ -285,27 +285,6 @@ class Broadcast(models.Model):
         attachments = translation["attachments"]
         return attachments
 
-    def get_attachments_for_widget(self, translation=None):
-        attachments = self.get_attachments(translation)
-        parsed_attachments = Attachment.parse_all(attachments)
-        widget_attachments = []
-        for parsed_attachment in parsed_attachments:
-            query = Q(content_type=parsed_attachment.content_type) and Q(url=parsed_attachment.url)
-            media = Media.objects.filter(query).first()
-            widget_attachment = {
-                "uuid": str(media.uuid),
-                "content_type": media.content_type,
-                "url": media.url,
-                "filename": media.filename,
-                "size": str(media.size),
-            }
-            widget_attachments.append(widget_attachment)
-        return widget_attachments
-
-    def get_attachments_for_display(self, translation=None):
-        attachments = self.get_attachments(translation)
-        return attachments
-
     def get_translation(self, contact=None) -> dict:
         """
         Gets a translation to use to display this broadcast. If contact is provided and their language is a valid flow

@@ -15,5 +15,5 @@
     {{ object.get_text }}
   
   .value-attachments{ style:"margin-top: 5px" }
-    -for attachment in object.get_attachments_for_display
+    -for attachment in object.get_attachments
       {% attachment_button attachment %}
