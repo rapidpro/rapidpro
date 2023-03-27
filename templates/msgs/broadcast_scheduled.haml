@@ -12,7 +12,7 @@
     %table.list.lined.w-full
       %tbody
         -for object in object_list
-          -with object.get_translation as translation
+          -with translation=object.get_translation
 
           %tr.select-row.cursor-pointer{class:'{% cycle row1 row1 %}', onclick:'document.location="{% url "msgs.broadcast_scheduled_read" object.id %}"'}
 
@@ -20,7 +20,14 @@
               -include "includes/recipients.haml" with groups=object.groups.all contacts=object.contacts.all
 
             %td.value-text.field_text
+              {{ translation }}
+
+            %td.value-text.field_text
               {{ object.get_text }}
+
+            %td.value-attachments{ style:"margin-top: 5px" }
+              -for attachment in translation.attachments
+                {% attachment_button attachment %}
 
             %td.value-attachments{ style:"margin-top: 5px" }
               -for attachment in object.get_attachments
