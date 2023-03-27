@@ -416,8 +416,9 @@ class BroadcastCRUDL(SmartCRUDL):
             text = compose["text"]
             attachments = compose_serialize_attachments(compose["attachments"])
 
-            # set updated recipients (groups and contacts) and translations (text and attachments)
+            # set updated recipients (groups and contacts)
             broadcast.update_recipients(groups=omnibox["groups"], contacts=omnibox["contacts"])
+            # set updated translations (text and attachments)
             broadcast.translations = {broadcast.base_language: {"text": text, "attachments": attachments}}
 
             broadcast.save()
