@@ -10,7 +10,7 @@ def compose_deserialize_attachments(attachments):
     for parsed_attachment in parsed_attachments:
         media = Media.objects.filter(
             Q(content_type=parsed_attachment.content_type) and Q(url=parsed_attachment.url)
-        ).first()        
+        ).first()
         deserialized_attachment = {
             "uuid": str(media.uuid),
             "content_type": media.content_type,
