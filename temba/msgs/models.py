@@ -271,12 +271,6 @@ class Broadcast(models.Model):
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
 
-    def get_text(self, translation=None):
-        if not translation:
-            translation = self.get_translation()
-        text = translation["text"]
-        return text
-
     def get_translation(self, contact=None) -> dict:
         """
         Gets a translation to use to display this broadcast. If contact is provided and their language is a valid flow
@@ -351,7 +345,7 @@ class Broadcast(models.Model):
                 RelatedModel.objects.bulk_create(bulk_contacts)
 
     def __repr__(self):
-        return f'<Broadcast: id={self.id} text="{self.get_text()}">'
+        return f'<Broadcast: id={self.id} text="{self.get_translation()["text"]}">'
 
     class Meta:
         indexes = [

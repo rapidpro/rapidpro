@@ -13,18 +13,22 @@
     %table.list(style='{% if not org_perms.msgs.broadcast_send %}margin-top:10px{% endif %}')
       %tbody
         -for object in send_history
-          %tr
-            %td
-              -with recipient_count=object.get_message_count
-                -blocktrans trimmed count counter=recipient_count with count_comma=recipient_count|intcomma
-                  {{ count_comma }} recipient
-                -plural
-                  {{ count_comma }} recipients
-            %td
-              {{ object.get_text }}
-            %td
-              %nobr
-                {% short_datetime object.created_on %}
+          -with translation=object.get_translation
+            %tr
+              %td
+                -with recipient_count=object.get_message_count
+                  -blocktrans trimmed count counter=recipient_count with count_comma=recipient_count|intcomma
+                    {{ count_comma }} recipient
+                  -plural
+                    {{ count_comma }} recipients
+              %td
+                {{ object.get_text }}
+              %td.value-attachments{ style:"margin-top: 5px" }
+                -for attachment in translation.attachments
+                  {% attachment_button attachment %}
+              %td
+                %nobr
+                  {% short_datetime object.created_on %}
 
     .mx-8
       -block paginator

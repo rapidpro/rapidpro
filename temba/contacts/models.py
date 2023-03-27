@@ -737,7 +737,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
                     "type": "scheduled_broadcast",
                     "scheduled": broadcast.schedule.next_fire.isoformat(),
                     "repeat_period": broadcast.schedule.repeat_period,
-                    "message": broadcast.get_text(),
+                    "message": broadcast.get_translation()["text"],
                 }
             )
 
