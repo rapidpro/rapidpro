@@ -397,8 +397,8 @@ class BroadcastCRUDL(SmartCRUDL):
             omnibox = omnibox_results_to_dict(org, recipients)
 
             translation = self.object.get_translation()
-            text = self.object.get_text(translation)
-            attachments = compose_deserialize_attachments(self.object.get_attachments(translation))
+            text = translation["text"]
+            attachments = compose_deserialize_attachments(translation["attachments"])
             compose = {"text": text, "attachments": attachments}
 
             return {"omnibox": omnibox, "compose": compose}

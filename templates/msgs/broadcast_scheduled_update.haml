@@ -11,9 +11,11 @@
 -block summary
   -include "includes/recipients.haml" with groups=broadcast.groups.all contacts=broadcast.contacts.all
 
-  .mt-2
-    {{ object.get_text }}
-  
-  .value-attachments{ style:"margin-top: 5px" }
-    -for attachment in object.get_attachments
-      {% attachment_button attachment %}
+  -with translation=broadcast.get_translation
+
+    .mt-2
+      {{ translation.text }}
+    
+    .value-attachments{ style:"margin-top: 5px" }
+      -for attachment in translation.attachments
+        {% attachment_button attachment %}

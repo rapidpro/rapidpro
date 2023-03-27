@@ -277,12 +277,6 @@ class Broadcast(models.Model):
         text = translation["text"]
         return text
 
-    def get_attachments(self, translation=None):
-        if not translation:
-            translation = self.get_translation()
-        attachments = translation["attachments"]
-        return attachments
-
     def get_translation(self, contact=None) -> dict:
         """
         Gets a translation to use to display this broadcast. If contact is provided and their language is a valid flow
