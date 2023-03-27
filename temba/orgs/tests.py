@@ -802,15 +802,21 @@ class OrgTest(TembaTest):
         assert_org(org1_child2, is_suspended=True)
         assert_org(self.org2, is_suspended=False)
 
+        self.assertEqual(1, self.org.incidents.filter(incident_type="org:suspended", ended_on=None).count())
+
         self.org.suspend()  # noop
 
         assert_org(self.org, is_suspended=True)
+
+        self.assertEqual(1, self.org.incidents.filter(incident_type="org:suspended", ended_on=None).count())
 
         self.org.unsuspend()
 
         assert_org(self.org, is_suspended=False)
         assert_org(org1_child1, is_suspended=False)
         assert_org(self.org2, is_suspended=False)
+
+        self.assertEqual(0, self.org.incidents.filter(incident_type="org:suspended", ended_on=None).count())
 
     def test_set_flow_languages(self):
         self.org.set_flow_languages(self.admin, ["eng", "fra"])

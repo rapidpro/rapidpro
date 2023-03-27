@@ -33,6 +33,7 @@ class MtnType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 160
     show_config_page = False
+    async_activation = False
 
     def get_token(self, channel):
         base_url = channel.config.get("api_host", "https://api.mtn.com")
@@ -55,15 +56,16 @@ class MtnType(ChannelType):
         token = self.get_token(channel)
 
         base_url = channel.config.get("api_host", "https://api.mtn.com")
-        mtn_subscription_id = channel.config["mtn_subscription_id"]
+        mtn_subscription_id = channel.config.get("mtn_subscription_id")
 
-        delete_subscription_url = (
-            f"{base_url}/v2/messages/sms/outbound/{channel.address}/subscription/{mtn_subscription_id}"
-        )
-        # remove subscription
-        resp = requests.delete(delete_subscription_url, headers={"Authorization": f"Bearer {token}"})
-        if int(resp.status_code / 100) != 2:
-            raise ValidationError(_("Unable to delete subscription callbacks: %s") % resp.content)
+        if mtn_subscription_id is not None:
+            delete_subscription_url = (
+                f"{base_url}/v2/messages/sms/outbound/{channel.address}/subscription/{mtn_subscription_id}"
+            )
+            # remove subscription
+            resp = requests.delete(delete_subscription_url, headers={"Authorization": f"Bearer {token}"})
+            if int(resp.status_code / 100) != 2:
+                raise ValidationError(_("Unable to delete subscription callbacks: %s") % resp.content)
 
     def activate(self, channel):
         token = self.get_token(channel)
