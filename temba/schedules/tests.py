@@ -223,7 +223,7 @@ class ScheduleTest(TembaTest):
         update_bcast_url = reverse("msgs.broadcast_scheduled_update", args=[bcast.id])
 
         self.login(self.editor)
-        
+
         # todo broadcast attachments updates
         self.client.post(
             update_bcast_url,

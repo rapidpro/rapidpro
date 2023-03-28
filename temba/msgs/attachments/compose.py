@@ -1,5 +1,7 @@
 import json
+
 from temba.msgs.models import Attachment, Media, Q
+
 
 def compose_serialize(translation=None, text="", attachments=[], json_encode=False):
     """
@@ -10,18 +12,16 @@ def compose_serialize(translation=None, text="", attachments=[], json_encode=Fal
         attachments = compose_serialize_attachments(translation["attachments"])
     else:
         attachments = compose_serialize_attachments(attachments)
-    
-    serialized = {
-        "text": text,
-        "attachments": attachments
-    }
+
+    serialized = {"text": text, "attachments": attachments}
 
     if json_encode:
         return json.dumps(serialized)
 
     return serialized
 
-def compose_serialize_attachments(attachments):    
+
+def compose_serialize_attachments(attachments):
     if not attachments or len(attachments) == 0:
         return []
     parsed_attachments = Attachment.parse_all(attachments)
@@ -40,6 +40,7 @@ def compose_serialize_attachments(attachments):
         serialized_attachments.append(serialized_attachment)
     return serialized_attachments
 
+
 def compose_deserialize(compose):
     """
     Deserializes attachments from widget to db for saving final values
@@ -48,7 +49,8 @@ def compose_deserialize(compose):
     attachments = compose_deserialize_attachments(compose["attachments"])
     return text, attachments
 
-def compose_deserialize_attachments(attachments):    
+
+def compose_deserialize_attachments(attachments):
     if not attachments or len(attachments) == 0:
         return []
     deserialized_attachments = [f"{a['content_type']}:{a['url']}" for a in attachments]

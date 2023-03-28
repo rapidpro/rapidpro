@@ -202,7 +202,7 @@ class BroadcastForm(forms.ModelForm):
                 self.errors["__all__"] = self.error_class([_("Text or attachments are required.")])
                 return False
             compose = json.loads(self.data["compose"])
-            text, attachments = compose_deserialize(compose)            
+            text, attachments = compose_deserialize(compose)
             if not (text or attachments):
                 self.errors["__all__"] = self.error_class([_("Text or attachments are required.")])
                 return False
