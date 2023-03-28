@@ -22,7 +22,7 @@
                   -plural
                     {{ count_comma }} recipients
               %td
-                {{ object.get_text }}
+                {{ translation.text }}
               %td.value-attachments{ style:"margin-top: 5px" }
                 -for attachment in translation.attachments
                   {% attachment_button attachment %}

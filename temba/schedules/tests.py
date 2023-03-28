@@ -208,6 +208,7 @@ class ScheduleTest(TembaTest):
 
             self.assertEqual(tc["display"], sched.get_display(), f"display mismatch for {label}")
 
+    # todo broadcast attachments updates
     def test_schedule_ui(self):
         # you can no longer create blank schedules from the UI but they're still out there
         schedule = Schedule.create_schedule(self.org, self.admin, None, Schedule.REPEAT_NEVER)
@@ -222,6 +223,8 @@ class ScheduleTest(TembaTest):
         update_bcast_url = reverse("msgs.broadcast_scheduled_update", args=[bcast.id])
 
         self.login(self.editor)
+        
+        # todo broadcast attachments updates
         self.client.post(
             update_bcast_url,
             {
@@ -269,6 +272,8 @@ class ScheduleTest(TembaTest):
         tz = self.org.timezone
 
         self.login(self.admin)
+
+        # todo broadcast attachments updates
         self.client.post(
             reverse("msgs.broadcast_scheduled_create"),
             {

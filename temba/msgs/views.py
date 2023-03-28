@@ -27,7 +27,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.archives.models import Archive
 from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
 from temba.formax import FormaxMixin
-from temba.msgs.attachments.compose import compose_deserialize_attachments, compose_serialize_attachments
+from temba.msgs.attachments.compose import compose_deserialize, compose_serialize
 from temba.orgs.models import Org
 from temba.orgs.views import (
     DependencyDeleteModal,
@@ -202,8 +202,7 @@ class BroadcastForm(forms.ModelForm):
                 self.errors["__all__"] = self.error_class([_("Text or attachments are required.")])
                 return False
             compose = json.loads(self.data["compose"])
-            text = compose["text"]
-            attachments = compose_serialize_attachments(compose["attachments"])
+            text, attachments = compose_deserialize(compose)            
             if not (text or attachments):
                 self.errors["__all__"] = self.error_class([_("Text or attachments are required.")])
                 return False
@@ -325,8 +324,7 @@ class BroadcastCRUDL(SmartCRUDL):
             recipients = form.cleaned_data["omnibox"]
 
             compose = form.cleaned_data["compose"]
-            text = compose["text"]
-            attachments = compose_serialize_attachments(compose["attachments"])
+            text, attachments = compose_deserialize(compose)
 
             start_time = form.cleaned_data["start_datetime"]
             repeat_period = form.cleaned_data["repeat_period"]
@@ -395,11 +393,8 @@ class BroadcastCRUDL(SmartCRUDL):
 
             recipients = [*self.object.groups.all(), *self.object.contacts.all()]
             omnibox = omnibox_results_to_dict(org, recipients)
-
             translation = self.object.get_translation()
-            text = translation["text"]
-            attachments = compose_deserialize_attachments(translation["attachments"])
-            compose = {"text": text, "attachments": attachments}
+            compose = compose_serialize(translation)
 
             return {"omnibox": omnibox, "compose": compose}
 
@@ -413,8 +408,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             # get updated translations (text and attachments)
             compose = form.cleaned_data["compose"]
-            text = compose["text"]
-            attachments = compose_serialize_attachments(compose["attachments"])
+            text, attachments = compose_deserialize(compose)
 
             # set updated recipients (groups and contacts)
             broadcast.update_recipients(groups=omnibox["groups"], contacts=omnibox["contacts"])
