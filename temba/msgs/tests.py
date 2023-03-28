@@ -1983,7 +1983,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[])
         self.assertContentMenu(list_url, self.user, [])
-        self.assertContentMenu(list_url, self.admin, ["Schedule Message"])
+        self.assertContentMenu(list_url, self.admin, ["New Broadcast"])
 
         bc1 = self.create_broadcast(
             self.admin,
@@ -2024,7 +2024,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["start_datetime", "repeat_period", "repeat_days_of_week", "omnibox", "text"],
+            form_fields=["start_datetime", "repeat_period", "repeat_days_of_week", "omnibox", "compose"],
         )
 
         # try to submit with no values
@@ -2104,7 +2104,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         url = reverse("msgs.broadcast_scheduled_update", args=[broadcast.pk])
 
         response = self.client.get(url)
-        self.assertEqual(list(response.context["form"].fields.keys()), ["message", "omnibox", "loc"])
+        self.assertEqual(list(response.context["form"].fields.keys()), ["omnibox", "compose", "loc"])
 
         omnibox = omnibox_serialize(self.org, [], [self.frank], json_encode=True)
         response = self.client.post(url, dict(message="Dinner reminder", omnibox=omnibox))
