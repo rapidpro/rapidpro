@@ -1,16 +1,12 @@
-from collections import namedtuple
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
-from requests import HTTPError
+from requests import HTTPError, Request
 from requests.structures import CaseInsensitiveDict
+from urllib3.response import HTTPResponse
 
 from django.utils.encoding import force_bytes, force_str
 
 from temba.utils import json
-
-
-def mock_object(type_name, **attrs):
-    return namedtuple(type_name, attrs.keys())(*attrs.values())
 
 
 class MockResponse:
@@ -38,11 +34,11 @@ class MockResponse:
         self.streaming = False
         self.charset = "utf-8"
         self.connection = dict()
-        self.raw = mock_object("MockRaw", version="1.1", status=status_code, headers=headers)
+        self.raw = Mock(HTTPResponse, version="1.1", status=status_code, headers=headers)
         self.reason = ""
 
         # mock up a request object on our response as well
-        self.request = mock_object("MockRequest", method=method, url=url, body="request body", headers=headers)
+        self.request = Mock(Request, method=method, url=url, body="request body", headers=headers)
 
     def add_header(self, key, value):
         self.headers[key] = value
