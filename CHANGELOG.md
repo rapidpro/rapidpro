@@ -1,3 +1,7 @@
+v8.1.93 (2023-03-29)
+-------------------------
+ * Update Excel reading dependencies
+
 v8.1.92 (2023-03-29)
 -------------------------
  * Use unittests.mock.Mock in tests instead of custom mock_object
