@@ -1,13 +1,14 @@
 from datetime import timedelta
+from unittest.mock import Mock
 
-from requests import RequestException
+from requests import Request, RequestException
 
 from django.urls import reverse
 from django.utils import timezone
 
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
-from temba.tests import CRUDLTestMixin, TembaTest, mock_object
+from temba.tests import CRUDLTestMixin, TembaTest
 from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.utils.views import TEMBA_MENU_SELECTION
@@ -205,8 +206,8 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         channel = self.create_channel("WAC", "WhatsApp: 1234", "1234")
         exception = RequestException(
             "Network is unreachable",
-            request=mock_object(
-                "MockRequest",
+            request=Mock(
+                Request,
                 method="GET",
                 url="https://graph.facebook.com/v14.0/1234/message_templates?access_token=MISSING_WHATSAPP_ADMIN_SYSTEM_USER_TOKEN",
                 body=b"{}",
