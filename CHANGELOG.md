@@ -1,3 +1,7 @@
+v8.1.94 (2023-03-29)
+-------------------------
+ * Bump version of openpyxl
+
 v8.1.93 (2023-03-29)
 -------------------------
  * Update Excel reading dependencies
