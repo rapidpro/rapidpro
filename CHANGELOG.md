@@ -1,3 +1,7 @@
+v8.1.91 (2023-03-28)
+-------------------------
+ * Upgrade redis library version
+
 v8.1.90 (2023-03-27)
 -------------------------
  * NOOP instead of assert if archiving msg which is already archived etc
