@@ -52,7 +52,7 @@ psycopg2-binary = "^2.9.1"
 packaging = "^22.0"
 requests-toolbelt = "^0.9.1"
 chardet = "^4.0.0"
-openpyxl = "^3.0.9"
+openpyxl = "^3.1.2"
 ffmpeg-python = "^0.2.0"
 slack-sdk = "3.17.0"
 
