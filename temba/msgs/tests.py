@@ -1838,6 +1838,7 @@ class BroadcastTest(TembaTest):
         spa_text = "Hola a todos"
         fra_text = "Salut à tous"
 
+        # create 3 attachments
         media_attachments = []
         for _ in range(3):
             media = Media.from_upload(
@@ -1847,10 +1848,10 @@ class BroadcastTest(TembaTest):
                 process=False,
             )
             media_attachments.append({"content_type": media.content_type, "url": media.url})
-        compose_attachments = compose_deserialize_attachments(media_attachments)
-        eng_attachments = [compose_attachments[0]]
-        spa_attachments = [compose_attachments[1]]
-        fra_attachments = [compose_attachments[2]]
+        attachments = compose_deserialize_attachments(media_attachments)
+        eng_attachments = [attachments[0]]
+        spa_attachments = [attachments[1]]
+        fra_attachments = [attachments[2]]
 
         broadcast = Broadcast.create(
             self.org,
@@ -2057,10 +2058,12 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             form_fields=["start_datetime", "repeat_period", "repeat_days_of_week", "omnibox", "compose"],
         )
 
-        # try to submit with no values
+        # try to create with no values
         self.assertCreateSubmit(
             create_url,
-            {},
+            {
+                "compose": compose_serialize(json_encode=True),
+            },
             form_errors={
                 "omnibox": "At least one recipient is required.",
                 "compose": "Text or attachments are required.",
@@ -2069,25 +2072,87 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
 
+        # create with only text
+        text = "Daily reminder"
+        attachments = []
         response = self.assertCreateSubmit(
             create_url,
             {
                 "omnibox": omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True),
-                "compose": compose_serialize(text="Daily reminder", attachments=[], json_encode=True),
+                "compose": compose_serialize(text=text, attachments=attachments, json_encode=True),
                 "start_datetime": "2021-06-24 12:00",
                 "repeat_period": "W",
                 "repeat_days_of_week": ["M", "F"],
             },
             new_obj_query=Broadcast.objects.filter(
-                translations={"und": {"text": "Daily reminder", "attachments": []}},
+                translations={"und": {"text": "Daily reminder", "attachments": attachments}},
                 schedule__repeat_period="W",
                 schedule__repeat_days_of_week="MF",
             ),
             success_status=200,
         )
+        self.assertEqual("/broadcast/scheduled/", response["Temba-Success"])
 
-        bcast = Broadcast.objects.get()
-        self.assertEqual(f"/broadcast/scheduled_read/{bcast.id}/", response["Temba-Success"])
+        # create an attachment
+        media_attachments = []
+        media1 = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
+            process=False,
+        )
+        media_attachments.append({"content_type": media1.content_type, "url": media1.url})
+
+        # create with only 1 attachment
+        text = ""
+        attachments = compose_deserialize_attachments(media_attachments)
+        response = self.assertCreateSubmit(
+            create_url,
+            {
+                "omnibox": omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True),
+                "compose": compose_serialize(text=text, attachments=attachments, json_encode=True),
+                "start_datetime": "2021-06-24 12:00",
+                "repeat_period": "W",
+                "repeat_days_of_week": ["M", "F"],
+            },
+            new_obj_query=Broadcast.objects.filter(
+                translations={"und": {"text": text, "attachments": attachments}},
+                schedule__repeat_period="W",
+                schedule__repeat_days_of_week="MF",
+            ),
+            success_status=200,
+        )
+        self.assertEqual("/broadcast/scheduled/", response["Temba-Success"])
+
+        # create another attachment
+        media2 = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
+            process=False,
+        )
+        media_attachments.append({"content_type": media2.content_type, "url": media2.url})
+
+        # create with text and 2 attachments
+        text = "Daily reminder"
+        attachments = compose_deserialize_attachments(media_attachments)
+        response = self.assertCreateSubmit(
+            create_url,
+            {
+                "omnibox": omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True),
+                "compose": compose_serialize(text=text, attachments=attachments, json_encode=True),
+                "start_datetime": "2021-06-24 12:00",
+                "repeat_period": "W",
+                "repeat_days_of_week": ["M", "F"],
+            },
+            new_obj_query=Broadcast.objects.filter(
+                translations={"und": {"text": text, "attachments": attachments}},
+                schedule__repeat_period="W",
+                schedule__repeat_days_of_week="MF",
+            ),
+            success_status=200,
+        )
+        self.assertEqual("/broadcast/scheduled/", response["Temba-Success"])
 
     def test_scheduled_read(self):
         schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), "D", repeat_days_of_week="MWF")
@@ -2102,7 +2167,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.editor)
 
-        # view with empty Send History
+        # view with empty send history
         response = self.client.get(read_url)
         self.assertEqual(broadcast, response.context["object"])
         self.assertEqual([], list(response.context["send_history"]))
@@ -2141,50 +2206,69 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         # create a broadcast via send
         self.login(self.editor)
         omnibox = omnibox_serialize(self.org, [], [self.joe], json_encode=True)
-        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
+        text = "Lunch reminder"
+        attachments = []
+        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text=text, schedule=True))
         broadcast = Broadcast.objects.get()
         url = reverse("msgs.broadcast_scheduled_update", args=[broadcast.pk])
         response = self.client.get(url)
         self.assertEqual(list(response.context["form"].fields.keys()), ["omnibox", "compose", "loc"])
 
-        # update the broadcast's contact and text
+        # update the broadcast's contact
         omnibox = omnibox_serialize(self.org, [], [self.frank], json_encode=True)
-        compose = compose_serialize(text="Dinner reminder", json_encode=True)
+        compose = compose_serialize(text=text, attachments=attachments, json_encode=True)
         response = self.client.post(url, dict(omnibox=omnibox, compose=compose))
         self.assertEqual(response.status_code, 302)
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.translations, {"und": {"text": "Dinner reminder", "attachments": []}})
+        self.assertEqual(broadcast.translations, {"und": {"text": text, "attachments": attachments}})
         self.assertEqual(broadcast.base_language, "und")
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
 
-        # update the broadcast's text and attachments
-        omnibox = omnibox_serialize(self.org, [], [self.frank], json_encode=True)
+        # update the broadcast's text
+        text = "Dinner reminder"
+        compose = compose_serialize(text=text, attachments=attachments, json_encode=True)
+        response = self.client.post(url, dict(omnibox=omnibox, compose=compose))
+        self.assertEqual(response.status_code, 302)
+        broadcast = Broadcast.objects.get()
+        self.assertEqual(broadcast.translations, {"und": {"text": text, "attachments": attachments}})
+        self.assertEqual(broadcast.base_language, "und")
+        self.assertEqual(set(broadcast.contacts.all()), {self.frank})
+
+        # create an attachment and update the broadcast's attachments
         media_attachments = []
-        media = Media.from_upload(
+        media1 = Media.from_upload(
             self.org,
             self.admin,
             self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
             process=False,
         )
-        media_attachments.append({"content_type": media.content_type, "url": media.url})
-        compose_attachments = compose_deserialize_attachments(media_attachments)
-        compose = compose_serialize(text="", attachments=compose_attachments, json_encode=True)
+        media_attachments.append({"content_type": media1.content_type, "url": media1.url})
+
+        attachments = compose_deserialize_attachments(media_attachments)
+        compose = compose_serialize(text=text, attachments=attachments, json_encode=True)
         response = self.client.post(url, dict(omnibox=omnibox, compose=compose))
         self.assertEqual(response.status_code, 302)
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.translations, {"und": {"text": "", "attachments": compose_attachments}})
+        self.assertEqual(broadcast.translations, {"und": {"text": text, "attachments": attachments}})
         self.assertEqual(broadcast.base_language, "und")
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
 
-        # update the broadcast's text and attachments
-        omnibox = omnibox_serialize(self.org, [], [self.frank], json_encode=True)
-        compose = compose_serialize(text="Dinner reminder", attachments=compose_attachments, json_encode=True)
+        # create another attachment and update the broadcast's text and attachments
+        media2 = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
+            process=False,
+        )
+        media_attachments.append({"content_type": media2.content_type, "url": media2.url})
+
+        text = "Midnight snack reminder"
+        attachments = compose_deserialize_attachments(media_attachments)
+        compose = compose_serialize(text=text, attachments=attachments, json_encode=True)
         response = self.client.post(url, dict(omnibox=omnibox, compose=compose))
         self.assertEqual(response.status_code, 302)
         broadcast = Broadcast.objects.get()
-        self.assertEqual(
-            broadcast.translations, {"und": {"text": "Dinner reminder", "attachments": compose_attachments}}
-        )
+        self.assertEqual(broadcast.translations, {"und": {"text": text, "attachments": attachments}})
         self.assertEqual(broadcast.base_language, "und")
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
 
@@ -2213,9 +2297,56 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertFalse(broadcast.is_active)
 
+    def text_scheduled_create_text_max_length(self):
+        create_url = reverse("msgs.broadcast_scheduled_create")
+
+        text = "".join(
+            random.choices(string.ascii_letters + string.digits + string.punctuation, k=Msg.MAX_TEXT_LEN + 1)
+        )
+        attachments = []
+        self.assertCreateSubmit(
+            create_url,
+            {
+                "omnibox": omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True),
+                "compose": compose_serialize(text=text, attachments=attachments, json_encode=True),
+                "start_datetime": "2021-06-24 12:00",
+                "repeat_period": "W",
+                "repeat_days_of_week": ["M", "F"],
+            },
+            form_errors={"compose": f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters."},
+        )
+
+    def text_scheduled_create_attachments_max_files(self):
+        create_url = reverse("msgs.broadcast_scheduled_create")
+
+        media_attachments = []
+        for _ in range(Msg.MAX_ATTACHMENTS + 1):
+            media = Media.from_upload(
+                self.org,
+                self.admin,
+                self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
+                process=False,
+            )
+            media_attachments.append({"content_type": media.content_type, "url": media.url})
+
+        text = ""
+        attachments = compose_deserialize_attachments(media_attachments)
+        self.assertCreateSubmit(
+            create_url,
+            {
+                "omnibox": omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True),
+                "compose": compose_serialize(text=text, attachments=attachments, json_encode=True),
+                "start_datetime": "2021-06-24 12:00",
+                "repeat_period": "W",
+                "repeat_days_of_week": ["M", "F"],
+            },
+            form_errors={"compose": f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files."},
+        )
+
     def test_scheduled_update_missing_contacts(self):
         self.login(self.editor)
 
+        # create a broadcast via send
         omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], json_encode=True)
         self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
@@ -2232,11 +2363,11 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_scheduled_update_missing_media(self):
         self.login(self.editor)
 
+        # create a broadcast via send
         omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], json_encode=True)
         self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
 
-        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], json_encode=True)
         # update the broadcast with no text or attachments
         compose = compose_serialize(json_encode=True)
         response = self.client.post(
@@ -2248,13 +2379,12 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_scheduled_update_text_max_length(self):
         self.login(self.editor)
 
+        # create a broadcast via send
         omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], json_encode=True)
         self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
 
-        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], json_encode=True)
-
-        # update the broadcast with a text containing too many chars
+        # update the broadcast's text
         text_max_length = "".join(
             random.choices(string.ascii_letters + string.digits + string.punctuation, k=Msg.MAX_TEXT_LEN + 1)
         )
@@ -2266,16 +2396,15 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertFormError(response, "form", None, f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters.")
 
-    def test_scheduled_update_attachments_max_items(self):
+    def test_scheduled_update_attachments_max_files(self):
         self.login(self.editor)
 
+        # create a broadcast via send
         omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], json_encode=True)
         self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
 
-        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], json_encode=True)
-
-        # update the broadcast with attachments containing too many files
+        # update the broadcast's attachments
         media_attachments = []
         for _ in range(Msg.MAX_ATTACHMENTS + 1):
             media = Media.from_upload(
@@ -2285,8 +2414,9 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
                 process=False,
             )
             media_attachments.append({"content_type": media.content_type, "url": media.url})
-        compose_attachments = compose_deserialize_attachments(media_attachments)
-        compose = compose_serialize(attachments=compose_attachments, json_encode=True)
+
+        attachments = compose_deserialize_attachments(media_attachments)
+        compose = compose_serialize(attachments=attachments, json_encode=True)
 
         response = self.client.post(
             reverse("msgs.broadcast_scheduled_update", args=[broadcast.pk]),

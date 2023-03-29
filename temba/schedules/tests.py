@@ -227,7 +227,7 @@ class ScheduleTest(TembaTest):
 
         omnibox = omnibox_serialize(self.org, [], [self.joe], json_encode=True)
 
-        compose_text = "An updated broadcast"
+        # create a broadcast attachment
         media_attachments = []
         media = Media.from_upload(
             self.org,
@@ -236,8 +236,10 @@ class ScheduleTest(TembaTest):
             process=False,
         )
         media_attachments.append({"content_type": media.content_type, "url": media.url})
-        compose_attachments = compose_deserialize_attachments(media_attachments)
-        compose = compose_serialize(text=compose_text, attachments=compose_attachments, json_encode=True)
+
+        text = "An updated broadcast"
+        attachments = compose_deserialize_attachments(media_attachments)
+        compose = compose_serialize(text=text, attachments=attachments, json_encode=True)
 
         self.client.post(
             update_bcast_url,
@@ -248,7 +250,7 @@ class ScheduleTest(TembaTest):
         )
 
         bcast.refresh_from_db()
-        self.assertEqual({"und": {"text": compose_text, "attachments": compose_attachments}}, bcast.translations)
+        self.assertEqual({"und": {"text": text, "attachments": attachments}}, bcast.translations)
         self.assertEqual(self.editor, bcast.modified_by)
 
         start = datetime(2045, 9, 19, hour=10, minute=15, second=0, microsecond=0)
@@ -287,8 +289,7 @@ class ScheduleTest(TembaTest):
 
         self.login(self.admin)
 
-        omnibox_serialize(self.org, [], [self.joe], json_encode=True)
-        compose_text = "A broadcast to Joe"
+        text = "A broadcast to Joe"
         media_attachments = []
         media = Media.from_upload(
             self.org,
@@ -297,15 +298,14 @@ class ScheduleTest(TembaTest):
             process=False,
         )
         media_attachments.append({"content_type": media.content_type, "url": media.url})
-        compose_attachments = compose_deserialize_attachments(media_attachments)
-        compose = compose_serialize(text=compose_text, attachments=compose_attachments, json_encode=True)
+        attachments = compose_deserialize_attachments(media_attachments)
 
         # create a new broadcast
         self.client.post(
             reverse("msgs.broadcast_scheduled_create"),
             {
                 "omnibox": omnibox_serialize(self.org, [], [self.joe], json_encode=True),
-                "compose": compose,
+                "compose": compose_serialize(text=text, attachments=attachments, json_encode=True),
                 "start_datetime": "2021-06-24 12:00",
                 "repeat_period": "D",
             },
