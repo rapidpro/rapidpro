@@ -5,8 +5,10 @@ import pytz
 from django.urls import reverse
 from django.utils import timezone
 
+from temba import settings
 from temba.contacts.search.omnibox import omnibox_serialize
-from temba.msgs.models import Broadcast
+from temba.msgs.attachments.compose import compose_deserialize_attachments, compose_serialize
+from temba.msgs.models import Broadcast, Media
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
 from temba.utils.dates import datetime_to_str
 
@@ -208,7 +210,6 @@ class ScheduleTest(TembaTest):
 
             self.assertEqual(tc["display"], sched.get_display(), f"display mismatch for {label}")
 
-    # todo broadcast attachments updates
     def test_schedule_ui(self):
         # you can no longer create blank schedules from the UI but they're still out there
         schedule = Schedule.create_schedule(self.org, self.admin, None, Schedule.REPEAT_NEVER)
@@ -219,22 +220,35 @@ class ScheduleTest(TembaTest):
             schedule=schedule,
         )
 
-        # update our message
+        # update the broadcast's contacts, text, and attachments
         update_bcast_url = reverse("msgs.broadcast_scheduled_update", args=[bcast.id])
 
         self.login(self.editor)
 
-        # todo broadcast attachments updates
+        omnibox = omnibox_serialize(self.org, [], [self.joe], json_encode=True)
+
+        compose_text = "An updated broadcast"
+        media_attachments = []
+        media = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
+            process=False,
+        )
+        media_attachments.append({"content_type": media.content_type, "url": media.url})
+        compose_attachments = compose_deserialize_attachments(media_attachments)
+        compose = compose_serialize(text=compose_text, attachments=compose_attachments, json_encode=True)
+
         self.client.post(
             update_bcast_url,
             {
-                "message": "An updated broadcast",
-                "omnibox": omnibox_serialize(self.org, [], [self.joe], json_encode=True),
+                "omnibox": omnibox,
+                "compose": compose,
             },
         )
 
         bcast.refresh_from_db()
-        self.assertEqual({"und": {"text": "An updated broadcast"}}, bcast.translations)
+        self.assertEqual({"und": {"text": compose_text, "attachments": compose_attachments}}, bcast.translations)
         self.assertEqual(self.editor, bcast.modified_by)
 
         start = datetime(2045, 9, 19, hour=10, minute=15, second=0, microsecond=0)
@@ -273,12 +287,25 @@ class ScheduleTest(TembaTest):
 
         self.login(self.admin)
 
-        # todo broadcast attachments updates
+        omnibox_serialize(self.org, [], [self.joe], json_encode=True)
+        compose_text = "A broadcast to Joe"
+        media_attachments = []
+        media = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
+            process=False,
+        )
+        media_attachments.append({"content_type": media.content_type, "url": media.url})
+        compose_attachments = compose_deserialize_attachments(media_attachments)
+        compose = compose_serialize(text=compose_text, attachments=compose_attachments, json_encode=True)
+
+        # create a new broadcast
         self.client.post(
             reverse("msgs.broadcast_scheduled_create"),
             {
                 "omnibox": omnibox_serialize(self.org, [], [self.joe], json_encode=True),
-                "text": "A broadcast to Joe",
+                "compose": compose,
                 "start_datetime": "2021-06-24 12:00",
                 "repeat_period": "D",
             },
