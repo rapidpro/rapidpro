@@ -1,3 +1,7 @@
+v8.1.92 (2023-03-29)
+-------------------------
+ * Use unittests.mock.Mock in tests instead of custom mock_object
+
 v8.1.91 (2023-03-28)
 -------------------------
  * Upgrade redis library version
