@@ -396,7 +396,7 @@ class BroadcastCRUDL(SmartCRUDL):
             compose = compose_serialize(translation)
 
             return {"omnibox": omnibox, "compose": compose}
-        
+
         def save(self, *args, **kwargs):
             form = self.form
             broadcast = self.object
