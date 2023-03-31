@@ -176,8 +176,8 @@ class BroadcastCRUDL(SmartCRUDL):
     model = Broadcast
 
     class Scheduled(MsgListView):
-        refresh = 30000
         title = _("Broadcasts")
+        refresh = 30000
         fields = ("contacts", "msgs", "sent", "status")
         search_fields = ("translations__und__icontains", "contacts__urns__path__icontains")
         system_label = SystemLabel.TYPE_SCHEDULED
@@ -606,7 +606,7 @@ class MsgCRUDL(SmartCRUDL):
                         icon="icon.inbox",
                     ),
                     self.create_menu_item(
-                        menu_id="flow",
+                        menu_id="flows",
                         name=_("Flows"),
                         href=reverse("msgs.msg_flow"),
                         count=counts[SystemLabel.TYPE_FLOWS],
@@ -621,23 +621,26 @@ class MsgCRUDL(SmartCRUDL):
                     ),
                     self.create_divider(),
                     self.create_menu_item(
+                        menu_id="outbox",
                         name=_("Outbox"),
                         href=reverse("msgs.msg_outbox"),
                         count=counts[SystemLabel.TYPE_OUTBOX],
                     ),
                     self.create_menu_item(
+                        menu_id="sent",
                         name=_("Sent"),
                         href=reverse("msgs.msg_sent"),
                         count=counts[SystemLabel.TYPE_SENT],
                     ),
                     self.create_menu_item(
+                        menu_id="failed",
                         name=_("Failed"),
                         href=reverse("msgs.msg_failed"),
                         count=counts[SystemLabel.TYPE_FAILED],
                     ),
                     self.create_divider(),
                     self.create_menu_item(
-                        menu_id="broadcast",
+                        menu_id="broadcasts",
                         name=_("Broadcasts"),
                         href=reverse("msgs.broadcast_scheduled"),
                         count=counts[SystemLabel.TYPE_SCHEDULED],
