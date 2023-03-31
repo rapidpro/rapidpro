@@ -2154,16 +2154,16 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertEqual("/broadcast/scheduled/", response["Temba-Success"])
 
-    def text_scheduled_create_text_max_length(self):        
+    def text_scheduled_create_text_max_length(self):
         create_url = reverse("msgs.broadcast_scheduled_create")
-        omnibox=omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True)
-        
+        omnibox = omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True)
+
         text = "".join(
             random.choices(string.ascii_letters + string.digits + string.punctuation, k=Msg.MAX_TEXT_LEN + 1)
         )
         attachments = []
         compose = compose_serialize(text=text, attachments=attachments, json_encode=True)
-        
+
         self.assertCreateSubmit(
             create_url,
             {
@@ -2184,7 +2184,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
     def text_scheduled_create_attachments_max_files(self):
         create_url = reverse("msgs.broadcast_scheduled_create")
         omnibox = omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True)
-        
+
         media_attachments = []
         for _ in range(Msg.MAX_ATTACHMENTS + 1):
             media = Media.from_upload(
@@ -2213,7 +2213,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         #     create_url, dict(omnibox=omnibox, compose=compose, schedule=True)
         # )
         # self.assertEqual(response.status_code, 302)
-        # self.assertFormError(response, "form", "compose", f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files.") 
+        # self.assertFormError(response, "form", "compose", f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files.")
 
     def test_scheduled_read(self):
         schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), "D", repeat_days_of_week="MWF")
