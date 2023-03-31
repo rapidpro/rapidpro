@@ -2154,6 +2154,52 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertEqual("/broadcast/scheduled/", response["Temba-Success"])
 
+    def text_scheduled_create_text_max_length(self):
+        create_url = reverse("msgs.broadcast_scheduled_create")
+
+        text = "".join(
+            random.choices(string.ascii_letters + string.digits + string.punctuation, k=Msg.MAX_TEXT_LEN + 1)
+        )
+        attachments = []
+        self.assertCreateSubmit(
+            create_url,
+            {
+                "omnibox": omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True),
+                "compose": compose_serialize(text=text, attachments=attachments, json_encode=True),
+                "start_datetime": "2021-06-24 12:00",
+                "repeat_period": "W",
+                "repeat_days_of_week": ["M", "F"],
+            },
+            form_errors={"compose": f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters."},
+        )
+
+    def text_scheduled_create_attachments_max_files(self):
+        create_url = reverse("msgs.broadcast_scheduled_create")
+
+        media_attachments = []
+        for _ in range(Msg.MAX_ATTACHMENTS + 1):
+            media = Media.from_upload(
+                self.org,
+                self.admin,
+                self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
+                process=False,
+            )
+            media_attachments.append({"content_type": media.content_type, "url": media.url})
+
+        text = ""
+        attachments = compose_deserialize_attachments(media_attachments)
+        self.assertCreateSubmit(
+            create_url,
+            {
+                "omnibox": omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True),
+                "compose": compose_serialize(text=text, attachments=attachments, json_encode=True),
+                "start_datetime": "2021-06-24 12:00",
+                "repeat_period": "W",
+                "repeat_days_of_week": ["M", "F"],
+            },
+            form_errors={"compose": f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files."},
+        )
+
     def test_scheduled_read(self):
         schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), "D", repeat_days_of_week="MWF")
         broadcast = self.create_broadcast(
@@ -2272,77 +2318,6 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(broadcast.base_language, "und")
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
 
-    def test_scheduled_delete(self):
-        self.login(self.editor)
-        schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), "D", repeat_days_of_week="MWF")
-        broadcast = self.create_broadcast(
-            self.admin,
-            "Daily reminder",
-            groups=[self.joe_and_frank],
-            schedule=schedule,
-        )
-
-        delete_url = reverse("msgs.broadcast_scheduled_delete", args=[broadcast.id])
-
-        # fetch the delete modal
-        response = self.assertDeleteFetch(delete_url, allow_editors=True, as_modal=True)
-        self.assertContains(response, "You are about to delete")
-
-        # submit the delete modal
-        response = self.assertDeleteSubmit(delete_url, object_deactivated=broadcast, success_status=200)
-        self.assertEqual("/broadcast/scheduled/", response["Temba-Success"])
-
-        broadcast = Broadcast.objects.get(id=broadcast.id)
-        schedule = Schedule.objects.get(id=schedule.id)
-
-        self.assertFalse(broadcast.is_active)
-
-    def text_scheduled_create_text_max_length(self):
-        create_url = reverse("msgs.broadcast_scheduled_create")
-
-        text = "".join(
-            random.choices(string.ascii_letters + string.digits + string.punctuation, k=Msg.MAX_TEXT_LEN + 1)
-        )
-        attachments = []
-        self.assertCreateSubmit(
-            create_url,
-            {
-                "omnibox": omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True),
-                "compose": compose_serialize(text=text, attachments=attachments, json_encode=True),
-                "start_datetime": "2021-06-24 12:00",
-                "repeat_period": "W",
-                "repeat_days_of_week": ["M", "F"],
-            },
-            form_errors={"compose": f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters."},
-        )
-
-    def text_scheduled_create_attachments_max_files(self):
-        create_url = reverse("msgs.broadcast_scheduled_create")
-
-        media_attachments = []
-        for _ in range(Msg.MAX_ATTACHMENTS + 1):
-            media = Media.from_upload(
-                self.org,
-                self.admin,
-                self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
-                process=False,
-            )
-            media_attachments.append({"content_type": media.content_type, "url": media.url})
-
-        text = ""
-        attachments = compose_deserialize_attachments(media_attachments)
-        self.assertCreateSubmit(
-            create_url,
-            {
-                "omnibox": omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True),
-                "compose": compose_serialize(text=text, attachments=attachments, json_encode=True),
-                "start_datetime": "2021-06-24 12:00",
-                "repeat_period": "W",
-                "repeat_days_of_week": ["M", "F"],
-            },
-            form_errors={"compose": f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files."},
-        )
-
     def test_scheduled_update_missing_contacts(self):
         self.login(self.editor)
 
@@ -2423,6 +2398,31 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             dict(omnibox=omnibox, compose=compose, schedule=True),
         )
         self.assertFormError(response, "form", None, f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files.")
+
+    def test_scheduled_delete(self):
+        self.login(self.editor)
+        schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), "D", repeat_days_of_week="MWF")
+        broadcast = self.create_broadcast(
+            self.admin,
+            "Daily reminder",
+            groups=[self.joe_and_frank],
+            schedule=schedule,
+        )
+
+        delete_url = reverse("msgs.broadcast_scheduled_delete", args=[broadcast.id])
+
+        # fetch the delete modal
+        response = self.assertDeleteFetch(delete_url, allow_editors=True, as_modal=True)
+        self.assertContains(response, "You are about to delete")
+
+        # submit the delete modal
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=broadcast, success_status=200)
+        self.assertEqual("/broadcast/scheduled/", response["Temba-Success"])
+
+        broadcast = Broadcast.objects.get(id=broadcast.id)
+        schedule = Schedule.objects.get(id=schedule.id)
+
+        self.assertFalse(broadcast.is_active)
 
 
 class LabelTest(TembaTest):

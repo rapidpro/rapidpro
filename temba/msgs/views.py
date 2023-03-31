@@ -171,58 +171,6 @@ class MsgListView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Sm
             menu.add_modax(_("Download"), "export-messages", self.derive_export_url(), title=_("Download Messages"))
 
 
-class BroadcastForm(forms.ModelForm):
-    omnibox = JSONField(
-        label=_("Recipients"),
-        required=False,
-        help_text=_("The contacts to send the message to"),
-        widget=OmniboxChoice(
-            attrs={
-                "placeholder": _("Recipients, enter contacts or groups"),
-                "groups": True,
-                "contacts": True,
-                "urns": True,
-            }
-        ),
-    )
-
-    compose = ComposeField(
-        required=True, widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True})
-    )
-
-    def is_valid(self):
-        valid = super().is_valid()
-        if valid:
-            # omnibox validations
-            if "omnibox" not in self.data or len(self.data["omnibox"].strip()) == 0:  # pragma: needs cover
-                self.errors["__all__"] = self.error_class([_("At least one recipient is required.")])
-                return False
-            # compose validations
-            if "compose" not in self.data or len(self.data["compose"].strip()) == 0:  # pragma: needs cover
-                self.errors["__all__"] = self.error_class([_("Text or attachments are required.")])
-                return False
-            compose = json.loads(self.data["compose"])
-            text, attachments = compose_deserialize(compose)
-            if not (text or attachments):
-                self.errors["__all__"] = self.error_class([_("Text or attachments are required.")])
-                return False
-            if text and len(text) > Msg.MAX_TEXT_LEN:
-                self.errors["__all__"] = self.error_class(
-                    [_(f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters.")]
-                )
-                return False
-            if attachments and len(attachments) > Msg.MAX_ATTACHMENTS:
-                self.errors["__all__"] = self.error_class(
-                    [_(f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files.")]
-                )
-                return False
-        return valid
-
-    class Meta:
-        model = Broadcast
-        fields = "__all__"
-
-
 class BroadcastCRUDL(SmartCRUDL):
     actions = ("scheduled", "scheduled_create", "scheduled_read", "scheduled_update", "scheduled_delete", "send")
     model = Broadcast
@@ -303,15 +251,14 @@ class BroadcastCRUDL(SmartCRUDL):
 
             def clean(self):
                 cleaned_data = super().clean()
-
                 ScheduleFormMixin.clean(self)
-
                 return cleaned_data
 
         form_class = Form
         fields = ("omnibox", "compose") + ScheduleFormMixin.Meta.fields
         success_url = "@msgs.broadcast_scheduled"
         submit_button_name = _("Create")
+        menu_path = "/msg/broadcast"
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -346,7 +293,7 @@ class BroadcastCRUDL(SmartCRUDL):
             return self.render_modal_response(form)
 
     class ScheduledRead(SpaMixin, ContentMenuMixin, FormaxMixin, OrgObjPermsMixin, SmartReadView):
-        menu_path = "/msg/scheduled"
+        menu_path = "/msg/broadcast"
 
         def derive_title(self):
             return _("Broadcast")
@@ -382,11 +329,63 @@ class BroadcastCRUDL(SmartCRUDL):
                 )
 
     class ScheduledUpdate(OrgObjPermsMixin, ComponentFormMixin, SmartUpdateView):
+        class BroadcastForm(forms.ModelForm):
+            omnibox = JSONField(
+                label=_("Recipients"),
+                required=False,
+                help_text=_("The contacts to send the message to"),
+                widget=OmniboxChoice(
+                    attrs={
+                        "placeholder": _("Recipients, enter contacts or groups"),
+                        "groups": True,
+                        "contacts": True,
+                        "urns": True,
+                    }
+                ),
+            )
+
+            compose = ComposeField(
+                required=True, widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True})
+            )
+
+            def is_valid(self):
+                valid = super().is_valid()
+                if valid:
+                    # omnibox validations
+                    if "omnibox" not in self.data or len(self.data["omnibox"].strip()) == 0:  # pragma: needs cover
+                        self.errors["__all__"] = self.error_class([_("At least one recipient is required.")])
+                        return False
+                    # compose validations
+                    if "compose" not in self.data or len(self.data["compose"].strip()) == 0:  # pragma: needs cover
+                        self.errors["__all__"] = self.error_class([_("Text or attachments are required.")])
+                        return False
+                    compose = json.loads(self.data["compose"])
+                    text, attachments = compose_deserialize(compose)
+                    if not (text or attachments):
+                        self.errors["__all__"] = self.error_class([_("Text or attachments are required.")])
+                        return False
+                    if text and len(text) > Msg.MAX_TEXT_LEN:
+                        self.errors["__all__"] = self.error_class(
+                            [_(f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters.")]
+                        )
+                        return False
+                    if attachments and len(attachments) > Msg.MAX_ATTACHMENTS:
+                        self.errors["__all__"] = self.error_class(
+                            [_(f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files.")]
+                        )
+                        return False
+                return valid
+
+            class Meta:
+                model = Broadcast
+                fields = "__all__"
+
         form_class = BroadcastForm
         fields = ("omnibox", "compose")
         field_config = {"restrict": {"label": ""}, "omnibox": {"label": ""}, "compose": {"label": ""}}
         success_message = ""
         success_url = "msgs.broadcast_scheduled"
+        menu_path = "/msg/broadcast"
 
         def derive_initial(self):
             org = self.object.org
@@ -397,7 +396,7 @@ class BroadcastCRUDL(SmartCRUDL):
             compose = compose_serialize(translation)
 
             return {"omnibox": omnibox, "compose": compose}
-
+        
         def save(self, *args, **kwargs):
             form = self.form
             broadcast = self.object
