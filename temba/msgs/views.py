@@ -255,6 +255,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 return cleaned_data
 
         form_class = Form
+        title = _("New Broadcast")
         fields = ("omnibox", "compose") + ScheduleFormMixin.Meta.fields
         success_url = "@msgs.broadcast_scheduled"
         submit_button_name = _("Create")
@@ -293,6 +294,7 @@ class BroadcastCRUDL(SmartCRUDL):
             return self.render_modal_response(form)
 
     class ScheduledRead(SpaMixin, ContentMenuMixin, FormaxMixin, OrgObjPermsMixin, SmartReadView):
+        title = _("Broadcast")
         menu_path = "/msg/broadcast"
 
         def derive_title(self):
@@ -381,6 +383,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 fields = "__all__"
 
         form_class = BroadcastForm
+        title = _("Broadcast")
         fields = ("omnibox", "compose")
         field_config = {"restrict": {"label": ""}, "omnibox": {"label": ""}, "compose": {"label": ""}}
         success_message = ""
