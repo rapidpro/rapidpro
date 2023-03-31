@@ -234,7 +234,7 @@ class BroadcastCRUDL(SmartCRUDL):
         search_fields = ("translations__und__icontains", "contacts__urns__path__icontains")
         system_label = SystemLabel.TYPE_SCHEDULED
         default_order = ("-created_on",)
-        menu_path = "/msg/scheduled"
+        menu_path = "/msg/broadcast"
 
         def build_content_menu(self, menu):
             if self.has_org_perm("msgs.broadcast_scheduled_create"):
@@ -611,6 +611,7 @@ class MsgCRUDL(SmartCRUDL):
                         icon="icon.flow",
                     ),
                     self.create_menu_item(
+                        menu_id="archived",
                         name=_("Archived"),
                         href=reverse("msgs.msg_archived"),
                         count=counts[SystemLabel.TYPE_ARCHIVED],
@@ -634,6 +635,7 @@ class MsgCRUDL(SmartCRUDL):
                     ),
                     self.create_divider(),
                     self.create_menu_item(
+                        menu_id="broadcast",
                         name=_("Broadcasts"),
                         href=reverse("msgs.broadcast_scheduled"),
                         count=counts[SystemLabel.TYPE_SCHEDULED],
