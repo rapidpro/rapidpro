@@ -600,21 +600,21 @@ class MsgCRUDL(SmartCRUDL):
                 menu = [
                     self.create_menu_item(
                         menu_id="inbox",
-                        name=_("Inbox"),
+                        name="Inbox",
                         href=reverse("msgs.msg_inbox"),
                         count=counts[SystemLabel.TYPE_INBOX],
                         icon="icon.inbox",
                     ),
                     self.create_menu_item(
                         menu_id="flows",
-                        name=_("Flows"),
+                        name="Flows",
                         href=reverse("msgs.msg_flow"),
                         count=counts[SystemLabel.TYPE_FLOWS],
                         icon="icon.flow",
                     ),
                     self.create_menu_item(
                         menu_id="archived",
-                        name=_("Archived"),
+                        name="Archived",
                         href=reverse("msgs.msg_archived"),
                         count=counts[SystemLabel.TYPE_ARCHIVED],
                         icon="icon.archive",
@@ -622,26 +622,26 @@ class MsgCRUDL(SmartCRUDL):
                     self.create_divider(),
                     self.create_menu_item(
                         menu_id="outbox",
-                        name=_("Outbox"),
+                        name="Outbox",
                         href=reverse("msgs.msg_outbox"),
                         count=counts[SystemLabel.TYPE_OUTBOX],
                     ),
                     self.create_menu_item(
                         menu_id="sent",
-                        name=_("Sent"),
+                        name="Sent",
                         href=reverse("msgs.msg_sent"),
                         count=counts[SystemLabel.TYPE_SENT],
                     ),
                     self.create_menu_item(
                         menu_id="failed",
-                        name=_("Failed"),
+                        name="Failed",
                         href=reverse("msgs.msg_failed"),
                         count=counts[SystemLabel.TYPE_FAILED],
                     ),
                     self.create_divider(),
                     self.create_menu_item(
                         menu_id="broadcasts",
-                        name=_("Broadcasts"),
+                        name="Broadcasts",
                         href=reverse("msgs.broadcast_scheduled"),
                         count=counts[SystemLabel.TYPE_SCHEDULED],
                     ),
@@ -661,7 +661,7 @@ class MsgCRUDL(SmartCRUDL):
                     )
 
                 if label_items:
-                    menu.append(self.create_menu_item(name=_("Labels"), items=label_items, inline=True))
+                    menu.append(self.create_menu_item(menu_id="labels", name="Labels", items=label_items, inline=True))
 
                 return menu
 
