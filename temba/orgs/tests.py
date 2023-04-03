@@ -2894,15 +2894,21 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # more options for admins
         self.assertEqual(200, response.status_code)
-        self.assertEqual(13, len(response.context["formax"].sections))
+        self.assertEqual(14, len(response.context["formax"].sections))
 
-        # set a plan and add the users feature
-        self.org.plan = "unicef"
-        self.org.features = [Org.FEATURE_USERS]
-        self.org.save(update_fields=("plan", "features"))
+        # add the users and child workspaces features
+        self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS]
+        self.org.save(update_fields=("features",))
 
         response = self.client.get(home_url)
-        self.assertEqual(15, len(response.context["formax"].sections))
+        self.assertEqual(15, len(response.context["formax"].sections))  # adds Manage Users
+
+        # child workspaces don't see plan formax
+        child = self.org.create_new(self.admin, "Child", timezone.utc, as_child=True)
+        self.login(self.admin, choose_org=child)
+
+        response = self.client.get(home_url)
+        self.assertEqual(12, len(response.context["formax"].sections))
 
     def test_manage_sub_orgs(self):
         # give our org the multi users feature
