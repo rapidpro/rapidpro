@@ -15,7 +15,6 @@ from temba.archives.models import Archive
 from temba.channels.models import ChannelCount, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactURN
 from temba.contacts.search.omnibox import omnibox_serialize
-from temba.msgs.attachments.compose import compose_deserialize_attachments, compose_serialize
 from temba.msgs.models import (
     Attachment,
     Broadcast,
@@ -32,6 +31,7 @@ from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.utils import s3
+from temba.utils.fields import compose_deserialize_attachments, compose_serialize
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .tasks import fail_old_messages, squash_msg_counts

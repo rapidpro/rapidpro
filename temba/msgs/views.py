@@ -27,7 +27,6 @@ from django.utils.translation import gettext_lazy as _
 from temba.archives.models import Archive
 from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
 from temba.formax import FormaxMixin
-from temba.msgs.attachments.compose import compose_deserialize, compose_serialize
 from temba.orgs.models import Org
 from temba.orgs.views import (
     DependencyDeleteModal,
@@ -50,6 +49,8 @@ from temba.utils.fields import (
     OmniboxChoice,
     OmniboxField,
     SelectWidget,
+    compose_deserialize,
+    compose_serialize,
 )
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin

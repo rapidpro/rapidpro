@@ -7,10 +7,10 @@ from django.utils import timezone
 
 from temba import settings
 from temba.contacts.search.omnibox import omnibox_serialize
-from temba.msgs.attachments.compose import compose_deserialize_attachments, compose_serialize
 from temba.msgs.models import Broadcast, Media
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
 from temba.utils.dates import datetime_to_str
+from temba.utils.fields import compose_deserialize_attachments, compose_serialize
 
 from .models import Schedule
 
