@@ -2,6 +2,7 @@ import json
 
 from temba.msgs.models import Attachment, Media, Q
 
+
 def compose_serialize(translation=None, json_encode=False):
     """
     Serializes attachments from db to compose widget for populating initial widget values

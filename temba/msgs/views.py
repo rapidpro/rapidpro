@@ -49,7 +49,7 @@ from temba.utils.fields import (
     JSONField,
     OmniboxChoice,
     OmniboxField,
-    SelectWidget
+    SelectWidget,
 )
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
