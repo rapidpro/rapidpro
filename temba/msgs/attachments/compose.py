@@ -3,15 +3,16 @@ import json
 from temba.msgs.models import Attachment, Media, Q
 
 
-def compose_serialize(translation=None, text="", attachments=[], json_encode=False):
+def compose_serialize(translation=None, json_encode=False):
     """
-    Serializes attachments from db to widget for populating initial values
+    Serializes attachments from db to widget for populating initial widget values
     """
-    if translation:
+    if not translation:
+        text = ""
+        attachments = []
+    else:
         text = translation["text"]
         attachments = compose_serialize_attachments(translation["attachments"])
-    else:
-        attachments = compose_serialize_attachments(attachments)
 
     serialized = {"text": text, "attachments": attachments}
 
@@ -22,7 +23,7 @@ def compose_serialize(translation=None, text="", attachments=[], json_encode=Fal
 
 
 def compose_serialize_attachments(attachments):
-    if not attachments or len(attachments) == 0:
+    if not attachments:
         return []
     parsed_attachments = Attachment.parse_all(attachments)
     serialized_attachments = []
@@ -43,7 +44,7 @@ def compose_serialize_attachments(attachments):
 
 def compose_deserialize(compose):
     """
-    Deserializes attachments from widget to db for saving final values
+    Deserializes attachments from widget to db for saving final db values
     """
     text = compose["text"]
     attachments = compose_deserialize_attachments(compose["attachments"])
@@ -51,7 +52,6 @@ def compose_deserialize(compose):
 
 
 def compose_deserialize_attachments(attachments):
-    if not attachments or len(attachments) == 0:
+    if not attachments:
         return []
-    deserialized_attachments = [f"{a['content_type']}:{a['url']}" for a in attachments]
-    return deserialized_attachments
+    return [f"{a['content_type']}:{a['url']}" for a in attachments]

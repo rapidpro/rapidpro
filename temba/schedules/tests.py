@@ -239,7 +239,8 @@ class ScheduleTest(TembaTest):
 
         text = "An updated broadcast"
         attachments = compose_deserialize_attachments(media_attachments)
-        compose = compose_serialize(text=text, attachments=attachments, json_encode=True)
+        translation = {"text": text, "attachments": attachments}
+        compose = compose_serialize(translation, json_encode=True)
 
         self.client.post(
             update_bcast_url,
@@ -299,13 +300,14 @@ class ScheduleTest(TembaTest):
         )
         media_attachments.append({"content_type": media.content_type, "url": media.url})
         attachments = compose_deserialize_attachments(media_attachments)
+        translation = {"text": text, "attachments": attachments}
 
         # create a new broadcast
         self.client.post(
             reverse("msgs.broadcast_scheduled_create"),
             {
                 "omnibox": omnibox_serialize(self.org, [], [self.joe], json_encode=True),
-                "compose": compose_serialize(text=text, attachments=attachments, json_encode=True),
+                "compose": compose_serialize(translation, json_encode=True),
                 "start_datetime": "2021-06-24 12:00",
                 "repeat_period": "D",
             },

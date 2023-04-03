@@ -2075,11 +2075,12 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         # create with only text
         text = "Daily reminder"
         attachments = []
+        translation = {"text": text, "attachments": attachments}
         response = self.assertCreateSubmit(
             create_url,
             {
                 "omnibox": omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True),
-                "compose": compose_serialize(text=text, attachments=attachments, json_encode=True),
+                "compose": compose_serialize(translation, json_encode=True),
                 "start_datetime": "2021-06-24 12:00",
                 "repeat_period": "W",
                 "repeat_days_of_week": ["M", "F"],
@@ -2106,11 +2107,12 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         # create with only 1 attachment
         text = ""
         attachments = compose_deserialize_attachments(media_attachments)
+        translation = {"text": text, "attachments": attachments}
         response = self.assertCreateSubmit(
             create_url,
             {
                 "omnibox": omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True),
-                "compose": compose_serialize(text=text, attachments=attachments, json_encode=True),
+                "compose": compose_serialize(translation, json_encode=True),
                 "start_datetime": "2021-06-24 12:00",
                 "repeat_period": "W",
                 "repeat_days_of_week": ["M", "F"],
@@ -2136,11 +2138,12 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         # create with text and 2 attachments
         text = "Daily reminder"
         attachments = compose_deserialize_attachments(media_attachments)
+        translation = {"text": text, "attachments": attachments}
         response = self.assertCreateSubmit(
             create_url,
             {
                 "omnibox": omnibox_serialize(self.org, groups=[], contacts=[self.joe, self.frank], json_encode=True),
-                "compose": compose_serialize(text=text, attachments=attachments, json_encode=True),
+                "compose": compose_serialize(translation, json_encode=True),
                 "start_datetime": "2021-06-24 12:00",
                 "repeat_period": "W",
                 "repeat_days_of_week": ["M", "F"],
@@ -2162,7 +2165,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             random.choices(string.ascii_letters + string.digits + string.punctuation, k=Msg.MAX_TEXT_LEN + 1)
         )
         attachments = []
-        compose = compose_serialize(text=text, attachments=attachments, json_encode=True)
+        translation = {"text": text, "attachments": attachments}
+        compose = compose_serialize(translation, json_encode=True)
 
         self.assertCreateSubmit(
             create_url,
@@ -2196,7 +2200,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             media_attachments.append({"content_type": media.content_type, "url": media.url})
         text = ""
         attachments = compose_deserialize_attachments(media_attachments)
-        compose = compose_serialize(text=text, attachments=attachments, json_encode=True)
+        translation = {"text": text, "attachments": attachments}
+        compose = compose_serialize(translation, json_encode=True)
 
         self.assertCreateSubmit(
             create_url,
@@ -2277,7 +2282,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # update the broadcast's contact
         omnibox = omnibox_serialize(self.org, [], [self.frank], json_encode=True)
-        compose = compose_serialize(text=text, attachments=attachments, json_encode=True)
+        translation = {"text": text, "attachments": attachments}
+        compose = compose_serialize(translation, json_encode=True)
         response = self.client.post(url, dict(omnibox=omnibox, compose=compose))
         self.assertEqual(response.status_code, 302)
         broadcast = Broadcast.objects.get()
@@ -2287,7 +2293,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # update the broadcast's text
         text = "Dinner reminder"
-        compose = compose_serialize(text=text, attachments=attachments, json_encode=True)
+        translation = {"text": text, "attachments": attachments}
+        compose = compose_serialize(translation, json_encode=True)
         response = self.client.post(url, dict(omnibox=omnibox, compose=compose))
         self.assertEqual(response.status_code, 302)
         broadcast = Broadcast.objects.get()
@@ -2306,7 +2313,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         media_attachments.append({"content_type": media1.content_type, "url": media1.url})
 
         attachments = compose_deserialize_attachments(media_attachments)
-        compose = compose_serialize(text=text, attachments=attachments, json_encode=True)
+        translation = {"text": text, "attachments": attachments}
+        compose = compose_serialize(translation, json_encode=True)
         response = self.client.post(url, dict(omnibox=omnibox, compose=compose))
         self.assertEqual(response.status_code, 302)
         broadcast = Broadcast.objects.get()
@@ -2325,7 +2333,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         text = "Midnight snack reminder"
         attachments = compose_deserialize_attachments(media_attachments)
-        compose = compose_serialize(text=text, attachments=attachments, json_encode=True)
+        translation = {"text": text, "attachments": attachments}
+        compose = compose_serialize(translation, json_encode=True)
         response = self.client.post(url, dict(omnibox=omnibox, compose=compose))
         self.assertEqual(response.status_code, 302)
         broadcast = Broadcast.objects.get()
@@ -2343,7 +2352,10 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # update the broadcast with no groups or contacts
         omnibox = omnibox_serialize(self.org, [], [], json_encode=True)
-        compose = compose_serialize(text="Empty contacts", json_encode=True)
+        text = "Empty contacts"
+        attachments = []
+        translation = {"text": text, "attachments": attachments}
+        compose = compose_serialize(translation, json_encode=True)
         response = self.client.post(
             reverse("msgs.broadcast_scheduled_update", args=[broadcast.pk]),
             dict(omnibox=omnibox, compose=compose, schedule=True),
@@ -2375,10 +2387,12 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         broadcast = Broadcast.objects.get()
 
         # update the broadcast's text
-        text_max_length = "".join(
+        text = "".join(
             random.choices(string.ascii_letters + string.digits + string.punctuation, k=Msg.MAX_TEXT_LEN + 1)
         )
-        compose = compose_serialize(text=text_max_length, json_encode=True)
+        attachments = []
+        translation = {"text": text, "attachments": attachments}
+        compose = compose_serialize(translation, json_encode=True)
 
         response = self.client.post(
             reverse("msgs.broadcast_scheduled_update", args=[broadcast.pk]),
@@ -2405,8 +2419,10 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             )
             media_attachments.append({"content_type": media.content_type, "url": media.url})
 
+        text = ""
         attachments = compose_deserialize_attachments(media_attachments)
-        compose = compose_serialize(attachments=attachments, json_encode=True)
+        translation = {"text": text, "attachments": attachments}
+        compose = compose_serialize(translation, json_encode=True)
 
         response = self.client.post(
             reverse("msgs.broadcast_scheduled_update", args=[broadcast.pk]),
