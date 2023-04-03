@@ -4,10 +4,4 @@
 -block summary
   .flex.items-center
     .flex-grow.mr-4
-      -if user_org.plan_end
-        -blocktrans trimmed with plan=user_org.plan time_left=user_org.plan_end|naturaltime
-          You are currently on the <b>{{plan}}</b> plan which ends <b>{{time_left}}</b>.
-      -else
-        -blocktrans trimmed with plan=user_org.plan
-          You are currently on the <b>{{plan}}</b> plan.
-      
+      Thanks for using RapidPro
