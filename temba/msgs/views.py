@@ -39,6 +39,7 @@ from temba.orgs.views import (
 from temba.schedules.models import Schedule
 from temba.schedules.views import ScheduleFormMixin
 from temba.utils import analytics, json, on_transaction_commit
+from temba.utils.compose import compose_deserialize, compose_serialize
 from temba.utils.export.views import BaseExportView
 from temba.utils.fields import (
     CompletionTextarea,
@@ -48,9 +49,7 @@ from temba.utils.fields import (
     JSONField,
     OmniboxChoice,
     OmniboxField,
-    SelectWidget,
-    compose_deserialize,
-    compose_serialize,
+    SelectWidget
 )
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
