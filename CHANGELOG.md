@@ -1,3 +1,7 @@
+v8.1.95 (2023-03-31)
+-------------------------
+ * Fix temba-store race on load
+
 v8.1.94 (2023-03-29)
 -------------------------
  * Bump version of openpyxl
