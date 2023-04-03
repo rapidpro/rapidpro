@@ -1,3 +1,8 @@
+v8.1.96 (2023-04-03)
+-------------------------
+ * Stop reading Org.plan and .plan_end
+ * Bump redis from 4.5.3 to 4.5.4
+
 v8.1.95 (2023-03-31)
 -------------------------
  * Fix temba-store race on load
