@@ -376,18 +376,12 @@ class UpdateForm(UpdateChannelForm):
 
 class Connect(SpaMixin, OrgPermsMixin, SmartFormView):
     class TwilioConnectForm(forms.Form):
-        account_sid = forms.CharField(help_text=_("Your Twilio Account SID"), widget=InputWidget())
-        account_token = forms.CharField(help_text=_("Your Twilio Account Token"), widget=InputWidget())
+        account_sid = forms.CharField(help_text=_("Your Twilio Account SID"), widget=InputWidget(), required=True)
+        account_token = forms.CharField(help_text=_("Your Twilio Account Token"), widget=InputWidget(), required=True)
 
         def clean(self):
-            account_sid = self.cleaned_data.get("account_sid", None)
-            account_token = self.cleaned_data.get("account_token", None)
-
-            if not account_sid:  # pragma: needs cover
-                raise ValidationError(_("You must enter your Twilio Account SID"))
-
-            if not account_token:
-                raise ValidationError(_("You must enter your Twilio Account Token"))
+            account_sid = self.cleaned_data.get("account_sid")
+            account_token = self.cleaned_data.get("account_token")
 
             try:
                 client = TwilioClient(account_sid, account_token)
