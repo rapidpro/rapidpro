@@ -30,7 +30,7 @@ class TwilioWhatsappTypeTest(TembaTest):
         response = self.client.get(claim_twilio)
         self.assertEqual(response.status_code, 302)
         response = self.client.get(claim_twilio, follow=True)
-        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_twilio_connect"))
+        self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio.connect"))
 
         # attach a Twilio accont to the org
         self.org.config = {Org.CONFIG_TWILIO_SID: "account-sid", Org.CONFIG_TWILIO_TOKEN: "account-token"}
@@ -48,14 +48,14 @@ class TwilioWhatsappTypeTest(TembaTest):
             mock_get_twilio_client.return_value = None
 
             response = self.client.get(claim_twilio)
-            self.assertRedirects(response, f'{reverse("orgs.org_twilio_connect")}?claim_type=twilio_whatsapp')
+            self.assertRedirects(response, f'{reverse("channels.types.twilio.connect")}?claim_type=twilio_whatsapp')
 
             mock_get_twilio_client.side_effect = TwilioRestException(
                 401, "http://twilio", msg="Authentication Failure", code=20003
             )
 
             response = self.client.get(claim_twilio)
-            self.assertRedirects(response, f'{reverse("orgs.org_twilio_connect")}?claim_type=twilio_whatsapp')
+            self.assertRedirects(response, f'{reverse("channels.types.twilio.connect")}?claim_type=twilio_whatsapp')
 
         with patch("temba.tests.twilio.MockTwilioClient.MockAccounts.get") as mock_get:
             mock_get.return_value = MockTwilioClient.MockAccount("Trial")

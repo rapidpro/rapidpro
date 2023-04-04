@@ -18,7 +18,7 @@
         .body
           -blocktrans trimmed
             Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?
-      %a#disconnect-twilio-form.posterize{href:'{% url "orgs.org_twilio_account" %}?disconnect=true'}
+      %a#disconnect-twilio-form.posterize{href:'{% url "channels.types.twilio.account" %}?disconnect=true'}
 
 -block extra-script
   {{ block.super }}

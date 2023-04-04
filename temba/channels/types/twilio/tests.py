@@ -31,7 +31,7 @@ class TwilioTypeTest(TembaTest):
         response = self.client.get(claim_twilio)
         self.assertEqual(response.status_code, 302)
         response = self.client.get(claim_twilio, follow=True)
-        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_twilio_connect"))
+        self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio.connect"))
 
         # attach a Twilio accont to the org
         self.org.config = {Org.CONFIG_TWILIO_SID: "account-sid", Org.CONFIG_TWILIO_TOKEN: "account-token"}
@@ -49,14 +49,14 @@ class TwilioTypeTest(TembaTest):
             mock_get_twilio_client.return_value = None
 
             response = self.client.get(claim_twilio)
-            self.assertRedirects(response, f'{reverse("orgs.org_twilio_connect")}?claim_type=twilio')
+            self.assertRedirects(response, f'{reverse("channels.types.twilio.connect")}?claim_type=twilio')
 
             mock_get_twilio_client.side_effect = TwilioRestException(
                 401, "http://twilio", msg="Authentication Failure", code=20003
             )
 
             response = self.client.get(claim_twilio)
-            self.assertRedirects(response, f'{reverse("orgs.org_twilio_connect")}?claim_type=twilio')
+            self.assertRedirects(response, f'{reverse("channels.types.twilio.connect")}?claim_type=twilio')
 
         with patch("temba.tests.twilio.MockTwilioClient.MockAccounts.get") as mock_get:
             mock_get.return_value = MockTwilioClient.MockAccount("Trial")
@@ -335,3 +335,129 @@ class TwilioTypeTest(TembaTest):
             self.assertFalse(
                 TwilioType().check_credentials({"account_sid": "AccountSid", "auth_token": "AccountToken"})
             )
+    @patch("temba.channels.types.twilio.views.Client", MockTwilioClient)
+    @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
+    def test_twilio_connect(self):
+        with patch("temba.tests.twilio.MockTwilioClient.MockAccounts.get") as mock_get:
+            mock_get.return_value = MockTwilioClient.MockAccount("Full")
+
+            connect_url = reverse("channels.types.twilio.connect")
+
+            twilio_account_url = reverse("channels.types.twilio.account")
+
+            self.login(self.admin)
+
+            response = response = self.client.get(twilio_account_url)
+            self.assertRedirect(response, connect_url)
+
+            response = self.client.get(connect_url)
+            self.assertEqual(200, response.status_code)
+            self.assertEqual(list(response.context["form"].fields.keys()), ["account_sid", "account_token", "loc"])
+
+            # try posting without an account token
+            post_data = {"account_sid": "AccountSid"}
+            response = self.client.post(connect_url, post_data)
+            self.assertFormError(response, "form", "account_token", "This field is required.")
+
+            # now add the account token and try again
+            post_data["account_token"] = "AccountToken"
+
+            # but with an unexpected exception
+            with patch("temba.tests.twilio.MockTwilioClient.__init__") as mock:
+                mock.side_effect = Exception("Unexpected")
+                response = self.client.post(connect_url, post_data)
+                self.assertEqual(
+                    response.context["errors"][0],
+                    "The Twilio account SID and Token seem invalid. Please check them again and retry.",
+                )
+
+            response = self.client.post(connect_url, post_data)
+
+            self.org.refresh_from_db()
+            self.assertEqual(self.org.config["ACCOUNT_SID"], "AccountSid")
+            self.assertEqual(self.org.config["ACCOUNT_TOKEN"], "AccountToken")
+
+            # when the user submit the secondary token, we use it to get the primary one from the rest API
+            with patch("temba.tests.twilio.MockTwilioClient.MockAccounts.get") as mock_get_primary:
+                with patch("twilio.rest.api.v2010.account.AccountContext.fetch") as mock_account_fetch:
+                    mock_get_primary.return_value = MockTwilioClient.MockAccount("Full", "PrimaryAccountToken")
+                    mock_account_fetch.return_value = MockTwilioClient.MockAccount("Full", "PrimaryAccountToken")
+
+                    response = self.client.post(connect_url, post_data)
+                    self.assertEqual(response.status_code, 302)
+
+                    response = self.client.post(connect_url, post_data, follow=True)
+                    self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio.claim"))
+
+                    self.org.refresh_from_db()
+                    self.assertEqual(self.org.config["ACCOUNT_SID"], "AccountSid")
+                    self.assertEqual(self.org.config["ACCOUNT_TOKEN"], "PrimaryAccountToken")
+
+                    response = self.client.get(twilio_account_url)
+                    self.assertEqual("AccountSid", response.context["account_sid"])
+
+                    self.org.refresh_from_db()
+                    config = self.org.config
+                    self.assertEqual("AccountSid", config["ACCOUNT_SID"])
+                    self.assertEqual("PrimaryAccountToken", config["ACCOUNT_TOKEN"])
+
+                    # post without a sid or token, should get a form validation error
+                    response = self.client.post(twilio_account_url, dict(disconnect="false"), follow=True)
+                    self.assertEqual(
+                        '[{"message": "You must enter your Twilio Account SID", "code": ""}]',
+                        response.context["form"].errors["__all__"].as_json(),
+                    )
+
+                    # all our twilio creds should remain the same
+                    self.org.refresh_from_db()
+                    config = self.org.config
+                    self.assertEqual(config["ACCOUNT_SID"], "AccountSid")
+                    self.assertEqual(config["ACCOUNT_TOKEN"], "PrimaryAccountToken")
+
+                    # now try with all required fields, and a bonus field we shouldn't change
+                    self.client.post(
+                        twilio_account_url,
+                        dict(
+                            account_sid="AccountSid",
+                            account_token="SecondaryToken",
+                            disconnect="false",
+                            name="DO NOT CHANGE ME",
+                        ),
+                        follow=True,
+                    )
+                    # name shouldn't change
+                    self.org.refresh_from_db()
+                    self.assertEqual(self.org.name, "Nyaruka")
+
+                    # now disconnect our twilio connection
+                    self.assertTrue(self.org.is_connected_to_twilio())
+                    self.client.post(twilio_account_url, dict(disconnect="true", follow=True))
+
+                    self.org.refresh_from_db()
+                    self.assertFalse(self.org.is_connected_to_twilio())
+
+                    response = self.client.post(
+                        f'{reverse("channels.types.twilio.connect")}?claim_type=twilio', post_data, follow=True
+                    )
+                    self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio.claim"))
+
+                    response = self.client.post(
+                        f'{reverse("channels.types.twilio.connect")}?claim_type=twilio_messaging_service',
+                        post_data,
+                        follow=True,
+                    )
+                    self.assertEqual(
+                        response.request["PATH_INFO"], reverse("channels.types.twilio_messaging_service.claim")
+                    )
+
+                    response = self.client.post(
+                        f'{reverse("channels.types.twilio.connect")}?claim_type=twilio_whatsapp',
+                        post_data,
+                        follow=True,
+                    )
+                    self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio_whatsapp.claim"))
+
+                    response = self.client.post(
+                        f'{reverse("channels.types.twilio.connect")}?claim_type=unknown', post_data, follow=True
+                    )
+                    self.assertEqual(response.request["PATH_INFO"], reverse("channels.channel_claim"))

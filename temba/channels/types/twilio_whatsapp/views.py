@@ -41,11 +41,13 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             self.client = org.get_twilio_client()
             if not self.client:
                 return HttpResponseRedirect(
-                    f'{reverse("orgs.org_twilio_connect")}?claim_type={self.channel_type.slug}'
+                    f'{reverse("channels.types.twilio.connect")}?claim_type={self.channel_type.slug}'
                 )
             self.account = self.client.api.account.fetch()
         except TwilioRestException:
-            return HttpResponseRedirect(f'{reverse("orgs.org_twilio_connect")}?claim_type={self.channel_type.slug}')
+            return HttpResponseRedirect(
+                f'{reverse("channels.types.twilio.connect")}?claim_type={self.channel_type.slug}'
+            )
 
     def get_search_countries_tuple(self):
         return []
