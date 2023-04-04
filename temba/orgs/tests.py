@@ -3029,7 +3029,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             name="Child Org",
             timezone=pytz.timezone("Africa/Kigali"),
             country=self.org.country,
-            plan="parent",
             created_by=self.user,
             modified_by=self.user,
             parent=self.org,
