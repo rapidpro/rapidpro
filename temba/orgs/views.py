@@ -2081,7 +2081,7 @@ class OrgCRUDL(SmartCRUDL):
 
     class Manage(StaffOnlyMixin, SpaMixin, SmartListView):
         fields = ("name", "owner", "timezone", "created_on")
-        default_order = ("plan_end", "-created_on")
+        default_order = ("-created_on",)
         search_fields = ("name__icontains", "created_by__email__iexact", "config__icontains")
         link_fields = ("name", "owner")
         filters = (
@@ -3405,7 +3405,7 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             org = self.request.org
 
-            if org.plan:
+            if not org.is_child:
                 if self.has_org_perm("orgs.org_plan"):
                     formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
 
