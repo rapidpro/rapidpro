@@ -222,7 +222,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertListFetch(list_url, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[])
 
         self.assertContentMenu(list_url, self.admin, ["Export"])
-
         # can hit this page with a uuid
         # TODO: work out reverse for deep link
         # deep_link = reverse(
@@ -230,6 +229,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # )
 
         deep_link = f"{list_url}all/open/{str(ticket.uuid)}/"
+        self.assertContentMenu(deep_link, self.admin, ["Assign", "Add Note", "Start Flow", "-", "Export"])
         response = self.assertListFetch(
             deep_link, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[]
         )
@@ -259,6 +259,19 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual("spa_frame.haml", response.context["base_template"])
         self.assertEqual(("tickets", "mine", "open", str(ticket.uuid)), response.context["temba_referer"])
+
+        # contacts in a flow get interrupt menu option instead
+        flow = self.get_flow("color")
+        self.contact.current_flow = flow
+        self.contact.save()
+        deep_link = f"{list_url}all/open/{str(ticket.uuid)}/"
+        self.assertContentMenu(deep_link, self.admin, ["Assign", "Add Note", "Interrupt", "-", "Export"])
+
+        # closed our tickets don't get extra menu options
+        ticket.status = Ticket.STATUS_CLOSED
+        ticket.save()
+        deep_link = f"{list_url}all/closed/{str(ticket.uuid)}/"
+        self.assertContentMenu(deep_link, self.admin, ["Export"])
 
     def test_menu(self):
         menu_url = reverse("tickets.ticket_menu")
