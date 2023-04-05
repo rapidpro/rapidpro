@@ -3725,5 +3725,10 @@ class OrgCRUDL(SmartCRUDL):
             return super().form_valid(form)
 
         def has_permission(self, request, *args, **kwargs):
+            perm = "orgs.org_country"
+
+            if self.request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest" and self.request.method == "GET":
+                perm = "orgs.org_languages"
+
             self.org = self.derive_org()
-            return self.request.user.has_perm("orgs.org_country") or self.has_org_perm("orgs.org_country")
+            return self.request.user.has_perm(perm) or self.has_org_perm(perm)

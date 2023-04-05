@@ -865,6 +865,7 @@ class ContactCRUDL(SmartCRUDL):
                         _("Start Flow"),
                         "start-flow",
                         f"{reverse('flows.flow_broadcast')}?c={obj.uuid}",
+                        on_submit="contactUpdated()",
                         as_button=self.is_spa(),
                         disabled=True,
                     )
@@ -1433,8 +1434,10 @@ class ContactCRUDL(SmartCRUDL):
         """
 
         fields = ()
-        success_url = "uuid@contacts.contact_read"
         success_message = ""
+
+        def get_success_url(self):
+            return self.request.headers.get("referer")
 
         def save(self, obj):
             obj.interrupt(self.request.user)
