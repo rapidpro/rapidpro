@@ -55,8 +55,12 @@ a {
   }
 }
 
+.clickable {
+  @apply cursor-pointer;
+}
+
 .linked {
-  @apply text-primary cursor-pointer;
+  @apply text-primary clickable;
 
   &.active {
     @apply: underline;
