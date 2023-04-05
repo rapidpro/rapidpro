@@ -1,3 +1,8 @@
+v8.1.97 (2023-04-05)
+-------------------------
+ * Pull tickets out of contact chat
+ * Scheduled messages to broadcasts with compose widget
+
 v8.1.96 (2023-04-03)
 -------------------------
  * Stop reading Org.plan and .plan_end
