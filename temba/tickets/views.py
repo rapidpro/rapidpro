@@ -161,7 +161,50 @@ class TicketCRUDL(SmartCRUDL):
             return context
 
         def build_content_menu(self, menu):
+            # we only support dynamic content menus
+            if "HTTP_TEMBA_CONTENT_MENU" not in self.request.META:
+                return
+
+            uuid = self.kwargs.get("uuid")
+            if uuid:
+                ticket = self.request.org.tickets.filter(uuid=uuid).first()
+                if ticket:
+                    if ticket.status == Ticket.STATUS_OPEN:
+                        if self.has_org_perm("tickets.ticket_assign"):
+                            menu.add_modax(
+                                _("Assign"),
+                                "assign-ticket",
+                                f"{reverse('tickets.ticket_assign', args=[ticket.uuid])}",
+                                on_submit="handleTicketAssigned()",
+                            )
+
+                        if self.has_org_perm("tickets.ticket_note"):
+                            menu.add_modax(
+                                _("Add Note"),
+                                "add-note",
+                                f"{reverse('tickets.ticket_note', args=[ticket.uuid])}",
+                                on_submit="handleNoteAdded()",
+                            )
+
+                        # we don't want to show start flow if interrupt was given as an option
+                        interrupt_added = False
+                        if self.has_org_perm("contacts.contact_interrupt") and ticket.contact.current_flow:
+                            menu.add_url_post(
+                                _("Interrupt"), reverse("contacts.contact_interrupt", args=(ticket.contact.id,))
+                            )
+                            interrupt_added = True
+
+                        if not interrupt_added and self.has_org_perm("flows.flow_broadcast"):
+                            menu.add_modax(
+                                _("Start Flow"),
+                                "start-flow",
+                                f"{reverse('flows.flow_broadcast')}?c={ticket.contact.uuid}",
+                                disabled=True,
+                                on_submit="handleFlowStarted()",
+                            )
+
             if self.has_org_perm("tickets.ticket_export"):
+                menu.new_group()
                 menu.add_modax(
                     _("Export"), "export-tickets", f"{reverse('tickets.ticket_export')}", title=_("Export Tickets")
                 )

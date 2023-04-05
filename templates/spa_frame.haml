@@ -610,6 +610,7 @@
 
       var options = modaxOptions || {};
       var modax = document.querySelector("temba-modax#shared-modax");
+      modax.className = options.id;
       modax["-temba-loaded"] = undefined;
       
       modax.disabled = options.disabled == "True";
@@ -630,7 +631,7 @@
         modax["-temba-redirected"] = refreshMenu;
       }
 
-      modax.headers = { "TEMBA-SPA": 1};
+      modax.headers = {"TEMBA-SPA": 1};
       modax.header = header;
       modax.endpoint = endpoint;
       modax.open = true;
@@ -660,7 +661,12 @@
       let state = event.state;
       if (state && state.url) {
         showLoading();
-        gotoURL(state.url, false, true);
+
+        var url = state.url;
+        if (!url.endsWith("/")) {
+          url += "/";
+        }
+        gotoURL(url, false, true);
       }
     });
 
@@ -828,3 +834,4 @@
       for a bit. If the new interface isn't working well for you, we'd love to hear about it.
 
   %temba-lightbox
+  .options-container.absolute
