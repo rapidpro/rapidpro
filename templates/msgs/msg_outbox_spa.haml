@@ -8,17 +8,27 @@
   %table.object-list.list.lined
     %tbody
       -for broadcast in pending_broadcasts
-        %tr
-          %td.value-icon(style="width: 20px")
-            %span.glyph.icon-bullhorn.text-gray-500
-          %td.value-recipient
-            .pt-1.inline-block
-              -include "includes/recipients.haml" with groups=broadcast.groups.all contacts=broadcast.contacts.all urns=broadcast.urns
-          %td.value-text.w-full
-            {{ broadcast.get_text }}
-          %td.created_on
-            %span.time
-              {% short_datetime broadcast.created_on %}
+        -with translation=broadcast.get_translation
+          %tr
+            %td.value-icon(style="width: 20px")
+              %span.glyph.icon-bullhorn.text-gray-500
+            %td.value-recipient
+              .pt-1.inline-block
+                -include "includes/recipients.haml" with groups=broadcast.groups.all contacts=broadcast.contacts.all urns=broadcast.urns
+
+            %td.w-full
+              .flex.flex-wrap.flex-end.items-center.justify-end
+                .flex-grow.inline
+                  .value-text.field_text
+                    {{ translation.text }}
+              -if translation.attachments
+                .value-attachments{ style:"margin-top: 5px" }
+                  -for attachment in translation.attachments
+                    {% attachment_button attachment %}
+                    
+            %td.created_on
+              %span.time
+                {% short_datetime broadcast.created_on %}
 
       -for object in object_list
         %tr

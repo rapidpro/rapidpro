@@ -3,11 +3,10 @@
 
 -block fields
   -if form.omnibox
-      -render_field 'omnibox'
+    -render_field 'omnibox'
 
-  -render_field 'text'
-  .fixed-wrapper(style="position:fixed;width:362px;margin-left:200px;margin-top:-10px")
-      %temba-charcount
+  -if form.compose
+    -render_field 'compose'
 
   -include 'includes/schedule_fields.haml' with form=form
 
@@ -28,7 +27,7 @@
 
   :javascript
 
-    var modalBody = getModax("#create-scheduled").shadowRoot;
+    var modalBody = getModax("#new-scheduled").shadowRoot;
     var repeatPeriod = modalBody.querySelector("#id_repeat_period");
     var repeatDays = modalBody.querySelector(".repeat-days-container");
 

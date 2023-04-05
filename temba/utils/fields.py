@@ -212,6 +212,22 @@ class OmniboxField(JSONField):
             assert isinstance(item, dict) and "id" in item and "type" in item
 
 
+class ComposeWidget(forms.Widget):
+    template_name = "utils/forms/compose.haml"
+    is_annotated = True
+
+    def render(self, name, value, attrs=None, renderer=None):
+        render_value = json.dumps(value)
+        return super().render(name, render_value, attrs)
+
+    def value_from_datadict(self, data, files, name):
+        return json.loads(data[name])
+
+
+class ComposeField(JSONField):
+    widget = ComposeWidget
+
+
 class TembaChoiceIterator(forms.models.ModelChoiceIterator):
     def __init__(self, field):
         super().__init__(field)

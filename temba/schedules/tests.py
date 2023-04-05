@@ -5,9 +5,11 @@ import pytz
 from django.urls import reverse
 from django.utils import timezone
 
+from temba import settings
 from temba.contacts.search.omnibox import omnibox_serialize
-from temba.msgs.models import Broadcast
+from temba.msgs.models import Broadcast, Media
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
+from temba.utils.compose import compose_deserialize_attachments, compose_serialize
 from temba.utils.dates import datetime_to_str
 
 from .models import Schedule
@@ -213,25 +215,43 @@ class ScheduleTest(TembaTest):
         schedule = Schedule.create_schedule(self.org, self.admin, None, Schedule.REPEAT_NEVER)
         bcast = self.create_broadcast(
             self.admin,
-            "A scheduled message to Joe",
+            "A broadcast to Joe",
             contacts=[self.joe],
             schedule=schedule,
         )
 
-        # update our message
+        # update the broadcast's contacts, text, and attachments
         update_bcast_url = reverse("msgs.broadcast_scheduled_update", args=[bcast.id])
 
         self.login(self.editor)
+
+        omnibox = omnibox_serialize(self.org, [], [self.joe], json_encode=True)
+
+        # create a broadcast attachment
+        media_attachments = []
+        media = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
+            process=False,
+        )
+        media_attachments.append({"content_type": media.content_type, "url": media.url})
+
+        text = "An updated broadcast"
+        attachments = compose_deserialize_attachments(media_attachments)
+        translation = {"text": text, "attachments": attachments}
+        compose = compose_serialize(translation, json_encode=True)
+
         self.client.post(
             update_bcast_url,
             {
-                "message": "An updated scheduled message",
-                "omnibox": omnibox_serialize(self.org, [], [self.joe], json_encode=True),
+                "omnibox": omnibox,
+                "compose": compose,
             },
         )
 
         bcast.refresh_from_db()
-        self.assertEqual({"und": {"text": "An updated scheduled message"}}, bcast.translations)
+        self.assertEqual({"und": {"text": text, "attachments": attachments}}, bcast.translations)
         self.assertEqual(self.editor, bcast.modified_by)
 
         start = datetime(2045, 9, 19, hour=10, minute=15, second=0, microsecond=0)
@@ -269,11 +289,25 @@ class ScheduleTest(TembaTest):
         tz = self.org.timezone
 
         self.login(self.admin)
+
+        text = "A broadcast to Joe"
+        media_attachments = []
+        media = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
+            process=False,
+        )
+        media_attachments.append({"content_type": media.content_type, "url": media.url})
+        attachments = compose_deserialize_attachments(media_attachments)
+        translation = {"text": text, "attachments": attachments}
+
+        # create a new broadcast
         self.client.post(
             reverse("msgs.broadcast_scheduled_create"),
             {
                 "omnibox": omnibox_serialize(self.org, [], [self.joe], json_encode=True),
-                "text": "A scheduled message to Joe",
+                "compose": compose_serialize(translation, json_encode=True),
                 "start_datetime": "2021-06-24 12:00",
                 "repeat_period": "D",
             },

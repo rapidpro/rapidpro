@@ -182,8 +182,6 @@ class Broadcast(models.Model):
     STATUS_FAILED = "F"
     STATUS_CHOICES = ((STATUS_QUEUED, "Queued"), (STATUS_SENT, "Sent"), (STATUS_FAILED, "Failed"))
 
-    MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
 
     # recipients of this broadcast
@@ -273,20 +271,23 @@ class Broadcast(models.Model):
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
 
-    def get_text(self, contact=None):
+    def get_translation(self, contact=None) -> dict:
         """
-        Gets the text that will be sent. If contact is provided and their language is a valid flow language and there's
-        a translation for it then that will be used (used when rendering upcoming scheduled broadcasts).
+        Gets a translation to use to display this broadcast. If contact is provided and their language is a valid flow
+        language and there's a translation for it then that will be used.
         """
+
+        def trans(d):
+            return {"text": "", "attachments": []} | d  # ensure we always have text+attachments
 
         if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
             if contact.language in self.translations:
-                return self.translations[contact.language]["text"]
+                return trans(self.translations[contact.language])
 
         if self.org.flow_languages[0] in self.translations:  # try org primary language
-            return self.translations[self.org.flow_languages[0]]["text"]
+            return trans(self.translations[self.org.flow_languages[0]])
 
-        return self.translations[self.base_language]["text"]  # should always be a base language translation
+        return trans(self.translations[self.base_language])  # should always be a base language translation
 
     def delete(self, user, *, soft: bool):
         if soft:
@@ -344,7 +345,7 @@ class Broadcast(models.Model):
                 RelatedModel.objects.bulk_create(bulk_contacts)
 
     def __repr__(self):
-        return f'<Broadcast: id={self.id} text="{self.get_text()}">'
+        return f'<Broadcast: id={self.id} text="{self.get_translation()["text"]}">'
 
     class Meta:
         indexes = [
@@ -490,7 +491,8 @@ class Msg(models.Model):
     MEDIA_AUDIO = "audio"
     MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
 
-    MAX_TEXT_LEN = settings.MSG_FIELD_SIZE
+    MAX_TEXT_LEN = settings.MSG_FIELD_SIZE  # max chars allowed in a message
+    MAX_ATTACHMENTS = 10  # max attachments allowed in a message
 
     id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(default=uuid4)
