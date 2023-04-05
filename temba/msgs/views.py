@@ -182,7 +182,7 @@ class BroadcastCRUDL(SmartCRUDL):
         search_fields = ("translations__und__icontains", "contacts__urns__path__icontains")
         system_label = SystemLabel.TYPE_SCHEDULED
         default_order = ("-created_on",)
-        menu_path = "/msg/broadcast"
+        menu_path = "/msg/broadcasts"
 
         def build_content_menu(self, menu):
             if self.has_org_perm("msgs.broadcast_scheduled_create"):
@@ -226,7 +226,6 @@ class BroadcastCRUDL(SmartCRUDL):
 
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-
                 self.set_org(org)
                 self.org = org
                 self.fields["omnibox"].default_country = org.default_country_code
@@ -295,7 +294,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
     class ScheduledRead(SpaMixin, ContentMenuMixin, FormaxMixin, OrgObjPermsMixin, SmartReadView):
         title = _("Broadcast")
-        menu_path = "/msg/broadcast"
+        menu_path = "/msg/broadcasts"
 
         def derive_title(self):
             return _("Broadcast")

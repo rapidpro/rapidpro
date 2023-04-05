@@ -13,7 +13,7 @@
       %tbody
         -for object in object_list
           -with translation=object.get_translation
-            %tr.select-row.cursor-pointer{class:'{% cycle row1 row1 %}', onclick:'goto(event)', href:'{%url "msgs.broadcast_scheduled_read" object.id%}'}
+            %tr.select-row.cursor-pointer{class:'{% cycle row1 row1 %}', onclick:'goto(event, this)', href:'{%url "msgs.broadcast_scheduled_read" object.id%}'}
 
               %td.value-contacts.field_phone
                 -include "includes/recipients.haml" with groups=object.groups.all contacts=object.contacts.all
