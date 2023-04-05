@@ -221,9 +221,7 @@ class ComposeWidget(forms.Widget):
         return super().render(name, render_value, attrs)
 
     def value_from_datadict(self, data, files, name):
-        item = data[name]
-        value = json.loads(item)
-        return value
+        return json.loads(data[name])
 
 
 class ComposeField(JSONField):
