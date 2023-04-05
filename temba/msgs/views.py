@@ -258,7 +258,7 @@ class BroadcastCRUDL(SmartCRUDL):
         fields = ("omnibox", "compose") + ScheduleFormMixin.Meta.fields
         success_url = "@msgs.broadcast_scheduled"
         submit_button_name = _("Create")
-        menu_path = "/msg/broadcast"
+        menu_path = "/msg/broadcasts"
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -387,7 +387,7 @@ class BroadcastCRUDL(SmartCRUDL):
         field_config = {"restrict": {"label": ""}, "omnibox": {"label": ""}, "compose": {"label": ""}}
         success_message = ""
         success_url = "msgs.broadcast_scheduled"
-        menu_path = "/msg/broadcast"
+        menu_path = "/msg/broadcasts"
 
         def derive_initial(self):
             org = self.object.org
@@ -605,7 +605,7 @@ class MsgCRUDL(SmartCRUDL):
                         icon="icon.inbox",
                     ),
                     self.create_menu_item(
-                        menu_id="flows",
+                        menu_id="flow",
                         name="Flows",
                         href=reverse("msgs.msg_flow"),
                         count=counts[SystemLabel.TYPE_FLOWS],
