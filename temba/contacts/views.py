@@ -866,7 +866,6 @@ class ContactCRUDL(SmartCRUDL):
                         "start-flow",
                         f"{reverse('flows.flow_broadcast')}?c={obj.uuid}",
                         on_submit="contactUpdated()",
-                        as_button=self.is_spa(),
                         disabled=True,
                     )
                 if self.has_org_perm("contacts.contact_open_ticket"):

@@ -266,6 +266,15 @@
       window.history.replaceState({ url: `/ticket/${path}`, show: show } ,"", show);
       
     }
+
+    function handleNameClicked() {
+      {%if org_perms.contacts.contact_read%}
+        var chat = document.querySelector("temba-contact-chat");
+        if (chat.contact) {
+          gotoURL("/contact/read/" + chat.contact + "/");
+        }
+      {%endif%}
+    }
     
     function handleTicketsRefreshed(event) {
       // var menu = document.querySelector('temba-menu');
@@ -413,7 +422,7 @@
 
           .flex.flex-col.menu-flex
             .flex
-              %temba-contact-name-fetch.text-2xl.mb-4.flex-grow
+              %temba-contact-name-fetch.text-2xl.mb-4.flex-grow(onclick="handleNameClicked()" class="{%if org_perms.contacts.contact_read%}clickable{%endif%}")
               -include "spa_page_menu.haml"
             %temba-contact-tickets.mb-1(agent="{{request.user.email}}" -temba-refreshed="handleTicketUpdated")
           

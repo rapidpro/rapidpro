@@ -630,6 +630,10 @@ a:hover {
     text-decoration: underline;
   }
 
+.clickable {
+  cursor: pointer;
+}
+
 .linked {
   cursor: pointer;
   color: rgb(var(--primary-rgb));
