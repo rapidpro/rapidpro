@@ -1,3 +1,7 @@
+v8.1.100 (2023-04-06)
+-------------------------
+ * Add fields to tickets
+
 v8.1.99 (2023-04-06)
 -------------------------
  * Add test util to make it easier to mess with brands
