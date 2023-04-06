@@ -1,3 +1,7 @@
+v8.1.101 (2023-04-06)
+-------------------------
+ * Add field search handler on tickets
+
 v8.1.100 (2023-04-06)
 -------------------------
  * Add fields to tickets
