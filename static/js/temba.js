@@ -414,6 +414,7 @@ function stopEvent(event) {
 
 function showModax(header, endpoint, modaxOptions) {
     var modax = document.querySelector("temba-modax#shared-modax");
+    modax.className = modaxOptions.id || "";
     modax["-temba-loaded"] = undefined;
 
     modax.disabled = modaxOptions.disabled == "True";
