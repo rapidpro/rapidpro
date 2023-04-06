@@ -428,18 +428,9 @@ class Org(SmartModel):
     )
 
     uuid = models.UUIDField(unique=True, default=uuid4)
-
     name = models.CharField(verbose_name=_("Name"), max_length=128)
+    parent = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, null=True, related_name="children")
     brand = models.CharField(max_length=128, default="rapidpro", verbose_name=_("Brand"))
-
-    stripe_customer = models.CharField(
-        verbose_name=_("Stripe Customer"),
-        max_length=32,
-        null=True,
-        blank=True,
-        help_text=_("Our Stripe customer id for your organization"),
-    )
-
     users = models.ManyToManyField(User, through="OrgMembership", related_name="orgs")
 
     language = models.CharField(
@@ -448,29 +439,22 @@ class Org(SmartModel):
         null=True,
         choices=settings.LANGUAGES,
         default=settings.DEFAULT_LANGUAGE,
-        help_text=_("The default website language for new users."),
+        help_text=_("Default website language for new users."),
     )
 
+    # environment for flows and messages
     timezone = TimeZoneField(verbose_name=_("Timezone"))
-
     date_format = models.CharField(
         verbose_name=_("Date Format"),
         max_length=1,
         choices=DATE_FORMAT_CHOICES,
         default=DATE_FORMAT_DAY_FIRST,
-        help_text=_("Whether day comes first or month comes first in dates"),
+        help_text=_("Default formatting and parsing of dates in flows and messages."),
     )
-
-    country = models.ForeignKey(
-        "locations.AdminBoundary",
-        null=True,
-        blank=True,
-        on_delete=models.PROTECT,
-        help_text="The country this organization should map results for.",
-    )
+    country = models.ForeignKey("locations.AdminBoundary", null=True, on_delete=models.PROTECT)
+    flow_languages = ArrayField(models.CharField(max_length=3), default=list, validators=[ArrayMinLengthValidator(1)])
 
     config = models.JSONField(default=dict)
-
     slug = models.SlugField(
         verbose_name=_("Slug"),
         max_length=255,
@@ -487,17 +471,12 @@ class Org(SmartModel):
     is_anon = models.BooleanField(
         default=False, help_text=_("Whether this organization anonymizes the phone numbers of contacts within it")
     )
-
     is_flagged = models.BooleanField(default=False, help_text=_("Whether this organization is currently flagged."))
     is_suspended = models.BooleanField(default=False, help_text=_("Whether this organization is currently suspended."))
-
-    flow_languages = ArrayField(models.CharField(max_length=3), default=list, validators=[ArrayMinLengthValidator(1)])
 
     surveyor_password = models.CharField(
         null=True, max_length=128, default=None, help_text=_("A password that allows users to register as surveyors")
     )
-
-    parent = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, null=True, related_name="children")
 
     # when this org was released and when it was actually deleted
     released_on = models.DateTimeField(null=True)
