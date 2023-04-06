@@ -1,3 +1,8 @@
+v8.1.98 (2023-04-06)
+-------------------------
+ * Link contact name on tickets to the contact page if permitted
+ * Drop Org.plan, plan_start and plan_end
+
 v8.1.97 (2023-04-05)
 -------------------------
  * Pull tickets out of contact chat
