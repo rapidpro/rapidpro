@@ -1,3 +1,4 @@
+import copy
 import shutil
 from datetime import datetime
 from functools import wraps
@@ -14,7 +15,7 @@ from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
 from django.utils import timezone
 
 from temba.archives.models import Archive
@@ -894,6 +895,15 @@ class MigrationTest(TembaTest):
 
     def setUpBeforeMigration(self, apps):
         pass
+
+
+def override_brand(slug: str, **kwargs):
+    brands = copy.deepcopy(settings.BRANDS)
+    for brand in brands:
+        if brand["slug"] == slug:
+            brand.update(kwargs)
+            break
+    return override_settings(BRANDS=brands)
 
 
 def mock_uuids(method=None, *, seed=1234):

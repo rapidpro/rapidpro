@@ -1,4 +1,3 @@
-import copy
 import decimal
 import io
 import os
@@ -27,7 +26,7 @@ from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticketer
@@ -2573,11 +2572,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_preview_start(self, mr_mocks, mock_flow_is_starting):
         mock_flow_is_starting.return_value = False
 
-        # now set our brand to redirect
-        brands = copy.deepcopy(settings.BRANDS)
-        brands[0]["inactive_threshold"] = 1000
-
-        with self.settings(BRANDS=brands):
+        with override_brand("rapidpro", inactive_threshold=1000):
             flow = self.create_flow("Test")
             self.create_field("age", "Age")
             contact1 = self.create_contact("Ann", phone="+16302222222", fields={"age": 40})

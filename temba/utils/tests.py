@@ -1,4 +1,3 @@
-import copy
 import datetime
 import io
 from collections import OrderedDict
@@ -18,7 +17,7 @@ from django.utils import timezone, translation
 
 from temba.campaigns.models import Campaign
 from temba.flows.models import Flow
-from temba.tests import TembaTest, matchers
+from temba.tests import TembaTest, matchers, override_brand
 from temba.triggers.models import Trigger
 from temba.utils import json, uuid
 from temba.utils.templatetags.temba import format_datetime, icon
@@ -638,9 +637,7 @@ class MiddlewareTest(TembaTest):
         self.assertNotRedirect(self.client.get(reverse("public.public_index")), None)
 
         # now set our brand to redirect
-        brands = copy.deepcopy(settings.BRANDS)
-        brands[0]["redirect"] = "/redirect"
-        with self.settings(BRANDS=brands):
+        with override_brand("rapidpro", redirect="/redirect"):
             self.assertRedirect(self.client.get(reverse("public.public_index")), "/redirect")
 
     def test_language(self):
