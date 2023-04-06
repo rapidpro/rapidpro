@@ -120,7 +120,7 @@
 
     %temba-tab(icon="icon.fields" name='{{_("Fields")|escapejs}}')
       .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
-        %temba-contact-fields.featured-fields.pb-4(timezone="{{object.org.timezone}}" contact="{{object.uuid}}" featured="true" -temba-button-clicked="handleFieldSearch")
+        %temba-contact-fields.featured-fields.pb-1(timezone="{{object.org.timezone}}" contact="{{object.uuid}}" featured="true" -temba-button-clicked="handleFieldSearch")
         %temba-contact-fields.all-fields(timezone="{{object.org.timezone}}" contact="{{object.uuid}}" -temba-button-clicked="handleFieldSearch")
           .no-fields.p-16.text-center(slot="empty")
             .text-xl.mb-4

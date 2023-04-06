@@ -172,36 +172,6 @@
       -webkit-transform: translate3d(0,0,0)
     }
 
-    temba-contact-chat {
-      transition: all 200ms ease-in-out;
-      transition-delay: 200ms;
-    }
-
-    .empty {
-      position: absolute;
-      transition: all 200ms ease-in-out;
-      transition-delay: 200ms;
-      opacity: 0;
-      padding: 3px 40px;
-    }
-
-    .empty h2 {
-      font-size: 36px;
-      margin-top: 16px;
-    }
-
-    .popper {
-      font-size: 48px;
-      display: inline;
-    }
-
-    .ticket-list {
-      flex-basis: 300px; 
-      flex-grow: 0; 
-      flex-shrink: 0;
-      transition: all 200ms ease-in;
-    }
-
     .button-action {
       background: #fff;
     }
@@ -609,7 +579,7 @@
 
       var options = modaxOptions || {};
       var modax = document.querySelector("temba-modax#shared-modax");
-      modax.className = options.id;
+      modax.className = options.id || "";
       modax["-temba-loaded"] = undefined;
       
       modax.disabled = options.disabled == "True";
