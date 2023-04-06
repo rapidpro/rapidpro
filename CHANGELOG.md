@@ -1,3 +1,8 @@
+v8.1.99 (2023-04-06)
+-------------------------
+ * Add test util to make it easier to mess with brands
+ * Drop Org.stripe_customer_id
+
 v8.1.98 (2023-04-06)
 -------------------------
  * Link contact name on tickets to the contact page if permitted
