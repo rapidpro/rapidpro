@@ -324,6 +324,15 @@
       {%endif%}
     }
 
+    function handleFieldSearch(evt) {
+      var url = "/contact/?search=" + encodeURIComponent(evt.detail.key) + "+%3D+" + encodeURIComponent("\"" + evt.detail.value + "\"")
+      if (typeof fetchURL !== 'undefined') {
+        fetchURL(url)
+      } else {
+        document.location.href = url;
+      }
+    }
+
     function handleContactRefreshed(evt) {
       var contact = evt.detail.data;
       var tabs = document.querySelector("temba-tabs");
