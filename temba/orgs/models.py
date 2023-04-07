@@ -1297,9 +1297,9 @@ class Org(SmartModel):
         user = self.modified_by
 
         # delete notifications and exports
-        self.incidents.all().delete()
         self.notifications.all().delete()
         self.notification_counts.all().delete()
+        self.incidents.all().delete()
         self.exportcontactstasks.all().delete()
         self.exportmessagestasks.all().delete()
         self.exportflowresultstasks.all().delete()

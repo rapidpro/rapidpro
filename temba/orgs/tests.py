@@ -2461,6 +2461,14 @@ class OrgDeleteTest(TembaTest):
         self._create_export_content(org, user, flows, groups, fields, labels, add)
         self._create_archive_content(org, add)
 
+        # suspend and flag org to generate incident and notifications
+        org.suspend()
+        org.unsuspend()
+        org.flag()
+        org.unflag()
+        for incident in org.incidents.all():
+            add(incident)
+
         return content
 
     def _create_channel_content(self, org, add) -> tuple:
