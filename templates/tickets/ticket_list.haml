@@ -414,9 +414,10 @@
           // ticket was closed
           else if (ticket.status == "closed" && previous.status != "closed") {
             removeTicket(ticket.uuid);
-          } else {
-            tickets.refresh();
           }
+
+          tickets.refresh();
+          chat.refresh();
           refreshMenu();
         }
       }
