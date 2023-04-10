@@ -632,9 +632,6 @@
         showLoading();
 
         var url = state.url;
-        if (!url.endsWith("/")) {
-          url += "/";
-        }
         gotoURL(url, false, true);
       }
     });
@@ -646,7 +643,7 @@
           return;
         }
   
-        var url = document.location.href;
+        var url = formEle.action || document.location.href;
 
         if (formEle.method.toLowerCase() !== "post") {
           evt.stopPropagation();
@@ -663,12 +660,8 @@
             }
           }
   
-          fetchAjax(url, ".spa-content", { "headers": {
-            "TEMBA-SPA": "1",
-            "TEMBA-PATH": url
-            },
-          "onSuccess": hideLoading
-          });
+          // console.log(url);
+          gotoURL(url);
         } else {
   
           evt.stopPropagation();

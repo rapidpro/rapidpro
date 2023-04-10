@@ -10,10 +10,11 @@
 
   -if org_has_flows
     -if view.search_fields
-      %form#search-form.mb-4(method="get")
+      %form#search-form.mb-4(method="get" action="{{request.path}}")
         %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
         -if request.REQUEST.status
           %input(type='hidden' name='status' value='{{request.REQUEST.status}}')
+        %input.hide(type="submit")
 
     .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
       -include "includes/short_pagination.haml"

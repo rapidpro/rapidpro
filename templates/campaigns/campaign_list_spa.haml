@@ -37,7 +37,7 @@
   .flex
     .flex-grow.self-end.items-end
       .flex.flex-col
-        %form#search-form(method="get")
+        %form#search-form(method="get" action="{{request.path}}")
           %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
           %input.hide(type="submit")
 
