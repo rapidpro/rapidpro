@@ -170,14 +170,6 @@ class TicketCRUDL(SmartCRUDL):
                 ticket = self.request.org.tickets.filter(uuid=uuid).first()
                 if ticket:
                     if ticket.status == Ticket.STATUS_OPEN:
-                        if self.has_org_perm("tickets.ticket_assign"):
-                            menu.add_modax(
-                                _("Assign"),
-                                "assign-ticket",
-                                f"{reverse('tickets.ticket_assign', args=[ticket.uuid])}",
-                                on_submit="handleTicketAssigned()",
-                            )
-
                         if self.has_org_perm("tickets.ticket_note"):
                             menu.add_modax(
                                 _("Add Note"),

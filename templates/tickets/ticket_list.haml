@@ -163,6 +163,15 @@
     var initialTicket = '{{uuid}}';
     var focusNext;
 
+    function handleMessageSent(evt) {
+      var ticket = evt.detail.msg.ticket;
+      if (ticket) {
+        // auto assign tickets when a message is sent
+        var contactTickets = document.querySelector("temba-contact-tickets");
+        contactTickets.handleTicketAssignment(ticket, "{{user.email}}");
+      }
+    }
+
     function handleTicketsMenuChanged(menuItem) {
       var statusSelect = document.querySelector('temba-select[name="ticket-status"]');
       ticketUUID = null;
@@ -414,9 +423,10 @@
           // ticket was closed
           else if (ticket.status == "closed" && previous.status != "closed") {
             removeTicket(ticket.uuid);
-          } else {
-            tickets.refresh();
           }
+
+          tickets.refresh();
+          chat.refresh();
           refreshMenu();
         }
       }
@@ -494,7 +504,7 @@
           %temba-tabs.flex-grow.mb-6(-temba-context-changed="handleTabChanged" index="{{request.GET.tab}}" collapses="true")
             %temba-tab(icon="icon.message" name='{{_("Chat")|escapejs}}')
               .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
-                %temba-contact-chat(agent="{{request.user.email}}" monitor="true")
+                %temba-contact-chat(agent="{{request.user.email}}" monitor="true" -temba-message-sent="handleMessageSent")
 
             %temba-tab(icon="icon.fields" name='{{_("Fields")|escapejs}}')
               .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")

@@ -229,7 +229,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # )
 
         deep_link = f"{list_url}all/open/{str(ticket.uuid)}/"
-        self.assertContentMenu(deep_link, self.admin, ["Assign", "Add Note", "Start Flow", "-", "Export"])
+        self.assertContentMenu(deep_link, self.admin, ["Add Note", "Start Flow", "-", "Export"])
         response = self.assertListFetch(
             deep_link, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[]
         )
@@ -265,7 +265,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.contact.current_flow = flow
         self.contact.save()
         deep_link = f"{list_url}all/open/{str(ticket.uuid)}/"
-        self.assertContentMenu(deep_link, self.admin, ["Assign", "Add Note", "Interrupt", "-", "Export"])
+        self.assertContentMenu(deep_link, self.admin, ["Add Note", "Interrupt", "-", "Export"])
 
         # closed our tickets don't get extra menu options
         ticket.status = Ticket.STATUS_CLOSED
