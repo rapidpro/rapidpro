@@ -1497,7 +1497,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
     query_fields = models.ManyToManyField(ContactField, related_name="dependent_groups")
 
     org_limit_key = Org.LIMIT_GROUPS
-    soft_dependent_types = {"flow"}
+    soft_dependent_types = {"flow", "trigger"}
 
     @classmethod
     def create_system_groups(cls, org):
