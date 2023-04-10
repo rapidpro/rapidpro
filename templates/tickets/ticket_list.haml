@@ -162,13 +162,19 @@
     var ticketUUID = '{{uuid}}';
     var initialTicket = '{{uuid}}';
     var focusNext;
+    var messageSent;
 
     function handleMessageSent(evt) {
       var ticket = evt.detail.msg.ticket;
       if (ticket) {
         // auto assign tickets when a message is sent
         var contactTickets = document.querySelector("temba-contact-tickets");
-        contactTickets.handleTicketAssignment(ticket, "{{user.email}}");
+        var assigned = contactTickets.handleTicketAssignment(ticket, "{{user.email}}");
+        
+        // if we performed assignment, track our sent message
+        if (assigned) {
+          messageSent = true;
+        }
       }
     }
 
@@ -245,6 +251,7 @@
     }
 
     function handleContactChanged(event) {
+      messageSent = false;
       var contact = event.target.getSelection();
 
       var contactHeader = document.querySelector("temba-contact-name-fetch");
@@ -395,16 +402,19 @@
           var tickets = document.querySelector("temba-ticket-list");
           var contactTickets = document.querySelector("temba-contact-tickets");
           var chat = document.querySelector("temba-contact-chat");
-          var folder = menu.selection[menu.selection.length - 1];
-          
-          if (ticket.assignee && !previous.assignee && folder == 'unassigned') {
-            removeTicket(ticket.uuid);
-          }
 
           // current agent took a ticket
-          if (ticket.assignee && ticket.assignee.email == '{{request.user.email}}') {
-            updateTicketList();
-          } 
+          if (messageSent && ticket.assignee && ticket.assignee.email == '{{request.user.email}}') {
+            if (folder == 'unassigned') {
+              focusNext = ticket.uuid;
+              folder = 'mine';
+              menu.setFocusedItem('ticket/mine');
+              updateTicketList();
+            }
+            messageSent = false;
+          } else if (ticket.assignee && !previous.assignee && folder == 'unassigned') {
+            removeTicket(ticket.uuid);
+          }
           // unassigning an assigned ticket
           else if ((!ticket.assignee || ticket.assignee.email != '{{request.user.email}}') && folder == "mine" && previous.assignee) {
             removeTicket(ticket.uuid);
