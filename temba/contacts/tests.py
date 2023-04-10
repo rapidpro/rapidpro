@@ -1457,7 +1457,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check that the trigger is deleted
         self.assertEqual(0, Trigger.objects.count())
-        
+
         # check that flow is now marked as having issues
         flow1.refresh_from_db()
         self.assertTrue(flow1.has_issues)
