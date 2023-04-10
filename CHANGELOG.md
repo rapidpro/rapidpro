@@ -1,3 +1,8 @@
+v8.1.103 (2023-04-10)
+-------------------------
+ * Fix urls when searching and paging
+ * Follow message on auto assign for unassigned folder
+
 v8.1.102 (2023-04-10)
 -------------------------
  * Add contact details pane, hide empty tabs
