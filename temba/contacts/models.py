@@ -1714,6 +1714,9 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
         # delete all counts for this group
         self.counts.all().delete()
 
+        # delete all triggers for this group
+        self.get_dependents()["trigger"].delete()
+
         # delete the m2m related rows in batches, updating the contacts' modified_on as we go
         ContactGroupContacts = self.contacts.through
         memberships = ContactGroupContacts.objects.filter(contactgroup_id=self.id)
