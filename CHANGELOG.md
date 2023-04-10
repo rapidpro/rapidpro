@@ -1,3 +1,10 @@
+v8.1.102 (2023-04-10)
+-------------------------
+ * Add contact details pane, hide empty tabs
+ * Auto assign tickets when sending messages
+ * Add nicer ticket assignment using temba-contact-tickets component
+ * Fix deleting of orgs with incidents
+
 v8.1.101 (2023-04-06)
 -------------------------
  * Add field search handler on tickets
