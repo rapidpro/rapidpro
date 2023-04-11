@@ -1690,6 +1690,10 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         from .tasks import release_group_task
 
+        # delete all triggers for this group
+        for trigger in self.triggers.all():
+            trigger.release(user)
+
         super().release(user)
 
         self.name = self._deleted_name()
@@ -1713,9 +1717,6 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         # delete all counts for this group
         self.counts.all().delete()
-
-        # delete all triggers for this group
-        self.get_dependents()["trigger"].delete()
 
         # delete the m2m related rows in batches, updating the contacts' modified_on as we go
         ContactGroupContacts = self.contacts.through

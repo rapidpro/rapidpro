@@ -1405,9 +1405,8 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_delete(self):
         # create a group which isn't used by anything
         group1 = self.create_group("Group 1", contacts=[])
-
-        # a group with no dependents can be deleted
         delete_group1_url = reverse("contacts.contactgroup_delete", args=[group1.uuid])
+        # a group with no dependents can be deleted
         response = self.assertDeleteFetch(delete_group1_url, allow_editors=True)
         self.assertEqual({}, response.context["soft_dependents"])
         self.assertEqual({}, response.context["hard_dependents"])
@@ -1415,66 +1414,89 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "There is no way to undo this. Are you sure?")
         self.assertDeleteSubmit(delete_group1_url, object_deactivated=group1, success_status=200)
 
-        # create a group which is used by a flow (soft) and a trigger (soft)
+        # create a group which is used only by a flow (soft)
         group2 = self.create_group("Group 2", contacts=[])
+        delete_group2_url = reverse("contacts.contactgroup_delete", args=[group2.uuid])
         flow1 = self.create_flow("Flow 1")
         flow1.group_dependencies.add(group2)
+        # a group with only soft dependents can also be deleted but we give warnings
+        response = self.assertDeleteFetch(delete_group2_url, allow_editors=True)
+        self.assertEqual({"flow"}, set(response.context["soft_dependents"].keys()))
+        self.assertEqual({}, response.context["hard_dependents"])
+        self.assertContains(response, "is used by the following items but can still be deleted:")
+        self.assertContains(response, flow1.name)
+        self.assertContains(response, "There is no way to undo this. Are you sure?")
+        self.assertDeleteSubmit(delete_group2_url, object_deactivated=group2, success_status=200)
+        # check that the flow is not deleted
+        self.assertEqual(flow1, Flow.objects.get(uuid=flow1.uuid))
+        # check that the flow is now marked as having issues
+        flow1.refresh_from_db()
+        self.assertTrue(flow1.has_issues)
+        self.assertNotIn(group2, flow1.field_dependencies.all())
 
+        # create a group which is used by a flow (soft) and a scheduled trigger (soft)
+        group3 = self.create_group("Group 3", contacts=[])
+        delete_group3_url = reverse("contacts.contactgroup_delete", args=[group3.uuid])
+        flow2 = self.create_flow("Flow 2")
+        flow2.group_dependencies.add(group3)
         trigger_create_url = reverse("triggers.trigger_create_schedule")
-        self.assertCreateSubmit(
+        trigger1 = self.assertCreateSubmit(
             trigger_create_url,
             {
                 "start_datetime": "2021-06-24 12:00",
                 "repeat_period": "W",
                 "repeat_days_of_week": ["M", "F"],
-                "flow": flow1.id,
-                "groups": [group2.id],
+                "flow": flow2.id,
+                "groups": [group3.id],
                 "contacts": omnibox_serialize(self.org, [], [], json_encode=True),
                 "exclude_groups": [],
             },
-            new_obj_query=Trigger.objects.filter(trigger_type="S", flow=flow1),
+            new_obj_query=Trigger.objects.filter(trigger_type="S", flow=flow2),
             success_status=200,
         )
-        self.assertEqual(1, Trigger.objects.count())
-
+        # todo fix this assertion
+        # check that the trigger is created
+        self.assertEqual(trigger1, Trigger.objects.get(trigger_type="S", flow=flow2))
         # a group with only soft dependents can also be deleted but we give warnings
-        delete_group2_url = reverse("contacts.contactgroup_delete", args=[group2.uuid])
-        response = self.assertDeleteFetch(delete_group2_url, allow_editors=True)
+        response = self.assertDeleteFetch(delete_group3_url, allow_editors=True)
         self.assertEqual({"flow", "trigger"}, set(response.context["soft_dependents"].keys()))
         self.assertEqual({}, response.context["hard_dependents"])
         self.assertContains(response, "is used by the following items but can still be deleted:")
-        self.assertContains(response, flow1.name)
-        self.assertContains(response, f"Schedule → {flow1.name}")
+        self.assertContains(response, flow2.name)
+        self.assertContains(response, f"Schedule → {flow2.name}")
         self.assertContains(response, "There is no way to undo this. Are you sure?")
-        self.assertDeleteSubmit(delete_group2_url, object_deactivated=group2, success_status=200)
-
+        self.assertDeleteSubmit(delete_group3_url, object_deactivated=group3, success_status=200)
+        # check that the flow is not deleted
+        self.assertEqual(flow2, Flow.objects.get(uuid=flow2.uuid))        
         # check that the trigger is deleted
         self.assertEqual(0, Trigger.objects.count())
-
-        # check that flow is now marked as having issues
-        flow1.refresh_from_db()
-        self.assertTrue(flow1.has_issues)
-        self.assertNotIn(group2, flow1.field_dependencies.all())
+        # check that the flow is now marked as having issues
+        flow2.refresh_from_db()
+        self.assertTrue(flow2.has_issues)
+        self.assertNotIn(group3, flow2.field_dependencies.all())
 
         # create a group which is used by a flow (soft), a trigger (soft), and a campaign (hard)
-        group3 = self.create_group("Group 3", contacts=[])
-        flow2 = self.create_flow("Flow 2")
-        flow2.group_dependencies.add(group3)
-        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keyword="Trigger2", groups=[group3])
-        campaign1 = Campaign.create(self.org, self.admin, "Planting Reminders", group3)
+        group4 = self.create_group("Group 4", contacts=[])
+        delete_group4_url = reverse("contacts.contactgroup_delete", args=[group4.uuid])
+        flow3 = self.create_flow("Flow 3")
+        flow3.group_dependencies.add(group4)
+        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow3, keyword="trigger2", groups=[group4])
+        campaign1 = Campaign.create(self.org, self.admin, "Planting Reminders", group4)
         self.assertEqual(1, Trigger.objects.count())
-
         # a group with hard dependents can't be deleted
-        delete_group3_url = reverse("contacts.contactgroup_delete", args=[group3.uuid])
-        response = self.assertDeleteFetch(delete_group3_url, allow_editors=True)
+        response = self.assertDeleteFetch(delete_group4_url, allow_editors=True)
         self.assertEqual({"flow", "trigger"}, set(response.context["soft_dependents"].keys()))
         self.assertEqual({"campaign"}, set(response.context["hard_dependents"].keys()))
         self.assertContains(response, "can't be deleted as it is still used by the following items:")
         self.assertContains(response, campaign1.name)
         self.assertNotContains(response, "Delete")
-
+        # check that the flow is not deleted
+        self.assertEqual(flow3, Flow.objects.get(uuid=flow3.uuid))
+        # todo fix this assertion
         # check that the trigger is not deleted
-        self.assertEqual(1, Trigger.objects.count())
+        self.assertEqual(trigger2, Trigger.objects.get(trigger_type="K", flow=flow3))
+        # check that the campaign is not deleted
+        self.assertEqual(campaign1, Campaign.objects.get(uuid=campaign1.uuid))
 
 
 class ContactTest(TembaTest, CRUDLTestMixin):
