@@ -1,3 +1,9 @@
+v8.1.104 (2023-04-11)
+-------------------------
+ * Do not display schedule events for archived triggers
+ * Don't require db superuser for test_db command
+ * Make ticket banner expandable
+
 v8.1.103 (2023-04-10)
 -------------------------
  * Fix urls when searching and paging
