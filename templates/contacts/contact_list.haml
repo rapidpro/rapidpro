@@ -305,22 +305,22 @@
     var onLink = false;
 
     {% if org_perms.contacts.contact_update %}
-      function addContactToGroup(groupId){
-        window.lastChecked = getCheckedIds();
-        var groupedIds = getLabeledIds(groupId);
+    function addContactToGroup(groupId){
+      window.lastChecked = getCheckedIds();
+      var groupedIds = getLabeledIds(groupId);
 
-        var addGroup = true;
+      var addGroup = true;
 
-        // find the intersection of contactIds and groupedIds
-        var contactIdsWithGroup = intersect(window.lastChecked, groupedIds);
+      // find the intersection of contactIds and groupedIds
+      var contactIdsWithGroup = intersect(window.lastChecked, groupedIds);
 
-        // they all belong to the group, so we are actually removing these contacts from the group
-        if (contactIdsWithGroup.length == window.lastChecked.length){
-          addGroup = false;
-        }
-        jQuery.ajaxSettings.traditional = true;
-        fetchPJAXContent(document.location.href, "#pjax", { postData: {objects: window.lastChecked, label: groupId, add: addGroup, action: 'label', pjax: 'true'}, forceReload: true, onSuccess: function(){ recheckIds(); wireTableListeners()}});
+      // they all belong to the group, so we are actually removing these contacts from the group
+      if (contactIdsWithGroup.length == window.lastChecked.length){
+        addGroup = false;
       }
+      jQuery.ajaxSettings.traditional = true;
+      fetchPJAXContent(document.location.href, "#pjax", { postData: {objects: window.lastChecked, label: groupId, add: addGroup, action: 'label', pjax: 'true'}, forceReload: true, onSuccess: function(){ recheckIds(); wireTableListeners()}});
+    }
     {% endif %}
 
     {% if org_perms.contacts.contact_block %}
@@ -353,53 +353,53 @@
     }
 
     {% if org_perms.contacts.contact_delete %}
-      function handleDeleteAllContacts() {
-        var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
-        deleteAllConfirmation.classList.remove("hide");
-        deleteAllConfirmation.open = true;
+    function handleDeleteAllContacts() {
+      var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
+      deleteAllConfirmation.classList.remove("hide");
+      deleteAllConfirmation.open = true;
 
-        deleteAllConfirmation.addEventListener("temba-button-clicked", function(event){
-          if (event.detail.button.attributes.destructive){
-            jQuery.ajaxSettings.traditional = true;
-            fetchPJAXContent(document.location.href, '#pjax', {
-                postData: { action: "delete", all: 'true', pjax: 'true' },
-                forceReload: true
-            });
-
-          }
-          deleteAllConfirmation.classList.add("hide");
-          deleteAllConfirmation.open = false;
-        });
-      }
-
-      function handleDeleteAllConfirmation_spa() {
-        var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
-
-        deleteAllConfirmation.classList.remove("hide");
-        deleteAllConfirmation.open = true;
-
-        deleteAllConfirmation.removeEventListener("temba-button-clicked", handleDeleteAllContacts_spa);
-        deleteAllConfirmation.addEventListener("temba-button-clicked", handleDeleteAllContacts_spa);
-      }
-
-      function handleDeleteAllContacts_spa(event){
-        var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
-
+      deleteAllConfirmation.addEventListener("temba-button-clicked", function(event){
         if (event.detail.button.attributes.destructive){
           jQuery.ajaxSettings.traditional = true;
-          var url = "{% url 'contacts.contact_archived' %}";
-
-          var store = document.querySelector("temba-store");
-          store.postForm(url, { action: "delete", all: 'true', pjax: true}).then(function(response){
-            document.querySelector("temba-menu").refresh();
-            gotoURL(url);
-          }).catch(function(error){
-            console.log(error);
+          fetchPJAXContent(document.location.href, '#pjax', {
+              postData: { action: "delete", all: 'true', pjax: 'true' },
+              forceReload: true
           });
 
         }
         deleteAllConfirmation.classList.add("hide");
         deleteAllConfirmation.open = false;
+      });
+    }
+
+    function handleDeleteAllConfirmation_spa() {
+      var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
+
+      deleteAllConfirmation.classList.remove("hide");
+      deleteAllConfirmation.open = true;
+
+      deleteAllConfirmation.removeEventListener("temba-button-clicked", handleDeleteAllContacts_spa);
+      deleteAllConfirmation.addEventListener("temba-button-clicked", handleDeleteAllContacts_spa);
+    }
+
+    function handleDeleteAllContacts_spa(event){
+      var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
+
+      if (event.detail.button.attributes.destructive){
+        jQuery.ajaxSettings.traditional = true;
+        var url = "{% url 'contacts.contact_archived' %}";
+
+        var store = document.querySelector("temba-store");
+        store.postForm(url, { action: "delete", all: 'true', pjax: true}).then(function(response){
+          document.querySelector("temba-menu").refresh();
+          gotoURL(url);
+        }).catch(function(error){
+          console.log(error);
+        });
+
       }
+      deleteAllConfirmation.classList.add("hide");
+      deleteAllConfirmation.open = false;
+    }
 
     {% endif %}
