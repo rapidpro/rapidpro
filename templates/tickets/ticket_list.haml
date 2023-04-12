@@ -51,7 +51,7 @@
     }
 
     .spa-footer {
-      margin-top: -1em;
+      
     }
     
     temba-contact-tickets {
@@ -86,11 +86,6 @@
     temba-menu {
       height: 100%;
     }
-    
-    .spa-content {
-      // allow container resize layout changes below
-      // container-type: size;
-    }
 
     .add-note, .assign-ticket {
       --header-bg: rgb(255,249,194);
@@ -112,7 +107,6 @@
 
       .ticket-ui {
         flex-direction: column;
-        margin: -0.5em !important;
       }
 
       temba-ticket-list {
@@ -454,14 +448,14 @@
     {{title}}
 
 -block content
-  .flex.flex-col.overflow-y-auto.overflow-x-hidden.rounded-b-lg.p-8.-m-8.pb-4.flex-grow
+  .flex.flex-col.overflow-y-hidden.overflow-x-hidden.rounded-b-lg.flex-grow.-m-5.p-5
     .page.flex-grow.flex.flex-col.min-h-0
       .flex.ticket-ui(style="{% if is_spa%}position:relative;z-index:0;margin:0;padding:0;height:100%{%else%}height:100vh; margin-top:-121px;padding-top:121px;margin-bottom:-100px;padding-bottom:100px;{%endif%}")
         -if not is_spa
           .folders
             %temba-menu(endpoint="{%url 'orgs.org_menu'%}" submenu="ticket" -temba-button-clicked="handleTembaMenuClicked(event)" value="ticket/{{folder}}")
 
-        .ticket-list.pb-6.flex.flex-col.bg-gray-200.border-r.border-b(class="{% if is_spa%}-ml-5 pl-5 -mt-5 pt-5 pr-4{% else %}m-4 pt-4 mr-2{%endif%}")
+        .ticket-list.flex.flex-col(class="{% if is_spa%}{% else %}m-4 pt-4 mr-2{%endif%}")
           %temba-select.mb-2(name="ticket-status" onchange="handleStatusFilterChanged(event)" value="{{status}}")
             %temba-option(name="Open" value="open" icon="icon.tickets_open")
             %temba-option(name="Closed" value="closed" icon="icon.tickets_closed")
@@ -475,7 +469,7 @@
             -else
               %temba-ticket-list.flex-grow(nextselection="{{nextUUID}}" agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
 
-        .chat-pane.flex-grow.flex-col.flex.min-h-0(class="{% if is_spa %}ml-4{%else%}py-4 pb-4 pr-4{% endif %}")
+        .chat-pane.flex-grow.flex-col.flex(class="{% if is_spa %}ml-4{%else%}py-4 pb-4 pr-4{% endif %}")
           .empty
             -if has_tickets
               %h2
@@ -511,7 +505,7 @@
             
             %temba-contact-tickets.mb-1(agent="{{request.user.email}}" -temba-refreshed="handleTicketUpdated" expandable="true")
 
-          %temba-tabs.flex-grow.mb-6(-temba-context-changed="handleTabChanged" index="{{request.GET.tab}}" collapses="true")
+          %temba-tabs.flex-grow(-temba-context-changed="handleTabChanged" index="{{request.GET.tab}}" collapses="true")
             %temba-tab(icon="icon.message" name='{{_("Chat")|escapejs}}')
               .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
                 %temba-contact-chat(agent="{{request.user.email}}" monitor="true" -temba-message-sent="handleMessageSent")

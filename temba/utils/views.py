@@ -127,6 +127,15 @@ class SpaMixin(View):
         response = super().render_to_response(context, **response_kwargs)
         response.headers[TEMBA_VERSION] = temba_version
 
+        # temporary escape hatch to the old ui
+        if self.is_spa() and self.request.GET.get("legacy", False) == "1":  # pragma: no cover
+            url = self.request.get_full_path()
+            url = url.replace("&legacy=1", "")
+            url = url.replace("?legacy=1", "")
+            response = HttpResponseRedirect(url)
+            response.set_cookie("nav", 1)
+            return response
+
         if self.is_spa():
             response.headers[TEMBA_MENU_SELECTION] = context[TEMBA_MENU_SELECTION]
             response.headers[TEMBA_CONTENT_ONLY] = 1 if self.is_content_only() else 0
