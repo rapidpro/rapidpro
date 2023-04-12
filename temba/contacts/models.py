@@ -700,7 +700,9 @@ class Contact(LegacyUUIDMixin, SmartModel):
         from temba.triggers.models import Trigger
 
         return (
-            self.org.triggers.filter(trigger_type=Trigger.TYPE_SCHEDULE, schedule__next_fire__gte=timezone.now())
+            self.org.triggers.filter(
+                trigger_type=Trigger.TYPE_SCHEDULE, schedule__next_fire__gte=timezone.now(), is_archived=False
+            )
             .filter(Q(contacts__in=[self]) | Q(groups__in=self.groups.all()))
             .exclude(exclude_groups__in=self.groups.all())
             .select_related("schedule")

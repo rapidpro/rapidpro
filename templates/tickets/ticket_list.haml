@@ -509,7 +509,7 @@
               .flex-grow
               -include "spa_page_menu.haml"
             
-            %temba-contact-tickets.mb-1(agent="{{request.user.email}}" -temba-refreshed="handleTicketUpdated")
+            %temba-contact-tickets.mb-1(agent="{{request.user.email}}" -temba-refreshed="handleTicketUpdated" expandable="true")
 
           %temba-tabs.flex-grow.mb-6(-temba-context-changed="handleTabChanged" index="{{request.GET.tab}}" collapses="true")
             %temba-tab(icon="icon.message" name='{{_("Chat")|escapejs}}')
