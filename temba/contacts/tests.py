@@ -2754,6 +2754,38 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         self.assertGreater(upcoming[6]["scheduled"], upcoming[7]["scheduled"])
 
+        # add a screduled trigger
+        schedule_time = now + timedelta(days=20)
+        schedule = Schedule.create_schedule(self.org, self.admin, schedule_time, Schedule.REPEAT_NEVER)
+        trigger = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_SCHEDULE,
+            self.reminder_flow,
+            groups=[],
+            exclude_groups=[],
+            contacts=(self.joe,),
+            schedule=schedule,
+        )
+
+        response = self.fetch_protected(read_url, self.admin)
+        self.assertEqual(self.joe, response.context["object"])
+        upcoming = response.context["upcoming_events"]
+        self.assertEqual(9, len(upcoming))
+
+        self.assertEqual(upcoming[0]["type"], "scheduled_trigger")
+        self.assertEqual({"uuid": str(self.reminder_flow.uuid), "name": "Reminder Flow"}, upcoming[0]["flow"])
+
+        # archived scheduled trigger should not be included
+        trigger.archive(self.admin)
+
+        response = self.fetch_protected(read_url, self.admin)
+        self.assertEqual(self.joe, response.context["object"])
+        upcoming = response.context["upcoming_events"]
+
+        self.assertEqual(8, len(upcoming))
+        self.assertNotEqual(upcoming[0]["type"], "scheduled_trigger")
+
         contact_no_name = self.create_contact(name=None, phone="678")
         read_url = reverse("contacts.contact_read", args=[contact_no_name.uuid])
 
