@@ -243,16 +243,6 @@
       margin-left: 0 !important;
       margin-right: 0 !important;
     }
-
-    .spa-content {
-      margin-bottom: -2em;
-      padding-bottom: 2em;
-    }
-    
-    .spa-footer {
-      margin-bottom: 2.5em;
-      padding-top: 0.5em;
-    }
 }
 
 -block full-page-script
@@ -781,11 +771,6 @@
               -->
               Copyright © 2012-2023 TextIt. All rights reserved.
   
-  .bottom-strip.absolute.bottom-0.text-sm.text-center.text-white.p-1(style="background:rgba(0,0,0,.7); z-index:100000;width:100%;")
-    Go back to the
-    %span.linked(onclick="leaveNewInterface()" style="color:#43b1ff")<
-      old interface
-
   %temba-dialog#legacy-ui(header='Not ready yet?' primaryButtonName='Use the old interface for now' -temba-button-clicked="handleUIConfirm")
     .p-4
       .mb-4
