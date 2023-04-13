@@ -1449,6 +1449,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({}, response.context["hard_dependents"])
         self.assertContains(response, "You are about to delete")
         self.assertContains(response, "There is no way to undo this. Are you sure?")
+
         self.assertDeleteSubmit(delete_group1_url, object_deactivated=group1, success_status=200)
 
         # a group with only soft dependents can be deleted but we give warnings
