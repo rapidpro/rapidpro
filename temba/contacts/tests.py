@@ -1458,7 +1458,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "is used by the following items but can still be deleted:")
         self.assertContains(response, flow1.name)
         self.assertContains(response, "There is no way to undo this. Are you sure?")
-        
+
         self.assertDeleteSubmit(delete_group2_url, object_deactivated=group2, success_status=200)
         # check that the flow is not deleted
         self.assertEqual(flow1, Flow.objects.get(uuid=flow1.uuid))
@@ -1475,7 +1475,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, flow2.name)
         self.assertContains(response, f"Schedule → {flow2.name}")
         self.assertContains(response, "There is no way to undo this. Are you sure?")
-        
+
         self.assertDeleteSubmit(delete_group3_url, object_deactivated=group3, success_status=200)
         # check that the flow is not deleted
         self.assertEqual(flow2, Flow.objects.get(uuid=flow2.uuid))
