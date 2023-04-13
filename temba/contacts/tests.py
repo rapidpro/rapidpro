@@ -1464,8 +1464,6 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertDeleteSubmit(delete_group2_url, object_deactivated=group2, success_status=200)
 
-        # check that the flow is not deleted
-        self.assertEqual(flow1, Flow.objects.get(uuid=flow1.uuid))
         # check that the flow is now marked as having issues
         flow1.refresh_from_db()
         self.assertTrue(flow1.has_issues)
@@ -1483,14 +1481,14 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertDeleteSubmit(delete_group3_url, object_deactivated=group3, success_status=200)
 
-        # check that the flow is not deleted
-        self.assertEqual(flow2, Flow.objects.get(uuid=flow2.uuid))
         # check that the flow is now marked as having issues
         flow2.refresh_from_db()
         self.assertTrue(flow2.has_issues)
         self.assertNotIn(group3, flow2.field_dependencies.all())
+
         # check that the trigger is released
-        self.assertFalse(group3.triggers.get(keyword=trigger1.keyword).is_active)
+        trigger1.refresh_from_db()
+        self.assertFalse(trigger1.is_active)
 
         # a group with hard dependents can't be deleted
         response = self.assertDeleteFetch(delete_group4_url, allow_editors=True)
@@ -1500,12 +1498,18 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "can't be deleted as it is still used by the following items:")
         self.assertContains(response, campaign1.name)
         self.assertNotContains(response, "Delete")
+
         # check that the flow is not deleted
-        self.assertEqual(flow3, Flow.objects.get(uuid=flow3.uuid))
+        flow3.refresh_from_db()
+        self.assertTrue(flow3.is_active)
+
         # check that the trigger is not released
-        self.assertTrue(group4.triggers.get(keyword=trigger2.keyword).is_active)
+        trigger2.refresh_from_db()
+        self.assertTrue(trigger2.is_active)
+
         # check that the campaign is not deleted
-        self.assertEqual(campaign1, Campaign.objects.get(uuid=campaign1.uuid))
+        campaign1.refresh_from_db()
+        self.assertTrue(campaign1.is_active)
 
 
 class ContactTest(TembaTest, CRUDLTestMixin):
