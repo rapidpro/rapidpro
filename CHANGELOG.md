@@ -1,3 +1,7 @@
+v8.1.107 (2023-04-13)
+-------------------------
+ * Allow deleting of groups used in triggers
+
 v8.1.106 (2023-04-13)
 -------------------------
  * Don't show topics on tickets until clicked
