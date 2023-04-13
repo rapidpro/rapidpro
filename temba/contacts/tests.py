@@ -1404,17 +1404,14 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_delete(self):
         # create a group which isn't used by anything
         group1 = self.create_group("Group 1", contacts=[])
-        delete_group1_url = reverse("contacts.contactgroup_delete", args=[group1.uuid])
 
         # create a group which is used only by a flow (soft dependency)
         group2 = self.create_group("Group 2", contacts=[])
-        delete_group2_url = reverse("contacts.contactgroup_delete", args=[group2.uuid])
         flow1 = self.create_flow("Flow 1")
         flow1.group_dependencies.add(group2)
 
         # create a group which is used by a flow (soft) and a scheduled trigger (soft)
         group3 = self.create_group("Group 3", contacts=[])
-        delete_group3_url = reverse("contacts.contactgroup_delete", args=[group3.uuid])
         flow2 = self.create_flow("Flow 2")
         flow2.group_dependencies.add(group3)
         schedule1 = Schedule.create_schedule(
@@ -1434,13 +1431,17 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create a group which is used by a flow (soft), a trigger (soft), and a campaign (hard dependency)
         group4 = self.create_group("Group 4", contacts=[])
-        delete_group4_url = reverse("contacts.contactgroup_delete", args=[group4.uuid])
         flow3 = self.create_flow("Flow 3")
         flow3.group_dependencies.add(group4)
         trigger2 = Trigger.create(
             self.org, self.admin, Trigger.TYPE_KEYWORD, flow3, keyword="trigger2", groups=[group4]
         )
         campaign1 = Campaign.create(self.org, self.admin, "Planting Reminders", group4)
+
+        delete_group1_url = reverse("contacts.contactgroup_delete", args=[group1.uuid])
+        delete_group2_url = reverse("contacts.contactgroup_delete", args=[group2.uuid])
+        delete_group3_url = reverse("contacts.contactgroup_delete", args=[group3.uuid])
+        delete_group4_url = reverse("contacts.contactgroup_delete", args=[group4.uuid])
 
         # a group with no dependents can be deleted
         response = self.assertDeleteFetch(delete_group1_url, allow_editors=True)
@@ -1457,6 +1458,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "is used by the following items but can still be deleted:")
         self.assertContains(response, flow1.name)
         self.assertContains(response, "There is no way to undo this. Are you sure?")
+        
         self.assertDeleteSubmit(delete_group2_url, object_deactivated=group2, success_status=200)
         # check that the flow is not deleted
         self.assertEqual(flow1, Flow.objects.get(uuid=flow1.uuid))
@@ -1473,6 +1475,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, flow2.name)
         self.assertContains(response, f"Schedule → {flow2.name}")
         self.assertContains(response, "There is no way to undo this. Are you sure?")
+        
         self.assertDeleteSubmit(delete_group3_url, object_deactivated=group3, success_status=200)
         # check that the flow is not deleted
         self.assertEqual(flow2, Flow.objects.get(uuid=flow2.uuid))
