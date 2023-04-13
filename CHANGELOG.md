@@ -1,3 +1,7 @@
+v8.1.106 (2023-04-13)
+-------------------------
+ * Don't show topics on tickets until clicked
+
 v8.1.105 (2023-04-12)
 -------------------------
  * Fix js items on context menus
