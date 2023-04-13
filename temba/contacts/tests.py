@@ -1445,6 +1445,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # a group with no dependents can be deleted
         response = self.assertDeleteFetch(delete_group1_url, allow_editors=True)
+
         self.assertEqual({}, response.context["soft_dependents"])
         self.assertEqual({}, response.context["hard_dependents"])
         self.assertContains(response, "You are about to delete")
@@ -1454,6 +1455,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # a group with only soft dependents can be deleted but we give warnings
         response = self.assertDeleteFetch(delete_group2_url, allow_editors=True)
+
         self.assertEqual({"flow"}, set(response.context["soft_dependents"].keys()))
         self.assertEqual({}, response.context["hard_dependents"])
         self.assertContains(response, "is used by the following items but can still be deleted:")
@@ -1461,6 +1463,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "There is no way to undo this. Are you sure?")
 
         self.assertDeleteSubmit(delete_group2_url, object_deactivated=group2, success_status=200)
+
         # check that the flow is not deleted
         self.assertEqual(flow1, Flow.objects.get(uuid=flow1.uuid))
         # check that the flow is now marked as having issues
@@ -1470,6 +1473,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # a group with only soft dependents can be deleted but we give warnings
         response = self.assertDeleteFetch(delete_group3_url, allow_editors=True)
+
         self.assertEqual({"flow", "trigger"}, set(response.context["soft_dependents"].keys()))
         self.assertEqual({}, response.context["hard_dependents"])
         self.assertContains(response, "is used by the following items but can still be deleted:")
@@ -1478,6 +1482,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "There is no way to undo this. Are you sure?")
 
         self.assertDeleteSubmit(delete_group3_url, object_deactivated=group3, success_status=200)
+
         # check that the flow is not deleted
         self.assertEqual(flow2, Flow.objects.get(uuid=flow2.uuid))
         # check that the flow is now marked as having issues
@@ -1489,6 +1494,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # a group with hard dependents can't be deleted
         response = self.assertDeleteFetch(delete_group4_url, allow_editors=True)
+
         self.assertEqual({"flow", "trigger"}, set(response.context["soft_dependents"].keys()))
         self.assertEqual({"campaign"}, set(response.context["hard_dependents"].keys()))
         self.assertContains(response, "can't be deleted as it is still used by the following items:")
