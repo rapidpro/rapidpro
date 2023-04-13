@@ -1499,7 +1499,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
     query_fields = models.ManyToManyField(ContactField, related_name="dependent_groups")
 
     org_limit_key = Org.LIMIT_GROUPS
-    soft_dependent_types = {"flow"}
+    soft_dependent_types = {"flow", "trigger"}
 
     @classmethod
     def create_system_groups(cls, org):
@@ -1691,6 +1691,10 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
         assert not (self.is_system and self.org.is_active), "can't release system groups"
 
         from .tasks import release_group_task
+
+        # delete all triggers for this group
+        for trigger in self.triggers.all():
+            trigger.release(user)
 
         super().release(user)
 
