@@ -11,10 +11,10 @@
     
     if (item.type === 'link') {
       var contentMenu = document.querySelector("temba-content-menu");
-      if(contentMenu.legacy){        
+      if (contentMenu.legacy) {        
         gotoURL_legacy(event);
       }
-      else{
+      else {
         if (click) {
           click.preventDefault();
           click.stopPropagation();   
@@ -27,8 +27,7 @@
         fetchURL(item.url);
       }
     }
-  
-    if (item.type == 'modax') {
+    else if (item.type === 'modax') {
       var modaxOptions = {
         disabled: item.disabled,
         onSubmit: item.on_submit,
@@ -37,9 +36,14 @@
       }
       showModax(item.title, item.url, modaxOptions);
     }
-
-    if (item.type === 'url_post') {
+    else if (item.type === 'url_post') {
       posterize(item.url);
+    }
+    else if (item.type === 'js') {
+      if (item.on_click && item.on_click.length > 0) {
+        var onClick = Function(item.on_click);
+        onClick();
+      }
     }
 
     // items need to be refreshed in the top left sidebar menu
@@ -55,7 +59,7 @@
     var href = item.url;
 
     if (href) {
-      if (event.metaKey){
+      if (event.metaKey) {
         window.open(href,'_blank')
       } else {
         window.location = href;
