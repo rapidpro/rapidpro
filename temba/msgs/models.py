@@ -506,6 +506,7 @@ class Msg(models.Model):
     # message origin
     broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, null=True, related_name="msgs")
     flow = models.ForeignKey("flows.Flow", on_delete=models.PROTECT, null=True, db_index=False)
+    ticket = models.ForeignKey("tickets.Ticket", on_delete=models.PROTECT, null=True, db_index=False)
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, db_index=False)
 
     # message content
