@@ -1,3 +1,7 @@
+v8.1.108 (2023-04-17)
+-------------------------
+ * Add ticket field to msg model
+
 v8.1.107 (2023-04-13)
 -------------------------
  * Allow deleting of groups used in triggers
