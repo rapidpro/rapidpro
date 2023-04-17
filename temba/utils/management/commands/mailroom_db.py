@@ -47,6 +47,7 @@ RESET_SEQUENCES = (
 )
 
 PG_DUMP_VERSION = "14"
+PSQL_ARGS = "-h 127.0.0.1 -U postgres"
 
 
 class Command(BaseCommand):
@@ -73,11 +74,14 @@ class Command(BaseCommand):
         self._log("Initializing mailroom_test database...\n")
 
         # drop and recreate the mailroom_test db and user
-        subprocess.check_call('psql -c "DROP DATABASE IF EXISTS mailroom_test;"', shell=True)
-        subprocess.check_call('psql -c "CREATE DATABASE mailroom_test;"', shell=True)
-        subprocess.check_call('psql -c "DROP USER IF EXISTS mailroom_test;"', shell=True)
-        subprocess.check_call("psql -c \"CREATE USER mailroom_test PASSWORD 'temba';\"", shell=True)
-        subprocess.check_call('psql -c "ALTER ROLE mailroom_test WITH SUPERUSER;"', shell=True)
+        def psql(stmt: str):
+            subprocess.check_call(f'psql {PSQL_ARGS} -c "{stmt}"', shell=True)
+
+        psql("DROP DATABASE IF EXISTS mailroom_test")
+        psql("CREATE DATABASE mailroom_test")
+        psql("DROP USER IF EXISTS mailroom_test")
+        psql("CREATE USER mailroom_test PASSWORD 'temba'")
+        psql("ALTER ROLE mailroom_test WITH SUPERUSER")
 
         # always use mailroom_test as our db
         settings.DATABASES["default"]["NAME"] = "mailroom_test"
@@ -116,7 +120,7 @@ class Command(BaseCommand):
         self.reset_id_sequences(30000)
 
         # dump our file
-        subprocess.check_call("pg_dump -Fc mailroom_test > mailroom_test.dump", shell=True)
+        subprocess.check_call(f"pg_dump {PSQL_ARGS} -Fc mailroom_test > mailroom_test.dump", shell=True)
 
         self._log("\n" + self.style.SUCCESS("Success!") + " Dump file: mailroom_test.dump\n\n")
 
