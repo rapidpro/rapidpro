@@ -2498,6 +2498,7 @@ class OrgDeleteTest(TembaTest):
                 trigger_type=Trigger.TYPE_KEYWORD,
                 channel=channels[0],
                 keyword="color",
+                match_type=Trigger.MATCH_FIRST_WORD,
                 groups=groups,
             )
         )
@@ -4653,9 +4654,17 @@ class BulkExportTest(TembaTest):
         flow2 = self.create_flow("Test 2")
 
         trigger1 = Trigger.create(
-            self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="rating", is_archived=True
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow1,
+            keyword="rating",
+            match_type=Trigger.MATCH_FIRST_WORD,
+            is_archived=True,
         )
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keyword="rating")
+        trigger2 = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keyword="rating", match_type=Trigger.MATCH_FIRST_WORD
+        )
 
         data = self.get_import_json("rating_10")
 
