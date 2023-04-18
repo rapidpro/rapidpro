@@ -769,7 +769,7 @@ class MsgCRUDL(SmartCRUDL):
             return r"^%s/inbox/$" % (path)
 
     class Inbox(MsgListView):
-        title = _("Inbox")
+        title = _("Inbox Messages")
         template_name = "msgs/message_box.haml"
         system_label = SystemLabel.TYPE_INBOX
         bulk_actions = ("archive", "label")
@@ -797,7 +797,7 @@ class MsgCRUDL(SmartCRUDL):
             return qs.prefetch_related("labels").select_related("contact", "channel", "flow")
 
     class Archived(MsgListView):
-        title = _("Archived")
+        title = _("Archived Messages")
         template_name = "msgs/msg_archived.haml"
         system_label = SystemLabel.TYPE_ARCHIVED
         bulk_actions = ("restore", "label", "delete")
@@ -805,7 +805,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            return qs.prefetch_related("labels").select_related("contact", "channel")
+            return qs.prefetch_related("labels").select_related("contact", "channel", "flow")
 
     class Outbox(MsgListView):
         title = _("Outbox Messages")
@@ -829,7 +829,7 @@ class MsgCRUDL(SmartCRUDL):
             return context
 
         def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).select_related("contact", "channel")
+            return super().get_queryset(**kwargs).select_related("contact", "channel", "flow")
 
     class Sent(MsgListView):
         title = _("Sent Messages")
@@ -840,10 +840,10 @@ class MsgCRUDL(SmartCRUDL):
         default_order = ("-sent_on", "-id")
 
         def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).select_related("contact", "channel")
+            return super().get_queryset(**kwargs).select_related("contact", "channel", "flow")
 
     class Failed(MsgListView):
-        title = _("Failed Outgoing Messages")
+        title = _("Failed Messages")
         template_name = "msgs/msg_failed.haml"
         success_message = ""
         system_label = SystemLabel.TYPE_FAILED
@@ -853,7 +853,7 @@ class MsgCRUDL(SmartCRUDL):
             return () if self.request.org.is_suspended else ("resend",)
 
         def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).select_related("contact", "channel")
+            return super().get_queryset(**kwargs).select_related("contact", "channel", "flow")
 
     class Filter(MsgListView):
         template_name = "msgs/msg_filter.haml"
@@ -905,7 +905,7 @@ class MsgCRUDL(SmartCRUDL):
             return (
                 qs.filter(labels=self.label, visibility=Msg.VISIBILITY_VISIBLE)
                 .prefetch_related("labels")
-                .select_related("contact", "channel")
+                .select_related("contact", "channel", "flow")
             )
 
 

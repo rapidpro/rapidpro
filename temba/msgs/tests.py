@@ -1472,6 +1472,11 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         flows_url = reverse("msgs.msg_flow")
 
+        # check query count
+        self.login(self.admin)
+        with self.assertNumQueries(15):
+            self.client.get(flows_url)
+
         response = self.assertListFetch(
             flows_url, allow_viewers=True, allow_editors=True, context_objects=[msg2, msg1]
         )
