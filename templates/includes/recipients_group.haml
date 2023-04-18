@@ -1,9 +1,8 @@
 -if group.is_active
-  .lbl-group.linked.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_filter' group.uuid %}")
-    %temba-icon(name="{{ group.icon }}")
-    {{ group.name }}
+  %a(href="{% url 'contacts.contact_filter' group.uuid %}" onclick="goto(event, this)")
+    %temba-label.mx-1.my-1(icon="group" clickable)
+      {{group.name}}
 -else
-  .lbl-group.mr-2.mb-2
-    %temba-icon(name="{{ group.icon }}")
+  %temba-label.mx-1.my-1(icon="group" clickable)
     .line-through
       {{ group.name }}

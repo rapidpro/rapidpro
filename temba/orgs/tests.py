@@ -224,7 +224,7 @@ class UserTest(TembaTest):
         # try to access a non-public page
         response = self.client.get(reverse("msgs.msg_inbox"))
         self.assertLoginRedirect(response)
-        self.assertTrue(response.url.endswith("?next=/msg/inbox/"))
+        self.assertTrue(response.url.endswith("?next=/msg/"))
 
         # view login page
         response = self.client.get(login_url)
@@ -257,10 +257,10 @@ class UserTest(TembaTest):
 
         # login via login page again
         response = self.client.post(
-            login_url + "?next=/msg/inbox/", {"username": "admin@nyaruka.com", "password": "Qwerty123"}
+            login_url + "?next=/msg/", {"username": "admin@nyaruka.com", "password": "Qwerty123"}
         )
         self.assertRedirect(response, verify_url)
-        self.assertTrue(response.url.endswith("?next=/msg/inbox/"))
+        self.assertTrue(response.url.endswith("?next=/msg/"))
 
         # view two-factor verify page
         response = self.client.get(verify_url)
@@ -550,7 +550,7 @@ class UserTest(TembaTest):
 
     @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
     def test_confirm_access(self):
-        confirm_url = reverse("users.confirm_access") + "?next=/msg/inbox/"
+        confirm_url = reverse("users.confirm_access") + "?next=/msg/"
         failed_url = reverse("users.user_failed")
 
         # try to access before logging in
@@ -583,7 +583,7 @@ class UserTest(TembaTest):
 
         # and also correct ones
         response = self.client.post(confirm_url, {"password": "Qwerty123"})
-        self.assertRedirect(response, "/msg/inbox/")
+        self.assertRedirect(response, "/msg/")
 
     def test_ui_permissions(self):
         # non-logged in users can't go here
@@ -689,7 +689,7 @@ class UserTest(TembaTest):
         response = self.client.post(
             reverse("orgs.org_choose"), dict(organization=self.org.id), SERVER_NAME="custom-brand.org"
         )
-        self.assertRedirect(response, "/msg/inbox/")
+        self.assertRedirect(response, "/msg/")
 
     def test_release(self):
         # admin doesn't "own" any orgs
@@ -3046,7 +3046,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             response = self.client.get(reverse("orgs.org_workspace"))
 
         # should have an extra menu option for our child (and section header)
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 9)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 8)
 
         # going to home in the new ui should route to manage
         self.login(self.admin)
@@ -3524,8 +3524,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(OrgRole.ADMINISTRATOR, new_org.get_user_role(self.admin))
 
         # should be now logged into that org
-        self.assertRedirect(response, "/msg/inbox/")
-        response = self.client.get("/msg/inbox/")
+        self.assertRedirect(response, "/msg/")
+        response = self.client.get("/msg/")
         self.assertEqual(str(new_org.id), response.headers["X-Temba-Org"])
 
     def test_create_child(self):
@@ -3704,9 +3704,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertLoginRedirect(self.client.get(start_url))
 
         # now for all our roles
-        self.assertRedirect(self.requestView(start_url, self.admin), "/msg/inbox/")
-        self.assertRedirect(self.requestView(start_url, self.editor), "/msg/inbox/")
-        self.assertRedirect(self.requestView(start_url, self.user), "/msg/inbox/")
+        self.assertRedirect(self.requestView(start_url, self.admin), "/msg/")
+        self.assertRedirect(self.requestView(start_url, self.editor), "/msg/")
+        self.assertRedirect(self.requestView(start_url, self.user), "/msg/")
         self.assertRedirect(self.requestView(start_url, self.agent), "/ticket/")
         self.assertRedirect(self.requestView(start_url, self.surveyor), "/org/surveyor/")
 
@@ -3735,9 +3735,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertLoginRedirect(self.client.get(choose_url))
 
         # users with a single org are always redirected right away to a page in that org that they have access to
-        self.assertRedirect(self.requestView(choose_url, self.admin), "/msg/inbox/")
-        self.assertRedirect(self.requestView(choose_url, self.editor), "/msg/inbox/")
-        self.assertRedirect(self.requestView(choose_url, self.user), "/msg/inbox/")
+        self.assertRedirect(self.requestView(choose_url, self.admin), "/msg/")
+        self.assertRedirect(self.requestView(choose_url, self.editor), "/msg/")
+        self.assertRedirect(self.requestView(choose_url, self.user), "/msg/")
         self.assertRedirect(self.requestView(choose_url, self.agent), "/ticket/")
         self.assertRedirect(self.requestView(choose_url, self.surveyor), "/org/surveyor/")
 
@@ -3767,7 +3767,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # user clicks org 2...
         response = self.client.post(choose_url, {"organization": self.org2.id})
-        self.assertRedirect(response, "/msg/inbox/")
+        self.assertRedirect(response, "/msg/")
 
     def test_edit(self):
         edit_url = reverse("orgs.org_edit")
@@ -4081,7 +4081,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "The page you are requesting belongs to a different workspace, <b>Nyaruka</b>.")
 
         response = self.client.post(service_url, dict(other_org=self.org.id))
-        self.assertRedirect(response, "/msg/inbox/")
+        self.assertRedirect(response, "/msg/")
 
         # specify redirect_url
         response = self.client.post(service_url, dict(other_org=self.org.id, next="/flow/"))

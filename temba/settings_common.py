@@ -771,6 +771,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_menu",
         "orgs.org_profile",
         "orgs.org_spa",
+        "orgs.org_two_factor",
         "tickets.ticket_api",
         "tickets.ticket_assign",
         "tickets.ticket_assignee",

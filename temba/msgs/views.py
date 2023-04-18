@@ -23,6 +23,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
+from django.views.generic import RedirectView
 
 from temba.archives.models import Archive
 from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
@@ -571,7 +572,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
 class MsgCRUDL(SmartCRUDL):
     model = Msg
-    actions = ("inbox", "flow", "archived", "menu", "outbox", "sent", "failed", "filter", "export")
+    actions = ("inbox", "flow", "archived", "menu", "outbox", "sent", "failed", "filter", "export", "legacy_inbox")
 
     class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):  # pragma: no cover
         def derive_menu(self):
@@ -605,8 +606,8 @@ class MsgCRUDL(SmartCRUDL):
                         icon="icon.inbox",
                     ),
                     self.create_menu_item(
-                        menu_id="flow",
-                        name="Flows",
+                        menu_id="handled",
+                        name="Handled",
                         href=reverse("msgs.msg_flow"),
                         count=counts[SystemLabel.TYPE_FLOWS],
                         icon="icon.flow",
@@ -760,12 +761,24 @@ class MsgCRUDL(SmartCRUDL):
             response["REDIRECT"] = self.get_success_url()
             return response
 
+    class LegacyInbox(RedirectView):
+        url = "/msg"
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/inbox/$" % (path)
+
     class Inbox(MsgListView):
         title = _("Inbox")
         template_name = "msgs/message_box.haml"
         system_label = SystemLabel.TYPE_INBOX
         bulk_actions = ("archive", "label")
         allow_export = True
+        menu_path = "/msg/inbox"
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/$" % (path)
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
@@ -777,10 +790,11 @@ class MsgCRUDL(SmartCRUDL):
         system_label = SystemLabel.TYPE_FLOWS
         bulk_actions = ("archive", "label")
         allow_export = True
+        menu_path = "/msg/handled"
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            return qs.prefetch_related("labels").select_related("contact", "channel")
+            return qs.prefetch_related("labels").select_related("contact", "channel", "flow")
 
     class Archived(MsgListView):
         title = _("Archived")

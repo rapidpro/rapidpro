@@ -43,10 +43,17 @@
                   .flex-grow.inline
                     {% get_value object 'text' %}
                   .labels.flex.items-center.flex-wrap
+                    
                     -if 'label' in actions
                       -for label in object.labels.all
-                        .lbl.linked.ml-2{onclick:"goto(event, this)", href:"{% url 'msgs.msg_filter' label.uuid %}", data-id: '{{label.id}}'}                                
-                          {{label.name}}
+                        %a(href="{% url 'msgs.msg_filter' label.uuid %}" onclick="goto(event, this)")
+                          %temba-label.mx-1.my-1(data-id='{{label.id}}' icon="label" clickable)
+                            {{label.name}}
+                    -if object.flow
+                      %a(href="{% url 'flows.flow_editor' object.flow.uuid %}" onclick="goto(event, this)")
+                        %temba-label.mx-1.my-1(icon="flow" primary clickable)
+                          {{object.flow.name}}
+         
 
                 -if object.attachments
                   .value-attachments{ style:"margin-top: 5px" }
