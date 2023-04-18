@@ -1,3 +1,7 @@
+v8.1.111 (2023-04-18)
+-------------------------
+ * Fix and archive keyword triggers with no match_type
+
 v8.1.110 (2023-04-18)
 -------------------------
  * Prefetch flows on message views and make titles consistent
