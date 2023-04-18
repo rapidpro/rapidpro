@@ -3,30 +3,39 @@ on: [push, pull_request]
 jobs:
   test:
     name: Test
+    runs-on: ubuntu-latest
     env:
       python-version: "3.10.x"
-      pg-version: "14"
-      postgis-version: "3.2"
-      redis-version: "6.2"
       node-version: "12"
-      elastic-version: "7.17.6"
       rpindexer-version: "8.0.0"
-      mailroom-version: "8.1.0"
+      mailroom-version: "8.1.35"
       DJANGO_SETTINGS_MODULE: temba.settings_ci
-    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:6.2-alpine
+        ports:
+          - 6379:6379
+      postgres:
+        image: postgis/postgis:14-3.3-alpine
+        env:
+          POSTGRES_DB: temba
+          POSTGRES_USER: temba
+          POSTGRES_PASSWORD: temba
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      elastic:
+        image: elasticsearch:7.17.9
+        ports:
+          - 9200:9200
+          - 9300:9300
+        env:
+          discovery.type: single-node
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Install PostgreSQL and PostGIS
-        uses: nyaruka/postgis-action@v2.1.0
-        with:
-          postgresql version: ${{ env.pg-version }}
-          postgis version: ${{ env.postgis-version }}
-          postgresql db: temba
-          postgresql user: temba
-          postgresql password: temba
-          postgresql arguments: "--jit=off"
 
       - name: Install Linux packages
         run: |
@@ -42,16 +51,6 @@ jobs:
         uses: snok/install-poetry@v1
         with:
           virtualenvs-in-project: true
-
-      - name: Install Redis
-        uses: zhulik/redis-action@1.1.0
-        with:
-          redis version: ${{ env.redis-version }}
-
-      - name: Install ElasticSearch
-        uses: nyaruka/elasticsearch-action@master
-        with:
-          elastic version: ${{ env.elastic-version }}
 
       - name: Install Node
         uses: actions/setup-node@v3
