@@ -20,7 +20,7 @@ function getCheckedUuids() {
 
 function getLabeledIds(labelId) {
     var objectRowsIds = Array();
-    var labeled = $(".lbl[data-id='" + labelId + "']");
+    var labeled = $(".lbl[data-id='" + labelId + "'], temba-label[data-id='" + labelId + "']");
     for (var i = 0; i < labeled.length; i++) {
         var id = parseInt(
             $(labeled[i]).parents('.object-row').data('object-id')
@@ -34,7 +34,7 @@ function getLabeledIds(labelId) {
 function getObjectRowLabels(objectId) {
     var labelIds = Array();
     var labels = $(".object-row[data-object-id='" + objectId + "']").find(
-        '.lbl'
+        '.lbl, temba-label'
     );
     for (var i = 0; i < labels.length; i++) {
         labelIds.push(parseInt($(labels[i]).data('id')));

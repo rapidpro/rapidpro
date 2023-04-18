@@ -1111,13 +1111,13 @@ class MenuMixin(OrgPermsMixin):
         if endpoint:
             if endpoint[0] == "/":  # pragma: no cover
                 menu_item["endpoint"] = endpoint
-            elif self.has_org_perm(endpoint):
+            elif perm or self.has_org_perm(endpoint):
                 menu_item["endpoint"] = reverse(endpoint)
 
         if href:
             if href[0] == "/":
                 menu_item["href"] = href
-            elif self.has_org_perm(href):
+            elif perm or self.has_org_perm(href):
                 menu_item["href"] = reverse(href)
 
         if items:  # pragma: no cover
@@ -1218,7 +1218,7 @@ class OrgCRUDL(SmartCRUDL):
                             menu_id="dashboard",
                             name=_("Dashboard"),
                             icon="icon.dashboard",
-                            href=reverse("dashboard.dashboard_home"),
+                            href="dashboard.dashboard_home",
                         )
                     )
 
@@ -1229,6 +1229,7 @@ class OrgCRUDL(SmartCRUDL):
                             name=_("Security"),
                             icon="icon.two_factor_enabled",
                             href=reverse("orgs.user_two_factor_tokens"),
+                            perm="orgs.org_two_factor",
                         )
                     )
                 else:
@@ -1238,6 +1239,7 @@ class OrgCRUDL(SmartCRUDL):
                             name=_("Enable 2FA"),
                             icon="icon.two_factor_disabled",
                             href=reverse("orgs.user_two_factor_enable"),
+                            perm="orgs.org_two_factor",
                         )
                     )
 
@@ -1386,17 +1388,44 @@ class OrgCRUDL(SmartCRUDL):
             menu += [
                 self.create_space(),
                 self.create_menu_item(
-                    menu_id="msg", name=_("Messages"), icon="icon.messages", endpoint="msgs.msg_menu"
+                    menu_id="msg",
+                    name=_("Messages"),
+                    icon="icon.messages",
+                    endpoint="msgs.msg_menu",
+                    href="msgs.msg_inbox",
+                    perm="msgs.msg_list",
                 ),
                 self.create_menu_item(
-                    menu_id="contact", name=_("Contacts"), icon="icon.contacts", endpoint="contacts.contact_menu"
+                    menu_id="contact",
+                    name=_("Contacts"),
+                    icon="icon.contacts",
+                    endpoint="contacts.contact_menu",
+                    href="contacts.contact_list",
+                    perm="contacts.contact_list",
                 ),
-                self.create_menu_item(menu_id="flow", name=_("Flows"), icon="icon.flows", endpoint="flows.flow_menu"),
                 self.create_menu_item(
-                    menu_id="trigger", name=_("Triggers"), icon="icon.triggers", endpoint="triggers.trigger_menu"
+                    menu_id="flow",
+                    name=_("Flows"),
+                    icon="icon.flows",
+                    endpoint="flows.flow_menu",
+                    href="flows.flow_list",
+                    perm="flows.flow_list",
                 ),
                 self.create_menu_item(
-                    menu_id="campaign", name=_("Campaigns"), icon="icon.campaigns", endpoint="campaigns.campaign_menu"
+                    menu_id="trigger",
+                    name=_("Triggers"),
+                    icon="icon.triggers",
+                    endpoint="triggers.trigger_menu",
+                    href="triggers.trigger_list",
+                    perm="triggers.trigger_list",
+                ),
+                self.create_menu_item(
+                    menu_id="campaign",
+                    name=_("Campaigns"),
+                    icon="icon.campaigns",
+                    endpoint="campaigns.campaign_menu",
+                    href="campaigns.campaign_list",
+                    perm="campaigns.campaign_list",
                 ),
                 self.create_menu_item(
                     menu_id="ticket",

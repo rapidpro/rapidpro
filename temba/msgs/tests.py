@@ -514,7 +514,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         def request_export(query, data=None):
             with self.mockReadOnly():
                 response = self.client.post(export_url + query, data)
-            self.assertModalResponse(response, redirect="/msg/inbox/")
+            self.assertModalResponse(response, redirect="/msg/")
             task = ExportMessagesTask.objects.order_by("-id").first()
             filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
             return load_workbook(filename=filename)
@@ -856,9 +856,9 @@ class MsgTest(TembaTest, CRUDLTestMixin):
             export_url + "?l=I",
             {"export_all": 1, "start_date": "2022-09-01", "end_date": "2022-09-28"},
         )
-        self.assertModalResponse(response, redirect="/msg/inbox/")
+        self.assertModalResponse(response, redirect="/msg/")
 
-        response = self.client.get("/msg/inbox/")
+        response = self.client.get("/msg/")
         self.assertContains(response, "already an export in progress")
 
         # perform the export manually, assert how many queries
@@ -872,7 +872,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         def request_export(query, data=None):
             with self.mockReadOnly(assert_models={Msg, Contact}):
                 response = self.client.post(export_url + query, data)
-            self.assertModalResponse(response, redirect="/msg/inbox/")
+            self.assertModalResponse(response, redirect="/msg/")
             task = ExportMessagesTask.objects.order_by("-id").first()
             filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
             workbook = load_workbook(filename=filename)
@@ -1317,7 +1317,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
             export_url + "?l=I&redirect=http://foo.me",
             {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"},
         )
-        self.assertModalResponse(response, redirect="/msg/inbox/")
+        self.assertModalResponse(response, redirect="/msg/")
 
         self.clear_storage()
 
@@ -1398,7 +1398,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual(20000, response.context["refresh"])
         self.assertEqual(("archive", "label"), response.context["actions"])
-        self.assertEqual({"count": 4, "label": "Inbox", "url": "/msg/inbox/"}, response.context["folders"][0])
+        self.assertEqual({"count": 4, "label": "Inbox", "url": "/msg/"}, response.context["folders"][0])
 
         # test searching
         response = self.client.get(inbox_url + "?search=joe")
@@ -2638,7 +2638,7 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # submit to delete it
         response = self.assertDeleteSubmit(delete_url, object_deactivated=label, success_status=200)
-        self.assertEqual("/msg/inbox/", response["Temba-Success"])
+        self.assertEqual("/msg/", response["Temba-Success"])
 
         # reactivate
         label.is_active = True
