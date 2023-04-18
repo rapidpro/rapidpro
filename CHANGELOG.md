@@ -1,3 +1,9 @@
+v8.1.109 (2023-04-18)
+-------------------------
+ * Add links for menu, add flow badge, update label badges
+ * Remove Chikka channel type which no longer exists
+ * Update mailroom_db command to allow connecting to non-file socket postgres
+
 v8.1.108 (2023-04-17)
 -------------------------
  * Add ticket field to msg model
