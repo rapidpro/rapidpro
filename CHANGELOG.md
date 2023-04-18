@@ -1,3 +1,7 @@
+v8.1.110 (2023-04-18)
+-------------------------
+ * Prefetch flows on message views and make titles consistent
+
 v8.1.109 (2023-04-18)
 -------------------------
  * Add links for menu, add flow badge, update label badges
