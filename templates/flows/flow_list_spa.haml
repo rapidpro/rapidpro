@@ -50,8 +50,9 @@
 
                   .whitespace-no-break.flex.items-center.ml-2.justify-end.flex-wrap
                     -for label in object.labels.all
-                      .lbl.linked.ml-2.my-1{ onclick:"goto(event)", data-id: '{{label.id}}', data-uuid: '{{label.uuid}}', href:"{% url 'flows.flow_filter' label.uuid%}"}
-                        {{label.name}}
+                      %a(href="{% url 'flows.flow_filter' label.uuid %}" onclick="goto(event, this)")
+                        %temba-label.mx-1.my-1(data-id='{{label.id}}' icon="label" clickable)
+                          {{label.name}}
 
 
               %td
