@@ -1387,9 +1387,23 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         campaign2.is_active = False
         campaign2.save(update_fields=("is_active",))
 
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="test1", groups=[group])
+        trigger1 = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow,
+            keyword="test1",
+            match_type=Trigger.MATCH_FIRST_WORD,
+            groups=[group],
+        )
         trigger2 = Trigger.create(
-            self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="test2", exclude_groups=[group]
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow,
+            keyword="test2",
+            match_type=Trigger.MATCH_FIRST_WORD,
+            exclude_groups=[group],
         )
 
         usages_url = reverse("contacts.contactgroup_usages", args=[group.uuid])
@@ -1423,6 +1437,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
             trigger_type=Trigger.TYPE_SCHEDULE,
             flow=flow2,
             keyword="trigger1",
+            match_type=Trigger.MATCH_FIRST_WORD,
             groups=[group3.id],
             schedule=schedule1,
         )
@@ -1434,7 +1449,13 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         flow3 = self.create_flow("Flow 3")
         flow3.group_dependencies.add(group4)
         trigger2 = Trigger.create(
-            self.org, self.admin, Trigger.TYPE_KEYWORD, flow3, keyword="trigger2", groups=[group4]
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow3,
+            keyword="trigger2",
+            match_type=Trigger.MATCH_FIRST_WORD,
+            groups=[group4],
         )
         campaign1 = Campaign.create(self.org, self.admin, "Planting Reminders", group4)
 

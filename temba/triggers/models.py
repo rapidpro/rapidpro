@@ -119,7 +119,7 @@ class Trigger(SmartModel):
         **kwargs,
     ):
         assert flow.flow_type != Flow.TYPE_SURVEY, "can't create triggers for surveyor flows"
-        assert trigger_type != cls.TYPE_KEYWORD or keyword, "keyword can't be empty for keyword triggers"
+        assert trigger_type != cls.TYPE_KEYWORD or (keyword and match_type), "keyword required for keyword triggers"
         assert trigger_type != cls.TYPE_SCHEDULE or schedule, "schedule must be provided for scheduled triggers"
         assert (
             trigger_type == cls.TYPE_SCHEDULE or not contacts

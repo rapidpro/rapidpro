@@ -346,6 +346,7 @@ class TriggerCRUDL(SmartCRUDL):
                 groups=groups,
                 exclude_groups=exclude_groups,
                 keyword=keyword,
+                match_type=Trigger.MATCH_ONLY_WORD,
             )
 
             response = self.render_to_response(self.get_context_data(form=form))

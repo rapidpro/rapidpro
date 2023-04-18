@@ -11,7 +11,7 @@ from temba.contacts.models import ContactGroup
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, TembaTest
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import Trigger
@@ -21,7 +21,9 @@ from .types import KeywordTriggerType
 class TriggerTest(TembaTest):
     def test_model(self):
         flow = self.create_flow("Test Flow")
-        keyword = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="join")
+        keyword = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="join", match_type=Trigger.MATCH_ONLY_WORD
+        )
         catchall = Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow)
 
         self.assertEqual("Keyword[join] → Test Flow", keyword.name)
@@ -471,6 +473,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             groups=[],
             exclude_groups=[],
             keyword="join",
+            match_type=Trigger.MATCH_ONLY_WORD,
         )
 
         menu_url = reverse("triggers.trigger_menu")
@@ -1117,7 +1120,15 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         group1 = self.create_group("Chat", contacts=[])
         group2 = self.create_group("Testers", contacts=[])
         group3 = self.create_group("Doctors", contacts=[])
-        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, groups=(group1,), keyword="join")
+        trigger = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow,
+            groups=(group1,),
+            keyword="join",
+            match_type=Trigger.MATCH_ONLY_WORD,
+        )
 
         update_url = reverse("triggers.trigger_update", args=[trigger.id])
 
@@ -1316,14 +1327,38 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         flow2 = self.create_flow("Survey")
         flow3 = self.create_flow("Test", org=self.org2)
         channel = self.create_channel("FB", "Facebook", "1234567")
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="test")
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keyword="abc")
-        trigger3 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="start")
+        trigger1 = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="test", match_type=Trigger.MATCH_FIRST_WORD
+        )
+        trigger2 = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keyword="abc", match_type=Trigger.MATCH_ONLY_WORD
+        )
+        trigger3 = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="start", match_type=Trigger.MATCH_ONLY_WORD
+        )
         trigger4 = Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow1, channel=channel)
 
-        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="archived", is_archived=True)
-        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="inactive", is_active=False)
-        Trigger.create(self.org2, self.admin, Trigger.TYPE_KEYWORD, flow3, keyword="other")
+        Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow1,
+            keyword="archived",
+            match_type=Trigger.MATCH_ONLY_WORD,
+            is_archived=True,
+        )
+        Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow1,
+            keyword="inactive",
+            match_type=Trigger.MATCH_ONLY_WORD,
+            is_active=False,
+        )
+        Trigger.create(
+            self.org2, self.admin, Trigger.TYPE_KEYWORD, flow3, keyword="other", match_type=Trigger.MATCH_ONLY_WORD
+        )
 
         list_url = reverse("triggers.trigger_list")
 
@@ -1371,13 +1406,52 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         flow = self.create_flow("Test")
         other_org_flow = self.create_flow("Test", org=self.org2)
 
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="start", is_archived=True)
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="join", is_archived=True)
+        trigger1 = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow,
+            keyword="start",
+            match_type=Trigger.MATCH_ONLY_WORD,
+            is_archived=True,
+        )
+        trigger2 = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow,
+            keyword="join",
+            match_type=Trigger.MATCH_ONLY_WORD,
+            is_archived=True,
+        )
 
         # triggers that shouldn't appear
-        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="active", is_archived=False)
-        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="inactive", is_active=False)
-        Trigger.create(self.org2, self.admin, Trigger.TYPE_KEYWORD, other_org_flow, keyword="other")
+        Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow,
+            keyword="active",
+            match_type=Trigger.MATCH_ONLY_WORD,
+            is_archived=False,
+        )
+        Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow,
+            keyword="inactive",
+            match_type=Trigger.MATCH_ONLY_WORD,
+            is_active=False,
+        )
+        Trigger.create(
+            self.org2,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            other_org_flow,
+            keyword="other",
+            match_type=Trigger.MATCH_ONLY_WORD,
+        )
 
         archived_url = reverse("triggers.trigger_archived")
 
@@ -1458,12 +1532,18 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         flow2 = self.create_flow("Flow 2")
         flow3 = self.create_flow("Flow 3", org=self.org2)
 
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="test")
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keyword="abc")
+        trigger1 = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="test", match_type=Trigger.MATCH_ONLY_WORD
+        )
+        trigger2 = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keyword="abc", match_type=Trigger.MATCH_ONLY_WORD
+        )
         trigger3 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow1, referrer_id="234")
         trigger4 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow2, referrer_id="456")
         trigger5 = Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow1)
-        Trigger.create(self.org2, self.admin, Trigger.TYPE_KEYWORD, flow3, keyword="other")
+        Trigger.create(
+            self.org2, self.admin, Trigger.TYPE_KEYWORD, flow3, keyword="other", match_type=Trigger.MATCH_ONLY_WORD
+        )
 
         keyword_url = reverse("triggers.trigger_type", kwargs={"type": "keyword"})
         referral_url = reverse("triggers.trigger_type", kwargs={"type": "referral"})
@@ -1484,3 +1564,40 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             referral_url, allow_viewers=True, allow_editors=True, context_objects=[trigger3, trigger4]
         )
         self.assertListFetch(catchall_url, allow_viewers=True, allow_editors=True, context_objects=[trigger5])
+
+
+class FixKeywordTriggers(MigrationTest):
+    app = "triggers"
+    migrate_from = "0028_alter_trigger_channel_alter_trigger_flow_and_more"
+    migrate_to = "0029_fix_match_type"
+
+    def setUpBeforeMigration(self, apps):
+        flow1 = self.create_flow("Flow 1")
+
+        self.trigger1 = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="foo", match_type=Trigger.MATCH_ONLY_WORD
+        )
+        self.trigger2 = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="bar", match_type=Trigger.MATCH_ONLY_WORD
+        )
+        self.trigger3 = Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow1)
+
+        self.trigger2.match_type = None
+        self.trigger2.save(update_fields=("match_type",))
+
+    def test_migration(self):
+        self.trigger1.refresh_from_db()
+        self.trigger2.refresh_from_db()
+        self.trigger3.refresh_from_db()
+
+        # keyword trigger with non-null match_type should unchanged
+        self.assertEqual(Trigger.MATCH_ONLY_WORD, self.trigger1.match_type)
+        self.assertFalse(self.trigger1.is_archived)
+
+        # keyword trigger with null match_type should be fixed but archived
+        self.assertEqual(Trigger.MATCH_FIRST_WORD, self.trigger2.match_type)
+        self.assertTrue(self.trigger2.is_archived)
+
+        # non keyword trigger unchanged
+        self.assertEqual(Trigger.TYPE_CATCH_ALL, self.trigger3.trigger_type)
+        self.assertFalse(self.trigger3.is_archived)
