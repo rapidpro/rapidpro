@@ -351,7 +351,7 @@ class TicketEvent(models.Model):
 
 
 class TicketFolder(metaclass=ABCMeta):
-    slug = None
+    id = None
     name = None
     icon = None
     verbose_name = None
@@ -365,12 +365,31 @@ class TicketFolder(metaclass=ABCMeta):
         return qs.select_related("topic", "assignee").prefetch_related("contact")
 
     @classmethod
-    def from_slug(cls, slug: str):
-        return FOLDERS[slug]
+    def from_id(cls, org, id: str):
+        folder = FOLDERS.get(id, None)
+        if not folder:
+            topic = Topic.objects.filter(org=org, uuid=id).first()
+            if topic:
+                folder = TopicFolder(topic)
+        return folder
 
     @classmethod
     def all(cls):
         return FOLDERS
+
+
+class TopicFolder(TicketFolder):
+    """
+    Tickets assigned to the current user
+    """
+
+    def __init__(self, topic: Topic):
+        self.topic = topic
+        self.id = topic.uuid
+        self.name = topic.name
+
+    def get_queryset(self, org, user, ordered):
+        return super().get_queryset(org, user, ordered).filter(assignee=user, topic=self.topic)
 
 
 class MineFolder(TicketFolder):
@@ -378,7 +397,7 @@ class MineFolder(TicketFolder):
     Tickets assigned to the current user
     """
 
-    slug = "mine"
+    id = "mine"
     name = _("My Tickets")
     icon = "icon.tickets_mine"
 
@@ -391,7 +410,7 @@ class UnassignedFolder(TicketFolder):
     Tickets not assigned to any user
     """
 
-    slug = "unassigned"
+    id = "unassigned"
     name = _("Unassigned")
     verbose_name = _("Unassigned Tickets")
     icon = "icon.tickets_unassigned"
@@ -405,7 +424,7 @@ class AllFolder(TicketFolder):
     All tickets
     """
 
-    slug = "all"
+    id = "all"
     name = _("All")
     verbose_name = _("All Tickets")
     icon = "icon.tickets_all"
@@ -414,7 +433,7 @@ class AllFolder(TicketFolder):
         return super().get_queryset(org, user, ordered)
 
 
-FOLDERS = {f.slug: f() for f in TicketFolder.__subclasses__()}
+FOLDERS = {f.id: f() for f in TicketFolder.__subclasses__() if f.id}
 
 
 class TicketCount(SquashableModel):

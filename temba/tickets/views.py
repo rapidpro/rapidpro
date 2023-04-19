@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db.models.aggregates import Max
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -22,6 +22,7 @@ from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
 from temba.utils.export.views import BaseExportView
 from temba.utils.fields import InputWidget, SelectWidget
+from temba.utils.uuid import UUID_REGEX
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
 from .models import (
@@ -32,6 +33,7 @@ from .models import (
     TicketCount,
     Ticketer,
     TicketFolder,
+    Topic,
     UnassignedFolder,
     export_ticket_stats,
 )
@@ -103,13 +105,13 @@ class TicketCRUDL(SmartCRUDL):
         @classmethod
         def derive_url_pattern(cls, path, action):
             folders = "|".join(TicketFolder.all().keys())
-            return rf"^ticket/((?P<folder>{folders})/((?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+)/)?)?)?$"
+            return rf"^ticket/((?P<folder>{folders}|{UUID_REGEX.pattern})/((?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+)/)?)?)?$"
 
         def get_notification_scope(self) -> tuple:
             folder, status, _, _ = self.tickets_path
-            if folder == UnassignedFolder.slug and status == "open":
+            if folder == UnassignedFolder.id and status == "open":
                 return "tickets:opened", ""
-            elif folder == MineFolder.slug and status == "open":
+            elif folder == MineFolder.id and status == "open":
                 return "tickets:activity", ""
             return "", ""
 
@@ -132,7 +134,7 @@ class TicketCRUDL(SmartCRUDL):
                 org = self.request.org
                 user = self.request.user
                 tickets = list(
-                    TicketFolder.from_slug(folder).get_queryset(org, user, True).filter(status=status_code)[:25]
+                    TicketFolder.from_id(org, folder).get_queryset(org, user, True).filter(status=status_code)[:25]
                 )
 
                 found = list(filter(lambda t: str(t.uuid) == uuid, tickets))
@@ -142,10 +144,10 @@ class TicketCRUDL(SmartCRUDL):
                     # if it's not, switch our folder to everything with that ticket's state
                     ticket = org.tickets.filter(uuid=uuid).first()
                     if ticket:
-                        folder = AllFolder.slug
+                        folder = AllFolder.id
                         status = "open" if ticket.status == Ticket.STATUS_OPEN else "closed"
 
-            return folder or MineFolder.slug, status or "open", uuid, in_page
+            return folder or MineFolder.id, status or "open", uuid, in_page
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -154,7 +156,13 @@ class TicketCRUDL(SmartCRUDL):
             context["folder"] = folder
             context["status"] = status
             context["has_tickets"] = self.request.org.tickets.exists()
-            context["title"] = TicketFolder.from_slug(folder).name
+
+            folder = TicketFolder.from_id(self.request.org, folder)
+            if not folder:
+                raise Http404()
+
+            context["title"] = folder.name
+
             if uuid:
                 context["nextUUID" if in_page else "uuid"] = uuid
 
@@ -210,21 +218,34 @@ class TicketCRUDL(SmartCRUDL):
             user = self.request.user
             count_by_assignee = TicketCount.get_by_assignees(org, [None, user], Ticket.STATUS_OPEN)
             counts = {
-                MineFolder.slug: count_by_assignee[user],
-                UnassignedFolder.slug: count_by_assignee[None],
-                AllFolder.slug: TicketCount.get_all(org, Ticket.STATUS_OPEN),
+                MineFolder.id: count_by_assignee[user],
+                UnassignedFolder.id: count_by_assignee[None],
+                AllFolder.id: TicketCount.get_all(org, Ticket.STATUS_OPEN),
             }
 
             menu = []
             for folder in TicketFolder.all().values():
                 menu.append(
                     {
-                        "id": folder.slug,
+                        "id": folder.id,
                         "name": folder.name,
                         "icon": folder.icon,
-                        "count": counts[folder.slug],
+                        "count": counts[folder.id],
                     }
                 )
+
+            topics = Topic.objects.filter(org=org).order_by("name")
+            if topics:
+                menu.append(self.create_divider())
+            for topic in topics:
+                menu.append(
+                    {
+                        "id": topic.uuid,
+                        "name": topic.name,
+                        "icon": "icon.topic",
+                    }
+                )
+
             return menu
 
     class Folder(OrgPermsMixin, SmartTemplateView):
@@ -234,11 +255,14 @@ class TicketCRUDL(SmartCRUDL):
         @classmethod
         def derive_url_pattern(cls, path, action):
             folders = "|".join(TicketFolder.all().keys())
-            return rf"^{path}/{action}/(?P<folder>{folders})/(?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+))?$"
+            return rf"^{path}/{action}/(?P<folder>{folders}|[a-z0-9\-]+)/(?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+))?$"
 
         @cached_property
         def folder(self):
-            return TicketFolder.from_slug(self.kwargs["folder"])
+            folder = TicketFolder.from_id(self.request.org, self.kwargs["folder"])
+            if not folder:
+                raise Http404()
+            return folder
 
         def get_queryset(self, **kwargs):
             org = self.request.org
@@ -351,7 +375,7 @@ class TicketCRUDL(SmartCRUDL):
             # build up our next link if we have more
             if len(context["tickets"]) >= self.paginate_by:
                 folder_url = reverse(
-                    "tickets.ticket_folder", kwargs={"folder": self.folder.slug, "status": self.kwargs["status"]}
+                    "tickets.ticket_folder", kwargs={"folder": self.folder.id, "status": self.kwargs["status"]}
                 )
                 last_time = results["results"][-1]["ticket"]["last_activity_on"]
                 results["next"] = f"{folder_url}?before={datetime_to_timestamp(last_time)}"
