@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactURN
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 
 from .models import (
@@ -1413,25 +1413,3 @@ class TicketDailyTimingTest(TembaTest):
         TicketDailyTiming.objects.create(
             count_type=TicketDailyTiming.TYPE_LAST_CLOSE, scope=f"o:{org.id}", day=d, count=count, seconds=seconds
         )
-
-
-class BackfillTicketCountScopeTest(MigrationTest):
-    app = "tickets"
-    migrate_from = "0047_ticketcount_scope"
-    migrate_to = "0048_backfill_ticketcount_scope"
-
-    def setUpBeforeMigration(self, apps):
-        self.tc1 = TicketCount.objects.create(
-            org=self.org, scope=f"assignee:{self.admin.id}", assignee=self.admin, status="C", count=3
-        )
-        self.tc2 = TicketCount.objects.create(org=self.org, assignee=self.agent, status="C", count=2)
-        self.tc3 = TicketCount.objects.create(org=self.org, assignee=None, status="C", count=2)
-
-    def test_migration(self):
-        self.tc1.refresh_from_db()
-        self.tc2.refresh_from_db()
-        self.tc3.refresh_from_db()
-
-        self.assertEqual(f"assignee:{self.admin.id}", self.tc1.scope)
-        self.assertEqual(f"assignee:{self.agent.id}", self.tc2.scope)
-        self.assertEqual("assignee:0", self.tc3.scope)

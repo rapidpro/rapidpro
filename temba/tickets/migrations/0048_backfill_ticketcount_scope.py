@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def backfill_ticketcount_scope(apps, schema_editor):
+def backfill_ticketcount_scope(apps, schema_editor):  # pragma: no cover
     TicketCount = apps.get_model("tickets", "TicketCount")
 
     for tc in TicketCount.objects.filter(scope=None):
@@ -11,7 +11,7 @@ def backfill_ticketcount_scope(apps, schema_editor):
         tc.save(update_fields=("scope",))
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

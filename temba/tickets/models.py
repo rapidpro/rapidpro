@@ -438,7 +438,7 @@ class TicketCount(SquashableModel):
         WITH removed as (
             DELETE FROM %(table)s WHERE "org_id" = %%s AND "scope" = %%s AND "status" = %%s RETURNING "count"
         )
-        INSERT INTO %(table)s("org_id", "scope", "assignee_id", "status", "count", "is_squashed")
+        INSERT INTO %(table)s("org_id", "scope", "status", "count", "is_squashed")
         VALUES (%%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
         """ % {
             "table": cls._meta.db_table
