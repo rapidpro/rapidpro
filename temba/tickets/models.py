@@ -425,9 +425,12 @@ class TicketCount(SquashableModel):
     SQUASH_OVER = ("org_id", "assignee_id", "status")
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticket_counts")
-    assignee = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="ticket_counts")
+    scope = models.CharField(max_length=32, null=True)
     status = models.CharField(max_length=1, choices=Ticket.STATUS_CHOICES)
     count = models.IntegerField(default=0)
+
+    # TODO backfill to scope, replace indexes and drop
+    assignee = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="ticket_counts")
 
     @classmethod
     def get_squash_query(cls, distinct_set) -> tuple:
@@ -436,25 +439,39 @@ class TicketCount(SquashableModel):
             WITH removed as (
                 DELETE FROM %(table)s WHERE "org_id" = %%s AND "assignee_id" = %%s AND "status" = %%s RETURNING "count"
             )
-            INSERT INTO %(table)s("org_id", "assignee_id", "status", "count", "is_squashed")
-            VALUES (%%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            INSERT INTO %(table)s("org_id", "scope", "assignee_id", "status", "count", "is_squashed")
+            VALUES (%%s, %%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
             """ % {
                 "table": cls._meta.db_table
             }
 
-            params = (distinct_set.org_id, distinct_set.assignee_id, distinct_set.status) * 2
+            params = (
+                distinct_set.org_id,
+                distinct_set.assignee_id,
+                distinct_set.status,
+                distinct_set.org_id,
+                distinct_set.scope,
+                distinct_set.assignee_id,
+                distinct_set.status,
+            )
         else:
             sql = """
             WITH removed as (
                 DELETE FROM %(table)s WHERE "org_id" = %%s AND "assignee_id" IS NULL AND "status" = %%s RETURNING "count"
             )
-            INSERT INTO %(table)s("org_id", "assignee_id", "status", "count", "is_squashed")
-            VALUES (%%s, NULL, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+            INSERT INTO %(table)s("org_id", "scope", "assignee_id", "status", "count", "is_squashed")
+            VALUES (%%s, %%s, NULL, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
             """ % {
                 "table": cls._meta.db_table
             }
 
-            params = (distinct_set.org_id, distinct_set.status) * 2
+            params = (
+                distinct_set.org_id,
+                distinct_set.status,
+                distinct_set.org_id,
+                distinct_set.scope,
+                distinct_set.status,
+            )
 
         return sql, params
 
