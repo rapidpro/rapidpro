@@ -19,6 +19,6 @@ $$ LANGUAGE plpgsql;
 
 
 class Migration(migrations.Migration):
-    dependencies = [("tickets", "0048_backfill_ticketcount_scope")]
+    dependencies = [("tickets", "0049_remove_ticketcount_tickets_tic_org_id_6e466a_idx_and_more")]
 
     operations = [migrations.RunSQL(SQL)]
