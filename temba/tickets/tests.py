@@ -250,6 +250,11 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("open", response.context["status"])
         self.assertEqual(str(ticket.uuid), response.context["uuid"])
 
+        # bad topic should give a 404
+        bad_topic_link = f"{list_url}{uuid4()}/open/{str(ticket.uuid)}/"
+        response = self.client.get(bad_topic_link)
+        self.assertEqual(404, response.status_code)
+
         # fetch with spa flag
         self.new_ui()
         response = self.client.get(

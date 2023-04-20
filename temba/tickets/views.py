@@ -133,9 +133,12 @@ class TicketCRUDL(SmartCRUDL):
                 status_code = Ticket.STATUS_OPEN if status == "open" else Ticket.STATUS_CLOSED
                 org = self.request.org
                 user = self.request.user
-                tickets = list(
-                    TicketFolder.from_id(org, folder).get_queryset(org, user, True).filter(status=status_code)[:25]
-                )
+                ticket_folder = TicketFolder.from_id(org, folder)
+
+                if not ticket_folder:
+                    raise Http404()
+
+                tickets = list(ticket_folder.get_queryset(org, user, True).filter(status=status_code)[:25])
 
                 found = list(filter(lambda t: str(t.uuid) == uuid, tickets))
                 if found:
@@ -158,9 +161,6 @@ class TicketCRUDL(SmartCRUDL):
             context["has_tickets"] = self.request.org.tickets.exists()
 
             folder = TicketFolder.from_id(self.request.org, folder)
-            if not folder:
-                raise Http404()
-
             context["title"] = folder.name
 
             if uuid:
