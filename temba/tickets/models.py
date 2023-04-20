@@ -422,56 +422,29 @@ class TicketCount(SquashableModel):
     Counts of tickets by assignment and status
     """
 
-    SQUASH_OVER = ("org_id", "assignee_id", "status")
+    SQUASH_OVER = ("org_id", "scope", "status")
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticket_counts")
-    scope = models.CharField(max_length=32, null=True)
+    scope = models.CharField(max_length=32)
     status = models.CharField(max_length=1, choices=Ticket.STATUS_CHOICES)
     count = models.IntegerField(default=0)
 
-    # TODO backfill to scope, replace indexes and drop
+    # TODO drop
     assignee = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="ticket_counts")
 
     @classmethod
     def get_squash_query(cls, distinct_set) -> tuple:
-        if distinct_set.assignee_id:
-            sql = """
-            WITH removed as (
-                DELETE FROM %(table)s WHERE "org_id" = %%s AND "assignee_id" = %%s AND "status" = %%s RETURNING "count"
-            )
-            INSERT INTO %(table)s("org_id", "scope", "assignee_id", "status", "count", "is_squashed")
-            VALUES (%%s, %%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-            """ % {
-                "table": cls._meta.db_table
-            }
+        sql = """
+        WITH removed as (
+            DELETE FROM %(table)s WHERE "org_id" = %%s AND "scope" = %%s AND "status" = %%s RETURNING "count"
+        )
+        INSERT INTO %(table)s("org_id", "scope", "status", "count", "is_squashed")
+        VALUES (%%s, %%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+        """ % {
+            "table": cls._meta.db_table
+        }
 
-            params = (
-                distinct_set.org_id,
-                distinct_set.assignee_id,
-                distinct_set.status,
-                distinct_set.org_id,
-                distinct_set.scope,
-                distinct_set.assignee_id,
-                distinct_set.status,
-            )
-        else:
-            sql = """
-            WITH removed as (
-                DELETE FROM %(table)s WHERE "org_id" = %%s AND "assignee_id" IS NULL AND "status" = %%s RETURNING "count"
-            )
-            INSERT INTO %(table)s("org_id", "scope", "assignee_id", "status", "count", "is_squashed")
-            VALUES (%%s, %%s, NULL, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-            """ % {
-                "table": cls._meta.db_table
-            }
-
-            params = (
-                distinct_set.org_id,
-                distinct_set.status,
-                distinct_set.org_id,
-                distinct_set.scope,
-                distinct_set.status,
-            )
+        params = (distinct_set.org_id, distinct_set.scope, distinct_set.status) * 2
 
         return sql, params
 
@@ -480,26 +453,35 @@ class TicketCount(SquashableModel):
         """
         Gets counts for a set of assignees (None means no assignee)
         """
-        counts = cls.objects.filter(org=org, status=status)
-        counts = counts.values_list("assignee").annotate(count_sum=Sum("count"))
-        counts_by_assignee = {c[0]: c[1] for c in counts}
 
-        return {a: counts_by_assignee.get(a.id if a else None, 0) for a in assignees}
+        scopes = [cls._assignee_scope(a) for a in assignees]
+        counts = (
+            cls.objects.filter(org=org, scope__in=scopes, status=status)
+            .values_list("scope")
+            .annotate(count_sum=Sum("count"))
+        )
+        counts_by_scope = {c[0]: c[1] for c in counts}
+
+        return {a: counts_by_scope.get(cls._assignee_scope(a), 0) for a in assignees}
 
     @classmethod
     def get_all(cls, org, status: str) -> int:
         """
         Gets count for org and status regardless of assignee
         """
-        return cls.sum(cls.objects.filter(org=org, status=status))
+        return cls.sum(cls.objects.filter(org=org, scope__startswith="assignee:", status=status))
+
+    @staticmethod
+    def _assignee_scope(user) -> str:
+        return f"assignee:{user.id if user else 0}"
 
     class Meta:
         indexes = [
             models.Index(fields=("org", "status")),
-            models.Index(fields=("org", "assignee", "status")),
+            models.Index(fields=("org", "scope", "status")),
             # for squashing task
             models.Index(
-                name="ticket_count_unsquashed", fields=("org", "assignee", "status"), condition=Q(is_squashed=False)
+                name="ticket_count_unsquashed", fields=("org", "scope", "status"), condition=Q(is_squashed=False)
             ),
         ]
 
