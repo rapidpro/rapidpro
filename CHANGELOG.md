@@ -1,3 +1,7 @@
+v8.1.114 (2023-04-20)
+-------------------------
+ * Add migration to backfill TicketCount.scope
+
 v8.1.113 (2023-04-20)
 -------------------------
  * Add scope field to TicketCount and start writing
