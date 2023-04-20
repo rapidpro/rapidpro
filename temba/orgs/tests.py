@@ -2865,25 +2865,6 @@ class AnonOrgTest(TembaTest):
 
 
 class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
-    def assertMenu(self, url, count, contains_names=[]):
-        response = self.assertListFetch(url, allow_viewers=True, allow_editors=True, allow_agents=True)
-        menu = response.json()["results"]
-        self.assertEqual(count, len(menu))
-
-        # check the content if we have them
-        if contains_names:
-            for name in contains_names:
-                steps = name.split("/")
-                while steps:
-                    step = steps.pop(0)
-                    menu_names = [m["name"] for m in menu if "name" in m]
-                    try:
-                        idx = menu_names.index(step)
-                        if "items" in menu[idx]:
-                            menu = menu[idx]["items"]
-                    except ValueError:
-                        self.fail(f"Couldn't find {step} in {menu_names}")
-
     def test_home(self):
         home_url = reverse("orgs.org_home")
 

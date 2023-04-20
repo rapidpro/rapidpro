@@ -281,22 +281,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_ticket(self.internal, self.contact, "Test 3", assignee=None)
         self.create_ticket(self.internal, self.contact, "Test 4", closed_on=timezone.now())
 
-        response = self.assertListFetch(menu_url, allow_viewers=False, allow_editors=True, allow_agents=True)
-
-        menu = response.json()["results"]
-        self.assertEqual(
-            [
-                {"id": "mine", "name": "My Tickets", "icon": "icon.tickets_mine", "count": 2},
-                {
-                    "id": "unassigned",
-                    "name": "Unassigned",
-                    "icon": "icon.tickets_unassigned",
-                    "count": 1,
-                },
-                {"id": "all", "name": "All", "icon": "icon.tickets_all", "count": 3},
-            ],
-            menu,
-        )
+        self.assertListFetch(menu_url, allow_viewers=False, allow_editors=True, allow_agents=True)
+        self.assertMenu(menu_url, 5, ["My Tickets", "Unassigned", "All", "General"], allow_viewers=False)
 
     @mock_mailroom
     def test_folder(self, mr_mocks):
