@@ -1,3 +1,9 @@
+v8.1.112 (2023-04-20)
+-------------------------
+ * Dropdowns for slow clickers
+ * Tighten up animations
+ * Use services for redis, elastic and postgres in CI
+
 v8.1.111 (2023-04-18)
 -------------------------
  * Fix and archive keyword triggers with no match_type
