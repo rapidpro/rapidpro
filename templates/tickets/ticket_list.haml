@@ -177,6 +177,7 @@
       ticketUUID = null;
       focusNext = null;
       if (folder !== menuItem.id) {
+        document.title = menuItem.name;
         // whenever our menu changes, reset filter
         if (statusSelect) {
           statusSelect.setValue("open");
@@ -208,8 +209,7 @@
 
     }
 
-    function updateTicketList() {   
-
+    function updateTicketList() {
       var tickets = document.querySelector("temba-ticket-list");
       var contactTickets = document.querySelector("temba-contact-tickets");
       var chat = document.querySelector("temba-contact-chat");
