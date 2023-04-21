@@ -222,20 +222,22 @@ class TriggerCRUDL(SmartCRUDL):
                     name=_("Active"),
                     count=org_triggers.filter(is_archived=False).count(),
                     href=reverse("triggers.trigger_list"),
-                    icon="icon.active",
+                    icon="icon.trigger_active",
                 )
             )
 
             menu.append(
                 self.create_menu_item(
                     name=_("Archived"),
-                    icon="icon.archive",
+                    icon="icon.trigger_archived",
                     count=org_triggers.filter(is_archived=True).count(),
                     href=reverse("triggers.trigger_archived"),
                 )
             )
 
-            menu.append(self.create_menu_item(name=_("New Trigger"), icon="plus", href="triggers.trigger_create"))
+            menu.append(
+                self.create_menu_item(name=_("New Trigger"), icon="icon.trigger_new", href="triggers.trigger_create")
+            )
 
             menu.append(self.create_divider())
 
