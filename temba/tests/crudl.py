@@ -250,6 +250,25 @@ class CRUDLTestMixin:
 
         return self.requestView(url, self.customer_support, checks=[StatusCode(200)])
 
+    def assertMenu(self, url, count, contains_names=[], allow_viewers=True):
+        response = self.assertListFetch(url, allow_viewers=allow_viewers, allow_editors=True, allow_agents=True)
+        menu = response.json()["results"]
+        self.assertEqual(count, len(menu))
+
+        # check the content if we have them
+        if contains_names:
+            for name in contains_names:
+                steps = name.split("/")
+                while steps:
+                    step = steps.pop(0)
+                    menu_names = [m["name"] for m in menu if "name" in m]
+                    try:
+                        idx = menu_names.index(step)
+                        if "items" in menu[idx]:
+                            menu = menu[idx]["items"]
+                    except ValueError:
+                        self.fail(f"Couldn't find {step} in {menu_names}")
+
     def assertContentMenu(self, url: str, user, legacy_items: list, *, spa_items: list = None):
         headers = {"HTTP_TEMBA_CONTENT_MENU": 1}
 
