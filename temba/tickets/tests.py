@@ -12,6 +12,7 @@ from django.utils import timezone
 from temba.contacts.models import Contact, ContactField, ContactURN
 from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
+from temba.utils.uuid import uuid4
 
 from .models import (
     ExportTicketsTask,
@@ -290,6 +291,11 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("open", response.context["status"])
         self.assertEqual(str(ticket.uuid), response.context["uuid"])
 
+        # bad topic should give a 404
+        bad_topic_link = f"{list_url}{uuid4()}/open/{str(ticket.uuid)}/"
+        response = self.client.get(bad_topic_link)
+        self.assertEqual(404, response.status_code)
+
         # fetch with spa flag
         self.new_ui()
         response = self.client.get(
@@ -322,22 +328,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_ticket(self.internal, self.contact, "Test 3", assignee=None)
         self.create_ticket(self.internal, self.contact, "Test 4", closed_on=timezone.now())
 
-        response = self.assertListFetch(menu_url, allow_viewers=False, allow_editors=True, allow_agents=True)
-
-        menu = response.json()["results"]
-        self.assertEqual(
-            [
-                {"id": "mine", "name": "My Tickets", "icon": "icon.tickets_mine", "count": 2},
-                {
-                    "id": "unassigned",
-                    "name": "Unassigned",
-                    "icon": "icon.tickets_unassigned",
-                    "count": 1,
-                },
-                {"id": "all", "name": "All", "icon": "icon.tickets_all", "count": 3},
-            ],
-            menu,
-        )
+        self.assertListFetch(menu_url, allow_viewers=False, allow_editors=True, allow_agents=True)
+        self.assertMenu(menu_url, 5, ["My Tickets", "Unassigned", "All", "General"], allow_viewers=False)
 
     @mock_mailroom
     def test_folder(self, mr_mocks):
@@ -348,11 +340,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         contact3 = self.create_contact("Anne", phone="125", last_seen_on=timezone.now())
         self.create_contact("Mary No tickets", phone="126", last_seen_on=timezone.now())
         self.create_contact("Mr Other Org", phone="126", last_seen_on=timezone.now(), org=self.org2)
+        topic = Topic.objects.filter(org=self.org).first()
 
         open_url = reverse("tickets.ticket_folder", kwargs={"folder": "all", "status": "open"})
         closed_url = reverse("tickets.ticket_folder", kwargs={"folder": "all", "status": "closed"})
         mine_url = reverse("tickets.ticket_folder", kwargs={"folder": "mine", "status": "open"})
         unassigned_url = reverse("tickets.ticket_folder", kwargs={"folder": "unassigned", "status": "open"})
+        topic_url = reverse("tickets.ticket_folder", kwargs={"folder": topic.uuid, "status": "open"})
+        bad_topic_url = reverse("tickets.ticket_folder", kwargs={"folder": uuid4(), "status": "open"})
 
         def assert_tickets(resp, tickets: list):
             actual_tickets = [t["ticket"]["uuid"] for t in resp.json()["results"]]
@@ -482,6 +477,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # one assigned ticket for mine
         response = self.client.get(mine_url)
         assert_tickets(response, [c1_t1])
+
+        # one ticket for our general topic
+        response = self.client.get(topic_url)
+        assert_tickets(response, [c1_t1])
+
+        # bad topic should be a 404
+        response = self.client.get(bad_topic_url)
+        self.assertEqual(response.status_code, 404)
 
         # fetching closed folder returns all closed tickets
         response = self.client.get(closed_url)
