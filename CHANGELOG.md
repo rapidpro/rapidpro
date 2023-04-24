@@ -1,3 +1,7 @@
+v8.1.117 (2023-04-24)
+-------------------------
+ * Stop reading from TicketCount.assignee
+
 v8.1.116 (2023-04-21)
 -------------------------
  * Add more channel icons
