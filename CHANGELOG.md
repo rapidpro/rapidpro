@@ -1,3 +1,12 @@
+v8.1.116 (2023-04-21)
+-------------------------
+ * Add more channel icons
+
+v8.1.115 (2023-04-21)
+-------------------------
+ * Update icons
+ * Add ticket topic folders
+
 v8.1.114 (2023-04-20)
 -------------------------
  * Add migration to backfill TicketCount.scope
