@@ -1365,18 +1365,9 @@ class OrgCRUDL(SmartCRUDL):
                             ),
                             self.create_divider(),
                             self.create_menu_item(
-                                menu_id="end",
-                                name=_("End"),
-                                icon="agent",
-                                posterize=True,
-                                href=f"{reverse('orgs.org_service')}",
-                            )
-                            if self.request.user.is_staff
-                            else None,
-                            self.create_menu_item(
                                 menu_id="logout",
                                 name=_("Sign Out"),
-                                icon="log-out-04",
+                                icon="icon.logout",
                                 posterize=True,
                                 href=f"{reverse('users.user_logout')}?next={reverse('users.user_login')}",
                             ),
