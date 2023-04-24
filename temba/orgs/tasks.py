@@ -57,7 +57,7 @@ def resume_failed_tasks():
         export_messages_task.delay(msg_export.pk)
 
 
-@cron_task(lock_timeout=7200)
+@cron_task(lock_timeout=7 * 24 * 60 * 60)
 def delete_released_orgs():
     # for each org that was released over 7 days ago, delete it for real
     week_ago = timezone.now() - timedelta(days=Org.DELETE_DELAY_DAYS)
