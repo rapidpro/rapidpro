@@ -255,7 +255,7 @@ class TicketCRUDL(SmartCRUDL):
         @classmethod
         def derive_url_pattern(cls, path, action):
             folders = "|".join(TicketFolder.all().keys())
-            return rf"^{path}/{action}/(?P<folder>{folders}|[a-z0-9\-]+)/(?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+))?$"
+            return rf"^{path}/{action}/(?P<folder>{folders}|{UUID_REGEX.pattern})/(?P<status>open|closed)/((?P<uuid>[a-z0-9\-]+))?$"
 
         @cached_property
         def folder(self):

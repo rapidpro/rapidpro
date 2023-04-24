@@ -436,9 +436,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(mine_url)
         assert_tickets(response, [c1_t1])
 
-        # one ticket for our general topic
+        # three tickets for our general topic
         response = self.client.get(topic_url)
-        assert_tickets(response, [c1_t1])
+        assert_tickets(response, [c2_t1, c1_t2, c1_t1])
 
         # bad topic should be a 404
         response = self.client.get(bad_topic_url)
