@@ -389,7 +389,7 @@ class TopicFolder(TicketFolder):
         self.name = topic.name
 
     def get_queryset(self, org, user, ordered):
-        return super().get_queryset(org, user, ordered).filter(assignee=user, topic=self.topic)
+        return super().get_queryset(org, user, ordered).filter(topic=self.topic)
 
 
 class MineFolder(TicketFolder):

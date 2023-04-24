@@ -1,3 +1,9 @@
+v8.1.118 (2023-04-24)
+-------------------------
+ * Fix deleting of flows and tickets which are referenced by messages
+ * Fix pattern match for folder uuid
+ * Stop writing TicketCount.assignee
+
 v8.1.117 (2023-04-24)
 -------------------------
  * Stop reading from TicketCount.assignee
