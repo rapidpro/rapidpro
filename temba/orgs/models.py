@@ -32,7 +32,7 @@ from temba.locations.models import AdminBoundary
 from temba.utils import brands, chunk_list, json, languages
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
-from temba.utils.models import JSONField
+from temba.utils.models import JSONField, raw_delete
 from temba.utils.text import generate_token, random_string
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
@@ -1337,13 +1337,13 @@ class Org(SmartModel):
             flow_label.delete()
 
         # delete contact-related data
-        self.http_logs.all().delete()
-        self.sessions.all().delete()
-        self.ticket_events.all().delete()
-        self.tickets.all().delete()
-        self.ticket_counts.all().delete()
-        self.topics.all().delete()
-        self.airtime_transfers.all().delete()
+        raw_delete(self.http_logs.all())
+        raw_delete(self.sessions.all())
+        raw_delete(self.ticket_events.all())
+        raw_delete(self.tickets.all())
+        raw_delete(self.ticket_counts.all())
+        raw_delete(self.topics.all())
+        raw_delete(self.airtime_transfers.all())
 
         # delete our contacts
         for contact in self.contacts.all():
