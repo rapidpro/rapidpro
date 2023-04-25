@@ -39,7 +39,7 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Media, Msg, SystemLabel
 from temba.orgs.models import OrgMembership, OrgRole, User
 from temba.templates.models import Template, TemplateTranslation
-from temba.tickets.models import Ticket, Ticketer, Topic
+from temba.tickets.models import Ticket, TicketCount, Ticketer, Topic
 from temba.utils import splitting_getlist, str_to_bool
 from temba.utils.uuid import is_uuid
 
@@ -3696,6 +3696,8 @@ class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
      * **uuid** - the UUID of the topic (string).
      * **name** - the name of the topic (string).
+     * **counts** - the counts of open and closed tickets with this topic (object).
+     * **system** - whether this is a system topic that can't be modified (bool).
      * **created_on** - when this topic was created (datetime).
 
     Example:
@@ -3711,6 +3713,8 @@ class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             {
                 "uuid": "9a8b001e-a913-486c-80f4-1356e23f582e",
                 "name": "Support",
+                "counts": {"open": 12, "closed": 345},
+                "system": false,
                 "created_on": "2013-02-27T09:06:15.456"
             },
             ...
@@ -3721,6 +3725,13 @@ class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     serializer_class = TopicReadSerializer
     write_serializer_class = TopicWriteSerializer
     pagination_class = CreatedOnCursorPagination
+
+    def prepare_for_serialization(self, object_list, using: str):
+        open_counts = TicketCount.get_by_topics(self.request.org, object_list, Ticket.STATUS_OPEN)
+        closed_counts = TicketCount.get_by_topics(self.request.org, object_list, Ticket.STATUS_CLOSED)
+        for topic in object_list:
+            topic.open_count = open_counts[topic]
+            topic.closed_count = closed_counts[topic]
 
     @classmethod
     def get_read_explorer(cls):
