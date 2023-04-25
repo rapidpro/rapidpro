@@ -30,7 +30,7 @@
     "jasmine-core": "2.5.0",
     "postcss": "8.3.0",
     "postcss-import": "14.0.2",
-    "postcss-loader": "5.3.0",
+    "postcss-loader": "7.2.4",
     "postcss-scss": "3.0.5",
     "postcss-simple-vars": "6.0.3",
     "tailwindcss": "2.0.4",
