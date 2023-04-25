@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactURN
-from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
 
@@ -1460,4 +1460,36 @@ class TicketDailyTimingTest(TembaTest):
 
         TicketDailyTiming.objects.create(
             count_type=TicketDailyTiming.TYPE_LAST_CLOSE, scope=f"o:{org.id}", day=d, count=count, seconds=seconds
+        )
+
+
+class BackfillTicketCountByTopicTest(MigrationTest):
+    app = "tickets"
+    migrate_from = "0051_remove_ticketcount_assignee"
+    migrate_to = "0052_backfill_ticketcount_by_topic"
+
+    def setUpBeforeMigration(self, apps):
+        contact1 = self.create_contact("Ann", phone="+1234500001")
+        contact2 = self.create_contact("Bob", phone="+1234500002")
+        contact3 = self.create_contact("Cat", phone="+1234500003")
+        contact4 = self.create_contact("Don", phone="+1234500004")
+
+        internal = self.org.ticketers.get()
+        self.general = self.org.default_ticket_topic
+        self.cats = Topic.create(self.org, self.admin, "Cats")
+        self.dogs = Topic.create(self.org, self.admin, "Dogs")
+
+        self.create_ticket(internal, contact1, "Help", topic=self.general)
+        self.create_ticket(internal, contact2, "Help", topic=self.general)
+        self.create_ticket(internal, contact3, "Help", topic=self.general, closed_on=timezone.now())
+        self.create_ticket(internal, contact4, "Help", topic=self.cats)
+
+        TicketCount.objects.filter(scope=f"topic:{self.general.id}").delete()
+
+    def test_migration(self):
+        self.assertEqual(
+            {self.general: 2, self.cats: 1, self.dogs: 0}, TicketCount.get_by_topics(self.org, Ticket.STATUS_OPEN)
+        )
+        self.assertEqual(
+            {self.general: 1, self.cats: 0, self.dogs: 0}, TicketCount.get_by_topics(self.org, Ticket.STATUS_CLOSED)
         )
