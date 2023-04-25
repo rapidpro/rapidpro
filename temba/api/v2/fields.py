@@ -14,6 +14,18 @@ from temba.utils import languages
 from temba.utils.uuid import find_uuid, is_uuid
 
 
+def serialize_urn(org, urn):
+    if isinstance(urn, ContactURN):
+        return URN.from_parts(urn.scheme, ContactURN.ANON_MASK if org.is_anon else urn.path)
+    elif isinstance(urn, dict):
+        return {
+            "channel": urn["channel"],
+            "scheme": urn["scheme"],
+            "path": ContactURN.ANON_MASK if org.is_anon else urn["path"],
+            "display": urn["display"] or None,
+        }
+
+
 def validate_language(value):
     if not languages.get_name(str(value)):
         raise serializers.ValidationError("Not an allowed ISO 639-3 language code.")
@@ -253,7 +265,7 @@ class ContactField(TembaModelField):
         if self.as_summary:
             urn = obj.get_urn()
             if urn:
-                urn_str, urn_display = urn.get_for_api(), obj.get_urn_display() if not org.is_anon else None
+                urn_str, urn_display = serialize_urn(org, urn), obj.get_urn_display() if not org.is_anon else None
             else:
                 urn_str, urn_display = None, None
 

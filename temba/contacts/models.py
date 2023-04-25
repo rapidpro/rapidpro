@@ -1220,6 +1220,18 @@ class Contact(LegacyUUIDMixin, SmartModel):
             urn.org = contact.org
             getattr(contact, "_urns_cache").append(urn)
 
+    @classmethod
+    def bulk_inspect(self, contacts) -> dict:
+        """
+        Fetches additional information about the given contacts from mailroom
+        """
+        if not contacts:
+            return {}
+
+        resp = mailroom.get_client().contact_inspect(contacts[0].org_id, [c.id for c in contacts])
+
+        return {c: resp[str(c.id)] for c in contacts}
+
     def get_groups(self, *, manual_only=False):
         """
         Gets the groups that this contact is a member of, excluding the status groups.
@@ -1427,15 +1439,6 @@ class ContactURN(models.Model):
             return self.ANON_MASK
 
         return URN.format(self.urn, international=international, formatted=formatted)
-
-    def get_for_api(self) -> str:
-        """
-        Gets a representation for the API which will be scheme:path and will have the path redacted if the org is anon
-        """
-        if self.org.is_anon:
-            return URN.from_parts(self.scheme, self.ANON_MASK)
-
-        return URN.from_parts(self.scheme, self.path)
 
     @property
     def urn(self) -> str:

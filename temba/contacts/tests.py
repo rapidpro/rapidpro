@@ -2023,6 +2023,27 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             self.assertEqual(["tel:+250782222222"], [u.urn for u in self.frank.get_urns()])
             self.assertEqual([], [u.urn for u in self.billy.get_urns()])
 
+    @mock_mailroom
+    def test_bulk_inspect(self, mr_mocks):
+        self.assertEqual({}, Contact.bulk_inspect([]))
+        self.assertEqual(
+            {
+                self.joe: {
+                    "urns": [
+                        {
+                            "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                            "scheme": "tel",
+                            "path": "+250781111111",
+                            "display": "",
+                        },
+                        {"channel": None, "scheme": "twitter", "path": "blow80", "display": ""},
+                    ]
+                },
+                self.billy: {"urns": []},
+            },
+            Contact.bulk_inspect([self.joe, self.billy]),
+        )
+
     @patch("temba.contacts.search.omnibox.search_contacts")
     @mock_mailroom
     def test_omnibox(self, mr_mocks, mock_search_contacts):
@@ -3842,15 +3863,6 @@ class ContactURNTest(TembaTest):
     def test_identity_mismatch_disallowed(self):
         with self.assertRaises(IntegrityError):
             ContactURN.objects.create(org=self.org, scheme="ext", path="1234", identity="ext:5678")
-
-    def test_get_for_api(self):
-        urn = ContactURN.objects.create(
-            org=self.org, scheme="tel", path="+250788383383", identity="tel:+250788383383", priority=50, display="xyz"
-        )
-        self.assertEqual(urn.get_for_api(), "tel:+250788383383")
-
-        with AnonymousOrg(self.org):
-            self.assertEqual(urn.get_for_api(), "tel:********")
 
     def test_ensure_normalization(self):
         contact1 = self.create_contact("Bob", urns=["tel:+250788111111"])
