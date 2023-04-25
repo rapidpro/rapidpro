@@ -224,6 +224,10 @@ class WriteAPIMixin:
     def render_write_response(self, write_output, context):
         response_serializer = self.serializer_class(instance=write_output, context=context)
 
+        # if we're also a list view, we can re-use any serialization preparation it uses
+        if hasattr(self, "prepare_for_serialization"):
+            self.prepare_for_serialization([write_output], using="default")
+
         # if we created a new object, notify caller by returning 201
         status_code = status.HTTP_200_OK if context["instance"] else status.HTTP_201_CREATED
 

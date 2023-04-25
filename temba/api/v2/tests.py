@@ -5236,8 +5236,11 @@ class EndpointsTest(APITest):
         sales = Topic.create(self.org, self.admin, "Sales")
         other_org = Topic.create(self.org2, self.admin, "Bugs")
 
+        contact = self.create_contact("Ann", phone="+1234567890")
+        self.create_ticket(self.org.ticketers.get(), contact, "Help", topic=support)
+
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
             response = self.fetchJSON(url, readonly_models={Topic})
 
         resp_json = response.json()
@@ -5249,18 +5252,21 @@ class EndpointsTest(APITest):
                 {
                     "uuid": str(sales.uuid),
                     "name": "Sales",
+                    "counts": {"open": 0, "closed": 0},
                     "system": False,
                     "created_on": format_datetime(sales.created_on),
                 },
                 {
                     "uuid": str(support.uuid),
                     "name": "Support",
+                    "counts": {"open": 1, "closed": 0},
                     "system": False,
                     "created_on": format_datetime(support.created_on),
                 },
                 {
                     "uuid": str(self.org.default_ticket_topic.uuid),
                     "name": "General",
+                    "counts": {"open": 0, "closed": 0},
                     "system": True,
                     "created_on": format_datetime(self.org.default_ticket_topic.created_on),
                 },
@@ -5278,7 +5284,13 @@ class EndpointsTest(APITest):
         food = Topic.objects.get(name="Food")
         self.assertEqual(
             response.json(),
-            {"uuid": str(food.uuid), "name": "Food", "system": False, "created_on": matchers.ISODate()},
+            {
+                "uuid": str(food.uuid),
+                "name": "Food",
+                "counts": {"open": 0, "closed": 0},
+                "system": False,
+                "created_on": matchers.ISODate(),
+            },
         )
 
         # try to create another topic with same name

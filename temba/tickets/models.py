@@ -481,12 +481,11 @@ class TicketCount(SquashableModel):
         return {a: counts_by_scope.get(cls._assignee_scope(a), 0) for a in assignees}
 
     @classmethod
-    def get_by_topics(cls, org, status: str) -> dict:
+    def get_by_topics(cls, org, topics: list, status: str) -> dict:
         """
-        Gets counts for all of the given org's topics
+        Gets counts for a set of topics
         """
 
-        topics = list(org.topics.filter(is_active=True).order_by("id"))
         scopes = [cls._topic_scope(t) for t in topics]
         counts = (
             cls.objects.filter(org=org, scope__in=scopes, status=status)

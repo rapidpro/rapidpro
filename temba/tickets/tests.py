@@ -123,8 +123,10 @@ class TicketTest(TembaTest):
             self.assertEqual(sum(assignee_open.values()), TicketCount.get_all(org, Ticket.STATUS_OPEN))
             self.assertEqual(sum(assignee_closed.values()), TicketCount.get_all(org, Ticket.STATUS_CLOSED))
 
-            self.assertEqual(topic_open, TicketCount.get_by_topics(org, Ticket.STATUS_OPEN))
-            self.assertEqual(topic_closed, TicketCount.get_by_topics(org, Ticket.STATUS_CLOSED))
+            self.assertEqual(topic_open, TicketCount.get_by_topics(org, list(org.topics.all()), Ticket.STATUS_OPEN))
+            self.assertEqual(
+                topic_closed, TicketCount.get_by_topics(org, list(org.topics.all()), Ticket.STATUS_CLOSED)
+            )
 
             self.assertEqual(contacts, {c: Contact.objects.get(id=c.id).ticket_count for c in contacts})
 
@@ -1488,8 +1490,10 @@ class BackfillTicketCountByTopicTest(MigrationTest):
 
     def test_migration(self):
         self.assertEqual(
-            {self.general: 2, self.cats: 1, self.dogs: 0}, TicketCount.get_by_topics(self.org, Ticket.STATUS_OPEN)
+            {self.general: 2, self.cats: 1, self.dogs: 0},
+            TicketCount.get_by_topics(self.org, list(self.org.topics.all()), Ticket.STATUS_OPEN),
         )
         self.assertEqual(
-            {self.general: 1, self.cats: 0, self.dogs: 0}, TicketCount.get_by_topics(self.org, Ticket.STATUS_CLOSED)
+            {self.general: 1, self.cats: 0, self.dogs: 0},
+            TicketCount.get_by_topics(self.org, list(self.org.topics.all()), Ticket.STATUS_CLOSED),
         )

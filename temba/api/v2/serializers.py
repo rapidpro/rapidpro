@@ -833,8 +833,7 @@ class ContactGroupReadSerializer(ReadSerializer):
         return self.STATUSES[obj.status]
 
     def get_count(self, obj):
-        # count may be cached on the object
-        return obj.count if hasattr(obj, "count") else obj.get_member_count()
+        return obj.count
 
     class Meta:
         model = ContactGroup
@@ -1653,14 +1652,18 @@ class TicketBulkActionSerializer(WriteSerializer):
 
 class TopicReadSerializer(ReadSerializer):
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    counts = serializers.SerializerMethodField()
     system = serializers.SerializerMethodField()
+
+    def get_counts(self, obj):
+        return {"open": obj.open_count, "closed": obj.closed_count}
 
     def get_system(self, obj):
         return obj.is_default
 
     class Meta:
         model = Topic
-        fields = ("uuid", "name", "system", "created_on")
+        fields = ("uuid", "name", "counts", "system", "created_on")
 
 
 class TopicWriteSerializer(WriteSerializer):
