@@ -217,7 +217,7 @@ class MailroomClient:
 
         return self._request("contact/create", payload)
 
-    def contact_modify(self, org_id, user_id, contact_ids, modifiers: list[Modifier]):
+    def contact_modify(self, org_id: int, user_id: int, contact_ids: list[int], modifiers: list[Modifier]):
         payload = {
             "org_id": org_id,
             "user_id": user_id,
@@ -231,6 +231,11 @@ class MailroomClient:
         payload = {"org_id": org_id, "channel_id": channel_id, "urn": urn}
 
         return self._request("contact/resolve", payload)
+
+    def contact_inspect(self, org_id: int, contact_ids: list[int]):
+        payload = {"org_id": org_id, "contact_ids": contact_ids}
+
+        return self._request("contact/inspect", payload)
 
     def contact_interrupt(self, org_id: int, user_id: int, contact_id: int):
         payload = {"org_id": org_id, "user_id": user_id, "contact_id": contact_id}

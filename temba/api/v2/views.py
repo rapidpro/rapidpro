@@ -1456,6 +1456,12 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
     def prepare_for_serialization(self, object_list, using: str):
         Contact.bulk_urn_cache_initialize(object_list, using=using)
 
+        if str_to_bool(self.request.query_params.get("expand_urns")):
+            contact_info = Contact.bulk_inspect(object_list)
+
+            for contact in object_list:
+                contact.expanded_urns = contact_info[contact]["urns"]
+
     def get_serializer_context(self):
         """
         So that we only fetch active contact fields once for all contacts

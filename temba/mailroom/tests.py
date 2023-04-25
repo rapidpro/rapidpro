@@ -351,6 +351,19 @@ class MailroomClientTest(TembaTest):
         )
 
     @patch("requests.post")
+    def test_contact_inspect(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"101": {}, "102": {}}')
+
+        response = get_client().contact_inspect(self.org.id, [101, 102])
+
+        self.assertEqual({"101": {}, "102": {}}, response)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/inspect",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "contact_ids": [101, 102]},
+        )
+
+    @patch("requests.post")
     def test_contact_interrupt(self, mock_post):
         mock_post.return_value = MockResponse(200, '{"sessions": 1}')
 

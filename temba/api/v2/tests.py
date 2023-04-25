@@ -371,6 +371,32 @@ class FieldsTest(APITest):
             representations={self.agent: {"email": "agent@nyaruka.com", "name": "Agnes"}},
         )
 
+    def test_serialize_urn(self):
+        urn_obj = ContactURN.objects.create(
+            org=self.org, scheme="tel", path="+250788383383", identity="tel:+250788383383", priority=50, display="xyz"
+        )
+        urn_dict = {
+            "channel": {"name": "Twilio", "uuid": "74729f45-7f29-4868-9dc4-90e491e3c7d8"},
+            "scheme": "tel",
+            "path": "+250788383383",
+            "display": "xyz",
+        }
+
+        self.assertEqual("tel:+250788383383", fields.serialize_urn(self.org, urn_obj))
+        self.assertEqual(urn_dict, fields.serialize_urn(self.org, urn_dict))
+
+        with AnonymousOrg(self.org):
+            self.assertEqual("tel:********", fields.serialize_urn(self.org, urn_obj))
+            self.assertEqual(
+                {
+                    "channel": {"name": "Twilio", "uuid": "74729f45-7f29-4868-9dc4-90e491e3c7d8"},
+                    "scheme": "tel",
+                    "path": "********",
+                    "display": "xyz",
+                },
+                fields.serialize_urn(self.org, urn_dict),
+            )
+
 
 class EndpointsTest(APITest):
     def setUp(self):
@@ -1959,6 +1985,36 @@ class EndpointsTest(APITest):
             resp_json["results"][0],
         )
 
+        # with expanded URNs
+        response = self.fetchJSON(url, "expand_urns=true", readonly_models={Contact})
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            {
+                "uuid": contact4.uuid,
+                "name": "Don",
+                "status": "active",
+                "language": "fra",
+                "urns": [
+                    {
+                        "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                        "scheme": "tel",
+                        "path": "+250788000004",
+                        "display": None,
+                    }
+                ],
+                "groups": [{"uuid": group.uuid, "name": group.name}],
+                "fields": {"nickname": "Donnie", "gender": "male"},
+                "flow": {"uuid": str(survey.uuid), "name": "Survey"},
+                "created_on": format_datetime(contact4.created_on),
+                "modified_on": format_datetime(contact4.modified_on),
+                "last_seen_on": "2020-08-12T13:30:45.123456Z",
+                "blocked": False,
+                "stopped": False,
+            },
+            resp_json["results"][0],
+        )
+
         # reversed
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url, "reverse=true")
@@ -1984,6 +2040,37 @@ class EndpointsTest(APITest):
                     "status": "active",
                     "language": "fra",
                     "urns": ["tel:********"],
+                    "groups": [{"uuid": group.uuid, "name": group.name}],
+                    "fields": {"nickname": "Donnie", "gender": "male"},
+                    "flow": {"uuid": str(survey.uuid), "name": "Survey"},
+                    "created_on": format_datetime(contact4.created_on),
+                    "modified_on": format_datetime(contact4.modified_on),
+                    "last_seen_on": "2020-08-12T13:30:45.123456Z",
+                    "blocked": False,
+                    "stopped": False,
+                },
+                resp_json["results"][0],
+            )
+
+            # with expanded URNs
+            response = self.fetchJSON(url, "expand_urns=true", readonly_models={Contact})
+            resp_json = response.json()
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(
+                {
+                    "uuid": contact4.uuid,
+                    "name": "Don",
+                    "anon_display": f"{contact4.id:010}",
+                    "status": "active",
+                    "language": "fra",
+                    "urns": [
+                        {
+                            "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                            "scheme": "tel",
+                            "path": "********",
+                            "display": None,
+                        }
+                    ],
                     "groups": [{"uuid": group.uuid, "name": group.name}],
                     "fields": {"nickname": "Donnie", "gender": "male"},
                     "flow": {"uuid": str(survey.uuid), "name": "Survey"},

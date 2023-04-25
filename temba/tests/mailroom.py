@@ -146,7 +146,7 @@ class TestClient(MailroomClient):
 
         apply_modifiers(org, user, contacts, modifiers)
 
-        return {c.id: {"contact": {}, "events": []} for c in contacts}
+        return {str(c.id): {"contact": {}, "events": []} for c in contacts}
 
     @_client_method
     def contact_resolve(self, org_id: int, channel_id: int, urn: str):
@@ -171,6 +171,34 @@ class TestClient(MailroomClient):
             "contact": {"id": contact.id, "uuid": str(contact.uuid), "name": contact.name},
             "urn": {"id": contact_urn.id, "identity": contact_urn.identity},
         }
+
+    @_client_method
+    def contact_inspect(self, org_id: int, contact_ids: list[int]):
+        org = Org.objects.get(id=org_id)
+        contacts = org.contacts.filter(id__in=contact_ids)
+
+        def inspect(c) -> dict:
+            sendable = []
+            unsendable = []
+            for urn in c.get_urns():
+                channel = urn.channel or org.channels.filter(schemes__contains=[urn.scheme]).first()
+                if channel:
+                    sendable.append(
+                        {
+                            "channel": {"uuid": str(channel.uuid), "name": channel.name},
+                            "scheme": urn.scheme,
+                            "path": urn.path,
+                            "display": urn.display or "",
+                        }
+                    )
+                else:
+                    unsendable.append(
+                        {"channel": None, "scheme": urn.scheme, "path": urn.path, "display": urn.display or ""}
+                    )
+
+            return {"urns": sendable + unsendable}
+
+        return {str(c.id): inspect(c) for c in contacts}
 
     @_client_method
     def contact_interrupt(self, org_id: int, user_id: int, contact_id: int):

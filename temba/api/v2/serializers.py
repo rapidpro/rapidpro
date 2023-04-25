@@ -543,7 +543,9 @@ class ContactReadSerializer(ReadSerializer):
         if not obj.is_active:
             return []
 
-        return [urn.get_for_api() for urn in obj.get_urns()]
+        urns = obj.expanded_urns if hasattr(obj, "expanded_urns") else obj.get_urns()
+
+        return [fields.serialize_urn(self.context["org"], urn) for urn in urns]
 
     def get_groups(self, obj):
         if not obj.is_active:
