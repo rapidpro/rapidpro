@@ -1,3 +1,7 @@
+v8.1.119 (2023-04-25)
+-------------------------
+ * Start writing ticket counts for topics
+
 v8.1.118 (2023-04-24)
 -------------------------
  * Fix deleting of flows and tickets which are referenced by messages
