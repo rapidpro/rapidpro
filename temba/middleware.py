@@ -92,7 +92,7 @@ class OrgMiddleware:
         # check for value in session
         org_id = request.session.get("org_id", None)
         if org_id:
-            org = Org.objects.filter(is_active=True, id=org_id).first()
+            org = Org.objects.filter(is_active=True, id=org_id).select_related("parent").first()
 
             # only use if user actually belongs to this org
             if org and (user.is_staff or org.has_user(user)):
