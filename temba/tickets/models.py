@@ -438,7 +438,7 @@ FOLDERS = {f.id: f() for f in TicketFolder.__subclasses__() if f.id}
 
 class TicketCount(SquashableModel):
     """
-    Counts of tickets by assignment and status
+    Counts of tickets by assignment/topic and status
     """
 
     SQUASH_OVER = ("org_id", "scope", "status")
@@ -447,9 +447,6 @@ class TicketCount(SquashableModel):
     scope = models.CharField(max_length=32)
     status = models.CharField(max_length=1, choices=Ticket.STATUS_CHOICES)
     count = models.IntegerField(default=0)
-
-    # TODO drop
-    assignee = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="ticket_counts")
 
     @classmethod
     def get_squash_query(cls, distinct_set) -> tuple:
@@ -484,6 +481,23 @@ class TicketCount(SquashableModel):
         return {a: counts_by_scope.get(cls._assignee_scope(a), 0) for a in assignees}
 
     @classmethod
+    def get_by_topics(cls, org, status: str) -> dict:
+        """
+        Gets counts for all of the given org's topics
+        """
+
+        topics = list(org.topics.filter(is_active=True).order_by("id"))
+        scopes = [cls._topic_scope(t) for t in topics]
+        counts = (
+            cls.objects.filter(org=org, scope__in=scopes, status=status)
+            .values_list("scope")
+            .annotate(count_sum=Sum("count"))
+        )
+        counts_by_scope = {c[0]: c[1] for c in counts}
+
+        return {t: counts_by_scope.get(cls._topic_scope(t), 0) for t in topics}
+
+    @classmethod
     def get_all(cls, org, status: str) -> int:
         """
         Gets count for org and status regardless of assignee
@@ -493,6 +507,10 @@ class TicketCount(SquashableModel):
     @staticmethod
     def _assignee_scope(user) -> str:
         return f"assignee:{user.id if user else 0}"
+
+    @staticmethod
+    def _topic_scope(topic) -> str:
+        return f"topic:{topic.id}"
 
     class Meta:
         indexes = [
