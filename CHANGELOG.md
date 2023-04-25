@@ -1,3 +1,9 @@
+v8.1.120 (2023-04-25)
+-------------------------
+ * Add topic counts to the API endpoint
+ * Add undocumented param to contacts API endpoint which allows URNs to be expanded
+ * Data migration to backfill ticket counts by topic
+
 v8.1.119 (2023-04-25)
 -------------------------
  * Start writing ticket counts for topics
