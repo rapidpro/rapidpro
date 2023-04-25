@@ -33,7 +33,6 @@ from .models import (
     TicketCount,
     Ticketer,
     TicketFolder,
-    Topic,
     UnassignedFolder,
     export_ticket_stats,
 )
@@ -234,15 +233,18 @@ class TicketCRUDL(SmartCRUDL):
                     }
                 )
 
-            topics = Topic.objects.filter(org=org).order_by("name")
-            if topics:
-                menu.append(self.create_divider())
+            menu.append(self.create_divider())
+
+            topics = list(org.topics.filter(is_active=True).order_by("name"))
+            counts = TicketCount.get_by_topics(org, topics, Ticket.STATUS_OPEN)
+
             for topic in topics:
                 menu.append(
                     {
                         "id": topic.uuid,
                         "name": topic.name,
                         "icon": "icon.topic",
+                        "count": counts[topic],
                     }
                 )
 
