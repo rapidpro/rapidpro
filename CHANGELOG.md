@@ -1,3 +1,7 @@
+v8.1.122 (2023-04-26)
+-------------------------
+ * Remove db constriants on Msg.flow and Msg.ticket
+
 v8.1.121 (2023-04-26)
 -------------------------
  * Tweak migration dependency
