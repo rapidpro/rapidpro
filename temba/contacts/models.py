@@ -1153,14 +1153,21 @@ class Contact(LegacyUUIDMixin, SmartModel):
         Deletes everything owned by this contact
         """
 
+        from temba.msgs.models import Msg
+
+        assert not self.is_active, "can't fully release a contact which hasn't been released"
+
         with transaction.atomic():
             # release our tickets
             for ticket in self.tickets.all():
                 ticket.delete()
 
-            # release our messages
-            for msg in self.msgs.all():
-                msg.delete()
+            # delete our messages in batches
+            while True:
+                msg_batch = list(self.msgs.all()[:1000])
+                if not msg_batch:
+                    break
+                Msg.bulk_delete(msg_batch)
 
             # any urns currently owned by us
             for urn in self.urns.all():

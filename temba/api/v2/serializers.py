@@ -1397,7 +1397,7 @@ class MsgBulkActionSerializer(WriteSerializer):
 
     def validate_messages(self, value):
         for msg in value:
-            if msg and msg.direction != "I":
+            if msg and msg.direction != Msg.DIRECTION_IN:
                 raise serializers.ValidationError("Not an incoming message: %d" % msg.id)
 
         return value
@@ -1445,14 +1445,14 @@ class MsgBulkActionSerializer(WriteSerializer):
 
             if label:
                 label.toggle_label(messages, add=False)
+        elif action == self.DELETE:
+            Msg.bulk_soft_delete(messages)
         else:
             for msg in messages:
                 if action == self.ARCHIVE and msg.visibility == Msg.VISIBILITY_VISIBLE:
                     msg.archive()
                 elif action == self.RESTORE and msg.visibility == Msg.VISIBILITY_ARCHIVED:
                     msg.restore()
-                elif action == self.DELETE and msg.visibility in (Msg.VISIBILITY_VISIBLE, Msg.VISIBILITY_ARCHIVED):
-                    msg.delete(soft=True)
 
         return BulkActionFailure(missing_message_ids) if missing_message_ids else None
 

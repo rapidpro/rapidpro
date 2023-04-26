@@ -1527,11 +1527,11 @@ class ChannelCountTest(TembaTest):
         self.assertEqual(ChannelCount.objects.all().count(), 1)
 
         # soft deleting a message doesn't decrement the count
-        msg2.delete(soft=True)
+        Msg.bulk_soft_delete([msg2])
         self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg2.created_on.date())
 
         # nor hard deleting
-        msg2.delete(soft=False)
+        Msg.bulk_delete([msg2])
         self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg2.created_on.date())
 
         ChannelCount.objects.all().delete()

@@ -395,9 +395,11 @@ class Attachment:
     def parse_all(cls, attachments):
         return [cls.parse(s) for s in attachments] if attachments else []
 
-    def delete(self):
-        parsed = urlparse(self.url)
-        default_storage.delete(unquote(parsed.path))
+    @classmethod
+    def bulk_delete(cls, attachments):
+        for att in attachments:
+            parsed = urlparse(att.url)
+            default_storage.delete(unquote(parsed.path))
 
     def as_json(self):
         return {"content_type": self.content_type, "url": self.url}
@@ -613,30 +615,6 @@ class Msg(models.Model):
             self.visibility = self.VISIBILITY_VISIBLE
             self.save(update_fields=("visibility", "modified_on"))
 
-    def delete(self, soft: bool = False):
-        """
-        Deletes this message. This can be soft if messages are being deleted from the UI, or hard in the case of
-        contact or org removal.
-        """
-
-        assert not soft or self.direction == Msg.DIRECTION_IN, "only incoming messages can be soft deleted"
-
-        if self.direction == Msg.DIRECTION_IN:
-            for attachment in self.get_attachments():
-                attachment.delete()
-
-        if soft:
-            self.labels.clear()
-
-            self.text = ""
-            self.attachments = []
-            self.visibility = Msg.VISIBILITY_DELETED_BY_USER
-            self.save(update_fields=("text", "attachments", "visibility"))
-        else:
-            self.channel_logs.all().delete()
-
-            super().delete()
-
     @classmethod
     def apply_action_label(cls, user, msgs, label):
         label.toggle_label(msgs, add=True)
@@ -657,13 +635,54 @@ class Msg(models.Model):
 
     @classmethod
     def apply_action_delete(cls, user, msgs):
-        for msg in msgs:
-            msg.delete(soft=True)
+        cls.bulk_soft_delete(msgs)
 
     @classmethod
     def apply_action_resend(cls, user, msgs):
         if msgs:
             mailroom.get_client().msg_resend(msgs[0].org.id, [m.id for m in msgs])
+
+    @classmethod
+    def bulk_soft_delete(cls, msgs: list):
+        """
+        Bulk soft deletes the given incoming messages, i.e. clears content and updates its visibility to deleted.
+        """
+
+        attachments_to_delete = []
+
+        for msg in msgs:
+            assert msg.direction == Msg.DIRECTION_IN, "only incoming messages can be soft deleted"
+
+            attachments_to_delete.extend(msg.get_attachments())
+
+        Attachment.bulk_delete(attachments_to_delete)
+
+        for msg in msgs:
+            msg.labels.clear()
+
+        cls.objects.filter(id__in=[m.id for m in msgs]).update(
+            text="", attachments=[], visibility=Msg.VISIBILITY_DELETED_BY_USER
+        )
+
+    @classmethod
+    def bulk_delete(cls, msgs: list):
+        """
+        Bulk hard deletes the given messages.
+        """
+
+        from temba.channels.models import ChannelLog
+
+        attachments_to_delete = []
+
+        for msg in msgs:
+            if msg.direction == Msg.DIRECTION_IN:
+                attachments_to_delete.extend(msg.get_attachments())
+
+        Attachment.bulk_delete(attachments_to_delete)
+
+        ChannelLog.objects.filter(msg__in=msgs).delete()
+
+        cls.objects.filter(id__in=[m.id for m in msgs]).delete()
 
     def __str__(self):  # pragma: needs cover
         return self.text
