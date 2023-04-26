@@ -15,6 +15,7 @@ from temba.archives.models import Archive
 from temba.channels.models import ChannelCount, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactURN
 from temba.contacts.search.omnibox import omnibox_serialize
+from temba.flows.models import Flow
 from temba.msgs.models import (
     Attachment,
     Broadcast,
@@ -30,6 +31,7 @@ from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
+from temba.tickets.models import Ticket
 from temba.utils import s3
 from temba.utils.compose import compose_deserialize_attachments, compose_serialize
 from temba.utils.views import TEMBA_MENU_SELECTION
@@ -1364,6 +1366,26 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         )
         spam = self.create_label("Spam")
         msg.labels.add(spam)
+
+    def test_foreign_keys(self):
+        # create a message which references a flow and a ticket
+        flow = self.create_flow("Flow")
+        contact = self.create_contact("Ann", phone="+250788000001")
+        ticket = self.create_ticket(self.org.ticketers.get(), contact, "Help")
+        msg = self.create_outgoing_msg(contact, "Hi", flow=flow, ticket=ticket)
+
+        # both Msg.flow and Msg.ticket are unconstrained so we shuld be able to delete these
+        flow.release(self.admin)
+        flow.delete()
+        ticket.delete()
+
+        msg.refresh_from_db()
+
+        # but then accessing them blows up
+        with self.assertRaises(Flow.DoesNotExist):
+            print(msg.flow)
+        with self.assertRaises(Ticket.DoesNotExist):
+            print(msg.ticket)
 
 
 class MsgCRUDLTest(TembaTest, CRUDLTestMixin):

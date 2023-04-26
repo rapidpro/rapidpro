@@ -208,12 +208,6 @@ class TembaModel(TembaUUIDMixin, TembaNameMixin, SmartModel):
     def as_export_ref(self) -> dict:
         return {"uuid": str(self.uuid), "name": self.name}
 
-    def raw_delete(self):
-        """
-        Deletes this object, skipping Django's related field checking
-        """
-        raw_delete(self._meta.model.objects.filter(id=self.id))
-
     def __str__(self):
         """
         How widgets will render this object
@@ -228,12 +222,3 @@ class TembaModel(TembaUUIDMixin, TembaNameMixin, SmartModel):
 
     class Meta:
         abstract = True
-
-
-def raw_delete(qs) -> int:
-    """
-    Calling .delete() on a model (or even a queryset) can be slow because Django insists on implementing its own
-    CASCADE checking of related objects... especially if there are un-indexed related fields, e.g. Msg.flow
-    """
-
-    return qs._raw_delete(using="default")

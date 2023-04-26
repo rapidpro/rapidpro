@@ -335,6 +335,7 @@ class TembaTestMixin:
         next_attempt=None,
         failed_reason=None,
         flow=None,
+        ticket=None,
     ):
         if status in (Msg.STATUS_WIRED, Msg.STATUS_SENT, Msg.STATUS_DELIVERED) and not sent_on:
             sent_on = timezone.now()
@@ -358,6 +359,7 @@ class TembaTestMixin:
             high_priority=high_priority,
             surveyor=surveyor,
             flow=flow,
+            ticket=ticket,
             metadata=metadata,
             next_attempt=next_attempt,
             failed_reason=failed_reason,
@@ -382,6 +384,7 @@ class TembaTestMixin:
         high_priority=False,
         surveyor=False,
         flow=None,
+        ticket=None,
         broadcast=None,
         locale=None,
         metadata=None,
@@ -425,6 +428,7 @@ class TembaTestMixin:
             sent_on=sent_on,
             broadcast=broadcast,
             flow=flow,
+            ticket=ticket,
             metadata=metadata,
             next_attempt=next_attempt,
             failed_reason=failed_reason,

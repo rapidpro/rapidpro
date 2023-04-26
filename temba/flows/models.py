@@ -1043,9 +1043,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         self.status_counts.all().delete()
         self.labels.clear()
 
-        # we don't call Model.delete() because Django will try to find all messages that reference this flow and that
-        # foreign key isn't indexed
-        super().raw_delete()
+        super().delete()
 
     class Meta:
         ordering = ("-modified_on",)
