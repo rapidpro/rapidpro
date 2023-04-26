@@ -62,7 +62,7 @@ coverage = {extras = ["toml"], version = "^7.2.2"}
 isort = "^5.12.0"
 responses = "^0.12.1"
 beautifulsoup4 = "^4.9.3"
-ruff = "^0.0.257"
+ruff = "^0.0.263"
 
 [tool.poetry_bumpversion.file."temba/__init__.py"]
 
