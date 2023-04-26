@@ -16,6 +16,7 @@ DROP INDEX locations_boundaryalias_name;
 class Migration(migrations.Migration):
     dependencies = [
         ("orgs", "0122_alter_org_config"),
+        ("sql", "0005_squashed"),
         ("locations", "0027_squashed"),
     ]
 
