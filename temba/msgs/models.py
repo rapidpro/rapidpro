@@ -503,10 +503,12 @@ class Msg(models.Model):
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="msgs", db_index=False)
     contact_urn = models.ForeignKey(ContactURN, on_delete=models.PROTECT, null=True, related_name="msgs")
 
-    # message origin
+    # message origin (note that we don't index or constrain flow/ticket so accessing by these is not supported)
     broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, null=True, related_name="msgs")
-    flow = models.ForeignKey("flows.Flow", on_delete=models.PROTECT, null=True, db_index=False)
-    ticket = models.ForeignKey("tickets.Ticket", on_delete=models.PROTECT, null=True, db_index=False)
+    flow = models.ForeignKey("flows.Flow", on_delete=models.DO_NOTHING, null=True, db_index=False, db_constraint=False)
+    ticket = models.ForeignKey(
+        "tickets.Ticket", on_delete=models.DO_NOTHING, null=True, db_index=False, db_constraint=False
+    )
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, null=True, db_index=False)
 
     # message content

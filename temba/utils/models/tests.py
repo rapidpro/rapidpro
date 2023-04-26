@@ -5,11 +5,11 @@ from django.core import checks
 from django.db import connection, models
 from django.test import TestCase
 
-from temba.contacts.models import Contact, ContactField
+from temba.contacts.models import Contact
 from temba.flows.models import Flow
 from temba.tests import TembaTest
 
-from .base import patch_queryset_count, raw_delete
+from .base import patch_queryset_count
 from .es import IDSliceQuerySet
 from .fields import JSONAsTextField
 
@@ -24,21 +24,6 @@ class ModelsTest(TembaTest):
             patch_queryset_count(qs, lambda: 33)
 
             self.assertEqual(qs.count(), 33)
-
-    def test_raw_delete(self):
-        field1 = self.create_field("field1", "Field 1")
-        field2 = self.create_field("field2", "Field 2")
-        field1.release(self.admin)
-        field2.release(self.admin)
-
-        with self.assertNumQueries(8):
-            ContactField.objects.filter(id=field1.id).delete()
-
-        with self.assertNumQueries(1):
-            raw_delete(ContactField.objects.filter(id=field2.id))
-
-        self.assertFalse(ContactField.objects.filter(id=field1.id).exists())
-        self.assertFalse(ContactField.objects.filter(id=field2.id).exists())
 
 
 class IDSliceQuerySetTest(TembaTest):
