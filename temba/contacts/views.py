@@ -868,7 +868,7 @@ class ContactCRUDL(SmartCRUDL):
                         on_submit="contactUpdated()",
                         disabled=True,
                     )
-                if self.has_org_perm("contacts.contact_open_ticket"):
+                if self.has_org_perm("contacts.contact_open_ticket") and obj.ticket_count == 0:
                     menu.add_modax(
                         _("Open Ticket"), "open-ticket", reverse("contacts.contact_open_ticket", args=[obj.id])
                     )
