@@ -1,3 +1,8 @@
+v8.1.123 (2023-04-27)
+-------------------------
+ * Hide Open Ticket option on contact read page if there's already an open a ticket
+ * Rework soft and hard msg deleting to be more performant
+
 v8.1.122 (2023-04-26)
 -------------------------
  * Remove db constriants on Msg.flow and Msg.ticket
