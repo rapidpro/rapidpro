@@ -5,7 +5,6 @@ from twilio.base.exceptions import TwilioRestException
 from django.urls import reverse
 
 from temba.channels.models import Channel
-from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
@@ -13,7 +12,8 @@ from .type import TwilioWhatsappType
 
 
 class TwilioWhatsappTypeTest(TembaTest):
-    @patch("temba.orgs.models.TwilioClient", MockTwilioClient)
+    @patch("temba.channels.types.twilio_whatsapp.views.TwilioClient", MockTwilioClient)
+    @patch("temba.channels.types.twilio.views.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_claim(self):
         self.login(self.admin)
@@ -32,9 +32,11 @@ class TwilioWhatsappTypeTest(TembaTest):
         response = self.client.get(claim_twilio, follow=True)
         self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio.connect"))
 
-        # attach a Twilio accont to the org
-        self.org.config = {Org.CONFIG_TWILIO_SID: "account-sid", Org.CONFIG_TWILIO_TOKEN: "account-token"}
-        self.org.save()
+        # attach a Twilio account to the session
+        session = self.client.session
+        session[Channel.CONFIG_TWILIO_ACCOUNT_SID] = "account-sid"
+        session[Channel.CONFIG_TWILIO_AUTH_TOKEN] = "account-token"
+        session.save()
 
         # hit the claim page, should now have a claim twilio link
         response = self.client.get(reverse("channels.channel_claim"))
@@ -44,7 +46,7 @@ class TwilioWhatsappTypeTest(TembaTest):
         self.assertIn("account_trial", response.context)
         self.assertFalse(response.context["account_trial"])
 
-        with patch("temba.orgs.models.Org.get_twilio_client") as mock_get_twilio_client:
+        with patch("temba.channels.types.twilio_whatsapp.views.ClaimView.get_twilio_client") as mock_get_twilio_client:
             mock_get_twilio_client.return_value = None
 
             response = self.client.get(claim_twilio)
@@ -126,6 +128,11 @@ class TwilioWhatsappTypeTest(TembaTest):
                 # make sure it is actually connected
                 channel = Channel.objects.get(channel_type="TWA", org=self.org)
                 self.assertEqual(channel.role, Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
+
+                # no more credential in the session
+                self.assertFalse(Channel.CONFIG_TWILIO_ACCOUNT_SID in self.client.session)
+                self.assertFalse(Channel.CONFIG_TWILIO_AUTH_TOKEN in self.client.session)
+
 
         twilio_channel = self.org.channels.all().first()
         # make channel support both sms and voice to check we clear both applications

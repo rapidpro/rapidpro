@@ -2,6 +2,7 @@ import phonenumbers
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartFormView
 from twilio.base.exceptions import TwilioRestException
+from twilio.rest import Client as TwilioClient
 
 from django import forms
 from django.http import HttpResponseRedirect
@@ -10,7 +11,6 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.channels.types.twilio.views import SUPPORTED_COUNTRIES
 from temba.contacts.models import URN
-from temba.orgs.models import Org
 from temba.utils.fields import SelectWidget
 from temba.utils.uuid import uuid4
 
@@ -35,10 +35,17 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         self.account = None
         self.client = None
 
+    def get_twilio_client(self):
+        account_sid = self.request.session.get(Channel.CONFIG_TWILIO_ACCOUNT_SID, None)
+        account_token = self.request.session.get(Channel.CONFIG_TWILIO_AUTH_TOKEN, None)
+
+        if account_sid and account_token:
+            return TwilioClient(account_sid, account_token)
+        return None
+
     def pre_process(self, *args, **kwargs):
-        org = self.request.org
         try:
-            self.client = org.get_twilio_client()
+            self.client = self.get_twilio_client()
             if not self.client:
                 return HttpResponseRedirect(
                     f'{reverse("channels.types.twilio.connect")}?claim_type={self.channel_type.slug}'
@@ -63,11 +70,16 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["account_trial"] = self.account.type.lower() == "trial"
+
+        account_trial = False
+        if self.account:
+            account_trial = self.account.type.lower() == "trial"
+
+        context["account_trial"] = account_trial
         return context
 
     def get_existing_numbers(self, org):
-        client = org.get_twilio_client()
+        client = self.get_twilio_client()
         if client:
             twilio_account_numbers = client.api.incoming_phone_numbers.stream(page_size=1000)
 
@@ -91,7 +103,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
     def claim_number(self, user, phone_number, country, role):
         org = self.request.org
-        client = org.get_twilio_client()
+        client = self.get_twilio_client()
         twilio_phones = client.api.incoming_phone_numbers.stream(phone_number=phone_number)
         channel_uuid = uuid4()
 
@@ -108,11 +120,10 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         number_sid = twilio_phone.sid
 
-        org_config = org.config
         config = {
             Channel.CONFIG_NUMBER_SID: number_sid,
-            Channel.CONFIG_ACCOUNT_SID: org_config[Org.CONFIG_TWILIO_SID],
-            Channel.CONFIG_AUTH_TOKEN: org_config[Org.CONFIG_TWILIO_TOKEN],
+            Channel.CONFIG_ACCOUNT_SID: self.request.session.get(Channel.CONFIG_TWILIO_ACCOUNT_SID),
+            Channel.CONFIG_AUTH_TOKEN: self.request.session.get(Channel.CONFIG_TWILIO_AUTH_TOKEN),
             Channel.CONFIG_CALLBACK_DOMAIN: callback_domain,
         }
 
@@ -132,3 +143,9 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         )
 
         return channel
+
+    def remove_api_credentials_from_session(self):
+        if Channel.CONFIG_TWILIO_ACCOUNT_SID in self.request.session:
+            del self.request.session[Channel.CONFIG_TWILIO_ACCOUNT_SID]
+        if Channel.CONFIG_TWILIO_AUTH_TOKEN in self.request.session:
+            del self.request.session[Channel.CONFIG_TWILIO_AUTH_TOKEN]

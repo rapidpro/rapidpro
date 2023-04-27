@@ -1,5 +1,6 @@
 from smartmin.views import SmartFormView
 from twilio.base.exceptions import TwilioRestException
+from twilio.rest import Client as TwilioClient
 
 from django import forms
 from django.http import HttpResponseRedirect
@@ -7,7 +8,6 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.types.twilio.views import COUNTRY_CHOICES
-from temba.orgs.models import Org
 from temba.utils.fields import SelectWidget
 
 from ...models import Channel
@@ -29,10 +29,17 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         self.client = None
         self.object = None
 
+    def get_twilio_client(self):
+        account_sid = self.request.session.get(Channel.CONFIG_TWILIO_ACCOUNT_SID, None)
+        account_token = self.request.session.get(Channel.CONFIG_TWILIO_AUTH_TOKEN, None)
+
+        if account_sid and account_token:
+            return TwilioClient(account_sid, account_token)
+        return None
+
     def pre_process(self, *args, **kwargs):
-        org = self.request.org
         try:
-            self.client = org.get_twilio_client()
+            self.client = self.get_twilio_client()
             if not self.client:
                 return HttpResponseRedirect(
                     f'{reverse("channels.types.twilio.connect")}?claim_type={self.channel_type.slug}'
@@ -45,7 +52,11 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["account_trial"] = self.account.type.lower() == "trial"
+        account_trial = False
+        if self.account:
+            account_trial = self.account.type.lower() == "trial"
+
+        context["account_trial"] = account_trial
         return context
 
     def form_valid(self, form):
@@ -53,11 +64,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         org = self.request.org
         data = form.cleaned_data
 
-        org_config = org.config
         config = {
             Channel.CONFIG_MESSAGING_SERVICE_SID: data["messaging_service_sid"],
-            Channel.CONFIG_ACCOUNT_SID: org_config[Org.CONFIG_TWILIO_SID],
-            Channel.CONFIG_AUTH_TOKEN: org_config[Org.CONFIG_TWILIO_TOKEN],
+            Channel.CONFIG_ACCOUNT_SID: self.request.session.get(Channel.CONFIG_TWILIO_ACCOUNT_SID),
+            Channel.CONFIG_AUTH_TOKEN: self.request.session.get(Channel.CONFIG_TWILIO_AUTH_TOKEN),
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
         }
 
@@ -70,5 +80,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             address=None,
             config=config,
         )
+        self.remove_api_credentials_from_session()
 
         return super().form_valid(form)
+
+    def remove_api_credentials_from_session(self):
+        if Channel.CONFIG_TWILIO_ACCOUNT_SID in self.request.session:
+            del self.request.session[Channel.CONFIG_TWILIO_ACCOUNT_SID]
+        if Channel.CONFIG_TWILIO_AUTH_TOKEN in self.request.session:
+            del self.request.session[Channel.CONFIG_TWILIO_AUTH_TOKEN]

@@ -5,7 +5,6 @@ from twilio.base.exceptions import TwilioRestException
 from django.urls import reverse
 
 from temba.channels.models import Channel
-from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
@@ -14,7 +13,8 @@ from .views import COUNTRY_CHOICES
 
 
 class TwilioMessagingServiceTypeTest(TembaTest):
-    @patch("temba.orgs.models.TwilioClient", MockTwilioClient)
+    @patch("temba.channels.types.twilio_messaging_service.views.TwilioClient", MockTwilioClient)
+    @patch("temba.channels.types.twilio.views.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_claim(self):
         self.login(self.admin)
@@ -33,12 +33,10 @@ class TwilioMessagingServiceTypeTest(TembaTest):
         response = self.client.get(claim_twilio_ms, follow=True)
         self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio.connect"))
 
-        twilio_config = dict()
-        twilio_config[Org.CONFIG_TWILIO_SID] = "account-sid"
-        twilio_config[Org.CONFIG_TWILIO_TOKEN] = "account-token"
-
-        self.org.config = twilio_config
-        self.org.save()
+        session = self.client.session
+        session[Channel.CONFIG_TWILIO_ACCOUNT_SID] = "account-sid"
+        session[Channel.CONFIG_TWILIO_AUTH_TOKEN] = "account-token"
+        session.save()
 
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertContains(response, claim_twilio_ms)
@@ -47,7 +45,9 @@ class TwilioMessagingServiceTypeTest(TembaTest):
         self.assertIn("account_trial", response.context)
         self.assertFalse(response.context["account_trial"])
 
-        with patch("temba.orgs.models.Org.get_twilio_client") as mock_get_twilio_client:
+        with patch(
+            "temba.channels.types.twilio_messaging_service.views.ClaimView.get_twilio_client"
+        ) as mock_get_twilio_client:
             mock_get_twilio_client.return_value = None
 
             response = self.client.get(claim_twilio_ms)
@@ -89,6 +89,10 @@ class TwilioMessagingServiceTypeTest(TembaTest):
 
         response = self.client.get(reverse("channels.channel_configuration", args=[channel.uuid]))
         self.assertContains(response, reverse("courier.tms", args=[channel.uuid, "receive"]))
+
+        # no more credential in the session
+        self.assertFalse(Channel.CONFIG_TWILIO_ACCOUNT_SID in self.client.session)
+        self.assertFalse(Channel.CONFIG_TWILIO_AUTH_TOKEN in self.client.session)
 
     def test_get_error_ref_url(self):
         self.assertEqual(
