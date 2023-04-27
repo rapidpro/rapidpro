@@ -3274,10 +3274,6 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_edit"):
                 formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
 
-            twilio_client = org.get_twilio_client()
-            if twilio_client:  # pragma: needs cover
-                formax.add_section("twilio", reverse("channels.types.twilio.account"), icon="icon-channel-twilio")
-
             vonage_client = org.get_vonage_client()
             if vonage_client:  # pragma: needs cover
                 formax.add_section("vonage", reverse("orgs.org_vonage_account"), icon="icon-vonage")
@@ -3371,10 +3367,6 @@ class OrgCRUDL(SmartCRUDL):
                 channels = Channel.objects.filter(org=org, is_active=True, parent=None).order_by("-role")
                 for channel in channels:
                     self.add_channel_section(formax, channel)
-
-                twilio_client = org.get_twilio_client()
-                if twilio_client:  # pragma: needs cover
-                    formax.add_section("twilio", reverse("channels.types.twilio.account"), icon="icon-channel-twilio")
 
                 vonage_client = org.get_vonage_client()
                 if vonage_client:  # pragma: needs cover
