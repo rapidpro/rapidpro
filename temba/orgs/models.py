@@ -29,7 +29,7 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.locations.models import AdminBoundary
-from temba.utils import brands, chunk_list, json, languages
+from temba.utils import brands, json, languages
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONField
@@ -1290,6 +1290,8 @@ class Org(SmartModel):
         Does an actual delete of this org
         """
 
+        from temba.msgs.models import Msg
+
         assert not self.is_active and self.released_on, "can't delete org which hasn't been released"
         assert self.released_on < timezone.now() - timedelta(days=7), "can't delete org which was released recently"
         assert not self.deleted_on, "can't delete org twice"
@@ -1312,12 +1314,11 @@ class Org(SmartModel):
             label.release(user)
             label.delete()
 
-        msg_ids = self.msgs.all().values_list("id", flat=True)
-
-        # might be a lot of messages, batch this
-        for id_batch in chunk_list(msg_ids, 1000):
-            for msg in self.msgs.filter(id__in=id_batch):
-                msg.delete()
+        while True:
+            msg_batch = list(self.msgs.all()[:1000])
+            if not msg_batch:
+                break
+            Msg.bulk_delete(msg_batch)
 
         # our system label counts
         self.system_labels.all().delete()

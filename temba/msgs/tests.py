@@ -318,7 +318,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         )
 
     @patch("django.core.files.storage.default_storage.delete")
-    def test_delete(self, mock_storage_delete):
+    def test_bulk_soft_delete(self, mock_storage_delete):
         # create some messages
         msg1 = self.create_incoming_msg(
             self.joe,
@@ -333,30 +333,47 @@ class MsgTest(TembaTest, CRUDLTestMixin):
 
         # can't soft delete outgoing messages
         with self.assertRaises(AssertionError):
-            out1.delete(soft=True)
+            Msg.bulk_soft_delete([out1])
 
-        # create a channel logs for both incoming
-        ChannelLog.objects.create(channel=self.channel, msg=msg1, is_error=False)
-        ChannelLog.objects.create(channel=self.channel, msg=msg2, is_error=False)
+        Msg.bulk_soft_delete([msg1, msg2])
 
-        self.assertEqual(3, Msg.objects.all().count())
+        # soft delete should clear text and attachments
+        for msg in (msg1, msg2):
+            msg.refresh_from_db()
 
-        # soft delete should clear text
-        msg1.delete(soft=True)
-        msg1.refresh_from_db()
-        self.assertEqual(3, Msg.objects.all().count())
-        self.assertEqual(Msg.VISIBILITY_DELETED_BY_USER, msg1.visibility)
-        self.assertEqual("", msg1.text)
-        self.assertEqual([], msg1.attachments)
-        self.assertEqual(1, msg1.channel_logs.count())  # logs still there
+            self.assertEqual("", msg.text)
+            self.assertEqual([], msg.attachments)
+            self.assertEqual(Msg.VISIBILITY_DELETED_BY_USER, msg1.visibility)
 
         mock_storage_delete.assert_any_call("/attachments/1/a/b.jpg")
         mock_storage_delete.assert_any_call("/attachments/1/c/d e.jpg")
 
-        # test a hard delete as part of a contact removal
-        msg2.delete()
-        self.assertEqual(2, Msg.objects.all().count())
-        self.assertEqual(0, ChannelLog.objects.filter(msg_id=msg2.id).count())  # logs should be gone
+    @patch("django.core.files.storage.default_storage.delete")
+    def test_bulk_delete(self, mock_storage_delete):
+        # create some messages
+        msg1 = self.create_incoming_msg(
+            self.joe,
+            "i'm having a problem",
+            attachments=[
+                r"audo/mp4:http://s3.com/attachments/1/a/b.jpg",
+                r"image/jpeg:http://s3.com/attachments/1/c/d%20e.jpg",
+            ],
+        )
+        msg2 = self.create_incoming_msg(self.frank, "ignore joe, he's a liar")
+        out1 = self.create_outgoing_msg(self.frank, "hi")
+
+        # create a channel log for each message
+        ChannelLog.objects.create(channel=self.channel, msg=msg1, is_error=False)
+        ChannelLog.objects.create(channel=self.channel, msg=msg2, is_error=False)
+        ChannelLog.objects.create(channel=self.channel, msg=out1, is_error=False)
+
+        Msg.bulk_delete([msg1, out1])
+
+        self.assertEqual(1, Msg.objects.all().count())
+        self.assertEqual(1, ChannelLog.objects.filter(msg_id=msg2.id).count())
+
+        mock_storage_delete.assert_any_call("/attachments/1/a/b.jpg")
+        mock_storage_delete.assert_any_call("/attachments/1/c/d e.jpg")
 
     def test_archive_and_release(self):
         msg1 = self.create_incoming_msg(self.joe, "Incoming")
