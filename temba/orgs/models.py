@@ -915,11 +915,6 @@ class Org(SmartModel):
         self.modified_by = user
         self.save(update_fields=("config", "modified_by", "modified_on"))
 
-    def connect_twilio(self, account_sid, account_token, user):
-        self.config.update({Org.CONFIG_TWILIO_SID: account_sid, Org.CONFIG_TWILIO_TOKEN: account_token})
-        self.modified_by = user
-        self.save(update_fields=("config", "modified_by", "modified_on"))
-
     def is_connected_to_vonage(self):
         if self.config:
             return self.config.get(Org.CONFIG_VONAGE_KEY) and self.config.get(Org.CONFIG_VONAGE_SECRET)

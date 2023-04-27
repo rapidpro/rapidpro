@@ -133,7 +133,6 @@ class TwilioWhatsappTypeTest(TembaTest):
                 self.assertFalse(Channel.CONFIG_TWILIO_ACCOUNT_SID in self.client.session)
                 self.assertFalse(Channel.CONFIG_TWILIO_AUTH_TOKEN in self.client.session)
 
-
         twilio_channel = self.org.channels.all().first()
         # make channel support both sms and voice to check we clear both applications
         twilio_channel.role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE + Channel.ROLE_ANSWER + Channel.ROLE_CALL
@@ -152,8 +151,12 @@ class TwilioWhatsappTypeTest(TembaTest):
     @patch("temba.channels.types.twilio.type.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_update(self):
-        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        config = {
+            Channel.CONFIG_ACCOUNT_SID: "TEST_SID",
+            Channel.CONFIG_AUTH_TOKEN: "TEST_TOKEN",
+        }
         twilio_whatsapp = self.org.channels.all().first()
+        twilio_whatsapp.config = config
         twilio_whatsapp.channel_type = "TWA"
         twilio_whatsapp.save()
 

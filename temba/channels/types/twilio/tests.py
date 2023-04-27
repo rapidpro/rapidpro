@@ -295,8 +295,12 @@ class TwilioTypeTest(TembaTest):
     @patch("temba.channels.types.twilio.type.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_update(self):
-        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        config = {
+            Channel.CONFIG_ACCOUNT_SID: "TEST_SID",
+            Channel.CONFIG_AUTH_TOKEN: "TEST_TOKEN",
+        }
         twilio_channel = self.org.channels.all().first()
+        twilio_channel.config = config
         twilio_channel.channel_type = "T"
         twilio_channel.save()
 
@@ -332,8 +336,12 @@ class TwilioTypeTest(TembaTest):
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_deactivate(self):
         # make our channel of the twilio ilk
-        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        config = {
+            Channel.CONFIG_ACCOUNT_SID: "TEST_SID",
+            Channel.CONFIG_AUTH_TOKEN: "TEST_TOKEN",
+        }
         twilio_channel = self.org.channels.all().first()
+        twilio_channel.config = config
         twilio_channel.channel_type = "T"
         twilio_channel.save()
 

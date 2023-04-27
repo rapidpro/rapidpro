@@ -104,8 +104,12 @@ class TwilioMessagingServiceTypeTest(TembaTest):
     @patch("temba.channels.types.twilio.type.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_update(self):
-        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        config = {
+            Channel.CONFIG_ACCOUNT_SID: "TEST_SID",
+            Channel.CONFIG_AUTH_TOKEN: "TEST_TOKEN",
+        }
         tms_channel = self.org.channels.all().first()
+        tms_channel.config = config
         tms_channel.channel_type = "TMS"
         tms_channel.save()
 
