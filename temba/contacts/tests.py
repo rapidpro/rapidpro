@@ -503,6 +503,10 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             spa_items=["Start Flow", "Open Ticket", "-", "Edit"],
         )
 
+        # if there's an open ticket already, don't show open ticket option
+        self.create_ticket(self.org.ticketers.get(), joe, "Help")
+        self.assertContentMenu(read_url, self.editor, ["Send Message", "Start Flow", "-", "Edit", "Custom Fields"])
+
         # login as viewer
         self.login(self.user)
 
