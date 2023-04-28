@@ -409,6 +409,7 @@ class ContactField(TembaModel, DependencyMixin):
         "last_seen_on",
         "name",
         "status",
+        "ticket",
         "urn",
         "uuid",
         # @contact.* properties in expressions
