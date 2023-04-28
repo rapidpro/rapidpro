@@ -291,7 +291,7 @@ class SearchView(OrgPermsMixin, SmartFormView):
 
         if account_sid and account_token:
             return TwilioClient(account_sid, account_token)
-        return None
+        return None  # pragma: no cover
 
     def search_available(self, client, country: str, **kwargs):
         available_numbers = []
@@ -426,9 +426,6 @@ class Connect(SpaMixin, OrgPermsMixin, SmartFormView):
     template_name = "channels/types/twilio/connect.html"
     menu_path = "/settings/workspace"
     title = "Connect Twilio"
-
-    def get_object(self, *args, **kwargs):
-        return self.request.org
 
     def get_success_url(self):
         claim_type = self.request.GET.get("claim_type", "twilio")
