@@ -10,7 +10,6 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.views.generic import View
 
-from temba.api.models import APIPermission, SSLPermission
 from temba.api.support import InvalidQueryError
 from temba.contacts.models import URN
 from temba.orgs.views import OrgPermsMixin
@@ -37,8 +36,6 @@ class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
     Base class of all our API endpoints
     """
 
-    permission_classes = (SSLPermission, APIPermission)
-    throttle_scope = "v2"
     model = None
     model_manager = "objects"
     lookup_params = {"uuid": "uuid"}
