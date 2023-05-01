@@ -904,8 +904,6 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ("temba.api.support.DocumentationRenderer", "rest_framework.renderers.JSONRenderer"),
     "PAGE_SIZE": 250,
     "EXCEPTION_HANDLER": "temba.api.support.temba_exception_handler",
-    "UNICODE_JSON": False,
-    "STRICT_JSON": False,
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
 
