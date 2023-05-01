@@ -12,7 +12,6 @@ from django.conf import settings
 from django.contrib.auth.models import User
 
 from temba import mailroom
-from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
@@ -29,8 +28,9 @@ from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.utils import json, on_transaction_commit
 from temba.utils.fields import NameValidator
 
+from ..models import BulkActionFailure, Resthook, ResthookSubscriber, WebHookEvent
+from ..validators import UniqueForOrgValidator
 from . import fields
-from .validators import UniqueForOrgValidator
 
 INVALID_EXTRA_KEY_CHARS = regex.compile(r"[^a-zA-Z0-9_]")
 
@@ -118,18 +118,6 @@ class WriteSerializer(serializers.Serializer):
             raise serializers.ValidationError(detail={"non_field_errors": [msg]})
 
         return super().run_validation(data)
-
-
-class BulkActionFailure:
-    """
-    Bulk action serializers can return a partial failure if some objects couldn't be acted on
-    """
-
-    def __init__(self, failures):
-        self.failures = failures
-
-    def as_json(self):
-        return {"failures": self.failures}
 
 
 # ============================================================

@@ -16,18 +16,6 @@ from django.http import HttpResponse, JsonResponse
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
-from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEvent
-from temba.api.v2.views_base import (
-    BaseAPIView,
-    BulkWriteAPIMixin,
-    CreatedOnCursorPagination,
-    DateJoinedCursorPagination,
-    DeleteAPIMixin,
-    ListAPIMixin,
-    ModifiedOnCursorPagination,
-    SentOnCursorPagination,
-    WriteAPIMixin,
-)
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
@@ -43,8 +31,15 @@ from temba.tickets.models import Ticket, TicketCount, Ticketer, Topic
 from temba.utils import splitting_getlist, str_to_bool
 from temba.utils.uuid import is_uuid
 
-from ..models import SSLPermission
-from ..support import InvalidQueryError
+from ..models import APIToken, Resthook, ResthookSubscriber, SSLPermission, WebHookEvent
+from ..support import (
+    CreatedOnCursorPagination,
+    DateJoinedCursorPagination,
+    InvalidQueryError,
+    ModifiedOnCursorPagination,
+    SentOnCursorPagination,
+)
+from ..views import BaseAPIView, BulkWriteAPIMixin, DeleteAPIMixin, ListAPIMixin, WriteAPIMixin
 from .serializers import (
     AdminBoundaryReadSerializer,
     ArchiveReadSerializer,
