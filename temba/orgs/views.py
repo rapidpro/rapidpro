@@ -267,7 +267,7 @@ class IntegrationFormaxView(IntegrationViewMixin, ComponentFormMixin, SmartFormV
             self.channel_type = integration_type
             super().__init__(**kwargs)
 
-    success_url = "@orgs.org_home"
+    success_url = "@orgs.org_workspace"
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -983,7 +983,7 @@ class UserCRUDL(SmartCRUDL):
                 return data
 
         form_class = Form
-        success_url = "@orgs.org_home"
+        success_url = "@orgs.org_workspace"
         success_message = _("Two-factor authentication disabled")
         submit_button_name = _("Disable")
         permission = "orgs.org_two_factor"
@@ -1001,9 +1001,7 @@ class UserCRUDL(SmartCRUDL):
 
             return super().form_valid(form)
 
-    class TwoFactorTokens(
-        SpaMixin, RequireRecentAuthMixin, InferOrgMixin, ContentMenuMixin, OrgPermsMixin, SmartTemplateView
-    ):
+    class TwoFactorTokens(SpaMixin, RequireRecentAuthMixin, InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         permission = "orgs.org_two_factor"
         title = _("Two-factor Authentication")
         menu_path = "/settings/2fa"
@@ -1020,10 +1018,6 @@ class UserCRUDL(SmartCRUDL):
             messages.info(request, _("Two-factor authentication backup tokens changed."))
 
             return super().get(request, *args, **kwargs)
-
-        def build_content_menu(self, menu):
-            if not self.is_spa():
-                menu.add_link(_("Home"), reverse("orgs.org_home"))
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -3420,16 +3414,6 @@ class OrgCRUDL(SmartCRUDL):
                 formax.add_section(
                     "resthooks", reverse("orgs.org_resthooks"), icon="icon-cloud-lightning", wide="true"
                 )
-
-            if self.has_org_perm("orgs.org_two_factor"):
-                if user.settings.two_factor_enabled:
-                    formax.add_section(
-                        "two_factor", reverse("orgs.user_two_factor_tokens"), icon="icon-two-factor", action="link"
-                    )
-                else:
-                    formax.add_section(
-                        "two_factor", reverse("orgs.user_two_factor_enable"), icon="icon-two-factor", action="link"
-                    )
 
     class TwilioAccount(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         success_message = ""

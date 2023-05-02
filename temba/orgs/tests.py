@@ -426,12 +426,13 @@ class UserTest(TembaTest):
         enable_url = reverse("orgs.user_two_factor_enable")
         tokens_url = reverse("orgs.user_two_factor_tokens")
         disable_url = reverse("orgs.user_two_factor_disable")
+        menu_url = reverse("orgs.org_menu") + "settings/"
 
-        self.login(self.admin, update_last_auth_on=False)
+        self.login(self.admin, update_last_auth_on=True)
 
-        # org home page tells us 2FA is disabled, links to page to enable it
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Two-factor authentication is <b>disabled</b>")
+        # settings menu gives us option to enable
+        response = self.client.get(menu_url)
+        self.assertContains(response, "Enable 2FA")
         self.assertContains(response, enable_url)
 
         # view form to enable 2FA
@@ -452,11 +453,14 @@ class UserTest(TembaTest):
         with patch("pyotp.TOTP.verify", return_value=True):
             response = self.client.post(enable_url, {"otp": "123456", "password": "Qwerty123"})
         self.assertRedirect(response, tokens_url)
+
+        del self.admin.settings  # clear cached_property
         self.assertTrue(self.admin.settings.two_factor_enabled)
 
-        # org home page now tells us 2FA is enabled, links to page manage tokens
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Two-factor authentication is <b>enabled</b>")
+        # settings menu now has a Security option which links to tokens page
+        response = self.client.get(menu_url)
+        self.assertContains(response, "Security")
+        self.assertContains(response, tokens_url)
 
         # view backup tokens page
         response = self.client.get(tokens_url)
@@ -484,7 +488,7 @@ class UserTest(TembaTest):
 
         # submit with valid password
         response = self.client.post(disable_url, {"password": "Qwerty123"})
-        self.assertRedirect(response, reverse("orgs.org_home"))
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
 
         del self.admin.settings  # clear cached_property
         self.assertFalse(self.admin.settings.two_factor_enabled)
@@ -517,13 +521,14 @@ class UserTest(TembaTest):
 
     def test_two_factor_confirm_access(self):
         tokens_url = reverse("orgs.user_two_factor_tokens")
+        menu_url = reverse("orgs.org_menu") + "settings/"
 
         self.admin.enable_2fa()
         self.login(self.admin, update_last_auth_on=False)
 
-        # org home page tells us 2FA is enabled, links to page manage tokens
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Two-factor authentication is <b>enabled</b>")
+        # settings menu tells us 2FA is enabled, links to page manage tokens
+        response = self.client.get(menu_url)
+        self.assertContains(response, "Security")
         self.assertContains(response, tokens_url)
 
         # but navigating to tokens page redirects to confirm auth
@@ -2875,7 +2880,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # not so many options for viewers
         self.assertEqual(200, response.status_code)
-        self.assertEqual(2, len(response.context["formax"].sections))
+        self.assertEqual(1, len(response.context["formax"].sections))
 
         self.login(self.admin)
 
@@ -2884,14 +2889,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # more options for admins
         self.assertEqual(200, response.status_code)
-        self.assertEqual(10, len(response.context["formax"].sections))
+        self.assertEqual(9, len(response.context["formax"].sections))
 
         # add the users and child workspaces features
         self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS]
         self.org.save(update_fields=("features",))
 
         response = self.client.get(home_url)
-        self.assertEqual(11, len(response.context["formax"].sections))  # adds Manage Users
+        self.assertEqual(10, len(response.context["formax"].sections))  # adds Manage Users
 
     def test_manage_sub_orgs(self):
         # give our org the multi users feature

@@ -172,7 +172,7 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "You are about to delete")
 
         response = self.assertDeleteSubmit(delete_url, object_deactivated=self.c2, success_status=200)
-        self.assertEqual("/org/home/", response["Temba-Success"])
+        self.assertEqual("/org/workspace/", response["Temba-Success"])
 
         # should see warning if global is being used
         delete_url = reverse("classifiers.classifier_delete", args=[self.c1.uuid])
@@ -184,7 +184,7 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Color Flow")
 
         response = self.assertDeleteSubmit(delete_url, object_deactivated=self.c1, success_status=200)
-        self.assertEqual("/org/home/", response["Temba-Success"])
+        self.assertEqual("/org/workspace/", response["Temba-Success"])
 
         self.flow.refresh_from_db()
         self.assertTrue(self.flow.has_issues)
