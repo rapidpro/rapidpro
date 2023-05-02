@@ -3364,7 +3364,7 @@ class OrgCRUDL(SmartCRUDL):
                     if integration.is_available_to(self.request.user):
                         integration.management_ui(self.object, formax)
 
-    class Home(SpaMixin, FormaxMixin, ContentMenuMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
+    class Home(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
 
         def pre_process(self, request, *args, **kwargs):
@@ -3373,60 +3373,12 @@ class OrgCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse("orgs.org_workspace"))
             return super().pre_process(request, *args, **kwargs)
 
-        def build_content_menu(self, menu):
-            if self.has_org_perm("channels.channel_claim"):
-                menu.add_link(_("Add Channel"), reverse("channels.channel_claim"), as_button=True)
-            if self.has_org_perm("classifiers.classifier_connect"):
-                menu.add_link(_("Add Classifier"), reverse("classifiers.classifier_connect"))
-            if self.has_org_perm("tickets.ticketer_connect") and "ticketers" in settings.FEATURES:
-                menu.add_link(_("Add Ticketing Service"), reverse("tickets.ticketer_connect"))
-
-            menu.new_group()
-
-            if self.has_org_perm("orgs.org_export"):
-                menu.add_link(_("Export"), reverse("orgs.org_export"))
-
-            if self.has_org_perm("orgs.org_import"):
-                menu.add_link(_("Import"), reverse("orgs.org_import"))
-
-            if settings.HELP_URL:  # pragma: needs cover
-                menu.new_group()
-                menu.add_link(_("Help"), settings.HELP_URL)
-
-            menu.new_group()
-            menu.add_link(_("Sign Out"), f"{reverse('users.user_logout')}?next={reverse('users.user_login')}")
-
-        def get_context_data(self, *args, **kwargs):
-            context = super().get_context_data(*args, **kwargs)
-            # context['channels'] = Channel.objects.filter(org=self.request.org, is_active=True, parent=None).order_by("-role")
-            return context
-
-        def add_channel_section(self, formax, channel):
-            if self.has_org_perm("channels.channel_read"):
-                from temba.channels.views import get_channel_read_url
-
-                formax.add_section("channel", get_channel_read_url(channel), icon=channel.type.icon, action="link")
-
-        def add_classifier_section(self, formax, classifier):
-            if self.has_org_perm("classifiers.classifier_read"):
-                formax.add_section(
-                    "classifier",
-                    reverse("classifiers.classifier_read", args=[classifier.uuid]),
-                    icon=classifier.get_type().icon,
-                    action="link",
-                )
-
         def derive_formax_sections(self, formax, context):
             # add the channel option if we have one
             user = self.request.user
             org = self.request.org
 
             if self.has_org_perm("channels.channel_update"):
-                # get any channel thats not a delegate
-                channels = Channel.objects.filter(org=org, is_active=True, parent=None).order_by("-role")
-                for channel in channels:
-                    self.add_channel_section(formax, channel)
-
                 twilio_client = org.get_twilio_client()
                 if twilio_client:  # pragma: needs cover
                     formax.add_section("twilio", reverse("orgs.org_twilio_account"), icon="icon-channel-twilio")
@@ -3434,26 +3386,6 @@ class OrgCRUDL(SmartCRUDL):
                 vonage_client = org.get_vonage_client()
                 if vonage_client:  # pragma: needs cover
                     formax.add_section("vonage", reverse("orgs.org_vonage_account"), icon="icon-vonage")
-
-            if self.has_org_perm("classifiers.classifier_read"):
-                classifiers = org.classifiers.filter(is_active=True).order_by("created_on")
-                for classifier in classifiers:
-                    self.add_classifier_section(formax, classifier)
-
-            if self.has_org_perm("tickets.ticketer_read"):
-                from temba.tickets.types.internal import InternalType
-
-                ext_ticketers = (
-                    org.ticketers.filter(is_active=True)
-                    .exclude(ticketer_type=InternalType.slug)
-                    .order_by("created_on")
-                )
-                for ticketer in ext_ticketers:
-                    formax.add_section(
-                        "tickets",
-                        reverse("tickets.ticketer_read", args=[ticketer.uuid]),
-                        icon=ticketer.type.icon,
-                    )
 
             if self.has_org_perm("orgs.org_profile"):
                 formax.add_section("user", reverse("orgs.user_edit"), icon="icon-user", action="redirect")
@@ -3486,10 +3418,7 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_resthooks"):
                 formax.add_section(
-                    "resthooks",
-                    reverse("orgs.org_resthooks"),
-                    icon="icon-cloud-lightning",
-                    wide="true",
+                    "resthooks", reverse("orgs.org_resthooks"), icon="icon-cloud-lightning", wide="true"
                 )
 
             if self.has_org_perm("orgs.org_two_factor"):

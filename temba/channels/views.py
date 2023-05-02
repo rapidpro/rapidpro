@@ -577,10 +577,6 @@ class ChannelCRUDL(SmartCRUDL):
             channel = self.object
 
             context["last_sync"] = channel.last_sync
-
-            if "HTTP_X_FORMAX" in self.request.META:  # no additional data needed if request is for old UI formax
-                return context
-
             context["msg_count"] = channel.get_msg_count()
             context["ivr_count"] = channel.get_ivr_count()
 

@@ -113,22 +113,12 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(3, len(menu))
 
     def test_views(self):
-        # fetch org home page
+        # fetch workspace menu
         self.login(self.admin)
-        response = self.client.get(reverse("orgs.org_home"))
-
-        # should contain classifier
-        self.assertContains(response, "Booker")
-        self.assertContains(response, "Feelings")
-        self.assertNotContains(response, "Old Booker")
-        self.assertNotContains(response, "Org 2 Booker")
-
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContentMenuContains(reverse("orgs.org_home"), self.admin, "Add Classifier")
+        self.assertContentMenuContains(reverse("orgs.org_workspace"), self.admin, "New Classifier")
 
         self.new_ui()
         read_url = reverse("classifiers.classifier_read", args=[self.c1.uuid])
-        self.assertContains(response, read_url)
 
         # read page
         response = self.client.get(read_url)
