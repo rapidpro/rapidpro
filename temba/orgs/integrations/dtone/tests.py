@@ -16,7 +16,7 @@ class DTOneTypeTest(TembaTest):
         self.login(self.admin)
 
         account_url = reverse("integrations.dtone.account")
-        home_url = reverse("orgs.org_home")
+        home_url = reverse("orgs.org_workspace")
 
         response = self.client.get(home_url)
         self.assertContains(response, "Connect your DT One account.")

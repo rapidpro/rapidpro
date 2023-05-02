@@ -565,7 +565,7 @@
         });
 
         $('.org-header').on('click', function(evt) {
-          url = '{% url "orgs.org_home" %}';
+          url = '{% url "orgs.org_workspace" %}';
           evt.stopPropagation();
           if (evt.ctrlKey || evt.metaKey){
             window.open(url,'_blank')

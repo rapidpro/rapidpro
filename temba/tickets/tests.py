@@ -1094,7 +1094,7 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # submit to delete it
         response = self.assertDeleteSubmit(delete_url, object_deactivated=ticketer, success_status=200)
-        self.assertEqual("/org/home/", response["Temba-Success"])
+        self.assertEqual("/org/workspace/", response["Temba-Success"])
 
         # reactivate
         ticketer.is_active = True

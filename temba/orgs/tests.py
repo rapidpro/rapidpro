@@ -839,7 +839,7 @@ class OrgTest(TembaTest):
     def test_country_view(self):
         self.setUpLocations()
 
-        home_url = reverse("orgs.org_home")
+        settings_url = reverse("orgs.org_workspace")
         country_url = reverse("orgs.org_country")
 
         rwanda = AdminBoundary.objects.get(name="Rwanda")
@@ -860,12 +860,12 @@ class OrgTest(TembaTest):
         self.assertEqual("Rwanda", str(self.org.country))
         self.assertEqual("RW", self.org.default_country_code)
 
-        response = self.client.get(home_url)
+        response = self.client.get(settings_url)
         self.assertContains(response, "Rwanda")
 
         # if location support is disabled in the settings, don't display country formax
         with override_settings(FEATURES={}):
-            response = self.client.get(home_url)
+            response = self.client.get(settings_url)
             self.assertNotContains(response, "Rwanda")
 
     def test_default_country(self):
@@ -1107,8 +1107,8 @@ class OrgTest(TembaTest):
 
     def test_refresh_tokens(self):
         self.login(self.admin)
-        url = reverse("orgs.org_home")
-        response = self.client.get(url)
+        settings_url = reverse("orgs.org_workspace")
+        response = self.client.get(settings_url)
 
         # admin should have a token
         token = APIToken.objects.get(user=self.admin)
@@ -1120,7 +1120,7 @@ class OrgTest(TembaTest):
         self.client.post(reverse("api.apitoken_refresh"))
 
         # visit our account page again
-        response = self.client.get(url)
+        response = self.client.get(settings_url)
 
         # old token no longer there
         self.assertNotContains(response, token.key)
@@ -1146,14 +1146,14 @@ class OrgTest(TembaTest):
 
         # but can see it as an editor
         self.login(self.editor)
-        response = self.client.get(url)
+        response = self.client.get(settings_url)
         token = APIToken.objects.get(user=self.editor)
         self.assertContains(response, token.key)
 
     @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
         url = reverse("orgs.org_manage_accounts")
-        home_url = reverse("orgs.org_home")
+        settings_url = reverse("orgs.org_workspace")
 
         # can't access as editor
         self.login(self.editor)
@@ -1163,7 +1163,7 @@ class OrgTest(TembaTest):
         # can't access as admin either because we don't have that feature enabled
         self.login(self.admin)
         response = self.client.get(url)
-        self.assertRedirect(response, home_url)
+        self.assertRedirect(response, settings_url)
 
         self.org.features = [Org.FEATURE_USERS]
         self.org.save(update_fields=("features",))
@@ -1756,15 +1756,15 @@ class OrgTest(TembaTest):
     def test_prometheus(self):
         # visit as viewer, no prometheus section
         self.login(self.user)
-        org_home_url = reverse("orgs.org_home")
-        response = self.client.get(org_home_url)
+        settings_url = reverse("orgs.org_workspace")
+        response = self.client.get(settings_url)
 
         self.assertNotContains(response, "Prometheus")
 
         # admin can see it though
         self.login(self.admin)
 
-        response = self.client.get(org_home_url)
+        response = self.client.get(settings_url)
         self.assertContains(response, "Prometheus")
         self.assertContains(response, "Enable Prometheus")
 
@@ -1782,7 +1782,7 @@ class OrgTest(TembaTest):
         self.org.add_user(self.other_admin, OrgRole.ADMINISTRATOR)
         self.login(self.other_admin)
 
-        response = self.client.get(org_home_url)
+        response = self.client.get(settings_url)
         self.assertContains(response, "Prometheus")
         self.assertContains(response, "Disable Prometheus")
 
@@ -1851,11 +1851,11 @@ class OrgTest(TembaTest):
     def test_smtp_server(self):
         self.login(self.admin)
 
-        home_url = reverse("orgs.org_home")
+        settings_url = reverse("orgs.org_workspace")
         config_url = reverse("orgs.org_smtp_server")
 
         # orgs without SMTP settings see default from address
-        response = self.client.get(home_url)
+        response = self.client.get(settings_url)
         self.assertContains(response, "Emails sent from flows will be sent from <b>no-reply@temba.io</b>.")
         self.assertEqual("no-reply@temba.io", response.context["from_email_default"])
         self.assertEqual(None, response.context["from_email_custom"])
@@ -2738,34 +2738,6 @@ class AnonOrgTest(TembaTest):
 
 
 class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
-    def test_home(self):
-        home_url = reverse("orgs.org_home")
-
-        self.login(self.user)
-
-        with self.assertNumQueries(11):
-            response = self.client.get(home_url)
-
-        # not so many options for viewers
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(1, len(response.context["formax"].sections))
-
-        self.login(self.admin)
-
-        with self.assertNumQueries(17):
-            response = self.client.get(home_url)
-
-        # more options for admins
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(8, len(response.context["formax"].sections))
-
-        # add the users and child workspaces features
-        self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS]
-        self.org.save(update_fields=("features",))
-
-        response = self.client.get(home_url)
-        self.assertEqual(9, len(response.context["formax"].sections))  # adds Manage Users
-
     def test_manage_sub_orgs(self):
         # give our org the multi users feature
         self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS]
@@ -2891,16 +2863,10 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         with self.assertNumQueries(21):
-            response = self.client.get(reverse("orgs.org_workspace"))
+            response = self.client.get(workspace_url)
 
         # should have an extra menu option for our child (and section header)
         self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 8)
-
-        # going to home in the new ui should route to manage
-        self.login(self.admin)
-        self.new_ui()
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertRedirect(response, workspace_url)
 
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")
@@ -3247,7 +3213,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, reverse("flows.flow_list"))
         self.assertContains(response, reverse("contacts.contact_list"))
         self.assertContains(response, reverse("channels.channel_list"))
-        self.assertContains(response, reverse("orgs.org_home"))
 
         # can't signup again with same email
         response = self.client.post(
@@ -3274,12 +3239,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(response, reverse("users.user_login"))
 
         # try going to the org home page, no dice
-        response = self.client.get(reverse("orgs.org_home"))
+        response = self.client.get(reverse("orgs.org_workspace"))
         self.assertRedirect(response, reverse("users.user_login"))
 
         # log in as the user
         self.client.login(username="myal12345678901234567890@relieves.org", password="HelloWorld1")
-        response = self.client.get(reverse("orgs.org_home"))
+        response = self.client.get(reverse("orgs.org_workspace"))
 
         self.assertEqual(200, response.status_code)
 
@@ -3327,28 +3292,27 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(user.check_password("Password123"))
 
     def test_create_new(self):
-        home_url = reverse("orgs.org_home")
+        children_url = reverse("orgs.org_sub_orgs")
         create_url = reverse("orgs.org_create")
 
         self.login(self.admin)
 
         # by default orgs don't have this feature
-        response = self.client.get(home_url)
-
-        self.assertNotContains(response, ">New Workspace</a>")
+        response = self.client.get(children_url)
+        self.assertContentMenu(children_url, self.admin, legacy_items=["Dashboard"], spa_items=[])
 
         # trying to access the modal directly should redirect
         response = self.client.get(create_url)
-        self.assertRedirect(response, "/org/home/")
+        self.assertRedirect(response, "/org/workspace/")
 
         self.org.features = [Org.FEATURE_NEW_ORGS]
         self.org.save(update_fields=("features",))
 
-        response = self.client.get(home_url)
-        self.assertContains(response, ">New Workspace</a>")
+        response = self.client.get(children_url)
+        self.assertContentMenu(children_url, self.admin, legacy_items=["Dashboard"], spa_items=["New Workspace"])
 
         # give org2 the same feature
-        self.org2.features = [Org.FEATURE_CHILD_ORGS]
+        self.org2.features = [Org.FEATURE_NEW_ORGS]
         self.org2.save(update_fields=("features",))
 
         # since we can only create new orgs, we don't show type as an option
@@ -3377,25 +3341,24 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(str(new_org.id), response.headers["X-Temba-Org"])
 
     def test_create_child(self):
-        home_url = reverse("orgs.org_home")
+        children_url = reverse("orgs.org_sub_orgs")
         create_url = reverse("orgs.org_create")
 
         self.login(self.admin)
 
         # by default orgs don't have the new_orgs or child_orgs feature
-        response = self.client.get(home_url)
-
-        self.assertNotContains(response, ">New Workspace</a>")
+        response = self.client.get(children_url)
+        self.assertContentMenu(children_url, self.admin, legacy_items=["Dashboard"], spa_items=[])
 
         # trying to access the modal directly should redirect
         response = self.client.get(create_url)
-        self.assertRedirect(response, "/org/home/")
+        self.assertRedirect(response, "/org/workspace/")
 
         self.org.features = [Org.FEATURE_CHILD_ORGS]
         self.org.save(update_fields=("features",))
 
-        response = self.client.get(home_url)
-        self.assertContains(response, ">New Workspace</a>")
+        response = self.client.get(children_url)
+        self.assertContentMenu(children_url, self.admin, legacy_items=["Dashboard"], spa_items=["New Workspace"])
 
         # give org2 the same feature
         self.org2.features = [Org.FEATURE_CHILD_ORGS]
@@ -3472,12 +3435,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_child_management(self):
         sub_orgs_url = reverse("orgs.org_sub_orgs")
-        home_url = reverse("orgs.org_home")
+        settings_url = reverse("orgs.org_workspace")
 
         self.login(self.admin)
 
         # we don't see button if we don't have child orgs
-        response = self.client.get(home_url)
+        response = self.client.get(settings_url)
         self.assertNotContains(response, "Manage Workspaces")
 
         # enable child orgs and create some child orgs
@@ -3488,7 +3451,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # now we see the button and can view that page
         self.login(self.admin, choose_org=self.org)
-        response = self.client.get(home_url)
+        response = self.client.get(settings_url)
         self.assertContains(response, "Manage Workspaces")
 
         response = self.assertListFetch(
@@ -3946,12 +3909,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(self.customer_support, contact.created_by)
 
     def test_languages(self):
-        home_url = reverse("orgs.org_home")
+        settings_url = reverse("orgs.org_workspace")
         langs_url = reverse("orgs.org_languages")
 
         self.org.set_flow_languages(self.admin, ["eng"])
 
-        response = self.requestView(home_url, self.admin)
+        response = self.requestView(settings_url, self.admin)
         self.assertEqual("English", response.context["primary_lang"])
         self.assertEqual([], response.context["other_langs"])
 
@@ -3982,7 +3945,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(["fra"], self.org.flow_languages)
 
         # summary now includes this
-        response = self.requestView(home_url, self.admin)
+        response = self.requestView(settings_url, self.admin)
         self.assertContains(response, "The default flow language is <b>French</b>.")
         self.assertNotContains(response, "Translations are provided in")
 
@@ -3998,7 +3961,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.refresh_from_db()
         self.assertEqual(["fra", "hat", "hau"], self.org.flow_languages)
 
-        response = self.requestView(home_url, self.admin)
+        response = self.requestView(settings_url, self.admin)
         self.assertContains(response, "The default flow language is <b>French</b>.")
         self.assertContains(response, "Translations are provided in")
         self.assertContains(response, "<b>Hausa</b>")

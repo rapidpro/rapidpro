@@ -36,7 +36,7 @@ class LocationTest(TembaTest):
         response = self.client.get(reverse("locations.adminboundary_alias"))
 
         # should be a redirect to our org home
-        self.assertRedirect(response, reverse("orgs.org_home"))
+        self.assertRedirect(response, reverse("orgs.org_workspace"))
 
         # now set it to rwanda
         self.org.country = self.country

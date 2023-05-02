@@ -75,7 +75,7 @@ class AnalyticsTest(TembaTest):
 
         with patch("django.template.engine.Engine.get_template", wraps=get_template):
             self.login(self.admin)
-            response = self.client.get(reverse("orgs.org_home"))
+            response = self.client.get(reverse("orgs.org_workspace"))
 
             self.assertContains(
                 response,

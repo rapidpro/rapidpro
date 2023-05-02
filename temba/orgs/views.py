@@ -1133,7 +1133,6 @@ class OrgCRUDL(SmartCRUDL):
     actions = (
         "signup",
         "start",
-        "home",
         "read",
         "token",
         "edit",
@@ -1644,7 +1643,7 @@ class OrgCRUDL(SmartCRUDL):
 
             if disconnect:
                 org.remove_vonage_account(user)
-                return HttpResponseRedirect(reverse("orgs.org_home"))
+                return HttpResponseRedirect(reverse("orgs.org_workspace"))
             else:
                 api_key = form.cleaned_data["api_key"]
                 api_secret = form.cleaned_data["api_secret"]
@@ -1939,7 +1938,7 @@ class OrgCRUDL(SmartCRUDL):
 
             if disconnect:
                 org.remove_smtp_config(user)
-                return HttpResponseRedirect(reverse("orgs.org_home"))
+                return HttpResponseRedirect(reverse("orgs.org_workspace"))
             else:
                 smtp_from_email = form.cleaned_data["from_email"]
                 smtp_host = form.cleaned_data["smtp_host"]
@@ -2231,7 +2230,7 @@ class OrgCRUDL(SmartCRUDL):
                 fields = ("surveyor_password",)
 
         form_class = PasswordForm
-        success_url = "@orgs.org_home"
+        success_url = "@orgs.org_workspace"
         success_message = ""
         submit_button_name = _("Save Changes")
         title = "Logins"
@@ -2397,7 +2396,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def pre_process(self, request, *args, **kwargs):
             if Org.FEATURE_USERS not in request.org.features:
-                return HttpResponseRedirect(reverse("orgs.org_home"))
+                return HttpResponseRedirect(reverse("orgs.org_workspace"))
 
         def derive_title(self):
             if self.object.is_child and self.is_spa():
@@ -2413,7 +2412,7 @@ class OrgCRUDL(SmartCRUDL):
                 if other_org:
                     menu.add_link(_("Workspaces"), reverse("orgs.org_sub_orgs"))
 
-                menu.add_link(_("Home"), reverse("orgs.org_home"))
+                menu.add_link(_("Home"), reverse("orgs.org_workspace"))
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -2522,7 +2521,8 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
 
             if self.is_spa():
-                if self.has_org_perm("orgs.org_create") and Org.FEATURE_CHILD_ORGS in org.features:
+                enabled = Org.FEATURE_CHILD_ORGS in org.features or Org.FEATURE_NEW_ORGS in org.features
+                if self.has_org_perm("orgs.org_create") and enabled:
                     menu.add_modax(_("New Workspace"), "new_workspace", reverse("orgs.org_create"))
             else:
                 if self.has_org_perm("orgs.org_dashboard"):
@@ -2595,7 +2595,7 @@ class OrgCRUDL(SmartCRUDL):
             # if org has neither feature then redirect
             features = self.request.org.features
             if Org.FEATURE_NEW_ORGS not in features and Org.FEATURE_CHILD_ORGS not in features:
-                return HttpResponseRedirect(reverse("orgs.org_home"))
+                return HttpResponseRedirect(reverse("orgs.org_workspace"))
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -3195,7 +3195,7 @@ class OrgCRUDL(SmartCRUDL):
                 fields = ("id",)
 
         form_class = TokenForm
-        success_url = "@orgs.org_home"
+        success_url = "@orgs.org_workspace"
         success_message = ""
 
         def get_context_data(self, **kwargs):
@@ -3210,7 +3210,7 @@ class OrgCRUDL(SmartCRUDL):
                 fields = ("id",)
 
         form_class = ToggleForm
-        success_url = "@orgs.org_home"
+        success_url = "@orgs.org_workspace"
         success_message = ""
 
         def post_save(self, obj):
@@ -3290,54 +3290,6 @@ class OrgCRUDL(SmartCRUDL):
                 for integration in IntegrationType.get_all():
                     if integration.is_available_to(self.request.user):
                         integration.management_ui(self.object, formax)
-
-    class Home(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
-        title = _("Your Account")
-
-        def pre_process(self, request, *args, **kwargs):
-            # home is not valid in the new interface, we use workspace instead
-            if self.is_spa():
-                return HttpResponseRedirect(reverse("orgs.org_workspace"))
-            return super().pre_process(request, *args, **kwargs)
-
-        def derive_formax_sections(self, formax, context):
-            # add the channel option if we have one
-            user = self.request.user
-            org = self.request.org
-
-            if self.has_org_perm("channels.channel_update"):
-                vonage_client = org.get_vonage_client()
-                if vonage_client:  # pragma: needs cover
-                    formax.add_section("vonage", reverse("orgs.org_vonage_account"), icon="icon-vonage")
-
-            if self.has_org_perm("orgs.org_profile"):
-                formax.add_section("user", reverse("orgs.user_edit"), icon="icon-user", action="redirect")
-
-            if self.has_org_perm("orgs.org_edit"):
-                formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
-
-            if self.has_org_perm("orgs.org_accounts") and Org.FEATURE_USERS in org.features:
-                formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users", action="redirect")
-
-            if self.has_org_perm("orgs.org_languages"):
-                formax.add_section("languages", reverse("orgs.org_languages"), icon="icon-language")
-
-            if self.has_org_perm("orgs.org_country") and "locations" in settings.FEATURES:
-                formax.add_section("country", reverse("orgs.org_country"), icon="icon-location2")
-
-            if self.has_org_perm("orgs.org_smtp_server"):
-                formax.add_section("email", reverse("orgs.org_smtp_server"), icon="icon-envelop")
-
-            if self.has_org_perm("orgs.org_manage_integrations"):
-                for integration in IntegrationType.get_all():
-                    if integration.is_available_to(user):
-                        integration.management_ui(self.object, formax)
-
-            if self.has_org_perm("orgs.org_token"):
-                formax.add_section("token", reverse("orgs.org_token"), icon="icon-cloud-upload", nobutton=True)
-
-            if self.has_org_perm("orgs.org_prometheus"):
-                formax.add_section("prometheus", reverse("orgs.org_prometheus"), icon="icon-prometheus", nobutton=True)
 
     class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
