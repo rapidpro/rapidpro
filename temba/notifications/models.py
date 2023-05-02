@@ -248,7 +248,7 @@ class Notification(models.Model):
     class Meta:
         indexes = [
             # used to list org specific notifications for a user
-            models.Index(fields=["org", "user", "-created_on"]),
+            models.Index(fields=["org", "user", "-created_on", "-id"]),
             # used to find notifications with pending email sends
             models.Index(name="notifications_email_pending", fields=["created_on"], condition=Q(email_status="P")),
             # used for notification types where the target URL clears all of that type (e.g. incident_started)
