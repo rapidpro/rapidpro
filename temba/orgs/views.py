@@ -3502,9 +3502,6 @@ class OrgCRUDL(SmartCRUDL):
                         "two_factor", reverse("orgs.user_two_factor_enable"), icon="icon-two-factor", action="link"
                     )
 
-            # show globals and archives
-            formax.add_section("globals", reverse("globals.global_list"), icon="icon-global", action="link")
-
     class TwilioAccount(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         success_message = ""
 

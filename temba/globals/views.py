@@ -142,16 +142,12 @@ class GlobalCRUDL(SmartCRUDL):
 
             org_globals = self.org.globals.filter(is_active=True)
             all_count = org_globals.count()
+            unused_count = Global.annotate_usage(org_globals).filter(usage_count=0).count()
 
-            if "HTTP_X_FORMAX" in self.request.META:
-                context["global_count"] = all_count
-            else:
-                unused_count = Global.annotate_usage(org_globals).filter(usage_count=0).count()
-
-                context["global_categories"] = [
-                    {"label": _("All"), "count": all_count, "url": reverse("globals.global_list")},
-                    {"label": _("Unused"), "count": unused_count, "url": reverse("globals.global_unused")},
-                ]
+            context["global_categories"] = [
+                {"label": _("All"), "count": all_count, "url": reverse("globals.global_list")},
+                {"label": _("Unused"), "count": unused_count, "url": reverse("globals.global_unused")},
+            ]
 
             return context
 
