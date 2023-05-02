@@ -1916,7 +1916,6 @@ class OrgTest(TembaTest):
         self.assertContains(response, "Enable Prometheus")
 
     def test_resthooks(self):
-        home_url = reverse("orgs.org_home")
         resthook_url = reverse("orgs.org_resthooks")
 
         # no hitting this page without auth
@@ -1930,9 +1929,6 @@ class OrgTest(TembaTest):
 
         # shouldn't have any resthooks listed yet
         self.assertFalse(response.context["current_resthooks"])
-
-        response = self.client.get(home_url)
-        self.assertContains(response, "You have <b>no flow events</b> configured.")
 
         # try to create one with name that's too long
         response = self.client.post(resthook_url, {"new_slug": "x" * 100})
@@ -1954,10 +1950,6 @@ class OrgTest(TembaTest):
             [{"field": f"resthook_{mother_reg.id}", "resthook": mother_reg}],
             list(response.context["current_resthooks"]),
         )
-
-        # and summarized on org home page
-        response = self.client.get(home_url)
-        self.assertContains(response, "You have <b>1 flow event</b> configured.")
 
         # let's try to create a repeat, should fail due to duplicate slug
         response = self.client.post(resthook_url, {"new_slug": "Mother-Registration"})

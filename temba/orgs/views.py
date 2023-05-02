@@ -3410,11 +3410,6 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_prometheus"):
                 formax.add_section("prometheus", reverse("orgs.org_prometheus"), icon="icon-prometheus", nobutton=True)
 
-            if self.has_org_perm("orgs.org_resthooks"):
-                formax.add_section(
-                    "resthooks", reverse("orgs.org_resthooks"), icon="icon-cloud-lightning", wide="true"
-                )
-
     class TwilioAccount(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         success_message = ""
 

@@ -36,17 +36,6 @@
   .mt-8
     #zapier-app-directory
 
--block summary
-  -with org.get_resthooks as resthooks
-    -if resthooks|length == 0
-      -blocktrans trimmed
-        You have <b>no flow events</b> configured.
-    -else
-      -blocktrans trimmed count counter=resthooks|length
-        You have <b>1 flow event</b> configured.
-      -plural
-        You have <b>{{ counter }} flow events</b> configured.
-
 -block extra-style
   :css
 
