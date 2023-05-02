@@ -80,12 +80,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             address=None,
             config=config,
         )
-        self.remove_api_credentials_from_session()
+        del self.request.session[Channel.CONFIG_TWILIO_ACCOUNT_SID]
+        del self.request.session[Channel.CONFIG_TWILIO_AUTH_TOKEN]
 
         return super().form_valid(form)
-
-    def remove_api_credentials_from_session(self):
-        if Channel.CONFIG_TWILIO_ACCOUNT_SID in self.request.session:
-            del self.request.session[Channel.CONFIG_TWILIO_ACCOUNT_SID]
-        if Channel.CONFIG_TWILIO_AUTH_TOKEN in self.request.session:
-            del self.request.session[Channel.CONFIG_TWILIO_AUTH_TOKEN]

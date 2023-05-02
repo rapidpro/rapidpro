@@ -144,9 +144,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
     def get_existing_numbers(self, org):
         client = self.get_twilio_client()
-        if client:
-            twilio_account_numbers = client.api.incoming_phone_numbers.stream(page_size=1000)
-            twilio_short_codes = client.api.short_codes.stream(page_size=1000)
+        twilio_account_numbers = client.api.incoming_phone_numbers.stream(page_size=1000)
+        twilio_short_codes = client.api.short_codes.stream(page_size=1000)
 
         numbers = []
         for number in twilio_account_numbers:
