@@ -13,7 +13,6 @@ import pytz
 from packaging.version import Version
 from smartmin.models import SmartModel
 from timezone_field import TimeZoneField
-from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User as AuthUser
@@ -915,11 +914,6 @@ class Org(SmartModel):
         self.modified_by = user
         self.save(update_fields=("config", "modified_by", "modified_on"))
 
-    def connect_twilio(self, account_sid, account_token, user):
-        self.config.update({Org.CONFIG_TWILIO_SID: account_sid, Org.CONFIG_TWILIO_TOKEN: account_token})
-        self.modified_by = user
-        self.save(update_fields=("config", "modified_by", "modified_on"))
-
     def is_connected_to_vonage(self):
         if self.config:
             return self.config.get(Org.CONFIG_VONAGE_KEY) and self.config.get(Org.CONFIG_VONAGE_SECRET)
@@ -951,13 +945,6 @@ class Org(SmartModel):
             self.config.pop(Org.CONFIG_TWILIO_TOKEN, None)
             self.modified_by = user
             self.save(update_fields=("config", "modified_by", "modified_on"))
-
-    def get_twilio_client(self):
-        account_sid = self.config.get(Org.CONFIG_TWILIO_SID)
-        auth_token = self.config.get(Org.CONFIG_TWILIO_TOKEN)
-        if account_sid and auth_token:
-            return TwilioClient(account_sid, auth_token)
-        return None
 
     def get_vonage_client(self):
         from temba.channels.types.vonage.client import VonageClient

@@ -569,8 +569,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_spa",
         "orgs.org_sub_orgs",
         "orgs.org_token",
-        "orgs.org_twilio_account",
-        "orgs.org_twilio_connect",
         "orgs.org_two_factor",
         "orgs.org_vonage_account",
         "orgs.org_vonage_connect",

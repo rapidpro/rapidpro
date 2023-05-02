@@ -1,3 +1,10 @@
+v8.1.125 (2023-05-02)
+-------------------------
+ * Tweak notifications index to match API endpoint
+ * Add new internal API with a notifications endpoint
+ * Use DRF defaults for STRICT_JSON and UNICODE_JSON
+ * Remove unused .api URL suffixes
+
 v8.1.124 (2023-05-01)
 -------------------------
  * Make contact.modify work with new and old format
