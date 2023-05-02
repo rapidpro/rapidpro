@@ -3512,7 +3512,6 @@ class OrgCRUDL(SmartCRUDL):
 
             # show globals and archives
             formax.add_section("globals", reverse("globals.global_list"), icon="icon-global", action="link")
-            formax.add_section("archives", reverse("archives.archive_message"), icon="icon-box", action="link")
 
     class TwilioAccount(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         success_message = ""

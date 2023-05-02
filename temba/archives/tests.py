@@ -266,24 +266,6 @@ class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertIn(download_url, response.get("Location"))
 
-    def test_formax(self):
-        self.login(self.admin)
-        url = reverse("orgs.org_home")
-
-        response = self.client.get(url)
-        self.assertContains(response, "archives yet")
-        self.assertContains(response, reverse("archives.archive_message"))
-
-        d1 = self.create_archive(Archive.TYPE_MSG, "D", date(2020, 7, 31), [{"id": 1}, {"id": 2}, {"id": 3}])
-        self.create_archive(
-            Archive.TYPE_MSG, "M", date(2020, 7, 1), [{"id": 1}, {"id": 2}, {"id": 3}], rollup_of=(d1,)
-        )
-        self.create_archive(Archive.TYPE_MSG, "D", date(2020, 8, 1), [{"id": 4}])
-
-        response = self.client.get(url)
-        self.assertContains(response, "4 records")
-        self.assertContains(response, reverse("archives.archive_message"))
-
 
 class JSONLGZTest(TembaTest):
     def test_jsonlgz_rewrite(self):
