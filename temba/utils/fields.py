@@ -48,6 +48,18 @@ class TembaDateTimeField(forms.DateTimeField):
         return None
 
 
+class ColorPickerWidget(forms.TextInput):
+    template_name = "utils/forms/color_picker.haml"
+    is_annotated = True
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        context["widget"]["type"] = self.input_type
+        if attrs.get("hide_label", False) and context.get("label", None):  # pragma: needs cover
+            del context["label"]
+        return context
+
+
 class InputWidget(forms.TextInput):
     template_name = "utils/forms/input.haml"
     is_annotated = True
