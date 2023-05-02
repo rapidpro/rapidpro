@@ -78,4 +78,4 @@ urlpatterns = [
     re_path(r"^workspace$", WorkspaceEndpoint.as_view(), name="api.v2.workspace"),
 ]
 
-urlpatterns = format_suffix_patterns(urlpatterns, allowed=["json", "api"])
+urlpatterns = format_suffix_patterns(urlpatterns, allowed=["json"])

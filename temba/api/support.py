@@ -3,11 +3,14 @@ import logging
 from rest_framework import exceptions, status
 from rest_framework.authentication import BasicAuthentication, SessionAuthentication, TokenAuthentication
 from rest_framework.exceptions import APIException
+from rest_framework.pagination import CursorPagination
 from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.throttling import ScopedRateThrottle
 
 from django.conf import settings
 from django.http import HttpResponseServerError
+
+from temba.utils import str_to_bool
 
 from .models import APIToken
 
@@ -164,6 +167,32 @@ class DocumentationRenderer(BrowsableAPIRenderer):
         self.template = "api/v2/api_root.html"
 
         return super().render(data, accepted_media_type, renderer_context)
+
+
+class CreatedOnCursorPagination(CursorPagination):
+    ordering = ("-created_on", "-id")
+    offset_cutoff = 100000
+
+
+class ModifiedOnCursorPagination(CursorPagination):
+    ordering = ("-modified_on", "-id")
+    offset_cutoff = 100000
+
+    def get_ordering(self, request, queryset, view):
+        if str_to_bool(request.GET.get("reverse")):
+            return "modified_on", "id"
+        else:
+            return self.ordering
+
+
+class SentOnCursorPagination(CursorPagination):
+    ordering = ("-sent_on", "-id")
+    offset_cutoff = 100000
+
+
+class DateJoinedCursorPagination(CursorPagination):
+    ordering = ("-date_joined", "-id")
+    offset_cutoff = 100000
 
 
 class InvalidQueryError(APIException):

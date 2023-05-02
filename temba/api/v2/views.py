@@ -16,18 +16,6 @@ from django.http import HttpResponse, JsonResponse
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
-from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEvent
-from temba.api.v2.views_base import (
-    BaseAPIView,
-    BulkWriteAPIMixin,
-    CreatedOnCursorPagination,
-    DateJoinedCursorPagination,
-    DeleteAPIMixin,
-    ListAPIMixin,
-    ModifiedOnCursorPagination,
-    SentOnCursorPagination,
-    WriteAPIMixin,
-)
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
@@ -43,8 +31,19 @@ from temba.tickets.models import Ticket, TicketCount, Ticketer, Topic
 from temba.utils import splitting_getlist, str_to_bool
 from temba.utils.uuid import is_uuid
 
-from ..models import SSLPermission
-from ..support import InvalidQueryError
+from ..models import APIPermission, APIToken, Resthook, ResthookSubscriber, SSLPermission, WebHookEvent
+from ..support import (
+    APIBasicAuthentication,
+    APISessionAuthentication,
+    APITokenAuthentication,
+    CreatedOnCursorPagination,
+    DateJoinedCursorPagination,
+    InvalidQueryError,
+    ModifiedOnCursorPagination,
+    OrgUserRateThrottle,
+    SentOnCursorPagination,
+)
+from ..views import BaseAPIView, BulkWriteAPIMixin, DeleteAPIMixin, ListAPIMixin, WriteAPIMixin
 from .serializers import (
     AdminBoundaryReadSerializer,
     ArchiveReadSerializer,
@@ -202,6 +201,7 @@ class RootView(views.APIView):
     Python users of the API.
     """
 
+    authentication_classes = (APISessionAuthentication, APITokenAuthentication)
     permission_classes = (SSLPermission, IsAuthenticated)
 
     def get(self, request, *args, **kwargs):
@@ -352,12 +352,23 @@ class AuthenticateView(SmartFormView):
             return HttpResponse(status=403)
 
 
+class BaseEndpoint(BaseAPIView):
+    """
+    Base class of all our API V2 endpoints
+    """
+
+    authentication_classes = (APISessionAuthentication, APITokenAuthentication, APIBasicAuthentication)
+    permission_classes = (SSLPermission, APIPermission)
+    throttle_classes = (OrgUserRateThrottle,)
+    throttle_scope = "v2"
+
+
 # ============================================================
 # Endpoints (A-Z)
 # ============================================================
 
 
-class ArchivesEndpoint(ListAPIMixin, BaseAPIView):
+class ArchivesEndpoint(ListAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list the data archives associated with your account.
 
@@ -442,7 +453,7 @@ class ArchivesEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
+class BoundariesEndpoint(ListAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list the administrative boundaries for the country associated with your account,
     along with the simplified GPS geometry for those boundaries in GEOJSON format.
@@ -531,7 +542,7 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
+class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to send new message broadcasts and list existing broadcasts in your account.
 
@@ -667,7 +678,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         }
 
 
-class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
+class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list campaigns in your account.
 
@@ -793,7 +804,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         }
 
 
-class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
+class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list campaign events in your account.
 
@@ -1008,7 +1019,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
         }
 
 
-class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
+class ChannelsEndpoint(ListAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list channels in your account.
 
@@ -1098,7 +1109,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
+class ChannelEventsEndpoint(ListAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list channel events in your account.
 
@@ -1195,7 +1206,7 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class ClassifiersEndpoint(ListAPIMixin, BaseAPIView):
+class ClassifiersEndpoint(ListAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list the active natural language understanding classifiers on your account.
 
@@ -1275,7 +1286,7 @@ class ClassifiersEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
+class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list, create, update and delete contacts in your account.
 
@@ -1548,7 +1559,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         }
 
 
-class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
+class ContactActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
     """
     ## Bulk Contact Updating
 
@@ -1599,7 +1610,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         }
 
 
-class DefinitionsEndpoint(BaseAPIView):
+class DefinitionsEndpoint(BaseEndpoint):
     """
     This endpoint allows you to export definitions of flows, campaigns and triggers in your account. Note that the
     schema of flow definitions may change over time.
@@ -1728,7 +1739,7 @@ class DefinitionsEndpoint(BaseAPIView):
         }
 
 
-class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
+class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list custom contact fields in your account.
 
@@ -1856,7 +1867,7 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         }
 
 
-class FlowsEndpoint(ListAPIMixin, BaseAPIView):
+class FlowsEndpoint(ListAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list flows in your account.
 
@@ -1974,7 +1985,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
+class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list, create, and update active globals on your account.
 
@@ -2111,7 +2122,7 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         }
 
 
-class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
+class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list, create, update and delete contact groups in your account.
 
@@ -2282,7 +2293,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         }
 
 
-class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
+class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list, create, update and delete message labels in your account.
 
@@ -2429,7 +2440,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         }
 
 
-class MediaEndpoint(WriteAPIMixin, BaseAPIView):
+class MediaEndpoint(WriteAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to upload new media objects for use as attachments on messages.
 
@@ -2457,7 +2468,7 @@ class MediaEndpoint(WriteAPIMixin, BaseAPIView):
     write_serializer_class = MediaWriteSerializer
 
 
-class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
+class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list messages in your account.
 
@@ -2696,7 +2707,7 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         }
 
 
-class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
+class MessageActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
     """
     ## Bulk Message Updating
 
@@ -2756,7 +2767,7 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         }
 
 
-class ResthooksEndpoint(ListAPIMixin, BaseAPIView):
+class ResthooksEndpoint(ListAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list configured resthooks in your account.
 
@@ -2806,7 +2817,7 @@ class ResthooksEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
+class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list, add or remove subscribers to resthooks.
 
@@ -2944,7 +2955,7 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
         )
 
 
-class ResthookEventsEndpoint(ListAPIMixin, BaseAPIView):
+class ResthookEventsEndpoint(ListAPIMixin, BaseEndpoint):
     """
     This endpoint lists recent events for the passed in Resthook.
 
@@ -3045,7 +3056,7 @@ class ResthookEventsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class RunsEndpoint(ListAPIMixin, BaseAPIView):
+class RunsEndpoint(ListAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to fetch flow runs. A run represents a single contact's path through a flow and is created
     each time a contact is started in a flow.
@@ -3210,7 +3221,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
+class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list manual flow starts in your account, and add or start contacts in a flow.
 
@@ -3386,7 +3397,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         )
 
 
-class TemplatesEndpoint(ListAPIMixin, BaseAPIView):
+class TemplatesEndpoint(ListAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to fetch the WhatsApp templates that have been synced. Each template contains a
     dictionary of the languages it has been translated to along with the content of the template for that
@@ -3466,7 +3477,7 @@ class TemplatesEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class TicketersEndpoint(ListAPIMixin, BaseAPIView):
+class TicketersEndpoint(ListAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list the active ticketing services on your account.
 
@@ -3543,7 +3554,7 @@ class TicketersEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
+class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list the tickets opened on your account.
 
@@ -3643,7 +3654,7 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         }
 
 
-class TicketActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
+class TicketActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
     """
     ## Bulk Ticket Updating
 
@@ -3692,7 +3703,7 @@ class TicketActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         }
 
 
-class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
+class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list the topics in your workspace.
 
@@ -3755,7 +3766,7 @@ class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         }
 
 
-class UsersEndpoint(ListAPIMixin, BaseAPIView):
+class UsersEndpoint(ListAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list the user logins in your workspace.
 
@@ -3829,7 +3840,7 @@ class UsersEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class WorkspaceEndpoint(BaseAPIView):
+class WorkspaceEndpoint(BaseEndpoint):
     """
     This endpoint allows you to view details about your workspace.
 

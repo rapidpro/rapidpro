@@ -18,6 +18,18 @@ from temba.utils.uuid import uuid4
 logger = logging.getLogger(__name__)
 
 
+class BulkActionFailure:
+    """
+    Bulk action serializers can return a partial failure if some objects couldn't be acted on
+    """
+
+    def __init__(self, failures):
+        self.failures = failures
+
+    def as_json(self):
+        return {"failures": self.failures}
+
+
 class APIPermission(BasePermission):
     """
     Verifies that the user has the permission set on the endpoint view
