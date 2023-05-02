@@ -1163,7 +1163,6 @@ class OrgCRUDL(SmartCRUDL):
         "twilio_account",
         "vonage_account",
         "vonage_connect",
-        "plan",
         "sub_orgs",
         "create",
         "export",
@@ -1769,9 +1768,6 @@ class OrgCRUDL(SmartCRUDL):
             org.save()
 
             return HttpResponseRedirect(self.get_success_url())
-
-    class Plan(InferOrgMixin, OrgPermsMixin, SmartReadView):
-        pass
 
     class WhatsappCloudConnect(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class WhatsappCloudConnectForm(forms.Form):
@@ -3424,10 +3420,6 @@ class OrgCRUDL(SmartCRUDL):
             # add the channel option if we have one
             user = self.request.user
             org = self.request.org
-
-            if not org.is_child:
-                if self.has_org_perm("orgs.org_plan"):
-                    formax.add_section("plan", reverse("orgs.org_plan"), icon="icon-credit", action="summary")
 
             if self.has_org_perm("channels.channel_update"):
                 # get any channel thats not a delegate
