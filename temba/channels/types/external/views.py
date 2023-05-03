@@ -176,28 +176,14 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         org = self.request.org
         data = form.cleaned_data
 
-        if self.request.GET.get("role", None) == "S":  # pragma: needs cover
-            # get our existing channel
-            receive = org.get_receive_channel(URN.TEL_SCHEME)
-            role = Channel.ROLE_SEND
-            scheme = URN.TEL_SCHEME
-            address = receive.address
-            country = receive.country
+        role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
+        scheme = data["scheme"]
+        if scheme == URN.TEL_SCHEME:
+            address = data["number"]
+            country = data["country"]
         else:
-            role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
-            scheme = data["scheme"]
-            if scheme == URN.TEL_SCHEME:
-                address = data["number"]
-                country = data["country"]
-            else:
-                address = data["address"]
-                country = None
-
-        # see if there is a parent channel we are adding a delegate for
-        channel = self.request.GET.get("channel", None)
-        if channel:  # pragma: needs cover
-            # make sure they own it
-            channel = org.channels.filter(pk=channel).first()
+            address = data["address"]
+            country = None
 
         config = {
             Channel.CONFIG_SEND_URL: data["url"],
@@ -217,7 +203,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             config[ExternalType.CONFIG_MT_RESPONSE_CHECK] = data["mt_response_check"]
 
         self.object = Channel.add_config_external_channel(
-            org, self.request.user, country, address, self.channel_type, config, role, [scheme], parent=channel
+            org, self.request.user, country, address, self.channel_type, config, role, [scheme]
         )
 
         return super().form_valid(form)

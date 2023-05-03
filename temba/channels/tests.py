@@ -141,68 +141,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             self.assertContains(response, channel.name)
             self.assertContentMenuContains(read_url, self.admin, link_text)
 
-    def test_delegate_channels(self):
-        self.login(self.admin)
-
-        # we don't support IVR yet
-        self.assertFalse(self.org.supports_ivr())
-
-        # pretend we are connected to twiliko
-        self.org.config = {"ACCOUNT_SID": "AccountSid", "ACCOUNT_TOKEN": "AccountToken"}
-        self.org.save(update_fields=("config",))
-
-        # add a delegate caller
-        post_data = dict(channel=self.tel_channel.pk, connection="T")
-        response = self.client.post(reverse("channels.channel_create_caller"), post_data)
-
-        # get the caller, make sure config options are set
-        caller = Channel.objects.get(org=self.org, role="C")
-        self.assertEqual("AccountSid", caller.config["account_sid"])
-        self.assertEqual("AccountToken", caller.config["auth_token"])
-
-        # now we should be IVR capable
-        self.assertTrue(self.org.supports_ivr())
-
-        # we cannot add multiple callers
-        response = self.client.post(reverse("channels.channel_create_caller"), post_data)
-        self.assertFormError(response, "form", "channel", "A caller has already been added for that number")
-
-        # should now have the option to disable
-        self.login(self.admin)
-        response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
-        self.assertContains(response, self.tel_channel.name)
-        self.assertContentMenuContains(
-            reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin, "Disable Voice Calling"
-        )
-
-        # try adding a caller for an invalid channel
-        response = self.client.post("%s?channel=20000" % reverse("channels.channel_create_caller"))
-        self.assertEqual(200, response.status_code)
-        self.assertFormError(response, "form", "channel", "A caller cannot be added for that number")
-
-        # disable our twilio connection
-        with patch("temba.channels.types.twilio.TwilioType.deactivate"):
-            self.org.remove_twilio_account(self.admin)
-
-        self.assertFalse(self.org.supports_ivr())
-
-        # we should lose our caller
-        response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
-        self.assertContains(response, self.tel_channel.name)
-        self.assertContentMenuNotContains(
-            reverse("channels.channel_read", args=[self.tel_channel.uuid]), self.admin, "Disable Voice Calling"
-        )
-
-        # now try and add it back without a twilio connection
-        response = self.client.post(reverse("channels.channel_create_caller"), post_data)
-
-        # shouldn't have added, so no ivr yet
-        self.assertFalse(self.assertFalse(self.org.supports_ivr()))
-
-        self.assertEqual(
-            "A connection to a Twilio account is required", response.context["form"].errors["connection"][0]
-        )
-
     def test_get_channel_type_name(self):
         self.assertEqual(self.tel_channel.get_channel_type_name(), "Android Phone")
         self.assertEqual(self.twitter_channel.get_channel_type_name(), "Twitter Channel")
@@ -360,8 +298,23 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("FCM111", android.config.get(Channel.CONFIG_FCM_ID))
 
         # add bulk sender
-        self.org.connect_vonage("key", "secret", self.admin)
-        vonage = Channel.add_vonage_bulk_sender(self.org, self.admin, android)
+        vonage = Channel.create(
+            self.org,
+            self.admin,
+            android.country,
+            "NX",
+            name="Vonage Sender",
+            config={
+                Channel.CONFIG_VONAGE_API_KEY: "key",
+                Channel.CONFIG_VONAGE_API_SECRET: "secret",
+                Channel.CONFIG_CALLBACK_DOMAIN: self.org.get_brand_domain(),
+            },
+            tps=1,
+            address=android.address,
+            role=Channel.ROLE_SEND,
+            parent=android,
+            bod=android.address,
+        )
 
         # release it
         android.release(self.admin)
@@ -478,14 +431,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         response = self.fetch_protected(tel_channel_read_url, self.admin)
         self.assertContains(response, self.tel_channel.name)
-        self.assertContentMenuNotContains(tel_channel_read_url, self.admin, "Enable Voice Calling")
-
-        # Add twilio credentials to make sure we can add calling for our android channel
-        self.org.config.update({Org.CONFIG_TWILIO_SID: "SID", Org.CONFIG_TWILIO_TOKEN: "TOKEN"})
-        self.org.save(update_fields=("config",))
-        self.assertTrue(self.org.is_connected_to_twilio())
-
-        self.assertContentMenuContains(tel_channel_read_url, self.admin, "Enable Voice Calling")
 
         test_date = datetime(2020, 1, 20, 0, 0, 0, 0, timezone.utc)
         two_hours_ago = test_date - timedelta(hours=2)
@@ -1318,11 +1263,32 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotIn(self.ex_channel, flow.channel_dependencies.all())
 
     def test_delete_delegate(self):
-        self.org.connect_vonage("key", "secret", self.admin)
         android = Channel.create(
             self.org, self.admin, "RW", "A", name="Android", address="+250785551313", role="SR", schemes=("tel",)
         )
-        vonage = Channel.add_vonage_bulk_sender(self.org, self.admin, android)
+        vonage = Channel.create(
+            self.org,
+            self.admin,
+            android.country,
+            "NX",
+            name="Vonage Sender",
+            config={
+                Channel.CONFIG_VONAGE_API_KEY: "key",
+                Channel.CONFIG_VONAGE_API_SECRET: "secret",
+                Channel.CONFIG_CALLBACK_DOMAIN: self.org.get_brand_domain(),
+            },
+            tps=1,
+            address=android.address,
+            role=Channel.ROLE_SEND,
+            parent=android,
+            bod=android.address,
+        )
+
+        response = self.assertReadFetch(
+            reverse("channels.channel_read", args=[android.uuid]), allow_editors=True, allow_viewers=True
+        )
+        self.assertContains(response, "Bulk sending")
+        self.assertContains(response, "icon-vonage")
 
         delete_url = reverse("channels.channel_delete", args=[vonage.uuid])
 

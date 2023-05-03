@@ -108,6 +108,7 @@ class TwilioTypeTest(TembaTest):
 
                 response = self.client.get(claim_twilio)
                 self.assertContains(response, "206-234-5678")
+                self.assertFalse(self.org.supports_ivr())
 
                 # claim it
                 response = self.client.post(claim_twilio, dict(country="US", phone_number="12062345678"))
@@ -119,6 +120,8 @@ class TwilioTypeTest(TembaTest):
                     channel.role, Channel.ROLE_CALL + Channel.ROLE_ANSWER + Channel.ROLE_SEND + Channel.ROLE_RECEIVE
                 )
                 self.assertEqual(channel.tps, 1)
+                self.assertTrue(channel.supports_ivr())
+                self.assertTrue(self.org.supports_ivr())
 
                 channel_config = channel.config
                 self.assertEqual(channel_config[Channel.CONFIG_ACCOUNT_SID], "account-sid")
