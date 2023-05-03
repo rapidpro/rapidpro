@@ -458,7 +458,6 @@ class ChannelCRUDL(SmartCRUDL):
         "configuration",
         "bulk_sender_options",
         "create_bulk_sender",
-        "create_caller",
         "facebook_whitelist",
     )
     permissions = True
@@ -555,11 +554,6 @@ class ChannelCRUDL(SmartCRUDL):
                             _("Disable Voice Calling"),
                             "disable-voice",
                             reverse("channels.channel_delete", args=[caller.uuid]),
-                        )
-                    elif obj.org.is_connected_to_twilio():
-                        menu.add_url_post(
-                            _("Enable Voice Calling"),
-                            f"{reverse('channels.channel_create_caller')}?channel={obj.id}",
                         )
 
             if self.has_org_perm("channels.channel_delete"):
@@ -952,54 +946,6 @@ class ChannelCRUDL(SmartCRUDL):
         def form_valid(self, form):
             channel = form.cleaned_data["channel"]
             Channel.add_vonage_bulk_sender(self.request.org, self.request.user, channel)
-            return super().form_valid(form)
-
-        def form_invalid(self, form):
-            return super().form_invalid(form)
-
-        def get_success_url(self):
-            channel = self.form.cleaned_data["channel"]
-            return reverse("channels.channel_read", args=[channel.uuid])
-
-    class CreateCaller(OrgPermsMixin, SmartFormView):
-        class CallerForm(forms.Form):
-            connection = forms.CharField(max_length=2, widget=forms.HiddenInput, required=False)
-            channel = forms.IntegerField(widget=forms.HiddenInput, required=False)
-
-            def __init__(self, *args, **kwargs):
-                self.org = kwargs["org"]
-                del kwargs["org"]
-                super().__init__(*args, **kwargs)
-
-            def clean_connection(self):
-                connection = self.cleaned_data["connection"]
-                if connection == "T" and not self.org.is_connected_to_twilio():
-                    raise forms.ValidationError(_("A connection to a Twilio account is required"))
-                return connection
-
-            def clean_channel(self):
-                channel = self.cleaned_data["channel"]
-                channel = self.org.channels.filter(pk=channel).first()
-                if not channel:
-                    raise forms.ValidationError(_("A caller cannot be added for that number"))
-                if channel.get_caller():
-                    raise forms.ValidationError(_("A caller has already been added for that number"))
-                return channel
-
-        form_class = CallerForm
-        fields = ("connection", "channel")
-
-        def get_form_kwargs(self, *args, **kwargs):
-            kwargs = super().get_form_kwargs(*args, **kwargs)
-            kwargs["org"] = self.request.org
-            return kwargs
-
-        def form_valid(self, form):
-            org = self.request.org
-            user = self.request.user
-
-            channel = form.cleaned_data["channel"]
-            Channel.add_call_channel(org, user, channel)
             return super().form_valid(form)
 
         def form_invalid(self, form):
