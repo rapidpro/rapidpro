@@ -298,8 +298,23 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("FCM111", android.config.get(Channel.CONFIG_FCM_ID))
 
         # add bulk sender
-        self.org.connect_vonage("key", "secret", self.admin)
-        vonage = Channel.add_vonage_bulk_sender(self.org, self.admin, android)
+        vonage = Channel.create(
+            self.org,
+            self.admin,
+            android.country,
+            "NX",
+            name="Vonage Sender",
+            config={
+                Channel.CONFIG_VONAGE_API_KEY: "key",
+                Channel.CONFIG_VONAGE_API_SECRET: "secret",
+                Channel.CONFIG_CALLBACK_DOMAIN: self.org.get_brand_domain(),
+            },
+            tps=1,
+            address=android.address,
+            role=Channel.ROLE_SEND,
+            parent=android,
+            bod=android.address,
+        )
 
         # release it
         android.release(self.admin)
@@ -1249,11 +1264,32 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotIn(self.ex_channel, flow.channel_dependencies.all())
 
     def test_delete_delegate(self):
-        self.org.connect_vonage("key", "secret", self.admin)
         android = Channel.create(
             self.org, self.admin, "RW", "A", name="Android", address="+250785551313", role="SR", schemes=("tel",)
         )
-        vonage = Channel.add_vonage_bulk_sender(self.org, self.admin, android)
+        vonage = Channel.create(
+            self.org,
+            self.admin,
+            android.country,
+            "NX",
+            name="Vonage Sender",
+            config={
+                Channel.CONFIG_VONAGE_API_KEY: "key",
+                Channel.CONFIG_VONAGE_API_SECRET: "secret",
+                Channel.CONFIG_CALLBACK_DOMAIN: self.org.get_brand_domain(),
+            },
+            tps=1,
+            address=android.address,
+            role=Channel.ROLE_SEND,
+            parent=android,
+            bod=android.address,
+        )
+
+        response = self.assertReadFetch(
+            reverse("channels.channel_read", args=[android.uuid]), allow_editors=True, allow_viewers=True
+        )
+        self.assertContains(response, "Bulk sending")
+        self.assertContains(response, "icon-vonage")
 
         delete_url = reverse("channels.channel_delete", args=[vonage.uuid])
 
