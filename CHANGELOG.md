@@ -1,3 +1,9 @@
+v8.1.126 (2023-05-03)
+-------------------------
+ * Change cookie checking for UI so that we always default to new UI
+ * Add color picker widget
+ * Remove ability to store twilio credentials on the org
+
 v8.1.125 (2023-05-02)
 -------------------------
  * Tweak notifications index to match API endpoint

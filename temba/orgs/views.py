@@ -1422,6 +1422,7 @@ class OrgCRUDL(SmartCRUDL):
                         "id": "settings",
                         "name": _("Settings"),
                         "icon": "icon.home",
+                        "href": reverse("orgs.org_workspace"),
                         "endpoint": f"{reverse('orgs.org_menu')}settings/",
                         "bottom": True,
                         "show_header": True,
@@ -3315,7 +3316,7 @@ class OrgCRUDL(SmartCRUDL):
 
             org = self.get_object()
             context["sub_orgs"] = org.children.filter(is_active=True)
-            context["is_spa"] = self.request.COOKIES.get("nav") == "2"
+            context["is_spa"] = self.request.COOKIES.get("nav", "old" if settings.TESTING else "new") != "old"
             return context
 
     class EditSubOrg(SpaMixin, ModalMixin, Edit):

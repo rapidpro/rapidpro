@@ -286,7 +286,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # deep link into a page that doesn't have our ticket
         deep_link = f"{list_url}all/closed/{str(ticket.uuid)}/"
-        self.make_beta(self.admin)
+
         self.login(self.admin)
 
         response = self.client.get(deep_link)
