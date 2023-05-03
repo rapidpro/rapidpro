@@ -214,50 +214,6 @@ class AndroidTypeTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(default_sender, self.org.get_receive_channel(URN.TEL_SCHEME))
         self.assertFalse(default_sender.is_delegate_sender())
 
-        response = self.client.get(reverse("channels.channel_bulk_sender_options"))
-        self.assertEqual(response.status_code, 200)
-
-        response = self.client.post(
-            reverse("channels.channel_create_bulk_sender") + "?connection=NX", dict(connection="NX")
-        )
-        self.assertFormError(response, "form", "channel", "Can't add sender for that number")
-
-        # try to claim a bulk Vonage sender (without adding account to org)
-        claim_bulk_url = reverse("channels.channel_create_bulk_sender") + "?connection=NX&channel=%d" % android2.pk
-        response = self.client.post(claim_bulk_url, dict(connection="NX", channel=android2.pk))
-        self.assertFormError(response, "form", "connection", "A connection to a Vonage account is required")
-
-        # send channel is still our Android device
-        self.assertEqual(self.org.get_send_channel(URN.TEL_SCHEME), android2)
-        self.assertFalse(self.org.is_connected_to_vonage())
-
-        # now connect to vonage
-        self.org.connect_vonage("123", "456", self.admin)
-        self.assertTrue(self.org.is_connected_to_vonage())
-
-        # now adding a bulk sender should work
-        response = self.client.post(claim_bulk_url, dict(connection="NX", channel=android2.pk))
-        self.assertRedirect(response, reverse("channels.channel_read", args=[android2.uuid]))
-
-        # new channel created for delegated sending
-        vonage = self.org.get_send_channel(URN.TEL_SCHEME)
-        self.assertEqual(vonage.channel_type, "NX")
-        self.assertEqual(vonage.parent, android2)
-        self.assertTrue(vonage.is_delegate_sender())
-        self.assertEqual(vonage.tps, 1)
-        channel_config = vonage.config
-        self.assertEqual(channel_config[Channel.CONFIG_VONAGE_API_KEY], "123")
-        self.assertEqual(channel_config[Channel.CONFIG_VONAGE_API_SECRET], "456")
-
-        # reading our delegate channel should now offer a disconnect option
-        vonage = self.org.channels.filter(channel_type="NX").first()
-        self.assertContentMenuContains(
-            reverse("channels.channel_read", args=[vonage.uuid]), self.admin, "Disable Bulk Sending"
-        )
-
-        # receiving still job of our Android device
-        self.assertEqual(self.org.get_receive_channel(URN.TEL_SCHEME), android2)
-
         # re-register device with country as US
         reg_data = dict(
             cmds=[dict(cmd="fcm", fcm_id="FCM222", uuid="uuid"), dict(cmd="status", cc="US", dev="Nexus 5X")]
@@ -280,9 +236,6 @@ class AndroidTypeTest(TembaTest, CRUDLTestMixin):
 
         # our country is RW
         self.assertEqual(self.org.default_country_code, "RW")
-
-        # remove channel
-        vonage.release(self.admin)
 
         self.assertEqual(self.org.default_country_code, "RW")
 

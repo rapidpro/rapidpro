@@ -789,9 +789,6 @@ class Org(SmartModel):
         send_channel = self.get_send_channel(URN.TEL_SCHEME)
         return send_channel and send_channel.is_android()
 
-    def can_add_caller(self):  # pragma: needs cover
-        return not self.supports_ivr() and self.is_connected_to_twilio()
-
     def supports_ivr(self):
         return self.get_call_channel() or self.get_answer_channel()
 
@@ -919,11 +916,6 @@ class Org(SmartModel):
             return self.config.get(Org.CONFIG_VONAGE_KEY) and self.config.get(Org.CONFIG_VONAGE_SECRET)
         return False
 
-    def is_connected_to_twilio(self):
-        if self.config:
-            return self.config.get(Org.CONFIG_TWILIO_SID) and self.config.get(Org.CONFIG_TWILIO_TOKEN)
-        return False
-
     def remove_vonage_account(self, user):
         if self.config:
             # release any vonage channels
@@ -932,17 +924,6 @@ class Org(SmartModel):
 
             self.config.pop(Org.CONFIG_VONAGE_KEY, None)
             self.config.pop(Org.CONFIG_VONAGE_SECRET, None)
-            self.modified_by = user
-            self.save(update_fields=("config", "modified_by", "modified_on"))
-
-    def remove_twilio_account(self, user):
-        if self.config:
-            # release any Twilio and Twilio Messaging Service channels
-            for channel in self.channels.filter(is_active=True, channel_type__in=["T", "TMS"]):
-                channel.release(user)
-
-            self.config.pop(Org.CONFIG_TWILIO_SID, None)
-            self.config.pop(Org.CONFIG_TWILIO_TOKEN, None)
             self.modified_by = user
             self.save(update_fields=("config", "modified_by", "modified_on"))
 
