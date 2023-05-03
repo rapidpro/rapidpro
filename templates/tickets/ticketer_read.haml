@@ -14,8 +14,3 @@
       %temba-modax(endpoint="{% url 'tickets.ticketer_delete' object.uuid %}" header='{% trans "Delete Ticket Service" %}')
         .button-light
           -trans "Remove"
-
-
--block summary
-  -blocktrans trimmed with type_name=object.type.name name=object.name
-    {{ type_name }} ticketing service over <b>{{ name }}</b>.

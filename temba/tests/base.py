@@ -137,9 +137,6 @@ class TembaTestMixin:
     def make_beta(self, user):
         user.groups.add(Group.objects.get(name="Beta"))
 
-    def unbeta(self, user):
-        user.groups.remove(Group.objects.get(name="Beta"))
-
     def clear_cache(self):
         """
         Clears the redis cache. We are extra paranoid here and check that redis host is 'localhost'
@@ -172,12 +169,10 @@ class TembaTestMixin:
             session.save()
 
     def old_ui(self):
-        self.unbeta(self.admin)
-        self.client.cookies.load({"nav": "1"})
+        self.client.cookies.load({"nav": "old"})
 
     def new_ui(self):
-        self.make_beta(self.admin)
-        self.client.cookies.load({"nav": "2"})
+        self.client.cookies.load({"nav": "new"})
 
     def import_file(self, filename, site="http://rapidpro.io", substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)

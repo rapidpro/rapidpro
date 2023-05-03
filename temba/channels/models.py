@@ -516,49 +516,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         )
 
     @classmethod
-    def add_vonage_bulk_sender(cls, org, user, channel):
-        # vonage ships numbers around as E164 without the leading +
-        parsed = phonenumbers.parse(channel.address, None)
-        vonage_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip("+")
-
-        config = {
-            Channel.CONFIG_VONAGE_API_KEY: org.config[Org.CONFIG_VONAGE_KEY],
-            Channel.CONFIG_VONAGE_API_SECRET: org.config[Org.CONFIG_VONAGE_SECRET],
-            Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
-        }
-
-        return cls.create(
-            org,
-            user,
-            channel.country,
-            "NX",
-            name="Vonage Sender",
-            config=config,
-            tps=1,
-            address=channel.address,
-            role=Channel.ROLE_SEND,
-            parent=channel,
-            bod=vonage_phone_number,
-        )
-
-    @classmethod
-    def add_call_channel(cls, org, user, channel):
-        return Channel.create(
-            org,
-            user,
-            channel.country,
-            "T",
-            name="Twilio Caller",
-            address=channel.address,
-            role=Channel.ROLE_CALL,
-            parent=channel,
-            config={
-                "account_sid": org.config[Org.CONFIG_TWILIO_SID],
-                "auth_token": org.config[Org.CONFIG_TWILIO_TOKEN],
-            },
-        )
-
-    @classmethod
     def generate_secret(cls, length=64):
         """
         Generates a secret value used for command signing

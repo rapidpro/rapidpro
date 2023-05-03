@@ -510,9 +510,6 @@ class TicketerCRUDL(SmartCRUDL):
     actions = ("connect", "read", "delete")
 
     class Connect(ContentMenuMixin, OrgPermsMixin, SmartTemplateView):
-        def build_content_menu(self, menu):
-            menu.add_link(_("Home"), reverse("orgs.org_home"))
-
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["ticketer_types"] = [tt for tt in Ticketer.get_types() if tt.is_available_to(self.request.user)]
@@ -522,6 +519,6 @@ class TicketerCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
 
     class Delete(DependencyDeleteModal):
-        cancel_url = "@orgs.org_home"
-        success_url = "@orgs.org_home"
+        cancel_url = "@orgs.org_workspace"
+        success_url = "@orgs.org_workspace"
         success_message = _("Your ticketing service has been deleted.")
