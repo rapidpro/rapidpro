@@ -115,7 +115,11 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_views(self):
         # fetch workspace menu
         self.login(self.admin)
-        self.assertContentMenuContains(reverse("orgs.org_workspace"), self.admin, "New Classifier")
+        self.assertContentMenu(
+            reverse("orgs.org_workspace"),
+            self.admin,
+            ["New Channel", "New Classifier", "New Ticketing Service", "-", "Export", "Import"],
+        )
 
         self.new_ui()
         read_url = reverse("classifiers.classifier_read", args=[self.c1.uuid])
@@ -129,12 +133,7 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, "book_hotel")
         self.assertContains(response, "book_car")
 
-        # a link to logs
-        self.assertContentMenuContains(read_url, self.admin, "Log")
-
-        # and buttons for delete and sync
-        self.assertContentMenuContains(read_url, self.admin, "Sync")
-        self.assertContentMenuContains(read_url, self.admin, "Delete")
+        self.assertContentMenu(read_url, self.admin, ["Log", "Sync", "Delete"])
 
         self.c1.intents.all().delete()
 

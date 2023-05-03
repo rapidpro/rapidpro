@@ -804,25 +804,24 @@ class FlowCRUDL(SmartCRUDL):
             ]
 
         def build_content_menu(self, menu):
-            if self.is_spa():
-                if self.has_org_perm("flows.flow_create"):
-                    menu.add_modax(
-                        _("New Flow"),
-                        "new-flow",
-                        f"{reverse('flows.flow_create')}",
-                        title=_("New Flow"),
-                        primary=True,
-                        as_button=True,
-                    )
+            if self.has_org_perm("flows.flow_create"):
+                menu.add_modax(
+                    _("New Flow"),
+                    "new-flow",
+                    f"{reverse('flows.flow_create')}",
+                    title=_("New Flow"),
+                    primary=True,
+                    as_button=True,
+                )
 
-                if self.has_org_perm("flows.flowlabel_create"):
-                    menu.add_modax(
-                        _("New Label"),
-                        "new-flow-label",
-                        f"{reverse('flows.flowlabel_create')}",
-                        title=_("New Label"),
-                        on_submit="handleCreateLabelModalSubmitted()",
-                    )
+            if self.has_org_perm("flows.flowlabel_create"):
+                menu.add_modax(
+                    _("New Label"),
+                    "new-flow-label",
+                    f"{reverse('flows.flowlabel_create')}",
+                    title=_("New Label"),
+                    on_submit="handleCreateLabelModalSubmitted()",
+                )
 
             if self.has_org_perm("orgs.org_import"):
                 menu.add_link(_("Import"), reverse("orgs.org_import"))
@@ -2023,16 +2022,12 @@ class FlowStartCRUDL(SmartCRUDL):
     model = FlowStart
     actions = ("list",)
 
-    class List(SpaMixin, OrgFilterMixin, OrgPermsMixin, ContentMenuMixin, SmartListView):
+    class List(SpaMixin, OrgFilterMixin, OrgPermsMixin, SmartListView):
         title = _("Flow Starts")
         ordering = ("-created_on",)
         select_related = ("flow", "created_by")
         paginate_by = 25
         menu_path = "/flow/history/starts"
-
-        def build_content_menu(self, menu):
-            if not self.is_spa():
-                menu.add_link(_("Flows"), reverse("flows.flow_list"))
 
         def derive_queryset(self, *args, **kwargs):
             qs = super().derive_queryset(*args, **kwargs)

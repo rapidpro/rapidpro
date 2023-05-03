@@ -264,38 +264,15 @@ class CRUDLTestMixin:
                     except ValueError:
                         self.fail(f"Couldn't find {step} in {menu_names}")
 
-    def assertContentMenu(self, url: str, user, legacy_items: list, *, spa_items: list = None):
-        headers = {"HTTP_TEMBA_CONTENT_MENU": 1}
-
-        # old ui
-        response = self.requestView(url, user, checks=[StatusCode(200), ContentType("application/json")], **headers)
-        items = [item.get("label", "-") for item in response.json()["items"]]
-        self.assertEqual(legacy_items, items)
-
-        # new ui
-        if spa_items:
-            headers["HTTP_TEMBA_SPA"] = 1
-            response = self.requestView(
-                url, user, checks=[StatusCode(200), ContentType("application/json")], **headers
-            )
-            items = [item.get("label", "-") for item in response.json()["items"]]
-            self.assertEqual(spa_items, items)
-
-    def assertContentMenuContains(self, url: str, user, item: str, *, is_spa: bool = False):
-        headers = {"HTTP_TEMBA_CONTENT_MENU": 1}
-        if is_spa:
-            headers["HTTP_TEMBA_SPA"] = 1
-        response = self.requestView(url, user, checks=[StatusCode(200), ContentType("application/json")], **headers)
-        items = [item.get("label", "-") for item in response.json()["items"]]
-        self.assertIn(item, items)
-
-    def assertContentMenuNotContains(self, url: str, user, item: str, *, is_spa: bool = False):
-        headers = {"HTTP_TEMBA_CONTENT_MENU": 1}
-        if is_spa:
-            headers["HTTP_TEMBA_SPA"] = 1
-        response = self.requestView(url, user, checks=[StatusCode(200), ContentType("application/json")], **headers)
-        items = [item.get("label", "-") for item in response.json()["items"]]
-        self.assertNotIn(item, items)
+    def assertContentMenu(self, url: str, user, items: list = None):
+        response = self.requestView(
+            url,
+            user,
+            checks=[StatusCode(200), ContentType("application/json")],
+            HTTP_TEMBA_CONTENT_MENU=1,
+            HTTP_TEMBA_SPA=1,
+        )
+        self.assertEqual(items, [item.get("label", "-") for item in response.json()["items"]])
 
 
 class BaseCheck:

@@ -116,31 +116,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
         self.assertEqual(404, response.status_code)
 
-    def test_channellog_links(self):
-        self.login(self.admin)
-
-        channel_types = (
-            ("JN", Channel.DEFAULT_ROLE, None, "Channel Log"),
-            ("T", Channel.ROLE_CALL, None, "Call Log"),
-            ("T", Channel.ROLE_SEND + Channel.ROLE_CALL, None, "Channel Log"),
-            ("EX", Channel.ROLE_RECEIVE, ["tel"], "Channel Log"),
-        )
-
-        for channel_type, channel_role, channel_schemes, link_text in channel_types:
-            channel = Channel.create(
-                self.org,
-                self.user,
-                None,
-                channel_type,
-                name="Test Channel",
-                role=channel_role,
-                schemes=channel_schemes,
-            )
-            read_url = reverse("channels.channel_read", args=[channel.uuid])
-            response = self.client.get(read_url)
-            self.assertContains(response, channel.name)
-            self.assertContentMenuContains(read_url, self.admin, link_text)
-
     def test_get_channel_type_name(self):
         self.assertEqual(self.tel_channel.get_channel_type_name(), "Android Phone")
         self.assertEqual(self.twitter_channel.get_channel_type_name(), "Twitter Channel")
@@ -1954,7 +1929,6 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         channel_log_read_url = reverse("channels.channellog_read", args=[success_log.id])
         response = self.client.get(channel_log_read_url)
         self.assertContains(response, "POST /send?msg=message")
-        self.assertContentMenu(channel_log_read_url, self.admin, ["Channel Log"])
 
         self.assertEqual(self.channel.get_success_log_count(), 3)
         self.assertEqual(self.channel.get_error_log_count(), 4)  # error log count always includes IVR logs
@@ -2646,16 +2620,16 @@ class FacebookWhitelistTest(TembaTest, CRUDLTestMixin):
         )
 
     def test_whitelist(self):
+        read_url = reverse("channels.channel_read", args=[self.channel.uuid])
         whitelist_url = reverse("channels.channel_facebook_whitelist", args=[self.channel.uuid])
+
         response = self.client.get(whitelist_url)
         self.assertLoginRedirect(response)
 
         self.login(self.admin)
-        response = self.client.get(reverse("channels.channel_read", args=[self.channel.uuid]))
+        response = self.client.get(read_url)
         self.assertContains(response, self.channel.name)
-        self.assertContentMenuContains(
-            reverse("channels.channel_read", args=[self.channel.uuid]), self.admin, "Whitelist Domain"
-        )
+        self.assertContentMenu(read_url, self.admin, ["Settings", "Edit", "Delete", "Whitelist Domain"])
 
         with patch("requests.post") as mock:
             mock.return_value = MockResponse(400, '{"error": { "message": "FB Error" } }')

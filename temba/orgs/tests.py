@@ -3299,7 +3299,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # by default orgs don't have this feature
         response = self.client.get(children_url)
-        self.assertContentMenu(children_url, self.admin, legacy_items=["Dashboard"], spa_items=[])
+        self.assertContentMenu(children_url, self.admin, [])
 
         # trying to access the modal directly should redirect
         response = self.client.get(create_url)
@@ -3309,7 +3309,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.save(update_fields=("features",))
 
         response = self.client.get(children_url)
-        self.assertContentMenu(children_url, self.admin, legacy_items=["Dashboard"], spa_items=["New Workspace"])
+        self.assertContentMenu(children_url, self.admin, ["New Workspace"])
 
         # give org2 the same feature
         self.org2.features = [Org.FEATURE_NEW_ORGS]
@@ -3348,7 +3348,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # by default orgs don't have the new_orgs or child_orgs feature
         response = self.client.get(children_url)
-        self.assertContentMenu(children_url, self.admin, legacy_items=["Dashboard"], spa_items=[])
+        self.assertContentMenu(children_url, self.admin, [])
 
         # trying to access the modal directly should redirect
         response = self.client.get(create_url)
@@ -3358,7 +3358,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.save(update_fields=("features",))
 
         response = self.client.get(children_url)
-        self.assertContentMenu(children_url, self.admin, legacy_items=["Dashboard"], spa_items=["New Workspace"])
+        self.assertContentMenu(children_url, self.admin, ["New Workspace"])
 
         # give org2 the same feature
         self.org2.features = [Org.FEATURE_CHILD_ORGS]

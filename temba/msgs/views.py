@@ -160,13 +160,10 @@ class MsgListView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Sm
         return labels
 
     def build_content_menu(self, menu):
-        if self.is_spa():
-            if self.has_org_perm("msgs.broadcast_send"):
-                menu.add_modax(
-                    _("Send Message"), "send-message", reverse("msgs.broadcast_send"), title=_("Send Message")
-                )
-            if self.has_org_perm("msgs.label_create"):
-                menu.add_modax(_("New Label"), "new-msg-label", reverse("msgs.label_create"), title=_("New Label"))
+        if self.has_org_perm("msgs.broadcast_send"):
+            menu.add_modax(_("Send Message"), "send-message", reverse("msgs.broadcast_send"), title=_("Send Message"))
+        if self.has_org_perm("msgs.label_create"):
+            menu.add_modax(_("New Label"), "new-msg-label", reverse("msgs.label_create"), title=_("New Label"))
 
         if self.allow_export and self.has_org_perm("msgs.msg_export"):
             menu.add_modax(_("Download"), "export-messages", self.derive_export_url(), title=_("Download Messages"))

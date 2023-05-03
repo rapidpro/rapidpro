@@ -852,14 +852,6 @@ class ContactCRUDL(SmartCRUDL):
             obj = self.get_object()
 
             if obj.status == Contact.STATUS_ACTIVE:
-                if not self.is_spa() and self.has_org_perm("msgs.broadcast_send"):
-                    menu.add_modax(
-                        _("Send Message"),
-                        "send-message",
-                        f"{reverse('msgs.broadcast_send')}?c={obj.uuid}",
-                        primary=True,
-                        as_button=True,
-                    )
                 if self.has_org_perm("flows.flow_broadcast"):
                     menu.add_modax(
                         _("Start Flow"),
@@ -886,14 +878,6 @@ class ContactCRUDL(SmartCRUDL):
                     title=_("Edit Contact"),
                     on_submit="contactUpdated()",
                 )
-
-                if not self.is_spa():
-                    menu.add_modax(
-                        _("Custom Fields"),
-                        "update-custom-fields",
-                        f"{reverse('contacts.contact_update_fields', args=[obj.id])}",
-                        on_submit="contactUpdated()",
-                    )
 
     class Scheduled(OrgObjPermsMixin, SmartReadView):
         """
@@ -1062,19 +1046,15 @@ class ContactCRUDL(SmartCRUDL):
                 except SearchException:  # pragma: no cover
                     pass
 
-            if self.is_spa():
-                if self.has_org_perm("contacts.contact_create"):
-                    menu.add_modax(
-                        _("New Contact"), "new-contact", reverse("contacts.contact_create"), title=_("New Contact")
-                    )
+            if self.has_org_perm("contacts.contact_create"):
+                menu.add_modax(
+                    _("New Contact"), "new-contact", reverse("contacts.contact_create"), title=_("New Contact")
+                )
 
-                if has_contactgroup_create_perm:
-                    menu.add_modax(
-                        _("New Group"), "new-group", reverse("contacts.contactgroup_create"), title=_("New Group")
-                    )
-
-            if self.has_org_perm("contacts.contactfield_list") and not self.is_spa():
-                menu.add_link(_("Manage Fields"), reverse("contacts.contactfield_list"))
+            if has_contactgroup_create_perm:
+                menu.add_modax(
+                    _("New Group"), "new-group", reverse("contacts.contactgroup_create"), title=_("New Group")
+                )
 
             if self.has_org_perm("contacts.contact_export"):
                 menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
@@ -1142,9 +1122,6 @@ class ContactCRUDL(SmartCRUDL):
         template_name = "contacts/contact_filter.haml"
 
         def build_content_menu(self, menu):
-            if self.has_org_perm("contacts.contactfield_list") and not self.is_spa():
-                menu.add_link(_("Manage Fields"), reverse("contacts.contactfield_list"))
-
             if not self.group.is_system and self.has_org_perm("contacts.contactgroup_update"):
                 menu.add_modax(_("Edit"), "edit-group", reverse("contacts.contactgroup_update", args=[self.group.id]))
 

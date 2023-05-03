@@ -123,7 +123,7 @@ class GlobalCRUDL(SmartCRUDL):
         menu_path = "/flow/globals"
 
         def build_content_menu(self, menu):
-            if self.is_spa() and self.has_org_perm("globals.global_create"):
+            if self.has_org_perm("globals.global_create"):
                 menu.add_modax(
                     _("New Global"),
                     "new-global",

@@ -215,7 +215,7 @@ class CampaignCRUDL(SmartCRUDL):
             return qs
 
         def build_content_menu(self, menu):
-            if self.is_spa() and self.has_org_perm("campaigns.campaign_create"):
+            if self.has_org_perm("campaigns.campaign_create"):
                 menu.add_modax(
                     _("New Campaign"),
                     "event-update",
