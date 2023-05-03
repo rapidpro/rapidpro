@@ -40,7 +40,7 @@ class SpaMixin(View):
         return tuple(s for s in self.request.META.get("HTTP_TEMBA_REFERER_PATH", "").split("/") if s)
 
     def is_spa(self):
-        return self.request.COOKIES.get("nav") == "2" or self.is_content_only()
+        return self.request.COOKIES.get("nav", "old" if settings.TESTING else "new") != "old" or self.is_content_only()
 
     def is_content_only(self):
         return "HTTP_TEMBA_SPA" in self.request.META
@@ -126,15 +126,6 @@ class SpaMixin(View):
     def render_to_response(self, context, **response_kwargs):
         response = super().render_to_response(context, **response_kwargs)
         response.headers[TEMBA_VERSION] = temba_version
-
-        # temporary escape hatch to the old ui
-        if self.is_spa() and self.request.GET.get("legacy", False) == "1":  # pragma: no cover
-            url = self.request.get_full_path()
-            url = url.replace("&legacy=1", "")
-            url = url.replace("?legacy=1", "")
-            response = HttpResponseRedirect(url)
-            response.set_cookie("nav", 1)
-            return response
 
         if self.is_spa():
             response.headers[TEMBA_MENU_SELECTION] = context[TEMBA_MENU_SELECTION]
