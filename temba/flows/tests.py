@@ -189,32 +189,6 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(old_saved_on, flow.saved_on)
         self.assertGreater(flow.modified_on, old_modified_on)
 
-    def test_campaign_filter(self):
-        self.login(self.admin)
-        self.get_flow("the_clinic")
-
-        # should have a list of four flows for our appointment schedule
-        response = self.client.get(reverse("flows.flow_list"))
-        self.assertContains(response, "Appointment Schedule")
-        self.assertEqual(4, response.context["campaigns"][0]["count"])
-
-        campaign = Campaign.objects.filter(name="Appointment Schedule").first()
-        self.assertIsNotNone(campaign)
-
-        # check that our four flows in the campaign are there
-        response = self.client.get(reverse("flows.flow_campaign", args=[campaign.id]))
-        self.assertContains(response, "Confirm Appointment")
-        self.assertContains(response, "Start Notifications")
-        self.assertContains(response, "Stop Notifications")
-        self.assertContains(response, "Appointment Followup")
-
-        # check we can't see farmers
-        farmers = ContactGroup.create_manual(self.org2, self.admin, "Farmers")
-        campaign2 = Campaign.create(self.org2, self.admin, Campaign.get_unique_name(self.org, "Reminders"), farmers)
-
-        response = self.client.get(reverse("flows.flow_campaign", args=[campaign2.id]))
-        self.assertLoginRedirect(response)
-
     def test_flow_archive_with_campaign(self):
         self.login(self.admin)
         self.get_flow("the_clinic")
@@ -259,7 +233,6 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         flow = self.get_flow("color")
 
         self.login(self.admin)
-        self.new_ui()
 
         flow_editor_url = reverse("flows.flow_editor", args=[flow.uuid])
 
@@ -1287,104 +1260,6 @@ class FlowTest(TembaTest, CRUDLTestMixin):
             ],
         )
 
-    def test_views_viewers(self):
-        flow = self.get_flow("color")
-
-        # create a flow for another org and a flow label
-        flow2 = Flow.create(self.org2, self.admin2, "Flow2")
-        flow_label = FlowLabel.create(self.org, self.admin, "one")
-
-        flow_list_url = reverse("flows.flow_list")
-        flow_archived_url = reverse("flows.flow_archived")
-        flow_create_url = reverse("flows.flow_create")
-        flowlabel_create_url = reverse("flows.flowlabel_create")
-
-        # no login, no list
-        response = self.client.get(flow_list_url)
-        self.assertRedirect(response, reverse("users.user_login"))
-
-        self.user.first_name = "Test"
-        self.user.last_name = "Contact"
-        self.user.save()
-
-        self.login(self.user)
-
-        # list, should have only one flow (the one created in setUp)
-
-        response = self.client.get(flow_list_url)
-        self.assertEqual(1, len(response.context["object_list"]))
-        # no create links
-        self.assertNotContains(response, flow_create_url)
-        self.assertNotContains(response, flowlabel_create_url)
-        # verify the action buttons we have
-        self.assertNotContains(response, "object-btn-unlabel")
-        self.assertNotContains(response, "object-btn-restore")
-        self.assertNotContains(response, "object-btn-archive")
-        self.assertNotContains(response, "object-btn-label")
-        self.assertContains(response, "object-btn-export")
-
-        # can not label
-        post_data = dict()
-        post_data["action"] = "label"
-        post_data["objects"] = flow.id
-        post_data["label"] = flow_label.id
-        post_data["add"] = True
-
-        response = self.client.post(flow_list_url, post_data, follow=True)
-        self.assertEqual(403, response.status_code)
-
-        flow.refresh_from_db()
-        self.assertEqual(0, flow.labels.count())
-
-        # can not archive
-        post_data = dict()
-        post_data["action"] = "archive"
-        post_data["objects"] = flow.pk
-        response = self.client.post(flow_list_url, post_data, follow=True)
-        self.assertEqual(403, response.status_code)
-
-        flow.refresh_from_db()
-        self.assertFalse(flow.is_archived)
-
-        # inactive list shouldn't have any flows
-        response = self.client.get(flow_archived_url)
-        self.assertEqual(0, len(response.context["object_list"]))
-
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertEqual(200, response.status_code)
-        self.assertFalse(response.context["mutable"])
-
-        flow.is_archived = True
-        flow.save()
-
-        response = self.client.get(flow_list_url)
-        self.assertEqual(0, len(response.context["object_list"]))
-
-        # cannot restore
-        post_data = dict()
-        post_data["action"] = "restore"
-        post_data["objects"] = flow.id
-        response = self.client.post(flow_archived_url, post_data, follow=True)
-        self.assertEqual(403, response.status_code)
-
-        flow.refresh_from_db()
-        self.assertTrue(flow.is_archived)
-
-        response = self.client.get(flow_archived_url)
-        self.assertEqual(1, len(response.context["object_list"]))
-
-        # cannot create a flow
-        response = self.client.get(flow_create_url)
-        self.assertEqual(302, response.status_code)
-
-        # cannot create a flowlabel
-        response = self.client.get(flowlabel_create_url)
-        self.assertEqual(302, response.status_code)
-
-        # also shouldn't be able to view other flow
-        response = self.client.get(reverse("flows.flow_editor", args=[flow2.uuid]))
-        self.assertEqual(302, response.status_code)
-
     def test_legacy_validate_definition(self):
         with self.assertRaises(ValueError):
             FlowRevision.validate_legacy_definition({"flow_type": "U", "nodes": []})
@@ -2388,7 +2263,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("flows.flow_filter", args=[label2.uuid]))
         self.assertEqual([flow2], list(response.context["object_list"]))
 
-        self.new_ui()
         response = self.client.get(reverse("flows.flow_filter", args=[label2.uuid]))
         self.assertEquals(f"/flow/labels/{label2.uuid}", response.headers.get(TEMBA_MENU_SELECTION))
 

@@ -694,7 +694,6 @@ GROUP_PERMISSIONS = {
         "flows.flow_activity",
         "flows.flow_archived",
         "flows.flow_assets",
-        "flows.flow_campaign",
         "flows.flow_category_counts",
         "flows.flow_editor",
         "flows.flow_export_results",

@@ -204,7 +204,6 @@ class FlowCRUDL(SmartCRUDL):
         "activity",
         "activity_chart",
         "filter",
-        "campaign",
         "revisions",
         "recent_contacts",
         "assets",
@@ -844,45 +843,6 @@ class FlowCRUDL(SmartCRUDL):
             queryset = super().derive_queryset(*args, **kwargs)
             queryset = queryset.filter(is_active=True, is_archived=False)
             return queryset
-
-    class Campaign(BaseList, OrgObjPermsMixin):
-        bulk_actions = ("label",)
-        campaign = None
-
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<campaign_id>\d+)/$" % (path, action)
-
-        def derive_title(self, *args, **kwargs):
-            return self.get_campaign().name
-
-        def get_object_org(self):
-            from temba.campaigns.models import Campaign
-
-            return Campaign.objects.get(pk=self.kwargs["campaign_id"]).org
-
-        def get_campaign(self):
-            if not self.campaign:
-                from temba.campaigns.models import Campaign
-
-                campaign_id = self.kwargs["campaign_id"]
-                self.campaign = Campaign.objects.filter(id=campaign_id, org=self.request.org).first()
-            return self.campaign
-
-        def get_queryset(self, **kwargs):
-            from temba.campaigns.models import CampaignEvent
-
-            flow_ids = CampaignEvent.objects.filter(
-                campaign=self.get_campaign(), flow__is_archived=False, flow__is_system=False
-            ).values("flow__id")
-
-            flows = Flow.objects.filter(id__in=flow_ids, org=self.request.org).order_by("-modified_on")
-            return flows
-
-        def get_context_data(self, *args, **kwargs):
-            context = super().get_context_data(*args, **kwargs)
-            context["current_campaign"] = self.get_campaign()
-            return context
 
     class Filter(BaseList, OrgObjPermsMixin):
         add_button = True

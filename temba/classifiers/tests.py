@@ -121,7 +121,6 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
             ["New Channel", "New Classifier", "New Ticketing Service", "-", "Export", "Import"],
         )
 
-        self.new_ui()
         read_url = reverse("classifiers.classifier_read", args=[self.c1.uuid])
 
         # read page

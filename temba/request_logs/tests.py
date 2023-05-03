@@ -90,9 +90,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         webhooks_url = reverse("request_logs.httplog_webhooks")
         log_url = reverse("request_logs.httplog_read", args=[l1.id])
 
-        response = self.assertListFetch(
-            webhooks_url, allow_viewers=False, allow_editors=True, context_objects=[l1], new_ui=True
-        )
+        response = self.assertListFetch(webhooks_url, allow_viewers=False, allow_editors=True, context_objects=[l1])
         self.assertContains(response, "Webhooks")
         self.assertContains(response, log_url)
 
@@ -101,9 +99,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "200")
         self.assertContains(response, "org1.bar")
 
-        response = self.assertReadFetch(
-            log_url, allow_viewers=False, allow_editors=True, context_object=l1, new_ui=True
-        )
+        response = self.assertReadFetch(log_url, allow_viewers=False, allow_editors=True, context_object=l1)
         self.assertEqual("/flow/history/webhooks", response.headers.get(TEMBA_MENU_SELECTION))
 
     def test_classifier(self):
@@ -137,7 +133,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         log_url = reverse("request_logs.httplog_read", args=[l1.id])
 
         response = self.assertListFetch(
-            list_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[l1], new_ui=True
+            list_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[l1]
         )
 
         menu_path = f"/settings/classifiers/{c1.uuid}"
@@ -148,9 +144,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, "Classifier Called")
 
         # view the individual log item
-        response = self.assertReadFetch(
-            log_url, allow_viewers=False, allow_editors=False, context_object=l1, new_ui=True
-        )
+        response = self.assertReadFetch(log_url, allow_viewers=False, allow_editors=False, context_object=l1)
         self.assertEqual(menu_path, response.headers[TEMBA_MENU_SELECTION])
         self.assertContains(response, "200")
         self.assertContains(response, "org1.bar")

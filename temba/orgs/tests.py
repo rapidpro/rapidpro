@@ -2862,7 +2862,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(21):
+        with self.assertNumQueries(20):
             response = self.client.get(workspace_url)
 
         # should have an extra menu option for our child (and section header)
@@ -3444,7 +3444,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, "Manage Workspaces")
 
         # enable child orgs and create some child orgs
-        self.org.features = [Org.FEATURE_CHILD_ORGS]
+        self.org.features = [Org.FEATURE_CHILD_ORGS, Org.FEATURE_USERS]
         self.org.save(update_fields=("features",))
         child1 = self.org.create_new(self.admin, "Child Org 1", self.org.timezone, as_child=True)
         child2 = self.org.create_new(self.admin, "Child Org 2", self.org.timezone, as_child=True)
@@ -3461,7 +3461,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         child1_edit_url = reverse("orgs.org_edit_sub_org") + f"?org={child1.id}"
         child1_accounts_url = reverse("orgs.org_manage_accounts_sub_org") + f"?org={child1.id}"
 
-        self.assertContains(response, child1_edit_url)
+        self.assertContains(response, "Child Org 1")
         self.assertContains(response, child1_accounts_url)
 
         # we can also access the manage accounts page
@@ -3710,7 +3710,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertStaffOnly(manage_url)
         self.assertStaffOnly(update_url)
-        self.new_ui()
 
         def assertOrgFilter(query: str, expected_orgs: list):
             response = self.client.get(manage_url + query)
@@ -4000,7 +3999,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertStaffOnly(list_url)
 
-        response = self.requestView(list_url, self.customer_support, new_ui=True)
+        response = self.requestView(list_url, self.customer_support)
         self.assertEqual(9, len(response.context["object_list"]))
         self.assertEqual("/staff/users/all", response.headers[TEMBA_MENU_SELECTION])
 

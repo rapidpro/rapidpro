@@ -362,11 +362,9 @@ class WhatsAppCloudTypeTest(TembaTest):
                 response = self.client.get(reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)))
                 self.assertEqual(200, response.status_code)
 
-                self.new_ui()
                 response = self.client.get(reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)))
                 self.assertEqual(200, response.status_code)
                 self.assertEqual(f"/settings/channels/{channel.uuid}", response.context[TEMBA_MENU_SELECTION])
-                self.old_ui()
 
                 # request verification code
                 response = self.client.post(
@@ -391,10 +389,8 @@ class WhatsAppCloudTypeTest(TembaTest):
                     {"messaging_product": "whatsapp", "pin": "111111"}, wa_cloud_post.call_args[1]["data"]
                 )
 
-                self.new_ui()
                 response = self.client.get(reverse("channels.types.whatsapp_cloud.verify_code", args=(channel.uuid,)))
                 self.assertEqual(f"/settings/channels/{channel.uuid}", response.context[TEMBA_MENU_SELECTION])
-                self.old_ui()
 
         # make sure the token is set on the session
         session = self.client.session
