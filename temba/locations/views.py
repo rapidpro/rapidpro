@@ -26,9 +26,6 @@ class BoundaryCRUDL(SmartCRUDL):
             # in, that is derived
             return r"^%s/%s/$" % (path, action)
 
-        def build_content_menu(self, menu):
-            menu.add_link(_("Home"), reverse("orgs.org_home"))
-
         def pre_process(self, request, *args, **kwargs):
             response = super().pre_process(self, request, *args, **kwargs)
 
@@ -37,7 +34,7 @@ class BoundaryCRUDL(SmartCRUDL):
             if not response:
                 if not request.org.country:
                     messages.warning(request, _("You must select a country for your workspace."))
-                    return HttpResponseRedirect(reverse("orgs.org_home"))
+                    return HttpResponseRedirect(reverse("orgs.org_workspace"))
 
             return None
 

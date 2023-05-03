@@ -7,22 +7,6 @@
 -block page-title
   {{ title }}
 
--block summary
-  -if archive_count
-    {% blocktrans trimmed with counter=archive_count|intcomma count num=archive_count  %}
-    You have {{ counter }} archive
-    {% plural %}
-    You have {{ counter }} archives
-    {% endblocktrans %}
-
-    {% blocktrans trimmed with counter=record_count|intcomma count num=record_count %}
-    containing {{ counter }} record.
-    {% plural %}
-    containing {{ counter }} records.
-    {% endblocktrans %}
-  -else
-    -trans "You do not have any message or run archives yet."
-
 -block content
   -if object_list
     %table.archives.list.lined

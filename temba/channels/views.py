@@ -564,10 +564,6 @@ class ChannelCRUDL(SmartCRUDL):
             channel = self.object
 
             context["last_sync"] = channel.last_sync
-
-            if "HTTP_X_FORMAX" in self.request.META:  # no additional data needed if request is for old UI formax
-                return context
-
             context["msg_count"] = channel.get_msg_count()
             context["ivr_count"] = channel.get_ivr_count()
 
@@ -742,6 +738,7 @@ class ChannelCRUDL(SmartCRUDL):
 
     class Delete(DependencyDeleteModal, SpaMixin):
         cancel_url = "uuid@channels.channel_read"
+        success_url = "@orgs.org_workspace"
         success_message = _("Your channel has been removed.")
         success_message_twilio = _(
             "We have disconnected your Twilio number. "
@@ -754,7 +751,7 @@ class ChannelCRUDL(SmartCRUDL):
             if channel.parent:
                 return reverse("channels.channel_read", args=[channel.parent.uuid])
 
-            return reverse("orgs.org_workspace") if self.is_spa() else reverse("orgs.org_home")
+            return super().get_success_url()
 
         def derive_submit_button_name(self):
             channel = self.get_object()

@@ -45,7 +45,3 @@
       %form(action="{% url 'orgs.user_two_factor_tokens'%}" method="POST")
         {% csrf_token %}
         %input.button-primary(type="submit" value='{{_("Regenerate Tokens")|escapejs }}')
-
--block summary
-  -blocktrans trimmed
-    Two-factor authentication is <b>enabled</b>.

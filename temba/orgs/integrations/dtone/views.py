@@ -45,7 +45,7 @@ class AccountView(IntegrationFormaxView):
         disconnect = form.cleaned_data.get("disconnect", "false") == "true"
         if disconnect:
             self.integration_type.disconnect(org, user)
-            return HttpResponseRedirect(reverse("orgs.org_home"))
+            return HttpResponseRedirect(reverse("orgs.org_workspace"))
         else:
             self.integration_type.connect(org, user, form.cleaned_data["api_key"], form.cleaned_data["api_secret"])
             return super().form_valid(form)
