@@ -1,3 +1,7 @@
+v8.1.128 (2023-05-03)
+-------------------------
+ * Fix contact import
+
 v8.1.127 (2023-05-03)
 -------------------------
  * Remove support for adding bulk sender delegate channels
