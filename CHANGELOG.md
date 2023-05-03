@@ -1,3 +1,9 @@
+v8.1.127 (2023-05-03)
+-------------------------
+ * Remove support for adding bulk sender delegate channels
+ * Remove ability to create IVR delegates for android channels
+ * Remove org home view altogether and update links to point to workspace view
+
 v8.1.126 (2023-05-03)
 -------------------------
  * Change cookie checking for UI so that we always default to new UI
