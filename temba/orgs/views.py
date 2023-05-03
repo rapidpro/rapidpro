@@ -3468,7 +3468,7 @@ class OrgCRUDL(SmartCRUDL):
 
             org = self.get_object()
             context["sub_orgs"] = org.children.filter(is_active=True)
-            context["is_spa"] = self.request.COOKIES.get("nav") == "2"
+            context["is_spa"] = self.request.COOKIES.get("nav", "old" if settings.TESTING else "new") != "old"
             return context
 
     class EditSubOrg(SpaMixin, ModalMixin, Edit):
