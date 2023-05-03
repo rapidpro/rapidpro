@@ -549,7 +549,7 @@ class ChannelCRUDL(SmartCRUDL):
 
                     caller = obj.get_caller()
 
-                    if caller and caller.is_delegate_caller():
+                    if caller and caller.is_delegate_caller():  # pragma: no cover
                         menu.add_modax(
                             _("Disable Voice Calling"),
                             "disable-voice",

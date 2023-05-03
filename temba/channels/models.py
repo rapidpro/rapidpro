@@ -542,23 +542,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         )
 
     @classmethod
-    def add_call_channel(cls, org, user, channel):
-        return Channel.create(
-            org,
-            user,
-            channel.country,
-            "T",
-            name="Twilio Caller",
-            address=channel.address,
-            role=Channel.ROLE_CALL,
-            parent=channel,
-            config={
-                "account_sid": org.config[Org.CONFIG_TWILIO_SID],
-                "auth_token": org.config[Org.CONFIG_TWILIO_TOKEN],
-            },
-        )
-
-    @classmethod
     def generate_secret(cls, length=64):
         """
         Generates a secret value used for command signing
