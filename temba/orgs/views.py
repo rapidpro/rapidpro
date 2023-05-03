@@ -2400,7 +2400,7 @@ class OrgCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse("orgs.org_workspace"))
 
         def derive_title(self):
-            if self.object.is_child and self.is_spa():
+            if self.object.is_child:
                 return self.object.name
             else:
                 return super().derive_title()

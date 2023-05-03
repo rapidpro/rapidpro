@@ -175,30 +175,9 @@ class CampaignCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["org_has_campaigns"] = Campaign.objects.filter(org=self.request.org).count()
-            if not self.is_spa():
-                context["folders"] = self.get_folders()
+            context["org_has_campaigns"] = self.request.org.campaigns.exists()
             context["request_url"] = self.request.path
             return context
-
-        def get_folders(self):
-            org = self.request.org
-            folders = []
-            folders.append(
-                dict(
-                    label="Active",
-                    url=reverse("campaigns.campaign_list"),
-                    count=Campaign.objects.filter(is_active=True, is_archived=False, org=org).count(),
-                )
-            )
-            folders.append(
-                dict(
-                    label="Archived",
-                    url=reverse("campaigns.campaign_archived"),
-                    count=Campaign.objects.filter(is_active=True, is_archived=True, org=org).count(),
-                )
-            )
-            return folders
 
     class List(BaseList):
         fields = ("name", "group")
