@@ -7,8 +7,8 @@ from django.utils.translation import gettext_lazy as _
 from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
-from ...models import ChannelType
-from .views import SUPPORTED_COUNTRIES, ClaimView, SearchView, UpdateForm
+from ...models import Channel, ChannelType
+from .views import SUPPORTED_COUNTRIES, ClaimView, Connect, SearchView, UpdateForm
 
 
 class TwilioType(ChannelType):
@@ -50,7 +50,7 @@ class TwilioType(ChannelType):
 
     def deactivate(self, channel):
         config = channel.config
-        client = channel.org.get_twilio_client()
+        client = TwilioClient(config[Channel.CONFIG_ACCOUNT_SID], config[Channel.CONFIG_AUTH_TOKEN])
         number_update_args = dict()
 
         if not channel.is_delegate_sender():
@@ -82,7 +82,11 @@ class TwilioType(ChannelType):
                 raise e
 
     def get_urls(self):
-        return [self.get_claim_url(), re_path(r"^search$", SearchView.as_view(), name="search")]
+        return [
+            self.get_claim_url(),
+            re_path(r"^search$", SearchView.as_view(), name="search"),
+            re_path(r"^connect$", Connect.as_view(), name="connect"),
+        ]
 
     def get_error_ref_url(self, channel, code: str) -> str:
         return f"https://www.twilio.com/docs/api/errors/{code}"

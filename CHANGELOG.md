@@ -1,3 +1,20 @@
+v8.1.125 (2023-05-02)
+-------------------------
+ * Tweak notifications index to match API endpoint
+ * Add new internal API with a notifications endpoint
+ * Use DRF defaults for STRICT_JSON and UNICODE_JSON
+ * Remove unused .api URL suffixes
+
+v8.1.124 (2023-05-01)
+-------------------------
+ * Make contact.modify work with new and old format
+ * Make ticket a reserved field name
+
+v8.1.123 (2023-04-27)
+-------------------------
+ * Hide Open Ticket option on contact read page if there's already an open a ticket
+ * Rework soft and hard msg deleting to be more performant
+
 v8.1.122 (2023-04-26)
 -------------------------
  * Remove db constriants on Msg.flow and Msg.ticket

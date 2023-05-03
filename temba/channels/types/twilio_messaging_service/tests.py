@@ -5,7 +5,6 @@ from twilio.base.exceptions import TwilioRestException
 from django.urls import reverse
 
 from temba.channels.models import Channel
-from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
@@ -14,7 +13,8 @@ from .views import COUNTRY_CHOICES
 
 
 class TwilioMessagingServiceTypeTest(TembaTest):
-    @patch("temba.orgs.models.TwilioClient", MockTwilioClient)
+    @patch("temba.channels.types.twilio_messaging_service.views.TwilioClient", MockTwilioClient)
+    @patch("temba.channels.types.twilio.views.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_claim(self):
         self.login(self.admin)
@@ -31,14 +31,12 @@ class TwilioMessagingServiceTypeTest(TembaTest):
         response = self.client.get(claim_twilio_ms)
         self.assertEqual(response.status_code, 302)
         response = self.client.get(claim_twilio_ms, follow=True)
-        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_twilio_connect"))
+        self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio.connect"))
 
-        twilio_config = dict()
-        twilio_config[Org.CONFIG_TWILIO_SID] = "account-sid"
-        twilio_config[Org.CONFIG_TWILIO_TOKEN] = "account-token"
-
-        self.org.config = twilio_config
-        self.org.save()
+        session = self.client.session
+        session[Channel.CONFIG_TWILIO_ACCOUNT_SID] = "account-sid"
+        session[Channel.CONFIG_TWILIO_AUTH_TOKEN] = "account-token"
+        session.save()
 
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertContains(response, claim_twilio_ms)
@@ -47,18 +45,24 @@ class TwilioMessagingServiceTypeTest(TembaTest):
         self.assertIn("account_trial", response.context)
         self.assertFalse(response.context["account_trial"])
 
-        with patch("temba.orgs.models.Org.get_twilio_client") as mock_get_twilio_client:
+        with patch(
+            "temba.channels.types.twilio_messaging_service.views.ClaimView.get_twilio_client"
+        ) as mock_get_twilio_client:
             mock_get_twilio_client.return_value = None
 
             response = self.client.get(claim_twilio_ms)
-            self.assertRedirects(response, f'{reverse("orgs.org_twilio_connect")}?claim_type=twilio_messaging_service')
+            self.assertRedirects(
+                response, f'{reverse("channels.types.twilio.connect")}?claim_type=twilio_messaging_service'
+            )
 
             mock_get_twilio_client.side_effect = TwilioRestException(
                 401, "http://twilio", msg="Authentication Failure", code=20003
             )
 
             response = self.client.get(claim_twilio_ms)
-            self.assertRedirects(response, f'{reverse("orgs.org_twilio_connect")}?claim_type=twilio_messaging_service')
+            self.assertRedirects(
+                response, f'{reverse("channels.types.twilio.connect")}?claim_type=twilio_messaging_service'
+            )
 
         with patch("temba.tests.twilio.MockTwilioClient.MockAccounts.get") as mock_get:
             mock_get.return_value = MockTwilioClient.MockAccount("Trial")
@@ -86,6 +90,10 @@ class TwilioMessagingServiceTypeTest(TembaTest):
         response = self.client.get(reverse("channels.channel_configuration", args=[channel.uuid]))
         self.assertContains(response, reverse("courier.tms", args=[channel.uuid, "receive"]))
 
+        # no more credential in the session
+        self.assertFalse(Channel.CONFIG_TWILIO_ACCOUNT_SID in self.client.session)
+        self.assertFalse(Channel.CONFIG_TWILIO_AUTH_TOKEN in self.client.session)
+
     def test_get_error_ref_url(self):
         self.assertEqual(
             "https://www.twilio.com/docs/api/errors/30006",
@@ -96,8 +104,12 @@ class TwilioMessagingServiceTypeTest(TembaTest):
     @patch("temba.channels.types.twilio.type.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_update(self):
-        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        config = {
+            Channel.CONFIG_ACCOUNT_SID: "TEST_SID",
+            Channel.CONFIG_AUTH_TOKEN: "TEST_TOKEN",
+        }
         tms_channel = self.org.channels.all().first()
+        tms_channel.config = config
         tms_channel.channel_type = "TMS"
         tms_channel.save()
 

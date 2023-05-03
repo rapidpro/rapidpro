@@ -571,8 +571,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_spa",
         "orgs.org_sub_orgs",
         "orgs.org_token",
-        "orgs.org_twilio_account",
-        "orgs.org_twilio_connect",
         "orgs.org_two_factor",
         "orgs.org_vonage_account",
         "orgs.org_vonage_connect",
@@ -892,12 +890,7 @@ CELERY_BEAT_SCHEDULE = {
 # -----------------------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "temba.api.support.APISessionAuthentication",
-        "temba.api.support.APITokenAuthentication",
-        "temba.api.support.APIBasicAuthentication",
-    ),
-    "DEFAULT_THROTTLE_CLASSES": ("temba.api.support.OrgUserRateThrottle",),
+    "DEFAULT_AUTHENTICATION_CLASSES": ("temba.api.support.APISessionAuthentication",),
     "DEFAULT_THROTTLE_RATES": {
         "v2": "2500/hour",
         "v2.contacts": "2500/hour",
@@ -905,12 +898,10 @@ REST_FRAMEWORK = {
         "v2.broadcasts": "36000/hour",
         "v2.runs": "2500/hour",
     },
-    "PAGE_SIZE": 250,
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "DEFAULT_RENDERER_CLASSES": ("temba.api.support.DocumentationRenderer", "rest_framework.renderers.JSONRenderer"),
+    "PAGE_SIZE": 250,
     "EXCEPTION_HANDLER": "temba.api.support.temba_exception_handler",
-    "UNICODE_JSON": False,
-    "STRICT_JSON": False,
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
 
