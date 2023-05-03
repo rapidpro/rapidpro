@@ -131,7 +131,7 @@ class ChannelType(metaclass=ABCMeta):
         """
         claim_view_kwargs = self.claim_view_kwargs if self.claim_view_kwargs else {}
         claim_view_kwargs["channel_type"] = self
-        return re_path(r"^claim$", self.claim_view.as_view(**claim_view_kwargs), name="claim")
+        return re_path(r"^claim/$", self.claim_view.as_view(**claim_view_kwargs), name="claim")
 
     def get_update_form(self):
         if self.update_form is None:
