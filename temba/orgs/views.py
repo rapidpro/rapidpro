@@ -1433,6 +1433,7 @@ class OrgCRUDL(SmartCRUDL):
                         "id": "settings",
                         "name": _("Settings"),
                         "icon": "icon.home",
+                        "href": reverse("orgs.org_workspace"),
                         "endpoint": f"{reverse('orgs.org_menu')}settings/",
                         "bottom": True,
                         "show_header": True,

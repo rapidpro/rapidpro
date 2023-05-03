@@ -319,8 +319,8 @@
         }
 
         if (response.redirected) {
-          document.location.href = url;
-          return;
+          var url = response.url;
+          window.history.replaceState({url: url}, "", url);
         }
         
         if(response.headers.get("x-temba-content-only") != 1) {
@@ -675,10 +675,6 @@
 
               // remove jquery use here
               $(content).html(response.body);
-
-              if (response.redirected) {
-                addToHistory(response.url);
-              }
 
               hideLoading(response);
             });
