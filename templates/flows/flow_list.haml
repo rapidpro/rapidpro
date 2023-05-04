@@ -1,198 +1,98 @@
 -extends "smartmin/list.html"
 -load smartmin sms temba compress i18n humanize
 
--block page-title
-  -trans "Flows"
-
--block page-top
-
 -block content
-
+  // legacy requirement for bulk actions
+  .page-title
   -if org_perms.flows.flow_update
     %temba-modax#export-results{ header:'{% trans "Download Results" %}' }
     %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'flows.flowlabel_create' %}", "-temba-loaded": "handleCreateLabelModalLoaded", "-temba-submitted": "handleCreateLabelModalSubmitted"}
 
-  #pjax
-    -block pjax
-      .lp-frame
-        .left
-          .flex.flex-col
-            -if org_perms.flows.flow_create
-              .w-64.mr-5
-                %temba-modax#create-flow-modal{ header:'{% trans "Create Flow" %}', endpoint:"{% url 'flows.flow_create' %}" }
-                  .button-primary.block
-                    -trans "Create Flow"
+  -if org_has_flows
+    -if view.search_fields
+      %form#search-form.mb-4(method="get" action="{{request.path}}")
+        %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+        -if request.REQUEST.status
+          %input(type='hidden' name='status' value='{{request.REQUEST.status}}')
+        %input.hide(type="submit")
 
-          .lp-nav.upper
-            -for folder in folders
-              .lp-nav-item{'class': '{% if folder.url == request_url %}font-normal{% endif %}' }
-                .name{onclick:"goto(event)", href:'{{folder.url}}'}
-                  {{folder.label}}
-                .count{onclick:"goto(event)", href:'{{folder.url}}'}
-                  {{ folder.count | intcomma }}
+    .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
+      -include "includes/short_pagination.haml"
+                
+    .flex-grow.overflow-y-auto.shadow
+      %table.relative.list.object-list.lined.selectable.scrolled
+        -if object_list
+          %thead
+            %tr
+              -if org_perms.flows.flow_update
+                %th
+              %th
+              %th.whitespace-nowrap
+                Runs / Completion
 
-          -if campaigns
-            .lp-nav.lower
-              .font-normal.uppercase.text-xs.text-gray-500.pb-1
-                -trans "Campaigns"
-              -for campaign in campaigns
-                .lp-nav-item{'class': '{%if current_campaign.id == campaign.campaign__id %}font-normal{% endif %}' }
-                  .name{onclick:"goto(event)", href:'{% url "flows.flow_campaign" campaign.campaign__id %}'}
-                    {{campaign.campaign__name}}
-                  .count{onclick:"goto(event)", href:'{% url "flows.flow_campaign" campaign.campaign__id %}'}
-                    {{ campaign.count | intcomma }}
+        %tbody
+          -for object in object_list
+            %tr.object-row.select-row(onclick='handleRowClicked(event)' data-uuid="{{object.uuid}}" data-object-id="{{object.id}}" href="{% url 'flows.flow_editor' object.uuid %}")
+              -if org_perms.flows.flow_update
+                %td.checkbox.object-row-checkbox(onclick="checkInner(event);" style="width:0px")
+                  %temba-checkbox{onclick:"handleRowSelection(this)"}
 
-          -if labels
-            .lp-nav.lower
+              %td
+                .flex.items-center
+                  .flex-grow
+                    .flex.inline.whitespace-nowrap.flex-grow.items-center(style="max-width:80%")
+                      -if object.flow_type == 'V'
+                        .icon-phone.mr-2.leading-snug
+                      -elif object.flow_type == 'S'
+                        .icon-mobile.mr-2.leading-snug
+                      .name.truncate
+                        {{ object.name }}
 
-              .inner-scroll
-                .font-normal.uppercase.text-xs.text-gray-500.pb-1
-                  - trans "Labels"
-
-                -for label in labels
-                  .lp-nav-item{ class:'{% if current_label.id == label.id %}font-normal{% endif %}' }
-                    .name{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.uuid %}", class:'{% if current_label.id == label.id %}font-normal active{% endif %}' }
-                      {{ label.name }}
-                    .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.uuid %}", class:'{% if current_label.id == label.id %}font-normal active{% endif %}' }
-                      {{ label.count | intcomma }}
-
-          .flex-grow
-            -if org_perms.flows.flowstart_list
-              .button-light.block.mt-3(onclick="goto(event)" href="{% url 'flows.flowstart_list' %}")
-                -trans "Flow Start Log"
-
-            -if org_perms.request_logs.httplog_webhooks
-              .mt-3.button-light.block.mt-3(onclick="goto(event)" href="{% url 'request_logs.httplog_webhooks' %}")
-                -trans "Webhook Call Log"
-
-        .right
-          -if org_has_flows
-            .flex.w-full.items-end.mb-4
-              -block action-buttons
-                .action-buttons.list-buttons-container.h-full.mr-2.flex-grow
-                  .list-buttons.flex.items-center.-mx-2.h-full
-                    - if 'unlabel' in actions and org_perms.flows.flow_update
-                      - if 'unlabel' in actions
-                        .button-action.object-btn-unlabel
-                          .glyph.icon-box
-                          -trans "Remove Label"
-
-                    - if 'restore' in actions and org_perms.flows.flow_update
-                      .button-action.object-btn-restore
-                        .-mt-1.mr-2.glyph.icon-checkmark
-                        -trans "Activate"
-
-                    - if 'archive' in actions and org_perms.flows.flow_update
-                      .button-action.object-btn-archive
-                        .-mt-1.mr-2.glyph.icon-box
-                        -trans "Archive"
-
-                    - if 'label' in actions and org_perms.flows.flow_update
+                  .whitespace-no-break.flex.items-center.ml-2.justify-end.flex-wrap
+                    -for label in object.labels.all
+                      %a(href="{% url 'flows.flow_filter' label.uuid %}" onclick="goto(event, this)")
+                        %temba-label.mx-1.my-1(data-id='{{label.id}}' icon="label" clickable)
+                          {{label.name}}
 
 
-                      %temba-dropdown.items-stretch.flex.flex-column(arrowoffset="14" offsetx="6" offsety="10" arrowsize="8")
-                      
-                        .button-action(slot="toggle")
-                          .-mt-1.mr-2.glyph.icon-tag{style:"width:16px"}
-                          -trans "Label"
-                        .rounded-lg.border-none.px-4.py-3(slot="dropdown" style="min-width:200px")
-                          -for label in labels
-                            .lbl-menu(href='#' onclick='labelObjectRows({{label.id}}, false, wireTableListeners)' data-id='{{label.id}}')
-                              .flex.items-center.py-1.linked
-                                .glyph.message-label.label-checkbox
-                                .name.px-1.-mb-1
-                                  {{label.name}}
+              %td
+                -if not object.is_archived
+                  .whitespace-no-break.flex.items-center.justify-end
+                    -if object.has_issues
+                      .icon-warning.mr-2(title='{{ _("Has issues")|escapejs }}')
 
-                          -if org_perms.flows.flowlabel_create
-                            -if labels
-                              %li.separator.-mx-4.border-b.my-3
-                            %li
-                              .lbl-menu.add-label.linked{onclick:"handleAddLabelClicked()"}
-                                -trans "New Label"
+                    -if object.run_stats.total
+                      .linked.mr-2.whitespace-nowrap(onclick="goto(event)" href='{% url "flows.flow_results" object.uuid %}')
+                        {{ object.run_stats.total|intcomma }}
 
-                    .button-action.object-btn-export{onclick:'exportFlows()'}
-                      .-mt-1.mr-2.glyph.icon-excel
-                      -trans "Download Results"
+                      \/
+                      .text-center.linked.mx-2.whitespace-nowrap(onclick="goto(event)" href='{% url "flows.flow_results" object.uuid %}')
+                        {{ object.run_stats.completion }}%
 
-              .flex-grow.ml-2.items-center
-                -block title-text
-                  .page-title.leading-tight
-                    {{title}}
-              .gear-links
-                -include "spa_page_menu.haml"
+          -empty
+            %tr.empty_list
+              %td(colspan='99')
+                -trans "No matching flows."
 
-            -if view.search_fields
-              %form#search-form.mb-4(method="get")
-                %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
-                -if request.REQUEST.status
-                  %input(type='hidden' name='status' value='{{request.REQUEST.status}}')
-
-            -block flow-list
-              %table.list.lined.selectable
-                -if object_list
-                  %thead
-                    %tr
-                      -if org_perms.flows.flow_update
-                        %th
-                      %th
-                      %th
-                      %th.whitespace-nowrap
-                        Runs / Completion
-
-                %tbody
-                  -for object in object_list
-                    %tr.object-row.select-row{ data-object-uuid: "{{object.uuid}}", data-object-id: "{{ object.id }}",  onrowclick:'gotoLink("{% url "flows.flow_editor" object.uuid%}")'}
-
-                      -if org_perms.flows.flow_update
-                        %td.checkbox.object-row-checkbox
-                          %temba-checkbox{onclick:"handleRowSelection(this)"}
-
-                      %td.w-full
-                        .flex.flex-wrap.flex-end
-                          .flex.inline.whitespace-nowrap
-                            -if object.flow_type == 'V'
-                              .icon-phone.mr-2.leading-snug
-                            -elif object.flow_type == 'S'
-                              .icon-mobile.mr-2.leading-snug
-                            .name.whitespace-normal
-                              {{ object.name }}
-
-                      %td
-                        .whitespace-no-break.flex.items-center.ml-2.justify-end
-                          -for label in object.labels.all
-                            .lbl.linked.ml-2{ onclick:"goto(event)", data-id: '{{label.pk}}', href:"{% url 'flows.flow_filter' label.uuid%}"}
-                              {{label.name}}
-
-                      %td
-                        -if not object.is_archived
-                          .whitespace-no-break.flex.items-center.justify-end
-                            -if object.has_issues
-                              .icon-warning.mr-2(title='{{ _("Has issues")|escapejs }}')
-
-                            -if object.run_stats.total
-                              .linked.mr-2.whitespace-nowrap(onclick="goto(event)" href='{% url "flows.flow_results" object.uuid %}')
-                                {{ object.run_stats.total|intcomma }}
-
-                              \/
-                              .text-center.linked.mx-2.whitespace-nowrap(onclick="goto(event)" href='{% url "flows.flow_results" object.uuid %}')
-                                {{ object.run_stats.completion }}%
-
-                  -empty
-                    %tr.empty_list
-                      %td(colspan='99')
-                        -trans "No matching flows."
-
-            -block paginator
-              .mt-3
-                -include "includes/pagination.haml"
-
-          -else
-            -include "flows/empty_include.html"
+    -else
+      -include "flows/empty_include.html"
 
 -block extra-script
   {{ block.super }}
 
   :javascript
+
+    function handleRowClicked(event) {
+
+      if (event.target.tagName == "TEMBA-CHECKBOX") {
+        return;
+      }
+
+      var row = event.target.closest("tr");
+      var uuid = row.getAttribute("data-uuid");
+      goto(event, row);
+    }
+
     {% if org_perms.flows.flow_update %}
       function handleAddLabelClicked() {
         document.getElementById("create-label-modal").open = true;
@@ -201,14 +101,15 @@
       function handleCreateLabelModalLoaded(event) {
         window.lastChecked = getCheckedIds();
         var body = event.detail.body;
-        body.querySelector("#id_flows").value = window.lastChecked.join();
+        body.querySelector("#id_flows").value = lastChecked.join();
       }
 
       function handleCreateLabelModalSubmitted(event) {
         refresh(function() { recheckIds(); }, true);
+        refreshMenu();
       }
 
-      function exportFlows(){
+      function handleDownloadFlowResults(evt){
         var endpoint = '{% url "flows.flow_export_results" %}';
         var modal = document.querySelector("#export-results");
         var ids = getCheckedIds();
@@ -216,5 +117,8 @@
           modal.setAttribute("endpoint", endpoint + '?ids=' + ids);
         }
         modal.open = true;
+
+        evt.preventDefault();
+        evt.stopPropagation();
       }
     {% endif %}

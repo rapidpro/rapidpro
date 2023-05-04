@@ -10,7 +10,7 @@
   {{object.name}}
 
 -block subtitle
-  .flex.flex-col
+  .flex.flex-col.mb-4
     .summary
       .inline-block
         -if object.group.is_active
@@ -43,7 +43,7 @@
         %tr.campaign-event{valign:'center', data-event-id:'{{event.pk}}'}
 
           %td.whitespace-nowrap
-            %a(href="{% url 'campaigns.campaignevent_read' event.campaign.uuid event.pk %}")
+            %span.linked(onclick="goto(event)" href="{% url 'campaigns.campaignevent_read' event.campaign.uuid event.pk %}")
               {{ event.offset_display }} {{ event.relative_to.name }}
 
           %td.w-full
@@ -53,6 +53,6 @@
                   {{event.get_message}}
             -else
               .start-flow
-                Start the
-                %a.href{ href: "{% url 'flows.flow_editor' event.flow.uuid %}" }= event.flow.name
-                flow.
+                Start
+                %span.linked(onclick="goto(event)" href="{% url 'flows.flow_editor' event.flow.uuid %}")
+                  {{event.flow.name}}

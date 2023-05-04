@@ -1,6 +1,20 @@
--extends "contacts/contact_list.haml"
+-extends "contacts/contact_list_spa.haml"
 -load i18n
 
--block subtitle
+-block extra-script
+  {{block.super}}
+
+  :javascript
+    var menu = document.querySelector("temba-content-menu");      
+    menu.addEventListener("temba-selection", function(event) {
+      var item = event.detail;
+      if (item.id == "contacts_delete_all") {
+        handleDeleteAllConfirmation_spa();
+      }
+    });
+
+-block title-text
+  .title.leading-tight
+    -trans "Archived Contacts"
   .text-base.mt-1
     -trans "These contacts have been removed from all groups and can be deleted permanently."

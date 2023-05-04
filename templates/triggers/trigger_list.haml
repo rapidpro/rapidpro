@@ -1,145 +1,92 @@
 -extends "smartmin/list.html"
 -load smartmin sms temba compress humanize i18n
 
--block page-title
-  {{ title }}
-
--block page-top
-
--block top-form
-  -if view.search_fields
-    -block search-form
-      %form
-        %input.input-medium.search-query{type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
-        -if request.REQUEST.status
-          %input{type:'hidden', name:'status', value:'{{request.REQUEST.status}}'}
-
 -block content
-  #pjax
-    -block pjax
-      .lp-frame
-        .left
-          .flex.flex-col
-            -if org_perms.triggers.trigger_create
-              .w-64.mr-5
-                .button-primary.block(onclick="goto(event)" href="{% url 'triggers.trigger_create' %}")
-                  -trans "New Trigger"
 
-          .lp-nav.upper
-            -for folder in main_folders
-              .lp-nav-item(class='{% if folder.url == request_url %}font-normal{% endif %}')
-                .name(onclick="goto(event)" href='{{ folder.url }}')
-                  {{ folder.label }}
-                .count(onclick="goto(event)" href='{{ folder.url }}')
-                  {{ folder.count | intcomma }}
-          .lp-nav.upper
-            .font-normal.uppercase.text-xs.pb-1.text-gray-500
-              -trans "Types"
-            -for folder in type_folders
-              .lp-nav-item(class='{% if folder.url == request_url %}font-normal{% endif %}')
-                .name(onclick="goto(event)" href='{{ folder.url }}')
-                  {{ folder.label }}
-                .count(onclick="goto(event)" href='{{ folder.url }}')
-                  {{ folder.count | intcomma }}
+  %form#search-form.mb-4(method="get" action="{{request.path}}")
+    %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+    -if request.REQUEST.status
+      %input(type='hidden' name='status' value='{{request.REQUEST.status}}')
+    %input.hidden(type="submit")
 
-        .right
-          .flex.w-full.items-end.mb-4
-            -block action-buttons
-              -if org_perms.triggers.trigger_update
-                .action-buttons.list-buttons-container.h-full.mr-2.flex-grow
-                  .list-buttons.flex.items-center.-mx-2.h-full
-                    -if 'restore' in actions
-                      .button-action.object-btn-restore
-                        .-mt-1.mr-2.glyph.icon-checkmark
-                        -trans "Activate"
+  .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
+    -include "includes/short_pagination.haml"
+    -if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000
+      .text-gray-400.text-sm.self-end.mt-2
+        -trans "To view more than 10,000 search results, save it as a group."
 
-                    -if 'archive' in actions
-                      .button-action.object-btn-archive
-                        .-mt-1.mr-2.glyph.icon-box
-                        -trans "Archive"
-            .flex-grow.ml-2.items-center
-              -block title-text
-                .page-title.leading-tight
-                  {{title}}
-            .gear-links
-              -include "spa_page_menu.haml"
+  .flex-grow.overflow-y-auto.shadow
+    %table.list.scrolled.lined.selectable{class: '{% if org_perms.flows.flow_update %}selectable{% endif %}'}
+      %tbody
+        -for obj in object_list
+          %tr.trigger.object-row(data-object-id="{{ obj.id }}" onclick="updateTrigger(event, {{obj.id}})")
+            - if org_perms.triggers.trigger_update
+              %td.trigger.checkbox.object-row-checkbox
+                %temba-checkbox{onclick:"handleRowSelection(this)"}
+            %td.w-full
+              -if obj.trigger_type == 'K'
+                -trans "The keyword"
+                %b
+                  {{obj.keyword}}
+              -elif obj.trigger_type == 'M'
+                -trans "A missed call"
+              -elif obj.trigger_type == 'C'
+                -trans "An uncaught message"
+              -elif obj.trigger_type == 'V'
+                -trans "An inbound call"
+              -elif obj.trigger_type == 'N'
+                -trans "A new conversation"
+                -if obj.channel
+                  -trans "on"
+                  %b
+                    %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
 
-          %form#search-form.mb-4(method="get")
-            %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
-            -if request.REQUEST.status
-              %input(type='hidden' name='status' value='{{request.REQUEST.status}}')
+              -elif obj.trigger_type == 'R'
+                -trans "The referrer id"
+                %b
+                  {{obj.referrer_id}}
+                -if obj.channel
+                  -trans "on the channel"
+                  .linked.inline{onclick:"goto(event)", href:'{%url "channels.channel_read" obj.channel.uuid %}'}
+                    {{obj.channel}}
 
-          -block trigger-list
-            %table.list.trigger-list.lined{class: '{% if org_perms.flows.flow_update %}selectable{% endif %}'}
-              %tbody
-                -for obj in object_list
-                  %tr.trigger.object-row{ data-object-id: "{{ obj.id }}", onrowclick:"updateTrigger(event, {{obj.id}})" }
-                    - if org_perms.triggers.trigger_update
-                      %td.trigger.checkbox.object-row-checkbox
-                        %temba-checkbox{onclick:"handleRowSelection(this)"}
-                    %td.w-full
-                      -if obj.trigger_type == 'K'
-                        -trans "The keyword"
-                        %b
-                          {{obj.keyword}}
-                      -elif obj.trigger_type == 'M'
-                        -trans "A missed call"
-                      -elif obj.trigger_type == 'C'
-                        -trans "An uncaught message"
-                      -elif obj.trigger_type == 'V'
-                        -trans "An inbound call"
-                      -elif obj.trigger_type == 'N'
-                        -trans "A new conversation"
-                        -if obj.channel
-                          -trans "on"
-                          %b
-                            %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
+              -elif obj.trigger_type == 'T'
+                -trans "A closed ticket"
 
-                      -elif obj.trigger_type == 'R'
-                        -trans "The referrer id"
-                        %b
-                          {{obj.referrer_id}}
-                        -if obj.channel
-                          -trans "on the channel"
-                          .linked.inline{onclick:"goto(event)", href:'{%url "channels.channel_read" obj.channel.uuid %}'}
-                            {{obj.channel}}
+              -if obj.schedule
+                -trans "Start"
+              -else
+                -trans "starts"
+              .linked.inline(onclick="goto(event)" href='{%url "flows.flow_editor" obj.flow.uuid %}')<
+                {{obj.flow}}
 
-                      -elif obj.trigger_type == 'T'
-                        -trans "A closed ticket"
+              -if obj.schedule
+                -if obj.schedule.next_fire and not obj.is_archived
+                  {{ obj.schedule.get_display }}
+                -else
+                  -trans "is not scheduled"
 
-                      -if obj.schedule
-                        -trans "Start"
-                      -else
-                        -trans "starts"
-                      .linked.inline(onclick="goto(event)" href='{%url "flows.flow_editor" obj.flow.uuid %}')<
-                        {{obj.flow}}
+            %td(onclick="handleRowSelection(this)" width="250px")
+              -include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all
 
-                      -if obj.schedule
-                        -if obj.schedule.next_fire and not obj.is_archived
-                          {{ obj.schedule.get_display }}
-                        -else
-                          -trans "is not scheduled"
+          -empty
+            %tr.empty_list
+              %td{colspan:3}
+                -trans "No matching triggers."
 
-                    %td(onclick="handleRowSelection(this)" width="250px")
-                      -include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all
+      -block extra-rows
 
-                  -empty
-                    %tr.empty_list
-                      %td{colspan:3}
-                        -trans "No matching triggers."
-
-              -block extra-rows
-
-            -block paginator
-              .mt-3
-                -include "includes/pagination.haml"
-  
   %temba-modax#update-trigger
 -block extra-script
   {{ block.super }}
 
   :javascript
     function updateTrigger(event, id) {
+
+      if (event.target.tagName == "TEMBA-CHECKBOX") {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
       var modal = document.querySelector("#update-trigger");

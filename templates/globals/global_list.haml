@@ -10,93 +10,70 @@
 
 -block page-top
 
--block top-form
-  -if view.search_fields
-    -block search-form
-      %form
-        %input.input-medium.search-query(type="text" placeholder="Search" name="search" value="{{ search }}")
-
 -block content
-  #pjax
-    -block pjax
-      .lp-frame
-        .left
-          - if view.add_button and org_perms.globals.global_create
-            %temba-modax#create-global-modal{ header:'{% trans "Create Global" %}', endpoint:"{% url 'globals.global_create' %}"}
-              .button-primary.mb-3.block
-                -trans "Create Global"
+  .mb-4
+    -blocktrans trimmed
+      Globals are variables you can use across all of your flows but 
+      manage the value for in one place. For example, you might use them 
+      to store API keys you need to access external services or product names that
+      might change later.
 
-          .lp-nav.upper
-            .font-normal.uppercase.text-xs.pb-1.text-gray-500
-              - trans "Globals"
-            - for category in global_categories
-              .lp-nav-item{'class': '{% if request.path == category.url %}font-normal{% endif %}' }
-                .name{onclick:"goto(event)", href:'{{category.url}}'}
-                  {{category.label}}
-                .count{onclick:"goto(event)", href:'{{category.url}}'}
-                  {{ category.count | intcomma }}
+  .flex
+    .flex-grow.self-end.items-end
+      .flex.flex-col
+        %form#search-form(method="get" action="{{request.path}}")
+          %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+          %input.hide(type="submit")
+        -if search_error
+          .mb-4.ml-2
+            %span.search-error
+              =search_error
 
-        .right
-          .flex.w-full.mb-4.items-end.flex-wrap.justify-end.-mt-2{style:"min-height:41px"}
-            .flex-grow.ml-1.self-end.items-end
-              .flex.flex-col.pr-12
-                .page-title.leading-tight
-                  -block title
-                    {{title}}
-                .subtitle
-                  -block subtitle
+  -block pre-table
+    %temba-modax(id='update-global' header='{{_("Update Global")|escapejs}}' -temba-redirected="refreshGlobals")
+    %temba-modax(id='delete-global' header='{{_("Delete Global")|escapejs}}' -temba-redirected="refreshGlobals")
+    %temba-modax(id='usages-global' header='{{_("Usages")|escapejs}}')
 
-          %form#search-form.mb-4(method="get")
-            %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
 
-          -if search_error
-            .mb-4.ml-2
-              %span.search-error
-                =search_error
-          -elif search
-            .mb-4.ml-1.text-base.leading-relaxed
-              -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
-                Found {{ results_count }} global matching <i>{{search}}</i>.
-              -plural
-                Found {{ results_count }} globals matching <i>{{search}}</i>.
 
-          -block pre-table
-            %temba-modax(id='update-global' header='{{_("Update Global")|escapejs}}')
-            %temba-modax(id='delete-global' header='{{_("Delete Global")|escapejs}}')
-            %temba-modax(id='usages-global' header='{{_("Usages")|escapejs}}')
+  .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
+    -include "includes/short_pagination.haml"
+  .flex-grow.overflow-y-auto.shadow  
+    %table.list.lined.scrolled{class:"{% if org_perms.contacts.contact_update %}selectable{%endif%}"}
+      %tbody
+        -for obj in object_list
+          %tr.hover-linked.update{onclick:"showUpdateGlobalModal({{obj.id}})"}
+            %td(style="min-width: 50px")
+              {{ obj.name }}
+            %td(style="font-family: monospace; font-size: 12px;")
+              @globals.{{ obj.key }}
+            %td
+              .break-all
+                {{ obj.value|truncatechars:25 }}
+            %td.w-12
+              .flex.text-center
+                -with usage_count=obj.usage_count
+                  -if usage_count
+                  .uses(onclick='event.stopPropagation(); showGlobalUsagesModal("{{ obj.uuid }}");')
+                    .lbl.linked
+                      {% blocktrans trimmed count counter=usage_count %}
+                        {{counter}} Use
+                      {% plural %}
+                        {{counter}} Uses
+                      {% endblocktrans %}
 
-          %table.list.object-list.lined{class:"{% if org_perms.contacts.contact_update %}selectable{%endif%}"}
-            %tbody
-              - for obj in object_list
-                %tr.hover-linked.update{onclick:"showUpdateGlobalModal({{obj.id}})"}
-                  %td(style="min-width: 240px")
-                    {{ obj.name }}
-                  %td(style="font-family: monospace; font-size: 12px;")
-                    @globals.{{ obj.key }}
-                  %td
-                    {{ obj.value|truncatechars:128 }}
-                  %td.w-12
-                    .flex.text-center
-                      -with usage_count=obj.usage_count
-                        -if usage_count
-                          .uses(onclick='event.stopPropagation(); showGlobalUsagesModal("{{ obj.uuid }}");')
-                            .lbl.linked
-                              {% blocktrans trimmed count counter=usage_count %}
-                                {{counter}} Use
-                              {% plural %}
-                                {{counter}} Uses
-                              {% endblocktrans %}
-
-                  %td.w-10
-                    -if org_perms.globals.global_delete
-                      .pl-2.pt-1.delete-link.linked.text-gray-400(style="visibility:hidden" onclick='event.stopPropagation(); showDeleteGlobalModal("{{obj.uuid}}");')
-                        %span.icon-close
-              -empty
-                %tr.empty_list
-                  %td(colspan='99')
-                    -trans "No globals"
-          .flex.flex-col.mb-16
-            -include "includes/pagination.haml"
+            %td.w-10
+              -if org_perms.globals.global_delete
+                .pl-2.pt-1.delete-link.linked.text-gray-400(style="visibility:hidden" onclick='event.stopPropagation(); showDeleteGlobalModal("{{obj.uuid}}");')
+                    %span.icon-close
+        -empty
+          %tr.empty_list
+            %td(colspan='99')
+              -if search
+                -blocktrans trimmed with search=search
+                  No globals found for {{search}}
+              -else
+                -trans "No globals"
 
 -block extra-script
   {{ block.super }}
