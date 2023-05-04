@@ -72,7 +72,7 @@ line-length = 119
 [tool.ruff]
 line-length = 120
 select = ["E", "F", "W"]
-ignore = ["E501", "F405"]
+ignore = ["E741", "E501", "F405"]
 fix = true
 
 [tool.isort]
