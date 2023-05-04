@@ -8,7 +8,7 @@ class CRUDLTestMixin:
     def get_test_users(self):
         return self.user, self.editor, self.agent, self.admin, self.admin2
 
-    def requestView(self, url, user, *, post_data=None, checks=(), choose_org=None, new_ui=False, **kwargs):
+    def requestView(self, url, user, *, post_data=None, checks=(), choose_org=None, **kwargs):
         """
         Requests the given URL as a specific user and runs a set of checks
         """
@@ -25,14 +25,7 @@ class CRUDLTestMixin:
         for check in checks:
             check.pre_check(self, pre_msg_prefix)
 
-        if new_ui or "HTTP_TEMBA_SPA" in kwargs:
-            self.client.cookies.load({"nav": "new"})
-
         response = self.client.post(url, post_data, **kwargs) if method == "POST" else self.client.get(url, **kwargs)
-
-        # remove our spa cookie if we added it
-        if new_ui or "HTTP_TEMBA_SPA" in kwargs:
-            self.client.cookies.load({"nav": "old"})
 
         for check in checks:
             check.check(self, response, msg_prefix)
@@ -40,7 +33,7 @@ class CRUDLTestMixin:
         return response
 
     def assertReadFetch(
-        self, url, *, allow_viewers, allow_editors, allow_agents=False, context_object=None, status=200, new_ui=False
+        self, url, *, allow_viewers, allow_editors, allow_agents=False, context_object=None, status=200
     ):
         """
         Fetches a read view as different users
@@ -55,7 +48,7 @@ class CRUDLTestMixin:
             else:
                 checks = [LoginRedirectOr404()]
 
-            return self.requestView(url, user, checks=checks, choose_org=self.org, new_ui=new_ui)
+            return self.requestView(url, user, checks=checks, choose_org=self.org)
 
         as_user(None, allowed=False)
         as_user(viewer, allowed=allow_viewers)
@@ -75,7 +68,6 @@ class CRUDLTestMixin:
         context_objects=None,
         context_object_count=None,
         status=200,
-        new_ui=False,
     ):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
@@ -90,7 +82,7 @@ class CRUDLTestMixin:
             else:
                 checks = [LoginRedirect()]
 
-            return self.requestView(url, user, checks=checks, choose_org=self.org, new_ui=new_ui)
+            return self.requestView(url, user, checks=checks, choose_org=self.org)
 
         as_user(None, allowed=False)
         as_user(viewer, allowed=allow_viewers)

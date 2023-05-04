@@ -1460,7 +1460,6 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertEqual(("restore",), response.context["actions"])
 
-        self.new_ui()
         # can restore it
         self.client.post(reverse("triggers.trigger_archived"), {"action": "restore", "objects": trigger1.id})
 
@@ -1550,7 +1549,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         catchall_url = reverse("triggers.trigger_type", kwargs={"type": "catch_all"})
 
         response = self.assertListFetch(
-            keyword_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1], new_ui=True
+            keyword_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1]
         )
         self.assertEqual("/trigger/keyword", response.headers[TEMBA_MENU_SELECTION])
         self.assertEqual(("archive",), response.context["actions"])

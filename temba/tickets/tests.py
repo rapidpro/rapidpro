@@ -301,8 +301,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(bad_topic_link)
         self.assertEqual(404, response.status_code)
 
-        # fetch with spa flag
-        self.new_ui()
         response = self.client.get(
             list_url,
             content_type="application/json",

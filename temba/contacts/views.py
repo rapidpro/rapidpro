@@ -21,7 +21,6 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
-from django.db.models import Count
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
 from django.http import Http404, HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
@@ -826,11 +825,6 @@ class ContactCRUDL(SmartCRUDL):
 
             context["all_contact_fields"] = all_contact_fields
 
-            # add contact.language to the context
-            if contact.language:
-                lang_name = languages.get_name(contact.language)
-                context["contact_language"] = lang_name or contact.language
-
             # calculate time after which timeline should be repeatedly refreshed - five minutes ago lets us pick up
             # status changes on new messages
             context["recent_start"] = datetime_to_timestamp(timezone.now() - timedelta(minutes=5))
@@ -1197,14 +1191,9 @@ class ContactCRUDL(SmartCRUDL):
 
     class Update(SpaMixin, ComponentFormMixin, NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
-        success_url = "uuid@contacts.contact_read"
+        success_url = "hide"
         success_message = ""
         submit_button_name = _("Save Changes")
-
-        def get_success_url(self):
-            if self.is_spa():
-                return "hide"
-            return super().get_success_url()
 
         def derive_exclude(self):
             obj = self.get_object()
@@ -1600,50 +1589,8 @@ class ContactFieldListView(SpaMixin, OrgPermsMixin, SmartListView):
 
     template_name = "contacts/contactfield_list.haml"
 
-    def _get_static_context_data(self, **kwargs):
-        org = self.request.org
-        org_count, org_limit = ContactField.get_org_limit_progress(self.org)
-
-        active_user_fields = self.queryset.filter(org=org, is_active=True)
-        featured_count = active_user_fields.filter(show_in_table=True).count()
-
-        type_counts = (
-            active_user_fields.values("value_type")
-            .annotate(type_count=Count("value_type"))
-            .order_by("-type_count", "value_type")
-        )
-        value_type_map = {vt[0]: vt[1] for vt in ContactField.TYPE_CHOICES}
-        types = [
-            {
-                "label": value_type_map[type_cnt["value_type"]],
-                "count": type_cnt["type_count"],
-                "url": reverse("contacts.contactfield_filter_by_type", args=type_cnt["value_type"]),
-                "value_type": type_cnt["value_type"],
-            }
-            for type_cnt in type_counts
-        ]
-
-        return {
-            "total_count": org_count,
-            "total_limit": org_limit,
-            "cf_categories": [
-                {"label": "All", "count": org_count, "url": reverse("contacts.contactfield_list")},
-                {"label": "Featured", "count": featured_count, "url": reverse("contacts.contactfield_featured")},
-            ],
-            "cf_types": types,
-        }
-
     def get_queryset(self, **kwargs):
-        qs = super().get_queryset(**kwargs)
-        qs = qs.collect_usage().filter(org=self.request.org, is_active=True)
-
-        return qs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        if not self.is_spa():
-            context.update(self._get_static_context_data(**kwargs))
-        return context
+        return super().get_queryset(**kwargs).collect_usage().filter(org=self.request.org, is_active=True)
 
 
 class FieldLookupMixin:

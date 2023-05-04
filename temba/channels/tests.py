@@ -389,13 +389,13 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # non-org users can't view our channels
         self.login(self.non_org_user)
+
         tel_channel_read_url = reverse("channels.channel_read", args=[self.tel_channel.uuid])
         response = self.client.get(tel_channel_read_url)
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
-        # new ui path
         self.login(self.user)
-        self.new_ui()
+
         response = self.client.get(tel_channel_read_url)
         self.assertEqual(f"/settings/channels/{self.tel_channel.uuid}", response.headers[TEMBA_MENU_SELECTION])
 
@@ -1122,13 +1122,8 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.get(config_url)
         self.assertContains(response, "To finish configuring your connection")
-
-        self.new_ui()
-        response = self.client.get(config_url)
-        self.assertContains(response, "To finish configuring your connection")
         self.assertEqual(f"/settings/channels/{self.ex_channel.uuid}", response.context[TEMBA_MENU_SELECTION])
 
-        self.old_ui()
         # can't view configuration of channel in other org
         response = self.client.get(reverse("channels.channel_configuration", args=[self.other_org_channel.uuid]))
         self.assertLoginRedirect(response)
@@ -1719,7 +1714,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         )
 
         self.login(self.admin)
-        self.new_ui()
+
         response = self.client.get(msg1_url)
         self.assertEqual(f"/settings/channels/{self.channel.uuid}", response.headers[TEMBA_MENU_SELECTION])
 
@@ -1896,10 +1891,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(list_url)
         self.assertEqual([failed_log, success_log], list(response.context["object_list"]))
 
-        self.new_ui()
         response = self.client.get(list_url)
         self.assertEqual(f"/settings/channels/{self.channel.uuid}", response.headers[TEMBA_MENU_SELECTION])
-        self.old_ui()
 
         # check error logs only
         response = self.client.get(list_url + "?errors=1")

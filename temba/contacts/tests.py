@@ -98,7 +98,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         mr_mocks.contact_search('name != ""', contacts=[])
         smart = self.create_group("No Name", query='name = ""')
 
-        with self.assertNumQueries(19):
+        with self.assertNumQueries(18):
             response = self.client.get(list_url)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
@@ -509,12 +509,10 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # login as admin
         self.login(self.admin)
-        self.new_ui()
 
         response = self.client.get(read_url)
         self.assertContains(response, "Joe")
         self.assertEqual("/contact/active", response.headers[TEMBA_MENU_SELECTION])
-        self.old_ui()
 
         # block the contact
         joe.block(self.admin)
@@ -522,11 +520,9 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.assertContentMenu(read_url, self.admin, ["Edit"])
 
-        self.new_ui()
         response = self.client.get(read_url)
         self.assertContains(response, "Joe")
         self.assertEqual("/contact/blocked", response.headers[TEMBA_MENU_SELECTION])
-        self.old_ui()
 
         # can't access a deleted contact
         joe.release(self.admin)
@@ -547,25 +543,6 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # invalid uuid should return 404
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
-
-    def test_read_language(self):
-        joe = self.create_contact("Joe", phone="123")
-        read_url = reverse("contacts.contact_read", args=[joe.uuid])
-
-        # this is a bogus
-        joe.language = "zzz"
-        joe.save(update_fields=("language",))
-        response = self.requestView(read_url, self.admin)
-
-        # should just show the language code instead of the language name
-        self.assertContains(response, "zzz")
-
-        joe.language = "fra"
-        joe.save(update_fields=("language",))
-        response = self.requestView(read_url, self.admin)
-
-        # with a proper code, we should see the language
-        self.assertContains(response, "French")
 
     def test_scheduled(self):
         contact1 = self.create_contact("Joe", phone="+1234567890")
@@ -2980,7 +2957,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Joe Blow")
         self.assertContains(response, "Frank Smith")
         self.assertContains(response, "Billy Nophone")
-        self.assertContains(response, "Joe and Frank")
 
         # make sure Joe's preferred URN is in the list
         self.assertContains(response, "blow80")
@@ -3169,10 +3145,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         # update it to something else
         self.set_contact_field(self.joe, "state", "eastern province")
 
-        # check the read page
-        response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
-        self.assertContains(response, "Eastern Province")
-
         # update joe - change his tel URN
         data = dict(
             name="Joe Blow", urn__tel__1="+250 783835665", order__urn__tel__1="0", status=Contact.STATUS_ACTIVE
@@ -3332,29 +3304,15 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             dict(contact_field=district.id, field_value="rwamagana"),
         )
 
-        response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
-
-        self.assertContains(response, "Eastern Province")
-        self.assertContains(response, "Rwamagana")
-
         # change the name of the Rwamagana boundary, our display should change appropriately as well
         rwamagana = AdminBoundary.objects.get(name="Rwamagana")
         rwamagana.update(name="Rwa-magana")
         self.assertEqual("Rwa-magana", rwamagana.name)
 
-        # assert our read page is correct
-        response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
-        self.assertContains(response, "Eastern Province")
-        self.assertContains(response, "Rwa-magana")
-
         # change our field to a text field
         state.value_type = ContactField.TYPE_TEXT
         state.save()
         self.set_contact_field(self.joe, "state", "Rwama Value")
-
-        # should now be using stored string_value instead of state name
-        response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
-        self.assertContains(response, "Rwama Value")
 
         # try to push into a dynamic group
         self.login(self.admin)
@@ -4734,10 +4692,6 @@ class ContactFieldTest(TembaTest):
 
         # there are 2 featured fields
         self.assertEqual(len(response.context_data["object_list"]), 2)
-
-        self.assertEqual(len(response.context_data["cf_categories"]), 2)
-        self.assertEqual(len(response.context_data["cf_types"]), 1)
-
         self.assertTrue(response.context_data["is_featured_category"])
 
     def test_view_filter_by_type(self):

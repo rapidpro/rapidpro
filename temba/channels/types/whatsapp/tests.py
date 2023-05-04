@@ -560,10 +560,8 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
         # check if templates view contains the sync logs link menu item
         self.assertContentMenu(templates_url, self.admin, ["Sync Logs"])
 
-        self.new_ui()
         response = self.client.get(templates_url)
         self.assertEqual(f"/settings/channels/{channel.uuid}", response.context[TEMBA_MENU_SELECTION])
-        self.old_ui()
 
         foo.is_active = False
         foo.save()
@@ -577,10 +575,8 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
         self.assertContains(response, channel.name)
         self.assertContentMenu(sync_url, self.admin, ["Message Templates"])
 
-        self.new_ui()
         response = self.client.get(sync_url)
         self.assertEqual(f"/settings/channels/{channel.uuid}", response.context[TEMBA_MENU_SELECTION])
-        self.old_ui()
 
         # sync logs and message templates not accessible by user from other org
         self.login(self.admin2)

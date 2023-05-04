@@ -1423,7 +1423,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(15):
+        with self.assertNumQueries(14):
             self.client.get(inbox_url)
 
         response = self.assertListFetch(
@@ -1512,7 +1512,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(15):
+        with self.assertNumQueries(14):
             self.client.get(flows_url)
 
         response = self.assertListFetch(
@@ -1536,7 +1536,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(15):
+        with self.assertNumQueries(14):
             self.client.get(archived_url)
 
         response = self.assertListFetch(
@@ -1584,7 +1584,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(16):
+        with self.assertNumQueries(14):
             self.client.get(outbox_url)
 
         # messages sorted by created_on
@@ -1645,7 +1645,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(13):
             self.client.get(sent_url)
 
         # messages sorted by sent_on
@@ -1676,7 +1676,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(13):
             self.client.get(failed_url)
 
         response = self.assertListFetch(
