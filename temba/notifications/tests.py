@@ -397,38 +397,3 @@ class NotificationTest(TembaTest):
         self.assertEqual(2, Notification.get_unseen_count(self.org, self.editor))
         self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
         self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
-
-
-class NotificationCRUDLTest(TembaTest):
-    def test_list(self):
-        list_url = reverse("notifications.notification_list")
-
-        # simulate an export finishing
-        export = ExportContactsTask.create(self.org, self.editor)
-        ExportFinishedNotificationType.create(export)
-
-        # not access for anon
-        self.assertLoginRedirect(self.client.get(list_url))
-
-        # check for user with no notifications
-        self.login(self.user)
-        response = self.client.get(list_url)
-        self.assertEqual({"results": []}, response.json())
-
-        # check for editor who should have an export completed notification
-        self.login(self.editor)
-        response = self.client.get(list_url)
-        self.assertEqual(
-            {
-                "results": [
-                    {
-                        "type": "export:finished",
-                        "created_on": matchers.ISODate(),
-                        "target_url": f"/assets/download/contact_export/{export.id}/",
-                        "is_seen": False,
-                        "export": {"type": "contact"},
-                    }
-                ]
-            },
-            response.json(),
-        )
