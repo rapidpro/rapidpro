@@ -589,15 +589,7 @@ class CampaignTest(TembaTest):
         self.set_contact_field(self.nonfarmer, "planting_date", f"1/7/{current_year+3}")
         self.assertEqual(1, EventFire.objects.filter(event__is_active=True).count())
 
-        planting_date_field = self.org.fields.get(key="planting_date")
-
-        self.client.post(reverse("contacts.contact_update", args=[self.farmer1.id]), post_data)
-
-        response = self.client.post(
-            reverse("contacts.contact_update_fields", args=[self.farmer1.id]),
-            dict(contact_field=planting_date_field.id, field_value=f"4/8/{current_year-2}"),
-        )
-        self.assertRedirect(response, reverse("contacts.contact_read", args=[self.farmer1.uuid]))
+        self.set_contact_field(self.farmer1, "planting_date", f"4/8/{current_year-2}")
 
         event = CampaignEvent.objects.filter(is_active=True).first()
 
