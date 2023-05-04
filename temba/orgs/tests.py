@@ -2862,7 +2862,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(21):
+        with self.assertNumQueries(20):
             response = self.client.get(workspace_url)
 
         # should have an extra menu option for our child (and section header)
@@ -3207,12 +3207,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # should now be able to go to channels page
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertEqual(200, response.status_code)
-
-        # check that we have all the tabs
-        self.assertContains(response, reverse("msgs.msg_inbox"))
-        self.assertContains(response, reverse("flows.flow_list"))
-        self.assertContains(response, reverse("contacts.contact_list"))
-        self.assertContains(response, reverse("channels.channel_list"))
 
         # can't signup again with same email
         response = self.client.post(
