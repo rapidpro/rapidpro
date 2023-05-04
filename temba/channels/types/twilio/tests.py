@@ -33,6 +33,12 @@ class TwilioTypeTest(TembaTest):
         response = self.client.get(claim_twilio, follow=True)
         self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio.connect"))
 
+        # check the connect view has no initial set
+        response = self.client.get(reverse("channels.types.twilio.connect"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(list(response.context["form"].fields.keys()), ["account_sid", "account_token", "loc"])
+        self.assertFalse(response.context["form"].initial)
+
         # attach a Twilio account to the session
         session = self.client.session
         session[Channel.CONFIG_TWILIO_ACCOUNT_SID] = "account-sid"
@@ -132,6 +138,14 @@ class TwilioTypeTest(TembaTest):
                 # no more credential in the session
                 self.assertFalse(Channel.CONFIG_TWILIO_ACCOUNT_SID in self.client.session)
                 self.assertFalse(Channel.CONFIG_TWILIO_AUTH_TOKEN in self.client.session)
+
+        # check the connect view has initial set
+        response = self.client.get(reverse("channels.types.twilio.connect"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(list(response.context["form"].fields.keys()), ["account_sid", "account_token", "loc"])
+        self.assertEqual(
+            response.context["form"].initial, {"account_sid": "account-sid", "account_token": "account-token"}
+        )
 
         session = self.client.session
         session[Channel.CONFIG_TWILIO_ACCOUNT_SID] = "account-sid"
@@ -386,6 +400,7 @@ class TwilioTypeTest(TembaTest):
             response = self.client.get(connect_url)
             self.assertEqual(200, response.status_code)
             self.assertEqual(list(response.context["form"].fields.keys()), ["account_sid", "account_token", "loc"])
+            self.assertFalse(response.context["form"].initial)
 
             # try posting without an account token
             post_data = {"account_sid": "AccountSid"}

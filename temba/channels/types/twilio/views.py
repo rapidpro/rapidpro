@@ -426,6 +426,22 @@ class Connect(SpaMixin, OrgPermsMixin, SmartFormView):
     menu_path = "/settings/workspace"
     title = "Connect Twilio"
 
+    def derive_initial(self):
+        initial = super().derive_initial()
+
+        org = self.request.org
+
+        last_twilio_channel = (
+            Channel.objects.filter(is_active=True, org=org, channel_type__in=["T", "TMS", "TWA"])
+            .order_by("-created_on")
+            .first()
+        )
+        if last_twilio_channel:
+            initial["account_sid"] = last_twilio_channel.config.get(Channel.CONFIG_ACCOUNT_SID, "")
+            initial["account_token"] = last_twilio_channel.config.get(Channel.CONFIG_AUTH_TOKEN, "")
+
+        return initial
+
     def get_success_url(self):
         claim_type = self.request.GET.get("claim_type", "twilio")
 
