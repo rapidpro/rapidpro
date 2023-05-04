@@ -825,11 +825,6 @@ class ContactCRUDL(SmartCRUDL):
 
             context["all_contact_fields"] = all_contact_fields
 
-            # add contact.language to the context
-            if contact.language:
-                lang_name = languages.get_name(contact.language)
-                context["contact_language"] = lang_name or contact.language
-
             # calculate time after which timeline should be repeatedly refreshed - five minutes ago lets us pick up
             # status changes on new messages
             context["recent_start"] = datetime_to_timestamp(timezone.now() - timedelta(minutes=5))

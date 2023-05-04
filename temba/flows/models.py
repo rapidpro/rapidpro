@@ -2132,7 +2132,7 @@ class FlowLabel(TembaModel):
 
         return changed
 
-    def __str__(self):
+    def __str__(self):  # pragma: needs cover
         return self.name
 
     class Meta:

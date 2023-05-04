@@ -3208,12 +3208,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertEqual(200, response.status_code)
 
-        # check that we have all the tabs
-        self.assertContains(response, reverse("msgs.msg_inbox"))
-        self.assertContains(response, reverse("flows.flow_list"))
-        self.assertContains(response, reverse("contacts.contact_list"))
-        self.assertContains(response, reverse("channels.channel_list"))
-
         # can't signup again with same email
         response = self.client.post(
             signup_url,
@@ -3618,51 +3612,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("Africa/Nairobi", str(self.org.timezone))
         self.assertEqual("Y", self.org.date_format)
         self.assertEqual("es", self.org.language)
-
-    def test_org_timezone(self):
-        self.assertEqual(self.org.timezone, pytz.timezone("Africa/Kigali"))
-        self.assertEqual(("%d-%m-%Y", "%d-%m-%Y %H:%M"), self.org.get_datetime_formats())
-        self.assertEqual(("%d-%m-%Y", "%d-%m-%Y %H:%M:%S"), self.org.get_datetime_formats(seconds=True))
-
-        contact = self.create_contact("Bob", phone="+250788382382")
-        self.create_incoming_msg(contact, "My name is Frank")
-
-        self.login(self.admin)
-        response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
-
-        # Check the message datetime
-        created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
-        self.assertContains(response, created_on.strftime("%H:%M").lower())
-
-        # change the org timezone to "Africa/Nairobi"
-        self.org.timezone = pytz.timezone("Africa/Nairobi")
-        self.org.save()
-
-        response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
-
-        # checkout the message should have the datetime changed by timezone
-        created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
-        self.assertContains(response, created_on.strftime("%H:%M").lower())
-
-        self.org.date_format = "M"
-        self.org.save()
-
-        self.assertEqual(("%m-%d-%Y", "%m-%d-%Y %H:%M"), self.org.get_datetime_formats())
-
-        response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
-
-        created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
-        self.assertContains(response, created_on.strftime("%I:%M %p").lower().lstrip("0"))
-
-        self.org.date_format = "Y"
-        self.org.save()
-
-        self.assertEqual(("%Y-%m-%d", "%Y-%m-%d %H:%M"), self.org.get_datetime_formats())
-
-        response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
-
-        created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
-        self.assertContains(response, created_on.strftime("%H:%M").lower())
 
     def test_delete(self):
         self.org.features = [Org.FEATURE_CHILD_ORGS]

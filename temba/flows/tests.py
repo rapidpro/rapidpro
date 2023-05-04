@@ -1,7 +1,6 @@
 import decimal
 import io
 import os
-import re
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
@@ -14,7 +13,6 @@ from django.db.models.functions import TruncDate
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.encoding import force_str
 
 from temba import mailroom
 from temba.api.models import Resthook
@@ -3039,162 +3037,79 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
 
-        with patch("temba.flows.views.FlowCRUDL.RunTable.paginate_by", 1):
-            response = self.client.get(reverse("flows.flow_results", args=[flow.uuid]))
+        response = self.client.get(reverse("flows.flow_results", args=[flow.uuid]))
+        self.assertEqual(200, response.status_code)
 
-            # the rulesets should be present as column headers
-            self.assertContains(response, "Beer")
-            self.assertContains(response, "Color")
-            self.assertContains(response, "Name")
+        # fetch counts endpoint, should have 2 color results (one is a test contact)
+        response = self.client.get(reverse("flows.flow_category_counts", args=[flow.uuid]))
+        counts = response.json()["counts"]
+        self.assertEqual("Color", counts[0]["name"])
+        self.assertEqual(2, counts[0]["total"])
 
-            # fetch counts endpoint, should have 2 color results (one is a test contact)
-            response = self.client.get(reverse("flows.flow_category_counts", args=[flow.uuid]))
-            counts = response.json()["counts"]
-            self.assertEqual("Color", counts[0]["name"])
-            self.assertEqual(2, counts[0]["total"])
+        FlowCRUDL.ActivityChart.HISTOGRAM_MIN = 0
+        FlowCRUDL.ActivityChart.PERIOD_MIN = 0
 
-            # fetch our intercooler rows for the run table
-            response = self.client.get(reverse("flows.flow_run_table", args=[flow.id]))
-            self.assertEqual(len(response.context["runs"]), 1)
-            self.assertEqual(200, response.status_code)
-            self.assertContains(response, "Jimmy")
-            self.assertContains(response, "red")
-            self.assertContains(response, "Red")
-            self.assertContains(response, "turbo")
-            self.assertContains(response, "Turbo King")
-            self.assertNotContains(response, "skol")
+        # and some charts
+        response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
 
-            # one more row to add
-            self.assertEqual(1, len(response.context["runs"]))
-            # self.assertNotContains(response, "ic-append-from")
+        # we have two waiting runs, one failed run
+        self.assertEqual(response.context["failed"], 1)
+        self.assertEqual(response.context["active"], 0)
+        self.assertEqual(response.context["waiting"], 2)
+        self.assertEqual(response.context["completed"], 0)
+        self.assertEqual(response.context["expired"], 0)
+        self.assertEqual(response.context["interrupted"], 0)
+        self.assertContains(response, "3 Responses")
 
-            next_link = re.search('ic-append-from="(.*)" ic-trigger-on', force_str(response.content)).group(1)
-            response = self.client.get(next_link)
-            self.assertEqual(200, response.status_code)
+        # now complete the flow for Pete
+        (
+            pete_session.resume(msg=self.create_incoming_msg(pete, "primus"))
+            .set_result("Beer", "primus", "Primus", "primus")
+            .visit(name_prompt)
+            .send_msg("Mmmmm... delicious Primus. Lastly, what is your name?")
+            .visit(name_split)
+            .wait()
+            .resume(msg=self.create_incoming_msg(pete, "Pete"))
+            .visit(end_prompt)
+            .complete()
+            .save()
+        )
 
-            FlowCRUDL.ActivityChart.HISTOGRAM_MIN = 0
-            FlowCRUDL.ActivityChart.PERIOD_MIN = 0
+        # now only one waiting, one completed, one failed and 5 total responses
+        response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
 
-            # and some charts
-            response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
+        self.assertEqual(response.context["failed"], 1)
+        self.assertEqual(response.context["active"], 0)
+        self.assertEqual(response.context["waiting"], 1)
+        self.assertEqual(response.context["completed"], 1)
+        self.assertEqual(response.context["expired"], 0)
+        self.assertEqual(response.context["interrupted"], 0)
+        self.assertContains(response, "5 Responses")
 
-            # we have two waiting runs, one failed run
-            self.assertEqual(response.context["failed"], 1)
-            self.assertEqual(response.context["active"], 0)
-            self.assertEqual(response.context["waiting"], 2)
-            self.assertEqual(response.context["completed"], 0)
-            self.assertEqual(response.context["expired"], 0)
-            self.assertEqual(response.context["interrupted"], 0)
-            self.assertContains(response, "3 Responses")
+        # they all happened on the same day
+        response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
+        points = response.context["histogram"]
+        self.assertEqual(1, len(points))
 
-            # now complete the flow for Pete
-            (
-                pete_session.resume(msg=self.create_incoming_msg(pete, "primus"))
-                .set_result("Beer", "primus", "Primus", "primus")
-                .visit(name_prompt)
-                .send_msg("Mmmmm... delicious Primus. Lastly, what is your name?")
-                .visit(name_split)
-                .wait()
-                .resume(msg=self.create_incoming_msg(pete, "Pete"))
-                .visit(end_prompt)
-                .complete()
-                .save()
-            )
+        # put one of our counts way in the past so we get a different histogram scale
+        count = FlowPathCount.objects.filter(flow=flow).order_by("id")[1]
+        count.period = count.period - timedelta(days=25)
+        count.save()
+        response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
+        points = response.context["histogram"]
+        self.assertTrue(timedelta(days=24) < (points[1]["bucket"] - points[0]["bucket"]))
 
-            response = self.client.get(reverse("flows.flow_run_table", args=[flow.id]))
-            self.assertEqual(len(response.context["runs"]), 1)
-            self.assertEqual(200, response.status_code)
-            self.assertContains(response, "Pete")
-            self.assertNotContains(response, "Jimmy")
+        # pick another scale
+        count.period = count.period - timedelta(days=600)
+        count.save()
+        response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
 
-            # one more row to add
-            self.assertEqual(1, len(response.context["runs"]))
+        # this should give us a more compressed histogram
+        points = response.context["histogram"]
+        self.assertTrue(timedelta(days=620) < (points[1]["bucket"] - points[0]["bucket"]))
 
-            next_link = re.search('ic-append-from="(.*)" ic-trigger-on', force_str(response.content)).group(1)
-            response = self.client.get(next_link)
-            self.assertEqual(200, response.status_code)
-            self.assertEqual(1, len(response.context["runs"]))
-            self.assertContains(response, "Jimmy")
-
-            # now only one waiting, one completed, one failed and 5 total responses
-            response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
-
-            self.assertEqual(response.context["failed"], 1)
-            self.assertEqual(response.context["active"], 0)
-            self.assertEqual(response.context["waiting"], 1)
-            self.assertEqual(response.context["completed"], 1)
-            self.assertEqual(response.context["expired"], 0)
-            self.assertEqual(response.context["interrupted"], 0)
-            self.assertContains(response, "5 Responses")
-
-            # they all happened on the same day
-            response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
-            points = response.context["histogram"]
-            self.assertEqual(1, len(points))
-
-            # put one of our counts way in the past so we get a different histogram scale
-            count = FlowPathCount.objects.filter(flow=flow).order_by("id")[1]
-            count.period = count.period - timedelta(days=25)
-            count.save()
-            response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
-            points = response.context["histogram"]
-            self.assertTrue(timedelta(days=24) < (points[1]["bucket"] - points[0]["bucket"]))
-
-            # pick another scale
-            count.period = count.period - timedelta(days=600)
-            count.save()
-            response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
-
-            # this should give us a more compressed histogram
-            points = response.context["histogram"]
-            self.assertTrue(timedelta(days=620) < (points[1]["bucket"] - points[0]["bucket"]))
-
-            self.assertEqual(24, len(response.context["hod"]))
-            self.assertEqual(7, len(response.context["dow"]))
-
-        # delete a run
-        with patch("temba.flows.views.FlowCRUDL.RunTable.paginate_by", 100):
-            response = self.client.get(reverse("flows.flow_run_table", args=[flow.id]))
-            self.assertEqual(len(response.context["runs"]), 2)
-
-            self.client.post(reverse("flows.flowrun_delete", args=[response.context["runs"][0].id]))
-            response = self.client.get(reverse("flows.flow_run_table", args=[flow.id]))
-            self.assertEqual(len(response.context["runs"]), 1)
-
-        with patch("temba.flows.views.FlowCRUDL.RunTable.paginate_by", 1):
-            # create one empty run
-            FlowRun.objects.create(
-                org=self.org,
-                flow=flow,
-                contact=pete,
-                responded=True,
-                status=FlowRun.STATUS_COMPLETED,
-                exited_on=timezone.now(),
-            )
-
-            # fetch our intercooler rows for the run table
-            response = self.client.get(reverse("flows.flow_run_table", args=[flow.id]))
-            self.assertEqual(len(response.context["runs"]), 1)
-            self.assertEqual(200, response.status_code)
-
-        with patch("temba.flows.views.FlowCRUDL.RunTable.paginate_by", 1):
-            # create one empty run
-            FlowRun.objects.create(
-                org=self.org,
-                flow=flow,
-                contact=pete,
-                responded=False,
-                status=FlowRun.STATUS_COMPLETED,
-                exited_on=timezone.now(),
-            )
-
-            # fetch our intercooler rows for the run table
-            response = self.client.get("%s?responded=bla" % reverse("flows.flow_run_table", args=[flow.id]))
-            self.assertEqual(len(response.context["runs"]), 1)
-            self.assertEqual(200, response.status_code)
-
-            response = self.client.get("%s?responded=true" % reverse("flows.flow_run_table", args=[flow.id]))
-            self.assertEqual(len(response.context["runs"]), 1)
+        self.assertEqual(24, len(response.context["hod"]))
+        self.assertEqual(7, len(response.context["dow"]))
 
     def test_activity(self):
         flow = self.get_flow("favorites_v13")
@@ -3243,15 +3158,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
         response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
-
-        self.assertEqual(404, response.status_code)
-
-    def test_run_table_of_inactive_flow(self):
-        flow = self.get_flow("favorites")
-        flow.release(self.admin)
-
-        self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_run_table", args=[flow.id]))
 
         self.assertEqual(404, response.status_code)
 
@@ -3874,6 +3780,40 @@ class FlowRunTest(TembaTest):
             {"59d992c6-c491-473d-a7e9-4f431d705c01": 1},
             {str(c.node_uuid): c.count for c in FlowNodeCount.objects.all()},
         )
+
+
+class FlowRunCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_delete(self):
+        contact = self.create_contact("Ann", phone="+1234567890")
+        flow = self.create_flow("Test")
+
+        run1 = FlowRun.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            flow=flow,
+            contact=contact,
+            status=FlowRun.STATUS_COMPLETED,
+            created_on=timezone.now(),
+            modified_on=timezone.now(),
+            exited_on=timezone.now(),
+        )
+        run2 = FlowRun.objects.create(
+            uuid=uuid4(),
+            org=self.org,
+            flow=flow,
+            contact=contact,
+            status=FlowRun.STATUS_COMPLETED,
+            created_on=timezone.now(),
+            modified_on=timezone.now(),
+            exited_on=timezone.now(),
+        )
+
+        delete_url = reverse("flows.flowrun_delete", args=[run1.id])
+
+        self.assertDeleteSubmit(delete_url, object_deleted=run1, success_status=200)
+
+        self.assertFalse(FlowRun.objects.filter(id=run1.id).exists())
+        self.assertTrue(FlowRun.objects.filter(id=run2.id).exists())  # unchanged
 
 
 class FlowSessionTest(TembaTest):

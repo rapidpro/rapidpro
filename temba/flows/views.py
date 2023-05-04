@@ -2,7 +2,6 @@ import logging
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
-import iso8601
 import regex
 from packaging.version import Version
 from smartmin.views import (
@@ -29,7 +28,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 
 from temba import mailroom
-from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.models import URN
 from temba.contacts.search import SearchException, parse_query
@@ -47,7 +45,7 @@ from temba.orgs.views import (
     OrgPermsMixin,
 )
 from temba.triggers.models import Trigger
-from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
+from temba.utils import analytics, gettext, json, languages, on_transaction_commit
 from temba.utils.export.views import BaseExportView
 from temba.utils.fields import (
     CheckboxWidget,
@@ -172,7 +170,7 @@ class FlowRunCRUDL(SmartCRUDL):
     model = FlowRun
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-        fields = ("pk",)
+        fields = ("id",)
         success_message = None
 
         def post(self, request, *args, **kwargs):
@@ -197,7 +195,6 @@ class FlowCRUDL(SmartCRUDL):
         "export_results",
         "editor",
         "results",
-        "run_table",
         "category_counts",
         "preview_start",
         "broadcast",
@@ -1394,48 +1391,6 @@ class FlowCRUDL(SmartCRUDL):
             context["total_runs"] = stats["total"]
             context["total_responses"] = total_responses
 
-            return context
-
-    class RunTable(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
-        """
-        Intercooler helper which renders rows of runs to be embedded in an existing table with infinite scrolling
-        """
-
-        paginate_by = 50
-
-        def get_context_data(self, *args, **kwargs):
-            context = super().get_context_data(*args, **kwargs)
-            flow = self.get_object()
-            runs = flow.runs.all()
-
-            if str_to_bool(self.request.GET.get("responded", "true")):
-                runs = runs.filter(responded=True)
-
-            # paginate
-            modified_on = self.request.GET.get("modified_on", None)
-            if modified_on:
-                id = self.request.GET["id"]
-
-                modified_on = iso8601.parse_date(modified_on)
-                runs = runs.filter(modified_on__lte=modified_on).exclude(id=id)
-
-            # we grab one more than our page to denote whether there's more to get
-            runs = list(runs.order_by("-modified_on")[: self.paginate_by + 1])
-            context["more"] = len(runs) > self.paginate_by
-            runs = runs[: self.paginate_by]
-
-            result_fields = flow.metadata["results"]
-
-            # populate result values
-            for run in runs:
-                results = run.results
-                run.value_list = []
-                for result_field in result_fields:
-                    run.value_list.append(results.get(result_field["key"], None))
-
-            context["runs"] = runs
-            context["start_date"] = flow.org.get_delete_date(archive_type=Archive.TYPE_FLOWRUN)
-            context["paginate_by"] = self.paginate_by
             return context
 
     class CategoryCounts(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):

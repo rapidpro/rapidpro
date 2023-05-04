@@ -2501,9 +2501,7 @@ class OrgCRUDL(SmartCRUDL):
             return HttpResponseRedirect(reverse("orgs.org_manage"))
 
     class SubOrgs(SpaMixin, ContentMenuMixin, OrgPermsMixin, InferOrgMixin, SmartListView):
-        fields = ("name", "contacts", "created_on")
         title = _("Workspaces")
-        link_fields = []
         menu_path = "/settings/workspaces"
 
         def build_content_menu(self, menu):
@@ -2512,9 +2510,6 @@ class OrgCRUDL(SmartCRUDL):
             enabled = Org.FEATURE_CHILD_ORGS in org.features or Org.FEATURE_NEW_ORGS in org.features
             if self.has_org_perm("orgs.org_create") and enabled:
                 menu.add_modax(_("New Workspace"), "new_workspace", reverse("orgs.org_create"))
-
-        def get_contacts(self, obj):
-            return obj.get_contact_count()
 
         def derive_queryset(self, **kwargs):
             queryset = super().derive_queryset(**kwargs)

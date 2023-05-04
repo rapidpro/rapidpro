@@ -552,9 +552,6 @@ class EventFire(models.Model):
     # result of this event fire or null if we haven't been fired
     fired_result = models.CharField(max_length=1, null=True, choices=RESULTS)
 
-    def is_firing_soon(self):
-        return self.scheduled < timezone.now()
-
     def get_relative_to_value(self):
         value = self.contact.get_field_value(self.event.relative_to)
         return value.replace(second=0, microsecond=0) if value else None

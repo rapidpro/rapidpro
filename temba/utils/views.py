@@ -1,4 +1,3 @@
-import json
 import logging
 from urllib.parse import quote, urlencode
 
@@ -17,6 +16,7 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from temba import __version__ as temba_version
+from temba.utils import json
 from temba.utils.fields import CheckboxWidget, DateWidget, InputWidget, SelectMultipleWidget, SelectWidget
 
 logger = logging.getLogger(__name__)

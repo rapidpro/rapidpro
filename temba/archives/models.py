@@ -108,10 +108,6 @@ class Archive(models.Model):
                     Bucket=settings.ARCHIVE_BUCKET, Delete={"Objects": [{"Key": o["Key"]} for o in archive_objs]}
                 )
 
-    def filename(self):
-        url_parts = urlparse(self.url)
-        return url_parts.path.split("/")[-1]
-
     def get_download_link(self):
         if self.url:
             s3_client = s3.client()

@@ -993,7 +993,7 @@ class Label(TembaModel, DependencyMixin):
         self.modified_by = user
         self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
 
-    def __str__(self):
+    def __str__(self):  # pragma: needs cover
         return self.name
 
     class Meta:
