@@ -249,19 +249,7 @@
         {% lessblock %}
           :plain
             @import "style.less";
-
-            // any brand styling tweaks
-            @import (optional, reference) "../brands/style.less";
-            @import (optional) "../brands/{{brand.slug}}/less/style.less";
-
         {% endlessblock %}
-
-        // any additional brand styling such as fonts, etc
-        -for style in brand.styles
-          -if 'less' in style
-            %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}{{style}}', media:'all'}
-          -else
-            %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}{{style}}", media:'all'}
 
       -compress css
         %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/tailwind.css", type:"text/css"}
@@ -297,37 +285,15 @@
   .flex.flex-col.h-full
 
     -block header
-      <!-- Header -->
-      -if user_org
-        .org-header.self-end
-          .pull-right.toggle
-            .icon-menu-2
 
-          .org
-            {{ user_org.name }}
+      #header.flex.items-center
+        .flex-grow
+          %a(href="{% if user.is_authenticated %}{% url 'orgs.org_start' %}{% else %}{% ssl_brand_url 'users.user_check_login' %}{% endif %}" title="{{brand.name}}" class="hover:no-underline")
+            %img#header-logo(src="{{STATIC_URL}}{{brand.logo}}" style="max-height:40px")
 
-          .other-orgs.hide
-            -for org in user_orgs
-              -if org != user_org
-                .org.text-primary
-                  %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
-                    {{ org.name }}
-            -if org_perms.orgs.org_create
-              -if "new_orgs" in user_org.features or "child_orgs" in user_org.features
-                %hr
-                .org.text-primary
-                  <a onclick="handleNewWorkspaceClicked(event)">{% trans "New Workspace" %}</a>
-
-      #header
-        &nbsp;
-
-
-      %a#big-logo.logo.icon-logo{href:"{% if user.is_authenticated %}{% url 'orgs.org_start' %}{% else %}/{% endif %}", title:"{{brand.name}}", class:"hover:no-underline"}
-        .name
-          {{brand.name}}
-
-      -block nav
-        -include 'includes/nav.html'
+        .menu
+          -block nav
+            -include 'includes/nav.html'
 
     -if messages
       -block messages
@@ -526,52 +492,11 @@
     :javascript
 
       var params = '{{url_params|safe}}';
-      $(document).ready(function(){
-        if (window.scheduleRefresh) {
-          scheduleRefresh();
-        }
-      });
 
       $(document).ready(function() {
         if (navigator.appVersion.indexOf("Win")!=-1) {
           $("html").addClass("windows");
         }
-
-        $('.org-header > .toggle').on('click', function(evt) {
-          evt.stopPropagation();
-          var header = $('.org-header');
-          if (header.hasClass('expanded')) {
-            header.removeClass('expanded');
-          } else {
-            header.addClass('expanded');
-          }
-        });
-
-        $('.org-header').on('click', function(evt) {
-          url = '{% url "orgs.org_workspace" %}';
-          evt.stopPropagation();
-          if (evt.ctrlKey || evt.metaKey){
-            window.open(url,'_blank')
-          } else {
-            window.location = url;
-          }
-
-        });
-
-        $('#menu .more').hoverIntent({
-          over:function() {
-            // $('.submenu').hide();
-            $(this).find('.submenu-container').slideDown(250);
-            $(this).parents("#menu").addClass('expanded');
-            // $(this).find('.submenu').show();
-          },
-          out:function() {
-          $(this).find('.submenu-container').slideUp(200);
-          $(this).parents("#menu").removeClass('expanded');
-            //$(this).find('.submenu').hide();
-          },
-          timeout:300
-        });
 
         $(".posterize").click(function(event){
 

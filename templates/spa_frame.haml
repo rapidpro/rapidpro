@@ -252,7 +252,7 @@
     var static_url = "{{STATIC_URL}}";
 
     var tembaVersion= "{{temba_version}}";
-    var org = {% if active_org %}{{active_org.id}}{% else %}null{%endif%};
+    var org_id = {% if active_org %}{{active_org.id}}{% else %}null{%endif%};
     var pendingRequests = [];
     function fetchAjax(url, container, options) {
 
@@ -276,7 +276,8 @@
       var controller = new AbortController();
       pendingRequests.push(controller);
       options["signal"] = controller.signal;
-      fetch(url, options).then(function(response) {
+      var toFetch = url;
+      fetch(toFetch, options).then(function(response) {
 
         // remove our controller
         pendingRequests = pendingRequests.filter(
@@ -288,12 +289,12 @@
         // if we have a version mismatch, reload the page
         var version = response.headers.get("x-temba-version");
         if (tembaVersion != version) {
-          document.location.href = url;
+          document.location.href = toFetch;
           return;
         }
 
-        if (org != response.headers.get("x-temba-org")) {
-          document.location.href = url;
+        if (org_id != response.headers.get("x-temba-org")) {
+          document.location.href = toFetch;
           return;
         }
 
