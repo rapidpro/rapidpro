@@ -1238,32 +1238,10 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Welcomes")
         self.assertContains(response, "Registered")
 
-    def test_read_archived(self):
-        group = self.create_group("Reporters", contacts=[])
-        campaign = self.create_campaign(self.org, "Welcomes", group)
-        read_url = reverse("campaigns.campaign_read", args=[campaign.uuid])
+        self.assertContentMenu(read_url, self.admin, ["New Event", "Export", "Edit", "Archive"])
 
-        response = self.requestView(read_url, self.admin)
+        campaign.archive(self.admin)
 
-        # page title and main content title should NOT contain (Archived)
-        self.assertContains(response, "Welcomes", count=3)
-        self.assertContains(response, "Archived", count=0)
-        self.assertContentMenu(
-            read_url,
-            self.admin,
-            legacy_items=["New Event", "Export", "Edit", "Archive"],
-            spa_items=["New Event", "Export", "Edit", "Archive"],
-        )
-
-        # archive the campaign
-        campaign.is_archived = True
-        campaign.save()
-
-        response = self.client.get(read_url)
-
-        # page title and main content title should contain (Archived)
-        self.assertContains(response, "Welcomes", count=3)
-        self.assertContains(response, "Archived", count=2)
         self.assertContentMenu(read_url, self.admin, ["Activate", "Export"])
 
     def test_archive_and_activate(self):
@@ -1363,8 +1341,8 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[campaign2, campaign1])
 
-        self.assertContentMenu(list_url, self.user, legacy_items=[], spa_items=[])
-        self.assertContentMenu(list_url, self.admin, legacy_items=[], spa_items=["New Campaign"])
+        self.assertContentMenu(list_url, self.user, [])
+        self.assertContentMenu(list_url, self.admin, ["New Campaign"])
 
 
 class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -1399,41 +1377,16 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Welcomes")
         self.assertContains(response, "1 week after")
         self.assertContains(response, "Registered")
-
-        # fetch in the new ui
-        response = self.assertReadFetch(
-            read_url, allow_viewers=True, allow_editors=True, context_object=event, new_ui=True
-        )
         self.assertEqual("/campaign/active/", response.headers.get(TEMBA_MENU_SELECTION))
+        self.assertContentMenu(read_url, self.admin, ["Edit", "Delete"])
+
         event.campaign.is_archived = True
         event.campaign.save()
 
         # archived campaigns should focus the archived menu
-        response = self.assertReadFetch(
-            read_url, allow_viewers=True, allow_editors=True, context_object=event, new_ui=True
-        )
+        response = self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=event)
         self.assertEqual("/campaign/archived/", response.headers.get(TEMBA_MENU_SELECTION))
 
-    def test_read_on_archived_campaign(self):
-        event = self.campaign1.events.order_by("id").first()
-        read_url = reverse("campaigns.campaignevent_read", args=[event.campaign.uuid, event.id])
-
-        response = self.requestView(read_url, self.admin)
-
-        # page title and main content title should NOT contain Archived
-        self.assertContains(response, "Welcomes", count=2)
-        self.assertContains(response, "Archived", count=0)
-        self.assertContentMenu(read_url, self.admin, ["Edit", "Delete"])
-
-        # archive the campaign
-        event.campaign.is_archived = True
-        event.campaign.save()
-
-        response = self.requestView(read_url, self.admin)
-
-        # page title and main content title should contain Archived
-        self.assertContains(response, "Welcomes", count=2)
-        self.assertContains(response, "Archived", count=1)
         self.assertContentMenu(read_url, self.admin, ["Delete"])
 
     def test_create(self):

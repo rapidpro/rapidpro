@@ -3293,7 +3293,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # by default orgs don't have this feature
         response = self.client.get(children_url)
-        self.assertContentMenu(children_url, self.admin, legacy_items=["Dashboard"], spa_items=[])
+        self.assertContentMenu(children_url, self.admin, [])
 
         # trying to access the modal directly should redirect
         response = self.client.get(create_url)
@@ -3303,7 +3303,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.save(update_fields=("features",))
 
         response = self.client.get(children_url)
-        self.assertContentMenu(children_url, self.admin, legacy_items=["Dashboard"], spa_items=["New Workspace"])
+        self.assertContentMenu(children_url, self.admin, ["New Workspace"])
 
         # give org2 the same feature
         self.org2.features = [Org.FEATURE_NEW_ORGS]
@@ -3342,7 +3342,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # by default orgs don't have the new_orgs or child_orgs feature
         response = self.client.get(children_url)
-        self.assertContentMenu(children_url, self.admin, legacy_items=["Dashboard"], spa_items=[])
+        self.assertContentMenu(children_url, self.admin, [])
 
         # trying to access the modal directly should redirect
         response = self.client.get(create_url)
@@ -3352,7 +3352,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.save(update_fields=("features",))
 
         response = self.client.get(children_url)
-        self.assertContentMenu(children_url, self.admin, legacy_items=["Dashboard"], spa_items=["New Workspace"])
+        self.assertContentMenu(children_url, self.admin, ["New Workspace"])
 
         # give org2 the same feature
         self.org2.features = [Org.FEATURE_CHILD_ORGS]
@@ -3438,7 +3438,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, "Manage Workspaces")
 
         # enable child orgs and create some child orgs
-        self.org.features = [Org.FEATURE_CHILD_ORGS]
+        self.org.features = [Org.FEATURE_CHILD_ORGS, Org.FEATURE_USERS]
         self.org.save(update_fields=("features",))
         child1 = self.org.create_new(self.admin, "Child Org 1", self.org.timezone, as_child=True)
         child2 = self.org.create_new(self.admin, "Child Org 2", self.org.timezone, as_child=True)
@@ -3455,7 +3455,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         child1_edit_url = reverse("orgs.org_edit_sub_org") + f"?org={child1.id}"
         child1_accounts_url = reverse("orgs.org_manage_accounts_sub_org") + f"?org={child1.id}"
 
-        self.assertContains(response, child1_edit_url)
+        self.assertContains(response, "Child Org 1")
         self.assertContains(response, child1_accounts_url)
 
         # we can also access the manage accounts page
@@ -3613,51 +3613,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("Y", self.org.date_format)
         self.assertEqual("es", self.org.language)
 
-    def test_org_timezone(self):
-        self.assertEqual(self.org.timezone, pytz.timezone("Africa/Kigali"))
-        self.assertEqual(("%d-%m-%Y", "%d-%m-%Y %H:%M"), self.org.get_datetime_formats())
-        self.assertEqual(("%d-%m-%Y", "%d-%m-%Y %H:%M:%S"), self.org.get_datetime_formats(seconds=True))
-
-        contact = self.create_contact("Bob", phone="+250788382382")
-        self.create_incoming_msg(contact, "My name is Frank")
-
-        self.login(self.admin)
-        response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
-
-        # Check the message datetime
-        created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
-        self.assertContains(response, created_on.strftime("%H:%M").lower())
-
-        # change the org timezone to "Africa/Nairobi"
-        self.org.timezone = pytz.timezone("Africa/Nairobi")
-        self.org.save()
-
-        response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
-
-        # checkout the message should have the datetime changed by timezone
-        created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
-        self.assertContains(response, created_on.strftime("%H:%M").lower())
-
-        self.org.date_format = "M"
-        self.org.save()
-
-        self.assertEqual(("%m-%d-%Y", "%m-%d-%Y %H:%M"), self.org.get_datetime_formats())
-
-        response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
-
-        created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
-        self.assertContains(response, created_on.strftime("%I:%M %p").lower().lstrip("0"))
-
-        self.org.date_format = "Y"
-        self.org.save()
-
-        self.assertEqual(("%Y-%m-%d", "%Y-%m-%d %H:%M"), self.org.get_datetime_formats())
-
-        response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
-
-        created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
-        self.assertContains(response, created_on.strftime("%H:%M").lower())
-
     def test_delete(self):
         self.org.features = [Org.FEATURE_CHILD_ORGS]
         self.org.save(update_fields=("features",))
@@ -3704,7 +3659,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertStaffOnly(manage_url)
         self.assertStaffOnly(update_url)
-        self.new_ui()
 
         def assertOrgFilter(query: str, expected_orgs: list):
             response = self.client.get(manage_url + query)
@@ -3994,7 +3948,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertStaffOnly(list_url)
 
-        response = self.requestView(list_url, self.customer_support, new_ui=True)
+        response = self.requestView(list_url, self.customer_support)
         self.assertEqual(9, len(response.context["object_list"]))
         self.assertEqual("/staff/users/all", response.headers[TEMBA_MENU_SELECTION])
 

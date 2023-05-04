@@ -1067,9 +1067,10 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         )
 
         # filter page should have an export option
-        response = self.requestView(reverse("msgs.msg_filter", args=[label.uuid]), self.admin)
+        filter_url = reverse("msgs.msg_filter", args=[label.uuid])
+        response = self.requestView(filter_url, self.admin)
         self.assertContains(response, label.name)
-        self.assertContentMenuContains(reverse("msgs.msg_filter", args=[label.uuid]), self.admin, "Download")
+        self.assertContentMenu(filter_url, self.admin, ["Edit", "Download", "Usages", "Delete"])
 
         # try export with user label
         self.assertExcelSheet(
@@ -1496,10 +1497,8 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         msg1.refresh_from_db()
         self.assertEqual({label1, label3}, set(msg1.labels.all()))
 
-        self.assertContentMenu(inbox_url, self.user, legacy_items=["Download"], spa_items=["Download"])
-        self.assertContentMenu(
-            inbox_url, self.admin, legacy_items=["Download"], spa_items=["Send Message", "New Label", "Download"]
-        )
+        self.assertContentMenu(inbox_url, self.user, ["Download"])
+        self.assertContentMenu(inbox_url, self.admin, ["Send Message", "New Label", "Download"])
 
     def test_flows(self):
         flow = self.create_flow("Test")
@@ -1585,7 +1584,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(15):
+        with self.assertNumQueries(14):
             self.client.get(outbox_url)
 
         # messages sorted by created_on

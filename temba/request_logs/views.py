@@ -1,7 +1,6 @@
 from smartmin.views import SmartCRUDL, SmartListView, SmartReadView, smart_url
 
 from django.shortcuts import get_object_or_404
-from django.urls import reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
@@ -63,10 +62,6 @@ class HTTPLogCRUDL(SmartCRUDL):
         fields = ("flow", "url", "status_code", "request_time", "created_on")
         menu_path = "/flow/history/webhooks"
 
-        def build_content_menu(self, menu):
-            if not self.is_spa():
-                menu.add_link(_("Flows"), reverse("flows.flow_list"))
-
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).filter(org=self.request.org, flow__isnull=False)
 
@@ -89,7 +84,7 @@ class HTTPLogCRUDL(SmartCRUDL):
         def get_source(self, uuid):
             return Ticketer.objects.filter(uuid=uuid, is_active=True)
 
-    class Read(SpaMixin, ContentMenuMixin, OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         fields = ("description", "created_on")
 
         @property
@@ -102,10 +97,3 @@ class HTTPLogCRUDL(SmartCRUDL):
                 return f"/settings/classifiers/{log.classifier.uuid}"
             elif log.log_type == HTTPLog.WEBHOOK_CALLED:
                 return "/flow/history/webhooks"
-
-        def build_content_menu(self, menu):
-            object = self.get_object()
-            if object and object.classifier and not self.is_spa():
-                menu.add_link(
-                    _("Classifier Log"), reverse("request_logs.httplog_classifier", args=[object.classifier.uuid])
-                )

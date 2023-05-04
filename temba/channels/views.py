@@ -508,20 +508,6 @@ class ChannelCRUDL(SmartCRUDL):
             if obj.type.show_config_page:
                 menu.add_link(_("Settings"), reverse("channels.channel_configuration", args=[obj.uuid]))
 
-            if not self.is_spa() and not obj.is_android():
-                sender = obj.get_sender()
-                caller = obj.get_caller()
-
-                if sender:
-                    menu.add_link(_("Channel Log"), reverse("channels.channellog_list", args=[sender.uuid]))
-                elif Channel.ROLE_RECEIVE in obj.role:
-                    menu.add_link(_("Channel Log"), reverse("channels.channellog_list", args=[obj.uuid]))
-
-                if caller and caller != sender:
-                    menu.add_link(
-                        _("Call Log"), f"{reverse('channels.channellog_list', args=[caller.uuid])}?sessions=1"
-                    )
-
             if self.has_org_perm("channels.channel_update"):
                 menu.add_modax(
                     _("Edit"),
@@ -952,7 +938,7 @@ class ChannelLogCRUDL(SmartCRUDL):
     path = "logs"  # urls like /channels/logs/
     actions = ("list", "read", "msg", "call")
 
-    class List(SpaMixin, OrgPermsMixin, ContentMenuMixin, SmartListView):
+    class List(SpaMixin, OrgPermsMixin, SmartListView):
         fields = ("channel", "description", "created_on")
         link_fields = ("channel", "description", "created_on")
         paginate_by = 50
@@ -975,19 +961,6 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def derive_menu_path(self):
             return f"/settings/channels/{self.channel.uuid}"
-
-        def build_content_menu(self, menu):
-            list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
-
-            if not self.is_spa():
-                if self.folder != self.FOLDER_MESSAGES:
-                    menu.add_link(_("Messages"), list_url)
-                if self.folder != self.FOLDER_CALLS and self.channel.supports_ivr():
-                    menu.add_link(_("Calls"), f"{list_url}?calls=1")
-                if self.folder != self.FOLDER_OTHERS:
-                    menu.add_link(_("Other Interactions"), f"{list_url}?others=1")
-                if self.folder != self.FOLDER_ERRORS:
-                    menu.add_link(_("Errors"), f"{list_url}?errors=1")
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -1037,17 +1010,12 @@ class ChannelLogCRUDL(SmartCRUDL):
             context["folder"] = self.folder
             return context
 
-    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         """
         Detail view for a single channel log
         """
 
         fields = ("description", "created_on")
-
-        def build_content_menu(self, menu):
-            obj = self.get_object()
-            if not self.is_spa():
-                menu.add_link(_("Channel Log"), reverse("channels.channellog_list", args=[obj.channel.uuid]))
 
         def get_object_org(self):
             return self.get_object().channel.org
@@ -1057,7 +1025,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             context["log"] = self.object.get_display(self.request.user)
             return context
 
-    class Msg(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartListView):
+    class Msg(SpaMixin, OrgObjPermsMixin, SmartListView):
         """
         All channel logs for a message
         """
@@ -1074,10 +1042,6 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def derive_menu_path(self):
             return f"/settings/channels/{self.msg.channel.uuid}"
-
-        def build_content_menu(self, menu):
-            if not self.is_spa():
-                menu.add_link(_("More Logs"), reverse("channels.channellog_list", args=[self.msg.channel.uuid]))
 
         def get_object_org(self):
             return self.msg.org

@@ -1,4 +1,3 @@
-import json
 import logging
 from urllib.parse import quote, urlencode
 
@@ -17,6 +16,7 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from temba import __version__ as temba_version
+from temba.utils import json
 from temba.utils.fields import CheckboxWidget, DateWidget, InputWidget, SelectMultipleWidget, SelectWidget
 
 logger = logging.getLogger(__name__)
@@ -39,9 +39,6 @@ class SpaMixin(View):
     def spa_referrer_path(self) -> tuple:
         return tuple(s for s in self.request.META.get("HTTP_TEMBA_REFERER_PATH", "").split("/") if s)
 
-    def is_spa(self):
-        return self.request.COOKIES.get("nav", "old" if settings.TESTING else "new") != "old" or self.is_content_only()
-
     def is_content_only(self):
         return "HTTP_TEMBA_SPA" in self.request.META
 
@@ -49,72 +46,68 @@ class SpaMixin(View):
         templates = super().get_template_names()
         spa_templates = []
 
-        if self.is_spa():
-            for template in templates:
-                original = template.split(".")
-                if len(original) == 2:
-                    spa_template = original[0] + "_spa." + original[1]
-                if spa_template:
-                    spa_templates.append(spa_template)
+        for template in templates:
+            original = template.split(".")
+            if len(original) == 2:
+                spa_template = original[0] + "_spa." + original[1]
+            if spa_template:
+                spa_templates.append(spa_template)
+
         return spa_templates + templates
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
-        # this is for the content menu to handle links differently
-        context["is_legacy"] = 0 if self.is_spa() or self.is_content_only() else 1
         context["temba_version"] = temba_version
 
         if self.request.org:
             context["active_org"] = self.request.org
 
-        if self.is_spa():
-            if self.is_content_only():
-                context["base_template"] = "spa.html"
+        if self.is_content_only():
+            context["base_template"] = "spa.html"
+        else:
+            context["base_template"] = "spa_frame.haml"
+
+        context["is_spa"] = True
+        context["is_content_only"] = self.is_content_only()
+        context["temba_path"] = self.spa_path
+        context["temba_referer"] = self.spa_referrer_path
+        context[TEMBA_MENU_SELECTION] = self.derive_menu_path()
+
+        # the base page should prep the flow editor
+        if not self.is_content_only():
+            dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
+            prefix = "/dev" if dev_mode else settings.STATIC_URL
+
+            # get our list of assets to incude
+            scripts = []
+            styles = []
+
+            if dev_mode:  # pragma: no cover
+                response = requests.get("http://localhost:3000/asset-manifest.json")
+                data = response.json()
             else:
-                context["base_template"] = "spa_frame.haml"
+                with open("node_modules/@nyaruka/flow-editor/build/asset-manifest.json") as json_file:
+                    data = json.load(json_file)
 
-            context["is_spa"] = True
-            context["is_content_only"] = self.is_content_only()
-            context["temba_path"] = self.spa_path
-            context["temba_referer"] = self.spa_referrer_path
-            context[TEMBA_MENU_SELECTION] = self.derive_menu_path()
+            for key, filename in data.get("files").items():
+                # tack on our prefix for dev mode
+                filename = prefix + filename
 
-            # the base page should prep the flow editor
-            if not self.is_content_only():
-                dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
-                prefix = "/dev" if dev_mode else settings.STATIC_URL
+                # ignore precache manifest
+                if key.startswith("precache-manifest") or key.startswith("service-worker"):
+                    continue
 
-                # get our list of assets to incude
-                scripts = []
-                styles = []
+                # css files
+                if key.endswith(".css") and filename.endswith(".css"):
+                    styles.append(filename)
 
-                if dev_mode:  # pragma: no cover
-                    response = requests.get("http://localhost:3000/asset-manifest.json")
-                    data = response.json()
-                else:
-                    with open("node_modules/@nyaruka/flow-editor/build/asset-manifest.json") as json_file:
-                        data = json.load(json_file)
+                # javascript
+                if key.endswith(".js") and filename.endswith(".js"):
+                    scripts.append(filename)
 
-                for key, filename in data.get("files").items():
-                    # tack on our prefix for dev mode
-                    filename = prefix + filename
-
-                    # ignore precache manifest
-                    if key.startswith("precache-manifest") or key.startswith("service-worker"):
-                        continue
-
-                    # css files
-                    if key.endswith(".css") and filename.endswith(".css"):
-                        styles.append(filename)
-
-                    # javascript
-                    if key.endswith(".js") and filename.endswith(".js"):
-                        scripts.append(filename)
-
-                    context["scripts"] = scripts
-                    context["styles"] = styles
-                    context["dev_mode"] = dev_mode
+                context["scripts"] = scripts
+                context["styles"] = styles
+                context["dev_mode"] = dev_mode
 
         return context
 
@@ -126,10 +119,8 @@ class SpaMixin(View):
     def render_to_response(self, context, **response_kwargs):
         response = super().render_to_response(context, **response_kwargs)
         response.headers[TEMBA_VERSION] = temba_version
-
-        if self.is_spa():
-            response.headers[TEMBA_MENU_SELECTION] = context[TEMBA_MENU_SELECTION]
-            response.headers[TEMBA_CONTENT_ONLY] = 1 if self.is_content_only() else 0
+        response.headers[TEMBA_MENU_SELECTION] = context[TEMBA_MENU_SELECTION]
+        response.headers[TEMBA_CONTENT_ONLY] = 1 if self.is_content_only() else 0
         return response
 
 

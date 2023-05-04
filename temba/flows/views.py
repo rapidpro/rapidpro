@@ -2,9 +2,7 @@ import logging
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
-import iso8601
 import regex
-import requests
 from packaging.version import Version
 from smartmin.views import (
     SmartCreateView,
@@ -30,7 +28,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 
 from temba import mailroom
-from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.models import URN
 from temba.contacts.search import SearchException, parse_query
@@ -48,7 +45,7 @@ from temba.orgs.views import (
     OrgPermsMixin,
 )
 from temba.triggers.models import Trigger
-from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
+from temba.utils import analytics, gettext, json, languages, on_transaction_commit
 from temba.utils.export.views import BaseExportView
 from temba.utils.fields import (
     CheckboxWidget,
@@ -173,7 +170,7 @@ class FlowRunCRUDL(SmartCRUDL):
     model = FlowRun
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-        fields = ("pk",)
+        fields = ("id",)
         success_message = None
 
         def post(self, request, *args, **kwargs):
@@ -198,14 +195,12 @@ class FlowCRUDL(SmartCRUDL):
         "export_results",
         "editor",
         "results",
-        "run_table",
         "category_counts",
         "preview_start",
         "broadcast",
         "activity",
         "activity_chart",
         "filter",
-        "campaign",
         "revisions",
         "recent_contacts",
         "assets",
@@ -804,25 +799,24 @@ class FlowCRUDL(SmartCRUDL):
             ]
 
         def build_content_menu(self, menu):
-            if self.is_spa():
-                if self.has_org_perm("flows.flow_create"):
-                    menu.add_modax(
-                        _("New Flow"),
-                        "new-flow",
-                        f"{reverse('flows.flow_create')}",
-                        title=_("New Flow"),
-                        primary=True,
-                        as_button=True,
-                    )
+            if self.has_org_perm("flows.flow_create"):
+                menu.add_modax(
+                    _("New Flow"),
+                    "new-flow",
+                    f"{reverse('flows.flow_create')}",
+                    title=_("New Flow"),
+                    primary=True,
+                    as_button=True,
+                )
 
-                if self.has_org_perm("flows.flowlabel_create"):
-                    menu.add_modax(
-                        _("New Label"),
-                        "new-flow-label",
-                        f"{reverse('flows.flowlabel_create')}",
-                        title=_("New Label"),
-                        on_submit="handleCreateLabelModalSubmitted()",
-                    )
+            if self.has_org_perm("flows.flowlabel_create"):
+                menu.add_modax(
+                    _("New Label"),
+                    "new-flow-label",
+                    f"{reverse('flows.flowlabel_create')}",
+                    title=_("New Label"),
+                    on_submit="handleCreateLabelModalSubmitted()",
+                )
 
             if self.has_org_perm("orgs.org_import"):
                 menu.add_link(_("Import"), reverse("orgs.org_import"))
@@ -846,45 +840,6 @@ class FlowCRUDL(SmartCRUDL):
             queryset = super().derive_queryset(*args, **kwargs)
             queryset = queryset.filter(is_active=True, is_archived=False)
             return queryset
-
-    class Campaign(BaseList, OrgObjPermsMixin):
-        bulk_actions = ("label",)
-        campaign = None
-
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<campaign_id>\d+)/$" % (path, action)
-
-        def derive_title(self, *args, **kwargs):
-            return self.get_campaign().name
-
-        def get_object_org(self):
-            from temba.campaigns.models import Campaign
-
-            return Campaign.objects.get(pk=self.kwargs["campaign_id"]).org
-
-        def get_campaign(self):
-            if not self.campaign:
-                from temba.campaigns.models import Campaign
-
-                campaign_id = self.kwargs["campaign_id"]
-                self.campaign = Campaign.objects.filter(id=campaign_id, org=self.request.org).first()
-            return self.campaign
-
-        def get_queryset(self, **kwargs):
-            from temba.campaigns.models import CampaignEvent
-
-            flow_ids = CampaignEvent.objects.filter(
-                campaign=self.get_campaign(), flow__is_archived=False, flow__is_system=False
-            ).values("flow__id")
-
-            flows = Flow.objects.filter(id__in=flow_ids, org=self.request.org).order_by("-modified_on")
-            return flows
-
-        def get_context_data(self, *args, **kwargs):
-            context = super().get_context_data(*args, **kwargs)
-            context["current_campaign"] = self.get_campaign()
-            return context
 
     class Filter(BaseList, OrgObjPermsMixin):
         add_button = True
@@ -948,45 +903,9 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-
-            if not self.is_spa():
-                dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
-                prefix = "/dev" if dev_mode else settings.STATIC_URL
-
-                # get our list of assets to incude
-                scripts = []
-                styles = []
-
-                if dev_mode:  # pragma: no cover
-                    response = requests.get("http://localhost:3000/asset-manifest.json")
-                    data = response.json()
-                else:
-                    with open("node_modules/@nyaruka/flow-editor/build/asset-manifest.json") as json_file:
-                        data = json.load(json_file)
-
-                for key, filename in data.get("files").items():
-                    # tack on our prefix for dev mode
-                    filename = prefix + filename
-
-                    # ignore precache manifest
-                    if key.startswith("precache-manifest") or key.startswith("service-worker"):
-                        continue
-
-                    # css files
-                    if key.endswith(".css") and filename.endswith(".css"):
-                        styles.append(filename)
-
-                    # javascript
-                    if key.endswith(".js") and filename.endswith(".js"):
-                        scripts.append(filename)
-
-                    context["scripts"] = scripts
-                    context["styles"] = styles
-                    context["dev_mode"] = dev_mode
+            context["migrate"] = "migrate" in self.request.GET
 
             flow = self.object
-
-            context["migrate"] = "migrate" in self.request.GET
 
             if flow.is_archived:
                 context["mutable"] = False
@@ -1472,48 +1391,6 @@ class FlowCRUDL(SmartCRUDL):
             context["total_runs"] = stats["total"]
             context["total_responses"] = total_responses
 
-            return context
-
-    class RunTable(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
-        """
-        Intercooler helper which renders rows of runs to be embedded in an existing table with infinite scrolling
-        """
-
-        paginate_by = 50
-
-        def get_context_data(self, *args, **kwargs):
-            context = super().get_context_data(*args, **kwargs)
-            flow = self.get_object()
-            runs = flow.runs.all()
-
-            if str_to_bool(self.request.GET.get("responded", "true")):
-                runs = runs.filter(responded=True)
-
-            # paginate
-            modified_on = self.request.GET.get("modified_on", None)
-            if modified_on:
-                id = self.request.GET["id"]
-
-                modified_on = iso8601.parse_date(modified_on)
-                runs = runs.filter(modified_on__lte=modified_on).exclude(id=id)
-
-            # we grab one more than our page to denote whether there's more to get
-            runs = list(runs.order_by("-modified_on")[: self.paginate_by + 1])
-            context["more"] = len(runs) > self.paginate_by
-            runs = runs[: self.paginate_by]
-
-            result_fields = flow.metadata["results"]
-
-            # populate result values
-            for run in runs:
-                results = run.results
-                run.value_list = []
-                for result_field in result_fields:
-                    run.value_list.append(results.get(result_field["key"], None))
-
-            context["runs"] = runs
-            context["start_date"] = flow.org.get_delete_date(archive_type=Archive.TYPE_FLOWRUN)
-            context["paginate_by"] = self.paginate_by
             return context
 
     class CategoryCounts(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
@@ -2023,16 +1900,12 @@ class FlowStartCRUDL(SmartCRUDL):
     model = FlowStart
     actions = ("list",)
 
-    class List(SpaMixin, OrgFilterMixin, OrgPermsMixin, ContentMenuMixin, SmartListView):
+    class List(SpaMixin, OrgFilterMixin, OrgPermsMixin, SmartListView):
         title = _("Flow Starts")
         ordering = ("-created_on",)
         select_related = ("flow", "created_by")
         paginate_by = 25
         menu_path = "/flow/history/starts"
-
-        def build_content_menu(self, menu):
-            if not self.is_spa():
-                menu.add_link(_("Flows"), reverse("flows.flow_list"))
 
         def derive_queryset(self, *args, **kwargs):
             qs = super().derive_queryset(*args, **kwargs)

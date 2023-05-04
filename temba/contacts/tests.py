@@ -235,14 +235,12 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContentMenu(
             list_url,
             self.admin,
-            legacy_items=["Manage Fields", "Export"],
-            spa_items=["New Contact", "New Group", "Export"],
+            ["New Contact", "New Group", "Export"],
         )
         self.assertContentMenu(
             list_url + age_query,
             self.admin,
-            legacy_items=["Create Smart Group", "Manage Fields", "Export"],
-            spa_items=["Create Smart Group", "New Contact", "New Group", "Export"],
+            ["Create Smart Group", "New Contact", "New Group", "Export"],
         )
 
         # TODO: group labeling as a feature is on probation
@@ -453,8 +451,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContentMenu(
             group1_url,
             self.admin,
-            legacy_items=["Manage Fields", "Edit", "Export", "Usages", "Delete"],
-            spa_items=["Edit", "Export", "Usages", "Delete"],
+            ["Edit", "Export", "Usages", "Delete"],
         )
 
         response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
@@ -468,7 +465,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([], list(response.context["object_list"]))
         self.assertEqual(["block", "archive"], list(response.context["actions"]))
         self.assertContains(response, "tickets &gt; 0")
-        self.assertContentMenu(open_tickets_url, self.admin, ["Manage Fields", "Export", "Usages"])
+        self.assertContentMenu(open_tickets_url, self.admin, ["Export", "Usages"])
 
         # if a user tries to access a non-existent group, that's a 404
         response = self.requestView(reverse("contacts.contact_filter", args=["21343253"]), self.admin)
@@ -493,19 +490,16 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertLoginRedirect(response)
 
         self.assertContentMenu(read_url, self.user, [])
-        self.assertContentMenu(
-            read_url, self.editor, ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"]
-        )
+        self.assertContentMenu(read_url, self.editor, ["Start Flow", "Open Ticket", "-", "Edit"])
         self.assertContentMenu(
             read_url,
             self.admin,
-            legacy_items=["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"],
-            spa_items=["Start Flow", "Open Ticket", "-", "Edit"],
+            ["Start Flow", "Open Ticket", "-", "Edit"],
         )
 
         # if there's an open ticket already, don't show open ticket option
         self.create_ticket(self.org.ticketers.get(), joe, "Help")
-        self.assertContentMenu(read_url, self.editor, ["Send Message", "Start Flow", "-", "Edit", "Custom Fields"])
+        self.assertContentMenu(read_url, self.editor, ["Start Flow", "-", "Edit"])
 
         # login as viewer
         self.login(self.user)
@@ -515,24 +509,20 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # login as admin
         self.login(self.admin)
-        self.new_ui()
 
         response = self.client.get(read_url)
         self.assertContains(response, "Joe")
         self.assertEqual("/contact/active", response.headers[TEMBA_MENU_SELECTION])
-        self.old_ui()
 
         # block the contact
         joe.block(self.admin)
         self.assertTrue(Contact.objects.get(pk=joe.id, status="B"))
 
-        self.assertContentMenu(read_url, self.admin, ["Edit", "Custom Fields"])
+        self.assertContentMenu(read_url, self.admin, ["Edit"])
 
-        self.new_ui()
         response = self.client.get(read_url)
         self.assertContains(response, "Joe")
         self.assertEqual("/contact/blocked", response.headers[TEMBA_MENU_SELECTION])
-        self.old_ui()
 
         # can't access a deleted contact
         joe.release(self.admin)
@@ -553,25 +543,6 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # invalid uuid should return 404
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
-
-    def test_read_language(self):
-        joe = self.create_contact("Joe", phone="123")
-        read_url = reverse("contacts.contact_read", args=[joe.uuid])
-
-        # this is a bogus
-        joe.language = "zzz"
-        joe.save(update_fields=("language",))
-        response = self.requestView(read_url, self.admin)
-
-        # should just show the language code instead of the language name
-        self.assertContains(response, "zzz")
-
-        joe.language = "fra"
-        joe.save(update_fields=("language",))
-        response = self.requestView(read_url, self.admin)
-
-        # with a proper code, we should see the language
-        self.assertContains(response, "French")
 
     def test_scheduled(self):
         contact1 = self.create_contact("Joe", phone="+1234567890")
@@ -765,7 +736,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         MockSessionWriter(other_org_contact, self.create_flow("Test", org=self.org2)).wait().save()
 
         # now it's an option
-        self.assertContentMenuContains(read_url, self.admin, "Interrupt")
+        self.assertContentMenu(read_url, self.admin, ["Start Flow", "Open Ticket", "-", "Interrupt", "Edit"])
 
         # can't interrupt if not logged in
         self.client.logout()
@@ -2986,7 +2957,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Joe Blow")
         self.assertContains(response, "Frank Smith")
         self.assertContains(response, "Billy Nophone")
-        self.assertContains(response, "Joe and Frank")
 
         # make sure Joe's preferred URN is in the list
         self.assertContains(response, "blow80")
@@ -3027,13 +2997,10 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, len(response.context["object_list"]))
         self.assertEqual(self.joe, response.context["object_list"][0])
 
-        # should have the export link
-        self.assertContentMenuContains(filter_url, self.admin, "Export")
+        # should have the edit and export options
+        self.assertContentMenu(filter_url, self.admin, ["Edit", "Export", "Usages", "Delete"])
 
-        # should have an edit button
         update_url = reverse("contacts.contactgroup_update", args=[group.pk])
-        self.assertContentMenuContains(filter_url, self.admin, "Edit")
-
         response = self.client.get(update_url)
         self.assertIn("name", response.context["form"].fields)
 
@@ -3177,10 +3144,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # update it to something else
         self.set_contact_field(self.joe, "state", "eastern province")
-
-        # check the read page
-        response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
-        self.assertContains(response, "Eastern Province")
 
         # update joe - change his tel URN
         data = dict(
@@ -3341,29 +3304,15 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             dict(contact_field=district.id, field_value="rwamagana"),
         )
 
-        response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
-
-        self.assertContains(response, "Eastern Province")
-        self.assertContains(response, "Rwamagana")
-
         # change the name of the Rwamagana boundary, our display should change appropriately as well
         rwamagana = AdminBoundary.objects.get(name="Rwamagana")
         rwamagana.update(name="Rwa-magana")
         self.assertEqual("Rwa-magana", rwamagana.name)
 
-        # assert our read page is correct
-        response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
-        self.assertContains(response, "Eastern Province")
-        self.assertContains(response, "Rwa-magana")
-
         # change our field to a text field
         state.value_type = ContactField.TYPE_TEXT
         state.save()
         self.set_contact_field(self.joe, "state", "Rwama Value")
-
-        # should now be using stored string_value instead of state name
-        response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
-        self.assertContains(response, "Rwama Value")
 
         # try to push into a dynamic group
         self.login(self.admin)
@@ -4743,10 +4692,6 @@ class ContactFieldTest(TembaTest):
 
         # there are 2 featured fields
         self.assertEqual(len(response.context_data["object_list"]), 2)
-
-        self.assertEqual(len(response.context_data["cf_categories"]), 2)
-        self.assertEqual(len(response.context_data["cf_types"]), 1)
-
         self.assertTrue(response.context_data["is_featured_category"])
 
     def test_view_filter_by_type(self):

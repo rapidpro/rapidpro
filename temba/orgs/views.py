@@ -43,8 +43,6 @@ from django.shortcuts import resolve_url
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_str
-from django.utils.html import escape
-from django.utils.safestring import mark_safe
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -2252,7 +2250,7 @@ class OrgCRUDL(SmartCRUDL):
             context["role_summary"] = role_summary
             return context
 
-    class ManageAccounts(SpaMixin, ContentMenuMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class ManageAccounts(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class AccountsForm(forms.ModelForm):
             invite_emails = forms.CharField(
                 required=False, widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")})
@@ -2400,20 +2398,10 @@ class OrgCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse("orgs.org_workspace"))
 
         def derive_title(self):
-            if self.object.is_child and self.is_spa():
+            if self.object.is_child:
                 return self.object.name
             else:
                 return super().derive_title()
-
-        def build_content_menu(self, menu):
-            self.object = self.get_object()
-            other_org = self.request.org.id != self.object.id
-
-            if not self.is_spa():
-                if other_org:
-                    menu.add_link(_("Workspaces"), reverse("orgs.org_sub_orgs"))
-
-                menu.add_link(_("Home"), reverse("orgs.org_workspace"))
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -2513,42 +2501,15 @@ class OrgCRUDL(SmartCRUDL):
             return HttpResponseRedirect(reverse("orgs.org_manage"))
 
     class SubOrgs(SpaMixin, ContentMenuMixin, OrgPermsMixin, InferOrgMixin, SmartListView):
-        fields = ("name", "contacts", "manage", "created_on")
         title = _("Workspaces")
-        link_fields = []
         menu_path = "/settings/workspaces"
 
         def build_content_menu(self, menu):
             org = self.get_object()
 
-            if self.is_spa():
-                enabled = Org.FEATURE_CHILD_ORGS in org.features or Org.FEATURE_NEW_ORGS in org.features
-                if self.has_org_perm("orgs.org_create") and enabled:
-                    menu.add_modax(_("New Workspace"), "new_workspace", reverse("orgs.org_create"))
-            else:
-                if self.has_org_perm("orgs.org_dashboard"):
-                    menu.add_link(_("Dashboard"), reverse("dashboard.dashboard_home"))
-
-        def get_manage(self, obj):  # pragma: needs cover
-            if obj == self.get_object():
-                return mark_safe(
-                    f'<a href="{reverse("orgs.org_manage_accounts")}" class="float-right pr-4"><div class="button-light inline-block ">{_("Manage Logins")}</div></a>'
-                )
-
-            if obj.is_child:
-                return mark_safe(
-                    f'<a href="{reverse("orgs.org_manage_accounts_sub_org")}?org={obj.id}" class="float-right pr-4"><div class="button-light inline-block">{_("Manage Logins")}</div></a>'
-                )
-            return ""
-
-        def get_contacts(self, obj):
-            return obj.get_contact_count()
-
-        def get_name(self, obj):
-            if self.has_org_perm("orgs.org_edit_sub_org") and obj.is_child:  # pragma: needs cover
-                return mark_safe(
-                    f"<temba-modax header={_('Update')} endpoint={reverse('orgs.org_edit_sub_org')}?org={obj.id} ><div class='child-org-name linked'>{escape(obj.name)}</div><div class='org-timezone'>{obj.timezone}</div></temba-modax>"
-                )
+            enabled = Org.FEATURE_CHILD_ORGS in org.features or Org.FEATURE_NEW_ORGS in org.features
+            if self.has_org_perm("orgs.org_create") and enabled:
+                menu.add_modax(_("New Workspace"), "new_workspace", reverse("orgs.org_create"))
 
         def derive_queryset(self, **kwargs):
             queryset = super().derive_queryset(**kwargs)
@@ -2566,9 +2527,6 @@ class OrgCRUDL(SmartCRUDL):
                 context["manage_users"] = True
 
             return context
-
-        def get_created_by(self, obj):  # pragma: needs cover
-            return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
     class Create(NonAtomicMixin, SpaMixin, OrgPermsMixin, ModalMixin, InferOrgMixin, SmartCreateView):
         class Form(forms.ModelForm):
@@ -3255,9 +3213,6 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_import"):
                 menu.add_link(_("Import"), reverse("orgs.org_import"))
-
-            menu.new_group()
-            menu.add_link(_("Sign Out"), f"{reverse('users.user_logout')}?next={reverse('users.user_login')}")
 
         def derive_formax_sections(self, formax, context):
             org = self.request.org

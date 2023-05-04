@@ -660,6 +660,10 @@
               // remove jquery use here
               $(content).html(response.body);
 
+              if (response.redirected) {
+                addToHistory(response.url);
+              }
+
               hideLoading(response);
             });
 

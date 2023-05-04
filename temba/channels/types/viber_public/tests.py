@@ -75,6 +75,7 @@ class ViberPublicTypeTest(TembaTest, CRUDLTestMixin):
 
     def test_update(self):
         update_url = reverse("channels.channel_update", args=[self.channel.id])
+        read_url = reverse("channels.channel_read", args=[self.channel.uuid])
 
         self.assertUpdateFetch(
             update_url,
@@ -103,7 +104,7 @@ class ViberPublicTypeTest(TembaTest, CRUDLTestMixin):
         )
 
         # read page has link to update page
-        self.assertContentMenuContains(reverse("channels.channel_read", args=[self.channel.uuid]), self.admin, "Edit")
+        self.assertContentMenu(read_url, self.admin, ["Settings", "Edit", "Delete"])
 
     def test_get_error_ref_url(self):
         self.assertEqual(

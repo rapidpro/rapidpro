@@ -241,16 +241,11 @@ class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
         msgs_url = reverse("archives.archive_message")
 
         response = self.assertListFetch(runs_url, allow_viewers=False, allow_editors=True, context_objects=[d3])
-        self.assertContains(response, "jsonl.gz")
+        self.assertContains(response, f"/archive/read/{d3.id}/")
 
-        self.assertContentMenu(runs_url, self.admin, legacy_items=["Message Archives"], spa_items=[])
-
-        response = self.assertListFetch(
-            reverse("archives.archive_message"), allow_viewers=False, allow_editors=True, context_objects=[d2, m1]
-        )
-        self.assertContains(response, "jsonl.gz")
-
-        self.assertContentMenu(msgs_url, self.admin, legacy_items=["Run Archives"], spa_items=[])
+        response = self.assertListFetch(msgs_url, allow_viewers=False, allow_editors=True, context_objects=[d2, m1])
+        self.assertContains(response, f"/archive/read/{d2.id}/")
+        self.assertContains(response, f"/archive/read/{m1.id}/")
 
     def test_read(self):
         archive = self.create_archive(Archive.TYPE_MSG, "D", date(2020, 7, 31), [{"id": 1}, {"id": 2}])

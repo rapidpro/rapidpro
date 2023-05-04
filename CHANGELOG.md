@@ -1,3 +1,16 @@
+v8.1.130 (2023-05-04)
+-------------------------
+ * Remove spa checking in views
+
+v8.1.129 (2023-05-04)
+-------------------------
+ * Remove JSON view to list notifications now that has moved to the internal API
+ * Remove non-spa items from content menus
+
+v8.1.128 (2023-05-03)
+-------------------------
+ * Fix contact import
+
 v8.1.127 (2023-05-03)
 -------------------------
  * Remove support for adding bulk sender delegate channels
