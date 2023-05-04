@@ -1,3 +1,7 @@
+v8.1.130 (2023-05-04)
+-------------------------
+ * Remove spa checking in views
+
 v8.1.129 (2023-05-04)
 -------------------------
  * Remove JSON view to list notifications now that has moved to the internal API
