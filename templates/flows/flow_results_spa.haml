@@ -59,10 +59,6 @@
 -block extra-script
   {{ block.super }}
 
-  -if not is_spa
-    %script(src="{{ STATIC_URL }}highcharts/highcharts.js")
-    %script(src="{{ STATIC_URL }}highcharts/modules/drilldown.js")
-
   :javascript
 
     Highcharts.setOptions({

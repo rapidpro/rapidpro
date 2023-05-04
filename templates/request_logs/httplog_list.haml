@@ -8,9 +8,6 @@
   {{ title }}
 
 -block subtitle
-  -if not is_spa
-    .linked(onclick="goto(event, this)" href="{{ source_url }}")
-      {{ source.name }}
 
 -block extra-style
   {{block.super}}

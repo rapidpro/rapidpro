@@ -223,7 +223,7 @@
               .shadow.rounded-lg
                 -include "contacts/contact_list_include.haml"
 
-              .flex.flex-col(class="{%if not is_spa%}mb-16 mt-3{%endif%}")
+              .flex.flex-col
                 -include "includes/pagination.haml"
 
                 -if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000
@@ -255,7 +255,6 @@
     {% endif %}
 
     function handleRowClicked(event) {
-
       if (event.target.tagName == "TEMBA-CHECKBOX") {
         return;
       }
@@ -263,12 +262,7 @@
       var row = event.target.closest("tr");
       var uuid = row.getAttribute("data-uuid");
 
-
-      {% if is_spa %}
       goto(event, row);
-      {% else %}
-      gotoLink("/contact/read/" + uuid + "/");
-      {% endif %}
     }
 
     function handleStartFlowClicked(evt) {
