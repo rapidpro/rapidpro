@@ -1624,11 +1624,11 @@ msgstr "Podporováno je pouze stávající číslo aplikace Twilio WhatsApp"
 msgid "Connect to a service that speaks TwiML. You can use this to connect to TwiML compatible services outside of Twilio."
 msgstr "Připojení ke službě, která mluví jazykem TwiML. Pomocí této funkce se můžete připojit ke službám kompatibilním s TwiML mimo Twilio."
 
-msgid "To finish configuring your TwiML REST API channel you'll need to add the following URL in your TwiML REST API instance."
-msgstr "Chcete-li dokončit konfiguraci kanálu rozhraní TwiML REST API, musíte do instance rozhraní TwiML REST API přidat následující adresu URL."
+msgid "To finish configuring your Somleng channel you'll need to add the following URL in your Somleng instance."
+msgstr "Chcete-li dokončit konfiguraci kanálu rozhraní Somleng, musíte do instance rozhraní Somleng přidat následující adresu URL."
 
-msgid "TwiML REST API Host"
-msgstr "Hostitel TwiML REST API"
+msgid "Somleng Host"
+msgstr "Hostitel Somleng"
 
 msgid "The endpoint which will receive Twilio API requests for this channel."
 msgstr "Koncový bod, který bude přijímat požadavky rozhraní Twilio API pro tento kanál."
@@ -1648,8 +1648,8 @@ msgstr "Obojí"
 msgid "The phone number without country code or short code you are connecting."
 msgstr "Telefonní číslo bez předvolby země nebo zkrácené předvolby, ke kterému se připojujete."
 
-msgid "The publicly accessible URL for your TwiML REST API instance ex: https://api.twilio.com"
-msgstr "Veřejně přístupná adresa URL vaší instance rozhraní TwiML REST API např.: https://api.twilio.com."
+msgid "The publicly accessible URL for your Somleng instance ex: https://api.twilio.com"
+msgstr "Veřejně přístupná adresa URL vaší instance rozhraní Somleng např.: https://api.twilio.com."
 
 msgid "Role"
 msgstr "Role"
@@ -1657,11 +1657,11 @@ msgstr "Role"
 msgid "Choose the role that this channel supports"
 msgstr "Vyberte roli, kterou tento kanál podporuje"
 
-msgid "The Account SID to use to authenticate to the TwiML REST API"
-msgstr "Identifikátor SID účtu, který se použije pro ověření k rozhraní TwiML REST API."
+msgid "The Account SID to use to authenticate to the Somleng"
+msgstr "Identifikátor SID účtu, který se použije pro ověření k rozhraní Somleng."
 
-msgid "The Account Token to use to authenticate to the TwiML REST API"
-msgstr "Token účtu, který se použije pro ověření k rozhraní TwiML REST API."
+msgid "The Account Token to use to authenticate to the Somleng"
+msgstr "Token účtu, který se použije pro ověření k rozhraní Somleng."
 
 msgid "Max active calls at the same time"
 msgstr "Maximální počet aktivních hovorů najednou"
@@ -5324,8 +5324,8 @@ msgstr "Na svém účtu Twilio nemáte žádné číslo. Ujistěte se, že máte
 msgid "To request access to Twilio WhatsApp"
 msgstr "Žádost o přístup k aplikaci Twilio WhatsApp"
 
-msgid "You can add a TwiML REST API as a channel using your TwiML instance."
-msgstr "You can add a TwiML REST API as a channel using your TwiML instance."
+msgid "You can add a Somleng as a channel using your TwiML instance."
+msgstr "You can add a Somleng as a channel using your TwiML instance."
 
 #, python-format
 msgid "After connecting your account, any incoming direct messages will automatically be read by %(name)s, you'll also be able to send direct messages to contacts you know using their twitter handle."

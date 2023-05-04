@@ -1608,11 +1608,11 @@ msgstr "Зөвхөн одоо байгаа Twilio WhatsApp дугаарыг дэ
 msgid "Connect to a service that speaks TwiML. You can use this to connect to TwiML compatible services outside of Twilio."
 msgstr "TwiML ярьдаг үйлчилгээнд холбогдоно уу. Та үүнийг Twilio-аас хамааралгүй үйлчилгээнд холбогдохын тулд ашиглаж болно."
 
-msgid "To finish configuring your TwiML REST API channel you'll need to add the following URL in your TwiML REST API instance."
-msgstr "TwiML REST API сувгаа тохируулж дуусгахын тулд та дараах URL -г өөрийн TwiML REST API үйлчилгээнд оруулах шаардлагатай болно."
+msgid "To finish configuring your Somleng channel you'll need to add the following URL in your Somleng instance."
+msgstr "Somleng сувгаа тохируулж дуусгахын тулд та дараах URL -г өөрийн Somleng үйлчилгээнд оруулах шаардлагатай болно."
 
-msgid "TwiML REST API Host"
-msgstr "TwiML REST API-н Хост"
+msgid "Somleng Host"
+msgstr "Somleng-н Хост"
 
 msgid "The endpoint which will receive Twilio API requests for this channel."
 msgstr "Энэ сувгийн Twilio API хүсэлтийг хүлээн авах эцсийн цэг."
@@ -1632,8 +1632,8 @@ msgstr "Хоёулаа"
 msgid "The phone number without country code or short code you are connecting."
 msgstr "Улсын кодгүй утасны дугаар эсвэл таны холбож буй богино код."
 
-msgid "The publicly accessible URL for your TwiML REST API instance ex: https://api.twilio.com"
-msgstr "Таны нийтэд нээлттэй TwiML REST API-н URL жишээ нь: https://api.twilio.com"
+msgid "The publicly accessible URL for your Somleng instance ex: https://api.twilio.com"
+msgstr "Таны нийтэд нээлттэй Somleng-н URL жишээ нь: https://api.twilio.com"
 
 msgid "Role"
 msgstr "Үүрэг"
@@ -1641,11 +1641,11 @@ msgstr "Үүрэг"
 msgid "Choose the role that this channel supports"
 msgstr "Энэ сувгийн дэмждэг үүргийг сонгоно уу"
 
-msgid "The Account SID to use to authenticate to the TwiML REST API"
-msgstr "TwiML REST API-г баталгаажуулахын тулд ашиглах Account SID"
+msgid "The Account SID to use to authenticate to the Somleng"
+msgstr "Somleng-г баталгаажуулахын тулд ашиглах Account SID"
 
-msgid "The Account Token to use to authenticate to the TwiML REST API"
-msgstr "TwiML REST API -ийг баталгаажуулахын тулд ашиглах Акаунтны Токен"
+msgid "The Account Token to use to authenticate to the Somleng"
+msgstr "Somleng -ийг баталгаажуулахын тулд ашиглах Акаунтны Токен"
 
 msgid "Max active calls at the same time"
 msgstr "Нэгэн зэрэг авах хамгийн их идэвхитэй дуудлага"
@@ -5284,8 +5284,8 @@ msgstr "Таны Twilio акаунт дугааргүй байна. Та дуг�
 msgid "To request access to Twilio WhatsApp"
 msgstr "Twilio WhatsApp-д нэвтрэх хүсэлт илгээх"
 
-msgid "You can add a TwiML REST API as a channel using your TwiML instance."
-msgstr "Та TwiML REST API-аа TwiML ашиглан суваг болгох боломжтой."
+msgid "You can add a Somleng as a channel using your TwiML instance."
+msgstr "Та Somleng-аа TwiML ашиглан суваг болгох боломжтой."
 
 #, python-format
 msgid "After connecting your account, any incoming direct messages will automatically be read by %(name)s, you'll also be able to send direct messages to contacts you know using their twitter handle."

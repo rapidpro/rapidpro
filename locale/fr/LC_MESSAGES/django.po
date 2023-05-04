@@ -1617,10 +1617,10 @@ msgstr "Seul le numéro Twilio WhatsApp existant est pris en charge"
 msgid "Connect to a service that speaks TwiML. You can use this to connect to TwiML compatible services outside of Twilio."
 msgstr "Connectez-vous à un service qui parle TwiML. Vous pouvez l'utiliser pour vous connecter à des services compatibles TwiML en dehors de Twilio."
 
-msgid "To finish configuring your TwiML REST API channel you'll need to add the following URL in your TwiML REST API instance."
+msgid "To finish configuring your Somleng channel you'll need to add the following URL in your Somleng instance."
 msgstr "Pour terminer la configuration de votre canal d'API TwiML REST, vous devez ajouter l'URL suivante dans votre instance d'API TwiML REST."
 
-msgid "TwiML REST API Host"
+msgid "Somleng Host"
 msgstr "Hôte de l'API REST TwiML"
 
 msgid "The endpoint which will receive Twilio API requests for this channel."
@@ -1641,7 +1641,7 @@ msgstr "Tous deux"
 msgid "The phone number without country code or short code you are connecting."
 msgstr "Le numéro de téléphone sans indicatif de pays ni code court auquel vous vous connectez."
 
-msgid "The publicly accessible URL for your TwiML REST API instance ex: https://api.twilio.com"
+msgid "The publicly accessible URL for your Somleng instance ex: https://api.twilio.com"
 msgstr "L'URL accessible au public pour votre instance d'API REST TwiML, par exemple: https://api.twilio.com"
 
 msgid "Role"
@@ -1650,10 +1650,10 @@ msgstr "Rôle"
 msgid "Choose the role that this channel supports"
 msgstr "Choisissez le rôle que ce canal prend en charge"
 
-msgid "The Account SID to use to authenticate to the TwiML REST API"
+msgid "The Account SID to use to authenticate to the Somleng"
 msgstr "Le compte SID à utiliser pour s'authentifier auprès de l'API REST TwiML"
 
-msgid "The Account Token to use to authenticate to the TwiML REST API"
+msgid "The Account Token to use to authenticate to the Somleng"
 msgstr "Le jeton de compte à utiliser pour s'authentifier auprès de l'API REST TwiML"
 
 msgid "Max active calls at the same time"
@@ -5305,7 +5305,7 @@ msgstr "Vous n'avez aucun numéro sur votre compte Twilio. Veuillez vous assurer
 msgid "To request access to Twilio WhatsApp"
 msgstr "Pour demander l'accès à Twilio WhatsApp"
 
-msgid "You can add a TwiML REST API as a channel using your TwiML instance."
+msgid "You can add a Somleng as a channel using your TwiML instance."
 msgstr "Vous pouvez ajouter une API REST TwiML en tant que canal à l'aide de votre instance TwiML."
 
 #, python-format

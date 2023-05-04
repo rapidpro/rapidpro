@@ -12,7 +12,7 @@ from ...views import ALL_COUNTRIES, ClaimViewMixin
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
-    class TwimlApiClaimForm(ClaimViewMixin.Form):
+    class SomlengClaimForm(ClaimViewMixin.Form):
         ROLES = (
             (Channel.ROLE_SEND + Channel.ROLE_RECEIVE, _("Messaging")),
             (Channel.ROLE_CALL + Channel.ROLE_ANSWER, _("Voice")),
@@ -32,8 +32,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
         url = ExternalURLField(
             max_length=1024,
-            label=_("TwiML REST API Host"),
-            help_text=_("The publicly accessible URL for your TwiML REST API instance ex: https://api.twilio.com"),
+            label=_("Somleng Host"),
+            help_text=_("The publicly accessible URL for your Somleng host instance ex: https://api.somleng.org"),
         )
         role = forms.ChoiceField(
             choices=ROLES, label=_("Role"), help_text=_("Choose the role that this channel supports")
@@ -41,20 +41,20 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         account_sid = forms.CharField(
             max_length=64,
             required=False,
-            help_text=_("The Account SID to use to authenticate to the TwiML REST API"),
+            help_text=_("The Account SID to use to authenticate with Somleng"),
             widget=forms.TextInput(attrs={"autocomplete": "off"}),
         )
         account_token = forms.CharField(
             max_length=64,
             required=False,
-            help_text=_("The Account Token to use to authenticate to the TwiML REST API"),
+            help_text=_("The Account Token to use to authenticate with Somleng"),
             widget=forms.TextInput(attrs={"autocomplete": "off"}),
         )
         max_concurrent_events = forms.IntegerField(
             min_value=1, required=False, help_text=_("Max active calls at the same time")
         )
 
-    form_class = TwimlApiClaimForm
+    form_class = SomlengClaimForm
 
     def form_valid(self, form):
         user = self.request.user
