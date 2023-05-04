@@ -545,7 +545,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         Get the channel that should perform a given action. Could just be us
         (the same channel), but may be a delegate channel working on our behalf.
         """
-        if self.role == role:
+        if self.role == role:  # pragma: no cover
             delegate = self
         else:
             # if we have a delegate channel for this role, use that

@@ -235,14 +235,12 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContentMenu(
             list_url,
             self.admin,
-            legacy_items=["Manage Fields", "Export"],
-            spa_items=["New Contact", "New Group", "Export"],
+            ["New Contact", "New Group", "Export"],
         )
         self.assertContentMenu(
             list_url + age_query,
             self.admin,
-            legacy_items=["Create Smart Group", "Manage Fields", "Export"],
-            spa_items=["Create Smart Group", "New Contact", "New Group", "Export"],
+            ["Create Smart Group", "New Contact", "New Group", "Export"],
         )
 
         # TODO: group labeling as a feature is on probation
@@ -453,8 +451,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContentMenu(
             group1_url,
             self.admin,
-            legacy_items=["Manage Fields", "Edit", "Export", "Usages", "Delete"],
-            spa_items=["Edit", "Export", "Usages", "Delete"],
+            ["Edit", "Export", "Usages", "Delete"],
         )
 
         response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
@@ -468,7 +465,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([], list(response.context["object_list"]))
         self.assertEqual(["block", "archive"], list(response.context["actions"]))
         self.assertContains(response, "tickets &gt; 0")
-        self.assertContentMenu(open_tickets_url, self.admin, ["Manage Fields", "Export", "Usages"])
+        self.assertContentMenu(open_tickets_url, self.admin, ["Export", "Usages"])
 
         # if a user tries to access a non-existent group, that's a 404
         response = self.requestView(reverse("contacts.contact_filter", args=["21343253"]), self.admin)
@@ -493,19 +490,16 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertLoginRedirect(response)
 
         self.assertContentMenu(read_url, self.user, [])
-        self.assertContentMenu(
-            read_url, self.editor, ["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"]
-        )
+        self.assertContentMenu(read_url, self.editor, ["Start Flow", "Open Ticket", "-", "Edit"])
         self.assertContentMenu(
             read_url,
             self.admin,
-            legacy_items=["Send Message", "Start Flow", "Open Ticket", "-", "Edit", "Custom Fields"],
-            spa_items=["Start Flow", "Open Ticket", "-", "Edit"],
+            ["Start Flow", "Open Ticket", "-", "Edit"],
         )
 
         # if there's an open ticket already, don't show open ticket option
         self.create_ticket(self.org.ticketers.get(), joe, "Help")
-        self.assertContentMenu(read_url, self.editor, ["Send Message", "Start Flow", "-", "Edit", "Custom Fields"])
+        self.assertContentMenu(read_url, self.editor, ["Start Flow", "-", "Edit"])
 
         # login as viewer
         self.login(self.user)
@@ -526,7 +520,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         joe.block(self.admin)
         self.assertTrue(Contact.objects.get(pk=joe.id, status="B"))
 
-        self.assertContentMenu(read_url, self.admin, ["Edit", "Custom Fields"])
+        self.assertContentMenu(read_url, self.admin, ["Edit"])
 
         self.new_ui()
         response = self.client.get(read_url)
@@ -765,7 +759,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         MockSessionWriter(other_org_contact, self.create_flow("Test", org=self.org2)).wait().save()
 
         # now it's an option
-        self.assertContentMenuContains(read_url, self.admin, "Interrupt")
+        self.assertContentMenu(read_url, self.admin, ["Start Flow", "Open Ticket", "-", "Interrupt", "Edit"])
 
         # can't interrupt if not logged in
         self.client.logout()
@@ -3027,13 +3021,10 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, len(response.context["object_list"]))
         self.assertEqual(self.joe, response.context["object_list"][0])
 
-        # should have the export link
-        self.assertContentMenuContains(filter_url, self.admin, "Export")
+        # should have the edit and export options
+        self.assertContentMenu(filter_url, self.admin, ["Edit", "Export", "Usages", "Delete"])
 
-        # should have an edit button
         update_url = reverse("contacts.contactgroup_update", args=[group.pk])
-        self.assertContentMenuContains(filter_url, self.admin, "Edit")
-
         response = self.client.get(update_url)
         self.assertIn("name", response.context["form"].fields)
 

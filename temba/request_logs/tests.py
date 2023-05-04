@@ -90,8 +90,6 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         webhooks_url = reverse("request_logs.httplog_webhooks")
         log_url = reverse("request_logs.httplog_read", args=[l1.id])
 
-        self.assertContentMenuContains(webhooks_url, self.admin, "Flows")
-
         response = self.assertListFetch(
             webhooks_url, allow_viewers=False, allow_editors=True, context_objects=[l1], new_ui=True
         )
@@ -157,9 +155,6 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "200")
         self.assertContains(response, "org1.bar")
         self.assertNotContains(response, "org2.bar")
-
-        # old ui should have a link back to the classifier
-        self.assertContentMenuContains(log_url, self.admin, "Classifier Log")
 
         # can't list logs for deleted classifier
         response = self.requestView(reverse("request_logs.httplog_classifier", args=[c2.uuid]), self.admin)

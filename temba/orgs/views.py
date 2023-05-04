@@ -2252,7 +2252,7 @@ class OrgCRUDL(SmartCRUDL):
             context["role_summary"] = role_summary
             return context
 
-    class ManageAccounts(SpaMixin, ContentMenuMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class ManageAccounts(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class AccountsForm(forms.ModelForm):
             invite_emails = forms.CharField(
                 required=False, widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")})
@@ -2405,16 +2405,6 @@ class OrgCRUDL(SmartCRUDL):
             else:
                 return super().derive_title()
 
-        def build_content_menu(self, menu):
-            self.object = self.get_object()
-            other_org = self.request.org.id != self.object.id
-
-            if not self.is_spa():
-                if other_org:
-                    menu.add_link(_("Workspaces"), reverse("orgs.org_sub_orgs"))
-
-                menu.add_link(_("Home"), reverse("orgs.org_workspace"))
-
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.get_object()
@@ -2521,13 +2511,9 @@ class OrgCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             org = self.get_object()
 
-            if self.is_spa():
-                enabled = Org.FEATURE_CHILD_ORGS in org.features or Org.FEATURE_NEW_ORGS in org.features
-                if self.has_org_perm("orgs.org_create") and enabled:
-                    menu.add_modax(_("New Workspace"), "new_workspace", reverse("orgs.org_create"))
-            else:
-                if self.has_org_perm("orgs.org_dashboard"):
-                    menu.add_link(_("Dashboard"), reverse("dashboard.dashboard_home"))
+            enabled = Org.FEATURE_CHILD_ORGS in org.features or Org.FEATURE_NEW_ORGS in org.features
+            if self.has_org_perm("orgs.org_create") and enabled:
+                menu.add_modax(_("New Workspace"), "new_workspace", reverse("orgs.org_create"))
 
         def get_manage(self, obj):  # pragma: needs cover
             if obj == self.get_object():
@@ -3255,9 +3241,6 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_import"):
                 menu.add_link(_("Import"), reverse("orgs.org_import"))
-
-            menu.new_group()
-            menu.add_link(_("Sign Out"), f"{reverse('users.user_logout')}?next={reverse('users.user_login')}")
 
         def derive_formax_sections(self, formax, context):
             org = self.request.org
