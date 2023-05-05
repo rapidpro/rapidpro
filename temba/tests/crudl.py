@@ -1,5 +1,6 @@
 from abc import abstractmethod
 
+from django.db.models import QuerySet
 from django.forms import model_to_dict
 from django.urls import reverse
 
@@ -386,6 +387,9 @@ class FormInitialValues(BaseCheck):
         form = self.get_context_item(test_cls, response, "form", msg_prefix)
         for field_key, value in self.fields.items():
             actual = form.initial[field_key] if field_key in form.initial else form.fields[field_key].initial
+            if isinstance(actual, QuerySet):
+                actual = list(actual)
+
             test_cls.assertEqual(
                 actual,
                 value,

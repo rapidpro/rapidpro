@@ -544,6 +544,81 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
 
+    @mock_mailroom
+    def test_update(self, mr_mocks):
+        self.org.flow_languages = ["eng", "spa"]
+        self.org.save(update_fields=("flow_languages",))
+
+        self.create_field("gender", "Gender", value_type=ContactField.TYPE_TEXT)
+        contact = self.create_contact(
+            "Bob",
+            urns=["tel:+593979111111", "tel:+593979222222", "telegram:5474754"],
+            fields={"age": 41, "gender": "M"},
+            language="eng",
+        )
+        testers = self.create_group("Testers", contacts=[contact])
+
+        update_url = reverse("contacts.contact_update", args=[contact.id])
+
+        self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={
+                "name": "Bob",
+                "status": "A",
+                "language": "eng",
+                "groups": [testers],
+                "urn__tel__0": "+593979111111",
+                "urn__tel__1": "+593979222222",
+                "urn__telegram__2": "5474754",
+            },
+        )
+
+        # update all fields (removes second tel URN, adds a new Facebook URN)
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "name": "Bobby",
+                "status": "B",
+                "language": "spa",
+                "groups": [testers.id],
+                "urn__tel__0": "+593979333333",
+                "urn__telegram__2": "78686776",
+                "new_scheme": "facebook",
+                "new_path": "9898989",
+            },
+            success_status=200,
+        )
+
+        contact.refresh_from_db()
+        self.assertEqual("Bobby", contact.name)
+        self.assertEqual(Contact.STATUS_BLOCKED, contact.status)
+        self.assertEqual("spa", contact.language)
+        self.assertEqual({testers}, set(contact.get_groups()))
+        self.assertEqual(
+            ["tel:+593979333333", "telegram:78686776", "facebook:9898989"],
+            [u.identity for u in contact.urns.order_by("-priority")],
+        )
+
+        # try to update with invalid URNs
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "name": "Bobby",
+                "status": "B",
+                "language": "spa",
+                "groups": [],
+                "urn__tel__0": "456",
+                "urn__facebook__2": "xxxxx",
+            },
+            form_errors={
+                "urn__tel__0": "Invalid number. Ensure number includes country code, e.g. +1-541-754-3010",
+                "urn__facebook__2": "Invalid format",
+            },
+            object_unchanged=contact,
+        )
+
     def test_scheduled(self):
         contact1 = self.create_contact("Joe", phone="+1234567890")
         contact2 = self.create_contact("Frank", phone="+1204567802")
@@ -1646,6 +1721,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         old_contact = self.create_contact("Jose", phone="+12065552000")
         self.create_incoming_msg(old_contact, "hola mundo")
         urn = old_contact.get_urn()
+        self.create_channel_event(self.channel, urn.identity, ChannelEvent.TYPE_CALL_IN_MISSED)
 
         self.create_ticket(self.org.ticketers.get(), old_contact, "Hi")
 
