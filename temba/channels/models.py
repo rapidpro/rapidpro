@@ -281,6 +281,9 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     CONFIG_VONAGE_APP_ID = "nexmo_app_id"
     CONFIG_VONAGE_APP_PRIVATE_KEY = "nexmo_app_private_key"
 
+    SESSION_VONAGE_API_KEY = "VONAGE_API_KEY"
+    SESSION_VONAGE_API_SECRET = "VONAGE_API_SECRET"
+
     ENCODING_DEFAULT = "D"  # we just pass the text down to the endpoint
     ENCODING_SMART = "S"  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
     ENCODING_UNICODE = "U"  # we send everything as unicode

@@ -31,9 +31,19 @@ class VonageTypeTest(TembaTest):
         response = self.client.get(claim_url)
         self.assertEqual(response.status_code, 302)
         response = self.client.get(claim_url, follow=True)
-        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_vonage_connect"))
+        self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.vonage.connect"))
 
-        self.org.connect_vonage("key123", "sesame", self.admin)
+        # check the connect view has no initial set
+        response = self.client.get(reverse("channels.types.vonage.connect"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(list(response.context["form"].fields.keys()), ["api_key", "api_secret", "loc"])
+        self.assertFalse(response.context["form"].initial)
+
+        # attach a Vonage account to the session
+        session = self.client.session
+        session[Channel.SESSION_VONAGE_API_KEY] = "key123"
+        session[Channel.SESSION_VONAGE_API_SECRET] = "sesame"
+        session.save()
 
         # hit the claim page, should now have a claim link
         response = self.client.get(reverse("channels.channel_claim"))
@@ -113,6 +123,12 @@ class VonageTypeTest(TembaTest):
         self.assertEqual(channel.config[Channel.CONFIG_VONAGE_APP_ID], "myappid")
         self.assertEqual(channel.config[Channel.CONFIG_VONAGE_APP_PRIVATE_KEY], "private")
 
+        # check the connect view has no initial set
+        response = self.client.get(reverse("channels.types.vonage.connect"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(list(response.context["form"].fields.keys()), ["api_key", "api_secret", "loc"])
+        self.assertEqual(response.context["form"].initial, {"api_key": "key123", "api_secret": "sesame"})
+
         # test the update page for vonage
         update_url = reverse("channels.channel_update", args=[channel.pk])
         response = self.client.get(update_url)
@@ -156,15 +172,67 @@ class VonageTypeTest(TembaTest):
         self.assertContains(response, reverse("courier.nx", args=[channel.uuid, "status"]))
         self.assertContains(response, reverse("mailroom.ivr_handler", args=[channel.uuid, "incoming"]))
 
+    @patch("temba.channels.types.vonage.client.VonageClient.check_credentials")
+    def test_vonage_connect(self, mock_check_credentials):
+        self.login(self.admin)
+
+        connect_url = reverse("channels.types.vonage.connect")
+
+        self.assertFalse(Channel.SESSION_VONAGE_API_KEY in self.client.session)
+        self.assertFalse(Channel.SESSION_VONAGE_API_SECRET in self.client.session)
+
+        response = self.client.get(connect_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(list(response.context["form"].fields.keys()), ["api_key", "api_secret", "loc"])
+        self.assertFalse(response.context["form"].initial)
+
+        # try posting without an account token
+        post_data = {"api_key": "key"}
+        response = self.client.post(connect_url, post_data)
+        self.assertFormError(response, "form", "api_secret", "This field is required.")
+
+        # simulate invalid credentials on both pages
+        mock_check_credentials.return_value = False
+
+        response = self.client.post(connect_url, {"api_key": "key", "api_secret": "secret"})
+        self.assertContains(response, "Your API key and secret seem invalid.")
+        self.assertFalse(Channel.SESSION_VONAGE_API_KEY in self.client.session)
+        self.assertFalse(Channel.SESSION_VONAGE_API_SECRET in self.client.session)
+
+        # ok, now with a success
+        mock_check_credentials.return_value = True
+
+        response = self.client.post(connect_url, {"api_key": "key", "api_secret": "secret"})
+        self.assertEqual(response.status_code, 302)
+
+        response = self.client.post(connect_url, {"api_key": "key", "api_secret": "secret"}, follow=True)
+        self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.vonage.claim"))
+
+        self.assertTrue(Channel.SESSION_VONAGE_API_KEY in self.client.session)
+        self.assertTrue(Channel.SESSION_VONAGE_API_SECRET in self.client.session)
+        self.assertEqual(self.client.session[Channel.SESSION_VONAGE_API_KEY], "key")
+        self.assertEqual(self.client.session[Channel.SESSION_VONAGE_API_SECRET], "secret")
+
     @patch("temba.channels.types.vonage.client.VonageClient.search_numbers")
     def test_search(self, mock_search_numbers):
         self.login(self.admin)
         self.org.channels.update(is_active=False)
         self.channel = Channel.create(
-            self.org, self.user, "RW", "NX", None, "+250788123123", uuid="00000000-0000-0000-0000-000000001234"
+            self.org,
+            self.user,
+            "RW",
+            "NX",
+            None,
+            "+250788123123",
+            uuid="00000000-0000-0000-0000-000000001234",
+            config={Channel.CONFIG_VONAGE_API_KEY: "1234", Channel.CONFIG_VONAGE_API_SECRET: "secret"},
         )
 
-        self.org.connect_vonage("1234", "secret", self.admin)
+        # attach a Vonage account to the session
+        session = self.client.session
+        session[Channel.SESSION_VONAGE_API_KEY] = "1234"
+        session[Channel.SESSION_VONAGE_API_SECRET] = "secret"
+        session.save()
 
         search_url = reverse("channels.types.vonage.search")
 
@@ -181,11 +249,14 @@ class VonageTypeTest(TembaTest):
         self.assertEqual(["+1 360-788-4540", "+1 360-788-4550"], response.json())
 
     def test_deactivate(self):
-        # convert our test channel to be a Vonage channel
-        self.org.connect_vonage("TEST_KEY", "TEST_SECRET", self.admin)
         channel = self.org.channels.all().first()
         channel.channel_type = "NX"
-        channel.config = {Channel.CONFIG_VONAGE_APP_ID: "myappid", Channel.CONFIG_VONAGE_APP_PRIVATE_KEY: "secret"}
+        channel.config = {
+            Channel.CONFIG_VONAGE_APP_ID: "myappid",
+            Channel.CONFIG_VONAGE_API_KEY: "api_key",
+            Channel.CONFIG_VONAGE_API_SECRET: "api_secret",
+            Channel.CONFIG_VONAGE_APP_PRIVATE_KEY: "secret",
+        }
         channel.save(update_fields=("channel_type", "config"))
 
         # mock a 404 response from Vonage during deactivation
