@@ -1,3 +1,7 @@
+v8.1.132 (2023-05-05)
+-------------------------
+ * Remove settings turd
+
 v8.1.131 (2023-05-05)
 -------------------------
  * Remove old nav from landing page
