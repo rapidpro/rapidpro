@@ -1107,5 +1107,3 @@ MAILROOM_AUTH_TOKEN = None
 # ElasticSearch
 # -----------------------------------------------------------------------------------
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
-
-CSRF_TRUSTED_ORIGINS = ("https://localhost",)
