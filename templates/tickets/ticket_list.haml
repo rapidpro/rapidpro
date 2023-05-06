@@ -136,18 +136,6 @@
 
 -block extra-script
   {{ block.super }}
-
-  -if not is_spa
-    :javascript
-      function handleTembaMenuClicked(event) {
-        var items = event.detail;
-        var item = items.item;
-        var parent = items.parent;
-        var selection = items.selection;
-        if (!item.popup && selection.length > 1 && selection[0] == "ticket") {
-          handleTicketsMenuChanged(item);
-        }
-      }
     
   :javascript
     // current state
@@ -299,12 +287,7 @@
       updateTicketList();
       
       var path = `${folder}/${status}/${ticketUUID || ''}`;
-
-      {% if is_spa %}
-        var show = `/ticket/${path}`;
-      {% else %}
-        var show = `/ticket/${path}`;
-      {% endif %}
+      var show = `/ticket/${path}`;
 
       if (!show.endsWith("/")) {
         show += "/";
@@ -450,12 +433,8 @@
 -block content
   .flex.flex-col.overflow-y-hidden.overflow-x-hidden.rounded-b-lg.flex-grow.-m-5.p-5
     .page.flex-grow.flex.flex-col.min-h-0
-      .flex.ticket-ui(style="{% if is_spa%}position:relative;z-index:0;margin:0;padding:0;height:100%{%else%}height:100vh; margin-top:-121px;padding-top:121px;margin-bottom:-100px;padding-bottom:100px;{%endif%}")
-        -if not is_spa
-          .folders
-            %temba-menu(endpoint="{%url 'orgs.org_menu'%}" submenu="ticket" -temba-button-clicked="handleTembaMenuClicked(event)" value="ticket/{{folder}}")
-
-        .ticket-list.flex.flex-col(class="{% if is_spa%}{% else %}m-4 pt-4 mr-2{%endif%}")
+      .flex.ticket-ui(style="position:relative;z-index:0;margin:0;padding:0;height:100%")
+        .ticket-list.flex.flex-col.m-4.pt-4.mr-2
           %temba-select.mb-2(name="ticket-status" onchange="handleStatusFilterChanged(event)" value="{{status}}")
             %temba-option(name="Open" value="open" icon="icon.tickets_open")
             %temba-option(name="Closed" value="closed" icon="icon.tickets_closed")
@@ -469,7 +448,7 @@
             -else
               %temba-ticket-list.flex-grow(nextselection="{{nextUUID}}" agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
 
-        .chat-pane.flex-grow.flex-col.flex(class="{% if is_spa %}ml-4{%else%}py-4 pb-4 pr-4{% endif %}")
+        .chat-pane.flex-grow.flex-col.flex.ml-4
           .empty
             -if has_tickets
               %h2
