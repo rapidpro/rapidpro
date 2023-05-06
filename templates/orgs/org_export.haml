@@ -78,59 +78,65 @@
   {{ block.super }}
 
   :javascript
-
     $(document).ready(function() {
       var flow_id = {{flow_id}};
       var campaign_id = {{campaign_id}};
 
+      window.setTimeout(function(){
 
-      // check the entire group if it's bucketed
-      $('#flows-' + flow_id).parents('.exportable-item').parent('.exportables-grp').parents('.bucket').each(function(){
-        $(this).find('.select-section').each(function() {
-          $(this).click();
+        // check the entire group if it's bucketed
+        $('#flows-' + flow_id).parents('.exportable-item').parent('.exportables-grp').parents('.bucket').each(function(){
+          $(this).find('.select-section').each(function() {
+            this.click();
+          })
         })
-      })
-
-      $('#campaigns-' + campaign_id).parents('.exportable-item').parent('.exportables-grp').parents('.bucket').each(function(){
-        $(this).find('.select-section').each(function() {
-          $(this).click();
+  
+        $('#campaigns-' + campaign_id).parents('.exportable-item').parent('.exportables-grp').parents('.bucket').each(function(){
+          $(this).find('.select-section').each(function() {
+            this.click();
+          })
         })
-      })
-
-
-      // check individually if for the other group
-      $('#flows_' + flow_id).each(function(){$(this).click()});
-      $('#campaigns_' + campaign_id).each(function(){$(this).click()});
+  
+  
+        // check individually if for the other group
+        $('#flows_' + flow_id).each(function(){this.click()});
+        $('#campaigns_' + campaign_id).each(function(){this.click()});
+      }, 0);
     });
-
-    $('.toggle-all').on('click', function() {
-      var checked = 'checked' == $(this).attr('checked');
-      var id = $(this).attr('id');
-      $(this).parents('.exportables-grp').find('.exportable-item.' + id + ' input').each(function(){
-         $(this).attr('checked', checked);
-      });
-    })
-
-    $('.select-all').on('click', function(){
-      $('.toggle-all').each(function(){
-        $(this).attr('checked', true);
-        $(this).parents('.exportables-grp').find('.exportable-item input').each(function(){
-         $(this).attr('checked', true);
+    
+    $(document).ready(function() {
+    
+      $('.toggle-all').on('click', function() {
+        var checked = 'checked' == $(this).attr('checked');
+        var id = $(this).attr('id');
+        $(this).parents('.exportables-grp').find('.exportable-item.' + id + ' input').each(function(){
+           $(this).attr('checked', checked);
         });
-
-      });
-    });
-
-    $('.select-section').on('click', function() {
-      $(this).parents('.bucket').find('.exportables-grp').find('.toggle-all').each(function(){
-        $(this).attr('checked', true);
-        $(this).parents('.exportables-grp').find('.exportable-item input').each(function(){
-         $(this).attr('checked', true);
+      })
+  
+      $('.select-all').on('click', function(){
+        $('.toggle-all').each(function(){
+          $(this).attr('checked', true);
+          $(this).parents('.exportables-grp').find('.exportable-item input').each(function(){
+           $(this).attr('checked', true);
+          });
+  
         });
       });
-    });
-
-    $('.submit').on('click', function() {
-      $('form.export').submit();
+  
+      $('.select-section').on('click', function() {
+        $(this).parents('.bucket').find('.exportables-grp').find('.toggle-all').each(function(){
+          $(this).attr('checked', true);
+          $(this).parents('.exportables-grp').find('.exportable-item input').each(function(){
+           $(this).attr('checked', true);
+          });
+        });
+      });
+  
+      $('.submit').on('click', function() {
+        $('form.export').submit();
+      });
+  
+  
     });
 

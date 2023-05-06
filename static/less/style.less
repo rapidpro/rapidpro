@@ -1,6 +1,43 @@
 // if you are looking for a style that is not here,
 // it might be in the legacy file.
 @import "legacy";
+@import "variables";
+@import "mixins";
+
+pre {
+  border-radius: 4px;
+  border: 1px solid #f1f1f1;
+
+}
+
+.prettyprint {
+  margin-bottom: 20px;
+}
+
+.button-primary {
+  color: rgba(255, 255, 255, var(--tw-text-opacity)) !important;
+}
+
+.breadcrumb {
+  background-color: #f3f3f3;
+  padding: 0.5em 1em;
+  margin-bottom: 2em;
+}
+
+input[type="checkbox"] {
+  width: initial;
+}
+input[type="submit"] {
+  width: initial;
+}
+
+code {
+  background: #f9f9f9;
+}
+
+.hide {
+  display: none;
+}
 
 .btn-alert {
   .btn-colored(@color-alert-error, @color-font-white);
