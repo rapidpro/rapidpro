@@ -53,7 +53,6 @@
 
     // ==== JQUERY ====
     <script type="text/javascript" src="{{ STATIC_URL }}jquery/dist/jquery.min.js"></script>
-    // <script type="text/javascript" src="{{ STATIC_URL }}jquery-migrate/dist/jquery-migrate.min.js"></script>
 
     -# this view make it possible to process translations from javascript land
     <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
@@ -62,13 +61,6 @@
         var static_url = '{{STATIC_URL}}';
 
       %script{src:"{{ STATIC_URL }}js/libs/jquery.url.js"}
-
-      // expanded nav dropdown
-      %script{src:"{{ STATIC_URL }}bower/jquery-hoverintent/jquery.hoverIntent.js"}
-
-      // npm packages
-      %script{src:"{{ STATIC_URL }}intercooler/dist/intercooler.js"}
-
       %script(src="{{ STATIC_URL }}rest_framework/js/prettify-min.js")
 
       -if not debug and not testing
