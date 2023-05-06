@@ -991,7 +991,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType",
     "temba.channels.types.twilio_whatsapp.TwilioWhatsappType",
     "temba.channels.types.twilio.TwilioType",
-    "temba.channels.types.twiml_api.TwimlAPIType",
+    "temba.channels.types.somleng.SomlengType",
     "temba.channels.types.twitter_legacy.TwitterLegacyType",
     "temba.channels.types.twitter.TwitterType",
     "temba.channels.types.verboice.VerboiceType",

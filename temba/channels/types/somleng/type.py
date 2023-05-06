@@ -1,14 +1,14 @@
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.types.twiml_api.views import ClaimView
+from temba.channels.types.somleng.views import ClaimView
 from temba.contacts.models import URN
 
 from ...models import ChannelType
 
 
-class TwimlAPIType(ChannelType):
+class SomlengType(ChannelType):
     """
-    An Twiml API channel
+    An Somleng channel
 
     Callback status information (https://www.twilio.com/docs/voice/twiml#callstatus-values):
 
@@ -26,8 +26,8 @@ class TwimlAPIType(ChannelType):
     code = "TW"
     category = ChannelType.Category.PHONE
 
-    name = "TwiML Rest API"
-    slug = "twiml_api"
+    name = "Somleng"
+    slug = "somleng"
     icon = "icon-channel-twilio"
 
     courier_url = r"^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
@@ -37,20 +37,18 @@ class TwimlAPIType(ChannelType):
 
     claim_view = ClaimView
     claim_blurb = _(
-        "Connect to a service that speaks TwiML. You can use this to connect to TwiML compatible services outside of "
-        "Twilio."
+        "Connect to Somleng."
     )
 
     configuration_blurb = _(
-        "To finish configuring your TwiML REST API channel you'll need to add the following URL in your TwiML REST API "
-        "instance."
+        "To finish configuring your Somleng channel you'll need to add the following URL to Somleng."
     )
 
     configuration_urls = (
         dict(
-            label=_("TwiML REST API Host"),
+            label=_("Somleng Host"),
             url="{{ channel.config.send_url }}",
-            description=_("The endpoint which will receive Twilio API requests for this channel."),
+            description=_("The endpoint which will receive Somleng requests for this channel."),
         ),
         dict(
             label="",
