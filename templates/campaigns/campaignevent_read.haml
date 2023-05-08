@@ -8,22 +8,15 @@
   .title-icon
     %span.glyph.icon-campaign
 
--block title
-  %a{href:"{% url 'campaigns.campaign_read' object.campaign.uuid %}"}
-    {{object.campaign.name}}
-    -if object.campaign.is_archived
-      -trans "(Archived)"
-
 -block subtitle
-  {{ object.offset_display }} {{ object.relative_to.name }}
 
-  .mt-2
-    -if object.campaign.group.is_active
-      .inline-block
-        -include "includes/recipients_group.haml" with group=object.campaign.group
+  .event-details.p-4.bg-gray-200.rounded-lg.mt-4
+    {{ object.offset_display }} {{ object.relative_to.name }}
+
 
 -block content
-  .event-details.p-4.bg-gray-100.rounded-lg.mb-6
+  
+  .event-details.p-4.bg-gray-200.rounded-lg.mb-6
     -if object.event_type == 'M'
       .cap-label
         -trans "Send Message"
@@ -31,9 +24,9 @@
         {{object.get_message}}
     -else
       .start-flow
-        -trans "Start the"
-        %a.href{ href: "{% url 'flows.flow_editor' object.flow.uuid %}" }= object.flow.name
-        -trans "Flow"
+        -trans "Start"
+        %span.linked(onclick="goto(event)" href="{% url 'flows.flow_editor' object.flow.uuid %}")
+          {{object.flow.name}}
 
 
   -if not scheduled_event_fires
@@ -59,17 +52,17 @@
         -for fire in scheduled_event_fires
           %tr.event_fire
             %td
-              .name
-                %a.href{ href: "{% url 'contacts.contact_read' fire.contact.uuid %}" }= fire.contact|name_or_urn:user_org
+              .name.linked(onclick="goto(event)" href="{% url 'contacts.contact_read' fire.contact.uuid %}")
+                {{fire.contact|name_or_urn:user_org}}
 
               .relative-to
-                {{object.relative_to}} - {{fire.get_relative_to_value|date:"M d, Y \a\t h:ia"|slice:"-3"}}
+                .flex
+                  {{object.relative_to}}&nbsp;
+                  {{fire.get_relative_to_value|duration}}
+                  
 
             %td.event_date
-              -if fire.is_firing_soon
-                soon
-              -else
-                {{fire.scheduled|naturaltime}}
+              {{fire.scheduled|duration}}
 
         -if scheduled_event_fires_count
           %tr
@@ -92,22 +85,25 @@
             .ml-3
               No events yet
   -else
-    .cap-label
-      Last {{fired_event_fires|length|intcomma}} Event{{fired_event_fires|length|pluralize}}
-
+      
     %table.list
+      %thead
+        %tr
+          %th{colspan:"99"}
+            -trans "Recent Events"
+
       %tbody
         -for fire in fired_event_fires
           %tr.event_fire
             %td
-              .name
-                %a.href{ href: "{% url 'contacts.contact_read' fire.contact.uuid %}" }= fire.contact.name
+              .name.linked(onclick="goto(event)" href="{% url 'contacts.contact_read' fire.contact.uuid %}")
+                {{fire.contact.name}}
 
               .relative-to
                 {{object.relative_to}}
 
             %td.event_date
-              {{fire.fired|naturaltime}}
+              {{fire.fired|duration}}
 
         -if fired_event_fires_count
           %tr
@@ -165,7 +161,6 @@
 
         .relative-to {
           display:inline-block;
-          color: #999;
           margin-left:10px;
         }
         .message {
@@ -198,6 +193,7 @@
     {% endlessblock %}
 
 -block extra-style
+  {{block.super}}
   :css
     span.strong {
       font-weight:400;
