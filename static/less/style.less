@@ -4,10 +4,17 @@
 @import "variables";
 @import "mixins";
 
+#header .logo {
+  color: #fff;
+}
+
+.object-list th a {
+  color: rgba(0,0,0,.5) !important;
+}
+
 pre {
   border-radius: 4px;
   border: 1px solid #f1f1f1;
-
 }
 
 .prettyprint {
@@ -140,7 +147,7 @@ body {
 
 // used on message views and contact history page
 .attachment {
-  display: inline-block;
+  display: flex;
   margin-right: 5px;
   font-size: 0;
   white-space: nowrap;
@@ -149,7 +156,7 @@ body {
     background-color: #EAEAEA;
     border: 0;
     color: #777;
-    display: inline-block;
+    display: flex;
     font-size: 12px;
     height: 18px;
     margin: 0;

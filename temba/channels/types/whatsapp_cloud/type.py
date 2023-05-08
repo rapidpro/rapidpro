@@ -31,7 +31,6 @@ class WhatsAppCloudType(ChannelType):
     courier_url = r"^wac/receive"
 
     name = "WhatsApp Cloud"
-    icon = "icon-whatsapp"
 
     show_config_page = False
 

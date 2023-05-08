@@ -15,6 +15,16 @@
       padding: 0.25rem;
     }
 
+    temba-icon.sorting {
+      display: inline-block;
+      opacity: 0;
+    }
+    
+    temba-icon.sorting.show {
+      opacity: 1;
+    }
+    
+
 -block spa-title
   .page-title
   #title-text
@@ -69,17 +79,17 @@
                       %a(href="{{request.path}}?sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
                         %div
                           {{ field.name }}
-                          %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                          %temba-icon.sorting.show(name="sort_down")
                     -else
                       %a(href="{{request.path}}?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
                         %div
                           {{ field.name }}
-                          %span.sort.icon.icon-arrow-up51.sort-desc.visible
+                          %temba-icon.sorting.show(name="sort_up")
                   -else
                     %a(href="{{request.path}}?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
                       %div
                         {{ field.name }}
-                        %span.sort.icon.icon-arrow-down-2.sort-desc
+                        %temba-icon.sorting(name="sort_down")
             %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
               - if object_list
                 -if sort_field == 'last_seen_on'
@@ -87,17 +97,17 @@
                     %a(href="{{request.path}}?sort_on=last_seen_on{% if search %}&search={{ search|escape }}{% endif %}")
                       %div
                         -trans "Last Seen On"
-                        %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                        %temba-icon.sorting(name="sort_down")
                   -else
                     %a(href="{{request.path}}?sort_on=-last_seen_on{% if search %}&search={{ search|escape }}{% endif %}")
                       %div
                         -trans "Last Seen On"
-                        %span.sort.icon.icon-arrow-up51.sort-desc.visible
+                        %temba-icon.sorting(name="sort_up")
                 -else
                   %a(href="{{request.path}}?sort_on=-last_seen_on{% if search %}&search={{ search|escape }}{% endif %}")
                     %div
                       -trans "Last Seen On"
-                      %span.sort.icon.icon-arrow-down-2.sort-desc
+                      %temba-icon.sorting(name="sort_down")
 
             %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
               -if object_list
@@ -106,17 +116,17 @@
                     %a(href="{{request.path}}?sort_on=created_on{% if search %}&search={{ search|escape }}{% endif %}")
                       %div
                         -trans "Created On"
-                        %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                        %temba-icon.sorting(name="sort_down")
                   -else
                     %a(href="{{request.path}}?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}")
                       %div
                         -trans "Created On"
-                        %span.sort.icon.icon-arrow-up51.sort-desc.visible
+                        %temba-icon.sorting(name="sort_up")
                 -else
                   %a(href="{{request.path}}?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}")
                     %div
                       -trans "Created On"
-                      %span.sort.icon.icon-arrow-down-2.sort-desc
+                      %temba-icon.sorting(name="sort_down")
           -for object in contacts
             %tr.contact.select-row.object-row(onclick='handleRowClicked(event)' data-uuid="{{object.uuid}}" data-object-id="{{object.id}}" href="{% url 'contacts.contact_read' object.uuid %}")
 

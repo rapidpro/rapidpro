@@ -28,7 +28,6 @@ class TwimlAPIType(ChannelType):
 
     name = "TwiML Rest API"
     slug = "twiml_api"
-    icon = "icon-channel-twilio"
 
     courier_url = r"^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
 

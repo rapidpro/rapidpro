@@ -14,10 +14,10 @@ from temba.apks.models import Apk
 from temba.public.models import Lead, Video
 from temba.utils import analytics, get_anonymous_user, json
 from temba.utils.text import random_string
-from temba.utils.views import SpaMixin
+from temba.utils.views import NoNavMixin, SpaMixin
 
 
-class IndexView(SmartTemplateView):
+class IndexView(NoNavMixin, SmartTemplateView):
     template_name = "public/public_index.haml"
 
     def derive_title(self):

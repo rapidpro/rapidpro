@@ -54,7 +54,6 @@ class VonageType(ChannelType):
     courier_url = r"^nx/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
 
     name = "Vonage"
-    icon = "icon-vonage"
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
         "link": '<a target="_blank" href="https://www.vonage.com/">Vonage</a>'

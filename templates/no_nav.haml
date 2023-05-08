@@ -5,8 +5,11 @@
 
 -block extra-style
   {{block.super}}
-
   :css
+    .logo {
+      color: #fff !important;
+    }
+
     .content-card {
       margin: 4em;
     }
@@ -17,9 +20,10 @@
     .middle.flex.flex-row.mb-10
       .flex-grow
       .content-card
-        .mb-4
+        .mb-4.logo
           %a(href="/")
-            <img style="max-height:4em;margin: 1em 0;margin-bottom:2em" src="{{STATIC_URL}}{{ brand.logo }}">
+            %svg
+              %use(href="{{STATIC_URL}}{{ brand.logo }}")
         .page-title
           -block title
         -block content

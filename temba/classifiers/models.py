@@ -28,9 +28,6 @@ class ClassifierType(metaclass=ABCMeta):
     # the short code for this classifier type (< 16 chars, lowercase)
     slug = None
 
-    # the icon to show for this classifier type
-    icon = "icon-channel-external"
-
     # the blurb to show on the main connect page
     connect_blurb = None
 
@@ -69,6 +66,9 @@ class ClassifierType(metaclass=ABCMeta):
         Should return current set of available intents for the passed in classifier by checking the provider API
         """
         raise NotImplementedError("classifier types must implement get_intents")
+
+    def get_icon(self):
+        return f"classifier_{self.slug.lower()}"
 
 
 class Classifier(TembaModel, DependencyMixin):

@@ -23,15 +23,6 @@
       }
     }
 
--block content
-
-  %temba-field-manager(priority-endpoint='{% url "contacts.contactfield_update_priority" %}' -temba-selection="handleFieldClicked")
-
-  -block pre-tables
-    %temba-modax(id='update-field' header='{{_("Update Field")|escapejs}}' -temba-submitted="handleFieldUpdated")
-    %temba-modax(id='delete-modal' header='{{_("Delete Field")|escapejs}}' -temba-submitted="handleFieldUpdated")
-    %temba-modax(id='usages-modal' header='{{_("Usages")|escapejs}}')
-
 -block extra-style
   {{block.super}}
     :css

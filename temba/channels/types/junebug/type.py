@@ -16,7 +16,6 @@ class JunebugType(ChannelType):
     courier_url = r"^jn/(?P<uuid>[a-z0-9\-]+)/(?P<action>inbound)$"
 
     name = "Junebug"
-    icon = "icon-junebug"
 
     claim_blurb = _("Connect your %(link)s instance that you have already set up and configured.") % {
         "link": '<a target="_blank" href="https://junebug.praekelt.org/">Junebug</a>'

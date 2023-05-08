@@ -17,7 +17,6 @@ class FirebaseCloudMessagingType(ChannelType):
     courier_url = r"^fcm/(?P<uuid>[a-z0-9\-]+)/(?P<action>register|receive)$"
 
     name = "Firebase Cloud Messaging"
-    icon = "icon-fcm"
 
     claim_blurb = _(
         "Add a %(link)s channel to send and receive messages. Your users will need an App to send and receive messages."

@@ -57,7 +57,6 @@ class ChannelType(metaclass=ABCMeta):
     courier_url = None
 
     name = None
-    icon = "icon-channel-external"
     schemes = None
     show_config_page = True
 
@@ -222,6 +221,9 @@ class ChannelType(metaclass=ABCMeta):
         """
         Resolves an error code from a channel log into a docs URL for that error.
         """
+
+    def get_icon(self):
+        return f"channel_{self.code.lower()}"
 
     def __str__(self):
         return self.name

@@ -20,7 +20,7 @@ class TelegramType(ChannelType):
     courier_url = r"^tg/(?P<uuid>[a-z0-9\-]+)/receive$"
 
     name = "Telegram"
-    icon = "icon-telegram"
+
     show_config_page = False
 
     claim_blurb = _(

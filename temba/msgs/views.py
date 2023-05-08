@@ -316,14 +316,14 @@ class BroadcastCRUDL(SmartCRUDL):
         def derive_formax_sections(self, formax, context):
             if self.has_org_perm("msgs.broadcast_scheduled_update"):
                 formax.add_section(
-                    "contact", reverse("msgs.broadcast_scheduled_update", args=[self.object.id]), icon="icon-megaphone"
+                    "contact", reverse("msgs.broadcast_scheduled_update", args=[self.object.id]), icon="broadcast"
                 )
 
             if self.has_org_perm("schedules.schedule_update"):
                 formax.add_section(
                     "schedule",
                     reverse("schedules.schedule_update", args=[self.object.schedule.id]),
-                    icon="icon-calendar",
+                    icon="schedule",
                     action="formax",
                 )
 
@@ -600,21 +600,21 @@ class MsgCRUDL(SmartCRUDL):
                         name="Inbox",
                         href=reverse("msgs.msg_inbox"),
                         count=counts[SystemLabel.TYPE_INBOX],
-                        icon="icon.inbox",
+                        icon="inbox",
                     ),
                     self.create_menu_item(
                         menu_id="handled",
                         name="Handled",
                         href=reverse("msgs.msg_flow"),
                         count=counts[SystemLabel.TYPE_FLOWS],
-                        icon="icon.flow",
+                        icon="flow",
                     ),
                     self.create_menu_item(
                         menu_id="archived",
                         name="Archived",
                         href=reverse("msgs.msg_archived"),
                         count=counts[SystemLabel.TYPE_ARCHIVED],
-                        icon="icon.archive",
+                        icon="archive",
                     ),
                     self.create_divider(),
                     self.create_menu_item(
@@ -649,7 +649,7 @@ class MsgCRUDL(SmartCRUDL):
                 for label in labels:
                     label_items.append(
                         self.create_menu_item(
-                            icon="icon.label",
+                            icon="label",
                             menu_id=label.uuid,
                             name=label.name,
                             count=label_counts[label],

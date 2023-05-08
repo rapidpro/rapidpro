@@ -907,7 +907,7 @@ class ContactGroupTest(TembaTest):
         group.save(update_fields=("status",))
 
         # dynamic groups should get their own icon
-        self.assertEqual(group.get_attrs(), {"icon": "icon.group_smart"})
+        self.assertEqual(group.get_attrs(), {"icon": "group_smart"})
 
         # can't update query again while it is in this state
         with self.assertRaises(AssertionError):
@@ -2557,7 +2557,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # errored show retrying icon
         msg.status = Msg.STATUS_ERRORED
-        self.assertIn('"icon.retry"', msg_status_badge(msg))
+        self.assertIn('"retry"', msg_status_badge(msg))
 
         # failed messages show an x
         msg.status = Msg.STATUS_FAILED

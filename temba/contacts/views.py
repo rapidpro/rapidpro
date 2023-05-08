@@ -578,11 +578,11 @@ class ContactCRUDL(SmartCRUDL):
                     "count": counts[Contact.STATUS_ACTIVE],
                     "name": _("Active"),
                     "href": reverse("contacts.contact_list"),
-                    "icon": "icon.active",
+                    "icon": "active",
                 },
                 {
                     "id": "archived",
-                    "icon": "icon.archive",
+                    "icon": "archive",
                     "count": counts[Contact.STATUS_ARCHIVED],
                     "name": _("Archived"),
                     "href": reverse("contacts.contact_archived"),
@@ -592,14 +592,14 @@ class ContactCRUDL(SmartCRUDL):
                     "count": counts[Contact.STATUS_BLOCKED],
                     "name": _("Blocked"),
                     "href": reverse("contacts.contact_blocked"),
-                    "icon": "icon.contact_blocked",
+                    "icon": "contact_blocked",
                 },
                 {
                     "id": "stopped",
                     "count": counts[Contact.STATUS_STOPPED],
                     "name": _("Stopped"),
                     "href": reverse("contacts.contact_stopped"),
-                    "icon": "icon.contact_stopped",
+                    "icon": "contact_stopped",
                 },
             ]
 
@@ -607,7 +607,7 @@ class ContactCRUDL(SmartCRUDL):
             menu.append(
                 {
                     "id": "import",
-                    "icon": "icon.upload",
+                    "icon": "upload",
                     "href": reverse("contacts.contactimport_create"),
                     "name": _("Import"),
                 }
@@ -618,7 +618,7 @@ class ContactCRUDL(SmartCRUDL):
                 menu.append(
                     dict(
                         id="fields",
-                        icon="icon.fields",
+                        icon="fields",
                         count=count,
                         name=_("Fields"),
                         href=reverse("contacts.contactfield_list"),

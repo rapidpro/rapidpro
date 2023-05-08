@@ -17,7 +17,6 @@ class DiscordType(ChannelType):
     courier_url = r"^ds/(?P<uuid>[a-z0-9\-]+)/receive$"
 
     name = "Discord"
-    icon = "icon-discord"
     show_config_page = False
 
     claim_blurb = _(
