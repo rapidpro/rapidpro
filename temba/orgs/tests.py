@@ -3539,7 +3539,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.requestView(choose_url, self.non_org_user)
         self.assertLoginRedirect(response)
         response = self.client.get("/users/login/")
-        self.assertContains(response, "No organizations for this account, please contact your administrator.")
+        self.assertContains(response, "No workspaces for this account, please contact your administrator.")
 
         # unless they are staff
         self.assertRedirect(self.requestView(choose_url, self.customer_support), "/org/manage/")

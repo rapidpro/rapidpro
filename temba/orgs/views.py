@@ -2655,7 +2655,7 @@ class OrgCRUDL(SmartCRUDL):
                         return HttpResponseRedirect(reverse("orgs.org_manage"))
 
                     # for regular users, if there's no orgs, log them out with a message
-                    messages.info(request, _("No organizations for this account, please contact your administrator."))
+                    messages.info(request, _("No workspaces for this account, please contact your administrator."))
                     logout(request)
                     return HttpResponseRedirect(reverse("users.user_login"))
             return None

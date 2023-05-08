@@ -270,13 +270,13 @@ class TriggerCRUDL(SmartCRUDL):
             add_section("trigger-schedule", "triggers.trigger_create_schedule", "calendar")
             add_section("trigger-inboundcall", "triggers.trigger_create_inbound_call", "incoming_call")
 
-            if True or self.org.channels.filter(is_active=True, channel_type=AndroidType.code).exists():
+            if self.org.channels.filter(is_active=True, channel_type=AndroidType.code).exists():
                 add_section("trigger-missedcall", "triggers.trigger_create_missed_call", "missed_call")
 
-            if True or ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION.intersection(org_schemes):
+            if ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION.intersection(org_schemes):
                 add_section("trigger-new-conversation", "triggers.trigger_create_new_conversation", "conversation")
 
-            if True or ContactURN.SCHEMES_SUPPORTING_REFERRALS.intersection(org_schemes):
+            if ContactURN.SCHEMES_SUPPORTING_REFERRALS.intersection(org_schemes):
                 add_section("trigger-referral", "triggers.trigger_create_referral", "referral")
 
             add_section("trigger-closed-ticket", "triggers.trigger_create_closed_ticket", "agent")
