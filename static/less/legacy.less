@@ -798,72 +798,6 @@ table.list-table {
       }
     }
   }
-
-  @media all and (max-width: 767px) {
-    text-align: right;
-    right: 25px !important;
-    margin-right: 15px;
-    margin-top: -65px !important;
-    padding-bottom: 19px;
-    min-height: 50px !important;
-
-    a {
-      width: 42px !important;
-    }
-
-    .circle {
-      border-width: 2px !important;
-      width: 25px !important;
-      height: 25px !important;
-
-      div {
-        width: 13px !important;
-        height: 14px !important;
-        font-size: 14px !important;
-      }
-    }
-
-    .title {
-      display: none !important;
-    }
-
-    div {
-      // border:1px solid pink;
-      width: 15px;
-      height: 15px;
-      font-size: 15px;
-      text-align: left;
-      margin: 0;
-
-      &.more {
-        height: 0;
-        width: 0;
-        visibility: hidden;
-
-        .submenu-container {
-          text-transform: lowercase;
-          left: -20px;
-          top: 14px;
-          display: block;
-
-          .submenu {
-            .drop-shadow(0);
-
-            a {
-              height: 22px;
-              font-size: 24px;
-            }
-          }
-        }
-      }
-
-      a {
-        width: 25px;
-        height: 25px;
-        padding: 0;
-      }
-    }
-  }
 }
 
 .nav-alert {
@@ -899,17 +833,6 @@ table.list-table {
   font-size: 11px;
   font-weight: 200;
 
-  @media all and (max-width: 767px) {
-    .rounded-corners(3px);
-    margin-top: 10px;
-    right: 50px;
-    top: 25px;
-    width: 170px;
-    background: none;
-    text-align: left;
-    font-size: 12px;
-    padding: 0;
-  }
 }
 
 a.org-choose {
@@ -1036,41 +959,6 @@ a.org-choose {
   border: 0px solid pink;
   z-index: 0;
   position: relative;
-
-  @media all and (max-width: 940px) and (min-width: 767px) {
-    min-width: 940px;
-  }
-
-  @media all and (max-width: 767px) {
-    margin-left: -20px;
-    margin-right: -20px;
-    padding-left: 20px;
-    padding-right: 20px;
-  }
-
-  #menu-right-container {
-    height: 60px;
-    // border: 1px solid purple;
-    position: absolute;
-    width: 600px;
-    right: 0px;
-
-    top: 10px;
-    right: 0px;
-    overflow-x: hidden;
-
-    #menu-right {
-      float: right;
-      border: 1px solid yellow;
-      height: 60px;
-      width: 600px;
-    }
-  }
-
-  #menu-left {
-    height: 70px;
-    border: 0px solid yellow;
-  }
 }
 
 #print-header {
@@ -1087,12 +975,6 @@ a.org-choose {
   color: #999;
   line-height: 25px;
   width: 80%;
-}
-
-.instructions {
-  @media screen {
-    display: gone;
-  }
 }
 
 // *******************************
@@ -1229,19 +1111,6 @@ input[type='text'].search-query {
   font-size: 250px;
   color: @flat-darkwhite;
   margin-top: 20px;
-
-  @media (max-width: 2000px) {
-    font-size: 180px;
-    height: 200px;
-    margin-left: 25px;
-  }
-
-  @media (max-width: 768px) {
-    font-size: 80px;
-    height: 200px;
-    margin-left: 25px;
-    display: none;
-  }
 
   &.icon-contact {
     margin-top: -30px;

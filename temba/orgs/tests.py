@@ -2246,19 +2246,6 @@ class OrgTest(TembaTest):
         # default values should be the same as parent
         self.assertEqual(self.org.timezone, sub_org.timezone)
 
-        self.login(self.admin, choose_org=self.org)
-
-        response = self.client.get(reverse("orgs.org_edit"))
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(len(response.context["sub_orgs"]), 1)
-
-        # sub_org is deleted
-        sub_org.release(self.customer_support)
-
-        response = self.client.get(reverse("orgs.org_edit"))
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(len(response.context["sub_orgs"]), 0)
-
     @patch("temba.msgs.tasks.export_messages_task.delay")
     @patch("temba.flows.tasks.export_flow_results_task.delay")
     @patch("temba.contacts.tasks.export_contacts_task.delay")
@@ -2862,7 +2849,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(20):
+        with self.assertNumQueries(19):
             response = self.client.get(workspace_url)
 
         # should have an extra menu option for our child (and section header)
@@ -3429,13 +3416,13 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_child_management(self):
         sub_orgs_url = reverse("orgs.org_sub_orgs")
-        settings_url = reverse("orgs.org_workspace")
+        menu_url = reverse("orgs.org_menu") + "settings/"
 
         self.login(self.admin)
 
-        # we don't see button if we don't have child orgs
-        response = self.client.get(settings_url)
-        self.assertNotContains(response, "Manage Workspaces")
+        response = self.client.get(menu_url)
+        self.assertNotContains(response, "Workspaces")
+        self.assertNotContains(response, sub_orgs_url)
 
         # enable child orgs and create some child orgs
         self.org.features = [Org.FEATURE_CHILD_ORGS, Org.FEATURE_USERS]
@@ -3443,10 +3430,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         child1 = self.org.create_new(self.admin, "Child Org 1", self.org.timezone, as_child=True)
         child2 = self.org.create_new(self.admin, "Child Org 2", self.org.timezone, as_child=True)
 
-        # now we see the button and can view that page
+        # now we see the Workspaces menu item
         self.login(self.admin, choose_org=self.org)
-        response = self.client.get(settings_url)
-        self.assertContains(response, "Manage Workspaces")
+
+        response = self.client.get(menu_url)
+        self.assertContains(response, "Workspaces")
+        self.assertContains(response, sub_orgs_url)
 
         response = self.assertListFetch(
             sub_orgs_url, allow_viewers=False, allow_editors=False, context_objects=[child1, child2]
