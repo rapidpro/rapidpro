@@ -615,9 +615,7 @@ class MailroomQueueTest(TembaTest):
             groups=[bobs],
             contacts=[jim],
             urns=["tel:+1234567890", "twitter:bobby"],
-            restart_participants=True,
-            extra={"foo": "bar"},
-            include_active=True,
+            params={"foo": "bar"},
         )
 
         start.async_start()
@@ -639,6 +637,9 @@ class MailroomQueueTest(TembaTest):
                     "group_ids": [bobs.id],
                     "urns": ["tel:+1234567890", "twitter:bobby"],
                     "query": None,
+                    "exclusions": {},
+                    "params": {"foo": "bar"},
+                    # deprecated
                     "restart_participants": True,
                     "include_active": True,
                     "extra": {"foo": "bar"},

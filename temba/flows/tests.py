@@ -5504,8 +5504,10 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         contact = self.create_contact("Bob", phone="+1234567890")
         group = self.create_group("Testers", contacts=[contact])
         start1 = FlowStart.create(flow, self.admin, contacts=[contact])
-        start2 = FlowStart.create(flow, self.admin, query="name ~ Bob", restart_participants=False, start_type="A")
-        start3 = FlowStart.create(flow, self.admin, groups=[group], include_active=False, start_type="Z")
+        start2 = FlowStart.create(
+            flow, self.admin, query="name ~ Bob", start_type="A", exclusions={"started_previously": True}
+        )
+        start3 = FlowStart.create(flow, self.admin, groups=[group], start_type="Z", exclusions={"in_a_flow": True})
 
         FlowStartCount.objects.create(start=start3, count=1000)
         FlowStartCount.objects.create(start=start3, count=234)

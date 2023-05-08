@@ -1105,25 +1105,22 @@ class FlowStartWriteSerializer(WriteSerializer):
         urns = self.validated_data.get("urns", [])
         contacts = self.validated_data.get("contacts", [])
         groups = self.validated_data.get("groups", [])
-        restart_participants = self.validated_data.get("restart_participants", True)
-        exclude_active = self.validated_data.get("exclude_active", False)
-        extra = self.validated_data.get("extra")
-
-        params = self.validated_data.get("params")
-        if params:
-            extra = params
+        exclusions = {
+            FlowStart.EXCLUSION_STARTED_PREVIOUSLY: not self.validated_data.get("restart_participants", True),
+            FlowStart.EXCLUSION_IN_A_FLOW: self.validated_data.get("exclude_active", False),
+        }
+        params = self.validated_data.get("params") or self.validated_data.get("extra")
 
         # ok, let's go create our flow start, the actual starting will happen in our view
         return FlowStart.create(
             self.validated_data["flow"],
             self.context["user"],
             start_type=FlowStart.TYPE_API_ZAPIER if self.context["is_zapier"] else FlowStart.TYPE_API,
-            restart_participants=restart_participants,
-            include_active=not exclude_active,
             contacts=contacts,
             groups=groups,
             urns=urns,
-            extra=extra,
+            exclusions=exclusions,
+            params=params,
         )
 
 
