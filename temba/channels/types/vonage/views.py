@@ -490,10 +490,8 @@ class Connect(SpaMixin, OrgPermsMixin, SmartFormView):
     def derive_initial(self):
         initial = super().derive_initial()
         org = self.request.org
+        last_vonage_channel = org.channels.filter(is_active=True, channel_type="NX").order_by("-created_on").first()
 
-        last_vonage_channel = (
-            Channel.objects.filter(is_active=True, org=org, channel_type="NX").order_by("-created_on").first()
-        )
         if last_vonage_channel:
             initial["api_key"] = last_vonage_channel.config.get(Channel.CONFIG_VONAGE_API_KEY, "")
             initial["api_secret"] = last_vonage_channel.config.get(Channel.CONFIG_VONAGE_API_SECRET, "")
