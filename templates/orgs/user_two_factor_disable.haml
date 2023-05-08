@@ -2,12 +2,8 @@
 -load smartmin i18n
 
 -block content
-  .flex.justify-center
-    .w-128
-      .mb-4.page-title
-        {{ title }}
-
-      {{ block.super }}
+  .w-128
+    {{ block.super }}
 
 -block pre-form
   .mb-6
@@ -16,6 +12,6 @@
 
 -block form-buttons
   .mt-6
-    %input.button-primary(type="submit" value='{{ submit_button_name }}')
-    %a.button-light.float-right(onclick="history.go(-1)")
-      -trans "Cancel"
+    %form(action="{% url 'orgs.user_two_factor_disable'%}" method="POST")
+      {% csrf_token %}
+      %input.button-primary(type="submit" value='{{_("Disable")|escapejs }}')

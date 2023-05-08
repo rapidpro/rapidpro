@@ -1,177 +1,76 @@
 -extends "smartmin/base.html"
 -load compress temba i18n
 
--block page-title
-  {{ object.name }}
-
--block extra-style
-  %link(rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:300,400,500")
-
-  -for css in styles
-    %link(rel="stylesheet" type="text/css" href="{{css}}")
-
+-block spa-style
+  {{block.super}}
   :css
-    body {
-      line-height: inherit;
+    .spa-content {
+      margin-bottom: 0;
+      padding-bottom: 0;      
     }
-
-    h2 .icon-phone {
-      width: 40px;
-    }
-
-    h2 .icon-mobile {
-      width: 40px;
+    .more .submenu {
+      top: 2.5em !important;
+      right: 0.5em !important;
     }
 
     #rp-flow-editor #simulator {
-      top: 20px;
-    }
-
-    #header *, #top-menu *, .org-header * {
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      -khtml-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      user-select: none;
-      z-index: 0;
-    }
-
-    .ReactModalPortal {
-      --curvature: 4px;
-      --curvature-widget: 4px;
-    }
-
-    #rp-flow-editor, .case_list_case {
-      --curvature: 4px;
-      --curvature-widget: 4px; 
-    }
-
-    #rp-flow-editor input[type=text] {
-      height: inherit !important;
-      line-height: inherit;
-    }
-
-    #rp-flow-editor p {
-      display: block;
-      margin-block-start: 1em;
-      margin-block-end: 1em;
-      margin-inline-start: 0px;
-      margin-inline-end: 0px;
-    }
-
-    .page-wrap:after {
-      height: 0px;
-    }
-
-    #rp-flow-editor input {
-      font-family: 'Roboto', sans-serif;
-      font-size: 14px !important;
-      font-weight: 300 !important;
-    }
-
-    #rp-flow-editor input:focus {
-      box-shadow: none;
-      outline: none;
-      border: none;
-    }
-
-    #header {
-      margin: 0;
-    }
-
-    #menu {
-      line-height: 20px;
-    }
-
-    #toolbar h2 {
-      margin-top: -5px;
-    }
-
-    .org-header {
-      z-index: 1000 !important;
-      line-height: 20px;
-    }
-
-    #content-menu {
-      z-index: 20;
-    }
-
-    #toolbar {
-      visibility: visible;
-      position: relative;
-      padding: 18px 30px;
-    }
-
-    #toolbar h2 {
-      margin-bottom: 0;
-    }
-
-    #pending {
-      position: relative;
-      right: 0;
-      width: 40%;
-      height: 36px;
-      margin: 0 auto;
-      text-align: center;
+      top: 20px !important;
+      right: 1em;
     }
 
     #grid {
       overflow: auto;
-      z-index: 5;
+      z-index: 0;
       border: 0px solid #e7e7e7;
-      margin-bottom: 2.5em;
       margin-top: 0px;
-      height: 100%;
     }
 
-    #shadow {
-      box-shadow: inset 0 7px 9px -10px rgba(0,0,0,0.4);
-      z-index: 10;
+    .simulator {
+      top: 59px !important;
     }
 
-
-    #preview {
-      margin-bottom: 14px;
-      margin-left: -14px;
+    .simulator .popped {
+      top: 17px !important;
     }
 
-    #rp-flow-editor {
-      visibility: visible;
-      width: 100%;
+    .revisions {
+      top: 110px !important;
     }
 
-    #rp-flow-editor h1 {
-      font-weight: 300;
-      font-family: 'Roboto'
+    .revisions .popped {
+      top: -33px !important;
     }
 
-    #rp-flow-editor > div {
-      opacity: 0;
-      transition: opacity 150ms linear;
+    .translations {
+      top: 161px !important;
     }
 
-    temba-loading {
-      margin-left: 30px;
-      padding-top: 25px;
-      display: block;
+    .translations .popped {
+      top: -84px !important;
     }
 
-    .page-wrap {
-      min-height: inherit;
-      padding-bottom: inherit;
-      margin-bottom: inherit;
+    .issues {
+      top: 8px !important;
     }
 
-    .footer {
-      display: none;
+    .issues .popped {
+      top: 70px !important;
     }
 
-    label, input, button, select, textarea {
-      font-size: inherit;
-      font-weight: inherit;
-      line-height: inherit;
-      margin-bottom: 0;
+    #simulator-tab {
+      margin-right: 17px;
+    }
+
+    #poptab {
+      margin-left: -17px;
+    }
+
+    .menu {
+      margin-top: 0.5rem;
+    }
+
+    .spa-footer {
+      display:none;
     }
 
     #canvas::after {
@@ -182,6 +81,14 @@
       background-color: #ffffff;
     }
 
+    .language-selector > div {
+      right: 4em !important;
+    }
+
+    .pop_wrapper.pop_invisible {
+      margin-right: 1.3em;
+    }
+
     .flow_node {
       box-shadow: 0px 0px 4px 2px rgba(0,0,0,.05);
       border: 1px solid transparent;
@@ -189,7 +96,7 @@
 
 -block extra-script
   {{ block.super }}
-  
+
   -for script in scripts
     %script(type="text/javascript" src="{{script}}")
 
@@ -198,7 +105,7 @@
     var api = '/api/v2/';
     var flowType = '{{ object.engine_type }}';
 
-    window.addEventListener("DOMContentLoaded", function() {
+    onSpload(function() {
       var confirmation = document.getElementById("confirm-language");
       confirmation.addEventListener("temba-button-clicked", function(event){
         var code = confirmation.dataset.code;
@@ -272,8 +179,8 @@
         languages: base + 'language',
         environment: base + 'environment',
         activity: '/flow/activity/{{object.uuid}}/',
-        recipients: '/contact/omnibox?types=gc',
-        contacts: '/contact/omnibox?types=c',
+        recipients: '/contact/omnibox?v=2&types=gc',
+        contacts: '/contact/omnibox?v=2&types=c',
         contact: '/contact/read/',
 
         {% if can_simulate %}
@@ -291,31 +198,19 @@
         window.showFlowEditor(document.getElementById("rp-flow-editor"), config);
       });
     }
-
--block page-container
-  %temba-modax#shared-modax
-  %temba-dialog#shared-dialog
-  %temba-modax#send-message-modal{ header:"Send Message" }
-
-
-  .top-bar.pb-2(style="z-index:20")
-    .flex.flex-col.pt-4
-      .flex.px-6.pb-2
-        .title.flex-grow
-          .flex.page-title
-            -if flow.flow_type == 'V'
-              .icon-phone.mt-2.mr-6
-            -elif flow.flow_type == 'S'
-              .icon-mobile.mt-2.mr-6
-            .ml-0
-              {{title}}
-        .menu
-          -include "spa_page_menu.haml"
-
+  
+  
+-block alert-messages
+  -if is_starting or messages or user_org.is_suspended
+    .pt-5.pr-5.pl-5
+      {{block.super}}
       -if is_starting
-        .p-3.bg-gray-100.w-full.text-center
+        %temba-alert.mb-3
           -blocktrans trimmed
             This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
+
+-block content
+  %temba-modax#send-message-modal{ header:"Send Message" }
 
   %temba-dialog.hide#confirm-language(header='{{_("Change Language")|escapejs}}' primaryButtonName='{{_("Update")|escapejs}}')
     .p-6.body
@@ -325,8 +220,6 @@
         in this flow and no translation exists for their language or the default language of the workspace,
         communication with that contact will default to <b>{{ language }}</b>.
 
-  #shadow.pb-5.-mb-5
-  #grid.h-full
+  #grid.card.p-0
     <temba-loading class="editor-loader" units="10" size="8"></temba-loading>
     #rp-flow-editor
-
