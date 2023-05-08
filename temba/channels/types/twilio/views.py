@@ -132,6 +132,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             account_trial = self.account.type.lower() == "trial"
 
         context["account_trial"] = account_trial
+        context["current_creds_account"] = self.request.session.get(Channel.CONFIG_TWILIO_ACCOUNT_SID, None)
+
         return context
 
     def get_twilio_client(self):
@@ -426,20 +428,25 @@ class Connect(SpaMixin, OrgPermsMixin, SmartFormView):
     menu_path = "/settings/workspace"
     title = "Connect Twilio"
 
-    def derive_initial(self):
-        initial = super().derive_initial()
-
+    def pre_process(self, *args, **kwargs):
+        reset_creds = self.request.GET.get("reset_creds", "")
         org = self.request.org
 
         last_twilio_channel = (
             org.channels.filter(is_active=True, channel_type__in=["T", "TMS", "TWA"]).order_by("-created_on").first()
         )
 
-        if last_twilio_channel:
-            initial["account_sid"] = last_twilio_channel.config.get(Channel.CONFIG_ACCOUNT_SID, "")
-            initial["account_token"] = last_twilio_channel.config.get(Channel.CONFIG_AUTH_TOKEN, "")
+        if last_twilio_channel and not reset_creds:
+            # add the credentials to the session
+            self.request.session[Channel.CONFIG_TWILIO_ACCOUNT_SID] = last_twilio_channel.config.get(
+                Channel.CONFIG_ACCOUNT_SID, ""
+            )
+            self.request.session[Channel.CONFIG_TWILIO_AUTH_TOKEN] = last_twilio_channel.config.get(
+                Channel.CONFIG_AUTH_TOKEN, ""
+            )
 
-        return initial
+            return HttpResponseRedirect(self.get_success_url())
+        return None
 
     def get_success_url(self):
         claim_type = self.request.GET.get("claim_type", "twilio")

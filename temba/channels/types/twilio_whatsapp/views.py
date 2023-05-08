@@ -76,6 +76,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             account_trial = self.account.type.lower() == "trial"
 
         context["account_trial"] = account_trial
+
+        context["current_creds_account"] = self.request.session.get(Channel.CONFIG_TWILIO_ACCOUNT_SID, None)
         return context
 
     def get_existing_numbers(self, org):
