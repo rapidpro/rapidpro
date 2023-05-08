@@ -432,10 +432,9 @@ class Connect(SpaMixin, OrgPermsMixin, SmartFormView):
         org = self.request.org
 
         last_twilio_channel = (
-            Channel.objects.filter(is_active=True, org=org, channel_type__in=["T", "TMS", "TWA"])
-            .order_by("-created_on")
-            .first()
+            org.channels.filter(is_active=True, channel_type__in=["T", "TMS", "TWA"]).order_by("-created_on").first()
         )
+
         if last_twilio_channel:
             initial["account_sid"] = last_twilio_channel.config.get(Channel.CONFIG_ACCOUNT_SID, "")
             initial["account_token"] = last_twilio_channel.config.get(Channel.CONFIG_AUTH_TOKEN, "")
