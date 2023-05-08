@@ -139,6 +139,17 @@ class TwilioTypeTest(TembaTest):
                 self.assertFalse(Channel.CONFIG_TWILIO_ACCOUNT_SID in self.client.session)
                 self.assertFalse(Channel.CONFIG_TWILIO_AUTH_TOKEN in self.client.session)
 
+        response = self.client.get(reverse("channels.types.twilio.connect"))
+        self.assertEqual(302, response.status_code)
+        self.assertRedirects(response, reverse("channels.types.twilio.claim"))
+
+        response = self.client.get(reverse("channels.types.twilio.connect") + "?claim_type=foo")
+        self.assertEqual(302, response.status_code)
+        self.assertRedirects(response, reverse("channels.channel_claim"))
+
+        response = self.client.get(reverse("channels.types.twilio.connect") + "?claim_type=twilio&reset_creds=reset")
+        self.assertEqual(200, response.status_code)
+
         session = self.client.session
         session[Channel.CONFIG_TWILIO_ACCOUNT_SID] = "account-sid"
         session[Channel.CONFIG_TWILIO_AUTH_TOKEN] = "account-token"
