@@ -3266,14 +3266,6 @@ class OrgCRUDL(SmartCRUDL):
             self.org = self.derive_org()
             return self.has_org_perm("orgs.org_edit")
 
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            org = self.get_object()
-            context["sub_orgs"] = org.children.filter(is_active=True)
-            context["is_spa"] = self.request.COOKIES.get("nav", "old" if settings.TESTING else "new") != "old"
-            return context
-
     class EditSubOrg(SpaMixin, ModalMixin, Edit):
         success_url = "@orgs.org_sub_orgs"
 

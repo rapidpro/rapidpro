@@ -212,7 +212,6 @@
   :javascript
 
     function handleRowClicked(event) {
-
       if (event.target.tagName == "TEMBA-CHECKBOX") {
         return;
       }
@@ -220,11 +219,7 @@
       var row = event.target.closest("tr");
       var uuid = row.getAttribute("data-sender-uuid");
 
-      {% if is_spa %}
       goto(event, row);
-      {% else %}
-      gotoLink("/contact/read/" + uuid + "/");
-      {% endif %}
     }
 
     {% if org_perms.msgs.msg_update %}

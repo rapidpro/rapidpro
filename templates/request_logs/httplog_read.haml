@@ -24,17 +24,6 @@
           -trans "Flow"
         .linked(onclick="goto(event, this)" href='{% url "flows.flow_editor" object.flow.uuid %}')
           {{ object.flow.name }}
-      -elif not is_spa
-        -if object.classifier
-          .font-normal.mr-2
-            -trans "Classifier"
-          .linked(onclick="goto(event, this)" href='{% url "classifiers.classifier_read" object.classifier.uuid %}')
-            {{ object.classifier.name }}
-        -elif object.channel
-          .font-normal.mr-2
-            -trans "Channel"
-          .linked(onclick="goto(event,this)" href='{% url "channels.channel_read" object.channel.uuid %}')
-            {{ object.channel.name }}
 
     .inline-flex.mr-8
       .font-normal.mr-2
