@@ -559,8 +559,6 @@ class ContactCRUDL(SmartCRUDL):
         "blocked",
         "omnibox",
         "open_ticket",
-        "update_fields",
-        "update_fields_input",
         "export",
         "interrupt",
         "delete",
@@ -1268,79 +1266,6 @@ class ContactCRUDL(SmartCRUDL):
             messages.success(self.request, self.derive_success_message())
 
             return self.render_modal_response(form)
-
-    class UpdateFields(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        class Form(forms.Form):
-            contact_field = TembaChoiceField(
-                ContactField.user_fields.none(),
-                widget=SelectWidget(
-                    attrs={"widget_only": True, "searchable": True, "placeholder": _("Select a field to update")}
-                ),
-            )
-
-            field_value = forms.CharField(
-                required=False,
-                widget=InputWidget({"hide_label": True, "textarea": True}),
-            )
-
-            def __init__(self, org, instance, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-                self.fields["contact_field"].queryset = org.fields.filter(is_system=False, is_active=True)
-
-        form_class = Form
-        success_url = "uuid@contacts.contact_read"
-        success_message = ""
-        submit_button_name = _("Save Changes")
-
-        def get_success_url(self):
-            if "HTTP_TEMBA_SPA" in self.request.META:
-                return "hide"
-            return super().get_success_url()
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            org = self.request.org
-            field_id = self.request.GET.get("field", 0)
-            if field_id:
-                context["contact_field"] = org.fields.get(is_system=False, id=field_id)
-
-            return context
-
-        def save(self, obj):
-            pass
-
-        def post_save(self, obj):
-            obj = super().post_save(obj)
-
-            field = self.form.cleaned_data.get("contact_field")
-            value = self.form.cleaned_data.get("field_value", "")
-
-            mods = obj.update_fields({field: value})
-            obj.modify(self.request.user, mods)
-
-            return obj
-
-    class UpdateFieldsInput(OrgObjPermsMixin, SmartReadView):
-        """
-        Simple view for displaying a form rendered input of a contact field value. This is a helper
-        view for UpdateFields to show different inputs based on the selected field.
-        """
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            field_id = self.request.GET.get("field", 0)
-            if field_id:
-                contact_field = ContactField.user_fields.filter(id=field_id).first()
-                context["contact_field"] = contact_field
-                if contact_field:
-                    context["value"] = self.get_object().get_field_display(contact_field)
-            return context
 
     class OpenTicket(ComponentFormMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         """

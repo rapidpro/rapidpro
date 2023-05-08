@@ -1,3 +1,10 @@
+v8.1.134 (2023-05-08)
+-------------------------
+ * Remove no longer used perms
+ * Remove any old non-spa templates not being extended by the spa version
+ * Remove is_spa logic from templates
+ * Remove old contact update fields views
+
 v8.1.133 (2023-05-05)
 -------------------------
  * Add default color
