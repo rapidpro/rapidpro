@@ -601,6 +601,21 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             [u.identity for u in contact.urns.order_by("-priority")],
         )
 
+        # for non-active contacts, shouldn't see groups on form
+        self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={
+                "name": "Bobby",
+                "status": "B",
+                "language": "spa",
+                "urn__tel__0": "+593979333333",
+                "urn__telegram__1": "78686776",
+                "urn__facebook__2": "9898989",
+            },
+        )
+
         # try to update with invalid URNs
         self.assertUpdateSubmit(
             update_url,
@@ -618,6 +633,43 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             },
             object_unchanged=contact,
         )
+
+        # if contact has a language which is no longer a flow language, it should still be a valid option on the form
+        contact.language = "kin"
+        contact.save(update_fields=("language",))
+
+        response = self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={
+                "name": "Bobby",
+                "status": "B",
+                "language": "kin",
+                "urn__tel__0": "+593979333333",
+                "urn__telegram__1": "78686776",
+                "urn__facebook__2": "9898989",
+            },
+        )
+        self.assertContains(response, "Kinyarwanda")
+
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "name": "Bobby",
+                "status": "A",
+                "language": "kin",
+                "urn__tel__0": "+593979333333",
+                "urn__telegram__1": "78686776",
+                "urn__facebook__2": "9898989",
+            },
+            success_status=200,
+        )
+
+        contact.refresh_from_db()
+        self.assertEqual("Bobby", contact.name)
+        self.assertEqual(Contact.STATUS_ACTIVE, contact.status)
+        self.assertEqual("kin", contact.language)
 
     def test_scheduled(self):
         contact1 = self.create_contact("Joe", phone="+1234567890")
