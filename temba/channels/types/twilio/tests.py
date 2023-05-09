@@ -137,8 +137,8 @@ class TwilioTypeTest(TembaTest):
                 self.assertTrue(channel_config[Channel.CONFIG_NUMBER_SID])
 
                 # no more credential in the session
-                self.assertFalse(SESSION_TWILIO_ACCOUNT_SID in self.client.session)
-                self.assertFalse(SESSION_TWILIO_AUTH_TOKEN in self.client.session)
+                self.assertNotIn(SESSION_TWILIO_ACCOUNT_SID, self.client.session)
+                self.assertNotIn(SESSION_TWILIO_AUTH_TOKEN, self.client.session)
 
         response = self.client.get(reverse("channels.types.twilio.connect"))
         self.assertEqual(302, response.status_code)
@@ -425,8 +425,8 @@ class TwilioTypeTest(TembaTest):
 
             response = self.client.post(connect_url, post_data)
 
-            self.assertTrue(SESSION_TWILIO_ACCOUNT_SID in self.client.session)
-            self.assertTrue(SESSION_TWILIO_AUTH_TOKEN in self.client.session)
+            self.assertIn(SESSION_TWILIO_ACCOUNT_SID, self.client.session)
+            self.assertIn(SESSION_TWILIO_AUTH_TOKEN, self.client.session)
             self.assertEqual(self.client.session[SESSION_TWILIO_ACCOUNT_SID], "AccountSid")
             self.assertEqual(self.client.session[SESSION_TWILIO_AUTH_TOKEN], "AccountToken")
 
@@ -442,8 +442,8 @@ class TwilioTypeTest(TembaTest):
                     response = self.client.post(connect_url, post_data, follow=True)
                     self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio.claim"))
 
-                    self.assertTrue(SESSION_TWILIO_ACCOUNT_SID in self.client.session)
-                    self.assertTrue(SESSION_TWILIO_AUTH_TOKEN in self.client.session)
+                    self.assertIn(SESSION_TWILIO_ACCOUNT_SID, self.client.session)
+                    self.assertIn(SESSION_TWILIO_AUTH_TOKEN, self.client.session)
                     self.assertEqual(self.client.session[SESSION_TWILIO_ACCOUNT_SID], "AccountSid")
                     self.assertEqual(self.client.session[SESSION_TWILIO_AUTH_TOKEN], "PrimaryAccountToken")
 

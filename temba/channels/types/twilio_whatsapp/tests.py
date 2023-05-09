@@ -131,8 +131,8 @@ class TwilioWhatsappTypeTest(TembaTest):
                 self.assertEqual(channel.role, Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
 
                 # no more credential in the session
-                self.assertFalse(SESSION_TWILIO_ACCOUNT_SID in self.client.session)
-                self.assertFalse(SESSION_TWILIO_AUTH_TOKEN in self.client.session)
+                self.assertNotIn(SESSION_TWILIO_ACCOUNT_SID, self.client.session)
+                self.assertNotIn(SESSION_TWILIO_AUTH_TOKEN, self.client.session)
 
         twilio_channel = self.org.channels.all().first()
         # make channel support both sms and voice to check we clear both applications

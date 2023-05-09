@@ -91,8 +91,8 @@ class TwilioMessagingServiceTypeTest(TembaTest):
         self.assertContains(response, reverse("courier.tms", args=[channel.uuid, "receive"]))
 
         # no more credential in the session
-        self.assertFalse(SESSION_TWILIO_ACCOUNT_SID in self.client.session)
-        self.assertFalse(SESSION_TWILIO_AUTH_TOKEN in self.client.session)
+        self.assertNotIn(SESSION_TWILIO_ACCOUNT_SID, self.client.session)
+        self.assertNotIn(SESSION_TWILIO_AUTH_TOKEN, self.client.session)
 
     def test_get_error_ref_url(self):
         self.assertEqual(
