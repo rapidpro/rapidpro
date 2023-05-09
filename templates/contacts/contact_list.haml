@@ -336,36 +336,18 @@
     }
 
     {% if org_perms.contacts.contact_delete %}
-    function handleDeleteAllContacts() {
-      var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
-      deleteAllConfirmation.classList.remove("hide");
-      deleteAllConfirmation.open = true;
 
-      deleteAllConfirmation.addEventListener("temba-button-clicked", function(event){
-        if (event.detail.button.attributes.destructive){
-          jQuery.ajaxSettings.traditional = true;
-          fetchPJAXContent(document.location.href, '#pjax', {
-              postData: { action: "delete", all: 'true', pjax: 'true' },
-              forceReload: true
-          });
-
-        }
-        deleteAllConfirmation.classList.add("hide");
-        deleteAllConfirmation.open = false;
-      });
-    }
-
-    function handleDeleteAllConfirmation_spa() {
+    function handleDeleteAllConfirmation() {
       var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
 
       deleteAllConfirmation.classList.remove("hide");
       deleteAllConfirmation.open = true;
 
-      deleteAllConfirmation.removeEventListener("temba-button-clicked", handleDeleteAllContacts_spa);
-      deleteAllConfirmation.addEventListener("temba-button-clicked", handleDeleteAllContacts_spa);
+      deleteAllConfirmation.removeEventListener("temba-button-clicked", handleDeleteAllContacts);
+      deleteAllConfirmation.addEventListener("temba-button-clicked", handleDeleteAllContacts);
     }
 
-    function handleDeleteAllContacts_spa(event){
+    function handleDeleteAllContacts(event){
       var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
 
       if (event.detail.button.attributes.destructive){
