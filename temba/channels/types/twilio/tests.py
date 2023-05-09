@@ -10,6 +10,7 @@ from temba.tests import TembaTest
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
 from .type import TwilioType
+from .views import SESSION_TWILIO_ACCOUNT_SID, SESSION_TWILIO_AUTH_TOKEN
 
 
 class TwilioTypeTest(TembaTest):
@@ -33,10 +34,16 @@ class TwilioTypeTest(TembaTest):
         response = self.client.get(claim_twilio, follow=True)
         self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio.connect"))
 
+        # check the connect view has no initial set
+        response = self.client.get(reverse("channels.types.twilio.connect"))
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(list(response.context["form"].fields.keys()), ["account_sid", "account_token", "loc"])
+        self.assertFalse(response.context["form"].initial)
+
         # attach a Twilio account to the session
         session = self.client.session
-        session[Channel.CONFIG_TWILIO_ACCOUNT_SID] = "account-sid"
-        session[Channel.CONFIG_TWILIO_AUTH_TOKEN] = "account-token"
+        session[SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
+        session[SESSION_TWILIO_AUTH_TOKEN] = "account-token"
         session.save()
 
         # hit the claim page, should now have a claim twilio link
@@ -130,12 +137,23 @@ class TwilioTypeTest(TembaTest):
                 self.assertTrue(channel_config[Channel.CONFIG_NUMBER_SID])
 
                 # no more credential in the session
-                self.assertFalse(Channel.CONFIG_TWILIO_ACCOUNT_SID in self.client.session)
-                self.assertFalse(Channel.CONFIG_TWILIO_AUTH_TOKEN in self.client.session)
+                self.assertNotIn(SESSION_TWILIO_ACCOUNT_SID, self.client.session)
+                self.assertNotIn(SESSION_TWILIO_AUTH_TOKEN, self.client.session)
+
+        response = self.client.get(reverse("channels.types.twilio.connect"))
+        self.assertEqual(302, response.status_code)
+        self.assertRedirects(response, reverse("channels.types.twilio.claim"))
+
+        response = self.client.get(reverse("channels.types.twilio.connect") + "?claim_type=foo")
+        self.assertEqual(302, response.status_code)
+        self.assertRedirects(response, reverse("channels.channel_claim"))
+
+        response = self.client.get(reverse("channels.types.twilio.connect") + "?claim_type=twilio&reset_creds=reset")
+        self.assertEqual(200, response.status_code)
 
         session = self.client.session
-        session[Channel.CONFIG_TWILIO_ACCOUNT_SID] = "account-sid"
-        session[Channel.CONFIG_TWILIO_AUTH_TOKEN] = "account-token"
+        session[SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
+        session[SESSION_TWILIO_AUTH_TOKEN] = "account-token"
         session.save()
 
         with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
@@ -175,8 +193,8 @@ class TwilioTypeTest(TembaTest):
                 self.assertTrue(channel_config[Channel.CONFIG_NUMBER_SID])
 
         session = self.client.session
-        session[Channel.CONFIG_TWILIO_ACCOUNT_SID] = "account-sid"
-        session[Channel.CONFIG_TWILIO_AUTH_TOKEN] = "account-token"
+        session[SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
+        session[SESSION_TWILIO_AUTH_TOKEN] = "account-token"
         session.save()
 
         # voice only number
@@ -210,8 +228,8 @@ class TwilioTypeTest(TembaTest):
                     self.assertEqual(channel.tps, 10)
 
         session = self.client.session
-        session[Channel.CONFIG_TWILIO_ACCOUNT_SID] = "account-sid"
-        session[Channel.CONFIG_TWILIO_AUTH_TOKEN] = "account-token"
+        session[SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
+        session[SESSION_TWILIO_AUTH_TOKEN] = "account-token"
         session.save()
 
         with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
@@ -235,8 +253,8 @@ class TwilioTypeTest(TembaTest):
                 self.assertEqual(channel.tps, 10)
 
         session = self.client.session
-        session[Channel.CONFIG_TWILIO_ACCOUNT_SID] = "account-sid"
-        session[Channel.CONFIG_TWILIO_AUTH_TOKEN] = "account-token"
+        session[SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
+        session[SESSION_TWILIO_AUTH_TOKEN] = "account-token"
         session.save()
 
         with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
@@ -386,6 +404,7 @@ class TwilioTypeTest(TembaTest):
             response = self.client.get(connect_url)
             self.assertEqual(200, response.status_code)
             self.assertEqual(list(response.context["form"].fields.keys()), ["account_sid", "account_token", "loc"])
+            self.assertFalse(response.context["form"].initial)
 
             # try posting without an account token
             post_data = {"account_sid": "AccountSid"}
@@ -406,10 +425,10 @@ class TwilioTypeTest(TembaTest):
 
             response = self.client.post(connect_url, post_data)
 
-            self.assertTrue(Channel.CONFIG_TWILIO_ACCOUNT_SID in self.client.session)
-            self.assertTrue(Channel.CONFIG_TWILIO_AUTH_TOKEN in self.client.session)
-            self.assertEqual(self.client.session[Channel.CONFIG_TWILIO_ACCOUNT_SID], "AccountSid")
-            self.assertEqual(self.client.session[Channel.CONFIG_TWILIO_AUTH_TOKEN], "AccountToken")
+            self.assertIn(SESSION_TWILIO_ACCOUNT_SID, self.client.session)
+            self.assertIn(SESSION_TWILIO_AUTH_TOKEN, self.client.session)
+            self.assertEqual(self.client.session[SESSION_TWILIO_ACCOUNT_SID], "AccountSid")
+            self.assertEqual(self.client.session[SESSION_TWILIO_AUTH_TOKEN], "AccountToken")
 
             # when the user submit the secondary token, we use it to get the primary one from the rest API
             with patch("temba.tests.twilio.MockTwilioClient.MockAccounts.get") as mock_get_primary:
@@ -423,10 +442,10 @@ class TwilioTypeTest(TembaTest):
                     response = self.client.post(connect_url, post_data, follow=True)
                     self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio.claim"))
 
-                    self.assertTrue(Channel.CONFIG_TWILIO_ACCOUNT_SID in self.client.session)
-                    self.assertTrue(Channel.CONFIG_TWILIO_AUTH_TOKEN in self.client.session)
-                    self.assertEqual(self.client.session[Channel.CONFIG_TWILIO_ACCOUNT_SID], "AccountSid")
-                    self.assertEqual(self.client.session[Channel.CONFIG_TWILIO_AUTH_TOKEN], "PrimaryAccountToken")
+                    self.assertIn(SESSION_TWILIO_ACCOUNT_SID, self.client.session)
+                    self.assertIn(SESSION_TWILIO_AUTH_TOKEN, self.client.session)
+                    self.assertEqual(self.client.session[SESSION_TWILIO_ACCOUNT_SID], "AccountSid")
+                    self.assertEqual(self.client.session[SESSION_TWILIO_AUTH_TOKEN], "PrimaryAccountToken")
 
                     response = self.client.post(
                         f'{reverse("channels.types.twilio.connect")}?claim_type=twilio', post_data, follow=True
