@@ -1,14 +1,10 @@
 -load smartmin i18n humanize temba compress
 
--compress css inline
-  {% lessblock %}
-    :plain
-      #sign-in-button {
-        --button-bg: rgba(0,0,0,.1);
-        --color-button-primary: rgba(0,0,0,.1);
-      }
-
-  {% endlessblock %}
+:css
+  #sign-in-button {
+    --button-bg: rgba(0,0,0,.1);
+    --color-button-primary: rgba(0,0,0,.1);
+  }
 
 #menu
   .flex-grow

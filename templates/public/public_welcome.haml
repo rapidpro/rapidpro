@@ -6,6 +6,37 @@
   -blocktrans with name=brand.name
     {{name}} - Welcome
 
+-block extra-style
+  :css
+    .workflow-btn {
+      padding: 4px 10px;
+    }
+    .workflow-section {
+      margin-top: 30px;
+      margin-bottom: 30px;
+    }
+    .medium-title {
+      color: #e6e6e6;
+      font-weight: 100;
+      font-size: 21px;
+    }
+    .workflow-glyph {
+      line-height: 1;
+      font-size: 120px;
+      height: 160px;
+      width: 160px;
+      padding: 20px;
+      text-decoration: none;
+      border-radius: 50%;
+      text-align: center;
+    }
+    .workflow-glyph.icon-1 {
+      line-height: 1.9em;
+    }
+    a.workflow-glyph {
+      text-decoration: none;
+    }
+
 -block page-top
 
 -block messages
@@ -21,7 +52,6 @@
       -trans "Getting Started"
     -blocktrans
       Here's a short introduction to help you get started.
-
 
   .mt-6
     .flex
@@ -145,39 +175,3 @@
             -trans "API Documentation"
 
 
--block extra-less
-  -compress css inline
-    {% lessblock %}
-      :plain
-        .workflow-btn {
-          padding: 4px 10px;
-        }
-        .workflow-section {
-          margin-top: 30px;
-          margin-bottom: 30px;
-        }
-        .medium-title {
-          color: @color-font-grey;
-          font-weight: 100;
-          font-size: 21px;
-        }
-
-        .workflow-glyph {
-          line-height: 1;
-          font-size: 120px;
-          height: 160px;
-          width: 160px;
-          padding: 20px;
-          text-decoration: none;
-          border-radius: 50%;
-          text-align: center;
-          line-height:1;
-
-          &.icon-1 {
-            line-height:1.9em;
-          }
-        }
-        a.workflow-glyph {
-          text-decoration: none;
-        }
-    {% endlessblock %}
