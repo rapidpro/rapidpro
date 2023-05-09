@@ -1,3 +1,7 @@
+v8.1.137 (2023-05-09)
+-------------------------
+ * Add exclusions and params fields to FlowStart and start writing them
+
 v8.1.136 (2023-05-09)
 -------------------------
  * Don't include brand variables in less node
