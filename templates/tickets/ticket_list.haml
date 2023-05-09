@@ -436,8 +436,8 @@
       .flex.ticket-ui(style="position:relative;z-index:0;margin:0;padding:0;height:100%")
         .ticket-list.flex.flex-col.m-4.pt-4.mr-2
           %temba-select.mb-2(name="ticket-status" onchange="handleStatusFilterChanged(event)" value="{{status}}")
-            %temba-option(name="Open" value="open" icon="icon.tickets_open")
-            %temba-option(name="Closed" value="closed" icon="icon.tickets_closed")
+            %temba-option(name="Open" value="open" icon="tickets_open")
+            %temba-option(name="Closed" value="closed" icon="tickets_closed")
 
           .flex.flex-grow(style="max-height:100%;")
             -if uuid
@@ -485,11 +485,11 @@
             %temba-contact-tickets.mb-1(agent="{{request.user.email}}" -temba-refreshed="handleTicketUpdated" expandable="true")
 
           %temba-tabs.flex-grow(-temba-context-changed="handleTabChanged" index="{{request.GET.tab}}" collapses="true")
-            %temba-tab(icon="icon.message" name='{{_("Chat")|escapejs}}')
+            %temba-tab(icon="message" name='{{_("Chat")|escapejs}}')
               .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
                 %temba-contact-chat(agent="{{request.user.email}}" monitor="true" -temba-message-sent="handleMessageSent")
 
-            %temba-tab(icon="icon.fields" name='{{_("Fields")|escapejs}}')
+            %temba-tab(icon="fields" name='{{_("Fields")|escapejs}}')
               .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
 
                 <temba-contact-fields class="featured-fields pb-1" timezone="{{object.org.timezone}}" featured="true" -temba-button-clicked="handleFieldSearch" {%if not org_perms.contacts.contact_update%}disabled{%endif%}></temba-contact-fields>

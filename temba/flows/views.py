@@ -222,26 +222,24 @@ class FlowCRUDL(SmartCRUDL):
             labels = FlowLabel.objects.filter(org=self.request.org, parent=None).order_by("name")
 
             menu = []
-            menu.append(
-                self.create_menu_item(menu_id="", name=_("Active"), icon="icon.active", href="flows.flow_list")
-            )
+            menu.append(self.create_menu_item(menu_id="", name=_("Active"), icon="active", href="flows.flow_list"))
             menu.append(
                 self.create_menu_item(
                     name=_("Archived"),
-                    icon="icon.archive",
+                    icon="archive",
                     href="flows.flow_archived",
                 )
             )
 
             if self.has_org_perm("globals.global_list"):
                 menu.append(self.create_divider()),
-                menu.append(self.create_menu_item(name=_("Globals"), icon="icon.global", href="globals.global_list"))
+                menu.append(self.create_menu_item(name=_("Globals"), icon="global", href="globals.global_list"))
 
             label_items = []
             for label in labels:
                 label_items.append(
                     self.create_menu_item(
-                        icon="icon.label",
+                        icon="label",
                         menu_id=label.uuid,
                         name=label.name,
                         href=reverse("flows.flow_filter", args=[label.uuid]),

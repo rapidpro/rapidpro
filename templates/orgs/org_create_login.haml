@@ -2,8 +2,21 @@
 -load smartmin
 -load i18n
 
+-block extra-style
+  Testing
+  {{block.super}}
+  :css
+    .content-card {
+      max-width: 600px !important;
+    }
+
+    .form-actions .button-light {
+      display: none;
+    }
+
 -block title
-  {{title}}
+  .mb-4
+    {{title}}
 
 -block fields
   .control-group

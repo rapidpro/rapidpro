@@ -470,15 +470,12 @@ class ChannelCRUDL(SmartCRUDL):
 
                 channels = Channel.objects.filter(org=org, is_active=True, parent=None).order_by("-role")
                 for channel in channels:
-                    icon = channel.type.icon.replace("icon-", "")
-                    icon = icon.replace("power-cord", "box")
-
                     menu.append(
                         self.create_menu_item(
                             menu_id=channel.uuid,
                             name=channel.name,
                             href=get_channel_read_url(channel),
-                            icon=icon,
+                            icon=channel.type.get_icon(),
                         )
                     )
 
@@ -854,7 +851,6 @@ class ChannelCRUDL(SmartCRUDL):
             org = self.request.org
 
             context["org_timezone"] = str(org.timezone)
-            context["brand"] = org.branding
 
             channel_count, org_limit = Channel.get_org_limit_progress(org)
             context["total_count"] = channel_count

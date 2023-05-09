@@ -19,7 +19,6 @@ class TwilioWhatsappType(ChannelType):
     courier_url = r"^twa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
 
     name = "Twilio WhatsApp"
-    icon = "icon-whatsapp"
 
     claim_blurb = _(
         "If you have a %(link)s number, you can connect it to communicate with your WhatsApp contacts."

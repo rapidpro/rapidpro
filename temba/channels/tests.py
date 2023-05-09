@@ -1258,7 +1258,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             reverse("channels.channel_read", args=[android.uuid]), allow_editors=True, allow_viewers=True
         )
         self.assertContains(response, "Bulk sending")
-        self.assertContains(response, "icon-vonage")
+        self.assertContains(response, "channel_nx")
 
         delete_url = reverse("channels.channel_delete", args=[vonage.uuid])
 

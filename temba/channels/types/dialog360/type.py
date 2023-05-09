@@ -28,7 +28,6 @@ class Dialog360Type(ChannelType):
     courier_url = r"^d3/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
 
     name = "360Dialog WhatsApp"
-    icon = "icon-whatsapp"
 
     claim_blurb = _(
         "Activate your own enterprise WhatsApp account in %(link)s to communicate with your contacts. "

@@ -1,6 +1,13 @@
 -extends "smartmin/base.html"
 -load i18n smartmin
 
+-block extra-style
+  {{block.super}}
+  :css
+    .content-card {
+      max-width: 800px !important;
+    }
+
 -block title
   {{title}}
 

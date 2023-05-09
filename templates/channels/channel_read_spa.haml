@@ -32,7 +32,7 @@
         -for channel in delegates
           .lbl.linked(onclick="goto(event, this)" href="{% url 'channels.channel_read' channel.uuid %}")
             .flex.items-center
-              .text-base{class:'{{ channel|channel_icon }}'}
+              %temba-icon(name='{{ channel.type.get_icon }}')
               .name.mx-1
                 -if channel.is_delegate_sender
                   -trans "Bulk sending"

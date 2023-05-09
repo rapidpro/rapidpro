@@ -12,7 +12,7 @@ class TwitterLegacyType(ChannelType):
     category = ChannelType.Category.SOCIAL_MEDIA
 
     name = "Twitter Legacy"
-    icon = "icon-twitter"
+
     schemes = [URN.TWITTER_SCHEME, URN.TWITTERID_SCHEME]
 
     def is_available_to(self, org, user):

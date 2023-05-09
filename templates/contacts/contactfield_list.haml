@@ -7,113 +7,13 @@
 -block page-top
 
 -block content
-  #pjax
-    -block pjax
-      .lp-frame.mt-0
-        .left
-          .flex.flex-col
-            -if org_perms.contacts.contactfield_create
-              .w-64.mr-5
-                %temba-modax#create-field-modal{ header:'{% trans "Create Field" %}', endpoint:"{% url 'contacts.contactfield_create' %}"}
-                  .block.button-primary.mb-3
-                    - trans "Create Field"
 
-            .lp-nav.upper
-              -for category in cf_categories
-                .lp-nav-item{'class': '{% if request.path == category.url %}font-normal{% endif %}' }
-                  .name{onclick:"goto(event)", href:'{{category.url}}'}
-                    {{category.label}}
-                  .count{onclick:"goto(event)", href:'{{category.url}}'}
-                    {{category.count|intcomma}}
+  %temba-field-manager(priority-endpoint='{% url "contacts.contactfield_update_priority" %}' -temba-selection="handleFieldClicked")
 
-            .lp-nav.lower
-              -for category in cf_types
-                .lp-nav-item{'class': '{% if selected_value_type == category.value_type %}font-normal{% endif %}' }
-                  .name{onclick:"goto(event)", href:'{{category.url}}'}
-                    {{category.label}}
-                  .count{onclick:"goto(event)", href:'{{category.url}}'}
-                    {{category.count|intcomma}}
-
-        .right
-
-          -if view.search_fields
-            %form#search-form.mb-4(method="get")
-              %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
-              %input(type="submit" class="hide")
-          -else
-            .title
-              -trans "Featured Fields"
-            .my-4
-              -blocktrans trimmed
-                Featured fields are shown prominently on contact pages. Drag to reorder the fields that you would most like to see at glance.
-
-          -block pre-table
-            %temba-modax(id='update-field' header='{{_("Update Field")|escapejs}}' -temba-submitted='handleFieldUpdated')
-            %temba-modax(id='delete-modal' header='{{_("Delete Field")|escapejs}}' -temba-submitted='handleFieldUpdated')
-            %temba-modax(id='usages-modal' header='{{_("Usages")|escapejs}}')
-          
-          - block table
-            %table.list.lined{ class:'{% get_list_class object_list %}', cellspacing:'0'}
-              %thead
-                %tbody#draggable-tbody
-                  - for obj in object_list
-                    %tr{ data-key:'{{ obj.key }}', data-priority:'{{ obj.priority }}', class:'{% if org_perms.contacts.contactfield_update_priority and is_featured_category%}draggable-row{%endif%}'}
-                      - if org_perms.contacts.contactfield_update_priority and is_featured_category
-                        %td.drag-icon.pl-2(style="padding:0px;padding-left:5px;padding-right:5px")
-                          .drag-handle.icon.icon-menu
-
-                      %td.w-full(style="{%if org_perms.contacts.contactfield_update_priority and is_featured_category%}padding-left:0px;{%endif%}")
-                        -if org_perms.contacts.contactfield_update
-                          .hover-linked.update(onclick='showUpdateContactFieldModal("{{obj.key}}")')
-                            {{ obj.name }}
-                            .key{ style:"font-family: monospace; font-size: 12px;" }
-                              @fields.{{ obj.key }}
-                            -if obj.show_in_table
-                              .inline.text-xs.py-1.px-2.font-medium.tracking-wide.p-1.bg-gray-200.rounded-lg
-                                -trans "Featured"
-                        -else
-                          {{ obj.name }}
-                            {{ obj.name }}
-                          {{ obj.name }}
-                          .key{ style:"font-family: monospace; font-size: 12px;" }
-                            @fields.{{ obj.key }}
-
-                          -if obj.show_in_table
-                            .inline.text-xs.py-1.px-2.font-medium.tracking-wide.p-1.bg-gray-200.rounded-lg
-                              -trans "Featured"
-
-                      %td.w-12
-                        .flex.text-center
-                          -if obj.flow_count or obj.campaign_count or obj.contactgroup_count
-                            .uses(onclick='event.stopPropagation(); showFieldUsagesModal("{{ obj.key }}");')
-                              .lbl.linked
-                                {% blocktrans trimmed count counter=obj.flow_count|add:obj.campaign_count|add:obj.contactgroup_count %}
-                                  {{counter}} Use
-                                {% plural %}
-                                  {{counter}} Uses
-                                {% endblocktrans %}
-                      %td.w-32
-                        .text-right
-                          {{ obj.get_value_type_display }}
-                      
-                      %td.w-10
-                        -if org_perms.contacts.contactfield_delete
-                          .pl-2.pt-1.delete-link.linked.text-gray-400(style="visibility:hidden" onclick='showFieldDeleteModal("{{ obj.key }}")')
-                            %temba-icon(name="icon.delete_small")
-                            
-
-                            
-                  - empty
-                    %tr.empty_list
-                      %td{ colspan:'99' }
-                        -trans "No fields"
-
-            - block extra-rows
-
-        - block post-table
-
-    -block paginator
-
+  -block pre-tables
+    %temba-modax(id='update-field' header='{{_("Update Field")|escapejs}}' -temba-submitted="handleFieldUpdated")
+    %temba-modax(id='delete-modal' header='{{_("Delete Field")|escapejs}}' -temba-submitted="handleFieldUpdated")
+    %temba-modax(id='usages-modal' header='{{_("Usages")|escapejs}}')
 
 {% block extra-script %}
   {{ block.super }}

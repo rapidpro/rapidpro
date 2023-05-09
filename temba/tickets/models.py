@@ -37,9 +37,6 @@ class TicketerType(metaclass=ABCMeta):
     # the short code for this ticketer type (< 16 chars, lowercase)
     slug = None
 
-    # the icon to show for this ticketer type
-    icon = "icon-channel-external"
-
     # the blurb to show on the main connect page
     connect_blurb = None
 
@@ -399,7 +396,7 @@ class MineFolder(TicketFolder):
 
     id = "mine"
     name = _("My Tickets")
-    icon = "icon.tickets_mine"
+    icon = "tickets_mine"
 
     def get_queryset(self, org, user, ordered):
         return super().get_queryset(org, user, ordered).filter(assignee=user)
@@ -413,7 +410,7 @@ class UnassignedFolder(TicketFolder):
     id = "unassigned"
     name = _("Unassigned")
     verbose_name = _("Unassigned Tickets")
-    icon = "icon.tickets_unassigned"
+    icon = "tickets_unassigned"
 
     def get_queryset(self, org, user, ordered):
         return super().get_queryset(org, user, ordered).filter(assignee=None)
@@ -427,7 +424,7 @@ class AllFolder(TicketFolder):
     id = "all"
     name = _("All")
     verbose_name = _("All Tickets")
-    icon = "icon.tickets_all"
+    icon = "tickets_all"
 
     def get_queryset(self, org, user, ordered):
         return super().get_queryset(org, user, ordered)

@@ -148,7 +148,7 @@ def msg_status_badge(msg) -> str:
 
         # we are still working on errored messages, slightly different icon
         if msg.status == Msg.STATUS_ERRORED:
-            display["icon"] = "icon.retry"
+            display["icon"] = "retry"
 
     if len(display) >= 3:
         return mark_safe(

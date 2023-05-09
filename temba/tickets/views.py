@@ -243,7 +243,7 @@ class TicketCRUDL(SmartCRUDL):
                     {
                         "id": topic.uuid,
                         "name": topic.name,
-                        "icon": "icon.topic",
+                        "icon": "topic",
                         "count": counts[topic],
                     }
                 )

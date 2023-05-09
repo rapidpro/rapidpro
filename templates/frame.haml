@@ -53,7 +53,6 @@
 
     // ==== JQUERY ====
     <script type="text/javascript" src="{{ STATIC_URL }}jquery/dist/jquery.min.js"></script>
-    // <script type="text/javascript" src="{{ STATIC_URL }}jquery-migrate/dist/jquery-migrate.min.js"></script>
 
     -# this view make it possible to process translations from javascript land
     <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
@@ -62,13 +61,6 @@
         var static_url = '{{STATIC_URL}}';
 
       %script{src:"{{ STATIC_URL }}js/libs/jquery.url.js"}
-
-      // expanded nav dropdown
-      %script{src:"{{ STATIC_URL }}bower/jquery-hoverintent/jquery.hoverIntent.js"}
-
-      // npm packages
-      %script{src:"{{ STATIC_URL }}intercooler/dist/intercooler.js"}
-
       %script(src="{{ STATIC_URL }}rest_framework/js/prettify-min.js")
 
       -if not debug and not testing
@@ -237,21 +229,8 @@
       %link{rel:'stylesheet', href:'https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:200,300,400,500'}
 
       -compress css
-        %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/bootstrap-css/css/bootstrap.css',  media:'all' }
-
-
-      -compress css
-        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/icons/style.css", media:'all'}
         %link{type:"text/css", rel:"stylesheet", href:"{{ STATIC_URL }}css/temba-components.css"}
-
-      -compress css
-
-        {% lessblock %}
-          :plain
-            @import "style.less";
-        {% endlessblock %}
-
-      -compress css
+        %link{rel:"stylesheet", href:"{{ STATIC_URL }}less/style.less", type:"text/less"}
         %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/tailwind.css", type:"text/css"}
         %link{rel:"stylesheet", href:"{{ STATIC_URL }}less/refresh.less", type:"text/less"}
 

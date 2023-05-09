@@ -121,14 +121,14 @@
     
 -block content
   %temba-tabs.flex-grow.-mt-2(-temba-context-changed="handleTabChanged" index="{{request.GET.tab}}" collapses="true")
-    %temba-tab(icon="icon.message" name='{{_("Chat")|escapejs}}')
+    %temba-tab(icon="message" name='{{_("Chat")|escapejs}}')
       .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
         %temba-contact-chat(contact="{{object.uuid}}" monitor="true")
 
-    %temba-tab(icon="icon.info" name='{{_("Details")|escapejs}}')
+    %temba-tab(icon="info" name='{{_("Details")|escapejs}}')
       %temba-contact-details.p-4.overflow-y-auto(contact="{{object.uuid}}")
 
-    %temba-tab(icon="icon.fields" name='{{_("Fields")|escapejs}}')
+    %temba-tab(icon="fields" name='{{_("Fields")|escapejs}}')
       .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
         %temba-contact-fields.featured-fields.pb-1(timezone="{{object.org.timezone}}" contact="{{object.uuid}}" featured="true" -temba-button-clicked="handleFieldSearch")
         %temba-contact-fields.all-fields(timezone="{{object.org.timezone}}" contact="{{object.uuid}}" -temba-button-clicked="handleFieldSearch")
@@ -139,10 +139,10 @@
             -blocktrans trimmed
               Nothing to see here yet. Create a new field to save data to your contacts.
 
-    %temba-tab(icon="icon.campaign" name='{{_("Next Up")|escapejs}}' hidden="true")
+    %temba-tab(icon="campaign" name='{{_("Next Up")|escapejs}}' hidden="true")
       .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
         %temba-contact-pending(contact="{{object.uuid}}" -temba-refreshed="handlePendingRefreshed" -temba-selection="handlePendingClicked")
 
-    %temba-tab(icon="icon.tickets" name='{{_("Tickets")|escapejs}}' hidden="true") 
+    %temba-tab(icon="tickets" name='{{_("Tickets")|escapejs}}' hidden="true") 
       .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
         %temba-contact-tickets.m-4(agent="{{user.email}}" contact="{{object.uuid}}" -temba-refreshed="handleTicketsRefreshed" clickable="true" -temba-button-clicked="handleTicketClicked")
