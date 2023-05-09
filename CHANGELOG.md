@@ -1,3 +1,7 @@
+v8.1.136 (2023-05-09)
+-------------------------
+ * Don't include brand variables in less node
+
 v8.1.135 (2023-05-09)
 -------------------------
  * Remove references to old icon set
