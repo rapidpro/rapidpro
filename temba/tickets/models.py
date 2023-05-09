@@ -67,9 +67,6 @@ class TicketerType(metaclass=ABCMeta):
         """
         return re_path(r"^connect", self.connect_view.as_view(ticketer_type=self), name="connect")
 
-    def get_icon(self):
-        return f"ticketer_{self.slug.lower()}"
-
 
 class Ticketer(TembaModel, DependencyMixin):
     """
