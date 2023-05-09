@@ -1,3 +1,9 @@
+v8.1.138 (2023-05-09)
+-------------------------
+ * Update labeling to use temba-checkbox and remove jQuery
+ * Fix trim_channel_logs config and rework so task olny runs for an hour max
+ * Change test_db to create single org at a time
+
 v8.1.137 (2023-05-09)
 -------------------------
  * Add exclusions and params fields to FlowStart and start writing them
