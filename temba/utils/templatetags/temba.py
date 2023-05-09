@@ -177,7 +177,6 @@ class LessBlockNode(template.Node):
     def render(self, context):
         output = self.nodelist.render(context)
         includes = '@import (reference) "variables.less";\n'
-        includes += '@import (reference, optional) "../brands/%s/less/variables.less";\n' % context["brand"]["slug"]
         includes += '@import (reference) "mixins.less";\n'
         style_output = '<style type="text/less" media="all">\n%s\n%s</style>' % (includes, output)
         return style_output
