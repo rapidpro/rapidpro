@@ -125,9 +125,12 @@ class VonageTypeTest(TembaTest):
 
         # check the connect view has no initial set
         response = self.client.get(reverse("channels.types.vonage.connect"))
+        self.assertEqual(302, response.status_code)
+        self.assertRedirects(response, reverse("channels.types.vonage.claim"))
+
+        response = self.client.get(reverse("channels.types.vonage.connect") + "?reset_creds=reset")
         self.assertEqual(200, response.status_code)
         self.assertEqual(list(response.context["form"].fields.keys()), ["api_key", "api_secret", "loc"])
-        self.assertEqual(response.context["form"].initial, {"api_key": "key123", "api_secret": "sesame"})
 
         # test the update page for vonage
         update_url = reverse("channels.channel_update", args=[channel.pk])

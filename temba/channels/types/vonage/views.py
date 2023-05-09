@@ -314,6 +314,12 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         return numbers
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["current_creds_account"] = self.request.session.get(Channel.SESSION_VONAGE_API_KEY, None)
+
+        return context
+
     def claim_number(self, user, phone_number, country, role):
         org = self.request.org
         client = self.get_vonage_client()
@@ -487,16 +493,22 @@ class Connect(SpaMixin, OrgPermsMixin, SmartFormView):
     def get_success_url(self):
         return reverse("channels.types.vonage.claim")
 
-    def derive_initial(self):
-        initial = super().derive_initial()
+    def pre_process(self, *args, **kwargs):
+        reset_creds = self.request.GET.get("reset_creds", "")
+
         org = self.request.org
         last_vonage_channel = org.channels.filter(is_active=True, channel_type="NX").order_by("-created_on").first()
 
-        if last_vonage_channel:
-            initial["api_key"] = last_vonage_channel.config.get(Channel.CONFIG_VONAGE_API_KEY, "")
-            initial["api_secret"] = last_vonage_channel.config.get(Channel.CONFIG_VONAGE_API_SECRET, "")
+        if last_vonage_channel and not reset_creds:
+            self.request.session[Channel.SESSION_VONAGE_API_KEY] = last_vonage_channel.config.get(
+                Channel.CONFIG_VONAGE_API_KEY, ""
+            )
+            self.request.session[Channel.SESSION_VONAGE_API_SECRET] = last_vonage_channel.config.get(
+                Channel.CONFIG_VONAGE_API_SECRET, ""
+            )
+            return HttpResponseRedirect(self.get_success_url())
 
-        return initial
+        return None
 
     def form_valid(self, form):
         api_key = form.cleaned_data["api_key"]
