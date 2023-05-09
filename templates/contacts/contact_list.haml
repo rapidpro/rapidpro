@@ -7,6 +7,11 @@
   -else
     {{title}}
 
+-block spa-title
+  .page-title
+    #title-text
+      {{title}}
+
 -block page-top
 
 -block title-icon
@@ -51,179 +56,171 @@
       padding: 10px;
     }
 
+    table {
+      text-align: left;
+      position: relative;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 0.25rem;
+    }
+
+    temba-icon.sorting {
+      display: inline-block;
+      opacity: 0;
+    }
+    
+    temba-icon.sorting.show {
+      opacity: 1;
+    }
+
 -block content
-  #pjax
-    -block pjax
-      -if org_perms.contacts.contact_delete
-        %temba-dialog#delete-confirmation.hide(header='{{ _("Delete Selected Contacts")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
-          .p-6
-            -trans "Are you sure you want to delete the selected contacts? This cannot be undone."
+  .flex
+    .flex-grow.self-end.items-end
+      .flex.flex-col
+        %form#search-form(method="get" action="{{request.path}}")
+          %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+          %input.hide(type="submit")
 
-        %temba-dialog#delete-all-confirmation.hide(header='{{ _("Delete All Contacts")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
-          .p-6
-            -blocktrans trimmed with count=paginator.count
-              Are you sure you want to delete all {{ count }} archived contacts? This cannot be undone.
+  -if org_perms.contacts.contact_delete
+    %temba-dialog#delete-confirmation.hide(header='{{ _("Delete Selected Contacts")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')          
+      .p-6
+        -trans "Are you sure you want to delete the selected contacts? This cannot be undone."
 
-            -if paginator.count > 50
-              %br
-              %br
-              -blocktrans trimmed
-                This operation can take a while to complete. Contacts may remain in this view during the process.
+    %temba-dialog#delete-all-confirmation.hide(header='{{ _("Delete All Contacts")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+      .p-6
+        -blocktrans trimmed with count=paginator.count
+          Are you sure you want to delete all {{ count }} archived contacts? This cannot be undone.
 
-      .lp-frame
-        .left
-          -if org_perms.contacts.contactimport_create
-            .button-primary.block(onclick="goto(event)" href="{% url 'contacts.contactimport_create' %}")
-              -trans "Import Contacts"
+        -if paginator.count > 50
+          %br
+          %br
+          -blocktrans trimmed
+            This operation can take a while to complete. Contacts may remain in this view during the process.
 
-          .lp-nav.upper
-            -for group in system_groups
-              .lp-nav-item(onclick="goto(event)" href='{{ group.url }}' class="{% if request.path == group.url %}font-normal selected{% endif %}")
-                .name.pointer-events-none
-                  {{ group.name }}
-                .count.pointer-events-none
-                  {{ group.count | intcomma }}
-          
-          .secondary-buttons.mb-6
-            -if org_perms.contacts.contact_create
-              %temba-modax#create-contact-modal(header='{% trans "Create Contact" %}' endpoint="{% url 'contacts.contact_create' %}")
-                .button-light.block.mt-3
-                  -trans "Create Contact"
+  %temba-modax#create-group-modal(header='{% trans "Create Group" %}' endpoint="{% url 'contacts.contactgroup_create' %}" -temba-loaded="handleCreateGroupModalLoaded")
 
-            -if org_perms.contacts.contactgroup_create
-              %temba-modax#create-group-modal(header='{% trans "Create Group" %}' endpoint="{% url 'contacts.contactgroup_create' %}" -temba-loaded="handleCreateGroupModalLoaded")
-                .button-light.block.mt-3
-                  -trans "Create Group"
+  .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
+    -include "includes/short_pagination.haml"
+    -if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000
+      .text-gray-400.text-sm.self-end.mt-2
+        -trans "To view more than 10,000 search results, save it as a group."
 
-          .lp-nav.upper
-            .font-normal.uppercase.text-xs.pb-1.text-gray-500
-              -trans "Smart Groups"
-            .inner-scroll
-              -for group in smart_groups
-                .lp-nav-item(onclick="goto(event)" href='{{ group.url }}' class="{% if request.path == group.url %}font-normal selected{% endif %}")
-                  .name.pointer-events-none
-                    {{ group.name }}
-                  .count.pointer-events-none
-                    {{ group.count | intcomma }}
+  .flex-grow.shadow.overflow-y-auto
+    %table.relative.list.object-list.lined.selectable.scrolled.sticky
+      %tbody
+        - if object_list
+          %tr.contacts
+            -if org_perms.contacts.contact_update
+              %th.z-10
+            %th
+            %th
+            -for field in contact_fields
+              -if field.show_in_table
+                %th
+                  -if sort_field == field.key
+                    -if sort_direction == 'desc'
+                      %a(href="{{request.path}}?sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
+                        %div
+                          {{ field.name }}
+                          %temba-icon.sorting.show(name="sort_down")
+                    -else
+                      %a(href="{{request.path}}?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
+                        %div
+                          {{ field.name }}
+                          %temba-icon.sorting.show(name="sort_up")
+                  -else
+                    %a(href="{{request.path}}?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
+                      %div
+                        {{ field.name }}
+                        %temba-icon.sorting(name="sort_down")
+            %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
+              - if object_list
+                -if sort_field == 'last_seen_on'
+                  -if sort_direction == 'desc'
+                    %a(href="{{request.path}}?sort_on=last_seen_on{% if search %}&search={{ search|escape }}{% endif %}")
+                      %div
+                        -trans "Last Seen On"
+                        %temba-icon.sorting(name="sort_down")
+                  -else
+                    %a(href="{{request.path}}?sort_on=-last_seen_on{% if search %}&search={{ search|escape }}{% endif %}")
+                      %div
+                        -trans "Last Seen On"
+                        %temba-icon.sorting(name="sort_up")
+                -else
+                  %a(href="{{request.path}}?sort_on=-last_seen_on{% if search %}&search={{ search|escape }}{% endif %}")
+                    %div
+                      -trans "Last Seen On"
+                      %temba-icon.sorting(name="sort_down")
 
-          .lp-nav.lower
-            .font-normal.uppercase.text-xs.text-gray-500.pb-1
-              -trans "Groups"
-            .inner-scroll
-              -for group in manual_groups
-                .lp-nav-item(onclick="goto(event)" href='{{ group.url }}' class="{% if request.path == group.url %}font-normal selected{% endif %}")
-                  .name.pointer-events-none
-                    {{ group.name }}
-                  .count.pointer-events-none
-                    {{ group.count | intcomma }}
+            %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
+              -if object_list
+                -if sort_field == 'created_on'
+                  -if sort_direction == 'desc'
+                    %a(href="{{request.path}}?sort_on=created_on{% if search %}&search={{ search|escape }}{% endif %}")
+                      %div
+                        -trans "Created On"
+                        %temba-icon.sorting(name="sort_down")
+                  -else
+                    %a(href="{{request.path}}?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}")
+                      %div
+                        -trans "Created On"
+                        %temba-icon.sorting(name="sort_up")
+                -else
+                  %a(href="{{request.path}}?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}")
+                    %div
+                      -trans "Created On"
+                      %temba-icon.sorting(name="sort_down")
+          -for object in contacts
+            %tr.contact.select-row.object-row(onclick='handleRowClicked(event)' data-uuid="{{object.uuid}}" data-object-id="{{object.id}}" href="{% url 'contacts.contact_read' object.uuid %}")
 
-          .flex-grow
-        .right.overflow-x-hidden.p-2.-mt-1
-          -if has_contacts
-            -block contacts-list
-              .flex.w-full.items-end.flex-wrap.justify-end.mb-4
-                -block action-buttons
-                  -if org_perms.contacts.contact_update
-                    .list-buttons-container.h-full.mr-2.flex-grow
-                      .list-buttons.flex.items-center.-mx-2.h-full
+              -if org_perms.contacts.contact_update or org_perms.msgs.broadcast_send
+                %td.contact.checkbox.object-row-checkbox(onclick="checkInner(event);")
+                  %temba-checkbox(onclick="handleRowSelection(this)")
 
-                        -if 'restore' in actions
-                          .button-action(onclick='runActionOnObjectRows("restore", wireTableListeners)')
-                            .-mt-1.mr-2.glyph.icon-checkmark
-                            -trans "Activate"
+              %td
+                .whitespace-nowrap
+                  {{ object|name:user_org }}
 
-                        -if 'block' in actions
-                          .button-action(onclick='runActionOnObjectRows("block", wireTableListeners)')
-                            .-mt-1.mr-2.glyph.icon-user-block
-                            -trans "Block"
+              %td.w-full
+                .whitespace-nowrap
+                  {{ object|urn:user_org }}
 
-                        -if 'archive' in actions
-                          .button-action(onclick='runActionOnObjectRows("archive", wireTableListeners)')
-                            .-mt-1.mr-2.glyph.icon-box
-                            -trans "Archive"
+              -for field in contact_fields
+                -if field.show_in_table
+                  %td.field.truncate(style="max-width:240px")
+                    {% contact_field object field.key %}
 
-                        -if 'delete' in actions
-                          .button-action(onclick='onDeleteClicked()')
-                            .-mt-1.mr-2.glyph.icon-user-delete
-                            -trans "Delete"
+              %td.value-received.field_received
+                .whitespace-nowrap
+                  -if object.last_seen_on
+                    %temba-date(value="{{object.last_seen_on.isoformat}}" display="date")
+                  -else
+                    {{ "--" }}
+              %td.value-received.field_received
+                .whitespace-nowrap
+                  %temba-date(value="{{object.created_on.isoformat}}" display="date")
 
-                        -if 'unlabel' in actions
-                          .button-action(onclick="unlabelObjectRows({{current_group.pk}}, wireTableListeners);")
-                            .-mt-1.mr-2.glyph.icon-user-remove
-                            -trans "Remove From Group"
+              // This is needed for action buttons
+              %td.hide
+                .value-labels
+                  %nobr
+                    -for group in object.all_groups.all
+                      -if group.group_type == 'U'
+                        %span.label.label-info.lbl(data-id="{{group.id}}")
+                          %a(href="{% url 'contacts.contact_filter' group.uuid %}")
+                            {{group.name}}
 
-                        -if 'label' in actions
-                          .btn-group
-                            .button-action.dropdown-toggle(data-toggle="dropdown" data-delay="800")
-                              .-mt-1.mr-2.glyph.icon-users-2(style="width:16px")
-                              -trans "Groups"
+          -empty
+            %tr.empty_list
+              %td(colspan="99")
+                -trans "No matching contacts."
 
-                            %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
-                              -for group in manual_groups
-                                %li
-                                  .lbl-menu(href='#' onclick='addContactToGroup({{ group.id }})' data-id='{{ group.id }}')
-                                    .flex.items-center.py-1.hover-linked
-                                      .glyph.message-label.label-checkbox
-                                      .name.px-2
-                                        {{ group.name }}
-                              -if org_perms.contacts.contactgroup_create
-                                -if manual_groups
-                                  %li.separator.-mx-4.border-b.my-3
-                                %li
-                                  .lbl-menu.add-group.hover-linked(onclick="handleAddGroupClicked()")
-                                    -trans "New Group..."
-
-                        -if org_perms.msgs.broadcast_send and not reply_disabled
-                          %temba-modax#send-message-modal(header='{{_("Send Message")|escapejs}}' endpoint="{% url 'msgs.broadcast_send' %}")
-                            .button-action.no-loading(onclick="handleSendMessageClicked()")
-                              .mr-2.glyph.icon-bubble-3(style="font-size:14px")
-                              -trans "Send"
-
-                        -if org_perms.flows.flow_broadcast
-                          .button-action.no-loading(onclick="handleStartFlowClicked(event)")
-                            .mr-2.glyph.icon-flow(style="font-size:14px")
-                            -trans "Start Flow"
-
-                  .flex-grow.ml-1.self-end.items-end
-                    .flex.flex-col.pr-12
-                      .page-title.leading-tight
-                        -block title
-                          -if current_group
-                            {{current_group.name}}
-                          -else
-                            {{title}}
-                  .gear-links
-                    -include "spa_page_menu.haml"
-                .subtitle.ml-1.w-full
-                  -block subtitle
-
-
-              %form#search-form.mb-4(method="get")
-                %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
-
-              -if search_error
-                .mb-4.ml-2
-                  %span.search-error
-                    =search_error
-              -elif search
-                .mb-4.ml-1.text-base.leading-relaxed
-                  -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
-                    Found {{ results_count }} contact matching <i>{{search}}</i>.
-                    -plural
-                      Found {{ results_count }} contacts matching <i>{{search}}</i>.
-
-              .shadow.rounded-lg
-                -include "contacts/contact_list_include.haml"
-
-              .flex.flex-col
-                -include "includes/pagination.haml"
-
-                -if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000
-                  .text-gray-400.text-sm.self-end.mt-2
-                    -trans "To view more than 10,000 search results, save it as a group."
-                
-          -else
-            -include "contacts/empty_include.haml"
+              -for field in contact_fields
+                -if field.show_in_table
+                  %td.field
+              %td
+              
 
 
 -block extra-script
@@ -339,36 +336,18 @@
     }
 
     {% if org_perms.contacts.contact_delete %}
-    function handleDeleteAllContacts() {
-      var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
-      deleteAllConfirmation.classList.remove("hide");
-      deleteAllConfirmation.open = true;
 
-      deleteAllConfirmation.addEventListener("temba-button-clicked", function(event){
-        if (event.detail.button.attributes.destructive){
-          jQuery.ajaxSettings.traditional = true;
-          fetchPJAXContent(document.location.href, '#pjax', {
-              postData: { action: "delete", all: 'true', pjax: 'true' },
-              forceReload: true
-          });
-
-        }
-        deleteAllConfirmation.classList.add("hide");
-        deleteAllConfirmation.open = false;
-      });
-    }
-
-    function handleDeleteAllConfirmation_spa() {
+    function handleDeleteAllConfirmation() {
       var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
 
       deleteAllConfirmation.classList.remove("hide");
       deleteAllConfirmation.open = true;
 
-      deleteAllConfirmation.removeEventListener("temba-button-clicked", handleDeleteAllContacts_spa);
-      deleteAllConfirmation.addEventListener("temba-button-clicked", handleDeleteAllContacts_spa);
+      deleteAllConfirmation.removeEventListener("temba-button-clicked", handleDeleteAllContacts);
+      deleteAllConfirmation.addEventListener("temba-button-clicked", handleDeleteAllContacts);
     }
 
-    function handleDeleteAllContacts_spa(event){
+    function handleDeleteAllContacts(event){
       var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
 
       if (event.detail.button.attributes.destructive){
