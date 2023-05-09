@@ -3,7 +3,7 @@
 
 -block account-trial-warning
   -if account_trial
-    .alert-warning.my-4
+    %temba-alert.my-4(level="warning")
       -blocktrans trimmed
         You have connected a Twilio Trial Account which has some restrictions.
       %br
