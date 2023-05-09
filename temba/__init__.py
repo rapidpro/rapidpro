@@ -1,4 +1,4 @@
-__version__ = "8.1.134"  # set by poetry bumpversion plugin
+__version__ = "8.1.135"  # set by poetry bumpversion plugin
 
 # This will make sure the app is always imported when
 # Django starts so that shared_task will use this app.

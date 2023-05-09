@@ -1,3 +1,9 @@
+v8.1.135 (2023-05-09)
+-------------------------
+ * Remove references to old icon set
+ * Remove unused jquery bits and intercooler
+ * Remove bootstrap
+
 v8.1.134 (2023-05-08)
 -------------------------
  * Remove no longer used perms
