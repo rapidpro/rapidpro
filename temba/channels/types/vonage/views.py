@@ -435,7 +435,7 @@ class SearchView(OrgPermsMixin, SmartFormView):
 
         if api_key and api_secret:
             return VonageClient(api_key, api_secret)
-        return None
+        return None  # pragma: no cover
 
     def form_valid(self, form, *args, **kwargs):
         client = self.get_vonage_client()

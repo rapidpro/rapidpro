@@ -3106,10 +3106,6 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_edit"):
                 formax.add_section("org", reverse("orgs.org_edit"), icon="settings")
 
-            vonage_client = org.get_vonage_client()
-            if vonage_client:  # pragma: needs cover
-                formax.add_section("vonage", reverse("orgs.org_vonage_account"), icon="vonage")
-
             if self.has_org_perm("orgs.org_accounts") and Org.FEATURE_USERS in org.features:
                 formax.add_section("accounts", reverse("orgs.org_accounts"), icon="users")
 
