@@ -47,6 +47,7 @@ RESET_SEQUENCES = (
 )
 
 PG_DUMP_VERSION = "14"
+PG_DUMP = "pg_dump"  # or specific e.g. f"/Applications/Postgres.app/Contents/Versions/{PG_DUMP_VERSION}/bin/pg_dump"
 PSQL_ARGS = "-h 127.0.0.1 -U postgres"
 
 
@@ -59,7 +60,7 @@ class Command(BaseCommand):
 
         self._log("Checking Postgres database version... ")
 
-        result = subprocess.run(["pg_dump", "--version"], stdout=subprocess.PIPE)
+        result = subprocess.run([PG_DUMP, "--version"], stdout=subprocess.PIPE)
         version = result.stdout.decode("utf8")
         if version.split(" ")[-1].find(f"{PG_DUMP_VERSION}.") == 0:
             self._log(self.style.SUCCESS("OK") + "\n")
@@ -120,7 +121,7 @@ class Command(BaseCommand):
         self.reset_id_sequences(30000)
 
         # dump our file
-        subprocess.check_call(f"pg_dump {PSQL_ARGS} -Fc mailroom_test > mailroom_test.dump", shell=True)
+        subprocess.check_call(f"{PG_DUMP} {PSQL_ARGS} -Fc mailroom_test > mailroom_test.dump", shell=True)
 
         self._log("\n" + self.style.SUCCESS("Success!") + " Dump file: mailroom_test.dump\n\n")
 
