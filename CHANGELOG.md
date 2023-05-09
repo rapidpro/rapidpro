@@ -1,3 +1,7 @@
+v8.1.139 (2023-05-09)
+-------------------------
+ * Add blocked icon
+
 v8.1.138 (2023-05-09)
 -------------------------
  * Update labeling to use temba-checkbox and remove jQuery
