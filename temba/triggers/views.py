@@ -529,7 +529,7 @@ class TriggerCRUDL(SmartCRUDL):
         Archived triggers of all types
         """
 
-        bulk_actions = ("restore",)
+        bulk_actions = ("restore", "delete")
         title = _("Archived Triggers")
         menu_path = "/trigger/archived"
 
