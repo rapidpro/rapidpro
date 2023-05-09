@@ -1771,8 +1771,7 @@ class FlowCRUDL(SmartCRUDL):
                 groups=(),
                 contacts=(),
                 query=query,
-                restart_participants=True,
-                include_active=True,
+                exclusions={},
             )
             return super().form_valid(form)
 
