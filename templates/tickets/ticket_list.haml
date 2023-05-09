@@ -434,7 +434,7 @@
   .flex.flex-col.overflow-y-hidden.overflow-x-hidden.rounded-b-lg.flex-grow.-m-5.p-5
     .page.flex-grow.flex.flex-col.min-h-0
       .flex.ticket-ui(style="position:relative;z-index:0;margin:0;padding:0;height:100%")
-        .ticket-list.flex.flex-col.m-4.pt-4.mr-2
+        .ticket-list.flex.flex-col.mr-2
           %temba-select.mb-2(name="ticket-status" onchange="handleStatusFilterChanged(event)" value="{{status}}")
             %temba-option(name="Open" value="open" icon="tickets_open")
             %temba-option(name="Closed" value="closed" icon="tickets_closed")
