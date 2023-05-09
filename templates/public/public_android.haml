@@ -4,7 +4,6 @@
 
 -block nav
 
-
 -block content
   -if relayer_app
     %p 
@@ -39,7 +38,6 @@
         %a.btn-download{href: "{% url 'apks.apk_download' msg_pack.id %}"}
           -blocktrans with forloop.counter as counter
             Download Message pack {{ counter }}
-
 
 -block extra-style
   {{ block.super }}
@@ -108,4 +106,3 @@
       padding: 8px;
       width: 100%;
     }
-  
