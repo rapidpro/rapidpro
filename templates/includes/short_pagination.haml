@@ -33,7 +33,7 @@
               -for label in labels
                 .lbl-menu(onclick='labelObjectRows({{label.id}}, false, refreshMenu)' data-id='{{label.id}}')
                   .flex.items-center.py-1.hover-linked
-                    .glyph.message-label.label-checkbox
+                    %temba-checkbox.mr-1(size="1.1")
                     .name.px-1
                       {{ label.name }}
 
