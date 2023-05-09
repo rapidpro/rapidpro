@@ -9,7 +9,11 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.types.twilio.views import SUPPORTED_COUNTRIES
+from temba.channels.types.twilio.views import (
+    SESSION_TWILIO_ACCOUNT_SID,
+    SESSION_TWILIO_AUTH_TOKEN,
+    SUPPORTED_COUNTRIES,
+)
 from temba.contacts.models import URN
 from temba.utils.fields import SelectWidget
 from temba.utils.uuid import uuid4
@@ -36,8 +40,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         self.client = None
 
     def get_twilio_client(self):
-        account_sid = self.request.session.get(Channel.CONFIG_TWILIO_ACCOUNT_SID, None)
-        account_token = self.request.session.get(Channel.CONFIG_TWILIO_AUTH_TOKEN, None)
+        account_sid = self.request.session.get(SESSION_TWILIO_ACCOUNT_SID, None)
+        account_token = self.request.session.get(SESSION_TWILIO_AUTH_TOKEN, None)
 
         if account_sid and account_token:
             return TwilioClient(account_sid, account_token)
@@ -77,7 +81,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         context["account_trial"] = account_trial
 
-        context["current_creds_account"] = self.request.session.get(Channel.CONFIG_TWILIO_ACCOUNT_SID, None)
+        context["current_creds_account"] = self.request.session.get(SESSION_TWILIO_ACCOUNT_SID, None)
         return context
 
     def get_existing_numbers(self, org):
@@ -124,8 +128,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         config = {
             Channel.CONFIG_NUMBER_SID: number_sid,
-            Channel.CONFIG_ACCOUNT_SID: self.request.session.get(Channel.CONFIG_TWILIO_ACCOUNT_SID),
-            Channel.CONFIG_AUTH_TOKEN: self.request.session.get(Channel.CONFIG_TWILIO_AUTH_TOKEN),
+            Channel.CONFIG_ACCOUNT_SID: self.request.session.get(SESSION_TWILIO_ACCOUNT_SID),
+            Channel.CONFIG_AUTH_TOKEN: self.request.session.get(SESSION_TWILIO_AUTH_TOKEN),
             Channel.CONFIG_CALLBACK_DOMAIN: callback_domain,
         }
 
@@ -147,7 +151,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return channel
 
     def remove_api_credentials_from_session(self):
-        if Channel.CONFIG_TWILIO_ACCOUNT_SID in self.request.session:
-            del self.request.session[Channel.CONFIG_TWILIO_ACCOUNT_SID]
-        if Channel.CONFIG_TWILIO_AUTH_TOKEN in self.request.session:
-            del self.request.session[Channel.CONFIG_TWILIO_AUTH_TOKEN]
+        if SESSION_TWILIO_ACCOUNT_SID in self.request.session:
+            del self.request.session[SESSION_TWILIO_ACCOUNT_SID]
+        if SESSION_TWILIO_AUTH_TOKEN in self.request.session:
+            del self.request.session[SESSION_TWILIO_AUTH_TOKEN]

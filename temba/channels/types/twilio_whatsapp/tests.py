@@ -9,6 +9,7 @@ from temba.tests import TembaTest
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
 from .type import TwilioWhatsappType
+from .views import SESSION_TWILIO_ACCOUNT_SID, SESSION_TWILIO_AUTH_TOKEN
 
 
 class TwilioWhatsappTypeTest(TembaTest):
@@ -34,8 +35,8 @@ class TwilioWhatsappTypeTest(TembaTest):
 
         # attach a Twilio account to the session
         session = self.client.session
-        session[Channel.CONFIG_TWILIO_ACCOUNT_SID] = "account-sid"
-        session[Channel.CONFIG_TWILIO_AUTH_TOKEN] = "account-token"
+        session[SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
+        session[SESSION_TWILIO_AUTH_TOKEN] = "account-token"
         session.save()
 
         # hit the claim page, should now have a claim twilio link
@@ -130,8 +131,8 @@ class TwilioWhatsappTypeTest(TembaTest):
                 self.assertEqual(channel.role, Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
 
                 # no more credential in the session
-                self.assertFalse(Channel.CONFIG_TWILIO_ACCOUNT_SID in self.client.session)
-                self.assertFalse(Channel.CONFIG_TWILIO_AUTH_TOKEN in self.client.session)
+                self.assertFalse(SESSION_TWILIO_ACCOUNT_SID in self.client.session)
+                self.assertFalse(SESSION_TWILIO_AUTH_TOKEN in self.client.session)
 
         twilio_channel = self.org.channels.all().first()
         # make channel support both sms and voice to check we clear both applications

@@ -7,7 +7,7 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.types.twilio.views import COUNTRY_CHOICES
+from temba.channels.types.twilio.views import COUNTRY_CHOICES, SESSION_TWILIO_ACCOUNT_SID, SESSION_TWILIO_AUTH_TOKEN
 from temba.utils.fields import SelectWidget
 
 from ...models import Channel
@@ -30,8 +30,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         self.object = None
 
     def get_twilio_client(self):
-        account_sid = self.request.session.get(Channel.CONFIG_TWILIO_ACCOUNT_SID, None)
-        account_token = self.request.session.get(Channel.CONFIG_TWILIO_AUTH_TOKEN, None)
+        account_sid = self.request.session.get(SESSION_TWILIO_ACCOUNT_SID, None)
+        account_token = self.request.session.get(SESSION_TWILIO_AUTH_TOKEN, None)
 
         if account_sid and account_token:
             return TwilioClient(account_sid, account_token)
@@ -58,7 +58,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         context["account_trial"] = account_trial
 
-        context["current_creds_account"] = self.request.session.get(Channel.CONFIG_TWILIO_ACCOUNT_SID, None)
+        context["current_creds_account"] = self.request.session.get(SESSION_TWILIO_ACCOUNT_SID, None)
 
         return context
 
@@ -69,8 +69,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         config = {
             Channel.CONFIG_MESSAGING_SERVICE_SID: data["messaging_service_sid"],
-            Channel.CONFIG_ACCOUNT_SID: self.request.session.get(Channel.CONFIG_TWILIO_ACCOUNT_SID),
-            Channel.CONFIG_AUTH_TOKEN: self.request.session.get(Channel.CONFIG_TWILIO_AUTH_TOKEN),
+            Channel.CONFIG_ACCOUNT_SID: self.request.session.get(SESSION_TWILIO_ACCOUNT_SID),
+            Channel.CONFIG_AUTH_TOKEN: self.request.session.get(SESSION_TWILIO_AUTH_TOKEN),
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
         }
 
@@ -83,7 +83,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             address=None,
             config=config,
         )
-        del self.request.session[Channel.CONFIG_TWILIO_ACCOUNT_SID]
-        del self.request.session[Channel.CONFIG_TWILIO_AUTH_TOKEN]
+        del self.request.session[SESSION_TWILIO_ACCOUNT_SID]
+        del self.request.session[SESSION_TWILIO_AUTH_TOKEN]
 
         return super().form_valid(form)
