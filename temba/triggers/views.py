@@ -24,7 +24,7 @@ from temba.utils.fields import (
     TembaChoiceField,
     TembaMultipleChoiceField,
 )
-from temba.utils.views import BulkActionMixin, ComponentFormMixin, SpaMixin
+from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin
 
 from .models import Trigger
 
@@ -524,7 +524,7 @@ class TriggerCRUDL(SmartCRUDL):
         def get_queryset(self, *args, **kwargs):
             return super().get_queryset(*args, **kwargs).filter(is_archived=False)
 
-    class Archived(BaseList):
+    class Archived(ContentMenuMixin, BaseList):
         """
         Archived triggers of all types
         """
@@ -532,6 +532,15 @@ class TriggerCRUDL(SmartCRUDL):
         bulk_actions = ("restore",)
         title = _("Archived Triggers")
         menu_path = "/trigger/archived"
+
+        def build_content_menu(self, menu):
+            if self.has_org_perm("triggers.trigger_delete"):
+                menu.add_js(
+                    "triggers_delete_all",
+                    _("Delete All"),
+                    "confirmDeleteAllArchivedTriggers(event)",
+                    "triggers-btn-delete-all",
+                )
 
         def get_queryset(self, *args, **kwargs):
             return super().get_queryset(*args, **kwargs).filter(is_archived=True)
