@@ -1,3 +1,10 @@
+v8.1.140 (2023-05-09)
+-------------------------
+ * Fix ticket padding
+ * Remove remaining spa files
+ * Add link to reset the latest credentials
+ * Preset channel connection
+
 v8.1.139 (2023-05-09)
 -------------------------
  * Add blocked icon
