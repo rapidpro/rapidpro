@@ -181,8 +181,8 @@ class VonageTypeTest(TembaTest):
 
         connect_url = reverse("channels.types.vonage.connect")
 
-        self.assertFalse(Channel.SESSION_VONAGE_API_KEY in self.client.session)
-        self.assertFalse(Channel.SESSION_VONAGE_API_SECRET in self.client.session)
+        self.assertNotIn(Channel.SESSION_VONAGE_API_KEY, self.client.session)
+        self.assertNotIn(Channel.SESSION_VONAGE_API_SECRET, self.client.session)
 
         response = self.client.get(connect_url)
         self.assertEqual(200, response.status_code)
@@ -199,8 +199,8 @@ class VonageTypeTest(TembaTest):
 
         response = self.client.post(connect_url, {"api_key": "key", "api_secret": "secret"})
         self.assertContains(response, "Your API key and secret seem invalid.")
-        self.assertFalse(Channel.SESSION_VONAGE_API_KEY in self.client.session)
-        self.assertFalse(Channel.SESSION_VONAGE_API_SECRET in self.client.session)
+        self.assertNotIn(Channel.SESSION_VONAGE_API_KEY, self.client.session)
+        self.assertNotIn(Channel.SESSION_VONAGE_API_SECRET, self.client.session)
 
         # ok, now with a success
         mock_check_credentials.return_value = True
@@ -211,8 +211,8 @@ class VonageTypeTest(TembaTest):
         response = self.client.post(connect_url, {"api_key": "key", "api_secret": "secret"}, follow=True)
         self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.vonage.claim"))
 
-        self.assertTrue(Channel.SESSION_VONAGE_API_KEY in self.client.session)
-        self.assertTrue(Channel.SESSION_VONAGE_API_SECRET in self.client.session)
+        self.assertIn(Channel.SESSION_VONAGE_API_KEY, self.client.session)
+        self.assertIn(Channel.SESSION_VONAGE_API_SECRET, self.client.session)
         self.assertEqual(self.client.session[Channel.SESSION_VONAGE_API_KEY], "key")
         self.assertEqual(self.client.session[Channel.SESSION_VONAGE_API_SECRET], "secret")
 
