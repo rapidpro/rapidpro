@@ -1576,21 +1576,31 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             is_active=True,
         )
 
-        # can bulk delete archived triggers
-        self.client.post(archived_url, {"action": "delete", "objects": [trigger3.id, trigger4.id]})
-        response = self.client.get(archived_url)
-        self.assertEqual(200, response.status_code)
-        self.assertNotContains(response, trigger3.keyword)
-        self.assertNotContains(response, trigger4.keyword)
-        self.assertContains(response, trigger5.keyword)
-        self.assertContains(response, trigger6.keyword)
-
-        # cannot bulk delete active triggers
-        self.client.post(archived_url, {"action": "delete", "objects": [trigger7.id]})
+        # cannot bulk delete an active trigger
+        self.client.post(archived_url, {"action": "delete", "objects": trigger7.id})
         response = self.client.get(archived_url)
         self.assertNotContains(response, trigger7.keyword)
         response = self.client.get(list_url)
         self.assertContains(response, trigger7.keyword)
+
+        # cannot bulk delete a mix of active and archived triggers
+        self.client.post(archived_url, {"action": "delete", "objects": [trigger3.id, trigger4.id, trigger7.id]})
+        response = self.client.get(archived_url)
+        self.assertContains(response, trigger3.keyword)
+        self.assertContains(response, trigger4.keyword)
+        self.assertContains(response, trigger5.keyword)
+        self.assertContains(response, trigger6.keyword)
+        self.assertNotContains(response, trigger7.keyword)
+        response = self.client.get(list_url)
+        self.assertContains(response, trigger7.keyword)
+
+        # can bulk delete archived triggers
+        self.client.post(archived_url, {"action": "delete", "objects": [trigger3.id, trigger4.id]})
+        response = self.client.get(archived_url)
+        self.assertNotContains(response, trigger3.keyword)
+        self.assertNotContains(response, trigger4.keyword)
+        self.assertContains(response, trigger5.keyword)
+        self.assertContains(response, trigger6.keyword)
 
         # can bulk "delete all" archived triggers
         self.client.post(archived_url, {"action": "delete", "all": "true"})
@@ -1599,8 +1609,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, trigger4.keyword)
         self.assertNotContains(response, trigger5.keyword)
         self.assertNotContains(response, trigger6.keyword)
-
-        # cannot bulk "delete all" active triggers
+        # check that the active trigger is unaffected by the bulk "delete all"
         self.assertNotContains(response, trigger7.keyword)
         response = self.client.get(list_url)
         self.assertContains(response, trigger7.keyword)
