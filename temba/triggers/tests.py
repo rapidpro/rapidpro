@@ -1455,6 +1455,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         archived_url = reverse("triggers.trigger_archived")
+        list_url = reverse("triggers.trigger_list")
 
         response = self.assertListFetch(
             archived_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1]
@@ -1468,7 +1469,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertNotContains(response, "startkeyword")
 
-        response = self.client.get(reverse("triggers.trigger_list"))
+        response = self.client.get(list_url)
 
         # should be back in the main trigger list
         self.assertContains(response, "start")
@@ -1492,7 +1493,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.client.post(archived_url, post_data)
         response = self.client.get(archived_url, post_data)
         self.assertContains(response, "start")
-        response = self.client.get(reverse("triggers.trigger_list"), post_data)
+        response = self.client.get(list_url, post_data)
         self.assertContains(response, "start")
         self.assertEqual(1, Trigger.objects.filter(keyword="start", is_archived=False).count())
         self.assertNotEqual(other_trigger, Trigger.objects.filter(keyword="start", is_archived=False)[0])
@@ -1564,6 +1565,16 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             match_type=Trigger.MATCH_ONLY_WORD,
             is_archived=True,
         )
+        # create one more active trigger
+        trigger7 = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow,
+            keyword="simon",
+            match_type=Trigger.MATCH_ONLY_WORD,
+            is_active=True
+        )
 
         # can bulk delete archived triggers
         self.client.post(archived_url, {"action": "delete", "objects": [trigger3.id, trigger4.id]})
@@ -1574,13 +1585,25 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, trigger5.keyword)
         self.assertContains(response, trigger6.keyword)
 
-        # the archived view also supports deleting all
+        # cannot bulk delete active triggers
+        self.client.post(archived_url, {"action": "delete", "objects": [trigger7.id]})
+        response = self.client.get(archived_url)
+        self.assertNotContains(response, trigger7.keyword)
+        response = self.client.get(list_url)
+        self.assertContains(response, trigger7.keyword)
+
+        # can bulk "delete all" archived triggers
         self.client.post(archived_url, {"action": "delete", "all": "true"})
         response = self.client.get(archived_url)
         self.assertNotContains(response, trigger3.keyword)
         self.assertNotContains(response, trigger4.keyword)
         self.assertNotContains(response, trigger5.keyword)
-        self.assertNotContains(response, trigger6.keyword)
+        self.assertNotContains(response, trigger6.keyword)        
+        
+        # cannot bulk "delete all" active triggers
+        self.assertNotContains(response, trigger7.keyword)
+        response = self.client.get(list_url)
+        self.assertContains(response, trigger7.keyword)        
 
     def test_type_lists(self):
         flow1 = self.create_flow("Flow 1")
