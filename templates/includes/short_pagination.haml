@@ -4,27 +4,6 @@
   .action-buttons.flex-grow
     .list-buttons-container
       .list-buttons.flex.items-center.h-full.-mx-1
-
-        -if 'groups' in actions
-          %temba-dropdown.ml-4(offsety="8")
-            %temba-tip(position="top" text='{{_("Groups")|escapejs}}'  slot="toggle")
-              %temba-icon(name="users" clickable="true")
-            .label-menu.px-6.py-4(slot="dropdown")
-              -for group in groups
-                -if not group.is_dynamic
-                  %li
-                    .lbl-menu(href='#' onclick='addContactToGroup({{group.pk}})' data-id='{{group.pk}}')
-                      .flex.items-center.py-1.hover-linked
-                        .glyph.message-label.label-checkbox(style="font-size:14px; color: #666")
-                        .name.px-2
-                          {{ group.label }}
-              - if org_perms.contacts.contactgroup_create
-                - if groups
-                  %li.separator.-mx-4.border-b.my-3
-                %li
-                  .lbl-menu.add-group.hover-linked(onclick="handleAddGroupClicked()")
-                    - trans "New Group..."
-
         -if 'label' in actions
           %temba-dropdown.ml-4(offsety="8" offsetx="-8")
             %temba-tip(position="top" text='{{_("Labels")|escapejs}}'  slot="toggle")
@@ -33,7 +12,7 @@
               -for label in labels
                 .lbl-menu(onclick='labelObjectRows({{label.id}}, false, refreshMenu)' data-id='{{label.id}}')
                   .flex.items-center.py-1.hover-linked
-                    .glyph.message-label.label-checkbox
+                    %temba-checkbox.mr-1(size="1.1")
                     .name.px-1
                       {{ label.name }}
 
@@ -75,6 +54,7 @@
         -if 'block' in actions
           .linked.ml-4(onclick='runActionOnObjectRows("block", refreshMenu)')
             %temba-tip(position="top" text='{{_("Block")|escapejs}}')
+              %temba-icon.show-loading(name="contact_blocked" clickable="true")
 
         -if 'start-flow' in actions and org_perms.flows.flow_broadcast
           .linked.ml-4(onclick='handleStartFlowClicked(event)')

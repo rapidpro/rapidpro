@@ -257,7 +257,7 @@ class Command(BaseCommand):
         orgs = []
         for o in range(num_total):
             orgs.append(
-                Org(
+                Org.objects.create(
                     name=org_names[o % len(org_names)],
                     timezone=self.random.choice(pytz.all_timezones),
                     brand="rapidpro",
@@ -269,7 +269,6 @@ class Command(BaseCommand):
                     flow_languages=["eng"],
                 )
             )
-        Org.objects.bulk_create(orgs)
         orgs = list(Org.objects.order_by("id"))
 
         self._log(self.style.SUCCESS("OK") + "\nInitializing orgs... ")

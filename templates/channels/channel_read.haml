@@ -2,15 +2,14 @@
 -load smartmin temba compress humanize channels i18n tz
 
 -block spa-title
-  %temba-urn(scheme="{{channel.schemes|first}}")
+  %temba-urn.mr-2(scheme="{{channel.schemes|first}}")
   .flex.items-start.flex-col
-    .name
+    #title-text.name
       -if object.parent
         {{ object.parent.name }}
       -else
         {{ object.name|default:object.get_address_display }}
   
-
 -block title
   .flex.items-start.flex-col
     .name
@@ -26,12 +25,9 @@
         .channel_type
           -if object.parent
             {{ object.name }}
-          -else
-            {{ object.get_channel_type_display }}
-            -trans "Channel"
 
   -if object.name
-    .text-gray-500.text-base
+    .text-gray-500.text-xl
       {{ object.get_address_display }}
 
   -if object.get_country_display
@@ -52,7 +48,7 @@
                 -if channel.is_delegate_caller
                   -trans "Voice calls"
 
-    .my-4.text-base
+    .mb-4.text-base
       -if delayed_sync_event or unsent_msgs_count
         .flex.items-center.text-error
           .mr-1
@@ -87,8 +83,8 @@
         -else
           -trans "Activated"
           {{ object.created_on }}
-
-
+      
+      
 -block top-form
 
 -block read-buttons

@@ -138,6 +138,9 @@ def queue_flow_start(start):
         "group_ids": list(start.groups.values_list("id", flat=True)),
         "urns": start.urns or [],
         "query": start.query,
+        "exclusions": start.exclusions,
+        "params": start.params,
+        # deprecated
         "restart_participants": start.restart_participants,
         "include_active": start.include_active,
         "extra": start.extra,

@@ -3952,7 +3952,7 @@ class EndpointsTest(APITest):
         color_split = flow1_nodes[4]
         blue_reply = flow1_nodes[2]
 
-        start1 = FlowStart.create(flow1, self.admin, contacts=[self.joe], restart_participants=True)
+        start1 = FlowStart.create(flow1, self.admin, contacts=[self.joe])
         joe_msg = self.create_incoming_msg(self.joe, "it is blue")
         frank_msg = self.create_incoming_msg(self.frank, "Indigo")
 

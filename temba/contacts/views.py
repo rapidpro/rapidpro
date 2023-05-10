@@ -1107,7 +1107,7 @@ class ContactCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             if self.has_org_perm("contacts.contact_delete"):
                 menu.add_js(
-                    "contacts_delete_all", _("Delete All"), "handleDeleteAllContacts(event)", "contacts-btn-delete-all"
+                    "contacts_delete_all", _("Delete All"), "handleDeleteAllConfirmation()", "contacts-btn-delete-all"
                 )
 
     class Filter(OrgObjPermsMixin, ContentMenuMixin, ContactListView):
