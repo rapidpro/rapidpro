@@ -1565,7 +1565,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             is_archived=True,
         )
 
-        # try bulk delete action
+        # can bulk delete archived triggers
         self.client.post(archived_url, {"action": "delete", "objects": [trigger3.id, trigger4.id]})
         response = self.client.get(archived_url)
         self.assertEqual(200, response.status_code)
