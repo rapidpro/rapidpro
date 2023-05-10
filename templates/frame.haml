@@ -15,207 +15,52 @@
     %meta{name:"author", content:"Nyaruka Ltd"}
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
 
-    :javascript
-      window.STATIC_URL = "{{STATIC_URL}}";
-
-      function onSpload(fn) {
-        var container = document.querySelector(".spa-container");
-        if (!container) {
-          document.addEventListener("DOMContentLoaded", fn, {once: true});
-        } else {
-          var isInitial = container.classList.contains("initial-load");
-          var isLoading = container.classList.contains("loading");
-          if (isInitial) {
-            document.addEventListener("DOMContentLoaded", fn, {once: true});
-          } else {
-            if (isLoading) {
-              var eventContainer = document.querySelector(".spa-content");
-              eventContainer.addEventListener("temba-spa-ready", fn, {once: true});
-            } else {
-              window.setTimeout(fn, 0);
-            }
-          }
-        }
-      }
-
-      window.supportEmail = '{{brand.support_email}}';
-      function conditionalLoad(local, remote) {
-        if (local != null && (window.location.hostname == "localhost" || remote == null)) {
-          loadResource("{{ STATIC_URL }}" + local);
-        } else if (remote != null) {
-          loadResource(remote);
-        }
-      }
-
-      function loadResource(src) {
-        (function() { document.write(unescape('%3Cscript src="' + src + '"%3E%3C/script%3E')); })();
-      }
-
-    // ==== JQUERY ====
-    <script type="text/javascript" src="{{ STATIC_URL }}jquery/dist/jquery.min.js"></script>
-
     -# this view make it possible to process translations from javascript land
-    <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
+    %script(src="{% url 'django.views.i18n.javascript_catalog' %}")
+      
     -compress js
-      :javascript
-        var static_url = '{{STATIC_URL}}';
-
-      %script{src:"{{ STATIC_URL }}js/libs/jquery.url.js"}
+      %script(rrc="{{ STATIC_URL }}jquery/dist/jquery.min.js")
+      %script(src="{{ STATIC_URL }}js/libs/jquery.url.js")
       %script(src="{{ STATIC_URL }}rest_framework/js/prettify-min.js")
+      %script(src="{{ STATIC_URL }}highcharts/highstock.js?v=3.0")
+      %script(src="{{ STATIC_URL }}highcharts/modules/drilldown.js")
+      %script(src="{{ STATIC_URL }}qrious/dist/qrious.min.js")
+      %script(src="{{ STATIC_URL }}rest_framework/js/prettify-min.js")
+    
+    -if not debug and not testing
+      %script{src:"{{ STATIC_URL }}lib/raven.min.js"}
 
-      -if not debug and not testing
-        %script{src:"{{ STATIC_URL }}lib/raven.min.js"}
+    :javascript
+      var static_url = "{{STATIC_URL}}";
+      var org_id = {% if active_org %}{{active_org.id}}{% else %}null{%endif%};
+      var tembaVersion= "{{temba_version}}";
+      var params = '{{url_params|safe}}';
+
+      {% if user_org %}{% if user_org.is_anon %}
+      var anon_org = true;
+      {% else %}
+      var anon_org = false;
+      {% endif %}{% endif %}
+
+      function handleMenuReady() {
+        var selection = window.location.pathname.split("/").filter(function(path){ return !!path});
+        var menu = document.querySelector("temba-menu");
+        if (menu) {
+          {% if temba_menu_selection %}
+          menu.setFocusedItem("{{temba_menu_selection}}");          
+          {% endif %}
+        }
+      }
 
     -compress js
+      %script{src:"{{ STATIC_URL }}js/frame.js"}
       %script{src:"{{ STATIC_URL }}js/temba.js"}
       %script{src:"{{ STATIC_URL }}js/labels.js"}
-      
-      :javascript
-        function fetchPJAXContent(url, container, options) {    
-          options = options || {};
-    
-          // hijack any pjax requests made from spa pages and route the content there instead
-          if (container == "#pjax" && document.querySelector(".spa-content")) {
-            container = ".spa-content";
-            options["headers"] = (options["headers"] || {})
-            options["headers"]["TEMBA-SPA"] = 1;
-          }
-    
-          var triggerEvents = true;
-          if (!!options["ignoreEvents"]) {
-            triggerEvents = false;
-          }
-    
-          var type = 'GET';
-          var data = undefined;
-          var processData = true;
-          var contentType = 'application/x-www-form-urlencoded; charset=UTF-8';
-    
-          if (options) {
-            if ('postData' in options) {
-              type = 'POST';
-              data = options['postData'];
-            }
-            
-            if('formData' in options) {
-              type = 'POST';
-              processData = false;
-              data = options['formData'];
-              contentType = false;
-            }
-          }
-    
-          var headers = { 'X-PJAX': true };
-          if (options && 'headers' in options) {
-            for (key in options['headers']) {
-              headers[key] = options['headers'][key];
-            }
-          }
-    
-          if (triggerEvents) {
-            document.dispatchEvent(new Event("temba-pjax-begin"));
-          }
-    
-          // see if we should skip our fetch
-          if (options) {
-            if ('shouldIgnore' in options && options['shouldIgnore']()) {
-              if ('onIgnore' in options) {
-                options['onIgnore']();
-              }
-              return;
-            }
-          }
-    
-          var request = {
-            headers: headers,
-            type: type,
-            url: url,
-            contentType: contentType,
-            processData: processData,
-            data: data,
-            success: function(response, status, jqXHR) {
-    
-              if ('followRedirects' in options && options['followRedirects'] == true) {
-                  var redirect = jqXHR.getResponseHeader('REDIRECT');
-                  if (redirect) {
-                    window.document.location.href = redirect;
-                    return;
-                  }
-              }
-    
-              // double check before replacing content
-              if (options) {
-                if (('shouldIgnore' in options && options['shouldIgnore'](response))) {
-                  if ('onIgnore' in options) {
-                      options['onIgnore'](jqXHR);
-                  }
-    
-                  return;
-                }
-              }
-    
-              $(container).html(response);
-    
-              if (triggerEvents) {
-                document.dispatchEvent(new Event("temba-pjax-complete"));
-              }
-    
-              if (options) {
-                if ('onSuccess' in options) {
-                  options['onSuccess']();
-                }
-              }
-            }
-          }
-          $.ajax(request);
-        }
-        
-    -block full-page-script
-      :javascript
-        document.addEventListener("temba-redirected", function(event){
-          document.location.href = event.detail.url;
-        });
 
-        function goto(event, ele) {
-          if (event.target != ele) {
-            if (event.target.href) {
-              event.stopPropagation();
-              event.preventDefault();
-    
-              var link = event.target.href;
-              if (event.metaKey) {
-                window.open(link, '_blank');
-              } else if (event.target.target) {
-                window.open(link, event.target.target);
-              } else {
-                document.location.href = link;
-              }
-              return;  
-            }
-          }
-
-          if (!ele) {
-              ele = event.target;
-          }
-      
-          event.stopPropagation();
-          if (ele.setActive) {
-              ele.setActive();
-          }
-          var href = ele.getAttribute('href');
-          if (href) {
-              if (event.metaKey) {
-                  window.open(href, '_blank');
-              } else {
-                  document.location.href = href;
-              }
-          }
-        }
-
-        
-
-
-    -include "includes/frame_top.html"
+    -for script in flow_editor_scripts
+      %script(type="text/javascript" src="{{script}}")
+    -for style in flow_editor_styles
+      %link(rel="stylesheet" href="{{style}}" type="text/css")
 
     -if not COMPONENTS_DEV_MODE
       -include "components-head.html"
@@ -229,14 +74,17 @@
       %link{rel:'stylesheet', href:'https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:200,300,400,500'}
 
       -compress css
-        %link{type:"text/css", rel:"stylesheet", href:"{{ STATIC_URL }}css/temba-components.css"}
         %link{rel:"stylesheet", href:"{{ STATIC_URL }}less/style.less", type:"text/less"}
         %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/tailwind.css", type:"text/css"}
         %link{rel:"stylesheet", href:"{{ STATIC_URL }}less/refresh.less", type:"text/less"}
 
-      -block extra-less
+      -compress css
+        %link(type="text/css" rel="stylesheet" href="{{ STATIC_URL }}css/temba-components.css")
+        %link(type="text/css" rel="stylesheet" href="{{ STATIC_URL }}css/frame.css")
+
       -block extra-style
 
+    -include "includes/frame_top.html"
     -for incl in brand.head_includes
       -include incl
 
@@ -251,29 +99,20 @@
   -else 
     -include "components-body.html"
   
-  -block temba-store
-    
-    -if user.is_authenticated and user_org
-      %temba-store(
-        completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
-        fields="/api/v2/fields.json"
-        globals="/api/v2/globals.json"
-        users="/api/v2/users.json"
-      )
+  -if user_org
+    %temba-store(
+      completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
+      languages="/org/languages/"
+      fields="/api/v2/fields.json"
+      globals="/api/v2/globals.json"
+      groups="/api/v2/groups.json"
+      workspace="/api/v2/workspace.json"
+      users="/api/v2/users.json"
+    )
+  -else
+    %temba-store
 
   .flex.flex-col.h-full
-
-    -block header
-
-      #header.flex.items-center
-        .flex-grow
-          %a(href="{% if user.is_authenticated %}{% url 'orgs.org_start' %}{% else %}{% ssl_brand_url 'users.user_check_login' %}{% endif %}" title="{{brand.name}}" class="hover:no-underline")
-            %img#header-logo(src="{{STATIC_URL}}{{brand.logo}}" style="max-height:40px")
-
-        .menu
-          -block nav
-            -include 'includes/nav.html'
-
     -if messages
       -block messages
         -if messages
@@ -284,48 +123,76 @@
     -block post-header
     <!-- Content -->
     -block page-container
+      <!-- {{temba_version}} -->
+      %temba-mask
       %temba-modax#shared-modax
       %temba-dialog#shared-dialog
-      .flex-grow
-        .page-content
-          -block suspension
-            {% if user_org.is_suspended %}
-              .px-12.-mt-4
-                -include "org_suspended_include.haml"
-            {% endif %}
-
-          .px-12.py-4
-            -block page-top
-              .flex.items-start
-                .flex.flex-col.mr-5.leading-tight
-                  .page-title
-                    -block title
+      .ajax-scripts
+    
+      .flex-col
+        .flex.widget-container(style="height:100vh;overflow:hidden")
+          -if request.user.is_staff
+            -if user_org and user_org not in user_orgs
+              .servicing.absolute.bg-secondary.my-2.mr-20.rounded.shadow-xl(style="z-index:999999;right:0;bottom:0;")
+                %a.relative(href="{% url 'orgs.org_service' %}" style="text-decoration:none" onclick="handlePosterizeClick(event)")
+                  .flex.items-center.text-white.text-lg.hover.rounded(style="opacity:1;padding:0em 0.5em;")
+                    .flex-grow
+                    %temba-icon(style="color:#fff" name="service")
+                    .ml-2
+                      {{user_org.name}}
+                    .flex-grow
+    
+          .folders
+            %temba-menu#nav(class="{% if servicing %}{% endif%}" style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" -temba-button-clicked="handleMenuClicked(event)" -temba-ready="handleMenuReady")
+              -block menu-header
+    
+          .flex-grow.spa-container.flex.flex-col.initial-load
+            .spa-loader.hide.absolute
+              .wrapper(style="display:flex;z-index:100000;margin-top:0.1em;margin-left:1em")
+                %temba-loading(size=16 units=6)
+    
+            .spa-content.p-5.overflow-y-auto.overflow-x-hidden
+    
+              -block spa-style
+    
+              -block page-header
+                -if title or has_content_menu
+                  .mb-4
+                    .spa-title.no-menu.flex.items-center
+                      .text-container.text-2xl.text-gray-700
+                        .flex.flex-row
+                          -block spa-title
+                            #title-text
+                              {{title}}
+                      .line.flex-grow.mr-2.ml-6
+                        .h-0.border.border-gray-200
                       
-                  .page-subtitle
-                    -block subtitle
-
-                .flex-grow
-                  .flex.justify-end.w-full
-                    -block gear-menu
-                      -if has_content_menu  
+                      -if has_content_menu
                         -include "spa_page_menu.haml"
-
-              -block post-title
-
-
-            .mt-6
+                
+                    .text-lg.text-gray-600
+                        -block subtitle
+                      
+              -block alert-messages
+                -if user_org.is_suspended
+                  -include "org_suspended_include.haml"
+                -if messages
+                  -for msg in messages
+                    %temba-alert.mb-3
+                      {{ msg }}
+    
               -block content
-            
-            -block post-content
-
-      -block footer
-        .text-center.text-gray-500.pb-10.-mt-8.bg-gray-200.pt-4
-          :plain
-            <!--
-              License requires that the copyright attribution remain, please do not modify.
-            -->
-            Copyright © 2012-2023 TextIt. All rights reserved.    
-
+    
+            -block footer
+              .spa-footer.text-center.text-gray-500.mt-4
+                :plain
+                  <!--
+                    License requires that the copyright attribution remain, please do not modify.
+                  -->
+                  Copyright © 2012-2023 TextIt. All rights reserved.
+      
+      %temba-lightbox
+  
   -trans 'Delete' as title
   %temba-dialog#general-delete-confirmation.hidden{header:"{{title|escapejs}}", primaryButtonName:"{{title|escapejs}}", destructive: "true"}
     .p-6.confirmation-body
@@ -335,162 +202,12 @@
   -if form
     {{ form.media }}
 
-  -block script
+  -block extra-script
 
-    {{block.super}}
+  <form id="posterizer" method="post">
+    {% csrf_token %}
+  </form>
 
-    :javascript
-      {% if user_org %}
-        {% if user_org.is_anon %}
-          var anon_org = true;
-        {% else %}
-          var anon_org = false;
-        {% endif %}
-      {% endif %}
-
-      function posterize(href) {
-        var url = $.url(href);
-        $("#posterizer").attr("action", url.attr("path"));
-        for (var key in url.param()){
-          $("#posterizer").append("<input type='hidden' name='" + key + "' value='" + url.param(key) + "'></input>");
-        }
-        $("#posterizer").submit();
-      }
-
-      function handlePosterize(ele) {
-        posterize(ele.getAttribute('href') || ele.dataset.href);
-      }
-
-      function removalConfirmation(removal, buttonName) {
-  
-        var modal = document.querySelector("#general-delete-confirmation");
-        modal.classList.remove("hidden");
-
-        // set modal deets
-        var title = document.querySelector('.' + removal + ' > .title').innerHTML;
-        var body = document.querySelector('.' + removal + ' > .body').innerHTML;
-
-        modal.header = title;
-        modal.querySelector('.confirmation-body').innerHTML = body;
-
-        modal.open = true;
-
-        modal.addEventListener("temba-button-clicked", function(event){
-          if(!event.detail.button.secondary) {
-            var ele = document.querySelector('#' + removal + '-form');
-            handlePosterize(ele);
-          }
-          modal.open = false;
-
-          // clear our listeners
-          modal.outerHTML = modal.outerHTML;
-        });
-      }
-
-      function formatContact(item) {
-        if (item.text.indexOf(" (") > -1) {
-        var name = item.text.split("(")[0];
-        if (name.indexOf(")") == name.length - 1) {
-          name = name.substring(0, name.length - 1);
-        }
-        return name;
-      }
-      return item.text;
-      }
-
-      function createContactChoice(term, data) {
-        if ($(data).filter(function() { return this.text.localeCompare(term)===0; }).length===0) {
-          if (!isNaN(parseFloat(term)) && isFinite(term)) {
-            return {id:"number-" + term, text:term};
-          }
-        }
-      }
-
-      function handleNewWorkspaceClicked(evt) {
-        var modal = getModax();
-        modal.header = '{{_("New Workspace")|escapejs}}';
-        modal.setAttribute("endpoint", "{% url 'orgs.org_create' %}");
-        modal.open = true;
-
-        evt.preventDefault();
-        evt.stopPropagation();
-      }
-
-    -block extra-script
-
-    -block refresh-fn
-      :javascript
-        function refresh(onSuccess, forceReload){  
-          var url = params;
-          {% if page_obj %}
-            url += "page={{page_obj.number}}";
-          {% endif %}
-
-          if (url == '') {
-            url = '?';
-          }
-
-          url += '&ts=' + new Date().getTime() + "&refresh=" + refreshTimeout;
-
-          document.dispatchEvent(new Event("temba-refresh-begin"));  
-          fetchPJAXContent(url, '#pjax', {
-              onSuccess: function() {
-                if (onSuccess) {
-                  onSuccess();
-                }
-                document.dispatchEvent(new Event("temba-refresh-complete"));
-                refreshTimeout = Math.floor(refreshTimeout * 1.1)
-                scheduleRefresh();
-              },
-              shouldIgnore: function() {
-                if (forceReload) {
-                  return false;
-                }
-                var pjax = document.querySelector("#pjax");
-                if (pjax) {
-                  return eval(document.querySelector("#pjax").dataset.noPjax);
-                }
-                return true;
-              },
-              onIgnore: function() {
-                var pjax = document.querySelector("#pjax");
-                if (pjax) {
-                  scheduleRefresh();
-                }
-              }
-          });
-        }
-
-
-    <script type="text/javascript" src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
-
-    <form id="posterizer" method="post">
-      {% csrf_token %}
-    </form>
-
-    :javascript
-
-      var params = '{{url_params|safe}}';
-
-      $(document).ready(function() {
-        if (navigator.appVersion.indexOf("Win")!=-1) {
-          $("html").addClass("windows");
-        }
-
-        $(".posterize").click(function(event){
-
-          var ele = event.target;
-          while (ele && !ele.classList.contains("posterize")) {
-            ele = ele.parentElement;
-          }
-
-          event.preventDefault();
-          event.stopPropagation();
-          handlePosterize(ele);
-        });
-
-
-      });
 {% endblock body %}
 
 </html>

@@ -15,23 +15,22 @@
   -block page-container
     #page-container.container
       .divPanel.page-content
-        -block page-top
-          .row
-            .span9
-              -block title
-                -block title-icon
-                -block title-text
-                  .title-text
-                    %h1
-                      {{title}}
+        .row
+          .span9
+            -block title
+              -block title-icon
+              -block title-text
+                .title-text
+                  %h1
+                    {{title}}
 
-            .span3.top-form
-              .pull-right
+          .span3.top-form
+            .pull-right
 
-                -block above-bar
-                  -block gear-menu
-                    -include "spa_page_menu.haml"
-                  -block top-form
+              -block above-bar
+                -block gear-menu
+                  -include "spa_page_menu.haml"
+                -block top-form
 
           %hr.top-bar
 

@@ -307,7 +307,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             HTTP_TEMBA_REFERER_PATH=f"/tickets/mine/open/{ticket.uuid}",
         )
 
-        self.assertEqual("spa_frame.haml", response.context["base_template"])
+        self.assertEqual("frame.haml", response.context["base_template"])
         self.assertEqual(("tickets", "mine", "open", str(ticket.uuid)), response.context["temba_referer"])
 
         # contacts in a flow get interrupt menu option instead

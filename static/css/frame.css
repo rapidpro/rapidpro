@@ -1,0 +1,226 @@
+temba-menu>div {
+  display: none;
+}
+
+.shadow {
+  --tw-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 40px 0 rgba(0, 0, 0, 0.09);
+}
+
+html {
+  --color-text-dark: #555;
+  --temba-textinput-font-size: 1;
+  --temba-textinput-padding: 0.6em .8em;
+  --widget-box-shadow: rgba(0, 0, 0, 0.05) 0px 3px 7px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+  --widget-box-shadow-focused: 0 0 0 3px rgba(164, 202, 254, .45), rgba(0, 0, 0, 0.05) 0px 3px 7px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+
+  --button-y: 0.2em;
+  --button-x: 1.5em;
+
+  --temba-select-selected-font-size: 1em;
+  --temba-select-selected-padding: .6em .8em;
+  --temba-select-selected-line-height: 1.2em;
+  overflow: hidden;
+
+}
+
+temba-modax,
+temba-dialog {
+  --button-y: 0.5em;
+}
+
+temba-button {
+  --button-shadow: 0 0px 0px 1px rgba(0, 0, 0, 0.02), 0 1px 9px 0 rgba(0, 0, 0, 0.2);
+}
+
+temba-button.light {
+  --button-shadow: rgba(0, 0, 0, 0.05) 0px 3px 7px 0px, rgba(0, 0, 0, 0.07) 0px 1px 1px 1px;
+}
+
+.list-buttons-container {
+  --icon-color: #666;
+}
+
+.list-buttons-container.visible {}
+
+.spa-container {
+  background: #f7f7f7;
+  overflow-y: auto;
+}
+
+.spa-container.loading .spa-content {
+  opacity: .3;
+  pointer-events: none;
+}
+
+.widget-container.loading .spa-loader,
+.spa-container.loading .spa-loader {
+  display: block;
+}
+
+.widget-container.loading .folders,
+.widget-container.loading .spa-content,
+.widget-container.loading .org-chooser {
+  opacity: .3;
+  pointer-events: none;
+}
+
+.org-chooser {
+  background: rgba(0, 0, 0, .02);
+  box-shadow: 0px 0px 15px 0px rgba(0, 0, 0, .1) inset;
+  color: rgba(0, 0, 0, .6);
+  --color-widget-border: transparent;
+  --color-widget-bg: transparent;
+  --temba-select-selected-padding: 0em;
+  --color-widget-bg-focused: transparent;
+  --color-focus: transparent;
+  --widget-box-shadow-focused: transparent;
+}
+
+temba-loading {
+  z-index: 1000;
+}
+
+.title-text {
+  transition: opacity 100ms linear;
+}
+
+.loading .title-text {
+  opacity: 0;
+}
+
+.spa-content {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  transition: opacity 200ms linear;
+}
+
+.bg-gradient {
+  background-repeat: no-repeat;
+  background-image: linear-gradient(rgb(255, 255, 255) 0%, rgb(236, 236, 236) 75%);
+}
+
+.lp-frame .lp-nav-item {
+  padding: 5px 10px !important;
+  border-radius: var(--curvature);
+}
+
+.lp-frame .lp-nav-item.selected {
+  background: var(--color-selection);
+  color: var(--color-primary-dark) !important;
+  font-weight: 300;
+}
+
+.lp-frame {
+  margin-top: 0px;
+  padding-top: 0em;
+  padding-right: 0em;
+  padding-left: 0em;
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.lp-frame .left {
+  padding-top: 1em;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 1em;
+  padding-left: 0.1em;
+  margin-right: 0em;
+  width: 18em;
+  padding-bottom: 1em;
+}
+
+.lp-frame .right {
+  padding: 0em;
+  margin: 0em;
+}
+
+.lp-frame .left .lp-nav .inner-scroll {
+  overflow: inherit;
+  height: inherit;
+  max-height: inherit;
+}
+
+.object-list {
+  -webkit-transform: translate3d(0, 0, 0)
+}
+
+.button-action {
+  background: #fff;
+}
+
+.button-action:hover,
+#gear-container .button-light:hover,
+#gear-container .button-light.dropdown-toggle:hover,
+#gear-container .button-light.dropdown-toggle:hover .icon-menu {
+  background: var(--color-primary-dark);
+  color: #fff !important;
+}
+
+
+#gear-container .button-light {
+  padding-top: 0.62em;
+  padding-bottom: 0.62em;
+  margin-top: 4px;
+  background: #fff;
+}
+
+#gear-container .button-light.dropdown-toggle {
+  padding-top: 0.58em;
+  padding-bottom: 0.58em;
+  margin-top: 4px;
+  background: #fff;
+}
+
+@media only screen and (max-width: 850px) {
+  .ticket-list {
+    flex-basis: 200px;
+  }
+}
+
+@media only screen and (max-width: 768px) {
+  .ticket-list {
+    flex-basis: 125px;
+  }
+
+  .widget-container {
+    margin-top: 0px !important;
+    padding-top: 0px !important;
+    margin-bottom: 0px;
+    padding-bottom: 0px;
+  }
+}
+
+.spa-container {
+  height: 100%;
+}
+
+table.list.selectable tbody tr:hover td {
+  background-color: var(--color-row-hover);
+  cursor: pointer;
+}
+
+.page-title {
+  font-size: 1.5em;
+}
+
+temba-menu {
+  background: #fff;
+  border-right: 1px solid #eee;
+}
+
+temba-menu.servicing {
+  --primary-rgb: 191, 84, 155;
+  --color-primary-dark: rgb(var(--primary-rgb));
+  --color-selection: rgba(var(--primary-rgb), .05);
+}
+
+.formax .formax-section.open {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.servicing:hover .hover {
+  background: rgba(0, 0, 0, .2);
+}

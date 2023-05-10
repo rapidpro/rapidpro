@@ -71,8 +71,6 @@ class SpaMixin(View):
 
         if self.is_content_only():
             context["base_template"] = "spa.html"
-        else:
-            context["base_template"] = "spa_frame.haml"
 
         context["is_spa"] = True
         context["is_content_only"] = self.is_content_only()
@@ -112,9 +110,9 @@ class SpaMixin(View):
                 if key.endswith(".js") and filename.endswith(".js"):
                     scripts.append(filename)
 
-                context["scripts"] = scripts
-                context["styles"] = styles
-                context["dev_mode"] = dev_mode
+            context["flow_editor_scripts"] = scripts
+            context["flow_editor_styles"] = styles
+            context["dev_mode"] = dev_mode
 
         return context
 
