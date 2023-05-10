@@ -6,8 +6,9 @@
 -block extra-style
   {{block.super}}
   :css
-    .logo {
-      color: #fff !important;
+    .login-logo {
+      width: 16em;
+
     }
 
     .content-card {
@@ -38,10 +39,9 @@
     .middle.flex.flex-row.mb-10
       .flex-grow
       .content-card
-        .mb-4.logo
+        .mb-4.login-logo
           %a(href="/")
-            %svg
-              %use(href="{{STATIC_URL}}{{ brand.logo }}")
+            %img(src="{{STATIC_URL}}{{ brand.logo }}")
         .page-title
           -block title
         -block content
