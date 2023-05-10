@@ -13,50 +13,32 @@
 -block subtitle
   {{user_org.name|capfirst}}
 
--block extra-less
-  {{block.super}}
-  -compress css
-    {% lessblock %}
-      :plain
-
-        table.list {
-          border-top-left-radius: 0;
-          border-top-right-radius: 0;
-        }
-
-        tr {
-          th {
-            &.header-created_on {
-              text-align: right;
-              width: 160px;
-            }
-
-            &.header-manage {
-              font-size: 0; 
-            }
-          }
-
-          td {
-            &.field_created_on {
-              text-align: right;
-            }
-          }
-
-        }
-
-        .num-credits {
-          text-align:right;
-          font-size: 1.5rem;
-        }
-
-        .org-timezone {
-          font-size: 11px;
-          line-height:11px;
-        }
-    {% endlessblock %}
-
 -block extra-style
+  {{block.super}}
   :css
+    table.list {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+    tr th.header-created_on {
+      text-align: right;
+      width: 160px;
+    }
+    tr th.header-manage {
+      font-size: 0;
+    }
+    tr td.field_created_on {
+      text-align: right;
+    }
+    .num-credits {
+      text-align: right;
+      font-size: 1.5rem;
+    }
+    .org-timezone {
+      font-size: 11px;
+      line-height: 11px;
+    }
+
     .delete-icon {
       opacity: 0;
     }
@@ -80,7 +62,6 @@
       showModax("{{_('Delete Workspace')|escapejs}}",  "/org/delete/" + id + "/");
     }
 
-  
 -block table
   %table.list.lined
     %thead

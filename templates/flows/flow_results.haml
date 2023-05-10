@@ -4,57 +4,43 @@
 -block title
   {{object.name}}
   
--block extra-less
 
-  -compress css inline
-    {% lessblock %}
-      :plain
-
-        .chart .chart-name {
-          padding-left: 50px;
-          padding-right: 50px;
-          font-size: 16px;
-          text-align: center;
-          position: relative;
-          top: 90px;
-          height: 50px;
-          z-index: 1;
-          text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white;
-        }
-
-        .chart {
-          flex-basis: 400px;
-        }
-
-        .modal {
-          .modal-body {
-            max-height: 450px;
-          }
-        }
-
-        #category-charts {
-          justify-content: center; 
-        }
-
-
-        #overview-charts {
-          justify-content: center;
-          padding-top: 2em;
-
-        }
-
-        #overview-charts > div {
-          margin-bottom: 6em;
-          align-self: flex-start;
-          flex-basis: 400px;          
-        }
-
-        h4 {
-          font-weight: 300;
-          text-align: center;
-        }
-
-    {% endlessblock %}
+-block extra-style
+  {{block.super}}
+  :css
+    .chart .chart-name {
+      padding-left: 50px;
+      padding-right: 50px;
+      font-size: 16px;
+      text-align: center;
+      position: relative;
+      top: 90px;
+      height: 50px;
+      z-index: 1;
+      text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white;
+    }
+    .chart {
+      flex-basis: 400px;
+    }
+    .modal .modal-body {
+      max-height: 450px;
+    }
+    #category-charts {
+      justify-content: center;
+    }
+    #overview-charts {
+      justify-content: center;
+      padding-top: 2em;
+    }
+    #overview-charts > div {
+      margin-bottom: 6em;
+      align-self: flex-start;
+      flex-basis: 400px;
+    }
+    h4 {
+      font-weight: 300;
+      text-align: center;
+    }
 
 -block extra-script
   {{ block.super }}

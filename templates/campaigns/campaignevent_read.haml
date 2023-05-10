@@ -15,7 +15,7 @@
 
 
 -block content
-  
+
   .event-details.p-4.bg-gray-200.rounded-lg.mb-6
     -if object.event_type == 'M'
       .cap-label
@@ -120,80 +120,60 @@
         %p Are you sure you want to remove this event? Once the event is removed, it will be gone forever. This cannot be undone.
       %a#delete-form.posterize{}
 
--block extra-less
-  -compress css
-    {% lessblock %}
-      :plain
-
-        h2 a {
-          text-decoration: none;
-          color: inherit;
-
-          &:hover {
-            text-decoration: none;
-            color: inherit;
-          }
-        }
-
-        h4 {
-          margin-bottom:6px;
-        }
-
-        .title-icon {
-          // margin-bottom: -30px;
-        }
-
-        .title-text {
-          // margin-top:20px;
-        }
-
-        .total {
-          color: #999;
-          font-size:12px;
-          text-align:right;
-          margin-top:-5px;
-        }
-
-        .name {
-          display: inline-block;
-          width:150px;
-        }
-
-        .relative-to {
-          display:inline-block;
-          margin-left:10px;
-        }
-        .message {
-          font-size:15px;
-          line-height:17px;
-          border: 0px solid green;
-          color: #999;
-          margin-left:-13px;
-
-          .text {
-            position:relative;
-            z-index:1;
-            letter-spacing:.1em;
-            top:-10px;
-            left:14px;
-            right:-14px;
-            margin-right:25px;
-          }
-
-          .icon-left-quote {
-            position:relative;
-            z-index:0;
-            top:-5px;
-            font-size:28px;
-            color: #eee;
-            margin-right:4px;
-          }
-        }
-
-    {% endlessblock %}
-
 -block extra-style
   {{block.super}}
+
+  :css
+    h2 a {
+      text-decoration: none;
+      color: inherit;
+    }
+    h2 a:hover {
+      text-decoration: none;
+      color: inherit;
+    }
+    h4 {
+      margin-bottom: 6px;
+    }
+    .total {
+      color: #999;
+      font-size: 12px;
+      text-align: right;
+      margin-top: -5px;
+    }
+    .name {
+      display: inline-block;
+      width: 150px;
+    }
+    .relative-to {
+      display: inline-block;
+      margin-left: 10px;
+    }
+    .message {
+      font-size: 15px;
+      line-height: 17px;
+      border: 0px solid green;
+      color: #999;
+      margin-left: -13px;
+    }
+    .message .text {
+      position: relative;
+      z-index: 1;
+      letter-spacing: 0.1em;
+      top: -10px;
+      left: 14px;
+      right: -14px;
+      margin-right: 25px;
+    }
+    .message .icon-left-quote {
+      position: relative;
+      z-index: 0;
+      top: -5px;
+      font-size: 28px;
+      color: #eee;
+      margin-right: 4px;
+    }
+
   :css
     span.strong {
       font-weight:400;
@@ -209,6 +189,5 @@
     }    
 
     table .event_date {
-      text-align: right;
-    
+      text-align: right;    
     }

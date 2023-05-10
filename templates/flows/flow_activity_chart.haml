@@ -1,54 +1,41 @@
 -load humanize i18n compress temba l10n
 
--compress css inline
-  {% lessblock %}
-    :plain
-
-      #overview > div {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-      }
-
-      #overview > div > div {
-        flex-basis: 400px;
-      }
-
-      #histogram_container {
-        height: 200px;
-      }
-
-      #histogram {
-        height: 200px;
-      }
-
-      #completion_container {
-        display: inline-block;
-
-        #completion {
-          height: 200px;
-        }
-      }
-
-      #dow_container {
-        width: 49%;
-        #dow {
-          height: 200px;
-        }
-      }
-
-      #hod_container {
-        #hod {
-          height:200px;
-        }
-      }
-
-      .datalabel {
-        size: 75%;
-        color: red;
-      }
-  {% endlessblock %}
-
+-block extra-style
+  :css
+    #overview > div {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    #overview > div > div {
+      flex-basis: 400px;
+    }
+    #histogram_container {
+      height: 200px;
+    }
+    #histogram {
+      height: 200px;
+    }
+    #completion_container {
+      display: inline-block;
+    }
+    #completion_container #completion {
+      height: 200px;
+    }
+    #dow_container {
+      width: 49%;
+    }
+    #dow_container #dow {
+      height: 200px;
+    }
+    #hod_container #hod {
+      height: 200px;
+    }
+    .datalabel {
+      size: 75%;
+      color: red;
+    }
+  
 -if not hod and not dow
   -trans "No results yet"
 

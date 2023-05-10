@@ -45,22 +45,13 @@
     .page-content {
       max-width: 100%;
     }
+    pre.prettyprint {
+      margin: 0;
+      border: 0;
+      max-height: none !important;
+      padding: 1.5rem;
+    }
+    pre.prettyprint.request {
+      background: #ffffff;
+    }
 
-
--block extra-less
-  {{block.super}}
-  -compress css inline
-    {% lessblock %}
-      :plain
-
-        pre.prettyprint {
-          margin: 0;
-          border: 0;
-          max-height: none !important;
-          padding: 1.5rem;
-
-          &.request {
-            background: #f7f7f9 + 111;
-          }
-        }
-    {% endlessblock %}
