@@ -5,21 +5,20 @@
 
   #pjax
   -block pjax
-    -if org_perms.triggers.trigger_delete
-      %temba-dialog#delete-all-confirmation.hide(header='{{ _("Delete All Triggers")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
-        .p-6
-          -blocktrans trimmed with count=paginator.count
-            Are you sure you want to delete all {{ count }} archived triggers? This cannot be undone.
+    %temba-dialog#delete-all-confirmation.hide(header='{{ _("Delete All Triggers")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+      .p-6
+        -blocktrans trimmed with count=paginator.count
+          Are you sure you want to delete all {{ count }} archived triggers? This cannot be undone.
 
-          -if paginator.count > 50
-            %br
-            %br
-            -blocktrans trimmed
-              This operation can take a while to complete. Triggers may remain in this view during the process.
+        -if paginator.count > 50
+          %br
+          %br
+          -blocktrans trimmed
+            This operation can take a while to complete. Triggers may remain in this view during the process.
 
-      %temba-dialog#delete-confirmation.hide(header='{{ _("Delete Selected Triggers")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
-        .p-6
-          -trans "Are you sure you want to delete the selected triggers? This cannot be undone."
+    %temba-dialog#delete-confirmation.hide(header='{{ _("Delete Selected Triggers")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+      .p-6
+        -trans "Are you sure you want to delete the selected triggers? This cannot be undone."
 
   %form#search-form.mb-4(method="get" action="{{request.path}}")
     %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
@@ -121,8 +120,6 @@
       modal.open = true;
     }
 
-    {% if org_perms.triggers.trigger_delete %}
-
     function confirmDeleteAllArchivedTriggers() {
       var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
 
@@ -165,6 +162,4 @@
         deleteConfirmation.open = false;
       });
     }
-
-    {% endif %}
     
