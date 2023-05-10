@@ -19,7 +19,7 @@
     %script(src="{% url 'django.views.i18n.javascript_catalog' %}")
       
     -compress js
-      %script(rrc="{{ STATIC_URL }}jquery/dist/jquery.min.js")
+      %script(src="{{ STATIC_URL }}jquery/dist/jquery.min.js")
       %script(src="{{ STATIC_URL }}js/libs/jquery.url.js")
       %script(src="{{ STATIC_URL }}rest_framework/js/prettify-min.js")
       %script(src="{{ STATIC_URL }}highcharts/highstock.js?v=3.0")
@@ -53,8 +53,8 @@
       }
 
     -compress js
-      %script{src:"{{ STATIC_URL }}js/frame.js"}
       %script{src:"{{ STATIC_URL }}js/temba.js"}
+      %script{src:"{{ STATIC_URL }}js/frame.js"}
       %script{src:"{{ STATIC_URL }}js/labels.js"}
 
     -for script in flow_editor_scripts
@@ -81,8 +81,6 @@
       -compress css
         %link(type="text/css" rel="stylesheet" href="{{ STATIC_URL }}css/temba-components.css")
         %link(type="text/css" rel="stylesheet" href="{{ STATIC_URL }}css/frame.css")
-
-      -block extra-style
 
     -include "includes/frame_top.html"
     -for incl in brand.head_includes
@@ -152,8 +150,9 @@
                 %temba-loading(size=16 units=6)
     
             .spa-content.p-5.overflow-y-auto.overflow-x-hidden
-    
-              -block spa-style
+              -block spa-style  
+              -block extra-style
+              -block extra-script
     
               -block page-header
                 -if title or has_content_menu
@@ -202,12 +201,12 @@
   -if form
     {{ form.media }}
 
-  -block extra-script
-
   <form id="posterizer" method="post">
     {% csrf_token %}
   </form>
 
+
 {% endblock body %}
+
 
 </html>
