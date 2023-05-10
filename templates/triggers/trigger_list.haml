@@ -17,6 +17,10 @@
             -blocktrans trimmed
               This operation can take a while to complete. Triggers may remain in this view during the process.
 
+      %temba-dialog#delete-confirmation.hide(header='{{ _("Delete Selected Triggers")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+        .p-6
+          -trans "Are you sure you want to delete the selected triggers? This cannot be undone."
+
   %form#search-form.mb-4(method="get" action="{{request.path}}")
     %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
     -if request.REQUEST.status
@@ -149,5 +153,18 @@
       deleteAllConfirmation.open = false;
     }
     
+    function onDeleteClicked(){
+      var deleteConfirmation = document.querySelector("#delete-confirmation");
+      deleteConfirmation.classList.remove("hide");
+      deleteConfirmation.open = true;
+
+      deleteConfirmation.addEventListener("temba-button-clicked", function(event){
+        if (!event.detail.button.secondary) {
+          runActionOnObjectRows("delete", wireTableListeners);
+        }
+        deleteConfirmation.open = false;
+      });
+    }
+
     {% endif %}
     
