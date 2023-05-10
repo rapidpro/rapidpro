@@ -1573,7 +1573,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             flow,
             keyword="simon",
             match_type=Trigger.MATCH_ONLY_WORD,
-            is_active=True
+            is_active=True,
         )
 
         # can bulk delete archived triggers
@@ -1598,12 +1598,12 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, trigger3.keyword)
         self.assertNotContains(response, trigger4.keyword)
         self.assertNotContains(response, trigger5.keyword)
-        self.assertNotContains(response, trigger6.keyword)        
-        
+        self.assertNotContains(response, trigger6.keyword)
+
         # cannot bulk "delete all" active triggers
         self.assertNotContains(response, trigger7.keyword)
         response = self.client.get(list_url)
-        self.assertContains(response, trigger7.keyword)        
+        self.assertContains(response, trigger7.keyword)
 
     def test_type_lists(self):
         flow1 = self.create_flow("Flow 1")
