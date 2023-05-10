@@ -276,11 +276,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     CONFIG_WHATSAPP_CLOUD_USER_TOKEN = "whatsapp_cloud_user_token"
 
-    CONFIG_VONAGE_API_KEY = "nexmo_api_key"
-    CONFIG_VONAGE_API_SECRET = "nexmo_api_secret"
-    CONFIG_VONAGE_APP_ID = "nexmo_app_id"
-    CONFIG_VONAGE_APP_PRIVATE_KEY = "nexmo_app_private_key"
-
     ENCODING_DEFAULT = "D"  # we just pass the text down to the endpoint
     ENCODING_SMART = "S"  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
     ENCODING_UNICODE = "U"  # we send everything as unicode

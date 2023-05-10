@@ -1,12 +1,20 @@
 from django.urls import re_path
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.models import Channel, ChannelType
+from temba.channels.models import ChannelType
 from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
 from .client import VonageClient
-from .views import ClaimView, Connect, SearchView, UpdateForm
+from .views import (
+    CONFIG_VONAGE_API_KEY,
+    CONFIG_VONAGE_API_SECRET,
+    CONFIG_VONAGE_APP_ID,
+    ClaimView,
+    Connect,
+    SearchView,
+    UpdateForm,
+)
 
 RECOMMENDED_COUNTRIES = {
     "US",
@@ -95,9 +103,9 @@ class VonageType(ChannelType):
         return timezone_to_country_code(org.timezone) in RECOMMENDED_COUNTRIES
 
     def deactivate(self, channel):
-        app_id = channel.config.get(Channel.CONFIG_VONAGE_APP_ID)
-        api_key = channel.config.get(Channel.CONFIG_VONAGE_API_KEY)
-        api_secret = channel.config.get(Channel.CONFIG_VONAGE_API_SECRET)
+        app_id = channel.config.get(CONFIG_VONAGE_APP_ID)
+        api_key = channel.config.get(CONFIG_VONAGE_API_KEY)
+        api_secret = channel.config.get(CONFIG_VONAGE_API_SECRET)
         if api_key and api_secret and app_id:
             client = VonageClient(api_key=api_key, api_secret=api_secret)
             client.delete_application(app_id)

@@ -9,7 +9,14 @@ from temba.tests import MockResponse, TembaTest
 
 from .client import VonageClient
 from .type import VonageType
-from .views import SESSION_VONAGE_API_KEY, SESSION_VONAGE_API_SECRET
+from .views import (
+    CONFIG_VONAGE_API_KEY,
+    CONFIG_VONAGE_API_SECRET,
+    CONFIG_VONAGE_APP_ID,
+    CONFIG_VONAGE_APP_PRIVATE_KEY,
+    SESSION_VONAGE_API_KEY,
+    SESSION_VONAGE_API_SECRET,
+)
 
 
 class VonageTypeTest(TembaTest):
@@ -119,10 +126,10 @@ class VonageTypeTest(TembaTest):
         self.assertIn(Channel.ROLE_ANSWER, channel.role)
         self.assertIn(Channel.ROLE_CALL, channel.role)
 
-        self.assertEqual(channel.config[Channel.CONFIG_VONAGE_API_KEY], "key123")
-        self.assertEqual(channel.config[Channel.CONFIG_VONAGE_API_SECRET], "sesame")
-        self.assertEqual(channel.config[Channel.CONFIG_VONAGE_APP_ID], "myappid")
-        self.assertEqual(channel.config[Channel.CONFIG_VONAGE_APP_PRIVATE_KEY], "private")
+        self.assertEqual(channel.config[CONFIG_VONAGE_API_KEY], "key123")
+        self.assertEqual(channel.config[CONFIG_VONAGE_API_SECRET], "sesame")
+        self.assertEqual(channel.config[CONFIG_VONAGE_APP_ID], "myappid")
+        self.assertEqual(channel.config[CONFIG_VONAGE_APP_PRIVATE_KEY], "private")
 
         # check the connect view has no initial set
         response = self.client.get(reverse("channels.types.vonage.connect"))
@@ -229,7 +236,7 @@ class VonageTypeTest(TembaTest):
             None,
             "+250788123123",
             uuid="00000000-0000-0000-0000-000000001234",
-            config={Channel.CONFIG_VONAGE_API_KEY: "1234", Channel.CONFIG_VONAGE_API_SECRET: "secret"},
+            config={CONFIG_VONAGE_API_KEY: "1234", CONFIG_VONAGE_API_SECRET: "secret"},
         )
 
         # attach a Vonage account to the session
@@ -256,10 +263,10 @@ class VonageTypeTest(TembaTest):
         channel = self.org.channels.all().first()
         channel.channel_type = "NX"
         channel.config = {
-            Channel.CONFIG_VONAGE_APP_ID: "myappid",
-            Channel.CONFIG_VONAGE_API_KEY: "api_key",
-            Channel.CONFIG_VONAGE_API_SECRET: "api_secret",
-            Channel.CONFIG_VONAGE_APP_PRIVATE_KEY: "secret",
+            CONFIG_VONAGE_APP_ID: "myappid",
+            CONFIG_VONAGE_API_KEY: "api_key",
+            CONFIG_VONAGE_API_SECRET: "api_secret",
+            CONFIG_VONAGE_APP_PRIVATE_KEY: "secret",
         }
         channel.save(update_fields=("channel_type", "config"))
 

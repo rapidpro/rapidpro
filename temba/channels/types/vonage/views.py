@@ -250,6 +250,11 @@ CALLING_CODES = countries.calling_codes(SUPPORTED_COUNTRIES)
 SESSION_VONAGE_API_KEY = "VONAGE_API_KEY"
 SESSION_VONAGE_API_SECRET = "VONAGE_API_SECRET"
 
+CONFIG_VONAGE_API_KEY = "nexmo_api_key"
+CONFIG_VONAGE_API_SECRET = "nexmo_api_secret"
+CONFIG_VONAGE_APP_ID = "nexmo_app_id"
+CONFIG_VONAGE_APP_PRIVATE_KEY = "nexmo_app_private_key"
+
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
@@ -402,10 +407,10 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             vonage_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip("+")
 
         config = {
-            Channel.CONFIG_VONAGE_APP_ID: app_id,
-            Channel.CONFIG_VONAGE_APP_PRIVATE_KEY: app_private_key,
-            Channel.CONFIG_VONAGE_API_KEY: self.request.session.get(SESSION_VONAGE_API_KEY),
-            Channel.CONFIG_VONAGE_API_SECRET: self.request.session.get(SESSION_VONAGE_API_SECRET),
+            CONFIG_VONAGE_APP_ID: app_id,
+            CONFIG_VONAGE_APP_PRIVATE_KEY: app_private_key,
+            CONFIG_VONAGE_API_KEY: self.request.session.get(SESSION_VONAGE_API_KEY),
+            CONFIG_VONAGE_API_SECRET: self.request.session.get(SESSION_VONAGE_API_SECRET),
             Channel.CONFIG_CALLBACK_DOMAIN: callback_domain,
         }
 
@@ -503,11 +508,9 @@ class Connect(SpaMixin, OrgPermsMixin, SmartFormView):
         last_vonage_channel = org.channels.filter(is_active=True, channel_type="NX").order_by("-created_on").first()
 
         if last_vonage_channel and not reset_creds:
-            self.request.session[SESSION_VONAGE_API_KEY] = last_vonage_channel.config.get(
-                Channel.CONFIG_VONAGE_API_KEY, ""
-            )
+            self.request.session[SESSION_VONAGE_API_KEY] = last_vonage_channel.config.get(CONFIG_VONAGE_API_KEY, "")
             self.request.session[SESSION_VONAGE_API_SECRET] = last_vonage_channel.config.get(
-                Channel.CONFIG_VONAGE_API_SECRET, ""
+                CONFIG_VONAGE_API_SECRET, ""
             )
             return HttpResponseRedirect(self.get_success_url())
 
