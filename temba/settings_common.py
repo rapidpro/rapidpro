@@ -288,7 +288,6 @@ BRANDS = [
         "logo": "images/logo-dark.svg",
         "allow_signups": True,
         "title": _("Visually build nationally scalable mobile applications"),
-        "primary_color": "#0c6596",
     }
 ]
 DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro")
