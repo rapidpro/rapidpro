@@ -1,3 +1,7 @@
+v8.1.145 (2023-05-11)
+-------------------------
+ * Fix width for other views and posterize on choose
+
 v8.1.144 (2023-05-11)
 -------------------------
  * Fix login width
