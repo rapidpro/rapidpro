@@ -1,3 +1,10 @@
+v8.1.142 (2023-05-11)
+-------------------------
+ * Add base mixin for channel type specific views that gives access to the type class
+ * Update components and editor to support compose for somebody else
+ * Move vonage connect view to the channel type
+ * Allow deleting of archived triggers
+
 v8.1.141 (2023-05-10)
 -------------------------
  * Fix contacts title
