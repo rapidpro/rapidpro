@@ -3,6 +3,23 @@
 
 -block content
 
+  #pjax
+  -block pjax
+    %temba-dialog#delete-all-confirmation.hide(header='{{ _("Delete All Triggers")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+      .p-6
+        -blocktrans trimmed with count=paginator.count
+          Are you sure you want to delete all {{ count }} archived triggers? This cannot be undone.
+
+        -if paginator.count > 50
+          %br
+          %br
+          -blocktrans trimmed
+            This operation can take a while to complete. Triggers may remain in this view during the process.
+
+    %temba-dialog#delete-confirmation.hide(header='{{ _("Delete Selected Triggers")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+      .p-6
+        -trans "Are you sure you want to delete the selected triggers? This cannot be undone."
+
   %form#search-form.mb-4(method="get" action="{{request.path}}")
     %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
     -if request.REQUEST.status
@@ -81,6 +98,14 @@
   {{ block.super }}
 
   :javascript
+    var menu = document.querySelector("temba-content-menu");      
+    menu.addEventListener("temba-selection", function(event) {
+      var item = event.detail;
+      if (item.id == "triggers_delete_all") {
+        confirmDeleteAllArchivedTriggers();
+      }
+    });
+
     function updateTrigger(event, id) {
 
       if (event.target.tagName == "TEMBA-CHECKBOX") {
@@ -93,5 +118,48 @@
       modal.endpoint = '/trigger/update/' + id + '/';
       modal.header = '{{ _("Update Trigger")|escapejs }}';
       modal.open = true;
+    }
+
+    function confirmDeleteAllArchivedTriggers() {
+      var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
+
+      deleteAllConfirmation.classList.remove("hide");
+      deleteAllConfirmation.open = true;
+
+      deleteAllConfirmation.removeEventListener("temba-button-clicked", deleteAllArchivedTriggers);
+      deleteAllConfirmation.addEventListener("temba-button-clicked", deleteAllArchivedTriggers);
+    }
+
+    function deleteAllArchivedTriggers(event){
+      var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
+
+      if (event.detail.button.attributes.destructive){
+        jQuery.ajaxSettings.traditional = true;
+        var url = "{% url 'triggers.trigger_archived' %}";
+
+        var store = document.querySelector("temba-store");
+        store.postForm(url, { action: "delete", all: 'true', pjax: true}).then(function(response){
+          document.querySelector("temba-menu").refresh();
+          gotoURL(url);
+        }).catch(function(error){
+          console.log(error);
+        });
+
+      }
+      deleteAllConfirmation.classList.add("hide");
+      deleteAllConfirmation.open = false;
+    }
+    
+    function onDeleteClicked(){
+      var deleteConfirmation = document.querySelector("#delete-confirmation");
+      deleteConfirmation.classList.remove("hide");
+      deleteConfirmation.open = true;
+
+      deleteConfirmation.addEventListener("temba-button-clicked", function(event){
+        if (!event.detail.button.secondary) {
+          runActionOnObjectRows("delete", wireTableListeners);
+        }
+        deleteConfirmation.open = false;
+      });
     }
     
