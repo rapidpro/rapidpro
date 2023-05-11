@@ -4,7 +4,6 @@ from datetime import timedelta
 import iso8601
 import pytz
 
-from django.conf import settings
 from django.template.defaultfilters import register
 from django.urls import reverse
 from django.utils import timezone
@@ -115,19 +114,6 @@ def annotated_field(field, label, help_text):
     attrs["help_text"] = help_text
     attrs["errors"] = json.dumps([str(error) for error in field.errors])
     return field.as_widget(attrs=attrs)
-
-
-@register.simple_tag(takes_context=True)
-def ssl_brand_url(context, url_name, args=None):
-    hostname = settings.HOSTNAME
-    if "brand" in context:
-        hostname = context["brand"].get("domain", settings.HOSTNAME)
-
-    path = reverse(url_name, args)
-    if getattr(settings, "SESSION_COOKIE_SECURE", False):  # pragma: needs cover
-        return "https://%s%s" % (hostname, path)
-    else:
-        return path
 
 
 @register.filter("delta", is_safe=False)
