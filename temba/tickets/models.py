@@ -119,7 +119,7 @@ class Ticketer(TembaModel, DependencyMixin):
         return TYPES.values()
 
     @property
-    def type(self):
+    def type(self):  # pragma: no cover
         """
         Returns the type instance
         """
