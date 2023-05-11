@@ -1,7 +1,7 @@
 -extends "no_nav.haml"
 -load smartmin i18n
 
--block extra-style
+-block styles
   {{block.super}}
   :css
     input {
@@ -12,6 +12,9 @@
       width: 28em;
     }
 
+    .login-logo {
+      width: 200px;
+    }
 
 -block content
   .page-title
