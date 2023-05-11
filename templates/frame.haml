@@ -52,10 +52,11 @@
         }
       }
 
-    -compress js
-      %script{src:"{{ STATIC_URL }}js/temba.js"}
-      %script{src:"{{ STATIC_URL }}js/frame.js"}
-      %script{src:"{{ STATIC_URL }}js/labels.js"}
+    -block scripts
+      -compress js
+        %script{src:"{{ STATIC_URL }}js/temba.js"}
+        %script{src:"{{ STATIC_URL }}js/frame.js"}
+        %script{src:"{{ STATIC_URL }}js/labels.js"}
 
     -for script in flow_editor_scripts
       %script(type="text/javascript" src="{{script}}")

@@ -13,5 +13,5 @@
     .flex.flex-col
       -for org in orgs
         .item
-          %a.button-light.m-2.posterize(href="?organization={{ org.id }}")
+          %a.button-light.m-2.posterize(href="?organization={{ org.id }}" onclick="handlePosterizeClick(event)")
             {{ org.name }}
