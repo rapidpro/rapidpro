@@ -11,10 +11,9 @@ from temba.orgs.views import OrgPermsMixin
 from temba.utils import countries
 from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.models import generate_uuid
-from temba.utils.views import SpaMixin
 
 from ...models import Channel
-from ...views import BaseClaimNumberMixin, ClaimViewMixin, UpdateTelChannelForm
+from ...views import BaseClaimNumberMixin, ChannelTypeMixin, ClaimViewMixin, UpdateTelChannelForm
 from .client import VonageClient
 
 SUPPORTED_COUNTRIES = {
@@ -431,7 +430,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return channel
 
 
-class SearchView(OrgPermsMixin, SmartFormView):
+class SearchView(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
     """
     Endpoint for searching for numbers to claim
     """
@@ -474,7 +473,7 @@ class UpdateForm(UpdateTelChannelForm):
         readonly = ()
 
 
-class Connect(SpaMixin, OrgPermsMixin, SmartFormView):
+class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
     class VonageConnectForm(forms.Form):
         api_key = forms.CharField(help_text=_("Your Vonage API key"), widget=InputWidget(), required=True)
         api_secret = forms.CharField(help_text=_("Your Vonage API secret"), widget=InputWidget(), required=True)
@@ -505,7 +504,9 @@ class Connect(SpaMixin, OrgPermsMixin, SmartFormView):
         reset_creds = self.request.GET.get("reset_creds", "")
 
         org = self.request.org
-        last_vonage_channel = org.channels.filter(is_active=True, channel_type="NX").order_by("-created_on").first()
+        last_vonage_channel = (
+            org.channels.filter(is_active=True, channel_type=self.channel_type.code).order_by("-created_on").first()
+        )
 
         if last_vonage_channel and not reset_creds:
             self.request.session[SESSION_VONAGE_API_KEY] = last_vonage_channel.config.get(CONFIG_VONAGE_API_KEY, "")

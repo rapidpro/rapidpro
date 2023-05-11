@@ -12,7 +12,7 @@ from django.utils.http import urlencode
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
-from temba.channels.views import BaseClaimNumberMixin, ClaimViewMixin
+from temba.channels.views import BaseClaimNumberMixin, ChannelTypeMixin, ClaimViewMixin
 from temba.orgs.views import OrgPermsMixin
 from temba.utils import countries
 from temba.utils.fields import SelectWidget
@@ -208,7 +208,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             del self.request.session[Channel.CONFIG_PLIVO_AUTH_TOKEN]
 
 
-class SearchView(OrgPermsMixin, SmartFormView):
+class SearchView(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
     class Form(forms.Form):
         country = forms.ChoiceField(choices=COUNTRY_CHOICES)
         pattern = forms.CharField(max_length=7, required=False)

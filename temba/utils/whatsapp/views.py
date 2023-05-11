@@ -4,15 +4,16 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
+from temba.channels.views import ChannelTypeMixin
 from temba.orgs.views import OrgPermsMixin
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
-from temba.utils.views import ContentMenuMixin, PostOnlyMixin, SpaMixin
+from temba.utils.views import ContentMenuMixin, PostOnlyMixin
 
 from .tasks import refresh_whatsapp_contacts
 
 
-class RefreshView(SpaMixin, PostOnlyMixin, OrgPermsMixin, SmartUpdateView):
+class RefreshView(ChannelTypeMixin, PostOnlyMixin, OrgPermsMixin, SmartUpdateView):
     """
     Responsible for firing off our contact refresh task
     """
@@ -32,7 +33,7 @@ class RefreshView(SpaMixin, PostOnlyMixin, OrgPermsMixin, SmartUpdateView):
         return obj
 
 
-class TemplatesView(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartReadView):
+class TemplatesView(ChannelTypeMixin, ContentMenuMixin, OrgPermsMixin, SmartReadView):
     """
     Displays a simple table of all the templates synced on this whatsapp channel
     """
@@ -64,7 +65,7 @@ class TemplatesView(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartReadView):
         return f"/settings/channels/{self.get_object().uuid}"
 
 
-class SyncLogsView(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartReadView):
+class SyncLogsView(ChannelTypeMixin, ContentMenuMixin, OrgPermsMixin, SmartReadView):
     """
     Displays a simple table of the WhatsApp Templates Synced requests for this channel
     """
