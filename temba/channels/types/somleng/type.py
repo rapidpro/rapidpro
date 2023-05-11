@@ -35,9 +35,7 @@ class SomlengType(ChannelType):
     max_length = 1600
 
     claim_view = ClaimView
-    claim_blurb = _(
-        "Connect to Somleng."
-    )
+    claim_blurb = _("Connect to Somleng.")
 
     configuration_blurb = _(
         "To finish configuring your Somleng channel you'll need to add the following URL to Somleng."
