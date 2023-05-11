@@ -20,7 +20,7 @@
 -block form
   -if verified_status
     .card
-      .alert-success.my-4.p-4
+      %temba-alert.my-4.p-4(level="info")
         -trans "Number already verified"
   -else
      {{ block.super }}

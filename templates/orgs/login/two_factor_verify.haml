@@ -17,7 +17,7 @@
       %input.input(name='otp' maxlength=6 placeholder='{{_("6-digit code")|escape}}')
 
     -if form.otp.errors
-      .alert-error.mt-4
+      %temba-alert.mt-4(level="error")
         {{ form.otp.errors }}
 
     .mt-2.text-right

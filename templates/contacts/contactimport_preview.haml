@@ -16,7 +16,7 @@
   %form.smartmin-form.horizontal-form(method="post" enctype="multipart/form-data")
     -csrf_token
     -if form.non_field_errors
-      %div.alert.alert-error.form-errors
+      %temba-alert.form-errors(level="error")
         {{ form.non_field_errors }}
     .card.w-full
       -block fields
