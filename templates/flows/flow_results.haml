@@ -3,358 +3,125 @@
 
 -block title
   {{object.name}}
--block subtitle
-  -trans "Results"
   
--block extra-less
 
-  -compress css inline
-    {% lessblock %}
-      :plain
-
-        .page-content {
-          align-self: auto;
-          max-width: 100%;
-        }
-
-        .archive-note {
-          text-align: center;
-          font-size: 90%;
-          font-color: #666;
-        }
-         
-        .after {
-          position: relative;
-        }
-
-        .chart {
-          width: 48%;
-          margin: 0;
-          padding: 0;
-          display: inline-block;
-        }
-
-        .chart.large {
-          width: 99% !important;
-        }
-
-        .chart.small {
-          width: 33% !important;
-        }
-
-        .chart .name {
-          padding-left: 50px;
-          padding-right: 50px;
-          font-size: 16px;
-          text-align: center;
-          position: relative;
-          top: 90px;
-          height: 50px;
-          z-index: 1;
-          text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white;
-        }
-
-        .hidden-columns {
-          margin-top:10px;
-        }
-
-        table {
-          width: 100%;
-        }
-
-        td {
-
-          padding: 10px 10px;
-          border-top: 1px solid rgb(239, 239, 239);
-          min-width: 150px;
-          background: #fff;
-
-          &.collapse {
-            width:0px;
-            border: none;
-            display:none;
-          }
-
-
-          &.header {
-            background: #efefef;
-            border-bottom: 1px solid #e6e6e6;
-            border-top: 1px solid #e6e6e6;
-            white-space: nowrap;
-
-            .icons {
-              color: rgba(30,30,30,.4);
-              text-shadow: 0px -1px rgba(230,230,230,.2);
-              margin-right:8px;
-              display:inline;
-            }
-
-            .details {
-              cursor: pointer;
-              display: inline;
-            }
-
-            .remove {
-              color: rgba(30,30,30,.4);
-              text-shadow: 0px -1px rgba(230,230,230,.2);
-              font-size:16px;
-              margin-right: 0px;
-              margin-top:1px;
-              visibility: hidden;
-              cursor: pointer;
-            }
-
-            &:hover {
-              .remove {
-                visibility:visible;
-              }
-            }
-
-         }
-
-         &.subheader {
-           padding: 0;
-           font-size: 11px;
-           padding: 3px 10px;
-           background: #e9e9e9;
-         }
-
-         &.started {
-           width: 200px;
-         }
-        }
-
-        .scroll-x {
-          width: 100%;
-          overflow-x: auto;
-        }
-
-        .responded-checkbox {
-          padding-bottom: 10px;
-          padding-left: 15px;
-
-          .input-group {
-            display: inline;
-            margin-left: 15px;
-            margin-right: 15px;
-          }
-
-          .runs-show-sep {
-            display: inline;
-            margin-left: 5px;
-            margin-right: 5px;
-          }
-
-          .runs-show {
-            display: inline;
-            cursor: pointer;
-            color: @color-primary;
-
-            &:hover{
-              text-decoration: underline;
-            }
-
-            &.active {
-              cursor: default;
-              pointer-events: none;
-              text-decoration: none;
-              color: #555555;
-            }
-          }
-        }
-
-        .add-columns {
-          display: inline;
-          margin-left: 8px;
-          .text {
-            display: block;
-          }
-
-          .selection {
-            display: none;
-          }
-
-          &.select {
-            .text {
-              display: none;
-            }
-
-            .selection {
-              display: inline;
-            }
-          }
-        }
-
-        input.contact-search {
-          width: 200px;
-          margin-top:5px;
-        }
-
-        tr.run {
-          &:hover {
-            background: #fbfbfb;
-            .icon-close {
-              visibility: visible;
-            }
-          }
-
-          .icon-close {
-            color: rgba(30,30,30,.2);
-            text-shadow: 0px -1px rgba(230,230,230,.2);
-            font-size:16px;
-            margin-left: -8px;
-            margin-top:1px;
-            visibility: hidden;
-            cursor: pointer;
-          }
-        }
-
-        .modal {
-          .modal-body {
-            max-height: 450px;
-          }
-        }
-
-    {% endlessblock %}
+-block extra-style
+  {{block.super}}
+  :css
+    .chart .chart-name {
+      padding-left: 50px;
+      padding-right: 50px;
+      font-size: 16px;
+      text-align: center;
+      position: relative;
+      top: 90px;
+      height: 50px;
+      z-index: 1;
+      text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white;
+    }
+    .chart {
+      flex-basis: 400px;
+    }
+    .modal .modal-body {
+      max-height: 450px;
+    }
+    #category-charts {
+      justify-content: center;
+    }
+    #overview-charts {
+      justify-content: center;
+      padding-top: 2em;
+    }
+    #overview-charts > div {
+      margin-bottom: 6em;
+      align-self: flex-start;
+      flex-basis: 400px;
+    }
+    h4 {
+      font-weight: 300;
+      text-align: center;
+    }
 
 -block extra-script
   {{ block.super }}
-  %script{src:"{{ STATIC_URL }}highcharts/highcharts.js"}
-  %script{src:"{{ STATIC_URL }}highcharts/modules/drilldown.js"}
 
   :javascript
-    var colors = ['#2387CA', '#8FC93A', '#E18335', '#483C46', '#E4CC37', '#723D46', '#606C38', '#7DCFB6'];
+
     Highcharts.setOptions({
-      colors: colors
-    });
-  
-
-    var charts = {}
-    function handleTabChanged(event) {
-      var tabs = document.querySelector("temba-tabs");
-      if(tabs.index == 1) {
-        for (var key of Object.keys(charts)) {
-          charts[key].reflow();
-        }
+      global: {
+        timezoneOffset: -1 * {{utcoffset}}
+      },
+      lang: {
+        thousandsSep: ','
       }
-    }
-
-    function updateColumnSelect() {
-      var select = document.getElementById("select-columns");
-      if (select) {
-        var options = [];
-        for (var col of columns) {
-          if (col.hidden) {
-            options.push({name: col.text, value: col.id});
-          }
-        }
-        select.setOptions(options);
-      }
-    }
-
-    function handleColumnSelection(select) {
-      if (select.values.length > 0) {
-        var option = select.values[0];
-        columns[option.value].hidden = false;
-        select.values = [];
-        updateColumnSelect();
-        updateCols();
-      }
-    }
-
-    Intercooler.ready(function() {
-      updateCols();
+    })
+    
+    Highcharts.setOptions({
+      colors: ['#2387CA', '#8FC93A', '#E18335', '#483C46', '#E4CC37', '#723D46', '#606C38', '#7DCFB6']
     });
 
-    function hideColumn(idx) {
-      columns[idx].hidden = true
-      updateColumnSelect();
-      updateCols();
-    }
-
-    function toggleValue(idx) {
-      columns[idx].category = !columns[idx].category
-      updateCols();
-    }
-
-    function deleteRun(id) {
-      var dialog = document.getElementById("confirm-run-delete");
-      dialog.run = id;
-      dialog.open = true;
-    }
-
-    function updateCols() {
-      var hidden = false;
-      for (var idx=0; idx < columns.length; idx++) {
-        var col = columns[idx];
-        var child_idx = idx + 3;
-
-        var cell = $('td:nth-child(' + child_idx + ')');
-        var category = cell.find('.category');
-        var text = cell.find('.text');
-
-        if (col.category) {
-          category.show();
-          text.hide();
-        } else {
-          category.hide();
-          text.show();
-        }
-
-        if (col.hidden) {
-          $('td:nth-child(' + child_idx + ')').addClass('collapse');
-          hidden = true;
-        } else {
-          $('td:nth-child(' + child_idx + ')').removeClass('collapse');
-        }
-      }
-
-      if (hidden) {
-        $('.add-columns').addClass('select')
-      } else {
-        $('.add-columns').removeClass('select');
-      }
-    }
-
-    var columns = [
-       {% for result_field in result_fields %}
-        {
-          "id":"{{forloop.counter0}}",
-          "text":"{{result_field.name|safe}}",
-          "hidden": {% if forloop.counter > 3 %}true{%else%}false{%endif%},
-          "category": {{result_field.has_categories}}
-        },
-      {% endfor %}
-    ];
-
-    $(document).ready(function() {
-      Highcharts.setOptions({
-        global: {
-          timezoneOffset: -1 * {{utcoffset}}
-        },
-        lang: {
-          thousandsSep: ','
-        }
-      })
-    });
-
-
+    var colors = Highcharts.getOptions().colors;
     function getColor(index) {
       return colors[index % colors.length];
     }
 
     var charts = {}
+    function handleFlowRefreshed(evt) {
+      var flow = evt.detail.data;
+      if (flow.runs) {
+        var runCount = flow.runs.active + flow.runs.completed + flow.runs.expired + flow.runs.interrupted;
+
+        var tabs = document.querySelector("temba-tabs");
+        var runsTab = tabs.getTab(2);
+        runsTab.count = runCount;
+        tabs.requestUpdate();
+
+        var runList = document.querySelector("temba-run-list");
+        runList.results = flow.results;
+      }
+    }
+
+    function handleRunsRefreshed(evt) {
+      document.querySelector("temba-flow-details").refresh();
+    }
+
+    function deleteRun(id) {
+      var dialog = document.getElementById("confirm-run-delete");
+      dialog.runId = id;
+      dialog.open = true;
+    }
+
+    function performDelete(evt) {
+      var dialog = document.getElementById("confirm-run-delete");
+      dialog.open = false;
+
+      if(evt.detail.button.destructive) {
+        var store = document.querySelector("temba-store");
+        store.postUrl("/flowrun/delete/" + dialog.runId + "/").then(function(response) {
+          if (response.status == 200) {
+            var runList = document.querySelector("temba-run-list");
+            if (runList) {
+              runList.removeRun(dialog.runId);
+              var details = document.querySelector("temba-flow-details");
+              details.refresh();
+            }
+          }
+        });
+      }
+    }
 
     function getChart(key, name) {
       var chart = charts[key];
       if (!chart) {
 
         // add our chart container
-        var ele = $('#category-charts').append('<div class="chart ' + key + '-chart"><div class="name"></div><div id="' + key + '-chart"></div></div>');
+        var ele = document.querySelector(".chart-template").cloneNode(true);
+        ele.classList = "chart";
+        ele.querySelector(".chart-container").id = key + "-chart";
+        ele.querySelector(".chart-name").innerText = name;
+        document.querySelector("#category-charts").append(ele);
 
-        $('.' + key + '-chart').find('.name').text(name);
-
-        // and initialize it with highcharts
+        // init with highcharts
         chart = Highcharts.chart(key + '-chart', {
           chart: {
               type: 'column',
@@ -397,33 +164,13 @@
               return "<b>" + this.x + "</b>: " + this.point.count;
             }
           },
-          plotOptions: {
-            series: {
-              colorByPoint:true
-            }
-          },
+          series: []
         });
       }
 
       charts[key] = chart;
       return chart;
     }
-
-  :javascript
-
-    document.addEventListener("DOMContentLoaded", function() {
-      var dialog = document.getElementById("confirm-run-delete");
-      dialog.addEventListener("temba-button-clicked", function(event){
-        var id = dialog.run;
-        $("#run_" + id).fadeOut();
-        if (!event.detail.button.secondary) {
-          $.post('/flowrun/delete/' + id + '/').fail(function() {
-            $("#run_" + id).fadeIn();
-          });
-        }
-        dialog.open = false;
-      });
-    });
 
     function updateChart(chartData) {
       var key = chartData.key;
@@ -476,12 +223,15 @@
 
       chart.xAxis[0].update({categories:labels});
 
-      // if we are a larger series make sure we are wide
+      // on larger series make sure we are wide
       var size = chartData['size'];
       if (size) {
-        $('.' + key + '-chart').addClass(size);
+        var ele = document.querySelector("#" + key + "-chart");
+        if (ele) {
+          ele.classList.add(size);
+        }
         chart.reflow();
-        $(window).resize();
+        window.dispatchEvent(new Event('resize'));
       }
     }
 
@@ -501,7 +251,12 @@
     }
 
     function resetCharts() {
-      $('#category-charts').empty();
+
+      var cats = document.querySelector("#category-charts");
+      while (cats.firstChild) {
+        cats.removeChild(cats.firstChild);
+      }
+
       for (var key in charts){
         charts[key].destroy();
       }
@@ -521,7 +276,15 @@
 
     function updateCharts() {
 
-      $.get("/flow/category_counts/{{object.uuid}}", function(data) {
+      var store = document.querySelector("temba-store");
+      var tabs = document.querySelector("temba-tabs");
+
+      if (!tabs || tabs.index != 1) {
+        return;
+      }
+
+      store.getUrl("/flow/category_counts/{{object.uuid}}/", { force: true }).then(function(response){
+        var data = response.json;
 
         if (data.counts) {
           // determine chart sizes
@@ -535,7 +298,6 @@
             }
           }
 
-          // if we didn't end on a big chart, update our
           if (lastBigChart != data.counts.length - 1) {
             updatePreviousCharts(lastBigChart + 1, i, data.counts);
           }
@@ -550,94 +312,51 @@
         }
       });
 
-      // schedule our next update
       window.setTimeout(function() {
         updateCharts();
       }, 5000);
     }
 
-    $(document).ready(function() {
-      updateCharts();
-      localStorage.setItem("responded", "true");
-    });
+    function handleTabChanged() {
+      var tabs = document.querySelector("temba-tabs");
 
-    $(function(){
-      $(document).on('beforeAjaxSend.ic', function(event, ajaxSetup, elt){
-        responded = localStorage.getItem("responded");
-        ajaxSetup.data = ajaxSetup.data + "&responded=" + responded;
-      });
-    });
+      if (!tabs) {
+        return;
+      }
 
-    $(function() {
-        $(".responded-checkbox .runs-show").on('click', function(){
-          $(this).siblings().not($(this)).removeClass("active");
-          $(this).addClass("active");
-        });
-      });
+      // runs are paused unless our tab is active
+      var runs = document.querySelector("temba-run-list");
+      runs.paused = tabs.index != 2;
+
+      if (tabs.index == 0) {
+        fetchAjax('/flow/activity_chart/{{object.id}}/', "#overview-charts", {"headers": {"TEMBA-SPA": 1}});
+      }
+
+      if (tabs.index == 1) {
+        updateCharts();
+      }
+    }
+
 
 -block content
-  %temba-dialog#confirm-run-delete(header='{{ _("Delete Run")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+
+  .chart-template
+    .chart-name
+    .chart-container
+
+  %temba-flow-details(flow="{{object.uuid}}" -temba-refreshed="handleFlowRefreshed")
+
+  %temba-tabs.flex-grow(-temba-context-changed="handleTabChanged" collapses="true")
+
+    %temba-tab(name='{{_("Overview")|escapejs}}' icon="overview")
+      #overview-charts.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
+
+    %temba-tab(name='{{_("Analytics")|escapejs}}' icon="analytics")
+      #category-charts.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
+
+    %temba-tab(name='{{_("Runs")|escapejs}}' icon="runs")
+      %temba-run-list.p-4.flex.flex-col.flex-grow.overflow-hidden(flow="{{object.uuid}}" -temba-refreshed="handleRunsRefreshed")
+
+  %temba-dialog#confirm-run-delete(header='{{ _("Delete Run")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true' -temba-button-clicked="performDelete")
     .p-6
       -trans "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
-
-  %temba-tabs.flex-grow(-temba-context-changed="handleTabChanged")
-    %temba-tab(name='{{_("Overview")|escapejs}}')
-      #overview.active.p-4.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
-        .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
-          %i.fa.fa-spinner.fa-spin.fa-2x
-
-    %temba-tab(name='{{_("Analytics")|escapejs}}' icon="icon.analytics")
-      #category-charts.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
-    %temba-tab(name='{{_("Runs")|escapejs}}')
-        .scroll-x
-          .responded-checkbox.flex.items-center.py-3.w-full
-            .runs-show#show-all-runs{
-                                        ic-get-from:"/flow/run_table/{{object.id}}/",
-                                        ic-on-beforeSend:'$("#results_run_table").empty();',
-                                        ic-on-beforeTrigger: 'localStorage.setItem("responded", "false");',
-                                        ic-trigger-on:"click",
-                                        ic-target:"#results_run_table",
-                                        ic-indicator:"#indicator"}
-              -trans "All"
-            .runs-show-sep
-              |
-            .runs-show.active{
-                                        ic-get-from:"/flow/run_table/{{object.id}}/",
-                                        ic-on-beforeSend:'$("#results_run_table").empty();',
-                                        ic-on-beforeTrigger: 'localStorage.setItem("responded", "true");',
-                                        ic-trigger-on:"click",
-                                        ic-target:"#results_run_table",
-                                        ic-indicator:"#indicator"}
-              -trans "Responded"
-              
-            .flex-grow
-            .add-columns.select.flex-grow.pl-12.pr-4
-              .selection
-                %temba-select#select-columns(searchable="true" onchange="handleColumnSelection(this)" placeholder='{{_("More Columns")|escapejs}}')
-
-          %table
-            %thead
-              %tr
-                %td.header.started
-                  .details
-                    .text{style:"margin-left:10px;"}
-                      -trans "Last Activity"
-                %td.header
-                  .details
-                    .text
-                      -trans "Contact"
-
-                -for result_field in result_fields
-                  %td.header
-                    .details{ onclick: 'toggleValue({{forloop.counter0}});'}
-                      .icons
-                        .icon-flow.category
-                        .icon-bubble-2.text
-                      {{result_field.name}}
-                    .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
-
-            %tbody(id="results_run_table")
-              %tr(ic-append-from="/flow/run_table/{{object.id}}/" ic-trigger-on="load" ic-target="#results_run_table" ic-indicator="#indicator")
-
-  #indicator{style:"display:none"}
-    .loader

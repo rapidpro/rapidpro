@@ -28,7 +28,6 @@ class SomlengType(ChannelType):
 
     name = "Somleng"
     slug = "somleng"
-    icon = "icon-channel-twilio"
 
     courier_url = r"^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
 

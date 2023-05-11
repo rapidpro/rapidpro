@@ -8,607 +8,151 @@
 -block page-title
   {{contact|name_or_urn:user_org|default:"Contact Details"}}
 
--block title
-  .flex.flex-wrap.flex-row.items-center
-    .mr-3
-      {{contact|name_or_urn:user_org|default:"Contact Details"}}
-    -if not user_org.is_anon
-      -for urn in contact_urns
-        -if urn.sendable
-          .mr-3{class:"glyph {{urn|urn_icon}}", style:"margin-top:0px"}
+-block spa-title
+  #title-text.hidden
+    {{title}}    
+  %temba-contact-name-fetch(contact="{{object.uuid}}" -temba-refreshed="handleContactRefreshed" showLoading)      
 
 -block subtitle
-
-  .flex.flex-wrap.mt-1
-
-    -if contact.status == 'B'
-      .lbl-group.linked.inverted.bg-secondary.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_blocked' %}")
-        %temba-icon(name="icon.contact_bocked")
-        -trans "Blocked"
-  
-    -elif contact.status == 'S'
-      .lbl-group.linked.inverted.bg-secondary.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_stopped' %}")
-        %temba-icon(name="icon.contact_stopped")
-        -trans "Stopped"
-
-    -elif contact.status == 'V'
-      .lbl-group.linked.inverted.bg-secondary.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_archived' %}")
-        %temba-icon(name="icon.archive")
-        -trans "Archived"
-
-    -if contact.current_flow
-      .lbl-group.linked.inverted.bg-tertiary.mr-2.mb-2(onclick="goto(event)" href="{% url 'flows.flow_editor' contact.current_flow.uuid %}")
-        %temba-icon(name="icon.flow")
-        {{ contact.current_flow.name }}
-
-    -for group in contact_groups
-      -if group.is_smart
-        -include "includes/recipients_group.haml" with group=group
-    -for group in contact_groups
-      -if not group.is_smart
-        -include "includes/recipients_group.haml" with group=group
 
 -block read-buttons
 
 -block content
+  %temba-tabs.flex-grow.-mt-2(-temba-context-changed="handleTabChanged" index="{{request.GET.tab}}" collapses="true")
+    %temba-tab(icon="message" name='{{_("Chat")|escapejs}}')
+      .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
+        %temba-contact-chat(contact="{{object.uuid}}" monitor="true")
 
-  // Needed for table wrapping on IE 9
-  <!--[if IE]>
-  <style>
-    table.activity { table-layout: fixed; }
-  </style>
-  <![endif]-->
+    %temba-tab(icon="info" name='{{_("Details")|escapejs}}')
+      %temba-contact-details.p-4.overflow-y-auto(contact="{{object.uuid}}")
 
-  -if all_contact_fields.0.show_in_table
-    .bg-gray-100.rounded-lg.p-3.mb-6
-      .flex.flex-wrap
-        -for field in all_contact_fields
-          -if field.show_in_table
-            .flex.flex-col.p-2
-              .contact-field{data-id:'{{field.id}}'}
-                .contact-field-value.editable.cursor-pointer.hover-linked.font-bold.text-gray-600
-                  {{ field.value|truncatechars:20 }}
-              .whitespace-nowrap.pr-12.contact-field{data-id:'{{field.id}}'}
-                .contact-field-value.tracking-wider.font-normal.text-xs
-                  {{ field.name|title }}
-        
-      
+    %temba-tab(icon="fields" name='{{_("Fields")|escapejs}}')
+      .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
+        %temba-contact-fields.featured-fields.pb-1(timezone="{{object.org.timezone}}" contact="{{object.uuid}}" featured="true" -temba-button-clicked="handleFieldSearch")
+        %temba-contact-fields.all-fields(timezone="{{object.org.timezone}}" contact="{{object.uuid}}" -temba-button-clicked="handleFieldSearch")
+          .no-fields.p-16.text-center(slot="empty")
+            .text-xl.mb-4
+              -trans "No Fields"
 
-  %table.list.tight.toggle.stateful#contact-details
-    %thead
-      %th(colspan="2")
-        -trans "Details"
-    %tbody
-      %tr
-        %td
-          .whitespace-nowrap.pr-24.contact-field
-            .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
-              -trans "Created On"
-        %td.w-full
-          .contact-field-value
-            {% format_datetime contact.created_on %}
-      %tr
-        %td
-          .whitespace-nowrap.pr-24.contact-field
-            .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
-              -trans "Last Seen On"
-        %td.w-full
-          .contact-field-value
-            -if contact.last_seen_on
-              {% format_datetime contact.last_seen_on %}
-            -else
-              {{ "--" }}
+            -blocktrans trimmed
+              Nothing to see here yet. Create a new field to save data to your contacts.
 
-      -if contact_language
-        %tr
-          %td
-            .whitespace-nowrap.pr-12.contact-field
-              .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
-                -trans "Language"
-          %td.w-full
-            .contact-field-value.hover-linked
-              -trans 'Edit Contact' as title
-              %temba-modax(header="{{title|escapejs}}" endpoint="{% url 'contacts.contact_update' contact.pk %}")
-                {{contact_language}}
+    %temba-tab(icon="campaign" name='{{_("Next Up")|escapejs}}' hidden="true")
+      .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
+        %temba-contact-pending(contact="{{object.uuid}}" -temba-refreshed="handlePendingRefreshed" -temba-selection="handlePendingClicked")
 
-      -if user_org.is_anon
-        %tr
-          %td
-            .whitespace-nowrap.pr-12.contact-field
-              .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
-                -trans "Contact Id"
-          %td.w-full
-            .contact-field
-              .contact-field-value
-                {{contact.anon_display}}
-  
-    
-      -for field in all_contact_fields
-        %tr
-          %td
-            .whitespace-nowrap.pr-12.contact-field{data-id:'{{field.id}}'}
-              .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
-                {{ field.name|title }}
-          %td.w-full
-            .contact-field{data-id:'{{field.id}}'}
-              .contact-field-value.editable.cursor-pointer.hover-linked
-                {{ field.value }}
-      
-      -for urn in contact_urns
-        -if not user_org.is_anon
-          %tr
-            %td
-              .whitespace-nowrap.pr-12.contact-field
-                .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
-                  .mr-1.leading-none.text-gray-500{class:"glyph {{urn|urn_icon}}", style:"margin-top: -1px; font-size:14px"}
-                  -if urn.scheme == 'mailto'
-                    -trans "Email"
-                  -else
-                    {{urn.scheme}}
-            %td.w-full
-              .contact-field-value
-                -if urn.scheme == 'mailto'
-                  .linked{onclick:"goto(event)", href:"{{urn}}"}
-                    {{urn|format_urn:user_org}}
-                -elif urn.scheme == 'twitter'
-                  .linked{onclick:"goto(event)", href:'http://twitter.com/{{urn.path}}'}
-                    {{urn|format_urn:user_org}}
-                -elif urn.scheme == 'twitterid'
-                  .linked{onclick:"goto(event)", href:'http://twitter.com/{{urn.display}}'}
-                    {{urn|format_urn:user_org}}
-                -else
-                  {{urn|format_urn:user_org}}      
+    %temba-tab(icon="tickets" name='{{_("Tickets")|escapejs}}' hidden="true") 
+      .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
+        %temba-contact-tickets.m-4(agent="{{user.email}}" contact="{{object.uuid}}" -temba-refreshed="handleTicketsRefreshed" clickable="true" -temba-button-clicked="handleTicketClicked")
 
-  -if open_tickets
-    %table.list.tickets.mt-6
-      %thead
-        %th(colspan="5")
-          -trans "Open Tickets"
+-block extra-style
+  {{block.super}}
+  :css
+    .urn-link {
+      display: inline-block;
+    }
 
-      -for ticket in open_tickets
-        %tr.item
-          %td.icon
-            .pl-2
-              %span.glyph.icon-ticket
-          %td.details.w-full
-            %a(href="{% url 'tickets.ticket_list' %}all/open/{{ticket.uuid}}/")
-              {{ ticket.body|default:"empty"|truncatechars:64 }}
-          %td.created_on
-            .pr-6
-              {% short_datetime ticket.opened_on %}
-
-  -if upcoming_events
-    -if upcoming_events|length > 3
-      :css
-        tbody:nth-child(1) {
-          display: none;
-        }
-
-    %table.list.upcoming.mt-6.light
-      %thead
-        %th(colspan="3")
-          -trans "Upcoming"
-      -for evt in upcoming_events
-        -if forloop.counter0 == upcoming_events|length|add:-3
-          %tbody.next_three
-
-        %tr.item(class="{% if evt.message %}msg{%else%}non-msg{%endif%}")
-          %td.icon
-            -if evt.message
-              %span.glyph.icon-bubble-right
-            -elif evt.flow
-              %span.glyph.icon-flow
-            -else
-              %span.glyph.icon-clock
-
-          %td.details.w-full
-            .activity-scheduled
-              -if evt.message
-                .activity-body
-                  {{ evt.message }}
-
-              -elif evt.flow
-                -trans "Start"
-                %a.href(href="{% url 'flows.flow_editor' evt.flow.uuid %}")
-                  {{ evt.flow.name }}
-          %td.whitespace-nowrap.text-right
-            .pr-6
-              {{ evt.scheduled|parse_isodate|naturaltime }}{% if evt.repeat_period %}, {% endif %}
-              -if evt.repeat_period == 'D'
-                -trans 'repeats daily'
-              -elif evt.repeat_period == 'W'
-                -trans 'repeats weekly'
-              -elif evt.repeat_period == 'M'
-                -trans 'repeats monthly'
-
-    -if upcoming_events|length > 3
-      %a.pull-right.show-all.upcoming
-        more
-
-  %table.list.activity.history.mt-6.light
-    %thead
-      %th(colspan="2")
-        -trans "History"
-      %th(colspan="2")
-        .flex.justify-end
-          .flow-event-display-selector
-            %a.is-active(href="#")
-              -trans "Full"
-            |
-            %a.summary-events-only(href="#")
-              -trans "Summary"
-    %tr.poll{ ic-src:"/contact/history/{{contact.uuid}}/?after={{recent_start}}",
-              ic-trigger-on:"scrolled-into-view",
-              ic-poll:"5s",
-              ic-target:"table .recent",
-              ic-poll-repeats:"30",
-              ic-on-success:"checkForPJAX"
-            
-            }
-
-    %tbody.recent
-
-    // trigger the first batch of previous messages
-    %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?before={{recent_start}}", 
-         ic-trigger-on:"scrolled-into-view", 
-         ic-target:"table .previous", 
-         ic-indicator:"#indicator",
-         ic-on-success:"checkForPJAX"
-        }
-
-    %tbody.previous
-
-  #indicator{style:"display:none"}
-    .loader
-
--block extra-less
-  -compress css
-
-    :css
-      .urn-link {
-        display: inline-block;
-      }
-
-      .page-content {
-        align-self: auto;
-        max-width: 1024px;
-      }
-
-    {% lessblock %}
-      :plain
-        table.history, table.upcoming {
-          .glyph {
-            font-size: 14px;
-            line-height: 16px;
-            padding-left: 5px;
-
-            &.icon-flow {
-              font-size: 18px;
-              padding-left: 2px;
-            }
-          }
-        }
-
-        .show-all {
-          margin-top:0px;
-          margin-right:10px;
-          color: #d1d1d1;
-
-          &.expanded {
-            .icon-arrow-down {
-              .rotate(2);
-            }
-          }
-          .icon-arrow-down {
-            margin-top:2px;
-            margin-right: 3px;
-          }
-
-          &:hover {
-            color: #c1c1c1;
-            cursor: pointer;
-          }
-        }
-
-        .flow-event-display-selector {
-          a {
-              display: inline-block;
-              &.is-active {
-                cursor: none;
-                color: #999999;
-                cursor: text;
-                text-decoration: none;
-              }
-            }
-          }
-
-        table.list {
-
-          tr.archive-note {
-            border-bottom: none;
-            text-align: center;
-            color: #666;
-            font-size: 90%;
-
-            td {
-              padding: 10px;
-            }
-          }
-
-          tr.since {
-            border-bottom: none;
-            td {
-              text-align:center;
-              border-top: 1px solid @color-bg-grey + #555;
-              padding-top:15px;
-
-              .date {
-                border:0px solid red;
-              }
-
-              .btn {
-                margin-top:15px;
-              }
-            }
-          }
-
-          tr.end-call {
-            background: #ddd;
-            color: #000;
-            td {
-              text-align:center;
-              padding: 5px;
-            }
-          }
-
-          &.upcoming {
-            color: #bbb;
-
-            tr.non-msg {
-              background: inherit;
-            }
-
-            .icon {
-              .glyph.icon-bubble-right, .glyph.icon-flow {
-                color: #bbb;
-              }
-              text-align:center;
-            }
-
-            a {
-              color: #bbb;
-            }
-          }
-
-          tr {
-            &.msg {
-              td.icon {
-                .icon-bubble-right, .icon-bubble-check, .icon-bullhorn, .icon-call-outgoing {
-                  color: @color-status-green;
-                }
-
-                .icon-bubble-user, .icon-call-incoming {
-                  color: @color-primary;
-                }
-
-                .icon-bubble-notification {
-                  color: @color-status-failed;
-                }
-              }
-            }
-
-            &.detail-event {
-              display: table-row;
-            }
-
-            &.non-msg {
-              background: #fafafa;
-
-              &.skipped {
-                background: #fafafa;
-              }
-
-              &.new-session {
-                background: #f0f0f0;
-              }
-
-              .icon {
-                color: rgba(0, 0, 0, 0.20);
-              }
-            }
-          }
-
-          &.summary-events-only {
-            tbody {
-              tr.detail-event {
-                display: none;
-              }
-            }
-          }
-
-          td {
-            vertical-align:middle;
-
-            &.icon {
-              text-align: center;
-
-              .glyph {
-                color: rgba(0,0,0,.20);
-              }
-            }
-
-            b {
-              color: #666
-            }
-          }
-
-          .created_on {
-            font-size:13px;
-            line-height:13px;
-            border: 0px solid;
-            text-align:right;
-            min-width: 150px;
-            
-            .time {
-              margin-right: 0px;
-            }
-
-            .repeats {
-              font-size:90%;
-            }
-          }
-
-          .details {
-            border: 0px solid;
-            padding: 14px;
-
-            .summary {
-              font-size:11px;
-              font-weight:500;
-              line-height:10px;
-              color: @flat-grey;
-            }
-          }
-        }
-
-        .contact-urn {
-          display: inline-block;
-          margin-right: 10px;
-
-          .glyph {
-            margin-right: 3px;
-          }
-        }
-
-    {% endlessblock %}
+    .page-content {
+      align-self: auto;
+      max-width: 1024px;
+    }
 
 -block extra-script
-  {{ block.super }}
-
   :javascript
 
-    function checkForPJAX(selection, data, status, xhr) {
-      if (data.indexOf("<html") > -1) {
-        // we shouldnt have an html tag for pjax
-         document.location.reload();
-        return false;
+    var idxChat = 0;
+    var idxInfo = 1;
+    var idxFields = 2;
+    var idxPending = 3;
+    var idxTickets = 4;
+
+    function contactUpdated(evt) {
+      var details = document.querySelector("temba-contact-details");
+      details.refresh();
+    }
+
+    function handlePendingRefreshed(evt) {
+      var pendingEvents = evt.detail.data;
+      
+      var tabs = document.querySelector("temba-tabs");
+      var pendingTab = tabs.getTab(idxPending);
+      pendingTab.count = pendingEvents.length;
+      pendingTab.hidden = pendingTab.count == 0;
+      tabs.requestUpdate();
+    }
+
+    function handleContactRefreshed(evt) {
+      var contact = evt.detail.data;
+      var tabs = document.querySelector("temba-tabs");
+
+      // update our set field count
+      var fields = Object.keys(contact.fields).filter(function (key) {
+        return !!contact.fields[key]
+      });
+
+      var fieldTab = tabs.getTab(idxFields);
+      fieldTab.count = fields.length;
+
+      // render our tabs
+      tabs.requestUpdate();
+
+      var store = document.querySelector("temba-store");
+      
+      var featured = document.querySelector(".featured-fields");
+      var all = document.querySelector(".all-fields");
+
+      var featuredCount = store.getFeaturedFields().length;
+      var fieldCount = Object.keys(contact.fields).length;
+      
+      if (all) {
+        all.classList.toggle("hidden", featuredCount > 0 && fieldCount-featuredCount == 0);
       }
-      return true;
+
+      // if our contact refreshes, refresh our pendingEvents
+      var pending = document.querySelector("temba-contact-pending");
+      if (pending) {
+        pending.refresh();
+      }
+
+      var menu = document.querySelector("temba-menu");
+      if (menu) {
+        menu.refresh();
+      }
     }
 
-    var startTime = null;
-    function contactUpdated() {
-      document.location.reload();
+    function handleTicketsRefreshed(evt) {
+      var openTickets = evt.detail.data.filter(function (ticket) { 
+        return ticket.status == "open"
+      });      
+      
+      var tabs = document.querySelector("temba-tabs");
+      var ticketsTab = tabs.getTab(idxTickets);
+      ticketsTab.count = openTickets.length;
+      ticketsTab.hidden = evt.detail.data == 0;
+      tabs.requestUpdate();
+
     }
 
-    $(document).ready(function() {
-      $(".flow-event-display-selector a").each(function() {
-        var onlySummary = getCookie('rp-summaryEventsDisplay') === 'summary';
-        if(onlySummary && $(this).hasClass('summary-events-only')) {
-          $(this).parent('.flow-event-display-selector').children('a').removeClass('is-active');
-          $(this).addClass('is-active');
-          $('table.activity.history').addClass('summary-events-only');
-        }
-      })
-
-      $(".flow-event-display-selector a").on('click', function() {
-        $(this).parent('.flow-event-display-selector').children('a').removeClass('is-active');
-        $(this).addClass('is-active');
-        if($(this).hasClass('summary-events-only')) {
-          $('table.activity.history').addClass('summary-events-only');
-          document.cookie = "rp-summaryEventsDisplay=summary;path=/;expires=-1";
-        } else {
-          $('table.activity.history').removeClass('summary-events-only');
-          document.cookie = "rp-summaryEventsDisplay=all;path=/;expires=-1";
-        }
-        return false;
-      });
-
-      $('.show-all.upcoming').on('click', function() {
-        $(this).hide();
-        $('table.activity.upcoming tbody:nth-child(1)').show();
-      });
-
-      $('.show-all.fields').on('click', function() {
-        if ($(this).hasClass('expanded')) {
-          $(this).removeClass('expanded');
-          $('.contact-fields').removeClass('expanded');
-          $('.normal').hide();
-        } else {
-          $(this).addClass('expanded');
-          $('.contact-fields').addClass('expanded');
-          $('.normal').show();
-        }
-      });
-
-      $('.time').on('mouseover', function() {
-        $(this).children('.long').show();
-        $(this).children('.short').hide();
-      }).on('mouseleave', function() {
-        $(this).children('.short').show();
-        $(this).children('.long').hide();
-      });
-    });
-
-    function refreshRecents(){
-      Intercooler.triggerRequest($('tr.poll'));
+    function handleTabChanged() {
+      var tab = document.querySelector("temba-tabs").index;
+      window.history.replaceState({ url:"{% url 'contacts.contact_read' object.uuid %}", show: window.location.pathname + "?tab=" + tab }, "", "?tab=" + tab);
     }
 
-    // plays an audio attachment on a message
-    function playAudioAttachment(audioId) {
-      var audio = $('audio#audio-' + audioId);
-      var parent = audio.parent();
-      var player = audio[0];
+    function handleFieldSearch(evt) {
+      fetchURL("/contact/?search=" + encodeURIComponent(evt.detail.key) + "+%3D+" + encodeURIComponent("\"" + evt.detail.value + "\""))
+    }
 
-      if (!parent.hasClass('playing')) {
-        audio.bind('ended', function(){
-          parent.removeClass('playing');
+    function handleTicketClicked(evt) {
+      var ticket = evt.detail.ticket;
+      gotoURL("/ticket/all/" + ticket.status + "/" + ticket.uuid + "/");
+    }
 
-        });
-
-        parent.addClass('playing');
-        player.currentTime = 0;
-        player.play();
-
+    function handlePendingClicked(evt) {
+      var pending = evt.detail;
+      
+      if (pending.type == "campaign_event") {
+        gotoURL("/campaign/read/" + pending.campaign.uuid + "/");
       } else {
-        parent.removeClass('playing');
-        player.pause();
+        gotoURL("/broadcast/scheduled/");
       }
     }
-
-  %script
-
-    {% if org_perms.contacts.contact_update %}
-    $('.contact-field-value.editable').on('click', function(evt) {
-      var endpoint = '{% url "contacts.contact_update_fields" object.pk %}';
-      var field_id = $(this).parent().data('id');
-      var options = { 
-        disabled: false,
-        legacy: true
-      }
-      showModax("{{_("Update Field")|escapejs}}", endpoint + '?field=' + field_id, options);      
-    });
-
-    {% endif %}
-
-    {% if org_perms.contacts.contact_update %}
-    function removeContactFromGroup(groupId, contactId){
-      var elementId = '#group_' + groupId + '_' + contactId;
-      $.post('{% url 'contacts.contact_read' contact.uuid %}' + '?action=remove_from_group', {contact: contactId, group: groupId}, function() {
-        $(elementId).remove();
-      });
-    }
-    {% endif %}
-
-    {% if org_perms.contacts.contact_delete %}
-    $(".contact-delete-button").on('click', function() {
-      $(".gear-menu").removeClass("open");
-      modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
-      modal.addClass('alert');
-      modal.setListeners({onPrimary: function(){
-        $('#delete-form').click();
-      }}, false);
-      modal.setPrimaryButton('{{ _("Delete")|escapejs }}');
-      modal.show();
-    });
-    {% endif %}

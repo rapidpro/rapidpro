@@ -544,6 +544,133 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
 
+    @mock_mailroom
+    def test_update(self, mr_mocks):
+        self.org.flow_languages = ["eng", "spa"]
+        self.org.save(update_fields=("flow_languages",))
+
+        self.create_field("gender", "Gender", value_type=ContactField.TYPE_TEXT)
+        contact = self.create_contact(
+            "Bob",
+            urns=["tel:+593979111111", "tel:+593979222222", "telegram:5474754"],
+            fields={"age": 41, "gender": "M"},
+            language="eng",
+        )
+        testers = self.create_group("Testers", contacts=[contact])
+
+        update_url = reverse("contacts.contact_update", args=[contact.id])
+
+        self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={
+                "name": "Bob",
+                "status": "A",
+                "language": "eng",
+                "groups": [testers],
+                "urn__tel__0": "+593979111111",
+                "urn__tel__1": "+593979222222",
+                "urn__telegram__2": "5474754",
+            },
+        )
+
+        # update all fields (removes second tel URN, adds a new Facebook URN)
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "name": "Bobby",
+                "status": "B",
+                "language": "spa",
+                "groups": [testers.id],
+                "urn__tel__0": "+593979333333",
+                "urn__telegram__2": "78686776",
+                "new_scheme": "facebook",
+                "new_path": "9898989",
+            },
+            success_status=200,
+        )
+
+        contact.refresh_from_db()
+        self.assertEqual("Bobby", contact.name)
+        self.assertEqual(Contact.STATUS_BLOCKED, contact.status)
+        self.assertEqual("spa", contact.language)
+        self.assertEqual({testers}, set(contact.get_groups()))
+        self.assertEqual(
+            ["tel:+593979333333", "telegram:78686776", "facebook:9898989"],
+            [u.identity for u in contact.urns.order_by("-priority")],
+        )
+
+        # for non-active contacts, shouldn't see groups on form
+        self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={
+                "name": "Bobby",
+                "status": "B",
+                "language": "spa",
+                "urn__tel__0": "+593979333333",
+                "urn__telegram__1": "78686776",
+                "urn__facebook__2": "9898989",
+            },
+        )
+
+        # try to update with invalid URNs
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "name": "Bobby",
+                "status": "B",
+                "language": "spa",
+                "groups": [],
+                "urn__tel__0": "456",
+                "urn__facebook__2": "xxxxx",
+            },
+            form_errors={
+                "urn__tel__0": "Invalid number. Ensure number includes country code, e.g. +1-541-754-3010",
+                "urn__facebook__2": "Invalid format",
+            },
+            object_unchanged=contact,
+        )
+
+        # if contact has a language which is no longer a flow language, it should still be a valid option on the form
+        contact.language = "kin"
+        contact.save(update_fields=("language",))
+
+        response = self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={
+                "name": "Bobby",
+                "status": "B",
+                "language": "kin",
+                "urn__tel__0": "+593979333333",
+                "urn__telegram__1": "78686776",
+                "urn__facebook__2": "9898989",
+            },
+        )
+        self.assertContains(response, "Kinyarwanda")
+
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "name": "Bobby",
+                "status": "A",
+                "language": "kin",
+                "urn__tel__0": "+593979333333",
+                "urn__telegram__1": "78686776",
+                "urn__facebook__2": "9898989",
+            },
+            success_status=200,
+        )
+
+        contact.refresh_from_db()
+        self.assertEqual("Bobby", contact.name)
+        self.assertEqual(Contact.STATUS_ACTIVE, contact.status)
+        self.assertEqual("kin", contact.language)
+
     def test_scheduled(self):
         contact1 = self.create_contact("Joe", phone="+1234567890")
         contact2 = self.create_contact("Frank", phone="+1204567802")
@@ -907,7 +1034,7 @@ class ContactGroupTest(TembaTest):
         group.save(update_fields=("status",))
 
         # dynamic groups should get their own icon
-        self.assertEqual(group.get_attrs(), {"icon": "icon.group_smart"})
+        self.assertEqual(group.get_attrs(), {"icon": "group_smart"})
 
         # can't update query again while it is in this state
         with self.assertRaises(AssertionError):
@@ -1646,6 +1773,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         old_contact = self.create_contact("Jose", phone="+12065552000")
         self.create_incoming_msg(old_contact, "hola mundo")
         urn = old_contact.get_urn()
+        self.create_channel_event(self.channel, urn.identity, ChannelEvent.TYPE_CALL_IN_MISSED)
 
         self.create_ticket(self.org.ticketers.get(), old_contact, "Hi")
 
@@ -2557,7 +2685,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # errored show retrying icon
         msg.status = Msg.STATUS_ERRORED
-        self.assertIn('"icon.retry"', msg_status_badge(msg))
+        self.assertIn('"retry"', msg_status_badge(msg))
 
         # failed messages show an x
         msg.status = Msg.STATUS_FAILED
@@ -2933,449 +3061,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
             self.joe.refresh_from_db()
             self.assertEqual(status, self.joe.status)
-
-    @mock_mailroom
-    def test_update_and_list(self, mr_mocks):
-        self.setUpLocations()
-
-        list_url = reverse("contacts.contact_list")
-
-        self.just_joe = self.create_group("Just Joe", [self.joe])
-        self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
-
-        self.joe_and_frank = ContactGroup.objects.get(id=self.joe_and_frank.id)
-
-        # try to list contacts as a user not in the organization
-        self.login(self.user1)
-        response = self.client.get(list_url)
-        self.assertEqual(302, response.status_code)
-
-        # login as an org viewer
-        self.login(self.user)
-
-        response = self.client.get(list_url)
-        self.assertContains(response, "Joe Blow")
-        self.assertContains(response, "Frank Smith")
-        self.assertContains(response, "Billy Nophone")
-
-        # make sure Joe's preferred URN is in the list
-        self.assertContains(response, "blow80")
-
-        # this just_joe group has one contact and joe_and_frank group has two contacts
-        self.assertEqual(len(self.just_joe.contacts.all()), 1)
-        self.assertEqual(len(self.joe_and_frank.contacts.all()), 2)
-
-        # viewer cannot remove Joe from the group
-        post_data = {"action": "label", "label": self.just_joe.id, "objects": self.joe.id, "add": False}
-
-        # no change
-        self.client.post(list_url, post_data, follow=True)
-        self.assertEqual(len(self.just_joe.contacts.all()), 1)
-        self.assertEqual(len(self.joe_and_frank.contacts.all()), 2)
-
-        # viewer also can't block
-        post_data["action"] = "block"
-        self.client.post(list_url, post_data, follow=True)
-        self.assertEqual(Contact.STATUS_ACTIVE, Contact.objects.get(pk=self.joe.id).status)
-
-        # list the contacts as a manager of the organization
-        self.login(self.admin)
-        response = self.client.get(list_url)
-        self.assertEqual(list(response.context["object_list"]), [self.voldemort, self.billy, self.frank, self.joe])
-        self.assertEqual(response.context["actions"], ("block", "archive", "send", "start-flow"))
-
-        # this just_joe group has one contact and joe_and_frank group has two contacts
-        self.assertEqual(len(self.just_joe.contacts.all()), 1)
-        self.assertEqual(len(self.joe_and_frank.contacts.all()), 2)
-
-        # add a new group
-        group = self.create_group("Test", [self.joe])
-
-        # view our test group
-        filter_url = reverse("contacts.contact_filter", args=[group.uuid])
-        response = self.client.get(filter_url)
-        self.assertEqual(1, len(response.context["object_list"]))
-        self.assertEqual(self.joe, response.context["object_list"][0])
-
-        # should have the edit and export options
-        self.assertContentMenu(filter_url, self.admin, ["Edit", "Export", "Usages", "Delete"])
-
-        update_url = reverse("contacts.contactgroup_update", args=[group.pk])
-        response = self.client.get(update_url)
-        self.assertIn("name", response.context["form"].fields)
-
-        response = self.client.post(update_url, dict(name="New Test"))
-        self.assertRedirect(response, filter_url)
-
-        group = ContactGroup.objects.get(id=group.id)
-        self.assertEqual("New Test", group.name)
-
-        # TODO: this feature is on probation
-        # remove Joe from the group
-        # self.client.post(
-        #   list_url, {"action": "label", "label": self.just_joe.id, "objects": self.joe.id, "add": False}, follow=True
-        # )
-
-        # check the Joe is only removed from just_joe only and is still in joe_and_frank
-        # self.assertEqual(len(self.just_joe.contacts.all()), 0)
-        # self.assertEqual(len(self.joe_and_frank.contacts.all()), 2)
-
-        # now add back Joe to the group
-        # self.client.post(
-        # list_url, {"action": "label", "label": self.just_joe.id, "objects": self.joe.id, "add": True}, follow=True
-        # )
-
-        self.assertEqual(len(self.just_joe.contacts.all()), 1)
-        self.assertEqual(self.just_joe.contacts.all()[0].pk, self.joe.pk)
-        self.assertEqual(len(self.joe_and_frank.contacts.all()), 2)
-
-        # test on a secondary org
-        other = self.create_group("Other Org", org=self.org2)
-        response = self.client.get(reverse("contacts.contact_filter", args=[other.uuid]))
-        self.assertLoginRedirect(response)
-
-        # test filtering by group
-        joe_and_frank_filter_url = reverse("contacts.contact_filter", args=[self.joe_and_frank.uuid])
-
-        # now test when the action with some data missing
-        self.assertEqual(self.joe.get_groups().count(), 3)
-
-        self.client.post(joe_and_frank_filter_url, {"action": "label", "objects": self.joe.id, "add": True})
-
-        self.assertEqual(self.joe.get_groups().count(), 3)
-
-        self.client.post(joe_and_frank_filter_url, {"action": "label", "objects": self.joe.id, "add": False})
-
-        self.assertEqual(self.joe.get_groups().count(), 3)
-
-        # now block Joe
-        self.client.post(list_url, {"action": "block", "objects": self.joe.id}, follow=True)
-
-        self.joe = Contact.objects.filter(pk=self.joe.pk)[0]
-        self.assertEqual(Contact.STATUS_BLOCKED, self.joe.status)
-        self.assertEqual(len(self.just_joe.contacts.all()), 0)
-        self.assertEqual(len(self.joe_and_frank.contacts.all()), 1)
-
-        # shouldn't be any contacts on the stopped page
-        response = self.client.get(reverse("contacts.contact_stopped"))
-        self.assertEqual(0, len(response.context["object_list"]))
-
-        # mark frank as stopped
-        self.frank.stop(self.user)
-
-        stopped_url = reverse("contacts.contact_stopped")
-
-        response = self.client.get(stopped_url)
-        self.assertEqual(1, len(response.context["object_list"]))
-        self.assertEqual(1, response.context["object_list"].count())  # from ContactGroupCount
-
-        # have the user unstop them
-        self.client.post(stopped_url, {"action": "restore", "objects": self.frank.id}, follow=True)
-
-        response = self.client.get(stopped_url)
-        self.assertEqual(0, len(response.context["object_list"]))
-        self.assertEqual(0, response.context["object_list"].count())  # from ContactGroupCount
-
-        self.frank.refresh_from_db()
-        self.assertEqual(Contact.STATUS_ACTIVE, self.frank.status)
-
-        # add him back to joe and frank
-        self.joe_and_frank.contacts.add(self.frank)
-
-        # Now let's visit the blocked contacts page
-        blocked_url = reverse("contacts.contact_blocked")
-
-        self.billy.block(self.admin)
-
-        response = self.client.get(blocked_url)
-        self.assertEqual(list(response.context["object_list"]), [self.billy, self.joe])
-
-        mr_mocks.contact_search("Joe", cleaned="name ~ Joe", contacts=[self.joe])
-
-        response = self.client.get(blocked_url + "?search=Joe")
-        self.assertEqual(list(response.context["object_list"]), [self.joe])
-
-        # can unblock contacts from this page
-        self.client.post(blocked_url, {"action": "restore", "objects": self.joe.id}, follow=True)
-
-        # and check that Joe is restored to the contact list but the group not restored
-        response = self.client.get(list_url)
-        self.assertContains(response, "Joe Blow")
-        self.assertContains(response, "Frank Smith")
-        self.assertEqual(response.context["actions"], ("block", "archive", "send", "start-flow"))
-        self.assertEqual(len(self.just_joe.contacts.all()), 0)
-        self.assertEqual(len(self.joe_and_frank.contacts.all()), 1)
-
-        # TODO: this feature is on probation
-        # now let's test removing a contact from a group
-        # post_data = dict()
-        # post_data["action"] = "label"
-        # post_data["label"] = self.joe_and_frank.id
-        # post_data["objects"] = self.frank.id
-        # post_data["add"] = False
-        # self.client.post(joe_and_frank_filter_url, post_data, follow=True)
-        # self.assertEqual(len(self.joe_and_frank.contacts.all()), 0)
-
-        # add an extra field to the org
-        state = self.create_field("state", "Home state", value_type=ContactField.TYPE_STATE)
-        self.set_contact_field(self.joe, "state", " kiGali   citY ")  # should match "Kigali City"
-
-        # check that the field appears on the update form
-        response = self.client.get(reverse("contacts.contact_update", args=[self.joe.id]))
-
-        self.assertEqual(
-            list(response.context["form"].fields.keys()),
-            ["name", "status", "language", "groups", "urn__twitter__0", "urn__tel__1", "loc"],
-        )
-        self.assertEqual(response.context["form"].initial["name"], "Joe Blow")
-        self.assertEqual(response.context["form"].fields["urn__tel__1"].initial, "+250781111111")
-
-        contact_field = ContactField.user_fields.filter(key="state").first()
-        response = self.client.get(
-            "%s?field=%s" % (reverse("contacts.contact_update_fields", args=[self.joe.id]), contact_field.id)
-        )
-        self.assertEqual("Home state", response.context["contact_field"].name)
-
-        # grab our input field which is loaded async
-        response = self.client.get(
-            "%s?field=%s" % (reverse("contacts.contact_update_fields_input", args=[self.joe.id]), contact_field.id)
-        )
-        self.assertContains(response, "Kigali City")
-
-        # update it to something else
-        self.set_contact_field(self.joe, "state", "eastern province")
-
-        # update joe - change his tel URN
-        data = dict(
-            name="Joe Blow", urn__tel__1="+250 783835665", order__urn__tel__1="0", status=Contact.STATUS_ACTIVE
-        )
-        response = self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), data)
-
-        # update the state contact field to something invalid
-        self.client.post(
-            reverse("contacts.contact_update_fields", args=[self.joe.id]),
-            dict(contact_field=contact_field.id, field_value="newyork"),
-        )
-
-        # check that old URN is detached, new URN is attached, and Joe still exists
-        self.joe = Contact.objects.get(pk=self.joe.id)
-        self.assertEqual(self.joe.get_urn_display(scheme=URN.TEL_SCHEME), "0783 835 665")
-        self.assertIsNone(
-            self.joe.get_field_serialized(self.org.fields.get(key="state"))
-        )  # raw user input as location wasn't matched
-        self.assertIsNone(Contact.from_urn(self.org, "tel:+250781111111"))  # original tel is nobody now
-
-        # update joe, change his number back
-        data = dict(
-            name="Joe Blow",
-            urn__tel__0="+250781111111",
-            order__urn__tel__0="0",
-            __field__location="Kigali",
-            status=Contact.STATUS_ACTIVE,
-        )
-        self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), data)
-
-        # check that old URN is re-attached
-        self.assertIsNone(ContactURN.objects.get(identity="tel:+250783835665").contact)
-        self.assertEqual(self.joe, ContactURN.objects.get(identity="tel:+250781111111").contact)
-
-        # add another URN to joe
-        ContactURN.create(self.org, self.joe, "tel:+250786666666")
-
-        # assert that our update form has the extra URN
-        response = self.client.get(reverse("contacts.contact_update", args=[self.joe.id]))
-        self.assertEqual(response.context["form"].fields["urn__tel__0"].initial, "+250781111111")
-        self.assertEqual(response.context["form"].fields["urn__tel__1"].initial, "+250786666666")
-
-        # try to add joe to a group in another org
-        other_org_group = self.create_group("Nerds", org=self.org2)
-        response = self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            {
-                "name": "Joe Gashyantare",
-                "groups": [other_org_group.id],
-                "urn__tel__0": "+250781111111",
-                "urn__tel__1": "+250786666666",
-            },
-        )
-        self.assertFormError(
-            response,
-            "form",
-            "groups",
-            f"Select a valid choice. {other_org_group.id} is not one of the available choices.",
-        )
-
-        # update joe, add him to "Just Joe" group
-        post_data = dict(
-            name="Joe Gashyantare",
-            groups=[self.just_joe.id],
-            urn__tel__0="+250781111111",
-            urn__tel__1="+250786666666",
-            status=Contact.STATUS_ACTIVE,
-        )
-
-        self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
-
-        self.assertEqual(set(self.joe.get_groups()), {self.just_joe})
-        self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="+250781111111"))
-        self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="+250786666666"))
-
-        # remove him from this group "Just joe", and his second number
-        post_data = dict(name="Joe Gashyantare", urn__tel__0="+250781111111", groups=[], status=Contact.STATUS_ACTIVE)
-
-        self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
-
-        self.assertEqual(set(self.joe.get_groups()), set())
-        self.assertTrue(ContactURN.objects.filter(contact=self.joe, path="+250781111111"))
-        self.assertFalse(ContactURN.objects.filter(contact=self.joe, path="+250786666666"))
-
-        # should no longer be in our update form either
-        response = self.client.get(reverse("contacts.contact_update", args=[self.joe.id]))
-        self.assertEqual(response.context["form"].fields["urn__tel__0"].initial, "+250781111111")
-        self.assertNotIn("urn__tel__1", response.context["form"].fields)
-
-        # check that groups field isn't displayed when contact is blocked
-        self.joe.block(self.user)
-        response = self.client.get(reverse("contacts.contact_update", args=[self.joe.id]))
-        self.assertNotIn("groups", response.context["form"].fields)
-
-        # and that we can still update the contact
-        post_data = dict(name="Joe Bloggs", urn__tel__0="+250781111111", status=Contact.STATUS_ACTIVE)
-        self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
-
-        self.joe = Contact.objects.get(pk=self.joe.pk)
-        self.joe.restore(self.user)
-
-        # add new urn for joe
-        self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(
-                name="Joey",
-                urn__tel__0="+250781111111",
-                new_scheme="ext",
-                new_path="EXT123",
-                status=Contact.STATUS_ACTIVE,
-            ),
-        )
-
-        urn = ContactURN.objects.filter(contact=self.joe, scheme="ext").first()
-        self.assertIsNotNone(urn)
-        self.assertEqual("EXT123", urn.path)
-
-        # now try adding one that is invalid
-        self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(
-                name="Joey",
-                urn__tel__0="+250781111111",
-                new_scheme="mailto",
-                new_path="malformed",
-                status=Contact.STATUS_ACTIVE,
-            ),
-        )
-        self.assertIsNone(ContactURN.objects.filter(contact=self.joe, scheme="mailto").first())
-
-        # update our language to something not on the org
-        self.joe.refresh_from_db()
-        self.joe.language = "fra"
-        self.joe.save(update_fields=("language",))
-
-        # add some languages to our org, but not french
-        self.client.post(
-            reverse("orgs.org_languages"),
-            dict(
-                primary_lang='{"name":"Haitian", "value":"hat"}',
-                languages=['{"name":"Kinyarwanda", "value":"kin"}', '{"name":"Spanish", "value":"spa"}'],
-            ),
-        )
-
-        response = self.client.get(reverse("contacts.contact_update", args=[self.joe.id]))
-        self.assertContains(response, "French (Missing)")
-
-        # update our contact with some locations
-        district = self.create_field("home", "Home District", value_type="I")
-
-        self.client.post(
-            reverse("contacts.contact_update_fields", args=[self.joe.id]),
-            dict(contact_field=state.id, field_value="eastern province"),
-        )
-        self.client.post(
-            reverse("contacts.contact_update_fields", args=[self.joe.id]),
-            dict(contact_field=district.id, field_value="rwamagana"),
-        )
-
-        # change the name of the Rwamagana boundary, our display should change appropriately as well
-        rwamagana = AdminBoundary.objects.get(name="Rwamagana")
-        rwamagana.update(name="Rwa-magana")
-        self.assertEqual("Rwa-magana", rwamagana.name)
-
-        # change our field to a text field
-        state.value_type = ContactField.TYPE_TEXT
-        state.save()
-        self.set_contact_field(self.joe, "state", "Rwama Value")
-
-        # try to push into a dynamic group
-        self.login(self.admin)
-        group = self.create_group("Dynamo", query="tel = 325423")
-        self.client.post(list_url, {"action": "label", "label": group.id, "objects": self.frank.id, "add": True})
-
-        self.assertEqual(0, group.contacts.count())
-
-        # check updating when org is anon
-        self.org.is_anon = True
-        self.org.save()
-
-        post_data = dict(name="Joe X", groups=[self.just_joe.id])
-        self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), post_data, follow=True)
-
-        self.joe.refresh_from_db()
-        self.assertEqual({str(u) for u in self.joe.urns.all()}, {"tel:+250781111111", "ext:EXT123"})  # urns unaffected
-
-        # remove all of joe's URNs
-        ContactURN.objects.filter(contact=self.joe).update(contact=None)
-        response = self.client.get(list_url)
-
-        # no more URN listed
-        self.assertNotContains(response, "blow80")
-
-        self.frank.block(self.admin)
-
-        # try archive action
-        event = self.create_channel_event(
-            self.channel, str(self.frank.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
-        )
-
-        self.client.post(blocked_url, {"action": "archive", "objects": self.frank.id})
-
-        archived_url = reverse("contacts.contact_archived")
-
-        response = self.client.get(archived_url)
-        self.assertEqual(list(response.context["object_list"]), [self.frank])
-
-        # and from there we can really delete a contact
-        self.client.post(archived_url, {"action": "delete", "objects": self.frank.id})
-
-        self.assertFalse(ChannelEvent.objects.filter(contact=self.frank))
-        self.assertFalse(ChannelEvent.objects.filter(id=event.id))
-
-        # Update with spa flag
-        self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            {"name": "Joe Spa", "status": Contact.STATUS_ACTIVE},
-            follow=True,
-            HTTP_TEMBA_SPA=True,
-        )
-
-        self.client.post(
-            reverse("contacts.contact_update_fields", args=[self.joe.id]),
-            dict(contact_field=state.id, field_value="western province"),
-            follow=True,
-            HTTP_TEMBA_SPA=True,
-        )
-
-        self.joe.refresh_from_db()
-        self.assertEqual(self.joe.name, "Joe Spa")
-        self.assertEqual(self.joe.fields[str(state.uuid)]["text"], "western province")
 
     @patch("temba.mailroom.client.MailroomClient.contact_modify")
     def test_update_with_mailroom_error(self, mock_modify):

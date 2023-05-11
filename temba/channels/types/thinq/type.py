@@ -18,7 +18,6 @@ class ThinQType(ChannelType):
     courier_url = r"^tq/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
 
     name = "ThinQ"
-    icon = "icon-thinq"
 
     claim_blurb = _(
         "If you have a number with %(link)s you can connect it in a few easy steps to automate your SMS numbers."

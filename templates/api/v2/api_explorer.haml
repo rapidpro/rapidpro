@@ -10,14 +10,14 @@
   -block breadcrumbs
     %ul.breadcrumb
       %li
-        %a(href="/")
-          {{ brand.name }}
-        %span.divider &raquo;
-        %a(href="{% url 'api.v2' %}")<
-          API v2
-        %span.divider &raquo;
+        <a href="/">{{ brand.name }}</a>
+        %span.divider
+          &rsaquo;
+        <a href="{% url 'api.v2' %}")>API v2</a>
+        %span.divider
+          &rsaquo;
 
-      %li.mr-4
+      %li.mr-4.ml-1
         %a.active(href="{% url 'api.v2.explorer' %}")
           -trans "Explorer"
 
@@ -34,7 +34,7 @@
     .bg-white.px-4.py-2.border-primary.border.text-primary.font-medium.rounded-lg All operations work against live data
 
   - for endpoint in endpoints
-    .card.mt-4.hover-box
+    .card.hover-box
       .cursor-pointer.endpoint-title(onclick="handleToggle(event)" data-slug="{{ endpoint.slug }}" data-method="{{ endpoint.method }}")
         .endpoint-description.my-2(class="md:hidden")
           {{ endpoint.title }}
@@ -44,7 +44,7 @@
           .endpoint-description.hidden{class: "md:block"}
             {{ endpoint.title }}
 
-      .endpoint.bg-white.border-t.mt-6(class="endpoint-{{ endpoint.method|lower }}")
+      .endpoint.bg-white.border-t(class="endpoint-{{ endpoint.method|lower }}")
         -if endpoint.params
           .title.my-4
             -trans "Query String Parameters"
@@ -72,7 +72,7 @@
                     -else
                       (optional)
 
-        .request-form.rounded-lg.border.p-6.bg-gray-100.mt-4
+        .request-form.rounded-lg.border.p-6.bg-gray-100
           .request-header.font-mono.mb-4
             <b class="font-bold">{{ endpoint.method }}</b>
             .whitespace-nowrap.text-sm(class="md:text-base md:inline")
@@ -81,7 +81,7 @@
             .whitespace-nowrap.text-sm(class="md:text-base md:inline")
               Token {{ api_token }}
           -if endpoint.params
-            .form-group.mt-4.items-center(class="md:flex")
+            .form-group.items-center(class="md:flex")
               %label.control-label.self-start.pt-4.w-56.pr-6(class="md:text-right")
                 -trans "Query String"
               .flex-grow
@@ -89,7 +89,7 @@
                   {{ endpoint.example.query }}
 
           -if endpoint.fields
-            .form-group.mt-4.items-center(class="md:flex")
+            .form-group.items-center(class="md:flex")
               %label.control-label.self-start.pt-4.w-56.pr-6(class="md:text-right")
                 -trans "Post Body"
               .flex-grow

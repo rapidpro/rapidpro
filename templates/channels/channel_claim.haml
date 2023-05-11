@@ -30,8 +30,7 @@
         -for ch_type in recommended_channels
           .card.link(href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}" onclick="goto(event, this)")
             .relative
-              .text-base.absolute.text-gray-100.bg-icon(class="{{ ch_type.icon }}")
-            
+              %temba-icon.text-base.absolute.text-gray-100.bg-icon(name="{{ch_type.get_icon}}")
             .flex.flex-col.mx-20.relative
               .title
                 {{ ch_type.name }}
@@ -45,7 +44,7 @@
       -for ch_type in channel_types.SOCIAL_MEDIA
         .card.link(href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}" onclick="goto(event, this)")
           .relative
-            .text-base.absolute.text-gray-100.bg-icon{class:"{{ ch_type.icon }}"}
+            %temba-icon.text-base.absolute.text-gray-100.bg-icon(name="{{ch_type.get_icon}}")
           .flex.flex-col.mx-20.relative
             .title
               {{ch_type.name}}
@@ -58,7 +57,7 @@
       -for ch_type in channel_types.PHONE
         .card.link(href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}" onclick="goto(event, this)")
           .relative
-            .text-base.absolute.text-gray-100.bg-icon{class:"{{ ch_type.icon }}"}
+            %temba-icon.text-base.absolute.text-gray-100.bg-icon(name="{{ch_type.get_icon}}")
           .flex.flex-col.mx-20.relative
             .title
               {{ch_type.name}}
@@ -71,7 +70,7 @@
       -for ch_type in channel_types.API
         .card.link(href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}" onclick="goto(event, this)")
           .relative
-            .text-base.absolute.text-gray-100.bg-icon{class:"{{ ch_type.icon }}"}
+            %temba-icon.text-base.absolute.text-gray-100.bg-icon(name="{{ch_type.get_icon}}")
           .flex.flex-col.mx-20.relative
             .title
               {{ch_type.name}}
@@ -90,109 +89,46 @@
 -block form-buttons
 
 
--block extra-less
-  -compress css inline
-    {% lessblock %}
-      :plain
-
-        .channel-options {
-          h3 {
-            margin-top: 30px;
-          }
-        }
-
-        .checking-recommendations {
-          margin-bottom:10px;
-        }
-
-        .recommended {
-          .btn-primary {
-            background: @flat-mutedgreen;
-            border-color: @flat-mutedgreen - #111;
-          }
-
-          .claim-description {
-
-          }
-
-          .recommendation {
-            h3 {
-              margin-top: 0px;
-            }
-
-            display:inline-block;
-            padding:5px;
-            margin-top: 5px;
-            margin-bottom:10px;
-            display:inline-block;
-            .icon-star-2 {
-              color: @flat-darkwhite - #222;
-              font-size:22px;
-              float:left;
-              position:relative;
-              top: -3px;
-              margin-right:16px;
-
-
-            }
-          }
-
-        }
-    {% endlessblock %}
-
-
 -block extra-style
   {{block.super}}
+  :css
+    .channel-options h3 {
+      margin-top: 30px;
+    }
+    .checking-recommendations {
+      margin-bottom: 10px;
+    }
+    .recommended .btn-primary {
+      background: #5ca869;
+      border-color: #4b9758;
+    }
+    .recommended .recommendation {
+      padding: 5px;
+      margin-top: 5px;
+      margin-bottom: 10px;
+      display: inline-block;
+    }
+    .recommended .recommendation h3 {
+      margin-top: 0px;
+    }
+    .recommended .recommendation .icon-star-2 {
+      color: #9ba1a5;
+      font-size: 22px;
+      float: left;
+      position: relative;
+      top: -3px;
+      margin-right: 16px;
+    }
+
   :css
 
     .card:hover .bg-icon { 
       color: rgb(var(--focus-rgb), .3);
     }
     
-
     .bg-icon {
       transform: translate(-65px, -35px) rotate(0deg); 
       font-size:120px;
-    }
-
-    .bg-icon.icon-channel-kannel {
-      transform: translate(-35px, -45px) rotate(15deg) scale(1.5); 
-      font-size:100px;
-    }
-
-    .bg-icon.icon-channel-plivo {
-      transform: translate(-55px, -45px) rotate(15deg) scale(1.5); 
-      font-size:100px;
-    }
-
-    .bg-icon.icon-facebook-official {
-      transform: translate(-115px, -45px) rotate(0deg) scale(2); 
-      font-size:100px;
-    }
-
-    .bg-icon.icon-power-cord {
-      transform: translate(-45px, -15px) rotate(0deg); 
-      font-size:100px;
-    }
-
-    .bg-icon.icon-fcm {
-      transform: translate(-20px, -45px) rotate(35deg); 
-      font-size:160px;
-    }
-
-    .bg-icon.icon-freshchat {
-      transform: translate(-55px, -22px) rotate(0deg); 
-      font-size:110px;
-    }
-
-    .bg-icon.icon-junebug {
-      transform: translate(-25px, -10px) rotate(0deg); 
-      font-size: 70px;
-    }
-
-    .bg-icon.icon-channel-android {
-      transform: translate(-35px, -25px) rotate(15deg); 
-      font-size:100px;
     }
 
     .horizontal-channel {

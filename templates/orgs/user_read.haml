@@ -8,7 +8,7 @@
       {{object.date_joined}}
     
   %temba-tabs.mt-4(collapses="true")
-    %temba-tab(icon="icon.workspace" name="Workspaces")
+    %temba-tab(icon="workspace" name="Workspaces")
       .p-4
         -for org in object.get_orgs
           .member

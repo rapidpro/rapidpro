@@ -23,9 +23,9 @@
       .card
         .import-result.text-lg.mt-2
           -if is_finished
-            .icon.icon-checkmark.text-success.mr-2
+            %temba-icon.text-success.mr-2(name="check")
           -else
-            .icon.icon-loop.mr-2.text-gray-400.spin
+            %temba-icon.spin.mr-2(name="progress_spinner")
 
           -blocktrans trimmed count info.num_created as count
             Created {{ count }} new contact
@@ -34,9 +34,9 @@
 
         .import-result.text-lg.mt-2
           -if is_finished
-            .icon.icon-checkmark.text-success.mr-2
+            %temba-icon.text-success.mr-2(name="check")
           -else
-            .icon.icon-loop.mr-2.text-gray-400.spin
+            %temba-icon.spin.mr-2(name="progress_spinner")
 
           -blocktrans trimmed count info.num_updated as count
             Updated {{ count }} existing contact
@@ -45,7 +45,7 @@
 
         -if is_finished and object.group
           .import-result.text-lg.mt-2
-            .icon.icon-checkmark.text-success.mr-2
+            %temba-icon.text-success.mr-2(name="check")
 
             {% url 'contacts.contact_filter' object.group.uuid as group_url %}
             -blocktrans trimmed count info.num_created|add:info.num_updated as count with group_url=group_url group_name=object.group.name
@@ -55,7 +55,7 @@
 
         -if info.num_errored
           .import-result.text-lg.mt-2
-            .icon.icon-warning.text-error.mr-2
+            %temba-icon.text-error.mr-2(name="alert_warning")
             -blocktrans trimmed count info.num_errored as count
               Ignored {{ count }} record because of errors
               -plural
@@ -79,7 +79,6 @@
       max-width: 1024px;
     }
 
-    .import-result .icon {
-      width: 16px;
-      height: 16px;
+    .import-result temba-icon {
+      display: inline-block;
     }

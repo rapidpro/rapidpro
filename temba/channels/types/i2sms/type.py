@@ -17,7 +17,6 @@ class I2SMSType(ChannelType):
     courier_url = r"^i2/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
 
     name = "I2SMS"
-    icon = "icon-channel-external"
 
     claim_blurb = _(
         "If you have a long number or short code with %(link)s you can connect it in a few easy steps."

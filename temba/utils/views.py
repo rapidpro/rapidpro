@@ -26,6 +26,13 @@ TEMBA_CONTENT_ONLY = "x-temba-content-only"
 TEMBA_VERSION = "x-temba-version"
 
 
+class NoNavMixin(View):
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["base_template"] = "no_nav.html"
+        return context
+
+
 class SpaMixin(View):
     """
     Uses SPA base template if the header is set appropriately

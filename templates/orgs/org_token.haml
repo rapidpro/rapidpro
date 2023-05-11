@@ -7,8 +7,11 @@
 
 -block fields
   .field.api-token(style="padding-bottom: 10px")
-    API Token: <span id="api_token">{{api_token}}</span>
-    <a href="javascript:refreshToken()" class='api-token-refresh'><div class="icon-loop"></div></a>
+    .flex
+      .token
+        API Token: <span id="api_token">{{api_token}}</span>
+    
+      <a href="javascript:refreshToken()" class='api-token-refresh'><temba-icon name="retry"></temba-icon></a>
 
 -block form-buttons
   
@@ -35,6 +38,12 @@
 -block extra-style
   :css
     .api-token-refresh {
-      padding-left: 5px;
+      padding-left: 10px;
+      margin-top: 3px;
+      display: block;
       color: #999;
+    }
+
+    .api-token-refresh:hover {
+      text-decoration: none;
     }

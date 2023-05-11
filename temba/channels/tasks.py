@@ -10,7 +10,6 @@ from django.utils import timezone
 
 from temba import mailroom
 from temba.orgs.models import Org
-from temba.utils import chunk_list
 from temba.utils.analytics import track
 from temba.utils.crons import cron_task
 
@@ -85,17 +84,25 @@ def trim_sync_events():
             event.release()
 
 
-@cron_task()
+@cron_task(lock_timeout=7200)
 def trim_channel_logs():
     """
     Trims old channel logs
     """
 
     trim_before = timezone.now() - settings.RETENTION_PERIODS["channellog"]
+    start = timezone.now()
+    num_deleted = 0
 
-    ids = ChannelLog.objects.filter(created_on__lte=trim_before).values_list("id", flat=True)
-    for chunk in chunk_list(ids, 1000):
-        ChannelLog.objects.filter(id__in=chunk).delete()
+    while (timezone.now() - start) < timedelta(hours=1):
+        batch = list(ChannelLog.objects.filter(created_on__lte=trim_before).values_list("id", flat=True)[:1000])
+        if not batch:
+            break
+
+        ChannelLog.objects.filter(id__in=batch).delete()
+        num_deleted += len(batch)
+
+    return {"deleted": num_deleted}
 
 
 @cron_task(lock_timeout=7200)

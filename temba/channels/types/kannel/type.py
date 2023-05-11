@@ -17,7 +17,6 @@ class KannelType(ChannelType):
     courier_url = r"^kn/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
 
     name = "Kannel"
-    icon = "icon-channel-kannel"
 
     claim_blurb = _(
         "Connect your %(link)s instance, we'll walk you through the steps necessary to get your SMSC connection "

@@ -222,21 +222,21 @@ class TriggerCRUDL(SmartCRUDL):
                     name=_("Active"),
                     count=org_triggers.filter(is_archived=False).count(),
                     href=reverse("triggers.trigger_list"),
-                    icon="icon.trigger_active",
+                    icon="trigger_active",
                 )
             )
 
             menu.append(
                 self.create_menu_item(
                     name=_("Archived"),
-                    icon="icon.trigger_archived",
+                    icon="trigger_archived",
                     count=org_triggers.filter(is_archived=True).count(),
                     href=reverse("triggers.trigger_archived"),
                 )
             )
 
             menu.append(
-                self.create_menu_item(name=_("New Trigger"), icon="icon.trigger_new", href="triggers.trigger_create")
+                self.create_menu_item(name=_("New Trigger"), icon="trigger_new", href="triggers.trigger_create")
             )
 
             menu.append(self.create_divider())
@@ -264,22 +264,22 @@ class TriggerCRUDL(SmartCRUDL):
 
             org_schemes = self.org.get_schemes(Channel.ROLE_RECEIVE)
 
-            add_section("trigger-keyword", "triggers.trigger_create_keyword", "icon-tree")
-            add_section("trigger-register", "triggers.trigger_create_register", "icon-users-2")
-            add_section("trigger-catchall", "triggers.trigger_create_catchall", "icon-bubble")
-            add_section("trigger-schedule", "triggers.trigger_create_schedule", "icon-clock")
-            add_section("trigger-inboundcall", "triggers.trigger_create_inbound_call", "icon-phone2")
+            add_section("trigger-keyword", "triggers.trigger_create_keyword", "flow")
+            add_section("trigger-register", "triggers.trigger_create_register", "group")
+            add_section("trigger-catchall", "triggers.trigger_create_catchall", "topic")
+            add_section("trigger-schedule", "triggers.trigger_create_schedule", "calendar")
+            add_section("trigger-inboundcall", "triggers.trigger_create_inbound_call", "incoming_call")
 
             if self.org.channels.filter(is_active=True, channel_type=AndroidType.code).exists():
-                add_section("trigger-missedcall", "triggers.trigger_create_missed_call", "icon-phone")
+                add_section("trigger-missedcall", "triggers.trigger_create_missed_call", "missed_call")
 
             if ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION.intersection(org_schemes):
-                add_section("trigger-new-conversation", "triggers.trigger_create_new_conversation", "icon-bubbles-2")
+                add_section("trigger-new-conversation", "triggers.trigger_create_new_conversation", "conversation")
 
             if ContactURN.SCHEMES_SUPPORTING_REFERRALS.intersection(org_schemes):
-                add_section("trigger-referral", "triggers.trigger_create_referral", "icon-exit")
+                add_section("trigger-referral", "triggers.trigger_create_referral", "referral")
 
-            add_section("trigger-closed-ticket", "triggers.trigger_create_closed_ticket", "icon-ticket")
+            add_section("trigger-closed-ticket", "triggers.trigger_create_closed_ticket", "agent")
 
     class BaseCreate(OrgPermsMixin, ComponentFormMixin, SmartCreateView):
         trigger_type = None

@@ -4,9 +4,7 @@ from datetime import timedelta
 import iso8601
 import pytz
 
-from django import template
 from django.conf import settings
-from django.template import TemplateSyntaxError
 from django.template.defaultfilters import register
 from django.urls import reverse
 from django.utils import timezone
@@ -158,33 +156,6 @@ def delta_filter(delta):
 
     except Exception:
         return ""
-
-
-def lessblock(parser, token):
-    args = token.split_contents()
-    if len(args) != 1:  # pragma: no cover
-        raise TemplateSyntaxError("lessblock tag takes no arguments, got: [%s]" % ",".join(args))
-
-    nodelist = parser.parse(("endlessblock",))
-    parser.delete_first_token()
-    return LessBlockNode(nodelist)
-
-
-class LessBlockNode(template.Node):
-    def __init__(self, nodelist):
-        self.nodelist = nodelist
-
-    def render(self, context):
-        output = self.nodelist.render(context)
-        includes = '@import (reference) "variables.less";\n'
-        includes += '@import (reference, optional) "../brands/%s/less/variables.less";\n' % context["brand"]["slug"]
-        includes += '@import (reference) "mixins.less";\n'
-        style_output = '<style type="text/less" media="all">\n%s\n%s</style>' % (includes, output)
-        return style_output
-
-
-# register our tag
-lessblock = register.tag(lessblock)
 
 
 @register.filter

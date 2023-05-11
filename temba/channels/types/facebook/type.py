@@ -20,7 +20,6 @@ class FacebookType(ChannelType):
     courier_url = r"^fb/(?P<uuid>[a-z0-9\-]+)/receive"
 
     name = "Facebook"
-    icon = "icon-facebook-official"
 
     claim_blurb = _(
         """Add a <a target="_blank" href="http://facebook.com">Facebook</a> bot to send and receive messages on behalf """

@@ -14,6 +14,7 @@ from .models import Classifier
 class BaseConnectView(SpaMixin, ComponentFormMixin, OrgPermsMixin, SmartFormView):
     permission = "classifiers.classifier_connect"
     classifier_type = None
+    menu_path = "/settings/workspace"
 
     def __init__(self, classifier_type):
         self.classifier_type = classifier_type
@@ -54,7 +55,7 @@ class ClassifierCRUDL(SmartCRUDL):
                             menu_id=classifier.uuid,
                             name=classifier.name,
                             href=reverse("classifiers.classifier_read", args=[classifier.uuid]),
-                            icon=classifier.get_type().icon.replace("icon-", ""),
+                            icon=classifier.get_type().get_icon(),
                         )
                     )
 
@@ -118,6 +119,8 @@ class ClassifierCRUDL(SmartCRUDL):
             return HttpResponseRedirect(self.get_success_url())
 
     class Connect(SpaMixin, OrgPermsMixin, SmartTemplateView):
+        menu_path = "/settings/workspace"
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["classifier_types"] = [t for t in Classifier.get_types()]

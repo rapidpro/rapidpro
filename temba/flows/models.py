@@ -33,7 +33,7 @@ from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
-from temba.utils.models import JSONAsTextField, JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
+from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel
 from temba.utils.uuid import uuid4
 
 from . import legacy
@@ -448,11 +448,11 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     def get_attrs(self):
         icon = (
-            "icon.flow_message"
+            "flow_message"
             if self.flow_type == Flow.TYPE_MESSAGE
-            else "icon.flow_ivr"
+            else "flow_ivr"
             if self.flow_type == Flow.TYPE_VOICE
-            else "icon.flow"
+            else "flow"
         )
 
         return {"icon": icon, "type": self.flow_type, "uuid": self.uuid}
@@ -703,29 +703,24 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         return recent
 
-    def async_start(self, user, groups, contacts, query=None, restart_participants=False, include_active=True):
+    def async_start(self, user, groups, contacts, query=None, exclusions=None):
         """
         Causes us to schedule a flow to start in a background thread.
         """
 
         assert not self.org.is_flagged and not self.org.is_suspended, "flagged and suspended orgs can't start flows"
 
-        flow_start = FlowStart.objects.create(
-            org=self.org,
-            flow=self,
+        start = FlowStart.create(
+            self,
+            user,
             start_type=FlowStart.TYPE_MANUAL,
-            restart_participants=restart_participants,
-            include_active=include_active,
-            created_by=user,
+            groups=groups,
+            contacts=contacts,
             query=query,
+            exclusions=exclusions,
         )
 
-        contact_ids = [c.id for c in contacts]
-        flow_start.contacts.add(*contact_ids)
-
-        group_ids = [g.id for g in groups]
-        flow_start.groups.add(*group_ids)
-        flow_start.async_start()
+        start.async_start()
 
     def get_export_dependencies(self):
         """
@@ -1901,6 +1896,11 @@ class FlowStart(models.Model):
     A queuable request to start contacts and groups in a flow
     """
 
+    EXCLUSION_NON_ACTIVE = "non_active"  # contacts blocked, stopped or archived
+    EXCLUSION_IN_A_FLOW = "in_a_flow"  # contacts currently in a flow (including this one)
+    EXCLUSION_STARTED_PREVIOUSLY = "started_previously"  # contacts been in this flow in the last 90 days
+    EXCLUSION_NOT_SEEN_SINCE_DAYS = "not_seen_since_days"  # contacts not seen for more than this number of days
+
     STATUS_PENDING = "P"
     STATUS_STARTING = "S"
     STATUS_COMPLETE = "C"
@@ -1935,12 +1935,7 @@ class FlowStart(models.Model):
     contacts = models.ManyToManyField(Contact)
     urns = ArrayField(models.TextField(), null=True)
     query = models.TextField(null=True)
-
-    # whether to restart contacts that have already participated in this flow
-    restart_participants = models.BooleanField(default=True)
-
-    # whether to start contacts in this flow that are active in other flows
-    include_active = models.BooleanField(default=True)
+    exclusions = models.JSONField(default=dict, null=True)
 
     # the campaign event that started this flow start (if any)
     campaign_event = models.ForeignKey(
@@ -1954,13 +1949,13 @@ class FlowStart(models.Model):
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
 
     # any extra parameters that should be passed as trigger params for this flow start
-    extra = JSONAsTextField(null=True, default=dict)
+    params = models.JSONField(null=True, default=dict)
 
     # the parent run's summary if there is one
-    parent_summary = JSONField(null=True)
+    parent_summary = models.JSONField(null=True)
 
     # the session history if there is some
-    session_history = JSONField(null=True)
+    session_history = models.JSONField(null=True)
 
     # who created this flow start
     created_by = models.ForeignKey(
@@ -1976,32 +1971,43 @@ class FlowStart(models.Model):
     # the number of de-duped contacts that might be started, depending on options above
     contact_count = models.IntegerField(default=0, null=True)
 
+    # deprecated
+    restart_participants = models.BooleanField(default=True, null=True)
+    include_active = models.BooleanField(default=True, null=True)
+    extra = JSONAsTextField(null=True, default=dict)
+
     @classmethod
     def create(
         cls,
         flow,
         user,
+        *,
         start_type=TYPE_MANUAL,
         groups=(),
         contacts=(),
         urns=(),
         query=None,
-        restart_participants=True,
-        extra=None,
-        include_active=True,
+        exclusions=None,
+        params=None,
         campaign_event=None,
     ):
-        start = FlowStart.objects.create(
+        if not exclusions:
+            exclusions = {}
+
+        start = cls.objects.create(
             org=flow.org,
             flow=flow,
             start_type=start_type,
-            restart_participants=restart_participants,
-            include_active=include_active,
             campaign_event=campaign_event,
             urns=list(urns),
             query=query,
-            extra=extra,
+            exclusions=exclusions,
+            params=params,
             created_by=user,
+            # deprecated
+            restart_participants=not exclusions.get(cls.EXCLUSION_STARTED_PREVIOUSLY, False),
+            include_active=not exclusions.get(cls.EXCLUSION_IN_A_FLOW, False),
+            extra=params,
         )
 
         for contact in contacts:

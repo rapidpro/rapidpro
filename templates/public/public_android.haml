@@ -4,7 +4,6 @@
 
 -block nav
 
-
 -block content
   -if relayer_app
     %p 
@@ -40,43 +39,70 @@
           -blocktrans with forloop.counter as counter
             Download Message pack {{ counter }}
 
-
 -block extra-style
   {{ block.super }}
-
-  -compress css inline
-    {% lessblock %}
-      :plain
-        .btn-download {
-            text-align: center;
-            display: block;
-            background-color: #0c6596;
-            height: 50px;
-            width: 250px;
-            color: #fff;
-            line-height: 50px;
-            font-size: 13pt;
-            text-decoration: none;
-
-            &:hover, &:focus {
-                color: #fff;
-                text-decoration: none;
-            }
-        }
-
-        .latest-release-date{
-          font-style: italic;
-          margin: 10px 0px;
-          font-size: 20px;
-          font-weight: bold;
-        }
-
-        .latest-release-description {
-          margin: 20px 0px;
-          background-color: #eee;
-          padding: 0px 20px;
-          max-width: 501px;
-          white-space: pre-line;
-
-        }
-    {% endlessblock %}
+  :css
+    body {
+      padding: 0;
+      font-size: 16px;
+    }
+    .attn {
+      font-weight: bold;
+      font-size: 110%;
+    }
+    .create-account #header {
+      margin: 0;
+      color: white;
+      padding: 20px;
+      height: inherit;
+    }
+    .create-account #header .title {
+      padding-bottom: 10px;
+      font-size: 20px;
+      font-weight: 500;
+    }
+    .create-account .content {
+      margin-top: 10px;
+      padding: 20px;
+    }
+    .create-account .content form {
+      text-align: center;
+    }
+    .create-account .content form label,
+    .create-account .content form p.help-block {
+      display: none;
+    }
+    .create-account .content form .fields input {
+      background-color: transparent;
+      border: 0px solid;
+      border-bottom: 1px solid #ddd;
+      -webkit-box-shadow: none;
+      -moz-box-shadow: none;
+      box-shadow: none;
+      outline: none;
+      padding-left: 1px;
+      font-size: 18px;
+      width: 98%;
+      margin-top: 8px;
+    }
+    .create-account .content form .error {
+      width: inherit;
+      text-align: left;
+      font-size: 14px;
+    }
+    .create-account .content form .errorlist li {
+      width: 100%;
+    }
+    .create-account .content form textarea:focus,
+    .create-account .content form input:focus {
+      outline: none;
+      border-bottom: 1px solid var(--color-primary-dark);
+    }
+    .create-account .content form input[type="submit"] {
+      margin-top: 20px;
+      font-weight: 500;
+      color: #999;
+      font-size: 16px;
+      padding: 8px;
+      width: 100%;
+    }

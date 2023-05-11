@@ -17,7 +17,6 @@ class LineType(ChannelType):
     courier_url = r"^ln/(?P<uuid>[a-z0-9\-]+)/receive$"
 
     name = "LINE"
-    icon = "icon-line"
 
     claim_blurb = _(
         "Add a %(link)s bot to send and receive messages to LINE users for free. Your users will need an Android, "

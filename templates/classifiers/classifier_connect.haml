@@ -19,8 +19,8 @@
 
       .card.link(onclick="goto(event, this)" href="{% url 'classifiers.types.'|add:cl_type.slug|add:'.connect' %}")
         .relative
-          .text-base.absolute.text-gray-100.bg-icon(class="{{ cl_type.icon }}")
-        
+          %temba-icon.text-base.absolute.text-gray-100.bg-icon(name="{{ cl_type.get_icon }}")
+
         .flex.flex-col.mx-20.relative
           .title
             {{ cl_type.name }}

@@ -5,7 +5,7 @@
   .search-details
 
 -block message-list
-  %table.mt-4.object-list.list.lined
+  %table.object-list.list.lined
     %tbody
       -for broadcast in pending_broadcasts
         -with translation=broadcast.get_translation
@@ -35,7 +35,7 @@
           %td.value-recipient(colspan="2")
             .pt-1.inline-block
               -include "includes/recipients_contact.haml" with contact=object.contact
-          %td.value-text
+          %td.value-text.w-full
             {% get_value object 'text' %}
 
             - if 'label' in actions

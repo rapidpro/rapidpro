@@ -2,15 +2,14 @@
 -load smartmin temba compress humanize channels i18n tz
 
 -block spa-title
-  %temba-urn(scheme="{{channel.schemes|first}}")
+  %temba-urn.mr-2(scheme="{{channel.schemes|first}}")
   .flex.items-start.flex-col
-    .name
+    #title-text.name
       -if object.parent
         {{ object.parent.name }}
       -else
         {{ object.name|default:object.get_address_display }}
   
-
 -block title
   .flex.items-start.flex-col
     .name
@@ -26,12 +25,9 @@
         .channel_type
           -if object.parent
             {{ object.name }}
-          -else
-            {{ object.get_channel_type_display }}
-            -trans "Channel"
 
   -if object.name
-    .text-gray-500.text-base
+    .text-gray-500.text-xl
       {{ object.get_address_display }}
 
   -if object.get_country_display
@@ -44,7 +40,7 @@
         -for channel in delegates
           .lbl.linked(onclick="goto(event, this)" href="{% url 'channels.channel_read' channel.uuid %}")
             .flex.items-center
-              .text-base{class:'{{ channel|channel_icon }}'}
+              %temba-icon(name='{{ channel.type.get_icon }}')
               .name.mx-1
                 -if channel.is_delegate_sender
                   -trans "Bulk sending"
@@ -52,7 +48,7 @@
                 -if channel.is_delegate_caller
                   -trans "Voice calls"
 
-    .my-4.text-base
+    .mb-4.text-base
       -if delayed_sync_event or unsent_msgs_count
         .flex.items-center.text-error
           .mr-1
@@ -87,8 +83,8 @@
         -else
           -trans "Activated"
           {{ object.created_on }}
-
-
+      
+      
 -block top-form
 
 -block read-buttons
@@ -168,7 +164,7 @@
                     {{ channel.get_error_log_count|intcomma }}
                 %td.w-0.text-right
                   .inline-block
-                    %temba-icon(onclick="goto(event, this)" clickable="true" name="icon.log" href='{% url "channels.channellog_list" channel.uuid %}?others=1')
+                    %temba-icon(onclick="goto(event, this)" clickable="true" name="log" href='{% url "channels.channellog_list" channel.uuid %}?others=1')
 
 
       .card.pt-8.flex-shrink-0
@@ -263,9 +259,6 @@
 
 -block extra-script
   {{ block.super }}
-
-  -if start_date and not is_spa
-    <script src="{{ STATIC_URL }}highcharts/highcharts.js"></script>
 
   :javascript
     {% if start_date %}

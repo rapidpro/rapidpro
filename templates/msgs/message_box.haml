@@ -19,200 +19,80 @@
 
 -block content
 
-  #numeric-form.hide
-    %form
-      %label
-        -trans "Numeric Value:"
-      %input#number{type:"text"}
-    .error
+  %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", "-temba-loaded": "handleCreateLabelModalLoaded", "-temba-submitted": "handleCreateLabelModalSubmitted"}
 
-  #pjax
-    -block pjax
-      -if org_perms.msgs.msg_update
-        %temba-dialog#delete-confirmation.hide(header='{{ _("Delete Selected Messages")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
-          .p-6
-            -trans "Are you sure you want to delete the selected messages? This cannot be undone."
+  .flex
+    .flex-grow.self-end.items-end
+      .flex.flex-col
+        %form#search-form(method="get")
+          %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+          %input.hidden(type="submit" value="Submit")
 
-      .lp-frame
-        .left
-          .flex.flex-col
-            -if org_perms.msgs.broadcast_send
-              .w-64.mr-5
-                %temba-modax#send-message-modal{ header:'{% trans "Send Message" %}', endpoint:"{% url 'msgs.broadcast_send' %}" }
-                  .button-primary.block(onclick="handleSendMessageClicked()")
-                    -trans "Send Message"
 
-            .lp-nav.upper
-              - for folder in folders
-                .lp-nav-item{'class': '{% if request.path == folder.url %}font-normal{% endif %}' }
-                  .name{onclick:"goto(event)", href:'{{folder.url}}'}
-                    {{folder.label}}
-                  .count{onclick:"goto(event)", href:'{{folder.url}}'}
-                    {{ folder.count | intcomma }}
+  .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
+    -include "includes/short_pagination.haml"          
+  
+  .flex-grow.overflow-y-auto.shadow.rounded-b-lg
+    -if has_messages
+      %table.list.object-list.lined.scrolled{class: '{% if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send %}selectable{% endif %}'}
+        %tbody
+          -for object in object_list
+            %tr.sms.object-row(
+                id='id-row-{{object.id}}' 
+                data-object-id='{{ object.id }}'
+                data-sender-id='{{object.contact.id}}' 
+                data-sender-uuid='{{object.contact.uuid}}' 
+                onclick='handleRowClicked(event)' 
+                href="{% url 'contacts.contact_read' object.contact.uuid %}")
 
-            -if labels
-              .lp-nav.lower
-                .font-normal.uppercase.text-xs.text-gray-500.pb-1
-                  - trans "Labels"
-                .inner-scroll
-                  -for label in labels
-                    .lp-nav-item{ class:'{% if current_label.id == label.id %}font-normal{% endif %}' }
-                      .name{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' label.uuid %}", class:'{% if current_label.id == label.id %}font-normal active{% endif %}' }
-                        {{ label.name }} 
-                      .count{onclick:"goto(event)", href:"{% url 'msgs.msg_filter' label.uuid %}", class:'{% if current_label.id == label.id %}font-normal active{% endif %}' }
-                        {{ label.count | intcomma }}
+              -if actions
+                - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
+                  %td.checkbox.sms.object-row-check(onclick="checkInner(event);")
+                    %temba-checkbox{onclick:"handleRowSelection(this)"}
+              %td.whitespace-nowrap
+                {{ object.contact|name_or_urn:user_org|truncatechars:20 }}
+              %td.w-full
+                .flex.flex-wrap.flex-end.items-center.justify-end
+                  .flex-grow.inline
+                    {% get_value object 'text' %}
+                  .labels.flex.items-center.flex-wrap
+                    
+                    -if 'label' in actions
+                      -for label in object.labels.all
+                        %a(href="{% url 'msgs.msg_filter' label.uuid %}" onclick="goto(event, this)")
+                          %temba-label.mx-1.my-1(data-id='{{label.id}}' icon="label" clickable)
+                            {{label.name}}
+                    -if object.flow
+                      %a(href="{% url 'flows.flow_editor' object.flow.uuid %}" onclick="goto(event, this)")
+                        %temba-label.mx-1.my-1(icon="flow" primary clickable)
+                          {{object.flow.name}}
+         
 
-            .flex-grow
-              -if org_perms.msgs.label_create
-                %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", "-temba-loaded": "handleCreateLabelModalLoaded", "-temba-submitted": "handleCreateLabelModalSubmitted"}
-                  .button-light.block.mt-3
-                    -trans "Create Label"
+                -if object.attachments
+                  .value-attachments{ style:"margin-top: 5px" }
+                    - for attachment in object.attachments
+                      {% attachment_button attachment %}
 
-        -if has_messages
-          .right
-            .flex.w-full.items-end.mb-4
-              -block action-buttons
-                -if org_perms.msgs.msg_update
-                  .action-buttons.list-buttons-container.h-full.mr-2.flex-grow
-                    .list-buttons.flex.items-center.-mx-2.h-full
-                      - if 'unlabel' in actions
-                        .button-action.object-btn-unlabel
-                          .glyph.icon-box
-                          -trans "Remove Label"
+              %td
+                .flex.w-full.items-center.justify-end.pr-4
+                  .time.whitespace-nowrap
+                    -block message_time
+                      %temba-date(value="{{object.created_on.isoformat}}" display="timedate")
 
-                      - if 'archive' in actions
-                        .button-action(onclick='runActionOnObjectRows("archive", wireTableListeners)')
-                          .-mt-1.mr-2.glyph.icon-box
-                          -trans "Archive"
+                  {% channel_log_link object %}
 
-                      - if 'restore' in actions
-                        .button-action(onclick='runActionOnObjectRows("restore", wireTableListeners)')
-                          .-mt-1.mr-2.glyph.icon-download
-                          -trans "Restore"
-
-                      - if 'delete' in actions
-                        .button-action(onclick='onDeleteClicked()')
-                          .-mt-1.mr-2.glyph.icon-remove
-                          -trans "Delete"
-
-                      - if 'resend' in actions
-                        .button-action(onclick='runActionOnObjectRows("resend", wireTableListeners)')
-                          .mt-1.mr-2.glyph.icon-loop.text-sm
-                          -trans "Resend"
-
-                      - if 'label' in actions
-                        
-                        %temba-dropdown.items-stretch.flex.flex-column(arrowoffset="14" offsetx="6" offsety="10" arrowsize="8")
-                          .button-action(slot="toggle")
-                            .-mt-1.mr-2.glyph.icon-tag{style:"width:16px"}
-                            -trans "Label"
-                          .rounded-lg.border-none.px-4.py-3(slot="dropdown" style="min-width:200px")
-                            -for label in labels
-                              .lbl-menu(href='#' onclick='labelObjectRows({{label.id}}, false, wireTableListeners)' data-id='{{label.id}}')
-                                .flex.items-center.py-1.hover-linked
-                                  .glyph.message-label.label-checkbox
-                                  .name.px-1
-                                    {{ label.name }}
-
-                            -if org_perms.msgs.label_create
-                              -if labels
-                                %li.separator.-mx-4.border-b.my-3
-                              %li
-                                .lbl-menu.add-label.linked{onclick:"handleAddLabelClicked()"}
-                                  -trans "New Label..."
-              .flex-grow.ml-2.items-center
-                -block title-text
-                  .page-title.leading-tight
-                    {{title}}
-              .gear-links
-                -include "spa_page_menu.haml"
-
-            %form#search-form.mb-4(method="get")
-              %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
-
-            -block message-list
-              %table.list.object-list.lined{class: '{% if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send %}selectable{% endif %}'}
-                %tbody
-                  -for object in object_list
-                    %tr.sms.object-row{id: 'id-row-{{object.id}}', data-object-id:'{{ object.id }}',
-                                  data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', onclick:'handleRowClicked(event)'}
-                      -if actions
-                        - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
-                          %td.checkbox.sms.object-row-check
-                            %temba-checkbox{onclick:"handleRowSelection(this)"}
-                      %td.whitespace-nowrap
-                        {{ object.contact|name_or_urn:user_org|truncatechars:20 }}
-                      %td.w-full
-                        .flex.flex-wrap.flex-end.items-center.justify-end
-                          .flex-grow.inline
-                            {% get_value object 'text' %}
-                          .labels.flex.items-center.flex-wrap
-                            -if 'label' in actions
-                              -for label in object.labels.all
-                                .lbl.linked.ml-2{onclick:"goto(event, this)", href:"{% url 'msgs.msg_filter' label.uuid %}", data-id: '{{label.id}}'}                                
-                                  {{label.name}}
-
-                        -if object.attachments
-                          .value-attachments{ style:"margin-top: 5px" }
-                            - for attachment in object.attachments
-                              {% attachment_button attachment %}
-
-                      %td
-                        .flex.w-full.items-end.justify-end.pr-4.items-center
-                          .time.whitespace-nowrap
-                            -block message_time
-                              {% short_datetime object.created_on %}
-
-                          {% channel_log_link object %}
-
-                  -if not object_list
-                    %tr.empty_list
-                      %td{ colspan:'99' }
-                        -trans "No messages"
-
-            - block paginator
-              -if object_list.count
-                -block search-details
-                  .flex.m-4
-                    .text-gray-700
-                      -if not paginator or paginator.num_pages <= 1                        
-                        -if search
-                          -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
-                            Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
-                            -plural
-                              Found {{ results_count }} messages in last 90 days matching <i>{{search}}</i>.
-                        -else
-                          -if start_date
-                            -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
-                              {{ results_count }} message since {{ start_date}}.
-                              -plural
-                                {{ results_count }} messages since {{ start_date}}.
-
-                      - else
-
-                        -if search
-                          -blocktrans trimmed with results_count=paginator.count|intcomma start=page_obj.start_index|intcomma end=page_obj.end_index|intcomma count cc=paginator.count 
-                            Found {{ results_count }} message in last 90 days matching <i>{{search}}</i>.
-                            -plural
-                              {{ start }} - {{ end }} of {{ results_count }} results for <i>{{search}}</i> since {{start_date}}.
-                        -else
-                          -if start_date
-                            -blocktrans trimmed with results_count=paginator.count|intcomma start=page_obj.start_index|intcomma end=page_obj.end_index|intcomma count cc=paginator.count 
-                              {{ results_count }} message since {{ start_date}}.
-                              -plural
-                                {{ start }} - {{ end }} of {{ results_count }} messages since {{ start_date}}.
-                                  
-                    .flex-grow
-                      -include "includes/pages.html"
-        -else
-          -include "msgs/empty_include.html"
+          -if not object_list
+            %tr.empty_list
+              %td{ colspan:'99' }
+                -trans "No messages"
+    -else
+      -include "msgs/empty_include.html"
 
 -block extra-script
   {{ block.super }}
   :javascript
 
     function handleRowClicked(event) {
-
       if (event.target.tagName == "TEMBA-CHECKBOX") {
         return;
       }
@@ -220,11 +100,7 @@
       var row = event.target.closest("tr");
       var uuid = row.getAttribute("data-sender-uuid");
 
-      {% if is_spa %}
       goto(event, row);
-      {% else %}
-      gotoLink("/contact/read/" + uuid + "/");
-      {% endif %}
     }
 
     {% if org_perms.msgs.msg_update %}

@@ -11,17 +11,3 @@
 
       -blocktrans trimmed with timezone=object.timezone
         which is in the <b>{{timezone}}</b> timezone.
-
-      -if not is_spa and sub_orgs
-        .mt-4
-          {% blocktrans count sub_orgs|length as org_count%}
-            You have <b>{{org_count}}</b> child workspaces.
-          {% plural %}
-            You have <b>{{org_count}}</b> child workspaces.
-          {% endblocktrans%}
-
-    -if not is_spa
-      .buttons
-        -if sub_orgs
-          .button-light(onclick="goto(event)" href='{% url "orgs.org_sub_orgs" %}')
-            -trans "Manage Workspaces"

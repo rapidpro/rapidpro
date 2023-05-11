@@ -5,21 +5,43 @@
 
 -block extra-style
   {{block.super}}
-
   :css
+    .login-logo {
+      width: 16em;
+
+    }
+
     .content-card {
       margin: 4em;
     }
+
+    .alert {
+      background: #f7f7f7;
+      border: none;
+      color: rgba(0, 0, 0, 0.5);
+      text-shadow: none;
+      border-radius: 0px;
+      border-bottom: solid 1px #e2e2e2;
+      padding: 8px 22px;
+      margin: 0;
+      z-index: 10;
+      width: 100%;
+    }
   
 -block page-container
+  -if messages
+    -for msg in messages
+      %div{class:"alert alert-{{ message.tags }}"}
+        {{ msg }}
+
   .flex.flex-col.h-full  
     .top.flex-shrink.flex-grow
     .middle.flex.flex-row.mb-10
       .flex-grow
       .content-card
-        .mb-4
+        .mb-4.login-logo
           %a(href="/")
-            <img style="max-height:4em;margin: 1em 0;margin-bottom:2em" src="{{STATIC_URL}}{{ brand.logo }}">
+            %img(src="{{STATIC_URL}}{{ brand.logo }}")
         .page-title
           -block title
         -block content

@@ -57,7 +57,6 @@ class ChannelType(metaclass=ABCMeta):
     courier_url = None
 
     name = None
-    icon = "icon-channel-external"
     schemes = None
     show_config_page = True
 
@@ -223,6 +222,9 @@ class ChannelType(metaclass=ABCMeta):
         Resolves an error code from a channel log into a docs URL for that error.
         """
 
+    def get_icon(self):
+        return f"channel_{self.code.lower()}"
+
     def __str__(self):
         return self.name
 
@@ -254,9 +256,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     CONFIG_PLIVO_AUTH_ID = "PLIVO_AUTH_ID"
     CONFIG_PLIVO_AUTH_TOKEN = "PLIVO_AUTH_TOKEN"
     CONFIG_PLIVO_APP_ID = "PLIVO_APP_ID"
-
-    CONFIG_TWILIO_ACCOUNT_SID = "TWILIO_ACCOUNT_SID"
-    CONFIG_TWILIO_AUTH_TOKEN = "TWILIO_AUTH_TOKEN"
 
     CONFIG_AUTH_TOKEN = "auth_token"
     CONFIG_SECRET = "secret"

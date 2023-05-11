@@ -15,7 +15,6 @@ class AndroidType(ChannelType):
     category = ChannelType.Category.PHONE
 
     name = "Android"
-    icon = "icon-channel-android"
 
     claim_blurb = _(
         "Works in any country and uses the cell phone plan you already have. You just need an Android phone to get started."

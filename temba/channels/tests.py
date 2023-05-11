@@ -1258,7 +1258,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             reverse("channels.channel_read", args=[android.uuid]), allow_editors=True, allow_viewers=True
         )
         self.assertContains(response, "Bulk sending")
-        self.assertContains(response, "icon-vonage")
+        self.assertContains(response, "channel_nx")
 
         delete_url = reverse("channels.channel_delete", args=[vonage.uuid])
 
@@ -1643,6 +1643,36 @@ class ChannelLogTest(TembaTest):
         with AnonymousOrg(self.org):
             self.assertEqual(expected_redacted, log.get_display(self.admin))
             self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+
+    def test_trim_task(self):
+        contact = self.create_contact("Fred Jones", phone="12345")
+        msg = self.create_incoming_msg(contact, "incoming msg", channel=self.channel)
+
+        ChannelLog.objects.create(
+            channel=self.channel,
+            msg=msg,
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
+            is_error=False,
+            http_logs=[],
+            errors=[],
+            created_on=timezone.now() - timedelta(days=7),
+        )
+        l2 = ChannelLog.objects.create(
+            channel=self.channel,
+            msg=msg,
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
+            is_error=False,
+            http_logs=[],
+            errors=[],
+            created_on=timezone.now() - timedelta(days=2),
+        )
+
+        results = trim_channel_logs()
+        self.assertEqual({"deleted": 1}, results)
+
+        # should only have one log remaining and should be l2
+        self.assertEqual(1, ChannelLog.objects.all().count())
+        self.assertTrue(ChannelLog.objects.filter(id=l2.id))
 
 
 class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
@@ -2565,35 +2595,6 @@ Content-Type: application/json
 
             # when we can't identify the contact, request, and response body
             self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
-
-    def test_trim_task(self):
-        contact = self.create_contact("Fred Jones", phone="12345")
-        msg = self.create_incoming_msg(contact, "incoming msg", channel=self.channel)
-
-        ChannelLog.objects.create(
-            channel=self.channel,
-            msg=msg,
-            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
-            is_error=False,
-            http_logs=[],
-            errors=[],
-            created_on=timezone.now() - timedelta(days=7),
-        )
-        l2 = ChannelLog.objects.create(
-            channel=self.channel,
-            msg=msg,
-            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
-            is_error=False,
-            http_logs=[],
-            errors=[],
-            created_on=timezone.now() - timedelta(days=2),
-        )
-
-        trim_channel_logs()
-
-        # should only have one log remaining and should be l2
-        self.assertEqual(1, ChannelLog.objects.all().count())
-        self.assertTrue(ChannelLog.objects.filter(id=l2.id))
 
 
 class FacebookWhitelistTest(TembaTest, CRUDLTestMixin):

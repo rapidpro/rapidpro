@@ -15,7 +15,7 @@ class DTOneType(IntegrationType):
 
     name = "DT One"
     slug = "dtone"
-    icon = "icon-dtone"
+    icon = "dtone"
     category = IntegrationType.Category.AIRTIME
 
     def connect(self, org, user, api_key: str, api_secret: str):

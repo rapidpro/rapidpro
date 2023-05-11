@@ -24,17 +24,6 @@
           -trans "Flow"
         .linked(onclick="goto(event, this)" href='{% url "flows.flow_editor" object.flow.uuid %}')
           {{ object.flow.name }}
-      -elif not is_spa
-        -if object.classifier
-          .font-normal.mr-2
-            -trans "Classifier"
-          .linked(onclick="goto(event, this)" href='{% url "classifiers.classifier_read" object.classifier.uuid %}')
-            {{ object.classifier.name }}
-        -elif object.channel
-          .font-normal.mr-2
-            -trans "Channel"
-          .linked(onclick="goto(event,this)" href='{% url "channels.channel_read" object.channel.uuid %}')
-            {{ object.channel.name }}
 
     .inline-flex.mr-8
       .font-normal.mr-2
@@ -56,22 +45,13 @@
     .page-content {
       max-width: 100%;
     }
+    pre.prettyprint {
+      margin: 0;
+      border: 0;
+      max-height: none !important;
+      padding: 1.5rem;
+    }
+    pre.prettyprint.request {
+      background: #ffffff;
+    }
 
-
--block extra-less
-  {{block.super}}
-  -compress css inline
-    {% lessblock %}
-      :plain
-
-        pre.prettyprint {
-          margin: 0;
-          border: 0;
-          max-height: none !important;
-          padding: 1.5rem;
-
-          &.request {
-            background: #f7f7f9 + 111;
-          }
-        }
-    {% endlessblock %}

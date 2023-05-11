@@ -17,7 +17,6 @@ class SMSCentralType(ChannelType):
     courier_url = r"^sc/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
 
     name = "SMSCentral"
-    icon = "icon-channel-external"
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
         "link": '<a target="_blank" href="http://smscentral.com.np/">SMSCentral</a>'

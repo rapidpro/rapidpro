@@ -15,7 +15,6 @@ class DMarkType(ChannelType):
     category = ChannelType.Category.PHONE
 
     name = "DMark"
-    icon = "icon-channel-external"
 
     courier_url = r"^dk/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
 

@@ -7,13 +7,13 @@
 
 -block action-buttons
 
--block message-list
+-block content
   .mt-4
     %table.list.lined.w-full
       %tbody
         -for object in object_list
           -with translation=object.get_translation
-            %tr.select-row.cursor-pointer{class:'{% cycle row1 row1 %}', onclick:'document.location="{% url "msgs.broadcast_scheduled_read" object.id %}"'}          
+            %tr.select-row.cursor-pointer{class:'{% cycle row1 row1 %}', onclick:'goto(event, this)', href:'{%url "msgs.broadcast_scheduled_read" object.id%}'}
 
               %td.value-contacts.field_phone
                 -include "includes/recipients.haml" with groups=object.groups.all contacts=object.contacts.all
@@ -27,41 +27,25 @@
                   .value-attachments{ style:"margin-top: 5px" }
                     -for attachment in translation.attachments
                       {% attachment_button attachment %}
-                
+
               %td.value-next
-                -if object.schedule.next_fire
-                  .glyph.icon-clock
-                  {{object.schedule.next_fire|timeuntil}}
+                .whitespace-nowrap.pr-2.pointer-events-none
+                  -if object.schedule.next_fire
+                    .glyph.icon-clock
+                    {{object.schedule.next_fire|timeuntil}}
 
           -empty
             %tr
               %td{colspan:3}
                 -trans "No matching broadcasts"
 
-- block paginator
-  -if object_list.count
-    .paginator
-      -include "smartmin/sidebar_pagination.haml"
 
-
--block extra-less
-  -compress css inline
-    {% lessblock %}
-      :plain
-        td.value-next {
-          color: @color-font-grey;
-          .glyph {
-            font-size:14px;
-            margin-top:2px;
-            margin-right:2px;
-          }
-          font-size: 14px;
-        }
-
-        td.clickable a:hover {
-          text-decoration: none;
-        }
-        .list-table {
-        margin-top:48px;
-        }
-    {% endlessblock %}
+-block extra-style
+  {{block.super}}
+  :css
+    td.clickable a:hover {
+      text-decoration: none;
+    }
+    .list-table {
+      margin-top:48px;
+    }

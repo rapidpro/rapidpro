@@ -1,3 +1,48 @@
+v8.1.141 (2023-05-10)
+-------------------------
+ * Fix contacts title
+ * Fix vanilla landing
+ * Remove lessblock and replace with compiled css
+ * Bump django from 4.1.7 to 4.1.9
+
+v8.1.140 (2023-05-09)
+-------------------------
+ * Fix ticket padding
+ * Remove remaining spa files
+ * Add link to reset the latest credentials
+ * Preset channel connection
+
+v8.1.139 (2023-05-09)
+-------------------------
+ * Add blocked icon
+
+v8.1.138 (2023-05-09)
+-------------------------
+ * Update labeling to use temba-checkbox and remove jQuery
+ * Fix trim_channel_logs config and rework so task olny runs for an hour max
+ * Change test_db to create single org at a time
+
+v8.1.137 (2023-05-09)
+-------------------------
+ * Add exclusions and params fields to FlowStart and start writing them
+
+v8.1.136 (2023-05-09)
+-------------------------
+ * Don't include brand variables in less node
+
+v8.1.135 (2023-05-09)
+-------------------------
+ * Remove references to old icon set
+ * Remove unused jquery bits and intercooler
+ * Remove bootstrap
+
+v8.1.134 (2023-05-08)
+-------------------------
+ * Remove no longer used perms
+ * Remove any old non-spa templates not being extended by the spa version
+ * Remove is_spa logic from templates
+ * Remove old contact update fields views
+
 v8.1.133 (2023-05-05)
 -------------------------
  * Add default color

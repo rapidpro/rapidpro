@@ -18,7 +18,6 @@ class SlackType(ChannelType):
     code = "SL"
     slug = "slack"
     name = "Slack"
-    icon = "icon-slack"
     category = ChannelType.Category.SOCIAL_MEDIA
     schemes = [URN.SLACK_SCHEME]
 

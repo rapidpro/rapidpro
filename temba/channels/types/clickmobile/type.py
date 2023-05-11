@@ -15,7 +15,6 @@ class ClickMobileType(ChannelType):
     category = ChannelType.Category.PHONE
 
     name = "Click Mobile"
-    icon = "icon-channel-external"
 
     courier_url = r"^cm/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
 

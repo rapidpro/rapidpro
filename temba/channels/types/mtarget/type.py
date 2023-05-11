@@ -17,7 +17,6 @@ class MtargetType(ChannelType):
     courier_url = r"^mt/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
 
     name = "Mtarget"
-    icon = "icon-mtarget"
 
     available_timezones = ["Africa/Kigali", "Africa/Yaoundé", "Africa/Porto-Novo", "Africa/Kinshasa", "Europe/Paris"]
     recommended_timezones = ["Africa/Kigali", "Africa/Yaoundé", "Africa/Porto-Novo", "Africa/Kinshasa", "Europe/Paris"]

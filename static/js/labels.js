@@ -1,45 +1,41 @@
 function getCheckedIds() {
     var checkedIds = Array();
-
-    var checks = $('.object-row.checked');
+    var checks = document.querySelectorAll('.object-row.checked');
     for (var i = 0; i < checks.length; i++) {
-        checkedIds.push(parseInt($(checks[i]).data('object-id')));
+        checkedIds.push(parseInt(checks[i].getAttribute('data-object-id')));
     }
     return checkedIds.sort(numericComparator);
 }
 
 function getCheckedUuids() {
     var checkedUuids = Array();
-
-    var checks = $('.object-row.checked');
+    var checks = document.querySelectorAll('.object-row.checked');
     for (var i = 0; i < checks.length; i++) {
-        checkedUuids.push($(checks[i]).data('uuid'));
+        checkedUuids.push(checks[i].getAttribute('data-uuid'));
     }
     return checkedUuids.sort();
 }
 
 function getLabeledIds(labelId) {
     var objectRowsIds = Array();
-    var labeled = $(".lbl[data-id='" + labelId + "'], temba-label[data-id='" + labelId + "']");
+    var labeled = document.querySelectorAll(".lbl[data-id='" + labelId + "'], temba-label[data-id='" + labelId + "']");
     for (var i = 0; i < labeled.length; i++) {
+        var row = labeled[i].closest('.object-row');
         var id = parseInt(
-            $(labeled[i]).parents('.object-row').data('object-id')
+            row.getAttribute("data-object-id")
         );
         objectRowsIds.push(id);
     }
-
     return objectRowsIds.sort(numericComparator);
 }
 
 function getObjectRowLabels(objectId) {
     var labelIds = Array();
-    var labels = $(".object-row[data-object-id='" + objectId + "']").find(
-        '.lbl, temba-label'
-    );
+    var row = document.querySelector(".object-row[data-object-id='" + objectId + "']");
+    var labels = row.querySelectorAll(".lbl, temba-label");
     for (var i = 0; i < labels.length; i++) {
         labelIds.push(parseInt($(labels[i]).data('id')));
     }
-
     return labelIds.sort(numericComparator);
 }
 
@@ -110,13 +106,9 @@ function labelObjectRows(labelId, forceRemove, onSuccess) {
         }
     }
 
-    var checkbox = $('.lbl-menu[data-id="' + labelId + '"] .glyph');
-    if (checkbox.hasClass('checked-child')) {
+    var checkbox = document.querySelector('.lbl-menu[data-id="' + labelId + '"] temba-checkbox');
+    if (checkbox.checked) {
         addLabel = true;
-    }
-
-    if (checkbox.hasClass('checked')) {
-        addLabel = false;
     }
 
     if (forceRemove) {
@@ -137,50 +129,31 @@ function labelObjectRows(labelId, forceRemove, onSuccess) {
     postLabelChanges(objectRowsIds, labelId, addLabel, null, null, onSuccess);
 }
 
-function showPageTitle() {
-    var pageTitle = document.querySelector(".page-title");
-    if (pageTitle) {
-        pageTitle.classList.remove('hidden');
-    }
-
-}
-
-function hidePageTitle() {
-    var pageTitle = document.querySelector(".page-title");
-    if (pageTitle) {
-        pageTitle.classList.add('hidden');
-    }
-
-}
-
 /**
- * When we refresh the object list via pjax, we need to re-select the object rows that were previously selected
+ * After post, we need to recheck ids that were previously checked
  */
 function recheckIds() {
     
     if (window.lastChecked && window.lastChecked.length > 0) {
         for (var i = 0; i < window.lastChecked.length; i++) {
-            var row = $(".object-row[data-object-id='" + window.lastChecked[i] + "']");
-            row.addClass('checked');
-            row.find('temba-checkbox').attr('checked', true);
+            var row = document.querySelector(".object-row[data-object-id='" + window.lastChecked[i] + "']");
+            var checkbox = row.querySelector("temba-checkbox");
+            checkbox.checked = true;
+            row.classList.add('checked');
         }
-        $('.search-details').hide();
-        $('.list-buttons-container').addClass('visible');
-        hidePageTitle();
+        var listButtons = document.querySelector(".list-buttons-container");
+        listButtons.classList.add('visible');
         updateLabelMenu();
-    } else {
-        $('.search-details').show();
-        $('.list-buttons-container').removeClass('visible');
-        showPageTitle();
     }
 }
 
 function clearLabelMenu() {
     // remove all checked and partials
-    $('.lbl-menu .glyph')
-        .removeClass('checked')
-        .removeClass('partial')
-        .removeClass('checked-child');
+    var checkboxes = document.querySelectorAll(".lbl-menu temba-checkbox");
+    checkboxes.forEach(function (checkbox) {
+        checkbox.checked = false;
+        checkbox.partial = false;
+    });
 }
 
 // updates our label menu according to the currently selected set
@@ -203,37 +176,13 @@ function updateLabelMenu() {
                     labeledIds
                 );
 
-                var label = $('.lbl-menu[data-id="' + labelId + '"] .glyph');
-
+                var checkbox = document.querySelector('.lbl-menu[data-id="' + labelId + '"] temba-checkbox');
                 if (objectRowIdsWithLabel.length == objectRowsIds.length) {
-                    label.addClass('checked');
-                    label.removeClass('partial');
-
-                    var parentLabel = $(
-                        $('.lbl-menu[data-id="' + labelId + '"]')
-                            .parents('.dropdown-submenu')
-                            .find('.lbl-menu')[0]
-                    );
-                    if (parentLabel) {
-                        var parentBox = $(parentLabel.children('.glyph')[0]);
-                        if (!parentBox.hasClass('checked')) {
-                            parentBox.addClass('checked-child');
-                        }
-                    }
+                    checkbox.partial = false;
+                    checkbox.checked = true;
                 } else {
-                    label.addClass('partial');
-
-                    var parentLabel = $(
-                        $('.lbl-menu[data-id="' + labelId + '"]')
-                            .parents('.dropdown-submenu')
-                            .find('.lbl-menu')[0]
-                    );
-                    if (parentLabel) {
-                        var parentBox = $(parentLabel.children('.glyph')[0]);
-                        if (!parentBox.hasClass('checked')) {
-                            parentBox.addClass('checked-child');
-                        }
-                    }
+                    checkbox.checked = false;
+                    checkbox.partial = true;
                 }
                 updatedLabels[labelId] = true;
             }
@@ -255,80 +204,8 @@ function handleRowSelection(checkbox) {
 
     if (document.querySelector('tr.checked')) {
         listButtons.add('visible');
-        hidePageTitle();
     } else {
         listButtons.remove('visible');
-        showPageTitle();
-    }
-
-    updateLabelMenu();
-}
-
-function handleRowSelections(row) {
-    var row = $(row).parent('tr');
-
-    // noop if the row doesn't have a checkbox
-    var checkbox = row.find('temba-checkbox');
-    if (checkbox.length == 0) {
-        return;
-    }
-
-    if (checkbox.attr('checked')) {
-        row.removeClass('checked');
-
-        var checks = $('.object-row.checked');
-        if (checks.length == 0) {
-            $('.list-buttons-container').removeClass('visible');
-            showPageTitle();
-        } else {
-            $('.list-buttons-container').addClass('visible');
-        }
-    } else {
-        $('.list-buttons-container').addClass('visible');
-        row.addClass('checked');
-        hidePageTitle();
     }
     updateLabelMenu();
 }
-
-function wireActionHandlers() {
-    $('.page-content').on('click', '.object-btn-label', function () {
-        labelObjectRows($(this).data('id'), false, wireTableListeners);
-    });
-
-    if ($('.object-btn-unlabel').length > 0) {
-        if (current_label_id) {
-            $('.page-content').on('click', '.object-btn-unlabel', function () {
-                labelObjectRows(current_label_id, true, wireTableListeners);
-            });
-        }
-    }
-
-    $('.page-content').on('click', '.object-btn-restore', function () {
-        runActionOnObjectRows('restore', wireTableListeners);
-    });
-
-    $('.page-content').on('click', '.object-btn-archive', function () {
-        runActionOnObjectRows('archive', wireTableListeners);
-    });
-
-    $('.page-content').on('click', '.object-btn-delete', function () {
-        runActionOnObjectRows('delete', wireTableListeners);
-    });
-
-    $('.page-content').on('click', '.object-btn-resend', function () {
-        runActionOnObjectRows('resend', wireTableListeners);
-    });
-
-    $('.page-content').on('click', '.object-btn-close', function () {
-        runActionOnObjectRows('close', wireTableListeners);
-    });
-
-    $('.page-content').on('click', '.object-btn-reopen', function () {
-        runActionOnObjectRows('reopen', wireTableListeners);
-    });
-}
-
-$(document).ready(function () {
-    wireActionHandlers();
-});

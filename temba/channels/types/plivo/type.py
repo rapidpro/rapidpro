@@ -21,7 +21,6 @@ class PlivoType(ChannelType):
     courier_url = r"^pl/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
 
     name = "Plivo"
-    icon = "icon-channel-plivo"
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
         "link": '<a href="https://www.plivo.com/">Plivo</a>'

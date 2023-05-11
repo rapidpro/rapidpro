@@ -17,7 +17,6 @@ class AfricasTalkingType(ChannelType):
     courier_url = r"^at/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|delivery|callback|status)$"
 
     name = "Africa's Talking"
-    icon = "icon-channel-external"
 
     claim_blurb = _("You can purchase a short code from %(link)s and connect it in a few simple steps.") % {
         "link": """<a target="_blank" href="http://africastalking.com">Africa's Talking</a>"""

@@ -23,7 +23,6 @@ class FacebookAppType(ChannelType):
     courier_url = r"^fba/receive"
 
     name = "Facebook"
-    icon = "icon-facebook-official"
 
     show_config_page = False
 

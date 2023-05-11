@@ -22,7 +22,6 @@ class VKType(ChannelType):
     courier_url = r"^vk/(?P<uuid>[a-z0-9\-]+)/receive"
 
     name = "VK"
-    icon = "icon-vk"
 
     claim_blurb = _(
         "Add a %(link)s bot to send and receive messages on behalf of a VK community for free. You will need to create "

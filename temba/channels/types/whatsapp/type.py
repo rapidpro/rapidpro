@@ -38,7 +38,6 @@ class WhatsAppType(ChannelType):
     courier_url = r"^wa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
 
     name = "WhatsApp"
-    icon = "icon-whatsapp"
 
     claim_blurb = _("If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts")
     claim_view = ClaimView

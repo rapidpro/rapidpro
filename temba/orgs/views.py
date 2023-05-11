@@ -68,6 +68,7 @@ from temba.utils.views import (
     ComponentFormMixin,
     ContentMenuMixin,
     NonAtomicMixin,
+    NoNavMixin,
     RequireRecentAuthMixin,
     SpaMixin,
     StaffOnlyMixin,
@@ -1188,13 +1189,13 @@ class OrgCRUDL(SmartCRUDL):
                 menu = []
                 menu.append(
                     self.create_menu_item(
-                        menu_id="workspace", name=self.org.name, icon="icon.settings", href="orgs.org_workspace"
+                        menu_id="workspace", name=self.org.name, icon="settings", href="orgs.org_workspace"
                     )
                 )
 
                 if self.has_org_perm("orgs.org_sub_orgs") and Org.FEATURE_CHILD_ORGS in self.org.features:
                     children = Org.objects.filter(parent=self.org, is_active=True).count()
-                    item = self.create_menu_item(name=_("Workspaces"), icon="icon.children", href="orgs.org_sub_orgs")
+                    item = self.create_menu_item(name=_("Workspaces"), icon="children", href="orgs.org_sub_orgs")
                     if children:
                         item["count"] = children
                     menu.append(item)
@@ -1204,7 +1205,7 @@ class OrgCRUDL(SmartCRUDL):
                         self.create_menu_item(
                             menu_id="dashboard",
                             name=_("Dashboard"),
-                            icon="icon.dashboard",
+                            icon="dashboard",
                             href="dashboard.dashboard_home",
                         )
                     )
@@ -1214,7 +1215,7 @@ class OrgCRUDL(SmartCRUDL):
                         self.create_menu_item(
                             menu_id="2fa",
                             name=_("Security"),
-                            icon="icon.two_factor_enabled",
+                            icon="two_factor_enabled",
                             href=reverse("orgs.user_two_factor_tokens"),
                             perm="orgs.org_two_factor",
                         )
@@ -1224,7 +1225,7 @@ class OrgCRUDL(SmartCRUDL):
                         self.create_menu_item(
                             menu_id="2fa",
                             name=_("Enable 2FA"),
-                            icon="icon.two_factor_disabled",
+                            icon="two_factor_disabled",
                             href=reverse("orgs.user_two_factor_enable"),
                             perm="orgs.org_two_factor",
                         )
@@ -1235,19 +1236,15 @@ class OrgCRUDL(SmartCRUDL):
                         self.create_menu_item(
                             menu_id="account",
                             name=_("Account"),
-                            icon="icon.account",
+                            icon="account",
                             href=reverse("orgs.user_account"),
                         )
                     )
 
                 if self.has_org_perm("orgs.org_accounts") and Org.FEATURE_USERS in self.org.features:
-                    menu.append(
-                        self.create_menu_item(name=_("Users"), icon="icon.users", href="orgs.org_manage_accounts")
-                    )
+                    menu.append(self.create_menu_item(name=_("Users"), icon="users", href="orgs.org_manage_accounts"))
 
-                menu.append(
-                    self.create_menu_item(name=_("Resthooks"), icon="icon.resthooks", href="orgs.org_resthooks")
-                )
+                menu.append(self.create_menu_item(name=_("Resthooks"), icon="resthooks", href="orgs.org_resthooks"))
 
                 if self.has_org_perm("channels.channel_read"):
                     from temba.channels.views import get_channel_read_url
@@ -1255,14 +1252,12 @@ class OrgCRUDL(SmartCRUDL):
                     items = []
                     channels = Channel.objects.filter(org=self.org, is_active=True, parent=None).order_by("-role")
                     for channel in channels:
-                        icon = channel.type.icon.replace("icon-", "")
-                        icon = icon.replace("power-cord", "icon.channel")
                         items.append(
                             self.create_menu_item(
                                 menu_id=f"{channel.uuid}",
                                 name=channel.name,
                                 href=get_channel_read_url(channel),
-                                icon=icon,
+                                icon=channel.type.get_icon(),
                             )
                         )
 
@@ -1278,7 +1273,7 @@ class OrgCRUDL(SmartCRUDL):
                                 menu_id=classifier.uuid,
                                 name=classifier.name,
                                 href=reverse("classifiers.classifier_read", args=[classifier.uuid]),
-                                icon=classifier.get_type().icon.replace("icon-", ""),
+                                icon=classifier.get_type().get_icon(),
                             )
                         )
 
@@ -1290,13 +1285,13 @@ class OrgCRUDL(SmartCRUDL):
                         self.create_menu_item(
                             menu_id="message",
                             name=_("Messages"),
-                            icon="icon.message",
+                            icon="message",
                             href=reverse("archives.archive_message"),
                         ),
                         self.create_menu_item(
                             menu_id="run",
                             name=_("Flow Runs"),
-                            icon="icon.flow",
+                            icon="flow",
                             href=reverse("archives.archive_run"),
                         ),
                     ]
@@ -1310,13 +1305,13 @@ class OrgCRUDL(SmartCRUDL):
                     self.create_menu_item(
                         menu_id="workspaces",
                         name=_("Workspaces"),
-                        icon="icon.workspace",
+                        icon="workspace",
                         href=reverse("orgs.org_manage"),
                     ),
                     self.create_menu_item(
                         menu_id="users",
                         name=_("Users"),
-                        icon="icon.users",
+                        icon="users",
                         href=reverse("orgs.user_list"),
                     ),
                 ]
@@ -1354,7 +1349,7 @@ class OrgCRUDL(SmartCRUDL):
                             self.create_menu_item(
                                 menu_id="logout",
                                 name=_("Sign Out"),
-                                icon="icon.logout",
+                                icon="logout",
                                 posterize=True,
                                 href=f"{reverse('users.user_logout')}?next={reverse('users.user_login')}",
                             ),
@@ -1368,7 +1363,7 @@ class OrgCRUDL(SmartCRUDL):
                 self.create_menu_item(
                     menu_id="msg",
                     name=_("Messages"),
-                    icon="icon.messages",
+                    icon="messages",
                     endpoint="msgs.msg_menu",
                     href="msgs.msg_inbox",
                     perm="msgs.msg_list",
@@ -1376,7 +1371,7 @@ class OrgCRUDL(SmartCRUDL):
                 self.create_menu_item(
                     menu_id="contact",
                     name=_("Contacts"),
-                    icon="icon.contacts",
+                    icon="contacts",
                     endpoint="contacts.contact_menu",
                     href="contacts.contact_list",
                     perm="contacts.contact_list",
@@ -1384,7 +1379,7 @@ class OrgCRUDL(SmartCRUDL):
                 self.create_menu_item(
                     menu_id="flow",
                     name=_("Flows"),
-                    icon="icon.flows",
+                    icon="flows",
                     endpoint="flows.flow_menu",
                     href="flows.flow_list",
                     perm="flows.flow_list",
@@ -1392,7 +1387,7 @@ class OrgCRUDL(SmartCRUDL):
                 self.create_menu_item(
                     menu_id="trigger",
                     name=_("Triggers"),
-                    icon="icon.triggers",
+                    icon="triggers",
                     endpoint="triggers.trigger_menu",
                     href="triggers.trigger_list",
                     perm="triggers.trigger_list",
@@ -1400,7 +1395,7 @@ class OrgCRUDL(SmartCRUDL):
                 self.create_menu_item(
                     menu_id="campaign",
                     name=_("Campaigns"),
-                    icon="icon.campaigns",
+                    icon="campaigns",
                     endpoint="campaigns.campaign_menu",
                     href="campaigns.campaign_list",
                     perm="campaigns.campaign_list",
@@ -1408,7 +1403,7 @@ class OrgCRUDL(SmartCRUDL):
                 self.create_menu_item(
                     menu_id="ticket",
                     name=_("Tickets"),
-                    icon="icon.tickets",
+                    icon="tickets",
                     endpoint="tickets.ticket_menu",
                     href="tickets.ticket_list",
                 ),
@@ -1419,7 +1414,7 @@ class OrgCRUDL(SmartCRUDL):
                     {
                         "id": "settings",
                         "name": _("Settings"),
-                        "icon": "icon.home",
+                        "icon": "home",
                         "href": reverse("orgs.org_workspace"),
                         "endpoint": f"{reverse('orgs.org_menu')}settings/",
                         "bottom": True,
@@ -1432,7 +1427,7 @@ class OrgCRUDL(SmartCRUDL):
                     self.create_menu_item(
                         menu_id="staff",
                         name=_("Staff"),
-                        icon="icon.staff",
+                        icon="staff",
                         endpoint=f"{reverse('orgs.org_menu')}staff/",
                         bottom=True,
                     )
@@ -2628,7 +2623,7 @@ class OrgCRUDL(SmartCRUDL):
         def pre_process(self, request, *args, **kwargs):
             return self.get_start_redirect()
 
-    class Choose(StartMixin, SpaMixin, SmartFormView):
+    class Choose(NoNavMixin, StartMixin, SpaMixin, SmartFormView):
         class Form(forms.Form):
             organization = forms.ModelChoiceField(queryset=Org.objects.none(), empty_label=None)
 
@@ -2660,7 +2655,7 @@ class OrgCRUDL(SmartCRUDL):
                         return HttpResponseRedirect(reverse("orgs.org_manage"))
 
                     # for regular users, if there's no orgs, log them out with a message
-                    messages.info(request, _("No organizations for this account, please contact your administrator."))
+                    messages.info(request, _("No workspaces for this account, please contact your administrator."))
                     logout(request)
                     return HttpResponseRedirect(reverse("users.user_login"))
             return None
@@ -2685,13 +2680,13 @@ class OrgCRUDL(SmartCRUDL):
             self.request.org = org
             return self.get_start_redirect()
 
-    class CreateLogin(SmartUpdateView):
+    class CreateLogin(NoNavMixin, SmartUpdateView):
         title = ""
         form_class = OrgSignupForm
         fields = ("first_name", "last_name", "password")
         success_message = ""
         success_url = "@msgs.msg_inbox"
-        submit_button_name = _("Create")
+        submit_button_name = _("Create Login")
         permission = False
 
         def pre_process(self, request, *args, **kwargs):
@@ -3218,29 +3213,29 @@ class OrgCRUDL(SmartCRUDL):
             org = self.request.org
 
             if self.has_org_perm("orgs.org_edit"):
-                formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
+                formax.add_section("org", reverse("orgs.org_edit"), icon="settings")
 
             vonage_client = org.get_vonage_client()
             if vonage_client:  # pragma: needs cover
-                formax.add_section("vonage", reverse("orgs.org_vonage_account"), icon="icon-vonage")
+                formax.add_section("vonage", reverse("orgs.org_vonage_account"), icon="vonage")
 
             if self.has_org_perm("orgs.org_accounts") and Org.FEATURE_USERS in org.features:
-                formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users")
+                formax.add_section("accounts", reverse("orgs.org_accounts"), icon="users")
 
             if self.has_org_perm("orgs.org_languages"):
-                formax.add_section("languages", reverse("orgs.org_languages"), icon="icon-language")
+                formax.add_section("languages", reverse("orgs.org_languages"), icon="language")
 
             if self.has_org_perm("orgs.org_country") and "locations" in settings.FEATURES:
-                formax.add_section("country", reverse("orgs.org_country"), icon="icon-location2")
+                formax.add_section("country", reverse("orgs.org_country"), icon="location")
 
             if self.has_org_perm("orgs.org_smtp_server"):
-                formax.add_section("email", reverse("orgs.org_smtp_server"), icon="icon-envelop")
+                formax.add_section("email", reverse("orgs.org_smtp_server"), icon="email")
 
             if self.has_org_perm("orgs.org_token"):
-                formax.add_section("token", reverse("orgs.org_token"), icon="icon-cloud-upload", nobutton=True)
+                formax.add_section("token", reverse("orgs.org_token"), icon="upload", nobutton=True)
 
             if self.has_org_perm("orgs.org_prometheus"):
-                formax.add_section("prometheus", reverse("orgs.org_prometheus"), icon="icon-prometheus", nobutton=True)
+                formax.add_section("prometheus", reverse("orgs.org_prometheus"), icon="prometheus", nobutton=True)
 
             if self.has_org_perm("orgs.org_manage_integrations"):
                 for integration in IntegrationType.get_all():
@@ -3265,14 +3260,6 @@ class OrgCRUDL(SmartCRUDL):
         def has_permission(self, request, *args, **kwargs):
             self.org = self.derive_org()
             return self.has_org_perm("orgs.org_edit")
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            org = self.get_object()
-            context["sub_orgs"] = org.children.filter(is_active=True)
-            context["is_spa"] = self.request.COOKIES.get("nav", "old" if settings.TESTING else "new") != "old"
-            return context
 
     class EditSubOrg(SpaMixin, ModalMixin, Edit):
         success_url = "@orgs.org_sub_orgs"

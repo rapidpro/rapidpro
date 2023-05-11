@@ -21,7 +21,6 @@ class TwilioMessagingServiceType(ChannelType):
 
     name = "Twilio Messaging Service"
     slug = "twilio_messaging_service"
-    icon = "icon-channel-twilio"
 
     claim_view = ClaimView
     update_form = UpdateForm

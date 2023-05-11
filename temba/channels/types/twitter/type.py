@@ -24,7 +24,6 @@ class TwitterType(ChannelType):
     courier_url = r"^twt/(?P<uuid>[a-z0-9\-]+)/receive$"
 
     name = "Twitter"
-    icon = "icon-twitter"
 
     claim_blurb = _(
         "Send and receive messages on Twitter using their %(link)s API. You will have to apply for Twitter API access "
