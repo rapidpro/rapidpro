@@ -534,12 +534,7 @@ class TriggerCRUDL(SmartCRUDL):
         menu_path = "/trigger/archived"
 
         def build_content_menu(self, menu):
-            menu.add_js(
-                "triggers_delete_all",
-                _("Delete All"),
-                "confirmDeleteAllArchivedTriggers(event)",
-                "triggers-btn-delete-all",
-            )
+            menu.add_js("triggers_delete_all", _("Delete All"))
 
         def get_queryset(self, *args, **kwargs):
             return super().get_queryset(*args, **kwargs).filter(is_archived=True)
