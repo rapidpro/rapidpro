@@ -1,3 +1,10 @@
+v8.1.141 (2023-05-10)
+-------------------------
+ * Fix contacts title
+ * Fix vanilla landing
+ * Remove lessblock and replace with compiled css
+ * Bump django from 4.1.7 to 4.1.9
+
 v8.1.140 (2023-05-09)
 -------------------------
  * Fix ticket padding
