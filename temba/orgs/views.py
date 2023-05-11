@@ -2655,7 +2655,7 @@ class OrgCRUDL(SmartCRUDL):
 
             return context
 
-    class Join(SmartTemplateView):
+    class Join(NoNavMixin, SmartTemplateView):
         title = _("Sign in with your account to accept the invitation")
         permission = False
 
@@ -2695,7 +2695,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/(?P<secret>\w+)/$" % (path, action)
 
-    class JoinAccept(SmartUpdateView):
+    class JoinAccept(NoNavMixin, SmartUpdateView):
         class JoinAcceptForm(forms.ModelForm):
             class Meta:
                 model = Org
