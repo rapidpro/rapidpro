@@ -1150,8 +1150,6 @@ class OrgCRUDL(SmartCRUDL):
         "update",
         "country",
         "languages",
-        "vonage_account",
-        "vonage_connect",
         "sub_orgs",
         "create",
         "export",
@@ -1585,113 +1583,6 @@ class OrgCRUDL(SmartCRUDL):
             singles = sorted(list(singles), key=sort_key)
 
             return non_single_buckets, singles
-
-    class VonageAccount(InferOrgMixin, ComponentFormMixin, OrgPermsMixin, SmartUpdateView):
-        class Form(forms.ModelForm):
-            api_key = forms.CharField(max_length=128, label=_("API Key"), required=False)
-            api_secret = forms.CharField(max_length=128, label=_("API Secret"), required=False)
-            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
-
-            def clean(self):
-                super().clean()
-                if self.cleaned_data.get("disconnect", "false") == "false":
-                    api_key = self.cleaned_data.get("api_key", None)
-                    api_secret = self.cleaned_data.get("api_secret", None)
-
-                    if not api_key:
-                        raise ValidationError(_("You must enter your account API Key"))
-
-                    if not api_secret:  # pragma: needs cover
-                        raise ValidationError(_("You must enter your account API Secret"))
-
-                    from temba.channels.types.vonage.client import VonageClient
-
-                    if not VonageClient(api_key, api_secret).check_credentials():
-                        raise ValidationError(
-                            _("Your API key and secret seem invalid. Please check them again and retry.")
-                        )
-
-                return self.cleaned_data
-
-            class Meta:
-                model = Org
-                fields = ("api_key", "api_secret", "disconnect")
-
-        form_class = Form
-        success_message = ""
-        menu_path = "/settings/workspace"
-
-        def derive_initial(self):
-            initial = super().derive_initial()
-            org = self.get_object()
-            config = org.config
-            initial["api_key"] = config.get(Org.CONFIG_VONAGE_KEY, "")
-            initial["api_secret"] = config.get(Org.CONFIG_VONAGE_SECRET, "")
-            initial["disconnect"] = "false"
-            return initial
-
-        def form_valid(self, form):
-            disconnect = form.cleaned_data.get("disconnect", "false") == "true"
-            user = self.request.user
-            org = self.request.org
-
-            if disconnect:
-                org.remove_vonage_account(user)
-                return HttpResponseRedirect(reverse("orgs.org_workspace"))
-            else:
-                api_key = form.cleaned_data["api_key"]
-                api_secret = form.cleaned_data["api_secret"]
-
-                org.connect_vonage(api_key, api_secret, user)
-                return super().form_valid(form)
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            org = self.get_object()
-            client = org.get_vonage_client()
-            if client:
-                config = org.config
-                context["api_key"] = config.get(Org.CONFIG_VONAGE_KEY, "--")
-
-            return context
-
-    class VonageConnect(SpaMixin, ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
-        class Form(forms.Form):
-            api_key = forms.CharField(help_text=_("Your Vonage API key"), widget=InputWidget())
-            api_secret = forms.CharField(help_text=_("Your Vonage API secret"), widget=InputWidget())
-
-            def clean(self):
-                super().clean()
-
-                api_key = self.cleaned_data.get("api_key")
-                api_secret = self.cleaned_data.get("api_secret")
-
-                from temba.channels.types.vonage.client import VonageClient
-
-                if not VonageClient(api_key, api_secret).check_credentials():
-                    raise ValidationError(
-                        _("Your API key and secret seem invalid. Please check them again and retry.")
-                    )
-
-                return self.cleaned_data
-
-        form_class = Form
-        submit_button_name = "Save"
-        success_message = "Vonage Account successfully connected."
-        menu_path = "/settings/workspace"
-
-        def form_valid(self, form):
-            api_key = form.cleaned_data["api_key"]
-            api_secret = form.cleaned_data["api_secret"]
-
-            org = self.get_object()
-
-            org.connect_vonage(api_key, api_secret, self.request.user)
-
-            org.save()
-
-            return HttpResponseRedirect(self.get_success_url())
 
     class WhatsappCloudConnect(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class WhatsappCloudConnectForm(forms.Form):
@@ -3214,10 +3105,6 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_edit"):
                 formax.add_section("org", reverse("orgs.org_edit"), icon="settings")
-
-            vonage_client = org.get_vonage_client()
-            if vonage_client:  # pragma: needs cover
-                formax.add_section("vonage", reverse("orgs.org_vonage_account"), icon="vonage")
 
             if self.has_org_perm("orgs.org_accounts") and Org.FEATURE_USERS in org.features:
                 formax.add_section("accounts", reverse("orgs.org_accounts"), icon="users")

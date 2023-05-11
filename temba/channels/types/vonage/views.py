@@ -7,14 +7,14 @@ from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from temba.orgs.models import Org
 from temba.orgs.views import OrgPermsMixin
 from temba.utils import countries
-from temba.utils.fields import SelectWidget
+from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.models import generate_uuid
 
 from ...models import Channel
-from ...views import BaseClaimNumberMixin, ClaimViewMixin, UpdateTelChannelForm
+from ...views import BaseClaimNumberMixin, ChannelTypeMixin, ClaimViewMixin, UpdateTelChannelForm
+from .client import VonageClient
 
 SUPPORTED_COUNTRIES = {
     "AC",  # Ascension Island
@@ -246,6 +246,14 @@ SUPPORTED_COUNTRIES = {
 COUNTRY_CHOICES = countries.choices(SUPPORTED_COUNTRIES)
 CALLING_CODES = countries.calling_codes(SUPPORTED_COUNTRIES)
 
+SESSION_VONAGE_API_KEY = "VONAGE_API_KEY"
+SESSION_VONAGE_API_SECRET = "VONAGE_API_SECRET"
+
+CONFIG_VONAGE_API_KEY = "nexmo_api_key"
+CONFIG_VONAGE_API_SECRET = "nexmo_api_secret"
+CONFIG_VONAGE_APP_ID = "nexmo_app_id"
+CONFIG_VONAGE_APP_PRIVATE_KEY = "nexmo_app_private_key"
+
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
@@ -264,15 +272,20 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
     form_class = Form
 
     def pre_process(self, *args, **kwargs):
-        try:
-            client = self.request.org.get_vonage_client()
-        except Exception:  # pragma: needs cover
-            client = None
+        client = self.get_vonage_client()
 
         if client:
             return None
         else:  # pragma: needs cover
-            return HttpResponseRedirect(reverse("orgs.org_vonage_connect"))
+            return HttpResponseRedirect(reverse("channels.types.vonage.connect"))
+
+    def get_vonage_client(self):
+        api_key = self.request.session.get(SESSION_VONAGE_API_KEY, None)
+        api_secret = self.request.session.get(SESSION_VONAGE_API_SECRET, None)
+
+        if api_key and api_secret:
+            return VonageClient(api_key, api_secret)
+        return None
 
     def is_valid_country(self, calling_code: int) -> bool:
         return calling_code in CALLING_CODES
@@ -293,7 +306,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return COUNTRY_CHOICES
 
     def get_existing_numbers(self, org):
-        client = org.get_vonage_client()
+        client = self.get_vonage_client()
         if client:
             account_numbers = client.get_numbers(size=100)
 
@@ -308,10 +321,15 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         return numbers
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["current_creds_account"] = self.request.session.get(SESSION_VONAGE_API_KEY, None)
+
+        return context
+
     def claim_number(self, user, phone_number, country, role):
         org = self.request.org
-        client = org.get_vonage_client()
-        org_config = org.config
+        client = self.get_vonage_client()
 
         matching_phones = client.get_numbers(phone_number)
         is_shortcode = False
@@ -388,10 +406,10 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             vonage_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip("+")
 
         config = {
-            Channel.CONFIG_VONAGE_APP_ID: app_id,
-            Channel.CONFIG_VONAGE_APP_PRIVATE_KEY: app_private_key,
-            Channel.CONFIG_VONAGE_API_KEY: org_config[Org.CONFIG_VONAGE_KEY],
-            Channel.CONFIG_VONAGE_API_SECRET: org_config[Org.CONFIG_VONAGE_SECRET],
+            CONFIG_VONAGE_APP_ID: app_id,
+            CONFIG_VONAGE_APP_PRIVATE_KEY: app_private_key,
+            CONFIG_VONAGE_API_KEY: self.request.session.get(SESSION_VONAGE_API_KEY),
+            CONFIG_VONAGE_API_SECRET: self.request.session.get(SESSION_VONAGE_API_SECRET),
             Channel.CONFIG_CALLBACK_DOMAIN: callback_domain,
         }
 
@@ -412,7 +430,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return channel
 
 
-class SearchView(OrgPermsMixin, SmartFormView):
+class SearchView(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
     """
     Endpoint for searching for numbers to claim
     """
@@ -424,9 +442,16 @@ class SearchView(OrgPermsMixin, SmartFormView):
     form_class = Form
     permission = "channels.channel_claim"
 
+    def get_vonage_client(self):
+        api_key = self.request.session.get(SESSION_VONAGE_API_KEY, None)
+        api_secret = self.request.session.get(SESSION_VONAGE_API_SECRET, None)
+
+        if api_key and api_secret:
+            return VonageClient(api_key, api_secret)
+        return None  # pragma: no cover
+
     def form_valid(self, form, *args, **kwargs):
-        org = self.request.org
-        client = org.get_vonage_client()
+        client = self.get_vonage_client()
         data = form.cleaned_data
 
         available_numbers = client.search_numbers(data["country"], data.get("pattern"))
@@ -446,3 +471,58 @@ class SearchView(OrgPermsMixin, SmartFormView):
 class UpdateForm(UpdateTelChannelForm):
     class Meta(UpdateTelChannelForm.Meta):
         readonly = ()
+
+
+class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
+    class VonageConnectForm(forms.Form):
+        api_key = forms.CharField(help_text=_("Your Vonage API key"), widget=InputWidget(), required=True)
+        api_secret = forms.CharField(help_text=_("Your Vonage API secret"), widget=InputWidget(), required=True)
+
+        def clean(self):
+            super().clean()
+
+            api_key = self.cleaned_data.get("api_key")
+            api_secret = self.cleaned_data.get("api_secret")
+
+            if not VonageClient(api_key, api_secret).check_credentials():
+                raise ValidationError(_("Your API key and secret seem invalid. Please check them again and retry."))
+
+            return self.cleaned_data
+
+    form_class = VonageConnectForm
+    permission = "channels.channel_claim"
+    submit_button_name = "Save"
+    success_message = "Vonage Account successfully connected."
+    template_name = "channels/types/vonage/connect.html"
+    menu_path = "/settings/workspace"
+    title = "Connect Vonage"
+
+    def get_success_url(self):
+        return reverse("channels.types.vonage.claim")
+
+    def pre_process(self, *args, **kwargs):
+        reset_creds = self.request.GET.get("reset_creds", "")
+
+        org = self.request.org
+        last_vonage_channel = (
+            org.channels.filter(is_active=True, channel_type=self.channel_type.code).order_by("-created_on").first()
+        )
+
+        if last_vonage_channel and not reset_creds:
+            self.request.session[SESSION_VONAGE_API_KEY] = last_vonage_channel.config.get(CONFIG_VONAGE_API_KEY, "")
+            self.request.session[SESSION_VONAGE_API_SECRET] = last_vonage_channel.config.get(
+                CONFIG_VONAGE_API_SECRET, ""
+            )
+            return HttpResponseRedirect(self.get_success_url())
+
+        return None
+
+    def form_valid(self, form):
+        api_key = form.cleaned_data["api_key"]
+        api_secret = form.cleaned_data["api_secret"]
+
+        # add the credentials to the session
+        self.request.session[SESSION_VONAGE_API_KEY] = api_key
+        self.request.session[SESSION_VONAGE_API_SECRET] = api_secret
+
+        return HttpResponseRedirect(self.get_success_url())

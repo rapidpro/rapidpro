@@ -18,10 +18,9 @@ from temba.utils import countries
 from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
-from temba.utils.views import SpaMixin
 
 from ...models import Channel
-from ...views import ALL_COUNTRIES, BaseClaimNumberMixin, ClaimViewMixin, UpdateChannelForm
+from ...views import ALL_COUNTRIES, BaseClaimNumberMixin, ChannelTypeMixin, ClaimViewMixin, UpdateChannelForm
 
 SUPPORTED_COUNTRIES = {
     "AU",  # Australia
@@ -278,7 +277,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             del self.request.session[SESSION_TWILIO_AUTH_TOKEN]
 
 
-class SearchView(OrgPermsMixin, SmartFormView):
+class SearchView(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
     class Form(forms.Form):
         country = forms.ChoiceField(choices=SEARCH_COUNTRY_CHOICES)
         pattern = forms.CharField(max_length=3, min_length=3, required=False)
@@ -399,7 +398,7 @@ class UpdateForm(UpdateChannelForm):
         fields = ("name",)
 
 
-class Connect(SpaMixin, OrgPermsMixin, SmartFormView):
+class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
     class TwilioConnectForm(forms.Form):
         account_sid = forms.CharField(help_text=_("Your Twilio Account SID"), widget=InputWidget(), required=True)
         account_token = forms.CharField(help_text=_("Your Twilio Account Token"), widget=InputWidget(), required=True)

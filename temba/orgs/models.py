@@ -906,36 +906,6 @@ class Org(SmartModel):
 
         return AirtimeTransfer.objects.filter(org=self).exists()
 
-    def connect_vonage(self, api_key, api_secret, user):
-        self.config.update({Org.CONFIG_VONAGE_KEY: api_key.strip(), Org.CONFIG_VONAGE_SECRET: api_secret.strip()})
-        self.modified_by = user
-        self.save(update_fields=("config", "modified_by", "modified_on"))
-
-    def is_connected_to_vonage(self):
-        if self.config:
-            return self.config.get(Org.CONFIG_VONAGE_KEY) and self.config.get(Org.CONFIG_VONAGE_SECRET)
-        return False
-
-    def remove_vonage_account(self, user):
-        if self.config:
-            # release any vonage channels
-            for channel in self.channels.filter(is_active=True, channel_type="NX"):  # pragma: needs cover
-                channel.release(user)
-
-            self.config.pop(Org.CONFIG_VONAGE_KEY, None)
-            self.config.pop(Org.CONFIG_VONAGE_SECRET, None)
-            self.modified_by = user
-            self.save(update_fields=("config", "modified_by", "modified_on"))
-
-    def get_vonage_client(self):
-        from temba.channels.types.vonage.client import VonageClient
-
-        api_key = self.config.get(Org.CONFIG_VONAGE_KEY)
-        api_secret = self.config.get(Org.CONFIG_VONAGE_SECRET)
-        if api_key and api_secret:
-            return VonageClient(api_key, api_secret)
-        return None
-
     @property
     def default_country_code(self) -> str:
         """

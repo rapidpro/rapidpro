@@ -1,11 +1,20 @@
 from django.urls import re_path
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.models import Channel, ChannelType
+from temba.channels.models import ChannelType
 from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
-from .views import ClaimView, SearchView, UpdateForm
+from .client import VonageClient
+from .views import (
+    CONFIG_VONAGE_API_KEY,
+    CONFIG_VONAGE_API_SECRET,
+    CONFIG_VONAGE_APP_ID,
+    ClaimView,
+    Connect,
+    SearchView,
+    UpdateForm,
+)
 
 RECOMMENDED_COUNTRIES = {
     "US",
@@ -94,13 +103,19 @@ class VonageType(ChannelType):
         return timezone_to_country_code(org.timezone) in RECOMMENDED_COUNTRIES
 
     def deactivate(self, channel):
-        app_id = channel.config.get(Channel.CONFIG_VONAGE_APP_ID)
-        if app_id:
-            client = channel.org.get_vonage_client()
+        app_id = channel.config.get(CONFIG_VONAGE_APP_ID)
+        api_key = channel.config.get(CONFIG_VONAGE_API_KEY)
+        api_secret = channel.config.get(CONFIG_VONAGE_API_SECRET)
+        if api_key and api_secret and app_id:
+            client = VonageClient(api_key=api_key, api_secret=api_secret)
             client.delete_application(app_id)
 
     def get_urls(self):
-        return [self.get_claim_url(), re_path(r"^search$", SearchView.as_view(), name="search")]
+        return [
+            self.get_claim_url(),
+            re_path(r"^search$", SearchView.as_view(channel_type=self), name="search"),
+            re_path(r"^connect$", Connect.as_view(channel_type=self), name="connect"),
+        ]
 
     def get_error_ref_url(self, channel, code: str) -> str:
         if code.startswith("send:"):
