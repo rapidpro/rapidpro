@@ -960,8 +960,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         start = FlowStart.objects.get()
         self.assertEqual(background_flow, start.flow)
         self.assertEqual(query, start.query)
-        self.assertTrue(start.restart_participants)
-        self.assertTrue(start.include_active)
+        self.assertEqual({}, start.exclusions)
 
         # that has been queued to mailroom
         self.assertEqual("start_flow", mr_mocks.queued_batch_tasks[-1]["type"])

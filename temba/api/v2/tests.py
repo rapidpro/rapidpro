@@ -4557,7 +4557,7 @@ class EndpointsTest(APITest):
         self.assertEqual(set(start1.contacts.all()), {self.joe})
         self.assertEqual(set(start1.groups.all()), set())
         self.assertEqual(start1.exclusions, {"in_a_flow": False, "started_previously": False})
-        self.assertEqual(start1.extra, {})
+        self.assertEqual(start1.params, {})
 
         # check we tried to start the new flow start
         mock_async_start.assert_called_once()
@@ -4782,8 +4782,7 @@ class EndpointsTest(APITest):
         self.assertEqual(response.status_code, 201)
 
         start4 = flow.starts.get(pk=response.json()["id"])
-        self.assertTrue(start4.restart_participants)
-        self.assertTrue(start4.include_active)
+        self.assertTrue(start4.exclusions, {"started_previously": False, "in_a_flow": False})
 
         response = self.postJSON(
             url,
