@@ -9,10 +9,11 @@ from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
+from temba.channels.views import ChannelTypeMixin
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
 from temba.utils.text import truncate
-from temba.utils.views import ContentMenuMixin, SpaMixin
+from temba.utils.views import ContentMenuMixin
 
 from ...models import Channel
 from ...views import ClaimViewMixin
@@ -212,7 +213,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             del self.request.session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN]
 
 
-class ClearSessionToken(OrgPermsMixin, SmartTemplateView):
+class ClearSessionToken(ChannelTypeMixin, OrgPermsMixin, SmartTemplateView):
     permission = "channels.channel_claim"
 
     def pre_process(self, request, *args, **kwargs):
@@ -223,7 +224,7 @@ class ClearSessionToken(OrgPermsMixin, SmartTemplateView):
         return JsonResponse({})
 
 
-class RequestCode(SpaMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
+class RequestCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
     class Form(forms.Form):
         pass
 
@@ -237,7 +238,7 @@ class RequestCode(SpaMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, Smar
     submit_button_name = _("Request Code")
 
     def get_queryset(self):
-        return Channel.objects.filter(is_active=True, org=self.request.org, channel_type="WAC")
+        return Channel.objects.filter(is_active=True, org=self.request.org, channel_type=self.channel_type.code)
 
     def get_success_url(self):
         return reverse("channels.types.whatsapp_cloud.verify_code", args=[self.object.uuid])
@@ -288,7 +289,7 @@ class RequestCode(SpaMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, Smar
                 )
 
 
-class VerifyCode(SpaMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
+class VerifyCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, SmartModelActionView):
     class Form(forms.Form):
         code = forms.CharField(
             min_length=6, required=True, help_text=_("The 6-digits number verification code"), widget=InputWidget()
@@ -309,7 +310,7 @@ class VerifyCode(SpaMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixin, Smart
         menu.add_link(_("Channel"), reverse("channels.channel_read", args=[obj.uuid]))
 
     def get_queryset(self):
-        return Channel.objects.filter(is_active=True, org=self.request.org, channel_type="WAC")
+        return Channel.objects.filter(is_active=True, org=self.request.org, channel_type=self.channel_type.code)
 
     def derive_menu_path(self):
         return f"/settings/channels/{self.get_object().uuid}"

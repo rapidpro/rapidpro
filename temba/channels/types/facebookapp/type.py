@@ -40,7 +40,9 @@ class FacebookAppType(ChannelType):
     def get_urls(self):
         return [
             self.get_claim_url(),
-            re_path(r"^(?P<uuid>[a-z0-9\-]+)/refresh_token$", RefreshToken.as_view(), name="refresh_token"),
+            re_path(
+                r"^(?P<uuid>[a-z0-9\-]+)/refresh_token$", RefreshToken.as_view(channel_type=self), name="refresh_token"
+            ),
         ]
 
     def deactivate(self, channel):

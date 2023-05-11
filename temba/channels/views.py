@@ -50,9 +50,21 @@ def get_channel_read_url(channel):
     return reverse("channels.channel_read", args=[channel.uuid])
 
 
-class ClaimViewMixin(SpaMixin, OrgPermsMixin, ComponentFormMixin):
-    permission = "channels.channel_claim"
+class ChannelTypeMixin(SpaMixin):
+    """
+    Mixin for views owned by a specific channel type
+    """
+
     channel_type = None
+
+    def __init__(self, channel_type):
+        self.channel_type = channel_type
+
+        super().__init__()
+
+
+class ClaimViewMixin(ChannelTypeMixin, OrgPermsMixin, ComponentFormMixin):
+    permission = "channels.channel_claim"
     menu_path = "/settings/workspace"
 
     class Form(forms.Form):
@@ -72,10 +84,6 @@ class ClaimViewMixin(SpaMixin, OrgPermsMixin, ComponentFormMixin):
                     params={"limit": limit},
                 )
             return super().clean()
-
-    def __init__(self, channel_type):
-        self.channel_type = channel_type
-        super().__init__()
 
     def get_template_names(self):
         return (
