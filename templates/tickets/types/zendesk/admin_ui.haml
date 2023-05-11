@@ -30,7 +30,7 @@
       -block pre-form-errors
 
       -if form.non_field_errors
-        .alert.alert-error.form-errors
+        %temba-alert.form-errors(level="error")
           {{ form.non_field_errors }}
 
       -block post-form-errors

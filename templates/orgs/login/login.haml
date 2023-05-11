@@ -15,21 +15,21 @@
     -csrf_token
     -for field, errors in form.errors.items
       -if field == '__all__'
-        .alert-error.my-4
+        %temba-alert.my-4(level="error")
           {{ errors }}
 
     .mt-4
       %input.input(type='text' name='username' maxlength=254 placeholder='{{_("Email Address")|escapejs}}' value='{% if form.username.value%}{{form.username.value|escape}}{%endif%}')
 
     -if form.username.errors
-      .alert-error.mt-4
+      %temba-alert.mt-4(level="error")
         {{form.username.errors}}
 
     .mt-4
       %input.input(type="password" name='password' placeholder='{{_("Password")|escapejs}}')
     
     -if form.password.errors
-      .alert-error.mt-4
+      %temba-alert.mt-4(level="error")
         {{form.password.errors}}
     .mt-2.text-right
       %a(href="/user/forget/")

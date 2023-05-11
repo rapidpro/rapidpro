@@ -17,7 +17,7 @@
       %temba-textinput(name='token' maxlength=8 placeholder='{{_("8-character token")|escape}}')
 
     -if form.token.errors
-      .alert-error.mt-4
+      %temba-alert.mt-4(level="error")
         {{ form.token.errors }}
 
     .mt-2.text-right

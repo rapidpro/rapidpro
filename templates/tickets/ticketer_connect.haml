@@ -34,7 +34,7 @@
             {% include ticketer_type.get_connect_blurb with brand=brand %}
 
     -empty
-      .alert-warning
+      %temba-alert(level="warning")
         -trans "No ticketing services are available."
 
 -block extra-style

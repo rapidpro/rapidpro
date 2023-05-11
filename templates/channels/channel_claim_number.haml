@@ -45,10 +45,10 @@
       :javascript
         document.location.href = '{% url 'orgs.org_upgrade_plan' %}?from=twilio'
     -else
-      .alert-error.my-4
+      %temba-alert.my-4(level="error")
         {{ form.errors.phone_number }}
 
-  #claim-message.alert-warning{ style: "display:none;margin-top:10px;" }
+  %temba-alert#claim-message(level="warning" style="display:none;margin-top:10px;")
     -if error
       {{ error }}
 
