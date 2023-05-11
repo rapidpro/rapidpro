@@ -227,6 +227,14 @@
 
   :javascript
 
+    var menu = document.querySelector("temba-content-menu");  
+    menu.addEventListener("temba-selection", function(event) {
+      var item = event.detail.item;
+      if (item.id === "contacts_delete_all") {
+        confirmDeleteAllArchivedContacts();
+      }
+    });
+
     {% if org_perms.contacts.contact_delete %}
       function onDeleteClicked(){
         var deleteConfirmation = document.querySelector("#delete-confirmation");
@@ -336,17 +344,17 @@
 
     {% if org_perms.contacts.contact_delete %}
 
-    function handleDeleteAllConfirmation() {
+    function confirmDeleteAllArchivedContacts() {
       var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
 
       deleteAllConfirmation.classList.remove("hide");
       deleteAllConfirmation.open = true;
 
-      deleteAllConfirmation.removeEventListener("temba-button-clicked", handleDeleteAllContacts);
-      deleteAllConfirmation.addEventListener("temba-button-clicked", handleDeleteAllContacts);
+      deleteAllConfirmation.removeEventListener("temba-button-clicked", deleteAllArchivedContacts);
+      deleteAllConfirmation.addEventListener("temba-button-clicked", deleteAllArchivedContacts);
     }
 
-    function handleDeleteAllContacts(event){
+    function deleteAllArchivedContacts(event){
       var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
 
       if (event.detail.button.attributes.destructive){
@@ -354,8 +362,8 @@
         var url = "{% url 'contacts.contact_archived' %}";
 
         var store = document.querySelector("temba-store");
-        store.postForm(url, { action: "delete", all: 'true', pjax: true}).then(function(response){
-          document.querySelector("temba-menu").refresh();
+        store.postForm(url, { action: "delete", all: 'true', pjax: true}).then(function(response){          
+          refreshMenu();
           gotoURL(url);
         }).catch(function(error){
           console.log(error);

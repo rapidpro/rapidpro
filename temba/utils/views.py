@@ -370,14 +370,12 @@ class ContentMenu:
     def add_link(self, label: str, url: str, as_button: bool = False):
         self.groups[-1].append({"type": "link", "label": label, "url": url, "as_button": as_button})
 
-    def add_js(self, id: str, label: str, on_click: str, link_class: str, as_button: bool = False):
+    def add_js(self, id: str, label: str, as_button: bool = False):
         self.groups[-1].append(
             {
                 "id": id,
                 "type": "js",
                 "label": label,
-                "on_click": on_click,
-                "link_class": link_class,
                 "as_button": as_button,
             }
         )

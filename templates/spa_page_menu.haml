@@ -39,12 +39,6 @@
     else if (item.type === 'url_post') {
       posterize(item.url);
     }
-    else if (item.type === 'js') {
-      if (item.on_click && item.on_click.length > 0) {
-        var onClick = Function(item.on_click);
-        onClick();
-      }
-    }
 
     // items need to be refreshed in the top left sidebar menu
     refreshMenu();
