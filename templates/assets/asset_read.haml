@@ -25,9 +25,8 @@
                   {{ file_error }}
 
 -block extra-script
-  :javascript
-    {% if not file_error %}
-    $(document).ready(function() {
-      window.location.href = "{{ download_url }}";
-    });
-    {% endif %}
+  -if not file_error
+    :javascript
+      $(document).ready(function() {
+        window.location.href = "{{ download_url }}";
+      });
