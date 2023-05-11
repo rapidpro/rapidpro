@@ -351,6 +351,11 @@ class Trigger(SmartModel):
                 trigger.restore(user)
                 trigger_scopes = trigger_scopes | trigger_scope
 
+    @classmethod
+    def apply_action_delete(cls, user, triggers):
+        for trigger in triggers:
+            trigger.delete()
+
     def as_export_def(self) -> dict:
         """
         The definition of this trigger for export.
