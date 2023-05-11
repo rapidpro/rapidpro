@@ -23,13 +23,13 @@ class SomlengTypeTest(TembaTest):
         claim_url = reverse("channels.types.somleng.claim")
 
         response = self.client.get(reverse("channels.channel_claim"))
-        self.assertContains(response, "TwiML")
+        self.assertContains(response, "Somleng")
         self.assertContains(response, claim_url)
 
         # can fetch the claim page
         response = self.client.get(claim_url)
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "TwiML")
+        self.assertContains(response, "Somleng")
 
     @patch("twilio.rest.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
