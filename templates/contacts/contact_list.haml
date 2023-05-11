@@ -226,12 +226,16 @@
   {{ block.super }}
 
   :javascript
-
-    var menu = document.querySelector("temba-content-menu");  
-    menu.addEventListener("temba-selection", function(event) {
-      var item = event.detail.item;
-      if (item.id === "contacts_delete_all") {
-        confirmDeleteAllArchivedContacts();
+    onSpload(function(){
+      var menu = document.querySelector("temba-content-menu");
+      // not all contact views have a menu
+      if (menu) {
+        menu.addEventListener("temba-selection", function(event) {
+          var item = event.detail.item;
+          if (item.id === "contacts_delete_all") {
+            confirmDeleteAllArchivedContacts();
+          }
+        });
       }
     });
 

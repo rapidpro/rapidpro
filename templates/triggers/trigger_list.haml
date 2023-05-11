@@ -98,16 +98,19 @@
   {{ block.super }}
 
   :javascript
-    var menu = document.querySelector("temba-content-menu");      
-    menu.addEventListener("temba-selection", function(event) {
-      var item = event.detail.item;
-      if (item.id == "triggers_delete_all") {
-        confirmDeleteAllArchivedTriggers();
-      }
+    onSpload(function(){
+      var menu = document.querySelector("temba-content-menu");
+      if (menu) {
+        menu.addEventListener("temba-selection", function(event) {
+          var item = event.detail.item;
+          if (item.id == "triggers_delete_all") {
+            confirmDeleteAllArchivedTriggers();
+          }
+        });
+      }  
     });
 
     function updateTrigger(event, id) {
-
       if (event.target.tagName == "TEMBA-CHECKBOX") {
         return;
       }
