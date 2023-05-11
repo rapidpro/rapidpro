@@ -4556,7 +4556,7 @@ class EndpointsTest(APITest):
         self.assertEqual(start1.flow, flow)
         self.assertEqual(set(start1.contacts.all()), {self.joe})
         self.assertEqual(set(start1.groups.all()), set())
-        self.assertTrue(start1.restart_participants)
+        self.assertEqual(start1.exclusions, {"in_a_flow": False, "started_previously": False})
         self.assertEqual(start1.extra, {})
 
         # check we tried to start the new flow start
@@ -4587,8 +4587,8 @@ class EndpointsTest(APITest):
         self.assertEqual(["tel:+12067791212"], start2.urns)
         self.assertEqual({self.joe}, set(start2.contacts.all()))
         self.assertEqual({hans_group}, set(start2.groups.all()))
-        self.assertFalse(start2.restart_participants)
-        self.assertEqual(start2.extra, {"first_name": "Ryan", "last_name": "Lewis"})
+        self.assertEqual(start2.exclusions, {"in_a_flow": False, "started_previously": True})
+        self.assertEqual(start2.params, {"first_name": "Ryan", "last_name": "Lewis"})
 
         # check we tried to start the new flow start
         mock_async_start.assert_called_once()
@@ -4616,9 +4616,8 @@ class EndpointsTest(APITest):
         self.assertEqual(["tel:+12067791212"], start3.urns)
         self.assertEqual({self.joe}, set(start3.contacts.all()))
         self.assertEqual({hans_group}, set(start3.groups.all()))
-        self.assertFalse(start3.restart_participants)
-        self.assertTrue(start3.include_active)
-        self.assertEqual(start3.extra, {"first_name": "Bob", "last_name": "Marley"})
+        self.assertEqual(start3.exclusions, {"in_a_flow": False, "started_previously": True})
+        self.assertEqual(start3.params, {"first_name": "Bob", "last_name": "Marley"})
 
         # check we tried to start the new flow start
         mock_async_start.assert_called_once()
@@ -4804,8 +4803,7 @@ class EndpointsTest(APITest):
         self.assertEqual(response.status_code, 201)
 
         start5 = flow.starts.get(pk=response.json()["id"])
-        self.assertTrue(start5.restart_participants)
-        self.assertFalse(start5.include_active)
+        self.assertEqual(start5.exclusions, {"started_previously": False, "in_a_flow": True})
 
     def test_templates(self):
         url = reverse("api.v2.templates")

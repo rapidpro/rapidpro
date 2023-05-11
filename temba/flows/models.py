@@ -1971,7 +1971,7 @@ class FlowStart(models.Model):
     # the number of de-duped contacts that might be started, depending on options above
     contact_count = models.IntegerField(default=0, null=True)
 
-    # deprecated
+    # TODO drop
     restart_participants = models.BooleanField(default=True, null=True)
     include_active = models.BooleanField(default=True, null=True)
     extra = JSONAsTextField(null=True, default=dict)
@@ -2004,10 +2004,6 @@ class FlowStart(models.Model):
             exclusions=exclusions,
             params=params,
             created_by=user,
-            # deprecated
-            restart_participants=not exclusions.get(cls.EXCLUSION_STARTED_PREVIOUSLY, False),
-            include_active=not exclusions.get(cls.EXCLUSION_IN_A_FLOW, False),
-            extra=params,
         )
 
         for contact in contacts:

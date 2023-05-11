@@ -140,10 +140,6 @@ def queue_flow_start(start):
         "query": start.query,
         "exclusions": start.exclusions,
         "params": start.params,
-        # deprecated
-        "restart_participants": start.restart_participants,
-        "include_active": start.include_active,
-        "extra": start.extra,
     }
 
     _queue_batch_task(org_id, BatchTask.START_FLOW, task, HIGH_PRIORITY)

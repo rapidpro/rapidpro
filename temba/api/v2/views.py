@@ -3260,8 +3260,6 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
                     "contacts": [
                          {"uuid": "f5901b62-ba76-4003-9c62-fjjajdsi15553", "name": "Wanz"}
                     ],
-                    "restart_participants": true,
-                    "exclude_active": false,
                     "status": "complete",
                     "params": {
                         "first_name": "Ryan",
@@ -3310,7 +3308,6 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             "contacts": [
                  {"uuid": "f1ea776e-c923-4c1a-b3a3-0c466932b2cc", "name": "Wanz"}
             ],
-            "restart_participants": true,
             "status": "complete",
             "params": {
                 "first_name": "Ryan",
