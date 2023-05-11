@@ -363,7 +363,6 @@
 
         var store = document.querySelector("temba-store");
         store.postForm(url, { action: "delete", all: 'true', pjax: true}).then(function(response){          
-          refreshMenu();
           gotoURL(url);
         }).catch(function(error){
           console.log(error);

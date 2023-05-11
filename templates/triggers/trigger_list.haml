@@ -100,7 +100,7 @@
   :javascript
     var menu = document.querySelector("temba-content-menu");      
     menu.addEventListener("temba-selection", function(event) {
-      var item = event.detail;
+      var item = event.detail.item;
       if (item.id == "triggers_delete_all") {
         confirmDeleteAllArchivedTriggers();
       }
@@ -139,7 +139,6 @@
 
         var store = document.querySelector("temba-store");
         store.postForm(url, { action: "delete", all: 'true', pjax: true}).then(function(response){
-          document.querySelector("temba-menu").refresh();
           gotoURL(url);
         }).catch(function(error){
           console.log(error);
