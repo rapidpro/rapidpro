@@ -1042,17 +1042,23 @@ class FlowStartReadSerializer(ReadSerializer):
     status = serializers.SerializerMethodField()
     groups = fields.ContactGroupField(many=True)
     contacts = fields.ContactField(many=True)
-    exclude_active = serializers.SerializerMethodField()
-    extra = serializers.JSONField(required=False)
-    params = serializers.JSONField(required=False, source="extra")
+    params = serializers.JSONField(required=False)
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     modified_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    # deprecated
+    extra = serializers.JSONField(required=False, source="params")
+    restart_participants = serializers.SerializerMethodField()
+    exclude_active = serializers.SerializerMethodField()
 
     def get_status(self, obj):
         return self.STATUSES.get(obj.status)
 
+    def get_restart_participants(self, obj):
+        return not (obj.exclusions and obj.exclusions.get(FlowStart.EXCLUSION_STARTED_PREVIOUSLY, False))
+
     def get_exclude_active(self, obj):
-        return not obj.include_active
+        return obj.exclusions and obj.exclusions.get(FlowStart.EXCLUSION_IN_A_FLOW, False)
 
     class Meta:
         model = FlowStart
@@ -1063,12 +1069,12 @@ class FlowStartReadSerializer(ReadSerializer):
             "status",
             "groups",
             "contacts",
-            "restart_participants",
-            "exclude_active",
-            "extra",
             "params",
             "created_on",
             "modified_on",
+            "extra",
+            "restart_participants",
+            "exclude_active",
         )
 
 

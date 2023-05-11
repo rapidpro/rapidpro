@@ -45,11 +45,11 @@
             -else
               -trans "was started by an API call for"
 
-            -if obj.restart_participants and obj.include_active
+            -if not obj.exclusions
               -trans "all contacts"
-            -elif obj.restart_participants and not obj.include_active
+            -elif not obj.exclusions.started_previously and obj.exclusions.in_a_flow
               -trans "contacts not in other flows"
-            -elif not obj.restart_participants and not obj.include_active
+            -elif obj.exclusions.started_previously and obj.exclusions.in_a_flow
               -trans "contacts not in other flows who haven't already been through this flow"
             -else
               -trans "contacts who haven't already been through this flow"

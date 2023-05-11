@@ -639,10 +639,6 @@ class MailroomQueueTest(TembaTest):
                     "query": None,
                     "exclusions": {},
                     "params": {"foo": "bar"},
-                    # deprecated
-                    "restart_participants": True,
-                    "include_active": True,
-                    "extra": {"foo": "bar"},
                 },
                 "queued_on": matchers.ISODate(),
             },
