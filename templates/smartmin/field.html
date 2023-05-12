@@ -1,56 +1,40 @@
 {% load smartmin temba %}
-
 {% with form|field:field as form_field %}
-{% getblock "before_field_" field %}
-
-{% if form_field and form_field.is_hidden %}
-{{ form_field }}
-{% else %}
-{% if form_field %}
-
-{% get_label field as label %}
-<div class="control-group {% get_class field %} {% if form_field.errors %}error{% endif %}">
-
-  {% if form_field.field.widget.is_annotated %}
-  <div class="controls">
-    {% with view|field_help:field as help %}
-    {% annotated_field form_field label help %}
-    {% endwith %}
-  </div>
-
-  {% else %}
-  <label class="control-label" for="{{ field.name }}">{{label}}</label>
-  <div class="controls">
-
-    {% with view|field_help:field as help %}
+  {% getblock "before_field_" field %}
+  {% if form_field and form_field.is_hidden %}
     {{ form_field }}
-    {% if help %}
-    <p class="help-block">{{ help|safe }}</p>
+  {% else %}
+    {% if form_field %}
+      {% get_label field as label %}
+      <div class="control-group {% get_class field %} {% if form_field.errors %}error{% endif %}">
+        {% if form_field.field.widget.is_annotated %}
+          <div class="controls">
+            {% with view|field_help:field as help %}
+              {% annotated_field form_field label help %}
+            {% endwith %}
+          </div>
+        {% else %}
+          <label class="control-label" for="{{ field.name }}">{{ label }}</label>
+          <div class="controls">
+            {% with view|field_help:field as help %}
+              {{ form_field }}
+              {% if help %}<p class="help-block">{{ help|safe }}</p>{% endif %}
+            {% endwith %}
+            {% if form_field.errors %}<span class="help-block field-errors">{{ form_field.errors }}</span>{% endif %}
+          </div>
+        {% endif %}
+      </div>
+    {% else %}
+      <div class="control-group {% get_class field %}">
+        <label class="control-label" for="{{ field.name }}">{% get_label field %}</label>
+        <div class="controls">
+          <span class="uneditable-input">{% get_value_from_view field %}</span>
+          {% with view|field_help:field as help %}
+            {% if help %}<p class="help-block">{{ help }}</p>{% endif %}
+          {% endwith %}
+        </div>
+      </div>
     {% endif %}
-    {% endwith %}
-
-    {% if form_field.errors %}
-    <span class="help-block field-errors">{{ form_field.errors }}</span>
-    {% endif %}
-  </div>
   {% endif %}
-
-</div>
-{% else %}
-<div class="control-group {% get_class field %}">
-  <label class="control-label" for="{{ field.name }}">{% get_label field %}</label>
-  <div class="controls">
-    <span class="uneditable-input">{% get_value_from_view field %}</span>
-    {% with view|field_help:field as help %}
-    {% if help %}
-    <p class="help-block">{{ help }}</p>
-    {% endif %}
-    {% endwith %}
-  </div>
-</div>
-{% endif %}
-{% endif %}
-
-{% getblock "after_field_" field %}
-
+  {% getblock "after_field_" field %}
 {% endwith %}
