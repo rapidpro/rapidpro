@@ -1,38 +1,26 @@
 # General
 .DS_Store
 .idea
-.ipynb_checkpoints
-*.pyc
 *~
 .envrc
 .direnv
 .commit
 .ruff_cache
+.vscode/
+.venv
+*.sublime*
 
-rp-indexer
-
-# temba
-dump.rdb
 .coverage
-coverage_html_report
-env
-build
-config/gen
-config/settings.py
-coverage-report
+coverage.xml
 celerybeat-schedule.db
 celerybeat-schedule
-db
+deploy
+fabfile.py
 node_modules
-parser.out
+rp-indexer
 screenshots
 sitestatic
-static/javascripts/
 temba/settings.py
-temba/smartmin
-temba.db
-smartmin
-docs/
 
 # Exclude media folder except files used for import testing
 media/apks
@@ -47,66 +35,7 @@ media/test_orgs
 media/tmp
 media/attachments
 
-# External projects
-fabfile.py
-deploy
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-
-# C extensions
 *.so
-
-# Distribution / packaging
-.Python
-.venv/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
-
-# Unit test / coverage reports
-htmlcov/
-.coverage
-.cache
-nosetests.xml
-coverage.xml
-js-coverage/
-
-# Translations
-*.pot
-
-# Django stuff:
-*.log
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-target/
-/textit
-
-# sublime projects
-*.sublime*
-
-# VS Code projects
-.vscode/
-
-# autoenv
-.direnv/
