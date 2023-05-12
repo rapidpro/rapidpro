@@ -124,10 +124,6 @@ function fetchAjax(url, container, options) {
     });
 }
 
-document.addEventListener('temba-redirected', function (event) {
-  document.location.href = event.detail.url;
-});
-
 function goto(event, ele) {
   if (event.target != ele) {
     if (event.target.href) {
