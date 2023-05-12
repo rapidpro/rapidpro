@@ -1,3 +1,7 @@
+v8.1.147 (2023-05-12)
+-------------------------
+ * Fix flow refresh and global redirect hook
+
 v8.1.146 (2023-05-12)
 -------------------------
  * Add some null checks for frame selectors
