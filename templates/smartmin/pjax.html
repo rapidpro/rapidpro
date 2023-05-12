@@ -1,13 +1,13 @@
 {% load sms %}
 {% render as pjax %}
-{% block pjax %}
-{% endblock pjax %}
+  {% block pjax %}
+  {% endblock pjax %}
 {% endrender %}
 {% render as scripts %}
-{% block extra-script %}
-{% endblock extra-script %}
-{% block extra-style %}
-{% endblock extra-style %}
+  {% block extra-script %}
+  {% endblock extra-script %}
+  {% block extra-style %}
+  {% endblock extra-style %}
 {% endrender %}
 {% if 'HTTP_X_FORMAX' in request.META %}
   {{ scripts }}

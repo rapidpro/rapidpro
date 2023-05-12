@@ -51,22 +51,3 @@
     </div>
   {% endblock pjax %}
 {% endblock content %}
-{% block extra-script %}
-  {{ block.super }}
-  {% if javascript_submit %}
-    <script>
-      // attach a submit handler to the form
-      $("#smartmin_form").submit(function(event) {
-      
-        // stop form from submitting normally
-        event.preventDefault();
-        event.stopPropagation();
-
-        // get some values from elements on the page:
-        var form = $(this);
-        var data = form.serialize();
-        {{ javascript_submit }}(form, data);
-      });
-    </script>
-  {% endif %}
-{% endblock extra-script %}
