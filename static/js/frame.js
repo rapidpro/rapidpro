@@ -12,9 +12,11 @@ function onSpload(fn) {
     } else {
       if (isLoading) {
         var eventContainer = document.querySelector('.spa-content');
-        eventContainer.addEventListener('temba-spa-ready', fn, {
-          once: true,
-        });
+        if (eventContainer) {
+          eventContainer.addEventListener('temba-spa-ready', fn, {
+            once: true,
+          });
+        }
       } else {
         window.setTimeout(fn, 0);
       }
@@ -96,22 +98,23 @@ function fetchAjax(url, container, options) {
 
       response.text().then(function (body) {
         var containerEle = document.querySelector(container);
+        if (containerEle) {
+          // special care to unmount the editor
+          var editor = document.querySelector('#rp-flow-editor');
+          if (editor) {
+            window.unmountEditor(editor);
+          }
 
-        // special care to unmount the editor
-        var editor = document.querySelector('#rp-flow-editor');
-        if (editor) {
-          window.unmountEditor(editor);
-        }
+          setInnerHTML(containerEle, body);
+          var title = document.querySelector('#title-text');
+          if (title) {
+            document.title = title.innerText;
+          }
 
-        setInnerHTML(containerEle, body);
-        var title = document.querySelector('#title-text');
-        if (title) {
-          document.title = title.innerText;
-        }
-
-        if (options) {
-          if ('onSuccess' in options) {
-            options['onSuccess'](response);
+          if (options) {
+            if ('onSuccess' in options) {
+              options['onSuccess'](response);
+            }
           }
         }
       });
@@ -206,11 +209,17 @@ function goto(event, ele) {
   }
 }
 
+function addClass(selector, className) {
+  document.querySelectorAll(selector).forEach(function (ele) {
+    ele.classList.add(className);
+  });
+}
+
 function showLoading(full) {
   if (full) {
-    document.querySelector('.widget-container').classList.add('loading');
+    addClass('.widget-container', 'loading');
   } else {
-    document.querySelector('.spa-container').classList.add('loading');
+    addClass('.spa-container', 'loading');
   }
 }
 
@@ -223,7 +232,9 @@ function refreshMenu() {
 
 function refreshGlobals() {
   var store = document.querySelector('temba-store');
-  store.refreshGlobals();
+  if (store) {
+    store.refreshGlobals();
+  }
 }
 
 function hideLoading(response) {
@@ -237,7 +248,9 @@ function hideLoading(response) {
 
   // scroll our content to the top if needed
   var content = document.querySelector('.spa-content');
-  content.scrollTo(0, 0);
+  if (content) {
+    content.scrollTo(0, 0);
+  }
 
   var menu = document.querySelector('temba-menu');
   if (menu && response) {
@@ -248,7 +261,9 @@ function hideLoading(response) {
   }
 
   var eventContainer = document.querySelector('.spa-content');
-  eventContainer.dispatchEvent(new CustomEvent('temba-spa-ready'));
+  if (eventContainer) {
+    eventContainer.dispatchEvent(new CustomEvent('temba-spa-ready'));
+  }
   refreshMenu();
 }
 
@@ -292,13 +307,10 @@ function gotoURL(url, ignoreEvents, ignoreHistory) {
 
 function fetchURL(url, triggerEvents) {
   showLoading();
-  var refererPath = window.location.pathname;
-  var menu = document.querySelector('temba-menu');
   gotoURL(url, !triggerEvents);
 }
 
 function handleMenuClicked(event) {
-  var menu = document.querySelector('temba-menu');
   var items = event.detail;
 
   var item = items.item;
@@ -330,7 +342,10 @@ function handleMenuClicked(event) {
   if (parent && parent.id == 'workspace') {
     if (item.id == 'settings') {
       fetchURL("{% url 'orgs.org_workspace' %}");
-      document.querySelector('temba-menu').click();
+      var menu = document.querySelector('temba-menu');
+      if (menu) {
+        menu.click();
+      }
     } else if (item.posterize) {
       posterize(item.href);
     } else {
@@ -342,8 +357,6 @@ function handleMenuClicked(event) {
 function handleMenuChanged(event) {
   var selection = event.target.getSelection();
   var menuItem = event.target.getMenuItem();
-
-  var body = document.querySelector('.spa-content');
   if (menuItem && menuItem.href) {
     showLoading();
     gotoURL(menuItem.href);
@@ -363,31 +376,33 @@ function handleMenuChanged(event) {
 function showModax(header, endpoint, modaxOptions) {
   var options = modaxOptions || {};
   var modax = document.querySelector('temba-modax#shared-modax');
-  modax.className = options.id || '';
-  modax['-temba-loaded'] = undefined;
+  if (modax) {
+    modax.className = options.id || '';
+    modax['-temba-loaded'] = undefined;
 
-  modax.disabled = options.disabled == 'True';
-  var itemOnSubmit;
-  if (options.onSubmit == 'None') {
-    onSubmit = undefined;
+    modax.disabled = options.disabled == 'True';
+    var itemOnSubmit;
+    if (options.onSubmit == 'None') {
+      onSubmit = undefined;
+    }
+
+    if (options.onSubmit) {
+      modax['-temba-submitted'] = Function(options.onSubmit);
+    } else {
+      modax['-temba-submitted'] = undefined;
+    }
+
+    if (options.onRedirect) {
+      modax['-temba-redirected'] = Function(options.onRedirect);
+    } else {
+      modax['-temba-redirected'] = refreshMenu;
+    }
+
+    modax.headers = { 'TEMBA-SPA': 1 };
+    modax.header = header;
+    modax.endpoint = endpoint;
+    modax.open = true;
   }
-
-  if (options.onSubmit) {
-    modax['-temba-submitted'] = Function(options.onSubmit);
-  } else {
-    modax['-temba-submitted'] = undefined;
-  }
-
-  if (options.onRedirect) {
-    modax['-temba-redirected'] = Function(options.onRedirect);
-  } else {
-    modax['-temba-redirected'] = refreshMenu;
-  }
-
-  modax.headers = { 'TEMBA-SPA': 1 };
-  modax.header = header;
-  modax.endpoint = endpoint;
-  modax.open = true;
 }
 
 function handleWorkspaceChanged(orgId) {
@@ -465,20 +480,22 @@ document.addEventListener('DOMContentLoaded', function () {
           showLoading();
 
           var store = document.querySelector('temba-store');
-          store
-            .postUrl(url, formData, { 'TEMBA-SPA': '1' })
-            .then(function (response) {
-              var content = document.querySelector('.spa-content');
+          if (store) {
+            store
+              .postUrl(url, formData, { 'TEMBA-SPA': '1' })
+              .then(function (response) {
+                var content = document.querySelector('.spa-content');
 
-              // remove jquery use here
-              $(content).html(response.body);
+                // remove jquery use here
+                $(content).html(response.body);
 
-              if (response.redirected) {
-                addToHistory(response.url);
-              }
+                if (response.redirected) {
+                  addToHistory(response.url);
+                }
 
-              hideLoading(response);
-            });
+                hideLoading(response);
+              });
+          }
         }
       }
     });
@@ -611,27 +628,29 @@ function handlePosterizeClick(event) {
 
 function removalConfirmation(removal, buttonName) {
   var modal = document.querySelector('#general-delete-confirmation');
-  modal.classList.remove('hidden');
+  if (modal) {
+    modal.classList.remove('hidden');
 
-  // set modal deets
-  var title = document.querySelector('.' + removal + ' > .title').innerHTML;
-  var body = document.querySelector('.' + removal + ' > .body').innerHTML;
+    // set modal deets
+    var title = document.querySelector('.' + removal + ' > .title').innerHTML;
+    var body = document.querySelector('.' + removal + ' > .body').innerHTML;
 
-  modal.header = title;
-  modal.querySelector('.confirmation-body').innerHTML = body;
+    modal.header = title;
+    modal.querySelector('.confirmation-body').innerHTML = body;
 
-  modal.open = true;
+    modal.open = true;
 
-  modal.addEventListener('temba-button-clicked', function (event) {
-    if (!event.detail.button.secondary) {
-      var ele = document.querySelector('#' + removal + '-form');
-      handlePosterize(ele);
-    }
-    modal.open = false;
+    modal.addEventListener('temba-button-clicked', function (event) {
+      if (!event.detail.button.secondary) {
+        var ele = document.querySelector('#' + removal + '-form');
+        handlePosterize(ele);
+      }
+      modal.open = false;
 
-    // clear our listeners
-    modal.outerHTML = modal.outerHTML;
-  });
+      // clear our listeners
+      modal.outerHTML = modal.outerHTML;
+    });
+  }
 }
 
 function formatContact(item) {
