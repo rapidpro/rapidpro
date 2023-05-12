@@ -190,14 +190,16 @@
       }
     };
 
-    // wait for our component to load, then show the editor
-    if (window.showFlowEditor) {
-      window.showFlowEditor(document.getElementById("rp-flow-editor"), config);
-    } else {
-      document.addEventListener("temba-floweditor-loaded", function(){
+    onSpload(function(){
+      // wait for our component to load, then show the editor
+      if (window.showFlowEditor) {
         window.showFlowEditor(document.getElementById("rp-flow-editor"), config);
-      });
-    }
+      } else {
+        document.addEventListener("temba-floweditor-loaded", function(){
+          window.showFlowEditor(document.getElementById("rp-flow-editor"), config);
+        });
+      }
+    });
   
   
 -block alert-messages
