@@ -1,3 +1,7 @@
+v8.1.146 (2023-05-12)
+-------------------------
+ * Add some null checks for frame selectors
+
 v8.1.145 (2023-05-11)
 -------------------------
  * Fix width for other views and posterize on choose
