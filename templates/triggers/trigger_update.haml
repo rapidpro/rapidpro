@@ -23,11 +23,11 @@
 
 -block modal-script
   {{ block.super }}
+
+  {% if object.trigger_type == 'V' %}
+
   :javascript
     var body = document.querySelector("#update-trigger").getBody();
-
-    {% if object.trigger_type == 'V' %}
-
     var actionSelect = body.querySelector("temba-select[name='action']");
     var voiceFlow = body.querySelector(".voice-flow-container");
     var voiceFlowSelect = voiceFlow.querySelector("temba-select[name='voice_flow']");
@@ -46,8 +46,10 @@
       }
     });
 
-    {% elif object.trigger_type == 'S' %}
+  {% elif object.trigger_type == 'S' %}
 
+  :javascript
+    var body = document.querySelector("#update-trigger").getBody();
     var repeatPeriod = body.querySelector("#id_repeat_period");
     var repeatDays = body.querySelector(".repeat-days-container");
     repeatPeriod.addEventListener("change", function(event){
@@ -59,5 +61,5 @@
       }
     });
 
-    {% endif %}
+  {% endif %}
 
