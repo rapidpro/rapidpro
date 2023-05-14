@@ -1,3 +1,7 @@
+v8.1.149 (2023-05-14)
+-------------------------
+ * Fix signups
+
 v8.1.148 (2023-05-12)
 -------------------------
  * Fix backwards compat for send message to somebody else
