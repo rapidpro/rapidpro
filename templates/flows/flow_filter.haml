@@ -1,6 +1,5 @@
 -extends "flows/flow_list.haml"
--load smartmin sms temba compress
--load i18n
+-load smartmin sms temba compress i18n
 
 -block title-icon
   %span.title-icon
@@ -15,28 +14,3 @@
   -block gear-menu
     -include "spa_page_menu.haml"
   
--block post-content
-  {{ block.super }}
-  - if org_perms.flows.flowlabel_delete
-    .deletion.hide
-      .title
-        -trans "Remove Label"
-
-      .body
-        %p
-          -trans "Are you sure you want to remove this label?"
-        %p
-          %b {{ current_label }}
-          %p
-            -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
-
-      %a#delete-form.posterize{href:'{% url "flows.flowlabel_delete" current_label.pk %}'}
-
-    .deletion-fail.hide
-      .title
-        -trans "Remove Label"
-
-      .body
-        %p
-          -trans "You cannot remove a label which has child labels. Please remove all children first."
-
