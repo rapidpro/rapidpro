@@ -1929,6 +1929,7 @@ class FlowStart(models.Model):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flow_starts")
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="starts")
     start_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
+    status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
 
     # who to start
     groups = models.ManyToManyField(ContactGroup)
@@ -1937,44 +1938,23 @@ class FlowStart(models.Model):
     query = models.TextField(null=True)
     exclusions = models.JSONField(default=dict, null=True)
 
-    # the campaign event that started this flow start (if any)
-    campaign_event = models.ForeignKey(
-        "campaigns.CampaignEvent", null=True, on_delete=models.PROTECT, related_name="flow_starts"
-    )
-
-    # any IVR calls associated with this flow start
-    calls = models.ManyToManyField("ivr.Call", related_name="starts")
-
-    # the current status of this flow start
-    status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
-
-    # any extra parameters that should be passed as trigger params for this flow start
-    params = models.JSONField(null=True, default=dict)
-
-    # the parent run's summary if there is one
-    parent_summary = models.JSONField(null=True)
-
-    # the session history if there is some
-    session_history = models.JSONField(null=True)
-
-    # who created this flow start
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name="flow_starts"
-    )
-
-    # when this flow start was created
-    created_on = models.DateTimeField(default=timezone.now, editable=False)
-
-    # when this flow start was last modified
-    modified_on = models.DateTimeField(default=timezone.now, editable=False)
-
     # the number of de-duped contacts that might be started, depending on options above
     contact_count = models.IntegerField(default=0, null=True)
 
-    # TODO drop
-    restart_participants = models.BooleanField(default=True, null=True)
-    include_active = models.BooleanField(default=True, null=True)
-    extra = JSONAsTextField(null=True, default=dict)
+    campaign_event = models.ForeignKey(
+        "campaigns.CampaignEvent", null=True, on_delete=models.PROTECT, related_name="flow_starts"
+    )
+    calls = models.ManyToManyField("ivr.Call", related_name="starts")
+
+    params = models.JSONField(null=True, default=dict)
+    parent_summary = models.JSONField(null=True)
+    session_history = models.JSONField(null=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name="flow_starts"
+    )
+    created_on = models.DateTimeField(default=timezone.now)
+    modified_on = models.DateTimeField(default=timezone.now)
 
     @classmethod
     def create(
@@ -1991,9 +1971,6 @@ class FlowStart(models.Model):
         params=None,
         campaign_event=None,
     ):
-        if not exclusions:
-            exclusions = {}
-
         start = cls.objects.create(
             org=flow.org,
             flow=flow,
@@ -2001,8 +1978,8 @@ class FlowStart(models.Model):
             campaign_event=campaign_event,
             urns=list(urns),
             query=query,
-            exclusions=exclusions,
-            params=params,
+            exclusions=exclusions or {},
+            params=params or {},
             created_by=user,
         )
 

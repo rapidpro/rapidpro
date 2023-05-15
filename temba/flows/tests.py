@@ -2853,8 +2853,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         start = FlowStart.objects.get()
         self.assertEqual(flow, start.flow)
         self.assertEqual(FlowStart.STATUS_PENDING, start.status)
-        self.assertTrue(start.restart_participants)
-        self.assertTrue(start.include_active)
+        self.assertEqual({}, start.exclusions)
         self.assertEqual('name ~ "frank"', start.query)
 
         self.assertEqual(1, len(mr_mocks.queued_batch_tasks))
@@ -2895,8 +2894,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(flow, start.flow)
         self.assertEqual(FlowStart.TYPE_MANUAL, start.start_type)
         self.assertEqual(FlowStart.STATUS_PENDING, start.status)
-        self.assertTrue(start.restart_participants)
-        self.assertTrue(start.include_active)
+        self.assertEqual({}, start.exclusions)
 
         self.assertEqual(2, len(mr_mocks.queued_batch_tasks))
         self.assertEqual("start_flow", mr_mocks.queued_batch_tasks[1]["type"])
@@ -2916,8 +2914,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         start = FlowStart.objects.get()
         self.assertEqual(flow, start.flow)
         self.assertEqual(FlowStart.STATUS_PENDING, start.status)
-        self.assertTrue(start.restart_participants)  # should default to true
-        self.assertTrue(start.include_active)
+        self.assertEqual({}, start.exclusions)
         self.assertEqual('name ~ "frank"', start.query)
 
     def test_copy_view(self):
