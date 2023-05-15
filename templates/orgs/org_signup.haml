@@ -43,14 +43,16 @@
         -trans "Sign In"
 
 
--block scripts
-  %script{src:"{{ STATIC_URL }}bower/jsTimezoneDetect/jstz.js"}
+-block extra-script
   {{ block.super }}
+  %script{src:"{{ STATIC_URL }}bower/jsTimezoneDetect/jstz.js"}
 
   :javascript
-    window.addEventListener("DOMContentLoaded", function (){
+    onSpload(function(){
       var timezone = jstz.determine().name();
       document.getElementById("id_timezone").value = timezone;
     });
+  
+
 
 
