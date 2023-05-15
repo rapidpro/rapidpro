@@ -6,19 +6,12 @@
 -block styles
   {{block.super}}
   :css
-    .backsplash {
-      transform: translateY(-6em) rotate(-10deg) scale(3);
-      box-shadow: 0px 0px 2px 0px rgba(0,0,0,.05);
-      transition: all 200ms linear;
-    }
-
     .content-card {
-      transform: translateY(0em) scale(1);
-      box-shadow: 0px 0px 0px 0.75em rgba(var(--primary-rgb), .2);
-      transition: transform 200ms linear;
-      z-index: 1;
-      margin: 4em;
-      width: 90%;
+      margin-top: 8em;
+      border: none;
+      box-shadow: none;
+      border-radius: 0;
+      background: transparent;
     }
   
 -block page-container
@@ -26,9 +19,9 @@
     {{block.super}}
   
   -block extra-script
-    {{block.super}}
+    {{block.super}}  
   
-  .backsplash.bg-primary.w-full.h-64.absolute
+  .background
   .flex.flex-col.h-full  
     .top.flex-shrink.flex-grow
     .middle.flex.flex-row.mb-10
