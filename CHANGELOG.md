@@ -1,3 +1,7 @@
+v8.1.151 (2023-05-15)
+-------------------------
+ * Fix the API explorer scripts and styles blocks
+
 v8.1.150 (2023-05-15)
 -------------------------
  * Cleanup broken or unused posterized links
