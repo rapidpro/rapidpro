@@ -1,3 +1,8 @@
+v8.1.152 (2023-05-15)
+-------------------------
+ * Make js function name unique
+ * Fix no_nav extra-script blocks
+
 v8.1.151 (2023-05-15)
 -------------------------
  * Fix the API explorer scripts and styles blocks
