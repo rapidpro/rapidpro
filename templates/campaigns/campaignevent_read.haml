@@ -111,15 +111,6 @@
               .total
                 {{fired_event_fires_count}} more
 
-  -if org_perms.campaigns.campaignevent_delete
-    .deletion.hide
-      .title
-        Remove
-
-      .body
-        %p Are you sure you want to remove this event? Once the event is removed, it will be gone forever. This cannot be undone.
-      %a#delete-form.posterize{}
-
 -block extra-style
   {{block.super}}
 

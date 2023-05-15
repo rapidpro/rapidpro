@@ -8,4 +8,5 @@
   the contacts on the WhatsApp application. This may take a few minutes.
 
 .mt-4
-  %a.button-primary.inline-block.mt-2.posterize(href="{% url 'channels.types.whatsapp.refresh' channel.uuid %}") Refresh Contacts
+  %a.button-primary.inline-block.mt-2.posterize(href="{% url 'channels.types.whatsapp.refresh' channel.uuid %}" onclick="handlePosterizeClick(event)") 
+    -trans "Refresh Contacts"
