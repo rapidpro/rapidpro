@@ -107,7 +107,7 @@
 
         %pre.prettyprint.result.mb-0.mt-4.p-4(id="result-{{ endpoint.slug }}" style="margin-bottom:0;" )
 
--block scripts
+-block extra-script
   {{ block.super }}
   :javascript
     function handleToggle(event) {
@@ -158,7 +158,7 @@
       }
     }
 
--block styles
+-block extra-style
   {{ block.super }}
   :css
     .content-card {

@@ -1,52 +1,43 @@
 -extends "frame.haml"
 
 -load smartmin i18n
+-block header
 
 -block styles
   {{block.super}}
   :css
-    .login-logo {
-      width: 16em;
-
-    }
-
     .content-card {
-      margin: 4em;
-    }
-
-    .alert {
-      background: #f7f7f7;
+      margin-top: 8em;
       border: none;
-      color: rgba(0, 0, 0, 0.5);
-      text-shadow: none;
-      border-radius: 0px;
-      border-bottom: solid 1px #e2e2e2;
-      padding: 8px 22px;
-      margin: 0;
-      z-index: 10;
-      width: 100%;
+      box-shadow: none;
+      border-radius: 0;
+      background: transparent;
     }
   
 -block page-container
-  -if messages
-    -for msg in messages
-      %div{class:"alert alert-{{ message.tags }}"}
-        {{ msg }}
-
+  -block extra-style
+    {{block.super}}
+  
+  -block extra-script
+    {{block.super}}  
+  
+  .background
   .flex.flex-col.h-full  
     .top.flex-shrink.flex-grow
     .middle.flex.flex-row.mb-10
       .flex-grow
-      .content-card
-        .mb-4.login-logo
-          %a(href="/")
-            %img(src="{{STATIC_URL}}{{ brand.logo }}")
+      .card.content-card
+        .flex.items-center
+          .brand.flex-grow
+            <img class="no-nav-logo" style="max-height:4em;margin: 1em 0;" src="{{STATIC_URL}}{{ brand.logo }}">
+          .top-right
+            -block top-right
         .page-title
           -block title
         -block content
       .flex-grow
           
-    .bottom(style="flex-grow: 3")
+    .bottom(style="flex-grow: 8")
       .flex.flex-col.h-full
         .flex-grow
 
