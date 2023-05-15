@@ -2134,6 +2134,7 @@ class OrgCRUDL(SmartCRUDL):
                     role_summary.append(f"{num_users} {role.display_plural}")
 
             context["role_summary"] = role_summary
+            context["has_surveyor"] = "surveyor" in settings.FEATURES
             return context
 
     class ManageAccounts(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
