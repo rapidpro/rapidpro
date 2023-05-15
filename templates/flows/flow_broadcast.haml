@@ -78,148 +78,149 @@
 -block modal-script
   {{block.super}}
   :javascript
-
-    function resetWarnings() {
-      var modax = getModax("#start-flow");
-      var modalBody = modax.shadowRoot;
-  
-      var warnings = modalBody.querySelector(".warnings");
-      warnings.innerHTML = '';
-      warnings.classList.remove("opened");
-
-      var blockers = modalBody.querySelector(".blockers");
-      blockers.innerHTML = '';
-      blockers.classList.remove("opened");
-    }
-
-    function addClass(ele, className) {
-      ele.classList.add(className);
-    }
-
-    function removeClass(ele, className) {
-      ele.classList.remove(className);
-    }
-
-    function createQuery(omniValues) {
-      var operands = omniValues.map(function(value) {
-        if (value.type == "group") {
-          return "group = " + JSON.stringify(value.name);
-        } else {
-          return "uuid = " + JSON.stringify(value.id);
-        }
-      });
-      return operands.join(" OR ");
-    }
-
-    var modax = getModax("#start-flow");
-    var modalBody = modax.shadowRoot;
-    var queryField = modalBody.querySelector('.query');
-    var flowSelect = modalBody.querySelector("temba-select[name='flow']");
-    var queryWidget = queryField.querySelector("temba-contact-search");
-
-    var startForm = modalBody.querySelector('.start-form');
-    var omnibox = modalBody.querySelector('temba-omnibox');
-    var modeSelect = modalBody.querySelector("temba-select[name='mode']");
-
-    flowSelect.addEventListener("change", function(evt) {
-      var inFlowCheckbox = modalBody.querySelector("temba-checkbox[name='in_a_flow']");
-
-      var flowType = this.value.type;
-
-      if (flowType == 'B') {
-        inFlowCheckbox.style.display = "none";
-        // uncheck it if we need to
-        if (inFlowCheckbox.checked) {
-          inFlowCheckbox.click();
-        }
-      } else {
-        inFlowCheckbox.style.display = "block";
-      }
-
-      resetWarnings();
-      modax.disabled = true;
-      queryWidget.endpoint = "/flow/preview_start/" + this.value.value + "/";
-    });
-
-    queryWidget.addEventListener("temba-content-changed", function(e) {
-      resetWarnings();
-      
-      modax.disabled = e.detail.total == 0;
-
-      if (e.detail.blockers.length) {
-        var blockers = modalBody.querySelector(".blockers");
-        blockers.classList.add("opened");
-        e.detail.blockers.forEach(function(blocker) {
-          var alert = document.createElement("temba-alert");
-          alert.level = "error"
-          alert.innerHTML = blocker;
-          blockers.appendChild(alert);
-        });
-        modax.disabled = true;
-      } else if (e.detail.warnings.length) {
-        var warnings = modalBody.querySelector(".warnings");
-        warnings.classList.add("opened");
-        e.detail.warnings.forEach(function(warning) {
-          var alert = document.createElement("temba-alert");
-          alert.level = "warning"
-          alert.innerHTML = warning;
-          warnings.appendChild(alert);
-        });
-      }
-
-      modalBody.querySelector("input[name='query']").value = e.detail.query;
-    });
-
-    queryWidget.addEventListener("input", function(){
-      modax.disabled = true;
-    });
-
-    var handleDialogButton = function(event){
-
-      var modax = getModax("#start-flow");
-      var modalBody = modax.shadowRoot;
-
-      if (modax.suspendSubmit) {
-        event.stopPropagation();
-        event.preventDefault();
-        modax.suspendSubmit = false;
-      }
-    }
-
-    var dialog = modalBody.querySelector("temba-dialog");
-    if (!dialog.registered) {
-      dialog.addEventListener("temba-button-clicked", handleDialogButton);
-      dialog.registered = true;
-    }
+     {
+      const resetWarnings = function() {
+        var modax = getModax("#start-flow");
+        var modalBody = modax.shadowRoot;
     
-    omnibox.addEventListener("change", function(evt){
-      resetWarnings();
-      if (flowSelect.value && flowSelect.value.value) {
-        queryWidget.endpoint = "/flow/preview_start/" + flowSelect.value.value + "/";
+        var warnings = modalBody.querySelector(".warnings");
+        warnings.innerHTML = '';
+        warnings.classList.remove("opened");
+
+        var blockers = modalBody.querySelector(".blockers");
+        blockers.innerHTML = '';
+        blockers.classList.remove("opened");
       }
 
-      var query = createQuery(evt.target.getValues());
-      queryWidget.query = query;
-      if (query.trim().length == 0) {
+      const addClass = function(ele, className) {
+        ele.classList.add(className);
+      }
+
+      const removeClass = function(ele, className) {
+        ele.classList.remove(className);
+      }
+
+      const createQuery = function(omniValues) {
+        var operands = omniValues.map(function(value) {
+          if (value.type == "group") {
+            return "group = " + JSON.stringify(value.name);
+          } else {
+            return "uuid = " + JSON.stringify(value.id);
+          }
+        });
+        return operands.join(" OR ");
+      }
+
+      const modax = getModax("#start-flow");
+      const modalBody = modax.shadowRoot;
+      const queryField = modalBody.querySelector('.query');
+      const flowSelect = modalBody.querySelector("temba-select[name='flow']");
+      const queryWidget = queryField.querySelector("temba-contact-search");
+
+      const startForm = modalBody.querySelector('.start-form');
+      const omnibox = modalBody.querySelector('temba-omnibox');
+      const modeSelect = modalBody.querySelector("temba-select[name='mode']");
+
+      flowSelect.addEventListener("change", function(evt) {
+        var inFlowCheckbox = modalBody.querySelector("temba-checkbox[name='in_a_flow']");
+
+        var flowType = this.value.type;
+
+        if (flowType == 'B') {
+          inFlowCheckbox.style.display = "none";
+          // uncheck it if we need to
+          if (inFlowCheckbox.checked) {
+            inFlowCheckbox.click();
+          }
+        } else {
+          inFlowCheckbox.style.display = "block";
+        }
+
+        resetWarnings();
         modax.disabled = true;
-      }
-      omnibox.blur();
-    });
+        queryWidget.endpoint = "/flow/preview_start/" + this.value.value + "/";
+      });
 
-    modeSelect.addEventListener("change", function(evt) {
-      var selected = evt.target.values[0];
-      if (selected.value === "query") {
-        addClass(startForm, "query-mode");
-      } else {
-        removeClass(startForm, "query-mode");
-        var query = createQuery(omnibox.getValues());
+      queryWidget.addEventListener("temba-content-changed", function(e) {
+        resetWarnings();
+        
+        modax.disabled = e.detail.total == 0;
+
+        if (e.detail.blockers.length) {
+          var blockers = modalBody.querySelector(".blockers");
+          blockers.classList.add("opened");
+          e.detail.blockers.forEach(function(blocker) {
+            var alert = document.createElement("temba-alert");
+            alert.level = "error"
+            alert.innerHTML = blocker;
+            blockers.appendChild(alert);
+          });
+          modax.disabled = true;
+        } else if (e.detail.warnings.length) {
+          var warnings = modalBody.querySelector(".warnings");
+          warnings.classList.add("opened");
+          e.detail.warnings.forEach(function(warning) {
+            var alert = document.createElement("temba-alert");
+            alert.level = "warning"
+            alert.innerHTML = warning;
+            warnings.appendChild(alert);
+          });
+        }
+
+        modalBody.querySelector("input[name='query']").value = e.detail.query;
+      });
+
+      queryWidget.addEventListener("input", function(){
+        modax.disabled = true;
+      });
+
+      const handleDialogButton = function(event){
+
+        const modax = getModax("#start-flow");
+        const modalBody = modax.shadowRoot;
+
+        if (modax.suspendSubmit) {
+          event.stopPropagation();
+          event.preventDefault();
+          modax.suspendSubmit = false;
+        }
+      }
+
+      const dialog = modalBody.querySelector("temba-dialog");
+      if (!dialog.registered) {
+        dialog.addEventListener("temba-button-clicked", handleDialogButton);
+        dialog.registered = true;
+      }
+      
+      omnibox.addEventListener("change", function(evt){
+        resetWarnings();
+        if (flowSelect.value && flowSelect.value.value) {
+          queryWidget.endpoint = "/flow/preview_start/" + flowSelect.value.value + "/";
+        }
+
+        var query = createQuery(evt.target.getValues());
         queryWidget.query = query;
         if (query.trim().length == 0) {
           modax.disabled = true;
         }
         omnibox.blur();
-      }
-    });
+      });
 
+      modeSelect.addEventListener("change", function(evt) {
+        var selected = evt.target.values[0];
+        if (selected.value === "query") {
+          addClass(startForm, "query-mode");
+        } else {
+          removeClass(startForm, "query-mode");
+          var query = createQuery(omnibox.getValues());
+          queryWidget.query = query;
+          if (query.trim().length == 0) {
+            modax.disabled = true;
+          }
+          omnibox.blur();
+        }
+      });
+    }
+    
 
 
