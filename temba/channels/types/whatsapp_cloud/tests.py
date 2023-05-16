@@ -32,7 +32,7 @@ class WhatsAppCloudTypeTest(TembaTest):
         # remove any existing channels
         self.org.channels.update(is_active=False)
 
-        connect_whatsapp_cloud_url = reverse("orgs.org_whatsapp_cloud_connect")
+        connect_whatsapp_cloud_url = reverse("channels.types.whatsapp_cloud.connect")
         claim_whatsapp_cloud_url = reverse("channels.types.whatsapp_cloud.claim")
 
         # make sure plivo is on the claim page
@@ -129,7 +129,7 @@ class WhatsAppCloudTypeTest(TembaTest):
             )
 
             response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36))
-            self.assertIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+            self.assertIn(WhatsAppCloudType.SESSION_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
             self.assertEqual(response.url, claim_whatsapp_cloud_url)
 
             response = self.client.post(connect_whatsapp_cloud_url, dict(user_access_token="X" * 36), follow=True)
@@ -143,10 +143,10 @@ class WhatsAppCloudTypeTest(TembaTest):
 
         # make sure the token is set on the session
         session = self.client.session
-        session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
+        session[WhatsAppCloudType.SESSION_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
         session.save()
 
-        self.assertIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+        self.assertIn(WhatsAppCloudType.SESSION_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
         with patch("requests.get") as wa_cloud_get:
             with patch("requests.post") as wa_cloud_post:
@@ -169,14 +169,14 @@ class WhatsAppCloudTypeTest(TembaTest):
 
                 response = self.client.get(claim_whatsapp_cloud_url, follow=True)
 
-                self.assertFalse(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN in self.client.session)
+                self.assertFalse(WhatsAppCloudType.SESSION_WHATSAPP_CLOUD_USER_TOKEN in self.client.session)
 
         # make sure the token is set on the session
         session = self.client.session
-        session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
+        session[WhatsAppCloudType.SESSION_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
         session.save()
 
-        self.assertIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+        self.assertIn(WhatsAppCloudType.SESSION_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
         with patch("requests.get") as wa_cloud_get:
             with patch("requests.post") as wa_cloud_post:
@@ -313,7 +313,7 @@ class WhatsAppCloudTypeTest(TembaTest):
                 response = self.client.post(claim_whatsapp_cloud_url, post_data, follow=True)
                 self.assertEqual(200, response.status_code)
 
-                self.assertNotIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+                self.assertNotIn(WhatsAppCloudType.SESSION_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
                 self.assertEqual(3, wa_cloud_post.call_count)
 
@@ -394,10 +394,10 @@ class WhatsAppCloudTypeTest(TembaTest):
 
         # make sure the token is set on the session
         session = self.client.session
-        session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
+        session[WhatsAppCloudType.SESSION_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
         session.save()
 
-        self.assertIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+        self.assertIn(WhatsAppCloudType.SESSION_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
         with patch("requests.get") as wa_cloud_get:
             with patch("requests.post") as wa_cloud_post:
@@ -563,18 +563,18 @@ class WhatsAppCloudTypeTest(TembaTest):
         response = self.client.get(clear_session_token_url)
         self.assertEqual(200, response.status_code)
 
-        self.assertNotIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+        self.assertNotIn(WhatsAppCloudType.SESSION_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
         session = self.client.session
-        session[Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
+        session[WhatsAppCloudType.SESSION_WHATSAPP_CLOUD_USER_TOKEN] = "user-token"
         session.save()
 
-        self.assertIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+        self.assertIn(WhatsAppCloudType.SESSION_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
         response = self.client.get(clear_session_token_url)
         self.assertEqual(200, response.status_code)
 
-        self.assertNotIn(Channel.CONFIG_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
+        self.assertNotIn(WhatsAppCloudType.SESSION_WHATSAPP_CLOUD_USER_TOKEN, self.client.session)
 
     @override_settings(WHATSAPP_ADMIN_SYSTEM_USER_TOKEN="WA_ADMIN_TOKEN")
     @patch("requests.get")
