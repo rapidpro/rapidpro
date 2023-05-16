@@ -393,7 +393,7 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
     def has_org_perm(self, permission):
         if self.org:
             return self.get_user().is_beta  # only beta users are allowed
-        return False
+        return False  # pragma: no cover
 
     def pre_process(self, request, *args, **kwargs):
         session_token = self.request.session.get(self.channel_type.SESSION_WHATSAPP_CLOUD_USER_TOKEN, None)
