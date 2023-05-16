@@ -10,7 +10,6 @@ from temba.tests import TembaTest
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
 from .type import TwilioType
-from .views import SESSION_TWILIO_ACCOUNT_SID, SESSION_TWILIO_AUTH_TOKEN
 
 
 class TwilioTypeTest(TembaTest):
@@ -42,8 +41,8 @@ class TwilioTypeTest(TembaTest):
 
         # attach a Twilio account to the session
         session = self.client.session
-        session[SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
-        session[SESSION_TWILIO_AUTH_TOKEN] = "account-token"
+        session[TwilioType.SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
+        session[TwilioType.SESSION_TWILIO_AUTH_TOKEN] = "account-token"
         session.save()
 
         # hit the claim page, should now have a claim twilio link
@@ -137,8 +136,8 @@ class TwilioTypeTest(TembaTest):
                 self.assertTrue(channel_config[Channel.CONFIG_NUMBER_SID])
 
                 # no more credential in the session
-                self.assertNotIn(SESSION_TWILIO_ACCOUNT_SID, self.client.session)
-                self.assertNotIn(SESSION_TWILIO_AUTH_TOKEN, self.client.session)
+                self.assertNotIn(TwilioType.SESSION_TWILIO_ACCOUNT_SID, self.client.session)
+                self.assertNotIn(TwilioType.SESSION_TWILIO_AUTH_TOKEN, self.client.session)
 
         response = self.client.get(reverse("channels.types.twilio.connect"))
         self.assertEqual(302, response.status_code)
@@ -152,8 +151,8 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         session = self.client.session
-        session[SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
-        session[SESSION_TWILIO_AUTH_TOKEN] = "account-token"
+        session[TwilioType.SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
+        session[TwilioType.SESSION_TWILIO_AUTH_TOKEN] = "account-token"
         session.save()
 
         with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
@@ -193,8 +192,8 @@ class TwilioTypeTest(TembaTest):
                 self.assertTrue(channel_config[Channel.CONFIG_NUMBER_SID])
 
         session = self.client.session
-        session[SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
-        session[SESSION_TWILIO_AUTH_TOKEN] = "account-token"
+        session[TwilioType.SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
+        session[TwilioType.SESSION_TWILIO_AUTH_TOKEN] = "account-token"
         session.save()
 
         # voice only number
@@ -228,8 +227,8 @@ class TwilioTypeTest(TembaTest):
                     self.assertEqual(channel.tps, 10)
 
         session = self.client.session
-        session[SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
-        session[SESSION_TWILIO_AUTH_TOKEN] = "account-token"
+        session[TwilioType.SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
+        session[TwilioType.SESSION_TWILIO_AUTH_TOKEN] = "account-token"
         session.save()
 
         with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
@@ -253,8 +252,8 @@ class TwilioTypeTest(TembaTest):
                 self.assertEqual(channel.tps, 10)
 
         session = self.client.session
-        session[SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
-        session[SESSION_TWILIO_AUTH_TOKEN] = "account-token"
+        session[TwilioType.SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
+        session[TwilioType.SESSION_TWILIO_AUTH_TOKEN] = "account-token"
         session.save()
 
         with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
@@ -425,10 +424,10 @@ class TwilioTypeTest(TembaTest):
 
             response = self.client.post(connect_url, post_data)
 
-            self.assertIn(SESSION_TWILIO_ACCOUNT_SID, self.client.session)
-            self.assertIn(SESSION_TWILIO_AUTH_TOKEN, self.client.session)
-            self.assertEqual(self.client.session[SESSION_TWILIO_ACCOUNT_SID], "AccountSid")
-            self.assertEqual(self.client.session[SESSION_TWILIO_AUTH_TOKEN], "AccountToken")
+            self.assertIn(TwilioType.SESSION_TWILIO_ACCOUNT_SID, self.client.session)
+            self.assertIn(TwilioType.SESSION_TWILIO_AUTH_TOKEN, self.client.session)
+            self.assertEqual(self.client.session[TwilioType.SESSION_TWILIO_ACCOUNT_SID], "AccountSid")
+            self.assertEqual(self.client.session[TwilioType.SESSION_TWILIO_AUTH_TOKEN], "AccountToken")
 
             # when the user submit the secondary token, we use it to get the primary one from the rest API
             with patch("temba.tests.twilio.MockTwilioClient.MockAccounts.get") as mock_get_primary:
@@ -442,10 +441,10 @@ class TwilioTypeTest(TembaTest):
                     response = self.client.post(connect_url, post_data, follow=True)
                     self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio.claim"))
 
-                    self.assertIn(SESSION_TWILIO_ACCOUNT_SID, self.client.session)
-                    self.assertIn(SESSION_TWILIO_AUTH_TOKEN, self.client.session)
-                    self.assertEqual(self.client.session[SESSION_TWILIO_ACCOUNT_SID], "AccountSid")
-                    self.assertEqual(self.client.session[SESSION_TWILIO_AUTH_TOKEN], "PrimaryAccountToken")
+                    self.assertIn(TwilioType.SESSION_TWILIO_ACCOUNT_SID, self.client.session)
+                    self.assertIn(TwilioType.SESSION_TWILIO_AUTH_TOKEN, self.client.session)
+                    self.assertEqual(self.client.session[TwilioType.SESSION_TWILIO_ACCOUNT_SID], "AccountSid")
+                    self.assertEqual(self.client.session[TwilioType.SESSION_TWILIO_AUTH_TOKEN], "PrimaryAccountToken")
 
                     response = self.client.post(
                         f'{reverse("channels.types.twilio.connect")}?claim_type=twilio', post_data, follow=True

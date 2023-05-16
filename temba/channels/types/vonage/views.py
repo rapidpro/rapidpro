@@ -246,14 +246,6 @@ SUPPORTED_COUNTRIES = {
 COUNTRY_CHOICES = countries.choices(SUPPORTED_COUNTRIES)
 CALLING_CODES = countries.calling_codes(SUPPORTED_COUNTRIES)
 
-SESSION_VONAGE_API_KEY = "VONAGE_API_KEY"
-SESSION_VONAGE_API_SECRET = "VONAGE_API_SECRET"
-
-CONFIG_VONAGE_API_KEY = "nexmo_api_key"
-CONFIG_VONAGE_API_SECRET = "nexmo_api_secret"
-CONFIG_VONAGE_APP_ID = "nexmo_app_id"
-CONFIG_VONAGE_APP_PRIVATE_KEY = "nexmo_app_private_key"
-
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
@@ -280,8 +272,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             return HttpResponseRedirect(reverse("channels.types.vonage.connect"))
 
     def get_vonage_client(self):
-        api_key = self.request.session.get(SESSION_VONAGE_API_KEY, None)
-        api_secret = self.request.session.get(SESSION_VONAGE_API_SECRET, None)
+        api_key = self.request.session.get(self.channel_type.SESSION_VONAGE_API_KEY, None)
+        api_secret = self.request.session.get(self.channel_type.SESSION_VONAGE_API_SECRET, None)
 
         if api_key and api_secret:
             return VonageClient(api_key, api_secret)
@@ -323,7 +315,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["current_creds_account"] = self.request.session.get(SESSION_VONAGE_API_KEY, None)
+        context["current_creds_account"] = self.request.session.get(self.channel_type.SESSION_VONAGE_API_KEY, None)
 
         return context
 
@@ -406,10 +398,14 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             vonage_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip("+")
 
         config = {
-            CONFIG_VONAGE_APP_ID: app_id,
-            CONFIG_VONAGE_APP_PRIVATE_KEY: app_private_key,
-            CONFIG_VONAGE_API_KEY: self.request.session.get(SESSION_VONAGE_API_KEY),
-            CONFIG_VONAGE_API_SECRET: self.request.session.get(SESSION_VONAGE_API_SECRET),
+            self.channel_type.CONFIG_VONAGE_APP_ID: app_id,
+            self.channel_type.CONFIG_VONAGE_APP_PRIVATE_KEY: app_private_key,
+            self.channel_type.CONFIG_VONAGE_API_KEY: self.request.session.get(
+                self.channel_type.SESSION_VONAGE_API_KEY
+            ),
+            self.channel_type.CONFIG_VONAGE_API_SECRET: self.request.session.get(
+                self.channel_type.SESSION_VONAGE_API_SECRET
+            ),
             Channel.CONFIG_CALLBACK_DOMAIN: callback_domain,
         }
 
@@ -443,8 +439,8 @@ class SearchView(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
     permission = "channels.channel_claim"
 
     def get_vonage_client(self):
-        api_key = self.request.session.get(SESSION_VONAGE_API_KEY, None)
-        api_secret = self.request.session.get(SESSION_VONAGE_API_SECRET, None)
+        api_key = self.request.session.get(self.channel_type.SESSION_VONAGE_API_KEY, None)
+        api_secret = self.request.session.get(self.channel_type.SESSION_VONAGE_API_SECRET, None)
 
         if api_key and api_secret:
             return VonageClient(api_key, api_secret)
@@ -509,9 +505,11 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
         )
 
         if last_vonage_channel and not reset_creds:
-            self.request.session[SESSION_VONAGE_API_KEY] = last_vonage_channel.config.get(CONFIG_VONAGE_API_KEY, "")
-            self.request.session[SESSION_VONAGE_API_SECRET] = last_vonage_channel.config.get(
-                CONFIG_VONAGE_API_SECRET, ""
+            self.request.session[self.channel_type.SESSION_VONAGE_API_KEY] = last_vonage_channel.config.get(
+                self.channel_type.CONFIG_VONAGE_API_KEY, ""
+            )
+            self.request.session[self.channel_type.SESSION_VONAGE_API_SECRET] = last_vonage_channel.config.get(
+                self.channel_type.CONFIG_VONAGE_API_SECRET, ""
             )
             return HttpResponseRedirect(self.get_success_url())
 
@@ -522,7 +520,7 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
         api_secret = form.cleaned_data["api_secret"]
 
         # add the credentials to the session
-        self.request.session[SESSION_VONAGE_API_KEY] = api_key
-        self.request.session[SESSION_VONAGE_API_SECRET] = api_secret
+        self.request.session[self.channel_type.SESSION_VONAGE_API_KEY] = api_key
+        self.request.session[self.channel_type.SESSION_VONAGE_API_SECRET] = api_secret
 
         return HttpResponseRedirect(self.get_success_url())

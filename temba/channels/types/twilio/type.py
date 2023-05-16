@@ -16,6 +16,9 @@ class TwilioType(ChannelType):
     An Twilio channel
     """
 
+    SESSION_TWILIO_ACCOUNT_SID = "TWILIO_ACCOUNT_SID"
+    SESSION_TWILIO_AUTH_TOKEN = "TWILIO_AUTH_TOKEN"
+
     code = "T"
     category = ChannelType.Category.PHONE
     show_config_page = False

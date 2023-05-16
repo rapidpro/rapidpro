@@ -9,7 +9,7 @@ from temba.tests import TembaTest
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
 
 from .type import TwilioMessagingServiceType
-from .views import COUNTRY_CHOICES, SESSION_TWILIO_ACCOUNT_SID, SESSION_TWILIO_AUTH_TOKEN
+from .views import COUNTRY_CHOICES
 
 
 class TwilioMessagingServiceTypeTest(TembaTest):
@@ -34,8 +34,8 @@ class TwilioMessagingServiceTypeTest(TembaTest):
         self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio.connect"))
 
         session = self.client.session
-        session[SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
-        session[SESSION_TWILIO_AUTH_TOKEN] = "account-token"
+        session[TwilioMessagingServiceType.SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
+        session[TwilioMessagingServiceType.SESSION_TWILIO_AUTH_TOKEN] = "account-token"
         session.save()
 
         response = self.client.get(reverse("channels.channel_claim"))
@@ -91,8 +91,8 @@ class TwilioMessagingServiceTypeTest(TembaTest):
         self.assertContains(response, reverse("courier.tms", args=[channel.uuid, "receive"]))
 
         # no more credential in the session
-        self.assertNotIn(SESSION_TWILIO_ACCOUNT_SID, self.client.session)
-        self.assertNotIn(SESSION_TWILIO_AUTH_TOKEN, self.client.session)
+        self.assertNotIn(TwilioMessagingServiceType.SESSION_TWILIO_ACCOUNT_SID, self.client.session)
+        self.assertNotIn(TwilioMessagingServiceType.SESSION_TWILIO_AUTH_TOKEN, self.client.session)
 
     def test_get_error_ref_url(self):
         self.assertEqual(

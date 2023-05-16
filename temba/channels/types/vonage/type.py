@@ -6,15 +6,7 @@ from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
 from .client import VonageClient
-from .views import (
-    CONFIG_VONAGE_API_KEY,
-    CONFIG_VONAGE_API_SECRET,
-    CONFIG_VONAGE_APP_ID,
-    ClaimView,
-    Connect,
-    SearchView,
-    UpdateForm,
-)
+from .views import ClaimView, Connect, SearchView, UpdateForm
 
 RECOMMENDED_COUNTRIES = {
     "US",
@@ -56,6 +48,14 @@ class VonageType(ChannelType):
         cancelled: The call was not answered
         busy: The number being dialled was on another call
     """
+
+    SESSION_VONAGE_API_KEY = "VONAGE_API_KEY"
+    SESSION_VONAGE_API_SECRET = "VONAGE_API_SECRET"
+
+    CONFIG_VONAGE_API_KEY = "nexmo_api_key"
+    CONFIG_VONAGE_API_SECRET = "nexmo_api_secret"
+    CONFIG_VONAGE_APP_ID = "nexmo_app_id"
+    CONFIG_VONAGE_APP_PRIVATE_KEY = "nexmo_app_private_key"
 
     code = "NX"
     category = ChannelType.Category.PHONE
@@ -103,9 +103,9 @@ class VonageType(ChannelType):
         return timezone_to_country_code(org.timezone) in RECOMMENDED_COUNTRIES
 
     def deactivate(self, channel):
-        app_id = channel.config.get(CONFIG_VONAGE_APP_ID)
-        api_key = channel.config.get(CONFIG_VONAGE_API_KEY)
-        api_secret = channel.config.get(CONFIG_VONAGE_API_SECRET)
+        app_id = channel.config.get(self.CONFIG_VONAGE_APP_ID)
+        api_key = channel.config.get(self.CONFIG_VONAGE_API_KEY)
+        api_secret = channel.config.get(self.CONFIG_VONAGE_API_SECRET)
         if api_key and api_secret and app_id:
             client = VonageClient(api_key=api_key, api_secret=api_secret)
             client.delete_application(app_id)
