@@ -1071,9 +1071,11 @@ class OrgTest(TembaTest):
         mock_async_start.assert_called_once()
 
     def test_accounts(self):
-        url = reverse("orgs.org_accounts")
+        accounts_url = reverse("orgs.org_accounts")
+
         self.login(self.admin)
-        response = self.client.get(url)
+
+        response = self.client.get(accounts_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "If you use the RapidPro Surveyor application to run flows offline")
 
@@ -1086,15 +1088,20 @@ class OrgTest(TembaTest):
             surveyor_password="nyaruka",
         )
 
-        response = self.client.post(url, dict(surveyor_password="nyaruka"))
+        response = self.client.post(accounts_url, {"surveyor_password": "nyaruka"})
         self.org.refresh_from_db()
         self.assertContains(response, "This password is not valid. Choose a new password and try again.")
         self.assertIsNone(self.org.surveyor_password)
 
         # now try again, but with a unique password
-        response = self.client.post(url, dict(surveyor_password="unique password"))
+        response = self.client.post(accounts_url, {"surveyor_password": "unique password"})
         self.org.refresh_from_db()
         self.assertEqual("unique password", self.org.surveyor_password)
+
+        # if surveyor feature disabled, don't show password field
+        with override_settings(FEATURES={}):
+            response = self.client.get(accounts_url)
+            self.assertNotContains(response, "Surveyor application")
 
         # add an extra editor
         editor = self.create_user("EditorTwo")
@@ -1102,7 +1109,7 @@ class OrgTest(TembaTest):
         self.surveyor.delete()
 
         # fetch it as a formax so we can inspect the summary
-        response = self.client.get(url, HTTP_X_FORMAX=1, HTTP_X_PJAX=1)
+        response = self.client.get(accounts_url, HTTP_X_FORMAX=1, HTTP_X_PJAX=1)
         self.assertContains(response, "1 Administrator, 2 Editors, 1 Viewer, and 1 Agent.")
 
     def test_refresh_tokens(self):

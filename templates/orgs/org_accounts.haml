@@ -11,13 +11,12 @@
     .button-light(onclick="goto(event)" href="{%url 'orgs.org_manage_accounts'%}")
       -trans "Manage Logins"
 
-  .mt-8
-
-  .mb-3
-    -blocktrans trimmed with brand=brand.name
-      If you use the {{ brand }} Surveyor application to run flows offline, we recommend enabling
-      users to create accounts from within the Android application. Setting a Surveyor password will
-      allow anybody with that password to join your workspace as a surveyor.
+  -if has_surveyor
+    .mt-8.mb-3
+      -blocktrans trimmed with brand=brand.name
+        If you use the {{ brand }} Surveyor application to run flows offline, we recommend enabling
+        users to create accounts from within the Android application. Setting a Surveyor password will
+        allow anybody with that password to join your workspace as a surveyor.
 
 -block summary
   -trans "Your workspace has"
