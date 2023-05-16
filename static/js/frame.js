@@ -205,7 +205,7 @@ function goto(event, ele) {
   }
 }
 
-function addClassForSelector(selector, className) {
+function addClass(selector, className) {
   document.querySelectorAll(selector).forEach(function (ele) {
     ele.classList.add(className);
   });
@@ -213,9 +213,9 @@ function addClassForSelector(selector, className) {
 
 function showLoading(full) {
   if (full) {
-    addClassForSelector('.widget-container', 'loading');
+    addClass('.widget-container', 'loading');
   } else {
-    addClassForSelector('.spa-container', 'loading');
+    addClass('.spa-container', 'loading');
   }
 }
 
