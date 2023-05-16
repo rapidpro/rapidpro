@@ -68,7 +68,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         data = form.cleaned_data
 
         config = {
-            Channel.CONFIG_MESSAGING_SERVICE_SID: data["messaging_service_sid"],
+            self.channel_type.CONFIG_MESSAGING_SERVICE_SID: data["messaging_service_sid"],
             Channel.CONFIG_ACCOUNT_SID: self.request.session.get(self.channel_type.SESSION_TWILIO_ACCOUNT_SID),
             Channel.CONFIG_AUTH_TOKEN: self.request.session.get(self.channel_type.SESSION_TWILIO_AUTH_TOKEN),
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
