@@ -337,7 +337,7 @@ function handleMenuClicked(event) {
   // clicked inside our workspace popup
   if (parent && parent.id == 'workspace') {
     if (item.id == 'settings') {
-      fetchURL("/org/workspace");
+      fetchURL('/org/workspace');
       var menu = document.querySelector('temba-menu');
       if (menu) {
         menu.click();
@@ -469,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function () {
         evt.stopPropagation();
         evt.preventDefault();
 
-        if (url.indexOf("/org/service") > -1) {
+        if (url.indexOf('/org/service') > -1) {
           formEle.submit();
         } else {
           var formData = new FormData(formEle);
@@ -674,8 +674,8 @@ function createContactChoice(term, data) {
 
 function handleNewWorkspaceClicked(evt) {
   var modal = getModax();
-  modal.header = '{{_("New Workspace")|escapejs}}';
-  modal.setAttribute('endpoint', "/org/create");
+  modal.header = 'New Workspace';
+  modal.setAttribute('endpoint', '/org/create');
   modal.open = true;
 
   evt.preventDefault();
