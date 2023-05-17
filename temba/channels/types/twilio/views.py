@@ -131,13 +131,13 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             account_trial = self.account.type.lower() == "trial"
 
         context["account_trial"] = account_trial
-        context["current_creds_account"] = self.request.session.get(self.channel_type.SESSION_TWILIO_ACCOUNT_SID, None)
+        context["current_creds_account"] = self.request.session.get(self.channel_type.SESSION_ACCOUNT_SID, None)
 
         return context
 
     def get_twilio_client(self):
-        account_sid = self.request.session.get(self.channel_type.SESSION_TWILIO_ACCOUNT_SID, None)
-        account_token = self.request.session.get(self.channel_type.SESSION_TWILIO_AUTH_TOKEN, None)
+        account_sid = self.request.session.get(self.channel_type.SESSION_ACCOUNT_SID, None)
+        account_token = self.request.session.get(self.channel_type.SESSION_AUTH_TOKEN, None)
 
         if account_sid and account_token:
             return TwilioClient(account_sid, account_token)
@@ -247,8 +247,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         config = {
             Channel.CONFIG_APPLICATION_SID: new_app.sid,
             Channel.CONFIG_NUMBER_SID: number_sid,
-            Channel.CONFIG_ACCOUNT_SID: self.request.session.get(self.channel_type.SESSION_TWILIO_ACCOUNT_SID),
-            Channel.CONFIG_AUTH_TOKEN: self.request.session.get(self.channel_type.SESSION_TWILIO_AUTH_TOKEN),
+            Channel.CONFIG_ACCOUNT_SID: self.request.session.get(self.channel_type.SESSION_ACCOUNT_SID),
+            Channel.CONFIG_AUTH_TOKEN: self.request.session.get(self.channel_type.SESSION_AUTH_TOKEN),
             Channel.CONFIG_CALLBACK_DOMAIN: callback_domain,
         }
 
@@ -268,10 +268,10 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return channel
 
     def remove_api_credentials_from_session(self):
-        if self.channel_type.SESSION_TWILIO_ACCOUNT_SID in self.request.session:
-            del self.request.session[self.channel_type.SESSION_TWILIO_ACCOUNT_SID]
-        if self.channel_type.SESSION_TWILIO_AUTH_TOKEN in self.request.session:
-            del self.request.session[self.channel_type.SESSION_TWILIO_AUTH_TOKEN]
+        if self.channel_type.SESSION_ACCOUNT_SID in self.request.session:
+            del self.request.session[self.channel_type.SESSION_ACCOUNT_SID]
+        if self.channel_type.SESSION_AUTH_TOKEN in self.request.session:
+            del self.request.session[self.channel_type.SESSION_AUTH_TOKEN]
 
 
 class SearchView(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
@@ -286,8 +286,8 @@ class SearchView(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
         return JsonResponse([], safe=False)
 
     def get_twilio_client(self):
-        account_sid = self.request.session.get(self.channel_type.SESSION_TWILIO_ACCOUNT_SID, None)
-        account_token = self.request.session.get(self.channel_type.SESSION_TWILIO_AUTH_TOKEN, None)
+        account_sid = self.request.session.get(self.channel_type.SESSION_ACCOUNT_SID, None)
+        account_token = self.request.session.get(self.channel_type.SESSION_AUTH_TOKEN, None)
 
         if account_sid and account_token:
             return TwilioClient(account_sid, account_token)
@@ -437,10 +437,10 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
 
         if last_twilio_channel and not reset_creds:
             # add the credentials to the session
-            self.request.session[self.channel_type.SESSION_TWILIO_ACCOUNT_SID] = last_twilio_channel.config.get(
+            self.request.session[self.channel_type.SESSION_ACCOUNT_SID] = last_twilio_channel.config.get(
                 Channel.CONFIG_ACCOUNT_SID, ""
             )
-            self.request.session[self.channel_type.SESSION_TWILIO_AUTH_TOKEN] = last_twilio_channel.config.get(
+            self.request.session[self.channel_type.SESSION_AUTH_TOKEN] = last_twilio_channel.config.get(
                 Channel.CONFIG_AUTH_TOKEN, ""
             )
 
@@ -466,7 +466,7 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
         account_token = form.cleaned_data["account_token"]
 
         # add the credentials to the session
-        self.request.session[self.channel_type.SESSION_TWILIO_ACCOUNT_SID] = account_sid
-        self.request.session[self.channel_type.SESSION_TWILIO_AUTH_TOKEN] = account_token
+        self.request.session[self.channel_type.SESSION_ACCOUNT_SID] = account_sid
+        self.request.session[self.channel_type.SESSION_AUTH_TOKEN] = account_token
 
         return HttpResponseRedirect(self.get_success_url())

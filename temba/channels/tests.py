@@ -281,8 +281,8 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             "NX",
             name="Vonage Sender",
             config={
-                VonageType.CONFIG_VONAGE_API_KEY: "key",
-                VonageType.CONFIG_VONAGE_API_SECRET: "secret",
+                VonageType.CONFIG_API_KEY: "key",
+                VonageType.CONFIG_API_SECRET: "secret",
                 Channel.CONFIG_CALLBACK_DOMAIN: self.org.get_brand_domain(),
             },
             tps=1,
@@ -1244,8 +1244,8 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             "NX",
             name="Vonage Sender",
             config={
-                VonageType.CONFIG_VONAGE_API_KEY: "key",
-                VonageType.CONFIG_VONAGE_API_SECRET: "secret",
+                VonageType.CONFIG_API_KEY: "key",
+                VonageType.CONFIG_API_SECRET: "secret",
                 Channel.CONFIG_CALLBACK_DOMAIN: self.org.get_brand_domain(),
             },
             tps=1,

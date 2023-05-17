@@ -34,8 +34,8 @@ class TwilioWhatsappTypeTest(TembaTest):
 
         # attach a Twilio account to the session
         session = self.client.session
-        session[TwilioWhatsappType.SESSION_TWILIO_ACCOUNT_SID] = "account-sid"
-        session[TwilioWhatsappType.SESSION_TWILIO_AUTH_TOKEN] = "account-token"
+        session[TwilioWhatsappType.SESSION_ACCOUNT_SID] = "account-sid"
+        session[TwilioWhatsappType.SESSION_AUTH_TOKEN] = "account-token"
         session.save()
 
         # hit the claim page, should now have a claim twilio link
@@ -130,8 +130,8 @@ class TwilioWhatsappTypeTest(TembaTest):
                 self.assertEqual(channel.role, Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
 
                 # no more credential in the session
-                self.assertNotIn(TwilioWhatsappType.SESSION_TWILIO_ACCOUNT_SID, self.client.session)
-                self.assertNotIn(TwilioWhatsappType.SESSION_TWILIO_AUTH_TOKEN, self.client.session)
+                self.assertNotIn(TwilioWhatsappType.SESSION_ACCOUNT_SID, self.client.session)
+                self.assertNotIn(TwilioWhatsappType.SESSION_AUTH_TOKEN, self.client.session)
 
         twilio_channel = self.org.channels.all().first()
         # make channel support both sms and voice to check we clear both applications
