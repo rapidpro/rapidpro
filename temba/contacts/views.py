@@ -1324,9 +1324,6 @@ class ContactCRUDL(SmartCRUDL):
         fields = ()
         success_message = ""
 
-        def get_success_url(self):
-            return self.request.headers.get("referer")
-
         def save(self, obj):
             obj.interrupt(self.request.user)
             return obj

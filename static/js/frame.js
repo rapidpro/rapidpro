@@ -428,14 +428,21 @@ document.addEventListener('temba-pjax-complete', function () {
   handleUpdateComplete();
 });
 
-window.addEventListener('popstate', function (event) {
-  let state = event.state;
+function loadFromState(state) {
   if (state && state.url) {
     showLoading();
 
     var url = state.url;
     gotoURL(url, false, true);
   }
+}
+
+function reloadContent() {
+  loadFromState(history.state);
+}
+
+window.addEventListener('popstate', function (event) {
+  loadFromState(event.state);
 });
 
 document.addEventListener('DOMContentLoaded', function () {
