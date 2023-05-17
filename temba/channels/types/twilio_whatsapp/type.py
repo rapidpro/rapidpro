@@ -13,6 +13,9 @@ class TwilioWhatsappType(ChannelType):
     An Twilio channel
     """
 
+    SESSION_ACCOUNT_SID = TwilioType.SESSION_ACCOUNT_SID
+    SESSION_AUTH_TOKEN = TwilioType.SESSION_AUTH_TOKEN
+
     code = "TWA"
     category = ChannelType.Category.SOCIAL_MEDIA
 

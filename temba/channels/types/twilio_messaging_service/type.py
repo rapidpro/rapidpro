@@ -14,6 +14,11 @@ class TwilioMessagingServiceType(ChannelType):
     An Twilio Messaging Service channel
     """
 
+    SESSION_ACCOUNT_SID = TwilioType.SESSION_ACCOUNT_SID
+    SESSION_AUTH_TOKEN = TwilioType.SESSION_AUTH_TOKEN
+
+    CONFIG_MESSAGING_SERVICE_SID = "messaging_service_sid"
+
     code = "TMS"
     category = ChannelType.Category.PHONE
 

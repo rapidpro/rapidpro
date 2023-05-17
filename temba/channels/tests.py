@@ -17,6 +17,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes
 
+from temba.channels.types.vonage import VonageType
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.ivr.models import Call
 from temba.msgs.models import Msg
@@ -269,8 +270,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
     @mock_mailroom
     def test_release_android(self, mr_mocks):
-        from temba.channels.types.vonage.views import CONFIG_VONAGE_API_KEY, CONFIG_VONAGE_API_SECRET
-
         android = self.claim_new_android()
         self.assertEqual("FCM111", android.config.get(Channel.CONFIG_FCM_ID))
 
@@ -282,8 +281,8 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             "NX",
             name="Vonage Sender",
             config={
-                CONFIG_VONAGE_API_KEY: "key",
-                CONFIG_VONAGE_API_SECRET: "secret",
+                VonageType.CONFIG_API_KEY: "key",
+                VonageType.CONFIG_API_SECRET: "secret",
                 Channel.CONFIG_CALLBACK_DOMAIN: self.org.get_brand_domain(),
             },
             tps=1,
@@ -1235,8 +1234,6 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotIn(self.ex_channel, flow.channel_dependencies.all())
 
     def test_delete_delegate(self):
-        from temba.channels.types.vonage.views import CONFIG_VONAGE_API_KEY, CONFIG_VONAGE_API_SECRET
-
         android = Channel.create(
             self.org, self.admin, "RW", "A", name="Android", address="+250785551313", role="SR", schemes=("tel",)
         )
@@ -1247,8 +1244,8 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             "NX",
             name="Vonage Sender",
             config={
-                CONFIG_VONAGE_API_KEY: "key",
-                CONFIG_VONAGE_API_SECRET: "secret",
+                VonageType.CONFIG_API_KEY: "key",
+                VonageType.CONFIG_API_SECRET: "secret",
                 Channel.CONFIG_CALLBACK_DOMAIN: self.org.get_brand_domain(),
             },
             tps=1,

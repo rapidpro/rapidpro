@@ -11,6 +11,9 @@ class MacrokioskType(ChannelType):
     An Macrokiok channel (http://www.macrokiosk.com/)
     """
 
+    CONFIG_SENDER_ID = "macrokiosk_sender_id"
+    CONFIG_SERVICE_ID = "macrokiosk_service_id"
+
     code = "MK"
     category = ChannelType.Category.PHONE
 

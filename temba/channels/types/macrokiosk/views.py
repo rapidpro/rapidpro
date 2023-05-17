@@ -47,8 +47,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         config = {
             Channel.CONFIG_USERNAME: data.get("username", None),
             Channel.CONFIG_PASSWORD: data.get("password", None),
-            Channel.CONFIG_MACROKIOSK_SENDER_ID: data.get("sender_id", data["number"]),
-            Channel.CONFIG_MACROKIOSK_SERVICE_ID: data.get("service_id", None),
+            self.channel_type.CONFIG_SENDER_ID: data.get("sender_id", data["number"]),
+            self.channel_type.CONFIG_SERVICE_ID: data.get("service_id", None),
         }
         self.object = Channel.add_config_external_channel(
             self.request.org,
