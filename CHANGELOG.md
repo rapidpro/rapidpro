@@ -1,3 +1,8 @@
+v8.1.154 (2023-05-17)
+-------------------------
+ * Hide the surveyor password input and not just the help texti
+ * Fix URLs in JS files
+
 v8.1.153 (2023-05-17)
 -------------------------
  * Move channel type constants to the channel type class
