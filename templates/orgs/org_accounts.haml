@@ -18,6 +18,10 @@
         users to create accounts from within the Android application. Setting a Surveyor password will
         allow anybody with that password to join your workspace as a surveyor.
 
+-block form
+  -if has_surveyor
+    {{ block.super }}
+
 -block summary
   -trans "Your workspace has"
   {% for role in role_summary %}{{ role }}{{ forloop|oxford }}{% endfor %}.
