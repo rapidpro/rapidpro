@@ -1,3 +1,8 @@
+v8.1.155 (2023-05-17)
+-------------------------
+ * Better handling of post_url for spa content menu
+ * Really fix hiding surveyor form
+
 v8.1.154 (2023-05-17)
 -------------------------
  * Hide the surveyor password input and not just the help texti
