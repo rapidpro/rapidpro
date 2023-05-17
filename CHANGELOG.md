@@ -1,3 +1,9 @@
+v8.1.153 (2023-05-17)
+-------------------------
+ * Move channel type constants to the channel type class
+ * Don't show option to enter surveyor password if surveyor feature not enabled
+ * Scoped javascript for flow broadcast modal
+
 v8.1.152 (2023-05-15)
 -------------------------
  * Make js function name unique
