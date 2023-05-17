@@ -1139,7 +1139,6 @@ class OrgCRUDL(SmartCRUDL):
         "join",
         "join_accept",
         "grant",
-        "accounts",
         "create_login",
         "choose",
         "delete",
@@ -1239,8 +1238,15 @@ class OrgCRUDL(SmartCRUDL):
                         )
                     )
 
-                if self.has_org_perm("orgs.org_accounts") and Org.FEATURE_USERS in self.org.features:
-                    menu.append(self.create_menu_item(name=_("Users"), icon="users", href="orgs.org_manage_accounts"))
+                if self.has_org_perm("orgs.org_manage_accounts") and Org.FEATURE_USERS in self.org.features:
+                    menu.append(
+                        self.create_menu_item(
+                            name=_("Users"),
+                            icon="users",
+                            href="orgs.org_manage_accounts",
+                            count=self.org.users.count(),
+                        )
+                    )
 
                 menu.append(self.create_menu_item(name=_("Resthooks"), icon="resthooks", href="orgs.org_resthooks"))
 
@@ -2097,49 +2103,6 @@ class OrgCRUDL(SmartCRUDL):
             self.object.release(request.user)
             return self.render_modal_response()
 
-    class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class PasswordForm(forms.ModelForm):
-            surveyor_password = forms.CharField(
-                max_length=128, widget=InputWidget(attrs={"placeholder": "Surveyor Password", "widget_only": True})
-            )
-
-            def clean_surveyor_password(self):  # pragma: needs cover
-                password = self.cleaned_data.get("surveyor_password", "")
-                existing = Org.objects.filter(surveyor_password=password).exclude(pk=self.instance.pk).first()
-                if existing:
-                    raise forms.ValidationError(_("This password is not valid. Choose a new password and try again."))
-                return password
-
-            class Meta:
-                model = Org
-                fields = ("surveyor_password",)
-
-        form_class = PasswordForm
-        success_url = "@orgs.org_workspace"
-        success_message = ""
-        submit_button_name = _("Save Changes")
-        title = "Logins"
-        fields = ("surveyor_password",)
-
-        def derive_fields(self):
-            return ["surveyor_password"] if "surveyor" in settings.FEATURES else []
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            org = self.get_object()
-            role_summary = []
-            for role in OrgRole:
-                num_users = org.get_users(roles=[role]).count()
-                if num_users == 1:
-                    role_summary.append(f"1 {role.display}")
-                elif num_users > 1:
-                    role_summary.append(f"{num_users} {role.display_plural}")
-
-            context["role_summary"] = role_summary
-            context["has_surveyor"] = "surveyor" in settings.FEATURES
-            return context
-
     class ManageAccounts(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class AccountsForm(forms.ModelForm):
             invite_emails = forms.CharField(
@@ -2413,7 +2376,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org = self.get_object()
-            if self.has_org_perm("orgs.org_accounts") and Org.FEATURE_USERS in org.features:
+            if self.has_org_perm("orgs.org_manage_accounts") and Org.FEATURE_USERS in org.features:
                 context["manage_users"] = True
 
             return context
@@ -3105,13 +3068,8 @@ class OrgCRUDL(SmartCRUDL):
                 menu.add_link(_("Import"), reverse("orgs.org_import"))
 
         def derive_formax_sections(self, formax, context):
-            org = self.request.org
-
             if self.has_org_perm("orgs.org_edit"):
                 formax.add_section("org", reverse("orgs.org_edit"), icon="settings")
-
-            if self.has_org_perm("orgs.org_accounts") and Org.FEATURE_USERS in org.features:
-                formax.add_section("accounts", reverse("orgs.org_accounts"), icon="users")
 
             if self.has_org_perm("orgs.org_languages"):
                 formax.add_section("languages", reverse("orgs.org_languages"), icon="language")

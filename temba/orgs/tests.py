@@ -1070,49 +1070,6 @@ class OrgTest(TembaTest):
 
         mock_async_start.assert_called_once()
 
-    def test_accounts(self):
-        accounts_url = reverse("orgs.org_accounts")
-
-        self.login(self.admin)
-
-        response = self.client.get(accounts_url)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "If you use the RapidPro Surveyor application to run flows offline")
-
-        Org.objects.create(
-            name="Another Org",
-            timezone="Africa/Kigali",
-            brand="rapidpro",
-            created_by=self.user,
-            modified_by=self.user,
-            surveyor_password="nyaruka",
-        )
-
-        response = self.client.post(accounts_url, {"surveyor_password": "nyaruka"})
-        self.org.refresh_from_db()
-        self.assertContains(response, "This password is not valid. Choose a new password and try again.")
-        self.assertIsNone(self.org.surveyor_password)
-
-        # now try again, but with a unique password
-        response = self.client.post(accounts_url, {"surveyor_password": "unique password"})
-        self.org.refresh_from_db()
-        self.assertEqual("unique password", self.org.surveyor_password)
-
-        # if surveyor feature disabled, don't show password field
-        with override_settings(FEATURES={}):
-            response = self.client.get(accounts_url)
-            self.assertNotContains(response, "Surveyor application")
-            self.assertNotContains(response, "Surveyor Password")
-
-        # add an extra editor
-        editor = self.create_user("EditorTwo")
-        self.org.add_user(editor, OrgRole.EDITOR)
-        self.surveyor.delete()
-
-        # fetch it as a formax so we can inspect the summary
-        response = self.client.get(accounts_url, HTTP_X_FORMAX=1, HTTP_X_PJAX=1)
-        self.assertContains(response, "1 Administrator, 2 Editors, 1 Viewer, and 1 Agent.")
-
     def test_refresh_tokens(self):
         self.login(self.admin)
         settings_url = reverse("orgs.org_workspace")
@@ -2771,16 +2728,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # make sure we have the appropriate number of sections
         self.assertEqual(7, len(response.context["formax"].sections))
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 6)
 
+        # enable child workspaces and users
         self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS]
         self.org.save(update_fields=("features",))
 
-        response = self.assertListFetch(workspace_url, allow_viewers=True, allow_editors=True, allow_agents=False)
-
-        # we now have workspace management
-        self.assertEqual(8, len(response.context["formax"].sections))
-
-        # create a child org
         self.child_org = Org.objects.create(
             name="Child Org",
             timezone=pytz.timezone("Africa/Kigali"),
@@ -2790,10 +2743,10 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(19):
+        with self.assertNumQueries(14):
             response = self.client.get(workspace_url)
 
-        # should have an extra menu option for our child (and section header)
+        # should have an extra menu options for workspaces and users
         self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 8)
 
     def test_org_grant(self):

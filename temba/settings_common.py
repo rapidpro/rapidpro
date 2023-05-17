@@ -391,7 +391,6 @@ PERMISSIONS = {
     ),
     "orgs.org": (
         "account",
-        "accounts",
         "api",
         "country",
         "create_login",
@@ -528,7 +527,6 @@ GROUP_PERMISSIONS = {
         "notifications.incident.*",
         "notifications.notification.*",
         "orgs.org_account",
-        "orgs.org_accounts",
         "orgs.org_api",
         "orgs.org_country",
         "orgs.org_create",
