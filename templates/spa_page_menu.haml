@@ -38,9 +38,19 @@
     }
     else if (item.type === 'url_post') {
       var store = document.querySelector('temba-store');
-      store.postUrl(item.url, {},
-      'application/x-www-form-urlencoded'
-      ).then(function (response) {
+      const queryStart = item.url.indexOf('?');
+      const urlParams = new URLSearchParams(item.url.substring(queryStart));
+
+      let url = item.url;
+      payload = {}
+      if (queryStart > -1) {
+        url = item.url.substring(0, queryStart);
+        for (key of urlParams.keys()) {
+          payload[key] = urlParams.get(key);
+        }  
+      }
+
+      store.postForm(url, payload).then(function (response) {
         if (response.redirected) {
           fetchURL(response.url);
         } else {
