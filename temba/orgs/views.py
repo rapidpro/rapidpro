@@ -2121,6 +2121,9 @@ class OrgCRUDL(SmartCRUDL):
         title = "Logins"
         fields = ("surveyor_password",)
 
+        def derive_fields(self):
+            return ["surveyor_password"] if "surveyor" in settings.FEATURES else []
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 

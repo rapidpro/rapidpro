@@ -1102,6 +1102,7 @@ class OrgTest(TembaTest):
         with override_settings(FEATURES={}):
             response = self.client.get(accounts_url)
             self.assertNotContains(response, "Surveyor application")
+            self.assertNotContains(response, "Surveyor Password")
 
         # add an extra editor
         editor = self.create_user("EditorTwo")
