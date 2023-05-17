@@ -2387,6 +2387,7 @@ class OrgCRUDL(SmartCRUDL):
 
         # invalid form login 'logs out' the user from the org and takes them to the org manage page
         def form_invalid(self, form):
+            print("invalid form!", form.errors)
             switch_to_org(self.request, None)
             return HttpResponseRedirect(reverse("orgs.org_manage"))
 
