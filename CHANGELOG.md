@@ -1,3 +1,8 @@
+v8.1.156 (2023-05-17)
+-------------------------
+ * Update components for 302 fix
+ * Make post_url work identically to posterize
+
 v8.1.155 (2023-05-17)
 -------------------------
  * Better handling of post_url for spa content menu
