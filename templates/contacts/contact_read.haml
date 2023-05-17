@@ -67,8 +67,10 @@
     var idxTickets = 4;
 
     function contactUpdated(evt) {
-      var details = document.querySelector("temba-contact-details");
+      const details = document.querySelector("temba-contact-details");
       details.refresh();
+      const contentMenu = document.querySelector("temba-content-menu");
+      contentMenu.refresh();
     }
 
     function handlePendingRefreshed(evt) {

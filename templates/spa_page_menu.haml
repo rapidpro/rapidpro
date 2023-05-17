@@ -37,7 +37,16 @@
       showModax(item.title, item.url, modaxOptions);
     }
     else if (item.type === 'url_post') {
-      posterize(item.url);
+      var store = document.querySelector('temba-store');
+      store.postUrl(item.url, {},
+      'application/x-www-form-urlencoded'
+      ).then(function (response) {
+        if (response.redirected) {
+          fetchURL(response.url);
+        } else {
+          reloadContent();
+        }
+      });
     }
 
     // items need to be refreshed in the top left sidebar menu
