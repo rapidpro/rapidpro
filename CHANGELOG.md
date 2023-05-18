@@ -1,3 +1,11 @@
+v8.1.157 (2023-05-18)
+-------------------------
+ * Add ticket editing
+ * Remove old ticket assign view and support for notes with assignment
+ * Add ticket topic menu and resizer
+ * Move WAC connect view to the WhatsApp cloud channel type package
+ * Remove accounts formax from workspace view as it isn't needed with new UI
+
 v8.1.156 (2023-05-17)
 -------------------------
  * Update components for 302 fix
