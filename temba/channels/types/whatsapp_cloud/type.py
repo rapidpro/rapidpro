@@ -11,13 +11,15 @@ from temba.request_logs.models import HTTPLog
 from temba.utils.whatsapp.views import SyncLogsView, TemplatesView
 
 from ...models import ChannelType
-from .views import ClaimView, ClearSessionToken, RequestCode, VerifyCode
+from .views import ClaimView, ClearSessionToken, Connect, RequestCode, VerifyCode
 
 
 class WhatsAppCloudType(ChannelType):
     """
     A WhatsApp Cloud Channel Type
     """
+
+    SESSION_USER_TOKEN = "WHATSAPP_CLOUD_USER_TOKEN"
 
     extra_links = [
         dict(label=_("Message Templates"), view_name="channels.types.whatsapp_cloud.templates"),
@@ -54,6 +56,7 @@ class WhatsAppCloudType(ChannelType):
                 r"^(?P<uuid>[a-z0-9\-]+)/request_code$", RequestCode.as_view(channel_type=self), name="request_code"
             ),
             re_path(r"^(?P<uuid>[a-z0-9\-]+)/verify_code$", VerifyCode.as_view(channel_type=self), name="verify_code"),
+            re_path(r"^connect$", Connect.as_view(channel_type=self), name="connect"),
         ]
 
     def activate(self, channel):
