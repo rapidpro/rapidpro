@@ -279,6 +279,9 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
             object_unchanged=user_topic,
         )
 
+        # check permissions
+        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=["name"])
+
         # edit successfully
         self.assertUpdateSubmit(update_url, {"name": "Boring Tickets"}, success_status=302)
 
@@ -310,7 +313,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # )
 
         deep_link = f"{list_url}all/open/{str(ticket.uuid)}/"
-        self.assertContentMenu(deep_link, self.admin, ["Add Note", "Start Flow"])
+        self.assertContentMenu(deep_link, self.admin, ["Edit", "Add Note", "Start Flow"])
         response = self.assertListFetch(
             deep_link, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[]
         )
@@ -348,13 +351,27 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.contact.current_flow = flow
         self.contact.save()
         deep_link = f"{list_url}all/open/{str(ticket.uuid)}/"
-        self.assertContentMenu(deep_link, self.admin, ["Add Note", "Interrupt"])
+        self.assertContentMenu(deep_link, self.admin, ["Edit", "Add Note", "Interrupt"])
 
         # closed our tickets don't get extra menu options
         ticket.status = Ticket.STATUS_CLOSED
         ticket.save()
         deep_link = f"{list_url}all/closed/{str(ticket.uuid)}/"
         self.assertContentMenu(deep_link, self.admin, [])
+
+    def test_update(self):
+        user_topic = Topic.objects.create(
+            org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin
+        )
+
+        ticket = self.create_ticket(self.internal, self.contact, "Test 1", assignee=self.admin)
+        update_url = reverse("tickets.ticket_update", args=[ticket.uuid])
+
+        # check permissions
+        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=["topic", "body"])
+
+        # edit successfully
+        self.assertUpdateSubmit(update_url, {"topic": user_topic.id, "body": "This is silly"}, success_status=302)
 
     def test_menu(self):
         menu_url = reverse("tickets.ticket_menu")

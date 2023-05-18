@@ -99,7 +99,7 @@ class TopicCRUDL(SmartCRUDL):
     actions = ("update",)
     slug_field = "uuid"
 
-    class Update(OrgPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
+    class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
         class TopicUpdateForm(forms.ModelForm):
             def clean_name(self):
                 name = self.cleaned_data["name"]
@@ -127,7 +127,30 @@ class TopicCRUDL(SmartCRUDL):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("list", "folder", "note", "assign", "menu", "export_stats", "export")
+    actions = ("list", "update", "folder", "note", "assign", "menu", "export_stats", "export")
+
+    class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
+        class TicketUpdateForm(forms.ModelForm):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+                # only show the topic field if there are multiple topics
+                if self.instance.org.topics.count() > 1:
+                    self.fields["topic"].widget = SelectWidget(
+                        choices=[(t.pk, t.name) for t in self.instance.org.topics.all()]
+                    )
+                else:
+                    self.fields["topic"].widget = InputWidget({"type": "hidden"})
+
+            class Meta:
+                fields = ("topic", "body")
+                model = Ticket
+
+        form_class = TicketUpdateForm
+        fields = ("topic", "body")
+        slug_url_kwarg = "uuid"
+        success_url = "hide"
+        success_message = ""
 
     class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
         """
@@ -210,6 +233,15 @@ class TicketCRUDL(SmartCRUDL):
                 ticket = self.request.org.tickets.filter(uuid=uuid).first()
                 if ticket:
                     if ticket.status == Ticket.STATUS_OPEN:
+                        if self.has_org_perm("tickets.ticket_update"):
+                            menu.add_modax(
+                                _("Edit"),
+                                "edit-ticket",
+                                f"{reverse('tickets.ticket_update', args=[ticket.uuid])}",
+                                title=_("Edit Ticket"),
+                                on_submit="handleTicketEditComplete()",
+                            )
+
                         if self.has_org_perm("tickets.ticket_note"):
                             menu.add_modax(
                                 _("Add Note"),

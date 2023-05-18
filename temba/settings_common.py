@@ -645,7 +645,7 @@ GROUP_PERMISSIONS = {
         "templates.template_api",
         "tickets.ticket.*",
         "tickets.ticketer_api",
-        "tickets.topic_api",
+        "tickets.topic.*",
         "triggers.trigger.*",
     ),
     "Viewers": (

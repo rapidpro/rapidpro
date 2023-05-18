@@ -153,6 +153,12 @@
       }
     }
 
+    function handleTicketEditComplete() {
+      // refresh our ticket details
+      var contactTickets = document.querySelector("temba-contact-tickets");
+      contactTickets.refresh();
+    }
+
     function handleTicketsMenuChanged(menuItem) {
       var statusSelect = document.querySelector('temba-select[name="ticket-status"]');
       ticketUUID = null;
@@ -367,6 +373,8 @@
       chat.refresh();
     }
 
+    
+
     function handleTicketUpdated(event) {
       if (event.detail.data) {
         var ticket = event.detail.data[0];
@@ -409,6 +417,10 @@
           // ticket was closed
           else if (ticket.status == "closed" && previous.status != "closed") {
             removeTicket(ticket.uuid);
+          } 
+
+          if (folder == previous.topic.uuid && folder != ticket.topic.uuid) {
+            removeTicket(ticket.uuid);
           }
 
           tickets.refresh();
@@ -440,8 +452,7 @@
       const width = store.get('ticket-list-width', '300');
       const resizer = document.querySelector('temba-resizer');
       resizer.currentWidth = width;
-    });
-    
+    });    
 
 
 -block spa-title

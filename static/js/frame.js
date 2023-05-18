@@ -438,6 +438,9 @@ function loadFromState(state) {
 }
 
 function reloadContent() {
+  const store = document.querySelector('temba-store');
+  store.clearCache();
+
   loadFromState(history.state);
 }
 
