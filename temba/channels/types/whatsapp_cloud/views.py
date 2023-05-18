@@ -32,7 +32,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = Form
 
     def pre_process(self, request, *args, **kwargs):
-        oauth_user_token = self.request.session.get(self.channel_type.SESSION_WHATSAPP_CLOUD_USER_TOKEN, None)
+        oauth_user_token = self.request.session.get(self.channel_type.SESSION_USER_TOKEN, None)
         if not oauth_user_token:
             self.remove_token_credentials_from_session()
             return HttpResponseRedirect(reverse("channels.types.whatsapp_cloud.connect"))
@@ -62,7 +62,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        oauth_user_token = self.request.session.get(self.channel_type.SESSION_WHATSAPP_CLOUD_USER_TOKEN, None)
+        oauth_user_token = self.request.session.get(self.channel_type.SESSION_USER_TOKEN, None)
         app_id = settings.FACEBOOK_APPLICATION_ID
         app_secret = settings.FACEBOOK_APPLICATION_SECRET
 
@@ -209,16 +209,16 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         return super().form_valid(form)
 
     def remove_token_credentials_from_session(self):
-        if self.channel_type.SESSION_WHATSAPP_CLOUD_USER_TOKEN in self.request.session:
-            del self.request.session[self.channel_type.SESSION_WHATSAPP_CLOUD_USER_TOKEN]
+        if self.channel_type.SESSION_USER_TOKEN in self.request.session:
+            del self.request.session[self.channel_type.SESSION_USER_TOKEN]
 
 
 class ClearSessionToken(ChannelTypeMixin, OrgPermsMixin, SmartTemplateView):
     permission = "channels.channel_claim"
 
     def pre_process(self, request, *args, **kwargs):
-        if self.channel_type.SESSION_WHATSAPP_CLOUD_USER_TOKEN in self.request.session:
-            del self.request.session[self.channel_type.SESSION_WHATSAPP_CLOUD_USER_TOKEN]
+        if self.channel_type.SESSION_USER_TOKEN in self.request.session:
+            del self.request.session[self.channel_type.SESSION_USER_TOKEN]
 
     def render_to_response(self, context, **response_kwargs):
         return JsonResponse({})
@@ -396,7 +396,7 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
         return False  # pragma: no cover
 
     def pre_process(self, request, *args, **kwargs):
-        session_token = self.request.session.get(self.channel_type.SESSION_WHATSAPP_CLOUD_USER_TOKEN, None)
+        session_token = self.request.session.get(self.channel_type.SESSION_USER_TOKEN, None)
         if session_token:
             return HttpResponseRedirect(self.get_success_url())
 
@@ -406,7 +406,7 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
         auth_token = form.cleaned_data["user_access_token"]
 
         # add the credentials to the session
-        self.request.session[self.channel_type.SESSION_WHATSAPP_CLOUD_USER_TOKEN] = auth_token
+        self.request.session[self.channel_type.SESSION_USER_TOKEN] = auth_token
         return HttpResponseRedirect(self.get_success_url())
 
     def get_context_data(self, **kwargs):

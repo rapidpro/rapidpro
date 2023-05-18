@@ -19,7 +19,7 @@ class WhatsAppCloudType(ChannelType):
     A WhatsApp Cloud Channel Type
     """
 
-    SESSION_WHATSAPP_CLOUD_USER_TOKEN = "WHATSAPP_CLOUD_USER_TOKEN"
+    SESSION_USER_TOKEN = "WHATSAPP_CLOUD_USER_TOKEN"
 
     extra_links = [
         dict(label=_("Message Templates"), view_name="channels.types.whatsapp_cloud.templates"),
