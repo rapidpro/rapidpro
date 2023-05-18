@@ -415,13 +415,13 @@ class MailroomClientTest(TembaTest):
     def test_ticket_assign(self):
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
-            response = get_client().ticket_assign(1, 12, [123, 345], 4, "please handle")
+            response = get_client().ticket_assign(1, 12, [123, 345], 4)
 
             self.assertEqual({"changed_ids": [123]}, response)
             mock_post.assert_called_once_with(
                 "http://localhost:8090/mr/ticket/assign",
                 headers={"User-Agent": "Temba"},
-                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345], "assignee_id": 4, "note": "please handle"},
+                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345], "assignee_id": 4},
             )
 
     def test_ticket_add_note(self):

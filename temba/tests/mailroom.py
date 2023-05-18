@@ -263,7 +263,7 @@ class TestClient(MailroomClient):
         }
 
     @_client_method
-    def ticket_assign(self, org_id, user_id, ticket_ids, assignee_id, note):
+    def ticket_assign(self, org_id, user_id, ticket_ids, assignee_id):
         now = timezone.now()
         tickets = Ticket.objects.filter(org_id=org_id, id__in=ticket_ids).exclude(assignee_id=assignee_id)
 
@@ -273,7 +273,6 @@ class TestClient(MailroomClient):
                 contact=ticket.contact,
                 event_type=TicketEvent.TYPE_ASSIGNED,
                 assignee_id=assignee_id,
-                note=note,
                 created_by_id=user_id,
             )
 
