@@ -44,7 +44,8 @@ temba-button.light {
 
 .spa-container {
   background: #f7f7f7;
-  overflow-y: auto;
+  overflow-y: clip;
+  overflow-x: visible;
 }
 
 .spa-container.loading .spa-content {
@@ -173,25 +174,6 @@ temba-loading {
   background: #fff;
 }
 
-@media only screen and (max-width: 850px) {
-  .ticket-list {
-    flex-basis: 200px;
-  }
-}
-
-@media only screen and (max-width: 768px) {
-  .ticket-list {
-    flex-basis: 125px;
-  }
-
-  .widget-container {
-    margin-top: 0px !important;
-    padding-top: 0px !important;
-    margin-bottom: 0px;
-    padding-bottom: 0px;
-  }
-}
-
 .spa-container {
   height: 100%;
 }
@@ -223,4 +205,9 @@ temba-menu.servicing {
 
 .servicing:hover .hover {
   background: rgba(0, 0, 0, .2);
+}
+
+.spa-content {
+  overflow-y: clip;
+  overflow-x: visible;
 }

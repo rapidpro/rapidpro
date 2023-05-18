@@ -2,7 +2,7 @@ from django.conf.urls import include
 from django.urls import re_path
 
 from .models import Ticketer
-from .views import TicketCRUDL, TicketerCRUDL
+from .views import TicketCRUDL, TicketerCRUDL, TopicCRUDL
 
 # build up all the type specific urls
 service_urls = []
@@ -16,6 +16,7 @@ for ticketer_type in Ticketer.get_types():
 
 urlpatterns = [
     re_path(r"^", include(TicketCRUDL().as_urlpatterns())),
+    re_path(r"^", include(TopicCRUDL().as_urlpatterns())),
     re_path(r"^", include(TicketerCRUDL().as_urlpatterns())),
     re_path(r"^tickets/types/", include(service_urls)),
 ]

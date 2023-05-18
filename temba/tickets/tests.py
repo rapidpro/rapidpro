@@ -251,6 +251,41 @@ class TicketTest(TembaTest):
         )
 
 
+class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
+    def setUp(self):
+        super().setUp()
+
+    def test_update(self):
+        system_topic = Topic.objects.filter(org=self.org, is_system=True).first()
+        user_topic = Topic.objects.create(
+            org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin
+        )
+
+        # can't edit a system topic
+        update_url = reverse("tickets.topic_update", args=[system_topic.uuid])
+        self.assertUpdateSubmit(
+            update_url,
+            {"name": "My Topic"},
+            form_errors={"name": "Cannot edit system topic"},
+            object_unchanged=system_topic,
+        )
+
+        # names must be unique
+        update_url = reverse("tickets.topic_update", args=[user_topic.uuid])
+        self.assertUpdateSubmit(
+            update_url,
+            {"name": "General"},
+            form_errors={"name": "Topic already exists, please try another name"},
+            object_unchanged=user_topic,
+        )
+
+        # edit successfully
+        self.assertUpdateSubmit(update_url, {"name": "Boring Tickets"}, success_status=302)
+
+        user_topic.refresh_from_db()
+        self.assertEqual(user_topic.name, "Boring Tickets")
+
+
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
