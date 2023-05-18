@@ -5,7 +5,6 @@ from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadVi
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.models import User
 from django.db.models.aggregates import Max
 from django.http import Http404, JsonResponse
 from django.urls import reverse
@@ -21,7 +20,7 @@ from temba.utils import on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
 from temba.utils.export.views import BaseExportView
-from temba.utils.fields import InputWidget, SelectWidget
+from temba.utils.fields import InputWidget
 from temba.utils.uuid import UUID_REGEX
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
@@ -94,7 +93,7 @@ class NoteForm(forms.ModelForm):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("list", "folder", "note", "assign", "menu", "export_stats", "export")
+    actions = ("list", "folder", "note", "menu", "export_stats", "export")
 
     class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
         """
@@ -398,56 +397,6 @@ class TicketCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             self.get_object().add_note(self.request.user, note=form.cleaned_data["note"])
-            return self.render_modal_response(form)
-
-    class Assign(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
-        class Form(NoteForm):
-            assignee = forms.ModelChoiceField(
-                queryset=User.objects.none(),
-                widget=SelectWidget(attrs={"searchable": True, "widget_only": True}),
-                required=False,
-                empty_label=_("Unassigned"),
-            )
-
-            def __init__(self, org, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-                self.org = org
-                self.fields["assignee"].queryset = Ticket.get_allowed_assignees(self.org).order_by("email")
-                self.fields["note"].required = False
-
-        slug_url_kwarg = "uuid"
-        form_class = Form
-        fields = ("assignee", "note")
-        success_url = "hide"
-        success_message = ""
-        submit_button_name = _("Save")
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
-
-        def derive_initial(self):
-            initial = super().derive_initial()
-            ticket = self.get_object()
-            if ticket.assignee:
-                initial["assignee"] = ticket.assignee.id
-            return initial
-
-        def form_valid(self, form):
-            ticket = self.get_object()
-            assignee = form.cleaned_data["assignee"]
-            note = form.cleaned_data["note"]
-
-            # if our assignee is new
-            if ticket.assignee != assignee:
-                ticket.assign(self.request.user, assignee=assignee, note=note)
-
-            # otherwise just add the note if we have one
-            elif note:
-                ticket.add_note(self.request.user, note=form.cleaned_data["note"])
-
             return self.render_modal_response(form)
 
     class ExportStats(OrgPermsMixin, SmartTemplateView):

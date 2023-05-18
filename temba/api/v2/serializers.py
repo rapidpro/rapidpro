@@ -1630,7 +1630,7 @@ class TicketBulkActionSerializer(WriteSerializer):
         topic = self.validated_data.get("topic")
 
         if action == self.ACTION_ASSIGN:
-            Ticket.bulk_assign(org, user, tickets, assignee=assignee, note=note)
+            Ticket.bulk_assign(org, user, tickets, assignee=assignee)
         elif action == self.ACTION_ADD_NOTE:
             Ticket.bulk_add_note(org, user, tickets, note=note)
         elif action == self.ACTION_CHANGE_TOPIC:

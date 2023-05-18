@@ -271,14 +271,8 @@ class MailroomClient:
             metadata=QueryMetadata(**response.get("metadata", {})),
         )
 
-    def ticket_assign(self, org_id: int, user_id: int, ticket_ids: list, assignee_id: int, note: str):
-        payload = {
-            "org_id": org_id,
-            "user_id": user_id,
-            "ticket_ids": ticket_ids,
-            "assignee_id": assignee_id,
-            "note": note,
-        }
+    def ticket_assign(self, org_id: int, user_id: int, ticket_ids: list, assignee_id: int):
+        payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids, "assignee_id": assignee_id}
 
         return self._request("ticket/assign", payload)
 

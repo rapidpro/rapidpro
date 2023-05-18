@@ -240,17 +240,17 @@ class Ticket(models.Model):
     # when this ticket last had activity which includes messages being sent and received, and is used for ordering
     last_activity_on = models.DateTimeField(default=timezone.now)
 
-    def assign(self, user: User, *, assignee: User, note: str):
-        self.bulk_assign(self.org, user, [self], assignee=assignee, note=note)
+    def assign(self, user: User, *, assignee: User):
+        self.bulk_assign(self.org, user, [self], assignee=assignee)
 
     def add_note(self, user: User, *, note: str):
         self.bulk_add_note(self.org, user, [self], note=note)
 
     @classmethod
-    def bulk_assign(cls, org, user: User, tickets: list, assignee: User, note: str = None):
+    def bulk_assign(cls, org, user: User, tickets: list, assignee: User):
         ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
         assignee_id = assignee.id if assignee else None
-        return mailroom.get_client().ticket_assign(org.id, user.id, ticket_ids, assignee_id, note)
+        return mailroom.get_client().ticket_assign(org.id, user.id, ticket_ids, assignee_id)
 
     @classmethod
     def bulk_add_note(cls, org, user: User, tickets: list, note: str):
