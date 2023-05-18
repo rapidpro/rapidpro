@@ -360,18 +360,22 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContentMenu(deep_link, self.admin, [])
 
     def test_update(self):
+        ticket = self.create_ticket(self.internal, self.contact, "Test 1", assignee=self.admin)
+
+        update_url = reverse("tickets.ticket_update", args=[ticket.uuid])
+
+        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=["topic", "body"])
+
         user_topic = Topic.objects.create(
             org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin
         )
 
-        ticket = self.create_ticket(self.internal, self.contact, "Test 1", assignee=self.admin)
-        update_url = reverse("tickets.ticket_update", args=[ticket.uuid])
-
-        # check permissions
-        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=["topic", "body"])
-
         # edit successfully
         self.assertUpdateSubmit(update_url, {"topic": user_topic.id, "body": "This is silly"}, success_status=302)
+
+        ticket.refresh_from_db()
+        self.assertEqual(user_topic, ticket.topic)
+        self.assertEqual("This is silly", ticket.body)
 
     def test_menu(self):
         menu_url = reverse("tickets.ticket_menu")

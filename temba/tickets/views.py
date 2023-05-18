@@ -20,7 +20,7 @@ from temba.utils import on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
 from temba.utils.export.views import BaseExportView
-from temba.utils.fields import InputWidget, SelectWidget
+from temba.utils.fields import InputWidget
 from temba.utils.uuid import UUID_REGEX
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
@@ -99,7 +99,7 @@ class TopicCRUDL(SmartCRUDL):
     slug_field = "uuid"
 
     class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
-        class TopicUpdateForm(forms.ModelForm):
+        class Form(forms.ModelForm):
             def clean_name(self):
                 name = self.cleaned_data["name"]
 
@@ -121,7 +121,7 @@ class TopicCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
         fields = ("name",)
         success_message = ""
-        form_class = TopicUpdateForm
+        form_class = Form
 
 
 class TicketCRUDL(SmartCRUDL):
@@ -129,23 +129,17 @@ class TicketCRUDL(SmartCRUDL):
     actions = ("list", "update", "folder", "note", "menu", "export_stats", "export")
 
     class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
-        class TicketUpdateForm(forms.ModelForm):
+        class Form(forms.ModelForm):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
 
-                # only show the topic field if there are multiple topics
-                if self.instance.org.topics.count() > 1:
-                    self.fields["topic"].widget = SelectWidget(
-                        choices=[(t.pk, t.name) for t in self.instance.org.topics.all()]
-                    )
-                else:
-                    self.fields["topic"].widget = InputWidget({"type": "hidden"})
+                self.fields["topic"].queryset = self.instance.org.topics.order_by("name")
 
             class Meta:
                 fields = ("topic", "body")
                 model = Ticket
 
-        form_class = TicketUpdateForm
+        form_class = Form
         fields = ("topic", "body")
         slug_url_kwarg = "uuid"
         success_url = "hide"
