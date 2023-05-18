@@ -33,6 +33,8 @@ from .models import (
     TicketCount,
     Ticketer,
     TicketFolder,
+    Topic,
+    TopicFolder,
     UnassignedFolder,
     export_ticket_stats,
 )
@@ -90,6 +92,37 @@ class NoteForm(forms.ModelForm):
     class Meta:
         model = Ticket
         fields = ("note",)
+
+
+class TopicCRUDL(SmartCRUDL):
+    model = Topic
+    actions = ("update",)
+    slug_field = "uuid"
+
+    class Update(OrgPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
+        class TopicUpdateForm(forms.ModelForm):
+            def clean_name(self):
+                name = self.cleaned_data["name"]
+
+                if self.instance.is_system:
+                    raise forms.ValidationError(_("Cannot edit system topic"))
+
+                # make sure the name isn't already taken
+                existing = self.instance.org.topics.filter(is_active=True, name__iexact=name).first()
+                if existing and self.instance != existing:
+                    raise forms.ValidationError(_("Topic already exists, please try another name"))
+
+                return name
+
+            class Meta:
+                fields = ("name",)
+                model = Topic
+
+        success_url = "hide"
+        slug_url_kwarg = "uuid"
+        fields = ("name",)
+        success_message = ""
+        form_class = TopicUpdateForm
 
 
 class TicketCRUDL(SmartCRUDL):
@@ -202,12 +235,6 @@ class TicketCRUDL(SmartCRUDL):
                                 on_submit="handleFlowStarted()",
                             )
 
-            if self.has_org_perm("tickets.ticket_export"):
-                menu.new_group()
-                menu.add_modax(
-                    _("Export"), "export-tickets", f"{reverse('tickets.ticket_export')}", title=_("Export Tickets")
-                )
-
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
 
@@ -250,7 +277,7 @@ class TicketCRUDL(SmartCRUDL):
 
             return menu
 
-    class Folder(OrgPermsMixin, SmartTemplateView):
+    class Folder(ContentMenuMixin, OrgPermsMixin, SmartTemplateView):
         permission = "tickets.ticket_list"
         paginate_by = 25
 
@@ -265,6 +292,30 @@ class TicketCRUDL(SmartCRUDL):
             if not folder:
                 raise Http404()
             return folder
+
+        def build_content_menu(self, menu):
+            # we only support dynamic content menus
+            if "HTTP_TEMBA_CONTENT_MENU" not in self.request.META:
+                return
+
+            if (
+                self.has_org_perm("tickets.topic_update")
+                and isinstance(self.folder, TopicFolder)
+                and not self.folder.is_system
+            ):
+                menu.add_modax(
+                    _("Edit"),
+                    "edit-topic",
+                    f"{reverse('tickets.topic_update', args=[self.folder.id])}",
+                    title=_("Edit Topic"),
+                    on_submit="handleTopicUpdated()",
+                )
+
+            if self.has_org_perm("tickets.ticket_export"):
+                menu.new_group()
+                menu.add_modax(
+                    _("Export"), "export-tickets", f"{reverse('tickets.ticket_export')}", title=_("Export Tickets")
+                )
 
         def get_queryset(self, **kwargs):
             org = self.request.org

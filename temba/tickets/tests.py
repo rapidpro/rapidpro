@@ -251,6 +251,41 @@ class TicketTest(TembaTest):
         )
 
 
+class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
+    def setUp(self):
+        super().setUp()
+
+    def test_update(self):
+        system_topic = Topic.objects.filter(org=self.org, is_system=True).first()
+        user_topic = Topic.objects.create(
+            org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin
+        )
+
+        # can't edit a system topic
+        update_url = reverse("tickets.topic_update", args=[system_topic.uuid])
+        self.assertUpdateSubmit(
+            update_url,
+            {"name": "My Topic"},
+            form_errors={"name": "Cannot edit system topic"},
+            object_unchanged=system_topic,
+        )
+
+        # names must be unique
+        update_url = reverse("tickets.topic_update", args=[user_topic.uuid])
+        self.assertUpdateSubmit(
+            update_url,
+            {"name": "General"},
+            form_errors={"name": "Topic already exists, please try another name"},
+            object_unchanged=user_topic,
+        )
+
+        # edit successfully
+        self.assertUpdateSubmit(update_url, {"name": "Boring Tickets"}, success_status=302)
+
+        user_topic.refresh_from_db()
+        self.assertEqual(user_topic.name, "Boring Tickets")
+
+
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
@@ -268,7 +303,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # just a placeholder view for frontend components
         self.assertListFetch(list_url, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[])
 
-        self.assertContentMenu(list_url, self.admin, ["Export"])
         # can hit this page with a uuid
         # TODO: work out reverse for deep link
         # deep_link = reverse(
@@ -276,7 +310,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # )
 
         deep_link = f"{list_url}all/open/{str(ticket.uuid)}/"
-        self.assertContentMenu(deep_link, self.admin, ["Add Note", "Start Flow", "-", "Export"])
+        self.assertContentMenu(deep_link, self.admin, ["Add Note", "Start Flow"])
         response = self.assertListFetch(
             deep_link, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[]
         )
@@ -314,13 +348,13 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.contact.current_flow = flow
         self.contact.save()
         deep_link = f"{list_url}all/open/{str(ticket.uuid)}/"
-        self.assertContentMenu(deep_link, self.admin, ["Add Note", "Interrupt", "-", "Export"])
+        self.assertContentMenu(deep_link, self.admin, ["Add Note", "Interrupt"])
 
         # closed our tickets don't get extra menu options
         ticket.status = Ticket.STATUS_CLOSED
         ticket.save()
         deep_link = f"{list_url}all/closed/{str(ticket.uuid)}/"
-        self.assertContentMenu(deep_link, self.admin, ["Export"])
+        self.assertContentMenu(deep_link, self.admin, [])
 
     def test_menu(self):
         menu_url = reverse("tickets.ticket_menu")
@@ -337,6 +371,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_folder(self, mr_mocks):
         self.login(self.admin)
 
+        user_topic = Topic.objects.create(
+            org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin
+        )
+
         contact1 = self.create_contact("Joe", phone="123", last_seen_on=timezone.now())
         contact2 = self.create_contact("Frank", phone="124", last_seen_on=timezone.now())
         contact3 = self.create_contact("Anne", phone="125", last_seen_on=timezone.now())
@@ -348,13 +386,20 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         closed_url = reverse("tickets.ticket_folder", kwargs={"folder": "all", "status": "closed"})
         mine_url = reverse("tickets.ticket_folder", kwargs={"folder": "mine", "status": "open"})
         unassigned_url = reverse("tickets.ticket_folder", kwargs={"folder": "unassigned", "status": "open"})
-        topic_url = reverse("tickets.ticket_folder", kwargs={"folder": topic.uuid, "status": "open"})
+        system_topic_url = reverse("tickets.ticket_folder", kwargs={"folder": topic.uuid, "status": "open"})
+        user_topic_url = reverse("tickets.ticket_folder", kwargs={"folder": user_topic.uuid, "status": "open"})
         bad_topic_url = reverse("tickets.ticket_folder", kwargs={"folder": uuid4(), "status": "open"})
 
         def assert_tickets(resp, tickets: list):
             actual_tickets = [t["ticket"]["uuid"] for t in resp.json()["results"]]
             expected_tickets = [str(t.uuid) for t in tickets]
             self.assertEqual(expected_tickets, actual_tickets)
+
+        # general topic gets export
+        self.assertContentMenu(system_topic_url, self.admin, ["Export"])
+
+        # user topic gets edit too
+        self.assertContentMenu(user_topic_url, self.admin, ["Edit", "-", "Export"])
 
         # no tickets yet so no contacts returned
         response = self.client.get(open_url)
@@ -481,7 +526,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         assert_tickets(response, [c1_t1])
 
         # three tickets for our general topic
-        response = self.client.get(topic_url)
+        response = self.client.get(system_topic_url)
         assert_tickets(response, [c2_t1, c1_t2, c1_t1])
 
         # bad topic should be a 404
