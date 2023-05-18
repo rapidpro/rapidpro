@@ -52,16 +52,16 @@ class TicketTest(TembaTest):
 
         # test bulk assignment
         with patch("temba.mailroom.client.MailroomClient.ticket_assign") as mock_assign:
-            Ticket.bulk_assign(self.org, self.admin, [ticket], self.agent, "over to you")
+            Ticket.bulk_assign(self.org, self.admin, [ticket], self.agent)
 
-        mock_assign.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], self.agent.id, "over to you")
+        mock_assign.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], self.agent.id)
         mock_assign.reset_mock()
 
         # test bulk un-assignment
         with patch("temba.mailroom.client.MailroomClient.ticket_assign") as mock_assign:
             Ticket.bulk_assign(self.org, self.admin, [ticket], None)
 
-        mock_assign.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], None, None)
+        mock_assign.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], None)
         mock_assign.reset_mock()
 
         # test bulk adding a note
@@ -408,7 +408,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # contact 1 has two open tickets
         c1_t1 = self.create_ticket(self.mailgun, contact1, "Question 1")
         # assign it
-        c1_t1.assign(self.admin, assignee=self.admin, note="I've got this")
+        c1_t1.assign(self.admin, assignee=self.admin)
         c1_t2 = self.create_ticket(self.mailgun, contact1, "Question 2")
 
         # give contact1 and old style broadcast message that doesn't have created_by set
@@ -587,61 +587,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateSubmit(update_url, {"note": "I have a bad feeling about this."}, success_status=200)
 
         self.assertEqual(1, ticket.events.filter(event_type=TicketEvent.TYPE_NOTE_ADDED).count())
-
-    @mock_mailroom
-    def test_assign(self, mr_mocks):
-        ticket = self.create_ticket(self.mailgun, self.contact, "Some ticket")
-
-        assign_url = reverse("tickets.ticket_assign", args=[ticket.uuid])
-
-        response = self.assertUpdateFetch(
-            assign_url, allow_viewers=False, allow_editors=True, allow_agents=True, form_fields=["note", "assignee"]
-        )
-        # should show unassigned as option plus other permitted users
-        self.assertEqual(
-            [
-                ("", "Unassigned"),
-                (self.admin.id, "Andy"),
-                (self.agent.id, "Agnes"),
-                (self.editor.id, "Ed McEdits"),
-            ],
-            list(response.context["form"].fields["assignee"].choices),
-        )
-
-        self.assertUpdateSubmit(
-            assign_url, {"assignee": self.admin.id, "note": "You got this one"}, success_status=200
-        )
-        ticket.refresh_from_db()
-        self.assertEqual(self.admin, ticket.assignee)
-
-        last_event = ticket.events.order_by("id").last()
-        self.assertEqual(self.admin, last_event.assignee)
-        self.assertEqual("You got this one", last_event.note)
-
-        # now fetch it again to make sure our initial value is set
-        self.assertUpdateFetch(
-            assign_url,
-            allow_viewers=False,
-            allow_editors=True,
-            allow_agents=True,
-            form_fields={"note": None, "assignee": self.admin.id},
-        )
-
-        # submit an assignment to the same person
-        self.assertUpdateSubmit(
-            assign_url, {"assignee": self.admin.id, "note": "Have you looked?"}, success_status=200
-        )
-
-        # this should create a note event instead of an assignment event
-        last_event = ticket.events.all().last()
-        self.assertIsNone(last_event.assignee)
-        self.assertEqual("Have you looked?", last_event.note)
-
-        # submit with no assignee to un-assign
-        self.assertUpdateSubmit(assign_url, {"assignee": ""}, success_status=200)
-
-        ticket.refresh_from_db()
-        self.assertIsNone(ticket.assignee)
 
     def test_export_stats(self):
         export_url = reverse("tickets.ticket_export_stats")
