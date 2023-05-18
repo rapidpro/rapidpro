@@ -1,6 +1,6 @@
 -load public
 
-%temba-content-menu(endpoint="{{request.path}}?{{request.GET.urlencode}}" query="{{has_search_query}}" -temba-selection="handleContentMenuSelected(event)")
+%temba-content-menu#default-content-menu(endpoint="{{request.path}}?{{request.GET.urlencode}}" query="{{has_search_query}}" -temba-selection="handleContentMenuSelected(event)")
 
 :javascript
 
@@ -10,22 +10,16 @@
     var click = event.detail.event;
     
     if (item.type === 'link') {
-      var contentMenu = document.querySelector("temba-content-menu");
-      if (contentMenu.legacy) {        
-        gotoURL_legacy(event);
+      if (click) {
+        click.preventDefault();
+        click.stopPropagation();   
+        if (click.metaKey && item.url) {
+          window.open(item.url, '_blank');
+          return;
+        }  
       }
-      else {
-        if (click) {
-          click.preventDefault();
-          click.stopPropagation();   
-          if (click.metaKey && item.url) {
-            window.open(item.url, '_blank');
-            return;
-          }  
-        }
-    
-        fetchURL(item.url);
-      }
+  
+      fetchURL(item.url);
     }
     else if (item.type === 'modax') {
       var modaxOptions = {
@@ -61,23 +55,6 @@
 
     // items need to be refreshed in the top left sidebar menu
     refreshMenu();
-  }
-
-  // TODO: Remove with legacy ui
-  function gotoURL_legacy(event) {
-    event.stopPropagation();
-    event.preventDefault();
-
-    var item = event.detail.item;
-    var href = item.url;
-
-    if (href) {
-      if (event.metaKey) {
-        window.open(href,'_blank')
-      } else {
-        window.location = href;
-      }
-    }
   }
 
   function refreshMenu() {

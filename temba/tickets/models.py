@@ -384,6 +384,7 @@ class TopicFolder(TicketFolder):
         self.topic = topic
         self.id = topic.uuid
         self.name = topic.name
+        self.is_system = topic.is_system
 
     def get_queryset(self, org, user, ordered):
         return super().get_queryset(org, user, ordered).filter(topic=self.topic)

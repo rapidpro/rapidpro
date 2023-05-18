@@ -605,7 +605,6 @@ function fetchPJAXContent(url, container, options) {
 
 function posterize(href) {
   var url = $.url(href);
-  console.log(href, url);
   $('#posterizer').attr('action', url.attr('path'));
   for (var key in url.param()) {
     $('#posterizer').append(
