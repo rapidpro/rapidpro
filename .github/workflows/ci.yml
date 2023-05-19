@@ -63,7 +63,7 @@ jobs:
           yarn install
           sudo yarn global add less
           ln -s ${{ github.workspace }}/temba/settings.py.dev ${{ github.workspace }}/temba/settings.py
-          poetry run ./manage.py migrate
+          poetry run python manage.py migrate
           # fetch and extract rp-indexer
           wget https://github.com/nyaruka/rp-indexer/releases/download/v${{ env.rpindexer-version }}/rp-indexer_${{ env.rpindexer-version }}_linux_amd64.tar.gz
           tar -xvf rp-indexer_${{ env.rpindexer-version }}_linux_amd64.tar.gz rp-indexer
@@ -75,10 +75,10 @@ jobs:
       - name: Run pre-test checks
         run: |
           # test that everything is well formatted, no missing migrations etc
-          poetry run ./code_check.py --debug
+          poetry run python code_check.py --debug
           # check we can collect and compress all static files
-          poetry run ./manage.py collectstatic --noinput --verbosity=0
-          poetry run ./manage.py compress --extension=".haml" --settings=temba.settings_compress
+          poetry run python manage.py collectstatic --noinput --verbosity=0
+          poetry run python manage.py compress --extension=".haml" --settings=temba.settings_compress
 
       - name: Run tests
         run: |
