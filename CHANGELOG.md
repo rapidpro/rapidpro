@@ -1,3 +1,8 @@
+v8.1.158 (2023-05-19)
+-------------------------
+ * Fix scrolling for content pages without full height
+ * Tweak how we run python scripts in CI
+
 v8.1.157 (2023-05-18)
 -------------------------
  * Add ticket editing

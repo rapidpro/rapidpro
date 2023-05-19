@@ -208,6 +208,6 @@ temba-menu.servicing {
 }
 
 .spa-content {
-  overflow-y: clip;
-  overflow-x: visible;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
