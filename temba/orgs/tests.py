@@ -43,7 +43,7 @@ from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
-from temba.tests import CRUDLTestMixin, ESMockWithScroll, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import ExportTicketsTask, Ticketer
 from temba.tickets.types.mailgun import MailgunType
@@ -2075,35 +2075,6 @@ class OrgTest(TembaTest):
                 "disconnect": "false",
             },
         )
-
-    def test_connect_plivo(self):
-        self.login(self.admin)
-
-        # connect plivo
-        connect_url = reverse("orgs.org_plivo_connect")
-
-        # simulate invalid credentials
-        with patch("requests.get") as mock_get:
-            mock_get.return_value = MockResponse(
-                401, "Could not verify your access level for that URL." "\nYou have to login with proper credentials"
-            )
-            response = self.client.post(connect_url, dict(auth_id="auth-id", auth_token="auth-token"))
-            self.assertContains(
-                response, "Your Plivo auth ID and auth token seem invalid. Please check them again and retry."
-            )
-            self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
-            self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
-
-        # ok, now with a success
-        with patch("requests.get") as mock_get:
-            mock_get.return_value = MockResponse(200, json.dumps(dict()))
-            response = self.client.post(connect_url, dict(auth_id="auth-id", auth_token="auth-token"))
-
-            # plivo should be added to the session
-            self.assertEqual(self.client.session[Channel.CONFIG_PLIVO_AUTH_ID], "auth-id")
-            self.assertEqual(self.client.session[Channel.CONFIG_PLIVO_AUTH_TOKEN], "auth-token")
-
-            self.assertRedirect(response, reverse("channels.types.plivo.claim"))
 
     def test_org_get_limit(self):
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 250)
