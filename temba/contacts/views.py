@@ -1526,7 +1526,7 @@ class FieldLookupMixin:
 
     def get_object(self):
         if self.request.org:
-            return self.request.org.fields.filter(key=self.kwargs["key"]).first()
+            return self.request.org.fields.filter(key=self.kwargs["key"], is_active=True).first()
         return None
 
 
