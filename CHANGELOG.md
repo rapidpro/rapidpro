@@ -1,3 +1,7 @@
+v8.1.159 (2023-05-19)
+-------------------------
+ * Don't allow horizontal scroll by default
+
 v8.1.158 (2023-05-19)
 -------------------------
  * Fix scrolling for content pages without full height
