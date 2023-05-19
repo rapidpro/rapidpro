@@ -3,17 +3,21 @@ import requests
 from django.urls import re_path
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.models import Channel, ChannelType
+from temba.channels.models import ChannelType
 from temba.contacts.models import URN
 from temba.utils.http import http_headers
 
-from .views import ClaimView, SearchView
+from .views import ClaimView, Connect, SearchView
 
 
 class PlivoType(ChannelType):
     """
     An Plivo channel (https://www.plivo.com/)
     """
+
+    CONFIG_AUTH_ID = "PLIVO_AUTH_ID"
+    CONFIG_AUTH_TOKEN = "PLIVO_AUTH_TOKEN"
+    CONFIG_APP_ID = "PLIVO_APP_ID"
 
     code = "PL"
     category = ChannelType.Category.PHONE
@@ -36,10 +40,14 @@ class PlivoType(ChannelType):
         config = channel.config
         requests.delete(
             "https://api.plivo.com/v1/Account/%s/Application/%s/"
-            % (config[Channel.CONFIG_PLIVO_AUTH_ID], config[Channel.CONFIG_PLIVO_APP_ID]),
-            auth=(config[Channel.CONFIG_PLIVO_AUTH_ID], config[Channel.CONFIG_PLIVO_AUTH_TOKEN]),
+            % (config[self.CONFIG_AUTH_ID], config[self.CONFIG_APP_ID]),
+            auth=(config[self.CONFIG_AUTH_ID], config[self.CONFIG_AUTH_TOKEN]),
             headers=http_headers(extra={"Content-Type": "application/json"}),
         )
 
     def get_urls(self):
-        return [self.get_claim_url(), re_path(r"^search$", SearchView.as_view(channel_type=self), name="search")]
+        return [
+            self.get_claim_url(),
+            re_path(r"^search$", SearchView.as_view(channel_type=self), name="search"),
+            re_path(r"^connect$", Connect.as_view(channel_type=self), name="connect"),
+        ]
