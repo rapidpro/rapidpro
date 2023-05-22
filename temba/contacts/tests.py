@@ -4760,6 +4760,15 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertDeleteSubmit(delete_gender_url, object_deactivated=self.gender, success_status=200)
 
+        # create the same field again
+        self.gender = self.create_field("gender", "Gender", value_type="T")
+
+        # since fields are queried by key name, try and delete it again
+        # to make sure we aren't deleting the previous deleted field again
+        self.assertDeleteSubmit(delete_gender_url, object_deactivated=self.gender, success_status=200)
+        self.gender.refresh_from_db()
+        self.assertFalse(self.gender.is_active)
+
         # a field with only soft dependents can also be deleted but we give warnings
         response = self.assertDeleteFetch(delete_joined_url, allow_editors=True)
         self.assertEqual({"flow", "campaign_event"}, set(response.context["soft_dependents"].keys()))
