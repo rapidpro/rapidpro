@@ -747,17 +747,13 @@ class UserCRUDL(SmartCRUDL):
         cancel_url = "@orgs.user_list"
 
         def get_context_data(self, **kwargs):
-            brand = self.request.branding.get("brand")
-
             context = super().get_context_data(**kwargs)
-            context["owned_orgs"] = self.get_object().get_owned_orgs(brand=brand)
+            context["owned_orgs"] = self.get_object().get_owned_orgs()
             return context
 
         def post(self, request, *args, **kwargs):
             user = self.get_object()
-
-            brand = self.request.branding.get("brand")
-            user.release(self.request.user, brand=brand)
+            user.release(self.request.user)
 
             messages.info(request, self.derive_success_message())
             response = HttpResponse()
@@ -1890,7 +1886,6 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             qs = super().derive_queryset(**kwargs).filter(is_active=True)
-            qs = qs.filter(brand=self.request.branding["slug"])
             filter = self.get_filter()
             if filter:
                 _, _, filter_kwargs, ordering = filter
@@ -2431,7 +2426,7 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Select your Workspace")
 
         def get_user_orgs(self):
-            return self.request.user.get_orgs(brand=self.request.branding["slug"])
+            return self.request.user.get_orgs()
 
         def pre_process(self, request, *args, **kwargs):
             user = self.request.user

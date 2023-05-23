@@ -617,27 +617,11 @@ class MiddlewareTest(TembaTest):
         response = self.client.get(reverse("public.public_index"))
         self.assertEqual(response["X-Temba-Org"], str(self.org.id))
 
-    def test_branding(self):
-        def assert_branding(request_host, brand: str):
-            response = self.client.get(reverse("public.public_index"), HTTP_HOST=request_host)
-            self.assertEqual(
-                brand, response.context["request"].branding["slug"], f"brand mismatch for host {request_host}"
-            )
-
-        assert_branding("localhost", "rapidpro")  # uses default
-        assert_branding("localhost:8888", "rapidpro")  # port stripped
-        assert_branding("rapidpro.io", "rapidpro")
-        assert_branding("app.rapidpro.io", "rapidpro")  # subdomains ignored
-        assert_branding("custom-brand.io", "custom")
-        assert_branding("subdomain.custom-brand.io", "custom")
-        assert_branding("custom-brand.org", "custom")  # by alias
-        assert_branding("api.custom-brand.org", "custom")  # by alias
-
     def test_redirect(self):
         self.assertNotRedirect(self.client.get(reverse("public.public_index")), None)
 
         # now set our brand to redirect
-        with override_brand("rapidpro", redirect="/redirect"):
+        with override_brand(redirect="/redirect"):
             self.assertRedirect(self.client.get(reverse("public.public_index")), "/redirect")
 
     def test_language(self):

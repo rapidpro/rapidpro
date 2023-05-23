@@ -33,6 +33,7 @@ from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modi
 from temba.msgs.models import Broadcast, Msg, SystemLabel
 from temba.orgs.models import Org, OrgRole
 from temba.schedules.models import Schedule
+from temba.settings_common import BRAND
 from temba.tests import (
     AnonymousOrg,
     CRUDLTestMixin,
@@ -4956,7 +4957,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
             name="Temba",
             timezone=pytz.timezone("Africa/Kigali"),
             country=self.country,
-            brand=settings.DEFAULT_BRAND,
+            brand=BRAND["slug"],
             flow_languages=["eng"],
             created_by=self.admin,
             modified_by=self.admin,

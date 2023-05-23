@@ -22,9 +22,9 @@ class RolePermsWrapper:
         raise TypeError(f"{type(self)} is not iterable.")  # I am large, I contain multitudes
 
 
-def user_orgs_for_brand(request):
+def user_orgs(request):
     if request.user.is_authenticated:
-        user_orgs = request.user.get_orgs(brand=request.branding["slug"])
+        user_orgs = request.user.get_orgs()
         return {"user_orgs": user_orgs}
     return {}
 

@@ -48,7 +48,7 @@ from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import ExportTicketsTask, Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
-from temba.utils import brands, json, languages
+from temba.utils import json, languages
 from temba.utils.uuid import uuid4
 from temba.utils.views import TEMBA_MENU_SELECTION
 
@@ -615,7 +615,7 @@ class UserTest(TembaTest):
             org = Org.objects.create(
                 name=f"Org {i}",
                 timezone=pytz.timezone("Africa/Kigali"),
-                brand=settings.DEFAULT_BRAND,
+                brand=settings.BRAND["slug"],
                 created_by=self.user,
                 modified_by=self.user,
             )
@@ -630,80 +630,15 @@ class UserTest(TembaTest):
         self.editor.refresh_from_db()
         self.assertFalse(self.editor.is_active)
 
-    def test_release_cross_brand(self):
-        # create a second org
-        branded_org = Org.objects.create(
-            name="Other Brand Org",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand="some-other-brand",
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-
-        branded_org.add_user(self.admin, OrgRole.ADMINISTRATOR)
-
-        # now release our user on our primary brand
-        self.admin.release(self.customer_support, brand=settings.DEFAULT_BRAND)
-
-        # our admin should still be good
-        self.admin.refresh_from_db()
-        self.assertTrue(self.admin.is_active)
-        self.assertEqual("admin@nyaruka.com", self.admin.email)
-
-        # but she should be removed from org
-        self.assertFalse(self.admin.get_orgs(brand="rapidpro").exists())
-
-        # now lets release her from the branded org
-        self.admin.release(self.customer_support, brand="some-other-brand")
-
-        # now she gets deactivated and ambiguated and belongs to no orgs
-        self.assertFalse(self.admin.is_active)
-        self.assertNotEqual("admin@nyaruka.com", self.admin.email)
-        self.assertFalse(self.admin.get_orgs().exists())
-
-    def test_brand_aliases(self):
-        # set our brand to our custom org
-        self.org.brand = "custom"
-        self.org.save(update_fields=("brand",))
-
-        # create a second org on the .org version
-        branded_org = Org.objects.create(
-            name="Other Brand Org",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand="custom",
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-        branded_org.add_user(self.admin, OrgRole.ADMINISTRATOR)
-        self.org2.add_user(self.admin, OrgRole.ADMINISTRATOR)
-
-        # log in as admin
-        self.login(self.admin)
-
-        # check our choose page
-        response = self.client.get(reverse("orgs.org_choose"), SERVER_NAME="custom-brand.org")
-        self.assertEqual("custom", response.context["request"].branding["slug"])
-
-        # should contain both orgs
-        self.assertContains(response, "Other Brand Org")
-        self.assertContains(response, "Nyaruka")
-        self.assertNotContains(response, "Trileet Inc")
-
-        # choose it
-        response = self.client.post(
-            reverse("orgs.org_choose"), dict(organization=self.org.id), SERVER_NAME="custom-brand.org"
-        )
-        self.assertRedirect(response, "/msg/")
-
     def test_release(self):
         # admin doesn't "own" any orgs
         self.assertEqual(0, len(self.admin.get_owned_orgs()))
 
         # release all but our admin
-        self.surveyor.release(self.customer_support, brand=self.org.brand)
-        self.editor.release(self.customer_support, brand=self.org.brand)
-        self.user.release(self.customer_support, brand=self.org.brand)
-        self.agent.release(self.customer_support, brand=self.org.brand)
+        self.surveyor.release(self.customer_support)
+        self.editor.release(self.customer_support)
+        self.user.release(self.customer_support)
+        self.agent.release(self.customer_support)
 
         # still a user left, our org remains active
         self.org.refresh_from_db()
@@ -711,7 +646,7 @@ class UserTest(TembaTest):
 
         # now that we are the last user, we own it now
         self.assertEqual(1, len(self.admin.get_owned_orgs()))
-        self.admin.release(self.customer_support, brand=self.org.brand)
+        self.admin.release(self.customer_support)
 
         # and we take our org with us
         self.org.refresh_from_db()
@@ -720,9 +655,8 @@ class UserTest(TembaTest):
 
 class OrgTest(TembaTest):
     def test_create(self):
-        new_org = Org.create(self.admin, brands.get_by_slug("rapidpro"), "Cool Stuff", pytz.timezone("Africa/Kigali"))
+        new_org = Org.create(self.admin, settings.BRAND, "Cool Stuff", pytz.timezone("Africa/Kigali"))
         self.assertEqual("Cool Stuff", new_org.name)
-        self.assertEqual("rapidpro", new_org.brand)
         self.assertEqual(self.admin, new_org.created_by)
         self.assertEqual("en-us", new_org.language)
         self.assertEqual(["eng"], new_org.flow_languages)
@@ -732,9 +666,7 @@ class OrgTest(TembaTest):
         self.assertEqual('<Org: name="Cool Stuff">', repr(new_org))
 
         # if timezone is US, should get MMDDYYYY dates
-        new_org = Org.create(
-            self.admin, brands.get_by_slug("rapidpro"), "Cool Stuff", pytz.timezone("America/Los_Angeles")
-        )
+        new_org = Org.create(self.admin, settings.BRAND, "Cool Stuff", pytz.timezone("America/Los_Angeles"))
         self.assertEqual("M", new_org.date_format)
         self.assertEqual(str(new_org.timezone), "America/Los_Angeles")
 
@@ -2136,9 +2068,8 @@ class OrgTest(TembaTest):
 
         sub_org = self.org.create_new(self.admin, "Sub Org", self.org.timezone, as_child=True)
 
-        # we should be linked to our parent with the same brand
+        # we should be linked to our parent
         self.assertEqual(self.org, sub_org.parent)
-        self.assertEqual(self.org.brand, sub_org.brand)
         self.assertEqual(self.admin, sub_org.created_by)
 
         # default values should be the same as parent
@@ -3408,7 +3339,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         org3 = Org.objects.create(
             name="Deactivated",
             timezone=pytz.UTC,
-            brand=settings.DEFAULT_BRAND,
+            brand=settings.BRAND["slug"],
             created_by=self.user,
             modified_by=self.user,
             is_active=False,
@@ -3417,7 +3348,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # and another org that none of our users belong to
         org4 = Org.objects.create(
-            name="Other", timezone=pytz.UTC, brand=settings.DEFAULT_BRAND, created_by=self.user, modified_by=self.user
+            name="Other", timezone=pytz.UTC, brand=settings.BRAND["slug"], created_by=self.user, modified_by=self.user
         )
 
         self.assertLoginRedirect(self.client.get(choose_url))

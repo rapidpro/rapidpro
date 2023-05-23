@@ -890,13 +890,10 @@ class MigrationTest(TembaTest):
         pass
 
 
-def override_brand(slug: str, **kwargs):
-    brands = copy.deepcopy(settings.BRANDS)
-    for brand in brands:
-        if brand["slug"] == slug:
-            brand.update(kwargs)
-            break
-    return override_settings(BRANDS=brands)
+def override_brand(**kwargs):
+    brand = copy.deepcopy(settings.BRAND)
+    brand.update(kwargs)
+    return override_settings(BRAND=brand)
 
 
 def mock_uuids(method=None, *, seed=1234):
