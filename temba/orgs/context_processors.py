@@ -1,5 +1,7 @@
 from collections import defaultdict
 
+from temba.orgs.models import User
+
 
 class RolePermsWrapper:
     """
@@ -24,7 +26,7 @@ class RolePermsWrapper:
 
 def user_orgs(request):
     if request.user.is_authenticated:
-        user_orgs = request.user.get_orgs()
+        user_orgs = User.get_orgs_for_request(request)
         return {"user_orgs": user_orgs}
     return {}
 

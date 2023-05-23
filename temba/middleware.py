@@ -1,5 +1,5 @@
+import copy
 import cProfile
-import logging
 import pstats
 import traceback
 from io import StringIO
@@ -7,10 +7,7 @@ from io import StringIO
 from django.conf import settings
 from django.utils import timezone, translation
 
-from temba.orgs.models import Org
-from temba.utils import brands
-
-logger = logging.getLogger(__name__)
+from temba.orgs.models import Org, User
 
 
 class ExceptionMiddleware:
@@ -35,30 +32,14 @@ class BrandingMiddleware:
 
     def __call__(self, request):
         """
-        Set branding for this request based on the current host
+        Set branding for this request
         """
-
-        host = "localhost"
-        try:
-            host = request.get_host()
-        except Exception as e:  # pragma: needs cover
-            logger.error(f"Could not get host: {host}, {str(e)}", exc_info=True)
-
-        request.branding = self.get_branding_for_host(host)
-
+        request.branding = self.get_branding_for_request(request)
         return self.get_response(request)
 
     @classmethod
-    def get_branding_for_host(cls, host: str) -> dict:
-        # ignore subdomains
-        if len(host.split(".")) > 2:  # pragma: needs cover
-            host = ".".join(host.split(".")[-2:])
-
-        # prune off the port
-        if ":" in host:
-            host = host[0 : host.rindex(":")]
-
-        return brands.get_by_host(host)
+    def get_branding_for_request(cls, request) -> dict:
+        return copy.deepcopy(settings.BRAND)
 
 
 class OrgMiddleware:
@@ -99,7 +80,7 @@ class OrgMiddleware:
                 return org
 
         # otherwise if user only belongs to one org, we can use that
-        user_orgs = user.get_orgs()
+        user_orgs = User.get_orgs_for_request(request)
         if user_orgs.count() == 1:
             return user_orgs[0]
 

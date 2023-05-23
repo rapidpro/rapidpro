@@ -1,3 +1,4 @@
+import copy
 import itertools
 import logging
 import os
@@ -149,19 +150,24 @@ class User(AuthUser):
 
         return cls.create(email, first_name, last_name, password=password, language=language)
 
+    @classmethod
+    def get_orgs_for_request(cls, request, *, roles=None):
+        """
+        Gets the orgs that the logged in user has access to (i.e. a role in).
+        """
+        user = request.user
+        orgs = user.orgs.filter(is_active=True).order_by("name")
+        if roles is not None:
+            orgs = orgs.filter(orgmembership__user=user, orgmembership__role_code__in=[r.code for r in roles])
+
+        return orgs
+
     @property
     def name(self) -> str:
         return self.get_full_name()
 
-    def get_orgs(self, *, roles=None):
-        """
-        Gets the orgs that this user has access to (i.e. a role in).
-        """
-        orgs = self.orgs.filter(is_active=True).order_by("name")
-        if roles is not None:
-            orgs = orgs.filter(orgmembership__user=self, orgmembership__role_code__in=[r.code for r in roles])
-
-        return orgs
+    def get_orgs(self):
+        return self.orgs.filter(is_active=True).order_by("name")
 
     def get_owned_orgs(self):
         """
@@ -276,11 +282,11 @@ class User(AuthUser):
         self.is_active = False
         self.save()
 
-        # release any orgs we own on this brand
+        # release any orgs we own
         for org in self.get_owned_orgs():
             org.release(user, release_users=False)
 
-        # remove user from all roles on any org
+        # remove user from all roles on other orgs
         for org in self.get_orgs():
             org.remove_user(self)
 
@@ -566,7 +572,10 @@ class Org(SmartModel):
 
     @cached_property
     def branding(self):
-        return settings.BRAND
+        return self.get_brand()
+
+    def get_brand(self):
+        return copy.deepcopy(settings.BRAND)
 
     def get_brand_domain(self):
         return self.branding["domain"]
@@ -1209,7 +1218,7 @@ class Org(SmartModel):
         # release any user that belongs only to us
         if release_users:
             for org_user in self.users.all():
-                # check if this user is a member of any org on any brand
+                # check if this user is a member of any org
                 other_orgs = org_user.get_orgs().exclude(id=self.id)
                 if not other_orgs:
                     org_user.release(user)

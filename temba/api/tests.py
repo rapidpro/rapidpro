@@ -55,8 +55,10 @@ class APITokenTest(TembaTest):
         self.assertRaises(ValueError, APIToken.get_or_create, self.org, self.user)
 
     def test_get_orgs_for_role(self):
-        self.assertEqual(set(APIToken.get_orgs_for_role(self.admin, OrgRole.ADMINISTRATOR)), {self.org})
-        self.assertEqual(set(APIToken.get_orgs_for_role(self.admin, OrgRole.SURVEYOR)), {self.org, self.org2})
+        # mock our request
+        request = {"user": self.admin}
+        self.assertEqual(set(APIToken.get_orgs_for_role(request, OrgRole.ADMINISTRATOR)), {self.org})
+        self.assertEqual(set(APIToken.get_orgs_for_role(request, OrgRole.SURVEYOR)), {self.org, self.org2})
 
     def test_is_valid(self):
         token1 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.ADMINISTRATOR)
