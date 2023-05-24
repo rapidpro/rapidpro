@@ -1,4 +1,3 @@
-import copy
 import cProfile
 import pstats
 import traceback
@@ -39,7 +38,7 @@ class BrandingMiddleware:
 
     @classmethod
     def get_branding_for_request(cls, request) -> dict:
-        return copy.deepcopy(settings.BRAND)
+        return settings.BRAND
 
 
 class OrgMiddleware:

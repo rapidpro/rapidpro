@@ -1,4 +1,3 @@
-import copy
 import itertools
 import logging
 import os
@@ -575,7 +574,7 @@ class Org(SmartModel):
         return self.get_brand()
 
     def get_brand(self):
-        return copy.deepcopy(settings.BRAND)
+        return settings.BRAND
 
     def get_brand_domain(self):
         return self.branding["domain"]
