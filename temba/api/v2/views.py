@@ -339,7 +339,7 @@ class AuthenticateView(SmartFormView):
             tokens = []
 
             if role:
-                valid_orgs = APIToken.get_orgs_for_role(user, role)
+                valid_orgs = APIToken.get_orgs_for_role(self.request, role)
                 for org in valid_orgs:
                     token = APIToken.get_or_create(org, user, role=role)
                     serialized = {"uuid": str(org.uuid), "name": org.name, "id": org.id}  # for backward compatibility

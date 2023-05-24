@@ -2443,7 +2443,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_preview_start(self, mr_mocks, mock_flow_is_starting):
         mock_flow_is_starting.return_value = False
 
-        with override_brand("rapidpro", inactive_threshold=1000):
+        with override_brand(inactive_threshold=1000):
             flow = self.create_flow("Test")
             self.create_field("age", "Age")
             contact1 = self.create_contact("Ann", phone="+16302222222", fields={"age": 40})

@@ -28,7 +28,7 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.locations.models import AdminBoundary
-from temba.utils import brands, json, languages
+from temba.utils import json, languages
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONField
@@ -149,28 +149,31 @@ class User(AuthUser):
 
         return cls.create(email, first_name, last_name, password=password, language=language)
 
+    @classmethod
+    def get_orgs_for_request(cls, request, *, roles=None):
+        """
+        Gets the orgs that the logged in user has access to (i.e. a role in).
+        """
+        user = request.user
+        orgs = user.orgs.filter(is_active=True).order_by("name")
+        if roles is not None:
+            orgs = orgs.filter(orgmembership__user=user, orgmembership__role_code__in=[r.code for r in roles])
+
+        return orgs
+
     @property
     def name(self) -> str:
         return self.get_full_name()
 
-    def get_orgs(self, *, brand: str = None, roles=None):
-        """
-        Gets the orgs in the given brands that this user has access to (i.e. a role in).
-        """
-        orgs = self.orgs.filter(is_active=True).order_by("name")
-        if brand:
-            orgs = orgs.filter(brand=brand)
-        if roles is not None:
-            orgs = orgs.filter(orgmembership__user=self, orgmembership__role_code__in=[r.code for r in roles])
+    def get_orgs(self):
+        return self.orgs.filter(is_active=True).order_by("name")
 
-        return orgs
-
-    def get_owned_orgs(self, *, brand=None):
+    def get_owned_orgs(self):
         """
-        Gets the orgs in the given brands where this user is the only user.
+        Gets the orgs where this user is the only user.
         """
         owned_orgs = []
-        for org in self.get_orgs(brand=brand):
+        for org in self.get_orgs():
             if not org.users.exclude(id=self.id).exists():
                 owned_orgs.append(org)
         return owned_orgs
@@ -265,28 +268,25 @@ class User(AuthUser):
     def as_engine_ref(self) -> dict:
         return {"email": self.email, "name": self.name}
 
-    def release(self, user, *, brand):
+    def release(self, user):
         """
         Releases this user, and any orgs of which they are the sole owner.
         """
+        user_uuid = str(uuid4())
+        self.first_name = ""
+        self.last_name = ""
+        self.email = f"{user_uuid}@rapidpro.io"
+        self.username = f"{user_uuid}@rapidpro.io"
+        self.password = ""
+        self.is_active = False
+        self.save()
 
-        # if our user exists across brands don't muck with the user
-        if self.get_orgs().order_by("brand").distinct("brand").count() < 2:
-            user_uuid = str(uuid4())
-            self.first_name = ""
-            self.last_name = ""
-            self.email = f"{user_uuid}@rapidpro.io"
-            self.username = f"{user_uuid}@rapidpro.io"
-            self.password = ""
-            self.is_active = False
-            self.save()
-
-        # release any orgs we own on this brand
-        for org in self.get_owned_orgs(brand=brand):
+        # release any orgs we own
+        for org in self.get_owned_orgs():
             org.release(user, release_users=False)
 
-        # remove user from all roles on any org for our brand
-        for org in self.get_orgs(brand=brand):
+        # remove user from all roles on other orgs
+        for org in self.get_orgs():
             org.remove_user(self)
 
     def __str__(self):
@@ -571,7 +571,10 @@ class Org(SmartModel):
 
     @cached_property
     def branding(self):
-        return brands.get_by_slug(self.brand)
+        return self.get_brand()
+
+    def get_brand(self):
+        return settings.BRAND
 
     def get_brand_domain(self):
         return self.branding["domain"]
@@ -1214,10 +1217,10 @@ class Org(SmartModel):
         # release any user that belongs only to us
         if release_users:
             for org_user in self.users.all():
-                # check if this user is a member of any org on any brand
+                # check if this user is a member of any org
                 other_orgs = org_user.get_orgs().exclude(id=self.id)
                 if not other_orgs:
-                    org_user.release(user, brand=self.brand)
+                    org_user.release(user)
 
         # remove all the org users
         for org_user in self.users.all():

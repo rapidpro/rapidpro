@@ -158,7 +158,7 @@ TEMPLATES = [
                 "temba.context_processors.branding",
                 "temba.context_processors.config",
                 "temba.orgs.context_processors.user_group_perms_processor",
-                "temba.orgs.context_processors.user_orgs_for_brand",
+                "temba.orgs.context_processors.user_orgs",
             ],
             "loaders": [
                 "temba.utils.haml.HamlFilesystemLoader",
@@ -184,8 +184,8 @@ MIDDLEWARE = (
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "temba.middleware.BrandingMiddleware",
     "temba.middleware.OrgMiddleware",
+    "temba.middleware.BrandingMiddleware",
     "temba.middleware.LanguageMiddleware",
     "temba.middleware.TimezoneMiddleware",
 )
@@ -269,28 +269,24 @@ LOGGING = {
 # -----------------------------------------------------------------------------------
 # Branding Configuration
 # -----------------------------------------------------------------------------------
-BRANDS = [
-    {
-        "slug": "rapidpro",
-        "name": "RapidPro",
-        "hosts": ["rapidpro.io"],
-        "org": "UNICEF",
-        "domain": "app.rapidpro.io",
-        "colors": dict(primary="#0c6596"),
-        "styles": ["brands/rapidpro/font/style.css"],
-        "email": "join@rapidpro.io",
-        "support_email": "support@rapidpro.io",
-        "link": "https://app.rapidpro.io",
-        "docs_link": "http://docs.rapidpro.io",
-        "ticket_domain": "tickets.rapidpro.io",
-        "favico": "brands/rapidpro/rapidpro.ico",
-        "splash": "brands/rapidpro/splash.jpg",
-        "logo": "images/logo-dark.svg",
-        "allow_signups": True,
-        "title": _("Visually build nationally scalable mobile applications"),
-    }
-]
-DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro")
+BRAND = {
+    "slug": "rapidpro",
+    "name": "RapidPro",
+    "hosts": ["rapidpro.io"],
+    "org": "UNICEF",
+    "domain": "app.rapidpro.io",
+    "styles": [],
+    "email": "join@rapidpro.io",
+    "support_email": "support@rapidpro.io",
+    "link": "https://app.rapidpro.io",
+    "docs_link": "http://docs.rapidpro.io",
+    "ticket_domain": "tickets.rapidpro.io",
+    "favico": "brands/rapidpro/rapidpro.ico",
+    "splash": "brands/rapidpro/splash.jpg",
+    "logo": "images/logo-dark.svg",
+    "allow_signups": True,
+    "title": _("Visually build nationally scalable mobile applications"),
+}
 
 FEATURES = {"locations", "surveyor", "ticketers"}
 
@@ -879,13 +875,6 @@ else:
 
 COMPRESS_ENABLED = False
 COMPRESS_OFFLINE = False
-
-# build up our offline compression context based on available brands
-COMPRESS_OFFLINE_CONTEXT = []
-for brand in BRANDS:
-    context = dict(STATIC_URL=STATIC_URL, base_template="frame.html", debug=False, testing=False)
-    context["brand"] = dict(slug=brand["slug"], styles=brand["styles"])
-    COMPRESS_OFFLINE_CONTEXT.append(context)
 
 # -----------------------------------------------------------------------------------
 # RapidPro configuration settings

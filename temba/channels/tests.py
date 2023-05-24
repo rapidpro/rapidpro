@@ -1370,7 +1370,7 @@ class ChannelClaimTest(TembaTest):
         self.channel.last_seen = timezone.now() - timedelta(minutes=40)
         self.channel.save()
 
-        with override_brand("rapidpro", from_email="support@mybrand.com"):
+        with override_brand(from_email="support@mybrand.com"):
             check_channel_alerts()
 
             # should have created one alert

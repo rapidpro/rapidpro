@@ -12,10 +12,6 @@ class JustCallTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        # override the ORG brand
-        self.org.brand = "custom-brand.io"
-        self.org.save()
-
         self.login(self.admin)
 
         url = reverse("channels.types.justcall.claim")

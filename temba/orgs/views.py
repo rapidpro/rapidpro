@@ -745,17 +745,13 @@ class UserCRUDL(SmartCRUDL):
         cancel_url = "@orgs.user_list"
 
         def get_context_data(self, **kwargs):
-            brand = self.request.branding.get("brand")
-
             context = super().get_context_data(**kwargs)
-            context["owned_orgs"] = self.get_object().get_owned_orgs(brand=brand)
+            context["owned_orgs"] = self.get_object().get_owned_orgs()
             return context
 
         def post(self, request, *args, **kwargs):
             user = self.get_object()
-
-            brand = self.request.branding.get("brand")
-            user.release(self.request.user, brand=brand)
+            user.release(self.request.user)
 
             messages.info(request, self.derive_success_message())
             response = HttpResponse()
@@ -1318,7 +1314,9 @@ class OrgCRUDL(SmartCRUDL):
 
             menu = []
             if self.org:
-                other_orgs = self.request.user.get_orgs().exclude(id=self.org.id).order_by("-parent", "name")
+                other_orgs = (
+                    User.get_orgs_for_request(self.request).exclude(id=self.org.id).order_by("-parent", "name")
+                )
                 other_org_items = [
                     self.create_menu_item(menu_id=other_org.id, name=other_org.name, avatar=other_org.name, event=True)
                     for other_org in other_orgs
@@ -1847,7 +1845,6 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             qs = super().derive_queryset(**kwargs).filter(is_active=True)
-            qs = qs.filter(brand=self.request.branding["slug"])
             filter = self.get_filter()
             if filter:
                 _, _, filter_kwargs, ordering = filter
@@ -2387,13 +2384,10 @@ class OrgCRUDL(SmartCRUDL):
         fields = ("organization",)
         title = _("Select your Workspace")
 
-        def get_user_orgs(self):
-            return self.request.user.get_orgs(brand=self.request.branding["slug"])
-
         def pre_process(self, request, *args, **kwargs):
             user = self.request.user
             if user.is_authenticated:
-                user_orgs = self.get_user_orgs()
+                user_orgs = User.get_orgs_for_request(self.request)
                 if user_orgs.count() == 1:
                     org = user_orgs[0]
                     switch_to_org(self.request, org)
@@ -2413,12 +2407,12 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["orgs"] = self.get_user_orgs()
+            context["orgs"] = User.get_orgs_for_request(self.request)
             return context
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["orgs"] = self.get_user_orgs()
+            kwargs["orgs"] = User.get_orgs_for_request(self.request)
             return kwargs
 
         def has_permission(self, request, *args, **kwargs):
