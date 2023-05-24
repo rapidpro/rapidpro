@@ -10,7 +10,6 @@ from urllib.parse import parse_qs, quote, quote_plus, unquote, urlparse
 
 import iso8601
 import pyotp
-import requests
 from packaging.version import Version
 from smartmin.users.models import FailedLogin, PasswordHistory, RecoveryToken
 from smartmin.users.views import Login, UserUpdateForm
@@ -62,7 +61,6 @@ from temba.utils.fields import (
     SelectMultipleWidget,
     SelectWidget,
 )
-from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import (
     ComponentFormMixin,
@@ -1153,7 +1151,6 @@ class OrgCRUDL(SmartCRUDL):
         "create",
         "export",
         "import",
-        "plivo_connect",
         "prometheus",
         "resthooks",
         "service",
@@ -1588,46 +1585,6 @@ class OrgCRUDL(SmartCRUDL):
             singles = sorted(list(singles), key=sort_key)
 
             return non_single_buckets, singles
-
-    class PlivoConnect(ModalMixin, ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
-        class PlivoConnectForm(forms.Form):
-            auth_id = forms.CharField(help_text=_("Your Plivo auth ID"))
-            auth_token = forms.CharField(help_text=_("Your Plivo auth token"))
-
-            def clean(self):
-                super().clean()
-
-                auth_id = self.cleaned_data.get("auth_id", None)
-                auth_token = self.cleaned_data.get("auth_token", None)
-
-                headers = http_headers(extra={"Content-Type": "application/json"})
-
-                response = requests.get(
-                    "https://api.plivo.com/v1/Account/%s/" % auth_id, headers=headers, auth=(auth_id, auth_token)
-                )
-
-                if response.status_code != 200:
-                    raise ValidationError(
-                        _("Your Plivo auth ID and auth token seem invalid. Please check them again and retry.")
-                    )
-
-                return self.cleaned_data
-
-        form_class = PlivoConnectForm
-        submit_button_name = "Save"
-        success_url = "@channels.types.plivo.claim"
-        field_config = dict(auth_id=dict(label=""), auth_token=dict(label=""))
-        success_message = "Plivo credentials verified. You can now add a Plivo channel."
-
-        def form_valid(self, form):
-            auth_id = form.cleaned_data["auth_id"]
-            auth_token = form.cleaned_data["auth_token"]
-
-            # add the credentials to the session
-            self.request.session[Channel.CONFIG_PLIVO_AUTH_ID] = auth_id
-            self.request.session[Channel.CONFIG_PLIVO_AUTH_TOKEN] = auth_token
-
-            return HttpResponseRedirect(self.get_success_url())
 
     class SmtpServer(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):

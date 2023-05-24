@@ -63,8 +63,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
     form_class = Form
 
     def pre_process(self, *args, **kwargs):
-        auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
-        auth_token = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_TOKEN, None)
+        auth_id = self.request.session.get(self.channel_type.CONFIG_AUTH_ID, None)
+        auth_token = self.request.session.get(self.channel_type.CONFIG_AUTH_TOKEN, None)
 
         headers = http_headers(extra={"Content-Type": "application/json"})
         response = requests.get(
@@ -74,7 +74,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         if response.status_code == 200:
             return None
         else:
-            return HttpResponseRedirect(reverse("orgs.org_plivo_connect"))
+            return HttpResponseRedirect(reverse("channels.types.plivo.connect"))
 
     def is_valid_country(self, calling_code: int) -> bool:
         return calling_code in CALLING_CODES
@@ -95,8 +95,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return COUNTRY_CHOICES
 
     def get_existing_numbers(self, org):
-        auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
-        auth_token = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_TOKEN, None)
+        auth_id = self.request.session.get(self.channel_type.CONFIG_AUTH_ID, None)
+        auth_token = self.request.session.get(self.channel_type.CONFIG_AUTH_TOKEN, None)
 
         headers = http_headers(extra={"Content-Type": "application/json"})
         response = requests.get(
@@ -120,8 +120,8 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return account_numbers
 
     def claim_number(self, user, phone_number, country, role):
-        auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
-        auth_token = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_TOKEN, None)
+        auth_id = self.request.session.get(self.channel_type.CONFIG_AUTH_ID, None)
+        auth_token = self.request.session.get(self.channel_type.CONFIG_AUTH_TOKEN, None)
 
         org = self.request.org
 
@@ -148,9 +148,9 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             plivo_app_id = None
 
         plivo_config = {
-            Channel.CONFIG_PLIVO_AUTH_ID: auth_id,
-            Channel.CONFIG_PLIVO_AUTH_TOKEN: auth_token,
-            Channel.CONFIG_PLIVO_APP_ID: plivo_app_id,
+            self.channel_type.CONFIG_AUTH_ID: auth_id,
+            self.channel_type.CONFIG_AUTH_TOKEN: auth_token,
+            self.channel_type.CONFIG_APP_ID: plivo_app_id,
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
         }
 
@@ -201,11 +201,17 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         return channel
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["current_creds_account"] = self.request.session.get(self.channel_type.CONFIG_AUTH_ID, None)
+
+        return context
+
     def remove_api_credentials_from_session(self):
-        if Channel.CONFIG_PLIVO_AUTH_ID in self.request.session:
-            del self.request.session[Channel.CONFIG_PLIVO_AUTH_ID]
-        if Channel.CONFIG_PLIVO_AUTH_TOKEN in self.request.session:
-            del self.request.session[Channel.CONFIG_PLIVO_AUTH_TOKEN]
+        if self.channel_type.CONFIG_AUTH_ID in self.request.session:
+            del self.request.session[self.channel_type.CONFIG_AUTH_ID]
+        if self.channel_type.CONFIG_AUTH_TOKEN in self.request.session:
+            del self.request.session[self.channel_type.CONFIG_AUTH_TOKEN]
 
 
 class SearchView(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
@@ -218,8 +224,8 @@ class SearchView(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
 
     def form_valid(self, form, *args, **kwargs):
         data = form.cleaned_data
-        auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
-        auth_token = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_TOKEN, None)
+        auth_id = self.request.session.get(self.channel_type.CONFIG_AUTH_ID, None)
+        auth_token = self.request.session.get(self.channel_type.CONFIG_AUTH_TOKEN, None)
 
         try:
             params = dict(country_iso=data["country"], pattern=data.get("pattern"))
@@ -245,3 +251,68 @@ class SearchView(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
             return JsonResponse(numbers, safe=False)
         except Exception as e:
             return JsonResponse({"error": str(e)})
+
+
+class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
+    class PlivoConnectForm(forms.Form):
+        auth_id = forms.CharField(help_text=_("Your Plivo auth ID"))
+        auth_token = forms.CharField(help_text=_("Your Plivo auth token"))
+
+        def clean(self):
+            super().clean()
+
+            auth_id = self.cleaned_data.get("auth_id", None)
+            auth_token = self.cleaned_data.get("auth_token", None)
+
+            headers = http_headers(extra={"Content-Type": "application/json"})
+
+            response = requests.get(
+                "https://api.plivo.com/v1/Account/%s/" % auth_id, headers=headers, auth=(auth_id, auth_token)
+            )
+
+            if response.status_code != 200:
+                raise ValidationError(
+                    _("Your Plivo auth ID and auth token seem invalid. Please check them again and retry.")
+                )
+
+            return self.cleaned_data
+
+    form_class = PlivoConnectForm
+    permission = "channels.channel_claim"
+    submit_button_name = "Save"
+    template_name = "channels/types/plivo/connect.html"
+    field_config = dict(auth_id=dict(label=""), auth_token=dict(label=""))
+    success_message = "Plivo credentials verified. You can now add a Plivo channel."
+    menu_path = "/settings/workspace"
+
+    def get_success_url(self):
+        return reverse("channels.types.plivo.claim")
+
+    def pre_process(self, *args, **kwargs):
+        reset_creds = self.request.GET.get("reset_creds", "")
+
+        org = self.request.org
+        last_plivo_channel = (
+            org.channels.filter(is_active=True, channel_type=self.channel_type.code).order_by("-created_on").first()
+        )
+
+        if last_plivo_channel and not reset_creds:
+            self.request.session[self.channel_type.CONFIG_AUTH_ID] = last_plivo_channel.config.get(
+                self.channel_type.CONFIG_AUTH_ID, ""
+            )
+            self.request.session[self.channel_type.CONFIG_AUTH_TOKEN] = last_plivo_channel.config.get(
+                self.channel_type.CONFIG_AUTH_TOKEN, ""
+            )
+            return HttpResponseRedirect(self.get_success_url())
+
+        return None
+
+    def form_valid(self, form):
+        auth_id = form.cleaned_data["auth_id"]
+        auth_token = form.cleaned_data["auth_token"]
+
+        # add the credentials to the session
+        self.request.session[self.channel_type.CONFIG_AUTH_ID] = auth_id
+        self.request.session[self.channel_type.CONFIG_AUTH_TOKEN] = auth_token
+
+        return HttpResponseRedirect(self.get_success_url())

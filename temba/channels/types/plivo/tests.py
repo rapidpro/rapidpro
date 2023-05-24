@@ -6,6 +6,8 @@ from temba.channels.models import Channel
 from temba.tests import MockResponse, TembaTest
 from temba.utils import json
 
+from .type import PlivoType
+
 
 class PlivoTypeTest(TembaTest):
     def test_claim(self):
@@ -14,7 +16,7 @@ class PlivoTypeTest(TembaTest):
         # remove any existing channels
         self.org.channels.update(is_active=False)
 
-        connect_plivo_url = reverse("orgs.org_plivo_connect")
+        connect_plivo_url = reverse("channels.types.plivo.connect")
         claim_plivo_url = reverse("channels.types.plivo.claim")
 
         # make sure plivo is on the claim page
@@ -30,7 +32,7 @@ class PlivoTypeTest(TembaTest):
 
             response = self.client.get(claim_plivo_url, follow=True)
 
-            self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_plivo_connect"))
+            self.assertEqual(response.request["PATH_INFO"], connect_plivo_url)
 
         with patch("requests.get") as plivo_get:
             plivo_get.return_value = MockResponse(400, json.dumps(dict()))
@@ -38,7 +40,7 @@ class PlivoTypeTest(TembaTest):
             # try hit the claim page, should be redirected; no credentials in session
             response = self.client.get(claim_plivo_url, follow=True)
             self.assertNotIn("account_trial", response.context)
-            self.assertContains(response, connect_plivo_url)
+            self.assertEqual(response.request["PATH_INFO"], connect_plivo_url)
 
         # let's add a number already connected to the account
         with patch("requests.get") as plivo_get:
@@ -65,12 +67,12 @@ class PlivoTypeTest(TembaTest):
 
                 # claim it the US number
                 session = self.client.session
-                session[Channel.CONFIG_PLIVO_AUTH_ID] = "auth-id"
-                session[Channel.CONFIG_PLIVO_AUTH_TOKEN] = "auth-token"
+                session[PlivoType.CONFIG_AUTH_ID] = "auth-id"
+                session[PlivoType.CONFIG_AUTH_TOKEN] = "auth-token"
                 session.save()
 
-                self.assertTrue(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
-                self.assertTrue(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
+                self.assertTrue(PlivoType.CONFIG_AUTH_ID in self.client.session)
+                self.assertTrue(PlivoType.CONFIG_AUTH_TOKEN in self.client.session)
 
                 response = self.client.post(claim_plivo_url, dict(phone_number="+1 606-268-1435", country="US"))
                 self.assertRedirects(response, reverse("public.public_welcome") + "?success")
@@ -81,16 +83,24 @@ class PlivoTypeTest(TembaTest):
                 self.assertEqual(
                     channel.config,
                     {
-                        Channel.CONFIG_PLIVO_AUTH_ID: "auth-id",
-                        Channel.CONFIG_PLIVO_AUTH_TOKEN: "auth-token",
-                        Channel.CONFIG_PLIVO_APP_ID: "app-id",
+                        PlivoType.CONFIG_AUTH_ID: "auth-id",
+                        PlivoType.CONFIG_AUTH_TOKEN: "auth-token",
+                        PlivoType.CONFIG_APP_ID: "app-id",
                         Channel.CONFIG_CALLBACK_DOMAIN: "app.rapidpro.io",
                     },
                 )
                 self.assertEqual(channel.address, "+16062681435")
                 # no more credential in the session
-                self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
-                self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
+                self.assertFalse(PlivoType.CONFIG_AUTH_ID in self.client.session)
+                self.assertFalse(PlivoType.CONFIG_AUTH_TOKEN in self.client.session)
+
+                response = self.client.get(reverse("channels.types.plivo.connect"))
+                self.assertEqual(302, response.status_code)
+                self.assertRedirects(response, reverse("channels.types.plivo.claim"))
+
+                response = self.client.get(reverse("channels.types.plivo.connect") + "?reset_creds=reset")
+                self.assertEqual(200, response.status_code)
+                self.assertEqual(list(response.context["form"].fields.keys()), ["auth_id", "auth_token", "loc"])
 
         # delete existing channels
         Channel.objects.all().delete()
@@ -118,12 +128,12 @@ class PlivoTypeTest(TembaTest):
 
                 # claim it the US number
                 session = self.client.session
-                session[Channel.CONFIG_PLIVO_AUTH_ID] = "auth-id"
-                session[Channel.CONFIG_PLIVO_AUTH_TOKEN] = "auth-token"
+                session[PlivoType.CONFIG_AUTH_ID] = "auth-id"
+                session[PlivoType.CONFIG_AUTH_TOKEN] = "auth-token"
                 session.save()
 
-                self.assertTrue(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
-                self.assertTrue(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
+                self.assertTrue(PlivoType.CONFIG_AUTH_ID in self.client.session)
+                self.assertTrue(PlivoType.CONFIG_AUTH_TOKEN in self.client.session)
 
                 response = self.client.post(claim_plivo_url, dict(phone_number="+1 606-268-1440", country="US"))
                 self.assertRedirects(response, reverse("public.public_welcome") + "?success")
@@ -133,17 +143,17 @@ class PlivoTypeTest(TembaTest):
                 self.assertEqual(
                     channel.config,
                     {
-                        Channel.CONFIG_PLIVO_AUTH_ID: "auth-id",
-                        Channel.CONFIG_PLIVO_AUTH_TOKEN: "auth-token",
-                        Channel.CONFIG_PLIVO_APP_ID: "app-id",
+                        PlivoType.CONFIG_AUTH_ID: "auth-id",
+                        PlivoType.CONFIG_AUTH_TOKEN: "auth-token",
+                        PlivoType.CONFIG_APP_ID: "app-id",
                         Channel.CONFIG_CALLBACK_DOMAIN: "app.rapidpro.io",
                     },
                 )
 
                 self.assertEqual(channel.address, "+16062681440")
                 # no more credential in the session
-                self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
-                self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
+                self.assertFalse(PlivoType.CONFIG_AUTH_ID in self.client.session)
+                self.assertFalse(PlivoType.CONFIG_AUTH_TOKEN in self.client.session)
 
                 self.assertEqual(mock_get.call_args_list[0][0][0], "https://api.plivo.com/v1/Account/auth-id/")
                 self.assertEqual(
@@ -193,3 +203,32 @@ class PlivoTypeTest(TembaTest):
         response = self.client.post(search_url, {"country": "US", "pattern": ""})
 
         self.assertContains(response, "Bad request")
+
+    def test_connect_plivo(self):
+        self.login(self.admin)
+
+        # connect plivo
+        connect_url = reverse("channels.types.plivo.connect")
+
+        # simulate invalid credentials
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(
+                401, "Could not verify your access level for that URL." "\nYou have to login with proper credentials"
+            )
+            response = self.client.post(connect_url, dict(auth_id="auth-id", auth_token="auth-token"))
+            self.assertContains(
+                response, "Your Plivo auth ID and auth token seem invalid. Please check them again and retry."
+            )
+            self.assertFalse(PlivoType.CONFIG_AUTH_ID in self.client.session)
+            self.assertFalse(PlivoType.CONFIG_AUTH_TOKEN in self.client.session)
+
+        # ok, now with a success
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(200, json.dumps(dict()))
+            response = self.client.post(connect_url, dict(auth_id="auth-id", auth_token="auth-token"))
+
+            # plivo should be added to the session
+            self.assertEqual(self.client.session[PlivoType.CONFIG_AUTH_ID], "auth-id")
+            self.assertEqual(self.client.session[PlivoType.CONFIG_AUTH_TOKEN], "auth-token")
+
+            self.assertRedirect(response, reverse("channels.types.plivo.claim"))
