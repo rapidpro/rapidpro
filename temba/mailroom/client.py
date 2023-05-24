@@ -57,7 +57,6 @@ class ContactSpec:
 class QueryInclusions:
     group_uuids: list = field(default_factory=list)
     contact_uuids: list = field(default_factory=list)
-    urns: list = field(default_factory=list)
     query: str = ""
 
 

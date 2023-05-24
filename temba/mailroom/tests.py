@@ -118,7 +118,6 @@ class MailroomClientTest(TembaTest):
                 "include": {
                     "group_uuids": ["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
                     "contact_uuids": ["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
-                    "urns": [],
                     "query": "",
                 },
                 "exclude": {
