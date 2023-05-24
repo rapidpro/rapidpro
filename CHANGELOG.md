@@ -1,3 +1,9 @@
+v8.1.161 (2023-05-24)
+-------------------------
+ * User orgs based on request
+ * Switch brand array to dict
+ * Move plivo connect view to channel type
+
 v8.1.160 (2023-05-19)
 -------------------------
  * Fix field update and deleting with same key
