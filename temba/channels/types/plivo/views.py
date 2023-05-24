@@ -201,6 +201,12 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         return channel
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["current_creds_account"] = self.request.session.get(self.channel_type.CONFIG_AUTH_ID, None)
+
+        return context
+
     def remove_api_credentials_from_session(self):
         if self.channel_type.CONFIG_AUTH_ID in self.request.session:
             del self.request.session[self.channel_type.CONFIG_AUTH_ID]
@@ -281,6 +287,25 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
 
     def get_success_url(self):
         return reverse("channels.types.plivo.claim")
+
+    def pre_process(self, *args, **kwargs):
+        reset_creds = self.request.GET.get("reset_creds", "")
+
+        org = self.request.org
+        last_plivo_channel = (
+            org.channels.filter(is_active=True, channel_type=self.channel_type.code).order_by("-created_on").first()
+        )
+
+        if last_plivo_channel and not reset_creds:
+            self.request.session[self.channel_type.CONFIG_AUTH_ID] = last_plivo_channel.config.get(
+                self.channel_type.CONFIG_AUTH_ID, ""
+            )
+            self.request.session[self.channel_type.CONFIG_AUTH_TOKEN] = last_plivo_channel.config.get(
+                self.channel_type.CONFIG_AUTH_TOKEN, ""
+            )
+            return HttpResponseRedirect(self.get_success_url())
+
+        return None
 
     def form_valid(self, form):
         auth_id = form.cleaned_data["auth_id"]

@@ -94,6 +94,14 @@ class PlivoTypeTest(TembaTest):
                 self.assertFalse(PlivoType.CONFIG_AUTH_ID in self.client.session)
                 self.assertFalse(PlivoType.CONFIG_AUTH_TOKEN in self.client.session)
 
+                response = self.client.get(reverse("channels.types.plivo.connect"))
+                self.assertEqual(302, response.status_code)
+                self.assertRedirects(response, reverse("channels.types.plivo.claim"))
+
+                response = self.client.get(reverse("channels.types.plivo.connect") + "?reset_creds=reset")
+                self.assertEqual(200, response.status_code)
+                self.assertEqual(list(response.context["form"].fields.keys()), ["auth_id", "auth_token", "loc"])
+
         # delete existing channels
         Channel.objects.all().delete()
 

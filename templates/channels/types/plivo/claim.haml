@@ -6,5 +6,14 @@
     -for country in search_countries
       %temba-option(name="{{country.label}}" value="{{country.key}}")
 
+- block account-warning
+  -if current_creds_account
+    .card.mt-6
+      -trans "Using account"
+      .text-lg.font-bold.inline-block.ml-2
+        {{current_creds_account}}
+      %a.inline-block.ml-4{href:'{% url "channels.types.plivo.connect" %}?reset_creds=reset'}
+        -trans "Change"
+
 -block search-pattern
   %temba-textinput#pattern(type="text" maxlength="7" name="pattern" label='{{_("Pattern")|escapejs}}')
