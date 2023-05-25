@@ -2449,6 +2449,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                     "total": 100,
                     "warnings": [],
                     "blockers": [],
+                    "sample": [],
+                    "fields": [],
                 },
                 response.json(),
             )

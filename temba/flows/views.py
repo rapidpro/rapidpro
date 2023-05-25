@@ -1629,6 +1629,9 @@ class FlowCRUDL(SmartCRUDL):
                     "total": total,
                     "warnings": self.get_warnings(flow, query, total),
                     "blockers": self.get_blockers(flow),
+                    # TODO remove when contact search component fixed
+                    "sample": [],
+                    "fields": [],
                 }
             )
 
