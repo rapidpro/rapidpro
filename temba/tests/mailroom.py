@@ -57,6 +57,7 @@ class Mocks:
         self._parse_query = {}
         self._contact_search = {}
         self._flow_preview_start = []
+        self._msg_preview_broadcast = []
         self._errors = []
 
         self.queued_batch_tasks = []
@@ -92,6 +93,17 @@ class Mocks:
             )
 
         self._flow_preview_start.append(mock)
+
+    def msg_preview_broadcast(self, query, total, sample):
+        def mock(org):
+            return mailroom.BroadcastPreview(
+                query=query,
+                total=total,
+                sample_ids=[c.id for c in sample],
+                metadata=mock_inspect_query(org, query),
+            )
+
+        self._msg_preview_broadcast.append(mock)
 
     def error(self, msg: str, code: str = None, extra: dict = None):
         """

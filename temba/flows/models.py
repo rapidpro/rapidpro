@@ -946,24 +946,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         dependents["trigger"] = self.triggers.filter(is_active=True)
         return dependents
 
-    def preview_start(self, *, include: mailroom.QueryInclusions, exclude: mailroom.QueryExclusions) -> tuple:
-        """
-        Generates a preview of the given start as a tuple of
-            1) query of all recipients
-            2) total contact count
-            3) sample of the contacts (max 3)
-            4) query metadata
-        """
-        preview = search.preview_start(self.org, self, include=include, exclude=exclude, sample_size=3)
-        sample = (
-            self.org.contacts.filter(id__in=preview.sample_ids)
-            .order_by("id")
-            .select_related("org")
-            .prefetch_related("urns")
-        )
-
-        return preview.query, preview.total, sample, preview.metadata
-
     def release(self, user, *, interrupt_sessions: bool = True):
         """
         Releases this flow, marking it inactive. We interrupt all flow runs in a background process.
@@ -1990,6 +1972,25 @@ class FlowStart(models.Model):
             start.groups.add(group)
 
         return start
+
+    @classmethod
+    def preview(cls, flow, *, include: mailroom.Inclusions, exclude: mailroom.Exclusions) -> tuple:
+        """
+        Generates a preview of the recipients of a start created with the given inclusions/exclusions:
+            1) query of all recipients
+            2) total contact count
+            3) sample of the contacts (max 3)
+            4) query metadata
+        """
+        preview = search.preview_start(flow.org, flow, include=include, exclude=exclude, sample_size=3)
+        sample = (
+            flow.org.contacts.filter(id__in=preview.sample_ids)
+            .order_by("id")
+            .select_related("org")
+            .prefetch_related("urns")
+        )
+
+        return preview.query, preview.total, sample, preview.metadata
 
     def async_start(self):
         on_transaction_commit(lambda: mailroom.queue_flow_start(self))

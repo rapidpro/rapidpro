@@ -1614,13 +1614,13 @@ class FlowCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             payload = json.loads(request.body)
-            include = mailroom.QueryInclusions(**payload.get("include", {}))
-            exclude = mailroom.QueryExclusions(**payload.get("exclude", {}))
+            include = mailroom.Inclusions(**payload.get("include", {}))
+            exclude = mailroom.Exclusions(**payload.get("exclude", {}))
             flow = self.get_object()
             org = flow.org
 
             try:
-                query, total, sample, metadata = flow.preview_start(include=include, exclude=exclude)
+                query, total, sample, metadata = FlowStart.preview(flow, include=include, exclude=exclude)
             except SearchException as e:
                 return JsonResponse({"query": "", "total": 0, "sample": [], "error": str(e)}, status=400)
 
@@ -1692,14 +1692,6 @@ class FlowCRUDL(SmartCRUDL):
                     is_system=False,
                     is_active=True,
                 ).order_by("name")
-
-            def clean_flow(self):
-                flow = self.cleaned_data.get("flow")
-
-                # these should be caught as part of StartPreview
-                assert not flow.org.is_suspended and not flow.org.is_flagged and not flow.is_starting()
-
-                return flow
 
             def clean_query(self):
                 query = self.cleaned_data.get("query")

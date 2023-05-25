@@ -54,14 +54,14 @@ class ContactSpec:
 
 
 @dataclass
-class QueryInclusions:
+class Inclusions:
     group_uuids: list = field(default_factory=list)
     contact_uuids: list = field(default_factory=list)
     query: str = ""
 
 
 @dataclass
-class QueryExclusions:
+class Exclusions:
     non_active: bool = False  # contacts who are blocked, stopped or archived
     in_a_flow: bool = False  # contacts who are currently in a flow (including this one)
     started_previously: bool = False  # contacts who have been in this flow in the last 90 days
@@ -93,6 +93,14 @@ class SearchResults:
     query: str
     total: int
     contact_ids: list
+    metadata: QueryMetadata
+
+
+@dataclass(frozen=True)
+class BroadcastPreview:
+    query: str
+    total: int
+    sample_ids: list
     metadata: QueryMetadata
 
 
@@ -151,12 +159,7 @@ class MailroomClient:
         return self._request("flow/clone", payload)
 
     def flow_preview_start(
-        self,
-        org_id: int,
-        flow_id: int,
-        include: QueryInclusions,
-        exclude: QueryExclusions,
-        sample_size: int,
+        self, org_id: int, flow_id: int, include: Inclusions, exclude: Exclusions, sample_size: int
     ) -> StartPreview:
         payload = {
             "org_id": org_id,
@@ -168,6 +171,24 @@ class MailroomClient:
 
         response = self._request("flow/preview_start", payload, encode_json=True)
         return StartPreview(
+            query=response["query"],
+            total=response["total"],
+            sample_ids=response["sample_ids"],
+            metadata=QueryMetadata(**response.get("metadata", {})),
+        )
+
+    def msg_preview_broadcast(
+        self, org_id: int, include: Inclusions, exclude: Exclusions, sample_size: int
+    ) -> BroadcastPreview:
+        payload = {
+            "org_id": org_id,
+            "include": asdict(include),
+            "exclude": asdict(exclude),
+            "sample_size": sample_size,
+        }
+
+        response = self._request("msg/preview_broadcast", payload, encode_json=True)
+        return BroadcastPreview(
             query=response["query"],
             total=response["total"],
             sample_ids=response["sample_ids"],

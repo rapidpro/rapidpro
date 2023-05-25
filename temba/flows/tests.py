@@ -1357,26 +1357,6 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         # fetching a flow with a group send shouldn't throw
         self.get_flow("group_send_flow")
 
-    @mock_mailroom
-    def test_preview_start(self, mr_mocks):
-        flow = self.create_flow("Test")
-        contact1 = self.create_contact("Ann", phone="+1234567111")
-        contact2 = self.create_contact("Bob", phone="+1234567222")
-        doctors = self.create_group("Doctors", contacts=[contact1, contact2])
-
-        mr_mocks.flow_preview_start(
-            query='group = "Doctors" AND status = "active"', total=100, sample=[contact1, contact2]
-        )
-
-        query, total, sample, metadata = flow.preview_start(
-            include=mailroom.QueryInclusions(group_uuids=[str(doctors.uuid)]),
-            exclude=mailroom.QueryExclusions(non_active=True),
-        )
-
-        self.assertEqual('group = "Doctors" AND status = "active"', query)
-        self.assertEqual(100, total)
-        self.assertEqual([contact1, contact2], list(sample))
-
     def test_flow_delete_of_inactive_flow(self):
         flow = self.get_flow("favorites")
         flow.release(self.admin)
@@ -5491,6 +5471,29 @@ class FlowSessionCRUDLTest(TembaTest):
             self.assertEqual(200, response.status_code)
             self.assertEqual("Nyaruka", response_json["_metadata"]["org"])
             self.assertEqual(session.uuid, response_json["uuid"])
+
+
+class FlowStartTest(TembaTest):
+    @mock_mailroom
+    def test_preview(self, mr_mocks):
+        flow = self.create_flow("Test")
+        contact1 = self.create_contact("Ann", phone="+1234567111")
+        contact2 = self.create_contact("Bob", phone="+1234567222")
+        doctors = self.create_group("Doctors", contacts=[contact1, contact2])
+
+        mr_mocks.flow_preview_start(
+            query='group = "Doctors" AND status = "active"', total=100, sample=[contact1, contact2]
+        )
+
+        query, total, sample, metadata = FlowStart.preview(
+            flow,
+            include=mailroom.Inclusions(group_uuids=[str(doctors.uuid)]),
+            exclude=mailroom.Exclusions(non_active=True),
+        )
+
+        self.assertEqual('group = "Doctors" AND status = "active"', query)
+        self.assertEqual(100, total)
+        self.assertEqual([contact1, contact2], list(sample))
 
 
 class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):

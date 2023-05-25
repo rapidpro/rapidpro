@@ -24,6 +24,7 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
+from temba.contacts import search
 from temba.contacts.models import Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Org
 from temba.schedules.models import Schedule
@@ -255,6 +256,25 @@ class Broadcast(models.Model):
         broadcast._set_recipients(groups=groups, contacts=contacts, urns=urns, contact_ids=contact_ids)
 
         return broadcast
+
+    @classmethod
+    def preview(cls, org, *, include: mailroom.Inclusions, exclude: mailroom.Exclusions) -> tuple:
+        """
+        Generates a preview of the recipients of a broadcast created with the given inclusions/exclusions:
+            1) query of all recipients
+            2) total contact count
+            3) sample of the contacts (max 3)
+            4) query metadata
+        """
+        preview = search.preview_broadcast(org, include=include, exclude=exclude, sample_size=3)
+        sample = (
+            org.contacts.filter(id__in=preview.sample_ids)
+            .order_by("id")
+            .select_related("org")
+            .prefetch_related("urns")
+        )
+
+        return preview.query, preview.total, sample, preview.metadata
 
     def send_async(self):
         """
