@@ -1,3 +1,8 @@
+v8.1.162 (2023-05-25)
+-------------------------
+ * Add BroadcastCRUDL.Preview
+ * Fix broadcast send history template
+
 v8.1.161 (2023-05-24)
 -------------------------
  * User orgs based on request
