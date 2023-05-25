@@ -2298,6 +2298,10 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # sends are listed newest first
         response = self.client.get(read_url)
+
+        # we should see lines for broadcast with recipient counts, though no messages have been sent
+        self.assertContains(response, "0 recipients")
+
         self.assertEqual(response.context["object"], broadcast)
         self.assertEqual(list(reversed(sends)), list(response.context["send_history"]))
 
