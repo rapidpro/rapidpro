@@ -25,7 +25,9 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import RedirectView
 
+from temba import mailroom
 from temba.archives.models import Archive
+from temba.contacts.search import SearchException
 from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
 from temba.formax import FormaxMixin
 from temba.orgs.models import Org
@@ -170,7 +172,15 @@ class MsgListView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Sm
 
 
 class BroadcastCRUDL(SmartCRUDL):
-    actions = ("scheduled", "scheduled_create", "scheduled_read", "scheduled_update", "scheduled_delete", "send")
+    actions = (
+        "scheduled",
+        "scheduled_create",
+        "scheduled_read",
+        "scheduled_update",
+        "scheduled_delete",
+        "preview",
+        "send",
+    )
     model = Broadcast
 
     class Scheduled(MsgListView):
@@ -430,6 +440,47 @@ class BroadcastCRUDL(SmartCRUDL):
             response = HttpResponse()
             response["Temba-Success"] = self.get_success_url()
             return response
+
+    class Preview(OrgPermsMixin, SmartCreateView):
+        permission = "msgs.broadcast_send"
+
+        blockers = {
+            "no_send_channel": _(
+                'To get started you need to <a href="%(link)s">add a channel</a> to your workspace which will allow '
+                "you to send messages to your contacts."
+            ),
+        }
+
+        def get_blockers(self, org) -> list:
+            blockers = []
+
+            if org.is_suspended:
+                blockers.append(Org.BLOCKER_SUSPENDED)
+            elif org.is_flagged:
+                blockers.append(Org.BLOCKER_FLAGGED)
+            if not org.get_send_channel():
+                blockers.append(self.blockers["no_send_channel"] % {"link": reverse("channels.channel_claim")})
+
+            return blockers
+
+        def post(self, request, *args, **kwargs):
+            payload = json.loads(request.body)
+            include = mailroom.Inclusions(**payload.get("include", {}))
+            exclude = mailroom.Exclusions(**payload.get("exclude", {}))
+
+            try:
+                query, total = Broadcast.preview(self.request.org, include=include, exclude=exclude)
+            except SearchException as e:
+                return JsonResponse({"query": "", "total": 0, "error": str(e)}, status=400)
+
+            return JsonResponse(
+                {
+                    "query": query,
+                    "total": total,
+                    "warnings": [],
+                    "blockers": self.get_blockers(self.request.org),
+                }
+            )
 
     class Send(OrgPermsMixin, ModalMixin, SmartFormView):
         class Form(Form):
