@@ -1,3 +1,7 @@
+v8.1.163 (2023-05-25)
+-------------------------
+ * Return empty sample/fields on preview_start endpoint until contactsearch component is updated
+
 v8.1.162 (2023-05-25)
 -------------------------
  * Add BroadcastCRUDL.Preview
