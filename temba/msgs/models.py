@@ -258,23 +258,14 @@ class Broadcast(models.Model):
         return broadcast
 
     @classmethod
-    def preview(cls, org, *, include: mailroom.Inclusions, exclude: mailroom.Exclusions) -> tuple:
+    def preview(cls, org, *, include: mailroom.Inclusions, exclude: mailroom.Exclusions) -> tuple[str, int]:
         """
-        Generates a preview of the recipients of a broadcast created with the given inclusions/exclusions:
-            1) query of all recipients
-            2) total contact count
-            3) sample of the contacts (max 3)
-            4) query metadata
+        Requests a preview of the recipients of a broadcast created with the given inclusions/exclusions, returning a
+        tuple of the canonical query and the total count of contacts.
         """
-        preview = search.preview_broadcast(org, include=include, exclude=exclude, sample_size=3)
-        sample = (
-            org.contacts.filter(id__in=preview.sample_ids)
-            .order_by("id")
-            .select_related("org")
-            .prefetch_related("urns")
-        )
+        preview = search.preview_broadcast(org, include=include, exclude=exclude)
 
-        return preview.query, preview.total, sample, preview.metadata
+        return preview.query, preview.total
 
     def send_async(self):
         """

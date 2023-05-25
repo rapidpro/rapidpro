@@ -11,6 +11,7 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import ChannelCount, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactURN
@@ -28,7 +29,7 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
+from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticket
@@ -1874,6 +1875,23 @@ class BroadcastTest(TembaTest):
 
         with self.assertRaises(AssertionError):
             Broadcast.create(self.org, self.user, "no recipients")
+
+    @mock_mailroom
+    def test_preview(self, mr_mocks):
+        contact1 = self.create_contact("Ann", phone="+1234567111")
+        contact2 = self.create_contact("Bob", phone="+1234567222")
+        doctors = self.create_group("Doctors", contacts=[contact1, contact2])
+
+        mr_mocks.msg_preview_broadcast(query='group = "Doctors" AND status = "active"', total=100)
+
+        query, total = Broadcast.preview(
+            self.org,
+            include=mailroom.Inclusions(group_uuids=[str(doctors.uuid)]),
+            exclude=mailroom.Exclusions(non_active=True),
+        )
+
+        self.assertEqual('group = "Doctors" AND status = "active"', query)
+        self.assertEqual(100, total)
 
     def test_get_translation(self):
         # create a broadcast with 3 different languages containing both text and attachments

@@ -19,7 +19,7 @@ from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import Ticketer, TicketEvent
 from temba.utils import json
 
-from . import BroadcastPreview, Exclusions, Inclusions, QueryMetadata, StartPreview, modifiers, queue_interrupt
+from . import BroadcastPreview, Exclusions, Inclusions, StartPreview, modifiers, queue_interrupt
 from .events import Event
 
 
@@ -79,12 +79,7 @@ class MailroomClientTest(TembaTest):
 
     def test_flow_preview_start(self):
         with patch("requests.post") as mock_post:
-            mock_resp = {
-                "query": 'group = "Farmers" AND status = "active"',
-                "total": 2345,
-                "sample_ids": [123, 234],
-                "metadata": {"attributes": ["group", "status"], "fields": [], "allow_as_group": False},
-            }
+            mock_resp = {"query": 'group = "Farmers" AND status = "active"', "total": 2345}
             mock_post.return_value = MockResponse(200, json.dumps(mock_resp))
             preview = get_client().flow_preview_start(
                 self.org.id,
@@ -94,18 +89,9 @@ class MailroomClientTest(TembaTest):
                     contact_uuids=["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
                 ),
                 exclude=Exclusions(non_active=True, not_seen_since_days=30),
-                sample_size=3,
             )
 
-            self.assertEqual(
-                StartPreview(
-                    query='group = "Farmers" AND status = "active"',
-                    total=2345,
-                    sample_ids=[123, 234],
-                    metadata=QueryMetadata(attributes=["group", "status"], allow_as_group=False),
-                ),
-                preview,
-            )
+            self.assertEqual(StartPreview(query='group = "Farmers" AND status = "active"', total=2345), preview)
 
         call = mock_post.call_args
 
@@ -133,12 +119,7 @@ class MailroomClientTest(TembaTest):
 
     def test_msg_preview_broadcast(self):
         with patch("requests.post") as mock_post:
-            mock_resp = {
-                "query": 'group = "Farmers" AND status = "active"',
-                "total": 2345,
-                "sample_ids": [123, 234],
-                "metadata": {"attributes": ["group", "status"], "fields": [], "allow_as_group": False},
-            }
+            mock_resp = {"query": 'group = "Farmers" AND status = "active"', "total": 2345}
             mock_post.return_value = MockResponse(200, json.dumps(mock_resp))
             preview = get_client().msg_preview_broadcast(
                 self.org.id,
@@ -147,18 +128,9 @@ class MailroomClientTest(TembaTest):
                     contact_uuids=["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
                 ),
                 exclude=Exclusions(non_active=True, not_seen_since_days=30),
-                sample_size=3,
             )
 
-            self.assertEqual(
-                BroadcastPreview(
-                    query='group = "Farmers" AND status = "active"',
-                    total=2345,
-                    sample_ids=[123, 234],
-                    metadata=QueryMetadata(attributes=["group", "status"], allow_as_group=False),
-                ),
-                preview,
-            )
+            self.assertEqual(BroadcastPreview(query='group = "Farmers" AND status = "active"', total=2345), preview)
 
         call = mock_post.call_args
 
