@@ -1614,40 +1614,19 @@ class FlowCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             payload = json.loads(request.body)
-            include = mailroom.QueryInclusions(**payload.get("include", {}))
-            exclude = mailroom.QueryExclusions(**payload.get("exclude", {}))
+            include = mailroom.Inclusions(**payload.get("include", {}))
+            exclude = mailroom.Exclusions(**payload.get("exclude", {}))
             flow = self.get_object()
-            org = flow.org
 
             try:
-                query, total, sample, metadata = flow.preview_start(include=include, exclude=exclude)
+                query, total = FlowStart.preview(flow, include=include, exclude=exclude)
             except SearchException as e:
-                return JsonResponse({"query": "", "total": 0, "sample": [], "error": str(e)}, status=400)
-
-            query_fields = org.fields.filter(key__in=[f["key"] for f in metadata.fields])
-
-            # render sample contacts in a simplified form, including only fields from query
-            contacts = []
-            for contact in sample:
-                primary_urn = contact.get_urn()
-                primary_urn = primary_urn.get_display(org, international=True) if primary_urn else None
-                contacts.append(
-                    {
-                        "uuid": contact.uuid,
-                        "name": contact.name,
-                        "primary_urn": primary_urn,
-                        "fields": {f.key: contact.get_field_display(f) for f in query_fields},
-                        "created_on": contact.created_on.isoformat(),
-                        "last_seen_on": contact.last_seen_on.isoformat() if contact.last_seen_on else None,
-                    }
-                )
+                return JsonResponse({"query": "", "total": 0, "error": str(e)}, status=400)
 
             return JsonResponse(
                 {
                     "query": query,
                     "total": total,
-                    "sample": contacts,
-                    "fields": [{"key": f.key, "name": f.name} for f in query_fields],
                     "warnings": self.get_warnings(flow, query, total),
                     "blockers": self.get_blockers(flow),
                 }
@@ -1692,14 +1671,6 @@ class FlowCRUDL(SmartCRUDL):
                     is_system=False,
                     is_active=True,
                 ).order_by("name")
-
-            def clean_flow(self):
-                flow = self.cleaned_data.get("flow")
-
-                # these should be caught as part of StartPreview
-                assert not flow.org.is_suspended and not flow.org.is_flagged and not flow.is_starting()
-
-                return flow
 
             def clean_query(self):
                 query = self.cleaned_data.get("query")

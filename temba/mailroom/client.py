@@ -54,14 +54,14 @@ class ContactSpec:
 
 
 @dataclass
-class QueryInclusions:
+class Inclusions:
     group_uuids: list = field(default_factory=list)
     contact_uuids: list = field(default_factory=list)
     query: str = ""
 
 
 @dataclass
-class QueryExclusions:
+class Exclusions:
     non_active: bool = False  # contacts who are blocked, stopped or archived
     in_a_flow: bool = False  # contacts who are currently in a flow (including this one)
     started_previously: bool = False  # contacts who have been in this flow in the last 90 days
@@ -97,11 +97,15 @@ class SearchResults:
 
 
 @dataclass(frozen=True)
+class BroadcastPreview:
+    query: str
+    total: int
+
+
+@dataclass(frozen=True)
 class StartPreview:
     query: str
     total: int
-    sample_ids: list
-    metadata: QueryMetadata
 
 
 class MailroomClient:
@@ -150,29 +154,23 @@ class MailroomClient:
 
         return self._request("flow/clone", payload)
 
-    def flow_preview_start(
-        self,
-        org_id: int,
-        flow_id: int,
-        include: QueryInclusions,
-        exclude: QueryExclusions,
-        sample_size: int,
-    ) -> StartPreview:
+    def flow_preview_start(self, org_id: int, flow_id: int, include: Inclusions, exclude: Exclusions) -> StartPreview:
         payload = {
             "org_id": org_id,
             "flow_id": flow_id,
             "include": asdict(include),
             "exclude": asdict(exclude),
-            "sample_size": sample_size,
+            "sample_size": 3,  # TODO remove when mailroom updated
         }
 
         response = self._request("flow/preview_start", payload, encode_json=True)
-        return StartPreview(
-            query=response["query"],
-            total=response["total"],
-            sample_ids=response["sample_ids"],
-            metadata=QueryMetadata(**response.get("metadata", {})),
-        )
+        return StartPreview(query=response["query"], total=response["total"])
+
+    def msg_preview_broadcast(self, org_id: int, include: Inclusions, exclude: Exclusions) -> BroadcastPreview:
+        payload = {"org_id": org_id, "include": asdict(include), "exclude": asdict(exclude), "sample_size": 3}
+
+        response = self._request("msg/preview_broadcast", payload, encode_json=True)
+        return BroadcastPreview(query=response["query"], total=response["total"])
 
     def msg_send(self, org_id: int, user_id: int, contact_id: int, text: str, attachments: list[str], ticket_id: int):
         payload = {

@@ -1357,26 +1357,6 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         # fetching a flow with a group send shouldn't throw
         self.get_flow("group_send_flow")
 
-    @mock_mailroom
-    def test_preview_start(self, mr_mocks):
-        flow = self.create_flow("Test")
-        contact1 = self.create_contact("Ann", phone="+1234567111")
-        contact2 = self.create_contact("Bob", phone="+1234567222")
-        doctors = self.create_group("Doctors", contacts=[contact1, contact2])
-
-        mr_mocks.flow_preview_start(
-            query='group = "Doctors" AND status = "active"', total=100, sample=[contact1, contact2]
-        )
-
-        query, total, sample, metadata = flow.preview_start(
-            include=mailroom.QueryInclusions(group_uuids=[str(doctors.uuid)]),
-            exclude=mailroom.QueryExclusions(non_active=True),
-        )
-
-        self.assertEqual('group = "Doctors" AND status = "active"', query)
-        self.assertEqual(100, total)
-        self.assertEqual([contact1, contact2], list(sample))
-
     def test_flow_delete_of_inactive_flow(self):
         flow = self.get_flow("favorites")
         flow.release(self.admin)
@@ -2446,14 +2426,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         with override_brand(inactive_threshold=1000):
             flow = self.create_flow("Test")
             self.create_field("age", "Age")
-            contact1 = self.create_contact("Ann", phone="+16302222222", fields={"age": 40})
-            contact2 = self.create_contact("Bob", phone="+16303333333", fields={"age": 33})
+            self.create_contact("Ann", phone="+16302222222", fields={"age": 40})
+            self.create_contact("Bob", phone="+16303333333", fields={"age": 33})
 
-            mr_mocks.flow_preview_start(
-                query='age > 30 AND status = "active" AND history != "Test Flow"',
-                total=100,
-                sample=[contact1, contact2],
-            )
+            mr_mocks.flow_preview_start(query='age > 30 AND status = "active" AND history != "Test Flow"', total=100)
 
             preview_url = reverse("flows.flow_preview_start", args=[flow.id])
 
@@ -2471,25 +2447,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 {
                     "query": 'age > 30 AND status = "active" AND history != "Test Flow"',
                     "total": 100,
-                    "sample": [
-                        {
-                            "uuid": contact1.uuid,
-                            "name": "Ann",
-                            "primary_urn": "+1 630-222-2222",
-                            "fields": {"age": "40"},
-                            "created_on": contact1.created_on.isoformat(),
-                            "last_seen_on": None,
-                        },
-                        {
-                            "uuid": contact2.uuid,
-                            "name": "Bob",
-                            "primary_urn": "+1 630-333-3333",
-                            "fields": {"age": "33"},
-                            "created_on": contact2.created_on.isoformat(),
-                            "last_seen_on": None,
-                        },
-                    ],
-                    "fields": [{"key": "age", "name": "Age"}],
                     "warnings": [],
                     "blockers": [],
                 },
@@ -2508,14 +2465,12 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 content_type="application/json",
             )
             self.assertEqual(400, response.status_code)
-            self.assertEqual(
-                {"query": "", "total": 0, "sample": [], "error": "Invalid query syntax at '((('"}, response.json()
-            )
+            self.assertEqual({"query": "", "total": 0, "error": "Invalid query syntax at '((('"}, response.json())
 
             # suspended orgs should block
             self.org.is_suspended = True
             self.org.save()
-            mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[contact1, contact2])
+            mr_mocks.flow_preview_start(query="age > 30", total=2)
             response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
             self.assertEqual(
                 [
@@ -2528,7 +2483,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             self.org.is_suspended = False
             self.org.is_flagged = True
             self.org.save()
-            mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[contact1, contact2])
+            mr_mocks.flow_preview_start(query="age > 30", total=2)
             response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
             self.assertEqual(
                 [
@@ -2542,11 +2497,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
             # trying to start again should fail because there is already a pending start for this flow
             mock_flow_is_starting.return_value = True
-            mr_mocks.flow_preview_start(
-                query='age > 30 AND status = "active" AND history != "Test Flow"',
-                total=100,
-                sample=[contact1, contact2],
-            )
+            mr_mocks.flow_preview_start(query='age > 30 AND status = "active" AND history != "Test Flow"', total=100)
 
             response = self.client.post(
                 preview_url,
@@ -2570,11 +2521,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
             # shouldn't be able to since we don't have a call channel
             mock_flow_is_starting.return_value = False
-            mr_mocks.flow_preview_start(
-                query='age > 30 AND status = "active" AND history != "Test Flow"',
-                total=100,
-                sample=[contact1, contact2],
-            )
+            mr_mocks.flow_preview_start(query='age > 30 AND status = "active" AND history != "Test Flow"', total=100)
 
             response = self.client.post(
                 preview_url,
@@ -2592,11 +2539,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
             # check warning for lots of contacts
             preview_url = reverse("flows.flow_preview_start", args=[flow.id])
-            mr_mocks.flow_preview_start(
-                query='age > 30 AND status = "active" AND history != "Test Flow"',
-                total=10000,
-                sample=[contact1, contact2],
-            )
+            mr_mocks.flow_preview_start(query='age > 30 AND status = "active" AND history != "Test Flow"', total=10000)
 
             response = self.client.post(
                 preview_url,
@@ -2614,11 +2557,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
             # if we release our send channel we also can't start a regular messaging flow
             self.channel.release(self.admin)
-            mr_mocks.flow_preview_start(
-                query='age > 30 AND status = "active" AND history != "Test Flow"',
-                total=100,
-                sample=[contact1, contact2],
-            )
+            mr_mocks.flow_preview_start(query='age > 30 AND status = "active" AND history != "Test Flow"', total=100)
 
             response = self.client.post(
                 preview_url,
@@ -2641,7 +2580,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
 
-        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        mr_mocks.flow_preview_start(query="age > 30", total=2)
         response = self.client.post(
             reverse("flows.flow_preview_start", args=[no_topic.id]),
             {
@@ -2658,7 +2597,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.channel.save()
 
         # should see a warning for no topic now
-        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        mr_mocks.flow_preview_start(query="age > 30", total=2)
         response = self.client.post(
             reverse("flows.flow_preview_start", args=[no_topic.id]),
             {
@@ -2673,7 +2612,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # warning shouldn't be present for flow with a topic
-        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        mr_mocks.flow_preview_start(query="age > 30", total=2)
         response = self.client.post(
             reverse("flows.flow_preview_start", args=[with_topic.id]),
             {
@@ -2692,7 +2631,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # bring up broadcast dialog
         self.login(self.admin)
 
-        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        mr_mocks.flow_preview_start(query="age > 30", total=2)
         response = self.client.post(
             reverse("flows.flow_preview_start", args=[flow.id]),
             {
@@ -2709,7 +2648,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.channel.channel_type = "TWA"
         self.channel.save()
 
-        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        mr_mocks.flow_preview_start(query="age > 30", total=2)
         response = self.client.post(
             reverse("flows.flow_preview_start", args=[flow.id]),
             {
@@ -2729,7 +2668,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.metadata = {}
         flow.save(update_fields=["metadata"])
 
-        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        mr_mocks.flow_preview_start(query="age > 30", total=2)
         response = self.client.post(
             reverse("flows.flow_preview_start", args=[flow.id]),
             {
@@ -2750,7 +2689,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.save(update_fields=["metadata"])
 
         # template doesn't exit, will be warned
-        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        mr_mocks.flow_preview_start(query="age > 30", total=2)
         response = self.client.post(
             reverse("flows.flow_preview_start", args=[flow.id]),
             {
@@ -2768,7 +2707,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         Template.objects.create(org=self.org, name="affirmation", uuid="f712e05c-bbed-40f1-b3d9-671bb9b60775")
 
         # will be warned again
-        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        mr_mocks.flow_preview_start(query="age > 30", total=2)
         response = self.client.post(
             reverse("flows.flow_preview_start", args=[flow.id]),
             {
@@ -2795,7 +2734,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # will be warned again
-        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        mr_mocks.flow_preview_start(query="age > 30", total=2)
         response = self.client.post(
             reverse("flows.flow_preview_start", args=[flow.id]),
             {
@@ -2812,7 +2751,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         TemplateTranslation.objects.update(status=TemplateTranslation.STATUS_APPROVED)
 
         # no warnings
-        mr_mocks.flow_preview_start(query="age > 30", total=2, sample=[])
+        mr_mocks.flow_preview_start(query="age > 30", total=2)
         response = self.client.post(
             reverse("flows.flow_preview_start", args=[flow.id]),
             {
@@ -5491,6 +5430,26 @@ class FlowSessionCRUDLTest(TembaTest):
             self.assertEqual(200, response.status_code)
             self.assertEqual("Nyaruka", response_json["_metadata"]["org"])
             self.assertEqual(session.uuid, response_json["uuid"])
+
+
+class FlowStartTest(TembaTest):
+    @mock_mailroom
+    def test_preview(self, mr_mocks):
+        flow = self.create_flow("Test")
+        contact1 = self.create_contact("Ann", phone="+1234567111")
+        contact2 = self.create_contact("Bob", phone="+1234567222")
+        doctors = self.create_group("Doctors", contacts=[contact1, contact2])
+
+        mr_mocks.flow_preview_start(query='group = "Doctors" AND status = "active"', total=100)
+
+        query, total = FlowStart.preview(
+            flow,
+            include=mailroom.Inclusions(group_uuids=[str(doctors.uuid)]),
+            exclude=mailroom.Exclusions(non_active=True),
+        )
+
+        self.assertEqual('group = "Doctors" AND status = "active"', query)
+        self.assertEqual(100, total)
 
 
 class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):

@@ -11,6 +11,7 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import ChannelCount, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactURN
@@ -28,7 +29,7 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
+from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticket
@@ -1875,6 +1876,23 @@ class BroadcastTest(TembaTest):
         with self.assertRaises(AssertionError):
             Broadcast.create(self.org, self.user, "no recipients")
 
+    @mock_mailroom
+    def test_preview(self, mr_mocks):
+        contact1 = self.create_contact("Ann", phone="+1234567111")
+        contact2 = self.create_contact("Bob", phone="+1234567222")
+        doctors = self.create_group("Doctors", contacts=[contact1, contact2])
+
+        mr_mocks.msg_preview_broadcast(query='group = "Doctors" AND status = "active"', total=100)
+
+        query, total = Broadcast.preview(
+            self.org,
+            include=mailroom.Inclusions(group_uuids=[str(doctors.uuid)]),
+            exclude=mailroom.Exclusions(non_active=True),
+        )
+
+        self.assertEqual('group = "Doctors" AND status = "active"', query)
+        self.assertEqual(100, total)
+
     def test_get_translation(self):
         # create a broadcast with 3 different languages containing both text and attachments
         eng_text = "Hello everyone"
@@ -1942,6 +1960,78 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.joe = self.create_contact("Joe Blow", urns=["tel:+12025550149"])
         self.frank = self.create_contact("Frank Blow", urns=["tel:+12025550195"])
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
+
+    @mock_mailroom
+    def test_preview(self, mr_mocks):
+        self.create_field("age", "Age")
+        self.create_contact("Ann", phone="+16302222222", fields={"age": 40})
+        self.create_contact("Bob", phone="+16303333333", fields={"age": 33})
+
+        mr_mocks.msg_preview_broadcast(query='age > 30 AND status = "active"', total=100)
+
+        preview_url = reverse("msgs.broadcast_preview")
+
+        self.login(self.editor)
+
+        response = self.client.post(
+            preview_url,
+            {"query": "age > 30", "exclusions": {"non_active": True}},
+            content_type="application/json",
+        )
+        self.assertEqual(
+            {"query": 'age > 30 AND status = "active"', "total": 100, "warnings": [], "blockers": []},
+            response.json(),
+        )
+
+        # try with a bad query
+        mr_mocks.error("mismatched input at (((", code="unexpected_token", extra={"token": "((("})
+
+        response = self.client.post(
+            preview_url, {"query": "(((", "exclusions": {"non_active": True}}, content_type="application/json"
+        )
+        self.assertEqual(400, response.status_code)
+        self.assertEqual({"query": "", "total": 0, "error": "Invalid query syntax at '((('"}, response.json())
+
+        # suspended orgs should block
+        self.org.is_suspended = True
+        self.org.save()
+        mr_mocks.msg_preview_broadcast(query="age > 30", total=2)
+        response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
+        self.assertEqual(
+            [
+                "Sorry, your workspace is currently suspended. To re-enable starting flows and sending messages, please contact support."
+            ],
+            response.json()["blockers"],
+        )
+
+        # flagged orgs should block
+        self.org.is_suspended = False
+        self.org.is_flagged = True
+        self.org.save()
+        mr_mocks.msg_preview_broadcast(query="age > 30", total=2)
+        response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
+        self.assertEqual(
+            [
+                "Sorry, your workspace is currently flagged. To re-enable starting flows and sending messages, please contact support."
+            ],
+            response.json()["blockers"],
+        )
+
+        self.org.is_flagged = False
+        self.org.save()
+
+        # if we release our send channel we can't send a broadcast
+        self.channel.release(self.admin)
+        mr_mocks.msg_preview_broadcast(query='age > 30 AND status = "active"', total=100)
+
+        response = self.client.post(
+            preview_url, {"query": "age > 30", "exclusions": {"non_active": True}}, content_type="application/json"
+        )
+
+        self.assertEqual(
+            response.json()["blockers"][0],
+            'To get started you need to <a href="/channels/channel/claim/">add a channel</a> to your workspace which will allow you to send messages to your contacts.',
+        )
 
     @patch("temba.mailroom.queue_broadcast")
     def test_send(self, mock_queue_broadcast):
