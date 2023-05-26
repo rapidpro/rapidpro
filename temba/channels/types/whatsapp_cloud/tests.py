@@ -455,7 +455,7 @@ class WhatsAppCloudTypeTest(TembaTest):
                                 "id": "111111111111111",
                                 "currency": "USD",
                                 "message_template_namespace": "namespace-uuid",
-                                "on_behalf_of_business_info": {"id": "2222222222222"},
+                                "owner_business_info": {"id": "2222222222222"},
                             }
                         ),
                     ),
@@ -523,7 +523,7 @@ class WhatsAppCloudTypeTest(TembaTest):
                                 "id": "111111111111111",
                                 "currency": "USD",
                                 "message_template_namespace": "namespace-uuid",
-                                "on_behalf_of_business_info": {"id": "2222222222222"},
+                                "owner_business_info": {"id": "2222222222222"},
                             }
                         ),
                     ),

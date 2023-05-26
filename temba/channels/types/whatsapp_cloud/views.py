@@ -100,8 +100,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 response_json = response.json()
 
                 target_waba_details = response_json
-
-                business_id = target_waba_details["on_behalf_of_business_info"]["id"]
+                business_id = target_waba_details.get(
+                    "on_behalf_of_business_info", target_waba_details.get("owner_business_info")
+                ).get("id")
 
                 url = f"https://graph.facebook.com/v13.0/{target_waba}/phone_numbers"
                 params = {"access_token": oauth_user_token}
