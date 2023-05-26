@@ -29,7 +29,7 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_mailroom, mock_uuids
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticket
@@ -3135,3 +3135,30 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([media2, media1], list(response.context["object_list"]))
 
         self.clear_storage()
+
+
+class RemoveArchivedLabelCountsTest(MigrationTest):
+    app = "msgs"
+    migrate_from = "0233_alter_msg_flow_alter_msg_ticket"
+    migrate_to = "0234_remove_archived_label_counts"
+
+    def setUpBeforeMigration(self, apps):
+        label1 = self.create_label("Interesting")
+        label2 = self.create_label("Spam")
+
+        LabelCount.objects.create(label=label1, is_archived=False, count=1)
+        LabelCount.objects.create(label=label2, is_archived=False, count=2)
+        LabelCount.objects.create(label=label1, is_archived=True, count=3)
+        LabelCount.objects.create(label=label2, is_archived=True, count=4)
+
+        SystemLabelCount.objects.create(org=self.org, label_type=SystemLabel.TYPE_INBOX, is_archived=False, count=1)
+        SystemLabelCount.objects.create(org=self.org, label_type=SystemLabel.TYPE_OUTBOX, is_archived=False, count=2)
+        SystemLabelCount.objects.create(org=self.org, label_type=SystemLabel.TYPE_INBOX, is_archived=True, count=3)
+        SystemLabelCount.objects.create(org=self.org, label_type=SystemLabel.TYPE_OUTBOX, is_archived=True, count=4)
+
+    def test_migration(self):
+        self.assertEqual(2, LabelCount.objects.filter(is_archived=False).count())
+        self.assertEqual(0, LabelCount.objects.filter(is_archived=True).count())
+
+        self.assertEqual(2, SystemLabelCount.objects.filter(org=self.org, is_archived=False).count())
+        self.assertEqual(0, SystemLabelCount.objects.filter(org=self.org, is_archived=True).count())
