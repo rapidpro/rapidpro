@@ -2863,6 +2863,7 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_SENT: 0,
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 0,
+                SystemLabel.TYPE_CALLS: 0,
             },
         )
 
@@ -2880,6 +2881,9 @@ class SystemLabelTest(TembaTest):
             contacts=[contact1, contact2],
             schedule=Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_DAILY),
         )
+        ivr_flow = self.create_flow("IVR", flow_type=Flow.TYPE_VOICE)
+        call1 = self.create_incoming_call(ivr_flow, contact1)
+        self.create_incoming_call(ivr_flow, contact2)
 
         self.assertEqual(
             SystemLabel.get_counts(self.org),
@@ -2888,9 +2892,10 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 0,
                 SystemLabel.TYPE_OUTBOX: 1,
-                SystemLabel.TYPE_SENT: 0,
+                SystemLabel.TYPE_SENT: 2,
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 1,
+                SystemLabel.TYPE_CALLS: 2,
             },
         )
 
@@ -2916,9 +2921,10 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 1,
                 SystemLabel.TYPE_OUTBOX: 3,
-                SystemLabel.TYPE_SENT: 0,
+                SystemLabel.TYPE_SENT: 2,
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 2,
+                SystemLabel.TYPE_CALLS: 2,
             },
         )
 
@@ -2929,6 +2935,7 @@ class SystemLabelTest(TembaTest):
         msg5.save(update_fields=("status",))
         msg6.status = "S"
         msg6.save(update_fields=("status",))
+        call1.release()
 
         self.assertEqual(
             SystemLabel.get_counts(self.org),
@@ -2937,9 +2944,10 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 1,
                 SystemLabel.TYPE_OUTBOX: 1,
-                SystemLabel.TYPE_SENT: 1,
+                SystemLabel.TYPE_SENT: 3,
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
+                SystemLabel.TYPE_CALLS: 1,
             },
         )
 
@@ -2956,13 +2964,14 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 0,
                 SystemLabel.TYPE_OUTBOX: 1,
-                SystemLabel.TYPE_SENT: 1,
+                SystemLabel.TYPE_SENT: 3,
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
+                SystemLabel.TYPE_CALLS: 1,
             },
         )
 
-        self.assertEqual(SystemLabelCount.objects.all().count(), 21)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 26)
 
         # squash our counts
         squash_msg_counts()
@@ -2974,14 +2983,15 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 0,
                 SystemLabel.TYPE_OUTBOX: 1,
-                SystemLabel.TYPE_SENT: 1,
+                SystemLabel.TYPE_SENT: 3,
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
+                SystemLabel.TYPE_CALLS: 1,
             },
         )
 
         # we should only have one system label per type
-        self.assertEqual(SystemLabelCount.objects.all().count(), 6)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 7)
 
 
 class TagsTest(TembaTest):

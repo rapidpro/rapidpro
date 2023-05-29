@@ -538,11 +538,12 @@ class TembaTestMixin:
         Msg.objects.create(
             org=self.org,
             channel=self.channel,
-            direction="O",
+            direction=Msg.DIRECTION_OUT,
             contact=contact,
             contact_urn=contact.get_urn(),
             text="Hello",
-            status="S",
+            status=Msg.STATUS_SENT,
+            msg_type=Msg.TYPE_VOICE,
             sent_on=timezone.now(),
             created_on=timezone.now(),
         )

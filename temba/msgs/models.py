@@ -801,6 +801,7 @@ class SystemLabel:
     TYPE_SENT = "S"
     TYPE_FAILED = "X"
     TYPE_SCHEDULED = "E"
+    TYPE_CALLS = "C"
 
     TYPE_CHOICES = (
         (TYPE_INBOX, "Inbox"),
@@ -810,6 +811,7 @@ class SystemLabel:
         (TYPE_SENT, "Sent"),
         (TYPE_FAILED, "Failed"),
         (TYPE_SCHEDULED, "Scheduled"),
+        (TYPE_CALLS, "Calls"),
     )
 
     @classmethod
@@ -895,9 +897,6 @@ class SystemLabelCount(SquashableModel):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="system_labels")
     label_type = models.CharField(max_length=1, choices=SystemLabel.TYPE_CHOICES)
     count = models.IntegerField(default=0)
-
-    # TODO drop
-    is_archived = models.BooleanField(default=False, null=True)
 
     @classmethod
     def get_squash_query(cls, distinct_set):
