@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from temba.channels.models import ChannelLog
 from temba.flows.models import FlowSession
-from temba.tests import TembaTest
+from temba.tests import MigrationTest, TembaTest
 from temba.utils.uuid import uuid4
 
 from .models import Call
@@ -78,3 +78,15 @@ class IVRTest(TembaTest):
         response = self.client.get(reverse("mailroom.ivr_handler", args=[self.channel.uuid, "incoming"]))
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.content, b"this URL should be mapped to a Mailroom instance")
+
+
+class BackfillCallCountsTest(MigrationTest):
+    app = "ivr"
+    migrate_from = ""
+    migrate_to = ""
+
+    def setUpBeforeMigration(self, apps):
+        return super().setUpBeforeMigration(apps)
+
+    def test_migration(self):
+        pass
