@@ -1,3 +1,11 @@
+v8.1.166 (2023-05-29)
+-------------------------
+ * Stop writing SystemLabelCount.is_archived so it can be dropped
+
+v8.1.165 (2023-05-29)
+-------------------------
+ * Always write system label counts with is_archived=False and make field nullable
+
 v8.1.164 (2023-05-29)
 -------------------------
  * Add data migration to delete old system label counts for is_archived=true because they're no longer updated

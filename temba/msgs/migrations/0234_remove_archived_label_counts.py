@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def remove_archived_label_counts(apps, schema_editor):
+def remove_archived_label_counts(apps, schema_editor):  # pragma: no cover
     SystemLabelCount = apps.get_model("msgs", "SystemLabelCount")
 
     while True:
@@ -13,11 +13,11 @@ def remove_archived_label_counts(apps, schema_editor):
         SystemLabelCount.objects.filter(id__in=id_batch).delete()
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
-class Migration(migrations.Migration):
+class Migration(migrations.Migration):  # pragma: no cover
     dependencies = [
         ("msgs", "0233_alter_msg_flow_alter_msg_ticket"),
     ]
