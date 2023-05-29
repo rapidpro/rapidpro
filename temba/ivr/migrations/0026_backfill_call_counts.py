@@ -29,7 +29,8 @@ class Migration(migrations.Migration):
     atomic = False
 
     dependencies = [
-        ("ivr", "0024_count_db_triggers"),
+        ("orgs", "0124_remove_org_stripe_customer_alter_org_country_and_more"),
+        ("ivr", "0025_alter_call_org"),
     ]
 
     operations = [migrations.RunPython(backfill_call_counts, reverse)]

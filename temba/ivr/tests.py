@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from temba.channels.models import ChannelLog
 from temba.flows.models import FlowSession
+from temba.msgs.models import SystemLabel
 from temba.tests import MigrationTest, TembaTest
 from temba.utils.uuid import uuid4
 
@@ -82,11 +83,69 @@ class IVRTest(TembaTest):
 
 class BackfillCallCountsTest(MigrationTest):
     app = "ivr"
-    migrate_from = ""
-    migrate_to = ""
+    migrate_from = "0025_alter_call_org"
+    migrate_to = "0026_backfill_call_counts"
 
     def setUpBeforeMigration(self, apps):
-        return super().setUpBeforeMigration(apps)
+        contact = self.create_contact("Bob", phone="+123456789")
+
+        self.create_incoming_msg(contact, "Hi")
+
+        Call.objects.create(
+            org=self.org,
+            channel=self.channel,
+            direction=Call.DIRECTION_IN,
+            contact=contact,
+            contact_urn=contact.get_urn(),
+            status=Call.STATUS_COMPLETED,
+            duration=15,
+        )
+        Call.objects.create(
+            org=self.org,
+            channel=self.channel,
+            direction=Call.DIRECTION_IN,
+            contact=contact,
+            contact_urn=contact.get_urn(),
+            status=Call.STATUS_IN_PROGRESS,
+            duration=15,
+        )
+
+        Call.objects.create(
+            org=self.org2,
+            channel=self.channel,
+            direction=Call.DIRECTION_IN,
+            contact=contact,
+            contact_urn=contact.get_urn(),
+            status=Call.STATUS_IN_PROGRESS,
+            duration=15,
+        )
+
+        self.org2.system_labels.all().delete()
 
     def test_migration(self):
-        pass
+        self.assertEqual(
+            {
+                SystemLabel.TYPE_INBOX: 1,
+                SystemLabel.TYPE_FLOWS: 0,
+                SystemLabel.TYPE_ARCHIVED: 0,
+                SystemLabel.TYPE_OUTBOX: 0,
+                SystemLabel.TYPE_SENT: 0,
+                SystemLabel.TYPE_FAILED: 0,
+                SystemLabel.TYPE_SCHEDULED: 0,
+                SystemLabel.TYPE_CALLS: 2,
+            },
+            SystemLabel.get_counts(self.org),
+        )
+        self.assertEqual(
+            {
+                SystemLabel.TYPE_INBOX: 0,
+                SystemLabel.TYPE_FLOWS: 0,
+                SystemLabel.TYPE_ARCHIVED: 0,
+                SystemLabel.TYPE_OUTBOX: 0,
+                SystemLabel.TYPE_SENT: 0,
+                SystemLabel.TYPE_FAILED: 0,
+                SystemLabel.TYPE_SCHEDULED: 0,
+                SystemLabel.TYPE_CALLS: 1,
+            },
+            SystemLabel.get_counts(self.org2),
+        )
