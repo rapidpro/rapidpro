@@ -4,14 +4,7 @@ from django.db import migrations
 
 
 def remove_archived_label_counts(apps, schema_editor):
-    LabelCount = apps.get_model("msgs", "LabelCount")
     SystemLabelCount = apps.get_model("msgs", "SystemLabelCount")
-
-    while True:
-        id_batch = list(LabelCount.objects.filter(is_archived=True)[:1000].values_list("id", flat=True))
-        if not id_batch:
-            break
-        LabelCount.objects.filter(id__in=id_batch).delete()
 
     while True:
         id_batch = list(SystemLabelCount.objects.filter(is_archived=True)[:1000].values_list("id", flat=True))
