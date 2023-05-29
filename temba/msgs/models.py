@@ -898,9 +898,6 @@ class SystemLabelCount(SquashableModel):
     label_type = models.CharField(max_length=1, choices=SystemLabel.TYPE_CHOICES)
     count = models.IntegerField(default=0)
 
-    # TODO drop
-    is_archived = models.BooleanField(default=False, null=True)
-
     @classmethod
     def get_squash_query(cls, distinct_set):
         sql = """
