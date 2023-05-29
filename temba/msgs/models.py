@@ -801,6 +801,7 @@ class SystemLabel:
     TYPE_SENT = "S"
     TYPE_FAILED = "X"
     TYPE_SCHEDULED = "E"
+    TYPE_CALLS = "C"
 
     TYPE_CHOICES = (
         (TYPE_INBOX, "Inbox"),
@@ -810,6 +811,7 @@ class SystemLabel:
         (TYPE_SENT, "Sent"),
         (TYPE_FAILED, "Failed"),
         (TYPE_SCHEDULED, "Scheduled"),
+        (TYPE_CALLS, "Calls"),
     )
 
     @classmethod
