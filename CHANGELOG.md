@@ -1,3 +1,8 @@
+v8.1.164 (2023-05-29)
+-------------------------
+ * Add data migration to delete old system label counts for is_archived=true because they're no longer updated
+ * Fix getting FB business ID for WAC channels
+
 v8.1.163 (2023-05-25)
 -------------------------
  * Return empty sample/fields on preview_start endpoint until contactsearch component is updated
