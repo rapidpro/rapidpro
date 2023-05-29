@@ -6,7 +6,7 @@ STATUS_OPEN = "O"
 STATUS_CLOSED = "C"
 
 
-def backfill_ticket_counts_by_topic(apps, schema_editor):
+def backfill_ticket_counts_by_topic(apps, schema_editor):  # pragma: no cover
     TicketCount = apps.get_model("tickets", "TicketCount")
     Topic = apps.get_model("tickets", "Topic")
 
@@ -36,7 +36,7 @@ def backfill_ticket_counts_by_topic(apps, schema_editor):
                 )
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
