@@ -1,3 +1,7 @@
+v8.1.167 (2023-05-29)
+-------------------------
+ * Add DB triggers to track counts of calls as a new system label
+
 v8.1.166 (2023-05-29)
 -------------------------
  * Stop writing SystemLabelCount.is_archived so it can be dropped
