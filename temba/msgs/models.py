@@ -894,8 +894,10 @@ class SystemLabelCount(SquashableModel):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="system_labels")
     label_type = models.CharField(max_length=1, choices=SystemLabel.TYPE_CHOICES)
-    is_archived = models.BooleanField(default=False, null=True)
     count = models.IntegerField(default=0)
+
+    # TODO drop
+    is_archived = models.BooleanField(default=False, null=True)
 
     @classmethod
     def get_squash_query(cls, distinct_set):
@@ -903,8 +905,8 @@ class SystemLabelCount(SquashableModel):
         WITH deleted as (
             DELETE FROM %(table)s WHERE "org_id" = %%s AND "label_type" = %%s RETURNING "count"
         )
-        INSERT INTO %(table)s("org_id", "label_type", "is_archived", "count", "is_squashed")
-        VALUES (%%s, %%s, FALSE, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
+        INSERT INTO %(table)s("org_id", "label_type", "count", "is_squashed")
+        VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM deleted)), TRUE);
         """ % {
             "table": cls._meta.db_table
         }
