@@ -1,3 +1,7 @@
+v8.1.165 (2023-05-29)
+-------------------------
+ * Always write system label counts with is_archived=False and make field nullable
+
 v8.1.164 (2023-05-29)
 -------------------------
  * Add data migration to delete old system label counts for is_archived=true because they're no longer updated
