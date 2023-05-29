@@ -9,7 +9,7 @@ SQL = """
 CREATE OR REPLACE FUNCTION temba_ivrcall_on_delete() RETURNS TRIGGER AS $$
 BEGIN
     -- add negative count for all rows being deleted manually
-    INSERT INTO msgs_systemlabelcount(org_id, status, count, is_squashed)
+    INSERT INTO msgs_systemlabelcount(org_id, label_type, count, is_squashed)
     SELECT org_id, 'C', -count(*), FALSE
     FROM oldtab GROUP BY org_id;
 
