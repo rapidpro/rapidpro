@@ -64,7 +64,7 @@ from .models import (
     ExportContactsTask,
 )
 from .tasks import check_elasticsearch_lag, squash_group_counts
-from .templatetags.contacts import contact_field, history_class, history_icon, msg_status_badge
+from .templatetags.contacts import contact_field, msg_status_badge
 
 
 class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
@@ -2372,7 +2372,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         )
 
         # create an airtime transfer
-        transfer = AirtimeTransfer.objects.create(
+        AirtimeTransfer.objects.create(
             org=self.org,
             status="S",
             contact=self.joe,
@@ -2451,7 +2451,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
                 response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
-        history = response.context["events"]
+        history = response.json()["events"]
         self.assertEqual(98, len(history))
 
         def assertHistoryEvent(events, index, expected_type, **kwargs):
@@ -2469,7 +2469,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         assertHistoryEvent(history, 4, "ticket_opened", ticket__body="Question 2")
         assertHistoryEvent(history, 5, "ticket_closed", ticket__body="Question 1")
         assertHistoryEvent(history, 6, "ticket_opened", ticket__body="Question 1")
-        assertHistoryEvent(history, 7, "airtime_transferred", actual_amount=Decimal("100.00"))
+        assertHistoryEvent(history, 7, "airtime_transferred", actual_amount="100.00")
         assertHistoryEvent(history, 8, "run_result_changed", value="green")
         assertHistoryEvent(history, 9, "webhook_called", url="https://example.com/")
         assertHistoryEvent(history, 10, "msg_created", msg__text="What is your favorite color?")
@@ -2481,52 +2481,32 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         assertHistoryEvent(history, 14, "campaign_fired", campaign__name="Planting Reminders")
         assertHistoryEvent(history, -1, "msg_received", msg__text="Inbound message 11")
 
-        self.assertContains(response, "<audio ")
-        self.assertContains(response, '<source type="audio/mp3" src="http://blah/file.mp3" />')
-        self.assertContains(response, "<video ")
-        self.assertContains(response, '<source src="http://blah/file.mp4" type="video/mp4"')
-        self.assertContains(
-            response,
-            "http://www.openstreetmap.org/?mlat=47.5414799&amp;mlon=-122.6359908#map=18/47.5414799/-122.6359908",
-        )
-        self.assertContains(response, reverse("channels.channellog_msg", args=[failed.channel.uuid, failed.id]))
-        self.assertContains(response, reverse("channels.channellog_call", args=[call.channel.uuid, call.id]))
-        self.assertContains(response, "Transferred <b>100.00</b> <b>RWF</b> of airtime")
-        self.assertContains(response, reverse("airtime.airtimetransfer_read", args=[transfer.id]))
-
         # revert back to reading only from DB
         FlowSession.objects.filter(id=s.id).update(output_url=None)
 
         # can filter by ticket to only all ticket events from that ticket rather than some events from all tickets
         response = self.client.get(url + f"?ticket={ticket.uuid}&limit=100")
-        history = response.context["events"]
+        history = response.json()["events"]
         assertHistoryEvent(history, 0, "ticket_assigned", assignee__id=self.admin.id)
         assertHistoryEvent(history, 1, "ticket_note_added", note="I have a bad feeling about this")
         assertHistoryEvent(history, 5, "channel_event", channel_event_type="mt_miss")
         assertHistoryEvent(history, 6, "ticket_opened", ticket__body="Question 2")
-        assertHistoryEvent(history, 7, "airtime_transferred", actual_amount=Decimal("100.00"))
-
-        # can also fetch same page as JSON
-        response_json = self.client.get(url + "?limit=100&_format=json").json()
-        self.assertEqual(98, len(response_json["events"]))
+        assertHistoryEvent(history, 7, "airtime_transferred", actual_amount="100.00")
 
         # fetch next page
         before = datetime_to_timestamp(timezone.now() - timedelta(days=90))
         response = self.fetch_protected(url + "?limit=100&before=%d" % before, self.admin)
-        self.assertFalse(response.context["has_older"])
-
-        # none of our messages have a failed status yet
-        self.assertNotContains(response, "icon-bubble-notification")
+        self.assertFalse(response.json()["has_older"])
 
         # activity should include 11 remaining messages and the event fire
-        history = response.context["events"]
+        history = response.json()["events"]
         self.assertEqual(12, len(history))
         assertHistoryEvent(history, 0, "msg_received", msg__text="Inbound message 10")
         assertHistoryEvent(history, 10, "msg_received", msg__text="Inbound message 0")
         assertHistoryEvent(history, 11, "msg_received", msg__text="Very old inbound message")
 
         response = self.fetch_protected(url + "?limit=100", self.admin)
-        history = response.context["events"]
+        history = response.json()["events"]
 
         self.assertEqual(98, len(history))
         assertHistoryEvent(history, 10, "msg_created", msg__text="What is your favorite color?")
@@ -2536,7 +2516,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         response = self.fetch_protected(url, self.admin)
 
         # now we'll see the message that just came in first, followed by the call event
-        history = response.context["events"]
+        history = response.json()["events"]
         assertHistoryEvent(history, 0, "msg_received", msg__text="Newer message")
         assertHistoryEvent(history, 1, "call_started", status="E", status_display="Errored (No Answer)")
 
@@ -2544,7 +2524,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         response = self.fetch_protected(url + "?limit=100&after=%s" % recent_start, self.admin)
 
         # with our recent flag on, should not see the older messages
-        events = response.context["events"]
+        events = response.json()["events"]
         self.assertEqual(15, len(events))
         self.assertContains(response, "file.mp4")
 
@@ -2568,13 +2548,14 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         )
 
         response = self.fetch_protected(url + "?limit=200", self.admin)
-        history = response.context["events"]
+        history = response.json()["events"]
         self.assertEqual(102, len(history))
 
         # before date should not match our last activity, that only happens when we truncate
+        resp_json = response.json()
         self.assertNotEqual(
-            response.context["next_before"],
-            datetime_to_timestamp(iso8601.parse_date(response.context["events"][-1]["created_on"])),
+            resp_json["next_before"],
+            datetime_to_timestamp(iso8601.parse_date(resp_json["events"][-1]["created_on"])),
         )
 
         assertHistoryEvent(history, 0, "msg_created", msg__text="What is your favorite color?")
@@ -2606,21 +2587,22 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         response = self.fetch_protected(
             url + "?limit=1&before=%d" % datetime_to_timestamp(scheduled + timedelta(minutes=5)), self.admin
         )
-        assertHistoryEvent(response.context["events"], 0, "campaign_fired", campaign_event__id=self.message_event.id)
+        assertHistoryEvent(response.json()["events"], 0, "campaign_fired", campaign_event__id=self.message_event.id)
 
         # now try the proper max history to test truncation
         response = self.fetch_protected(url + "?before=%d" % datetime_to_timestamp(timezone.now()), self.admin)
 
         # our before should be the same as the last item
-        last_item_date = datetime_to_timestamp(iso8601.parse_date(response.context["events"][-1]["created_on"]))
-        self.assertEqual(response.context["next_before"], last_item_date)
+        resp_json = response.json()
+        last_item_date = datetime_to_timestamp(iso8601.parse_date(resp_json["events"][-1]["created_on"]))
+        self.assertEqual(resp_json["next_before"], last_item_date)
 
         # and our after should be 90 days earlier
-        self.assertEqual(response.context["next_after"], last_item_date - (90 * 24 * 60 * 60 * 1000 * 1000))
-        self.assertEqual(50, len(response.context["events"]))
+        self.assertEqual(resp_json["next_after"], last_item_date - (90 * 24 * 60 * 60 * 1000 * 1000))
+        self.assertEqual(50, len(resp_json["events"]))
 
         # and we should have a marker for older items
-        self.assertTrue(response.context["has_older"])
+        self.assertTrue(resp_json["has_older"])
 
         # can't view history of contact in other org
         response = self.client.get(reverse("contacts.contact_history", args=[self.other_org_contact.uuid]))
@@ -2646,28 +2628,32 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             .save()
         )
 
-        url = reverse("contacts.contact_history", args=[self.joe.uuid])
+        history_url = reverse("contacts.contact_history", args=[self.joe.uuid])
         self.login(self.user)
 
-        response = self.client.get(url)
+        response = self.client.get(history_url)
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "URNs updated to")
-        self.assertContains(response, "<b>blow80</b>, ")
-        self.assertContains(response, "<b>+250 781 111 111</b>, and ")
-        self.assertContains(response, "<b>joey</b>")
-        self.assertContains(response, "Field <b>Gender</b> updated to <b>M</b>")
-        self.assertContains(response, "Field <b>Age</b> cleared")
-        self.assertContains(response, "Language updated to <b>spa</b>")
-        self.assertContains(response, "Language cleared")
-        self.assertContains(response, "Name updated to <b>Joe</b>")
-        self.assertContains(response, "Name cleared")
-        self.assertContains(response, "Run result <b>Color</b> updated to <b>red</b> with category <b>Red</b>")
-        self.assertContains(
-            response,
-            "Email sent to\n        \n          <b>joe@nyaruka.com</b>\n        \n        with subject\n        <b>Test</b>",
+
+        resp_json = response.json()
+        self.assertEqual(13, len(resp_json["events"]))
+        self.assertEqual(
+            [
+                "flow_exited",
+                "failure",
+                "error",
+                "email_sent",
+                "run_result_changed",
+                "contact_name_changed",
+                "contact_name_changed",
+                "contact_language_changed",
+                "contact_language_changed",
+                "contact_field_changed",
+                "contact_field_changed",
+                "contact_urns_changed",
+                "flow_entered",
+            ],
+            [e["type"] for e in resp_json["events"]],
         )
-        self.assertContains(response, "unable to send email")
-        self.assertContains(response, "this is a failure")
 
     def test_msg_status_badge(self):
         msg = self.create_outgoing_msg(self.joe, "This is an outgoing message")
@@ -2689,77 +2675,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         # failed messages show an x
         msg.status = Msg.STATUS_FAILED
         self.assertIn('"x"', msg_status_badge(msg))
-
-    def test_history_templatetags(self):
-        item = {"type": "webhook_called", "url": "http://example.com", "status": "success"}
-        self.assertEqual(history_class(item), "non-msg detail-event")
-
-        item = {"type": "webhook_called", "url": "http://example.com", "status": "response_error"}
-        self.assertEqual(history_class(item), "non-msg warning detail-event")
-
-        item = {"type": "call_started", "status": "D"}
-        self.assertEqual(history_class(item), "non-msg")
-
-        item = {"type": "call_started", "status": "F"}
-        self.assertEqual(history_class(item), "non-msg warning")
-
-        # inbound (legacy msg_type)
-        item = {"type": "msg_received", "msg": {"text": "Hi"}, "msg_type": "I"}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-user"></span>')
-
-        item = {"type": "msg_received", "msg": {"text": "Hi"}, "msg_type": "T"}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-user"></span>')
-
-        # outgoing sent
-        item = {"type": "msg_created", "msg": {"text": "Hi"}, "status": "S"}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-right"></span>')
-
-        # outgoing delivered
-        item = {"type": "msg_created", "msg": {"text": "Hi"}, "status": "D"}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-check"></span>')
-
-        # failed
-        item = {"type": "msg_created", "msg": {"text": "Hi"}, "status": "F"}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-notification"></span>')
-        self.assertEqual(history_class(item), "msg warning")
-
-        # outgoing voice
-        item = {"type": "ivr_created", "msg": {"text": "Hi"}, "status": "F"}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-call-outgoing"></span>')
-        self.assertEqual(history_class(item), "msg warning")
-
-        # incoming voice
-        item = {"type": "msg_received", "msg": {"text": "Hi"}, "msg_type": "V"}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-call-incoming"></span>')
-        self.assertEqual(history_class(item), "msg")
-
-        # simulate a broadcast to 2 people
-        item = {"type": "broadcast_created", "recipient_count": 2}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-bullhorn"></span>')
-
-        item = {"type": "flow_entered", "flow": {"uuid": "1234", "name": "Survey"}}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-flow"></span>')
-
-        item = {"type": "flow_exited", "flow": {"uuid": "1234", "name": "Survey"}, "status": "C"}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-checkmark"></span>')
-
-        item = {"type": "flow_exited", "flow": {"uuid": "1234", "name": "Survey"}, "status": "I"}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-cancel-circle"></span>')
-
-        item = {"type": "flow_exited", "flow": {"uuid": "1234", "name": "Survey"}, "status": "X"}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
-
-        item = {"type": "campaign_fired", "campaign": {}, "fired_result": "F"}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
-        self.assertEqual(history_class(item), "non-msg")
-
-        item = {"type": "campaign_fired", "campaign": {}, "fired_result": "S"}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
-        self.assertEqual(history_class(item), "non-msg skipped")
-
-        item = {"type": "airtime_transferred", "currency": "RWF", "actual_amount": "100"}
-        self.assertEqual(history_icon(item), '<span class="glyph icon-cash"></span>')
-        self.assertEqual(history_class(item), "non-msg detail-event")
 
     def test_date_tags(self):
         next_year = datetime.now() + timedelta(days=365)
