@@ -1,3 +1,9 @@
+v8.1.169 (2023-05-30)
+-------------------------
+ * Allow call count backfill migration to be called offline
+ * Fix ivr call trigger migration
+ * Remove unused stuff from inbox views
+
 v8.1.168 (2023-05-30)
 -------------------------
  * Add data migration to backfill ivr call counts
