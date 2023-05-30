@@ -958,7 +958,7 @@ class ChannelLog(models.Model):
     )
 
     id = models.BigAutoField(primary_key=True)
-    uuid = models.UUIDField(default=uuid4)
+    uuid = models.UUIDField(default=uuid4, unique=True)
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs")
     msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
     call = models.ForeignKey("ivr.Call", on_delete=models.PROTECT, related_name="channel_logs", null=True)
