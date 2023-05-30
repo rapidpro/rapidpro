@@ -68,9 +68,7 @@ class MsgListView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Sm
 
     permission = "msgs.msg_list"
     refresh = 10000
-    add_button = True
     system_label = None
-    fields = ("from", "message", "received")
     search_fields = ("text__icontains", "contact__name__icontains", "contact__urns__path__icontains")
     paginate_by = 100
     default_order = ("-created_on", "-id")
@@ -111,7 +109,6 @@ class MsgListView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Sm
     def get_context_data(self, **kwargs):
         org = self.request.org
         counts = SystemLabel.get_counts(org)
-
         label = self.derive_label()
 
         # if there isn't a search filtering the queryset, we can replace the count function with a pre-calculated value
@@ -123,29 +120,11 @@ class MsgListView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Sm
 
         context = super().get_context_data(**kwargs)
 
-        folders = [
-            dict(count=counts[SystemLabel.TYPE_INBOX], label=_("Inbox"), url=reverse("msgs.msg_inbox")),
-            dict(count=counts[SystemLabel.TYPE_FLOWS], label=_("Flows"), url=reverse("msgs.msg_flow")),
-            dict(count=counts[SystemLabel.TYPE_ARCHIVED], label=_("Archived"), url=reverse("msgs.msg_archived")),
-            dict(count=counts[SystemLabel.TYPE_OUTBOX], label=_("Outbox"), url=reverse("msgs.msg_outbox")),
-            dict(count=counts[SystemLabel.TYPE_SENT], label=_("Sent"), url=reverse("msgs.msg_sent")),
-            dict(count=counts[SystemLabel.TYPE_FAILED], label=_("Failed"), url=reverse("msgs.msg_failed")),
-            dict(
-                count=counts[SystemLabel.TYPE_SCHEDULED],
-                label=_("Broadcasts"),
-                url=reverse("msgs.broadcast_scheduled"),
-            ),
-        ]
-
         context["org"] = org
-        context["folders"] = folders
-        context["labels"] = self.get_labels_with_counts(org)
+        context["labels"] = Label.get_active_for_org(org).order_by(Lower("name"))
         context["has_messages"] = (
             any(counts.values()) or Archive.objects.filter(org=org, archive_type=Archive.TYPE_MSG).exists()
         )
-        context["current_label"] = label
-        context["export_url"] = self.derive_export_url()
-        context["start_date"] = org.get_delete_date(archive_type=Archive.TYPE_MSG)
 
         # if refresh was passed in, increase it by our normal refresh time
         previous_refresh = self.request.GET.get("refresh")
@@ -153,13 +132,6 @@ class MsgListView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Sm
             context["refresh"] = int(previous_refresh) + self.derive_refresh()
 
         return context
-
-    def get_labels_with_counts(self, org):
-        labels = Label.get_active_for_org(org).order_by(Lower("name"))
-        label_counts = LabelCount.get_totals([lb for lb in labels])
-        for label in labels:
-            label.count = label_counts[label]
-        return labels
 
     def build_content_menu(self, menu):
         if self.has_org_perm("msgs.broadcast_send"):

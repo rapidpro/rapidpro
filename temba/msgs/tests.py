@@ -1424,7 +1424,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(13):
             self.client.get(inbox_url)
 
         response = self.assertListFetch(
@@ -1436,10 +1436,8 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # make sure that we embed refresh script if View.refresh is set
         self.assertContains(response, "function refresh")
-
         self.assertEqual(20000, response.context["refresh"])
         self.assertEqual(("archive", "label"), response.context["actions"])
-        self.assertEqual({"count": 4, "label": "Inbox", "url": "/msg/"}, response.context["folders"][0])
 
         # test searching
         response = self.client.get(inbox_url + "?search=joe")
@@ -1513,7 +1511,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(13):
             self.client.get(flows_url)
 
         response = self.assertListFetch(
@@ -1537,15 +1535,13 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(13):
             self.client.get(archived_url)
 
         response = self.assertListFetch(
             archived_url + "?refresh=10000", allow_viewers=True, allow_editors=True, context_objects=[msg3, msg2, msg1]
         )
-
         self.assertEqual(("restore", "label", "delete"), response.context["actions"])
-        self.assertEqual({"count": 3, "label": "Archived", "url": "/msg/archived/"}, response.context["folders"][2])
 
         # test searching
         response = self.client.get(archived_url + "?search=joe")
@@ -1585,14 +1581,12 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(12):
             self.client.get(outbox_url)
 
         # messages sorted by created_on
         response = self.assertListFetch(outbox_url, allow_viewers=True, allow_editors=True, context_objects=[msg1])
-
         self.assertEqual((), response.context["actions"])
-        self.assertEqual({"count": 1, "label": "Outbox", "url": "/msg/outbox/"}, response.context["folders"][3])
 
         # create another broadcast this time with 3 messages
         contact4 = self.create_contact("Kevin", phone="+250788000003")
@@ -1615,7 +1609,6 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # should see queued broadcast but not the scheduled one
-        self.assertEqual(5, response.context_data["folders"][3]["count"])  # Outbox (includes queued broadcast)
         self.assertEqual([broadcast3], list(response.context_data["pending_broadcasts"]))
 
         response = self.client.get(outbox_url + "?search=kevin")
@@ -1646,7 +1639,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(11):
             self.client.get(sent_url)
 
         # messages sorted by sent_on
@@ -1677,7 +1670,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check query count
         self.login(self.admin)
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(11):
             self.client.get(failed_url)
 
         response = self.assertListFetch(
