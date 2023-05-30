@@ -25,6 +25,12 @@ def reverse(apps, schema_editor):
     pass
 
 
+def apply_manual():  # pragma: no cover
+    from django.apps import apps
+
+    backfill_call_counts(apps, None)
+
+
 class Migration(migrations.Migration):
     atomic = False
 
