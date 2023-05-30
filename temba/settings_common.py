@@ -683,6 +683,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_simulate",
         "flows.flowstart_list",
         "globals.global_api",
+        "ivr.call_list",
         "locations.adminboundary_alias",
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",

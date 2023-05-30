@@ -825,6 +825,10 @@ class SystemLabel:
         trigger used to maintain the label counts.
         """
 
+        from temba.ivr.models import Call
+
+        assert label_type in [c[0] for c in cls.TYPE_CHOICES]
+
         if label_type == cls.TYPE_INBOX:
             qs = Msg.objects.filter(
                 direction=Msg.DIRECTION_IN,
@@ -866,8 +870,8 @@ class SystemLabel:
             )
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.filter(is_active=True).exclude(schedule=None)
-        else:  # pragma: needs cover
-            raise ValueError("Invalid label type: %s" % label_type)
+        elif label_type == cls.TYPE_CALLS:
+            qs = Call.objects.all()
 
         return qs.filter(org=org)
 
