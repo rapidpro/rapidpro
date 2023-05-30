@@ -32,11 +32,11 @@ $$ LANGUAGE plpgsql;
 
 
 CREATE TRIGGER temba_ivrcall_on_delete
-AFTER DELETE ON flows_flowrun REFERENCING OLD TABLE AS oldtab
+AFTER DELETE ON ivr_call REFERENCING OLD TABLE AS oldtab
 FOR EACH STATEMENT EXECUTE PROCEDURE temba_ivrcall_on_delete();
 
 CREATE TRIGGER temba_ivrcall_on_insert
-AFTER INSERT ON flows_flowrun REFERENCING NEW TABLE AS newtab
+AFTER INSERT ON ivr_call REFERENCING NEW TABLE AS newtab
 FOR EACH STATEMENT EXECUTE PROCEDURE temba_ivrcall_on_insert();
 """
 
