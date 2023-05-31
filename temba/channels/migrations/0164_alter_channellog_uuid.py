@@ -14,6 +14,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="channellog",
             name="uuid",
-            field=models.UUIDField(default=uuid.uuid4, unique=True),
+            field=models.UUIDField(default=uuid.uuid4, db_index=True),
         ),
     ]
