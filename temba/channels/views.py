@@ -513,6 +513,8 @@ class ChannelCRUDL(SmartCRUDL):
             if obj.type.show_config_page:
                 menu.add_link(_("Settings"), reverse("channels.channel_configuration", args=[obj.uuid]))
 
+            menu.add_link(_("Logs"), reverse("channels.channellog_list", args=[obj.uuid]))
+
             if self.has_org_perm("channels.channel_update"):
                 menu.add_modax(
                     _("Edit"),

@@ -2475,7 +2475,7 @@ class FacebookWhitelistTest(TembaTest, CRUDLTestMixin):
         self.login(self.admin)
         response = self.client.get(read_url)
         self.assertContains(response, self.channel.name)
-        self.assertContentMenu(read_url, self.admin, ["Settings", "Edit", "Delete", "Whitelist Domain"])
+        self.assertContentMenu(read_url, self.admin, ["Settings", "Logs", "Edit", "Delete", "Whitelist Domain"])
 
         with patch("requests.post") as mock:
             mock.return_value = MockResponse(400, '{"error": { "message": "FB Error" } }')
