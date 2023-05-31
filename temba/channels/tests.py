@@ -1717,10 +1717,12 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             ],
             errors=[],
         )
+        msg1.log_uuids = [log1.uuid, log2.uuid]
+        msg1.save(update_fields=("log_uuids",))
 
         # create another msg and log that shouldn't be included
         msg2 = self.create_outgoing_msg(contact, "success message", status="D")
-        ChannelLog.objects.create(
+        log3 = ChannelLog.objects.create(
             channel=self.channel,
             msg=msg2,
             is_error=False,
@@ -1737,6 +1739,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             ],
             errors=[],
         )
+        msg2.log_uuids = [log3.uuid]
+        msg2.save(update_fields=("log_uuids",))
 
         msg1_url = reverse("channels.channellog_msg", args=[self.channel.uuid, msg1.id])
 
@@ -1773,6 +1777,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             ],
             errors=[],
         )
+        call1.log_uuids = [log1.uuid, log2.uuid]
+        call1.save(update_fields=("log_uuids",))
 
         # create another call and log that shouldn't be included
         self.create_incoming_call(flow, contact)
@@ -1982,7 +1988,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         channel = self.create_channel("TG", "Test TG Channel", "234567")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        ChannelLog.objects.create(
+        log = ChannelLog.objects.create(
             channel=channel,
             msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
@@ -1999,6 +2005,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
+        msg.log_uuids = [log.uuid]
+        msg.save(update_fields=("log_uuids",))
 
         self.login(self.admin)
 
@@ -2055,7 +2063,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         channel = self.create_channel("TG", "Test TG Channel", "234567")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        ChannelLog.objects.create(
+        log = ChannelLog.objects.create(
             channel=channel,
             msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
@@ -2072,6 +2080,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
+        msg.log_uuids = [log.uuid]
+        msg.save(update_fields=("log_uuids",))
 
         self.login(self.admin)
 
@@ -2109,7 +2119,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         channel = self.create_channel("TG", "Test TG Channel", "234567")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        ChannelLog.objects.create(
+        log = ChannelLog.objects.create(
             channel=channel,
             msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
@@ -2126,6 +2136,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
+        msg.log_uuids = [log.uuid]
+        msg.save(update_fields=("log_uuids",))
 
         self.login(self.admin)
 
@@ -2163,7 +2175,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         channel = self.create_channel("TWT", "Test TWT Channel", "nyaruka")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        ChannelLog.objects.create(
+        log = ChannelLog.objects.create(
             channel=channel,
             msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_RECEIVE,
@@ -2180,6 +2192,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
+        msg.log_uuids = [log.uuid]
+        msg.save(update_fields=("log_uuids",))
 
         self.login(self.admin)
 
@@ -2233,7 +2247,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         channel = self.create_channel("TWT", "Test TWT Channel", "nyaruka")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        ChannelLog.objects.create(
+        log = ChannelLog.objects.create(
             channel=channel,
             msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
@@ -2250,6 +2264,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
+        msg.log_uuids = [log.uuid]
+        msg.save(update_fields=("log_uuids",))
 
         self.login(self.admin)
 
@@ -2286,7 +2302,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         channel = self.create_channel("FB", "Test FB Channel", "54764868534")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        ChannelLog.objects.create(
+        log = ChannelLog.objects.create(
             channel=channel,
             msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_RECEIVE,
@@ -2303,6 +2319,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
+        msg.log_uuids = [log.uuid]
+        msg.save(update_fields=("log_uuids",))
 
         self.login(self.admin)
 
@@ -2360,7 +2378,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         channel = self.create_channel("FB", "Test FB Channel", "54764868534")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
-        ChannelLog.objects.create(
+        log = ChannelLog.objects.create(
             channel=channel,
             msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
@@ -2377,6 +2395,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
+        msg.log_uuids = [log.uuid]
+        msg.save(update_fields=("log_uuids",))
 
         self.login(self.admin)
 
@@ -2425,7 +2445,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         channel = self.create_channel("T", "Test Twilio Channel", "+12345")
         msg = self.create_outgoing_msg(contact, "Hi")
 
-        ChannelLog.objects.create(
+        log = ChannelLog.objects.create(
             channel=channel,
             msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_STATUS,
@@ -2442,6 +2462,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
+        msg.log_uuids = [log.uuid]
+        msg.save(update_fields=("log_uuids",))
 
         self.login(self.admin)
 
@@ -2529,6 +2551,8 @@ MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5
                 }
             ],
         )
+        msg.log_uuids = [success_log.uuid]
+        msg.save(update_fields=("log_uuids",))
 
         self.login(self.admin)
 

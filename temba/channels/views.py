@@ -1051,7 +1051,8 @@ class ChannelLogCRUDL(SmartCRUDL):
             return self.msg.org
 
         def derive_queryset(self, **kwargs):
-            return super().derive_queryset(**kwargs).filter(msg=self.msg).order_by("created_on")
+            uuids = self.msg.log_uuids or []
+            return super().derive_queryset(**kwargs).filter(uuid__in=uuids).order_by("created_on")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -1084,7 +1085,8 @@ class ChannelLogCRUDL(SmartCRUDL):
             return self.call.org
 
         def derive_queryset(self, **kwargs):
-            return super().derive_queryset(**kwargs).filter(call=self.call).order_by("created_on")
+            uuids = self.call.log_uuids or []
+            return super().derive_queryset(**kwargs).filter(uuid__in=uuids).order_by("created_on")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
