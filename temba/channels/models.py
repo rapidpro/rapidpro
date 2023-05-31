@@ -780,18 +780,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     def get_log_count(self):
         return self.get_count([ChannelCount.SUCCESS_LOG_TYPE, ChannelCount.ERROR_LOG_TYPE])
 
-    def get_error_log_count(self):
-        return self.get_count([ChannelCount.ERROR_LOG_TYPE]) + self.get_ivr_log_count()
-
-    def get_success_log_count(self):
-        return self.get_count([ChannelCount.SUCCESS_LOG_TYPE])
-
-    def get_ivr_log_count(self):
-        return ChannelLog.objects.filter(channel=self).exclude(call=None).order_by("call").distinct("call").count()
-
-    def get_non_ivr_log_count(self):
-        return self.get_log_count() - self.get_ivr_log_count()
-
     def __str__(self):  # pragma: no cover
         if self.name:
             return self.name
