@@ -1,3 +1,8 @@
+v8.1.170 (2023-05-31)
+-------------------------
+ * Remove rendering of contact history as template now that new UI only consumes it as JSON
+ * Fix inbox msg type for Android channels
+
 v8.1.169 (2023-05-30)
 -------------------------
  * Allow call count backfill migration to be called offline
