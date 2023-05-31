@@ -3,21 +3,28 @@
 from django.db import migrations
 
 
-def fix_msg_type_inbox_android(apps, schema_editor):  # pragma: no cover
+def fix_msg_type_inbox_android(apps, schema_editor):
     Msg = apps.get_model("msgs", "Msg")
+
+    num_updated = 0
 
     while True:
         id_batch = list(
-            Msg.objects.filter(direction="I", msg_type="", status="H", channel__channel_type="A")[:1000].values_list(
+            Msg.objects.filter(direction="I", msg_type="", channel__channel_type="A")[:1000].values_list(
                 "id", flat=True
             )
         )
         if not id_batch:
             break
+
         Msg.objects.filter(id__in=id_batch).update(msg_type="T")
+        num_updated += len(id_batch)
+
+    if num_updated:
+        print(f"Updated {num_updated} Android messages with no msg_type")
 
 
-def reverse(apps, schema_editor):  # pragma: no cover
+def reverse(apps, schema_editor):
     pass
 
 
