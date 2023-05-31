@@ -960,8 +960,6 @@ class ChannelLog(models.Model):
     id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(default=uuid4, db_index=True)
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs")
-    msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
-    call = models.ForeignKey("ivr.Call", on_delete=models.PROTECT, related_name="channel_logs", null=True)
 
     log_type = models.CharField(max_length=16, choices=LOG_TYPE_CHOICES)
     http_logs = models.JSONField(null=True)
@@ -969,6 +967,10 @@ class ChannelLog(models.Model):
     is_error = models.BooleanField(default=False)
     elapsed_ms = models.IntegerField(default=0)
     created_on = models.DateTimeField(default=timezone.now)
+
+    # deprecated
+    msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
+    call = models.ForeignKey("ivr.Call", on_delete=models.PROTECT, related_name="channel_logs", null=True)
 
     def _get_display_value(self, user, original, redact_keys=(), redact_values=()):
         """

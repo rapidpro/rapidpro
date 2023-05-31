@@ -1060,7 +1060,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             context["logs"] = [log.get_display(self.request.user) for log in context["object_list"]]
             return context
 
-    class Call(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartListView):
+    class Call(SpaMixin, OrgObjPermsMixin, SmartListView):
         """
         All channel logs for a call
         """
@@ -1074,12 +1074,6 @@ class ChannelLogCRUDL(SmartCRUDL):
         @cached_property
         def call(self):
             return get_object_or_404(Call, id=self.kwargs["call_id"])
-
-        def build_content_menu(self, menu):
-            menu.add_link(
-                _("More Calls"),
-                reverse("channels.channellog_list", args=[self.call.channel.uuid]) + "?calls=1",
-            )
 
         def get_object_org(self):
             return self.call.org
