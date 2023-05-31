@@ -101,6 +101,7 @@ def create_incoming(org, channel, urn, text, received_on, attachments=None):
         direction=Msg.DIRECTION_IN,
         attachments=attachments,
         status=Msg.STATUS_PENDING,
+        msg_type=Msg.TYPE_TEXT,
     )
 
     # pass off handling of the message after we commit
