@@ -19,7 +19,6 @@ from django.utils.encoding import force_bytes
 
 from temba.channels.types.vonage import VonageType
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
-from temba.ivr.models import Call
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.request_logs.models import HTTPLog
@@ -1793,19 +1792,6 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.channel.role = "CASR"
         self.channel.save(update_fields=("role",))
 
-        other_org_channel = Channel.create(
-            self.org2,
-            self.admin2,
-            "RW",
-            "EX",
-            name="Other Channel",
-            address="+250785551414",
-            role="SR",
-            secret="45473",
-            schemes=("tel",),
-            config={"send_url": "http://send.com"},
-        )
-
         contact = self.create_contact("Fred Jones", phone="+12067799191")
 
         # create unrelated incoming message
@@ -1852,13 +1838,6 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             errors=[{"message": "invalid credentials", "code": ""}],
         )
 
-        # create call with an interaction log
-        ivr_flow = self.get_flow("ivr")
-        call = self.create_incoming_call(ivr_flow, contact)
-
-        # create failed call with an interaction log
-        self.create_incoming_call(ivr_flow, contact, status=Call.STATUS_FAILED)
-
         # create a non-message, non-call other log
         other_log = ChannelLog.objects.create(
             channel=self.channel,
@@ -1877,110 +1856,25 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             ],
         )
 
-        # create log for other org
-        other_org_contact = self.create_contact("Hans", phone="+593979123456")
-        other_org_msg = self.create_outgoing_msg(other_org_contact, "hi", status="D")
-        other_org_log = ChannelLog.objects.create(
-            channel=other_org_channel,
-            msg=other_org_msg,
-            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
-            is_error=False,
-            http_logs=[
-                {
-                    "url": "https://foo.bar/send?msg=message",
-                    "status_code": 200,
-                    "request": "POST /send?msg=message\r\n\r\n{}",
-                    "response": 'HTTP/1.0 200 OK\r\r\r\n{"ok":true}',
-                    "elapsed_ms": 12,
-                    "retries": 0,
-                    "created_on": "2022-01-01T00:00:00Z",
-                }
-            ],
-        )
-
         list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
 
-        # can't see the view without logging in
-        response = self.client.get(list_url)
-        self.assertLoginRedirect(response)
-
-        read_url = reverse("channels.channellog_read", args=[failed_log.id])
-        response = self.client.get(read_url)
-        self.assertLoginRedirect(response)
-
-        # same if logged in as other admin
-        self.login(self.admin2)
-
-        response = self.client.get(list_url)
-        self.assertLoginRedirect(response)
-
-        read_url = reverse("channels.channellog_read", args=[failed_log.id])
-        response = self.client.get(read_url)
-        self.assertLoginRedirect(response)
-
-        # login as real admin
-        self.login(self.admin)
-
-        response = self.client.get(reverse("channels.channellog_list", args=["invalid-uuid"]))
-        self.assertEqual(404, response.status_code)
-
-        # check our list page has both our channel logs
-        response = self.client.get(list_url)
-        self.assertEqual([failed_log, success_log], list(response.context["object_list"]))
-
-        response = self.client.get(list_url)
+        response = self.assertListFetch(
+            list_url,
+            allow_viewers=False,
+            allow_editors=False,
+            allow_org2=False,
+            context_objects=[other_log, failed_log, success_log],
+        )
         self.assertEqual(f"/settings/channels/{self.channel.uuid}", response.headers[TEMBA_MENU_SELECTION])
 
-        # check error logs only
-        response = self.client.get(list_url + "?errors=1")
-        self.assertEqual([failed_log], list(response.context["object_list"]))
+        # try viewing the failed message log
+        read_url = reverse("channels.channellog_read", args=[failed_log.id])
 
-        # view failed alone
-        response = self.client.get(read_url)
-        self.assertContains(response, "failed+message")
-        self.assertContains(response, "invalid credentials")
+        self.assertReadFetch(read_url, allow_viewers=False, allow_editors=False, context_object=failed_log)
 
-        # check other logs only
-        response = self.client.get(list_url + "?others=1")
-        self.assertEqual([other_log], list(response.context["object_list"]))
-
-        # can't view log from other org
-        response = self.client.get(reverse("channels.channellog_read", args=[other_org_log.id]))
-        self.assertLoginRedirect(response)
-
-        # disconnect our msg
-        failed_log.msg = None
-        failed_log.save(update_fields=["msg"])
-        response = self.client.get(read_url)
-        self.assertContains(response, "failed+message")
-        self.assertContains(response, "invalid credentials")
-
-        # view success alone
-        channel_log_read_url = reverse("channels.channellog_read", args=[success_log.id])
-        response = self.client.get(channel_log_read_url)
-        self.assertContains(response, "POST /send?msg=message")
-
-        self.assertEqual(self.channel.get_success_log_count(), 3)
-        self.assertEqual(self.channel.get_error_log_count(), 4)  # error log count always includes IVR logs
-
-        # check that IVR logs are displayed correctly
-        response = self.client.get(reverse("channels.channellog_list", args=[self.channel.uuid]) + "?calls=1")
-        self.assertContains(response, "15 seconds")
-        self.assertContains(response, "2 results")
-
-        # make sure we can see the details of the IVR log
-        response = self.client.get(reverse("channels.channellog_call", args=[self.channel.uuid, call.id]))
-        self.assertContains(response, "{&quot;say&quot;: &quot;Hello&quot;}")
-
-        # if duration isn't set explicitly, it can be calculated
-        call.started_on = datetime(2019, 8, 12, 11, 4, 0, 0, timezone.utc)
-        call.status = Call.STATUS_IN_PROGRESS
-        call.duration = None
-        call.save(update_fields=("started_on", "status", "duration"))
-
-        with patch("django.utils.timezone.now", return_value=datetime(2019, 8, 12, 11, 4, 30, 0, timezone.utc)):
-            response = self.client.get(reverse("channels.channellog_list", args=[self.channel.uuid]) + "?calls=1")
-            self.assertContains(response, "30 seconds")
+        # invalid channel UUID returns 404
+        response = self.client.get(reverse("channels.channellog_list", args=["invalid-uuid"]))
+        self.assertEqual(404, response.status_code)
 
     def test_redaction_for_telegram(self):
         urn = "telegram:3527065"
@@ -2010,20 +1904,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.login(self.admin)
 
-        list_url = reverse("channels.channellog_list", args=[channel.uuid])
         read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
-
-        # check list page shows un-redacted content for a regular org
-        response = self.client.get(list_url)
-
-        self.assertContains(response, "3527065", count=1)
-
-        # check list page shows redacted content for an anon org
-        with AnonymousOrg(self.org):
-            response = self.client.get(list_url)
-
-            self.assertContains(response, "3527065", count=0)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
         # check read page shows un-redacted content for a regular org
         response = self.client.get(read_url)
@@ -2197,18 +2078,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.login(self.admin)
 
-        list_url = reverse("channels.channellog_list", args=[channel.uuid])
         read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
-
-        response = self.client.get(list_url)
-
-        self.assertContains(response, "767659860", count=1)
-
-        with AnonymousOrg(self.org):
-            response = self.client.get(list_url)
-
-            self.assertContains(response, "767659860", count=0)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
         response = self.client.get(read_url)
 
@@ -2324,19 +2194,6 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.login(self.admin)
 
-        list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        response = self.client.get(list_url)
-
-        self.assertContains(response, "2150393045080607", count=1)
-        self.assertContains(response, "facebook:2150393045080607", count=0)
-
-        with AnonymousOrg(self.org):
-            response = self.client.get(list_url)
-
-            self.assertContains(response, "2150393045080607", count=0)
-            self.assertContains(response, "facebook:2150393045080607", count=0)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
-
         read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
         response = self.client.get(read_url)
@@ -2400,16 +2257,6 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.login(self.admin)
 
-        list_url = reverse("channels.channellog_list", args=[channel.uuid])
-        response = self.client.get(list_url)
-
-        self.assertContains(response, "2150393045080607", count=1)
-
-        with AnonymousOrg(self.org):
-            response = self.client.get(list_url)
-
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
-
         read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
         response = self.client.get(read_url)
@@ -2467,22 +2314,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.login(self.admin)
 
-        list_url = reverse("channels.channellog_list", args=[channel.uuid])
         read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
-
-        # check list page shows un-redacted content for a regular org
-        response = self.client.get(list_url)
-
-        self.assertContains(response, "097 909 9111", count=1)
-
-        # check list page shows redacted content for an anon org
-        with AnonymousOrg(self.org):
-            response = self.client.get(list_url)
-
-            self.assertContains(response, "097 909 9111", count=0)
-            self.assertContains(response, "979099111", count=0)
-            self.assertContains(response, "Quito", count=0)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
 
         # check read page shows un-redacted content for a regular org
         response = self.client.get(read_url)
@@ -2556,12 +2388,7 @@ MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5
 
         self.login(self.admin)
 
-        list_url = reverse("channels.channellog_list", args=[channel.uuid])
         read_url = reverse("channels.channellog_read", args=[success_log.id])
-
-        # check list page shows un-redacted content for a regular org
-        response = self.client.get(list_url)
-        self.assertNotContains(response, settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN)
 
         response = self.client.get(read_url)
         self.assertNotContains(response, settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN)
