@@ -1,3 +1,8 @@
+v8.1.171 (2023-05-31)
+-------------------------
+ * Add index on channellog.uuid
+ * Impove and expose the call list view
+
 v8.1.170 (2023-05-31)
 -------------------------
  * Remove rendering of contact history as template now that new UI only consumes it as JSON
