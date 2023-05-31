@@ -61,33 +61,59 @@ from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg
 from .tasks import export_messages_task
 
 
-class MsgListView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+class SystemLabelView(SpaMixin, OrgPermsMixin, SmartListView):
+    """
+    Base class for views backed by a system label or message label queryset
+    """
+
+    system_label = None
+    paginate_by = 100
+
+    def pre_process(self, request, *args, **kwargs):
+        if self.system_label:
+            self.queryset = SystemLabel.get_queryset(request.org, self.system_label)
+
+    def derive_label(self):
+        return self.system_label
+
+    def get_context_data(self, **kwargs):
+        org = self.request.org
+        counts = SystemLabel.get_counts(org)
+        label = self.derive_label()
+
+        # if there isn't a search filtering the queryset, we can replace the count function with a pre-calculated value
+        if "search" not in self.request.GET:
+            if isinstance(label, Label):
+                patch_queryset_count(self.object_list, label.get_visible_count)
+            elif isinstance(label, str):
+                patch_queryset_count(self.object_list, lambda: counts[label])
+
+        context = super().get_context_data(**kwargs)
+        context["has_messages"] = (
+            any(counts.values()) or Archive.objects.filter(org=org, archive_type=Archive.TYPE_MSG).exists()
+        )
+
+        return context
+
+
+class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
     """
     Base class for message list views with message folders and labels listed by the side
     """
 
     permission = "msgs.msg_list"
     refresh = 10000
-    system_label = None
     search_fields = ("text__icontains", "contact__name__icontains", "contact__urns__path__icontains")
-    paginate_by = 100
     default_order = ("-created_on", "-id")
     allow_export = False
     bulk_actions = ()
     bulk_action_permissions = {"resend": "msgs.broadcast_send", "delete": "msgs.msg_update"}
-
-    def derive_label(self):
-        return self.system_label
 
     def derive_export_url(self):
         redirect = quote_plus(self.request.get_full_path())
         label = self.derive_label()
         label_id = label.uuid if isinstance(label, Label) else label
         return "%s?l=%s&redirect=%s" % (reverse("msgs.msg_export"), label_id, redirect)
-
-    def pre_process(self, request, *args, **kwargs):
-        if self.system_label:
-            self.queryset = SystemLabel.get_queryset(request.org, self.system_label)
 
     def get_queryset(self, **kwargs):
         qs = super().get_queryset(**kwargs)
@@ -108,23 +134,10 @@ class MsgListView(SpaMixin, ContentMenuMixin, OrgPermsMixin, BulkActionMixin, Sm
 
     def get_context_data(self, **kwargs):
         org = self.request.org
-        counts = SystemLabel.get_counts(org)
-        label = self.derive_label()
-
-        # if there isn't a search filtering the queryset, we can replace the count function with a pre-calculated value
-        if "search" not in self.request.GET:
-            if isinstance(label, Label):
-                patch_queryset_count(self.object_list, label.get_visible_count)
-            elif isinstance(label, str):
-                patch_queryset_count(self.object_list, lambda: counts[label])
 
         context = super().get_context_data(**kwargs)
-
         context["org"] = org
         context["labels"] = Label.get_active_for_org(org).order_by(Lower("name"))
-        context["has_messages"] = (
-            any(counts.values()) or Archive.objects.filter(org=org, archive_type=Archive.TYPE_MSG).exists()
-        )
 
         # if refresh was passed in, increase it by our normal refresh time
         previous_refresh = self.request.GET.get("refresh")
@@ -664,6 +677,13 @@ class MsgCRUDL(SmartCRUDL):
                         name="Broadcasts",
                         href=reverse("msgs.broadcast_scheduled"),
                         count=counts[SystemLabel.TYPE_SCHEDULED],
+                    ),
+                    self.create_divider(),
+                    self.create_menu_item(
+                        menu_id="calls",
+                        name="Calls",
+                        href=reverse("ivr.call_list"),
+                        count=counts[SystemLabel.TYPE_CALLS],
                     ),
                 ]
 

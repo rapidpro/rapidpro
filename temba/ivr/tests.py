@@ -7,7 +7,7 @@ from django.utils import timezone
 from temba.channels.models import ChannelLog
 from temba.flows.models import FlowSession
 from temba.msgs.models import SystemLabel
-from temba.tests import MigrationTest, TembaTest
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
 from temba.utils.uuid import uuid4
 
 from .models import Call
@@ -72,6 +72,48 @@ class CallTest(TembaTest):
         self.assertEqual(0, FlowSession.objects.count())
         self.assertEqual(0, ChannelLog.objects.count())
         self.assertEqual(0, Call.objects.count())
+
+
+class CallCRUDLTest(CRUDLTestMixin, TembaTest):
+    def test_list(self):
+        list_url = reverse("ivr.call_list")
+
+        contact = self.create_contact("Bob", phone="+123456789")
+
+        call1 = Call.objects.create(
+            org=self.org,
+            channel=self.channel,
+            direction=Call.DIRECTION_IN,
+            contact=contact,
+            contact_urn=contact.get_urn(),
+            status=Call.STATUS_COMPLETED,
+            duration=15,
+        )
+        call2 = Call.objects.create(
+            org=self.org,
+            channel=self.channel,
+            direction=Call.DIRECTION_OUT,
+            contact=contact,
+            contact_urn=contact.get_urn(),
+            status=Call.STATUS_IN_PROGRESS,
+            duration=30,
+        )
+        Call.objects.create(
+            org=self.org2,
+            channel=self.channel,
+            direction=Call.DIRECTION_IN,
+            contact=contact,
+            contact_urn=contact.get_urn(),
+            status=Call.STATUS_IN_PROGRESS,
+            duration=15,
+        )
+
+        # check query count
+        self.login(self.admin)
+        with self.assertNumQueries(11):
+            self.client.get(list_url)
+
+        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[call2, call1])
 
 
 class IVRTest(TembaTest):
