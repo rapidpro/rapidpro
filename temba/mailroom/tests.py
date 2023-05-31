@@ -527,6 +527,7 @@ class MailroomQueueTest(TembaTest):
         with override_settings(TESTING=False):
             msg = sync.create_incoming(self.org, self.channel, "tel:12065551212", "Hello World", timezone.now())
 
+        self.assertEqual(msg.msg_type, Msg.TYPE_TEXT)
         self.assert_org_queued(self.org, "handler")
         self.assert_contact_queued(msg.contact)
         self.assert_queued_handler_task(

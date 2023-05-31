@@ -950,15 +950,17 @@ class ContactCRUDL(SmartCRUDL):
             context["events"] = events
             return context
 
-        def as_json(self, context):
-            return {
-                "has_older": context["has_older"],
-                "recent_only": context["recent_only"],
-                "next_before": context["next_before"],
-                "next_after": context["next_after"],
-                "start_date": context["start_date"],
-                "events": context["events"],
-            }
+        def render_to_response(self, context, **response_kwargs):
+            return JsonResponse(
+                {
+                    "has_older": context["has_older"],
+                    "recent_only": context["recent_only"],
+                    "next_before": context["next_before"],
+                    "next_after": context["next_after"],
+                    "start_date": context["start_date"],
+                    "events": context["events"],
+                }
+            )
 
     class Search(ContactListView):
         template_name = "contacts/contact_list.haml"

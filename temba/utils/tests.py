@@ -322,20 +322,6 @@ class TemplateTagTest(TembaTest):
 
 
 class TemplateTagTestSimple(TestCase):
-    def test_format_seconds(self):
-        from temba.utils.templatetags.temba import format_seconds
-
-        self.assertIsNone(format_seconds(None))
-
-        # less than a minute
-        self.assertEqual("30 sec", format_seconds(30))
-
-        # round down
-        self.assertEqual("1 min", format_seconds(89))
-
-        # round up
-        self.assertEqual("2 min", format_seconds(100))
-
     def test_delta(self):
         from temba.utils.templatetags.temba import delta_filter
 
