@@ -2,7 +2,7 @@ import base64
 import hashlib
 import hmac
 import time
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from unittest.mock import patch
 from urllib.parse import quote
 
@@ -1433,43 +1433,86 @@ class ChannelCountTest(TembaTest):
         calculated_count = ChannelCount.get_day_count(channel, count_type, day)
         self.assertEqual(assert_count, calculated_count)
 
-    def test_daily_counts(self):
-        # no channel counts
-        self.assertFalse(ChannelCount.objects.all())
-
-        # contact without a channel
+    def test_msg_counts(self):
         contact = self.create_contact("Joe", phone="+250788111222")
-        self.create_incoming_msg(contact, "Test Message", surveyor=True)
 
-        # still no channel counts
-        self.assertFalse(ChannelCount.objects.all())
+        self.assertEqual(0, ChannelCount.objects.count())
 
-        # incoming msg with a channel
-        msg1 = self.create_incoming_msg(contact, "Test Message")
-        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_MSG_TYPE, msg1.created_on.date())
+        # message without a channel won't be recorded
+        self.create_incoming_msg(contact, "X", surveyor=True)
+        self.assertEqual(0, ChannelCount.objects.count())
 
-        # insert another
-        msg2 = self.create_incoming_msg(contact, "Test Message")
-        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg2.created_on.date())
+        # create some messages...
+        self.create_incoming_msg(contact, "A", created_on=datetime(2023, 5, 31, 13, 0, 30, 0, timezone.utc))
+        self.create_incoming_msg(contact, "B", created_on=datetime(2023, 6, 1, 13, 0, 30, 0, timezone.utc))
+        self.create_incoming_msg(contact, "C", created_on=datetime(2023, 6, 1, 13, 0, 30, 0, timezone.utc))
+        self.create_incoming_msg(contact, "D", created_on=datetime(2023, 6, 1, 13, 0, 30, 0, timezone.utc), voice=True)
+        self.create_outgoing_msg(contact, "E", created_on=datetime(2023, 6, 1, 13, 0, 30, 0, timezone.utc))
+
+        # and 3 in bulk
+        Msg.objects.bulk_create(
+            [
+                Msg(
+                    org=self.org,
+                    channel=self.channel,
+                    contact=contact,
+                    text="F",
+                    direction="O",
+                    msg_type="T",
+                    created_on=datetime(2023, 6, 1, 13, 0, 30, 0, timezone.utc),
+                ),
+                Msg(
+                    org=self.org,
+                    channel=self.channel,
+                    contact=contact,
+                    text="G",
+                    direction="O",
+                    msg_type="T",
+                    created_on=datetime(2023, 6, 1, 13, 0, 30, 0, timezone.utc),
+                ),
+                Msg(
+                    org=self.org,
+                    channel=self.channel,
+                    contact=contact,
+                    text="H",
+                    direction="O",
+                    msg_type="V",
+                    created_on=datetime(2023, 6, 1, 13, 0, 30, 0, timezone.utc),
+                ),
+            ]
+        )
+
+        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_MSG_TYPE, date(2023, 5, 31))
+        self.assertDailyCount(self.channel, 0, ChannelCount.INCOMING_IVR_TYPE, date(2023, 5, 31))
+        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, date(2023, 6, 1))
+        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, date(2023, 6, 1))
+        self.assertDailyCount(self.channel, 3, ChannelCount.OUTGOING_MSG_TYPE, date(2023, 6, 1))
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, date(2023, 6, 1))
 
         # squash our counts
         squash_channel_counts()
 
-        # same count
-        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg2.created_on.date())
+        self.assertEqual(ChannelCount.objects.all().count(), 5)
 
-        # and only one channel count
-        self.assertEqual(ChannelCount.objects.all().count(), 1)
+        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_MSG_TYPE, date(2023, 5, 31))
+        self.assertDailyCount(self.channel, 0, ChannelCount.INCOMING_IVR_TYPE, date(2023, 5, 31))
+        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, date(2023, 6, 1))
+        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, date(2023, 6, 1))
+        self.assertDailyCount(self.channel, 3, ChannelCount.OUTGOING_MSG_TYPE, date(2023, 6, 1))
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, date(2023, 6, 1))
 
         # soft deleting a message doesn't decrement the count
-        Msg.bulk_soft_delete([msg2])
-        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg2.created_on.date())
+        Msg.bulk_soft_delete([Msg.objects.get(text="A")])
+        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_MSG_TYPE, date(2023, 5, 31))
 
         # nor hard deleting
-        Msg.bulk_delete([msg2])
-        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg2.created_on.date())
+        Msg.bulk_delete([Msg.objects.get(text="B")])
+        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, date(2023, 6, 1))
 
-        ChannelCount.objects.all().delete()
+    def test_log_counts(self):
+        contact = self.create_contact("Joe", phone="+250788111222")
+
+        self.assertEqual(0, ChannelCount.objects.count())
 
         # ok, test outgoing now
         msg3 = self.create_outgoing_msg(contact, "Real Message", channel=self.channel)
