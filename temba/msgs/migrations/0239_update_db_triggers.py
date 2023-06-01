@@ -37,6 +37,74 @@ END;
 $$ LANGUAGE plpgsql;
 
 
+----------------------------------------------------------------------
+-- Trigger procedure to update user and system labels on column changes
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_msg_on_change() RETURNS TRIGGER AS $$
+DECLARE
+  _new_label_type CHAR(1);
+  _old_label_type CHAR(1);
+BEGIN
+  IF TG_OP IN ('INSERT', 'UPDATE') THEN
+    -- prevent illegal message states
+    IF NEW.direction = 'I' AND NEW.status NOT IN ('P', 'H') THEN
+      RAISE EXCEPTION 'Incoming messages can only be PENDING or HANDLED';
+    END IF;
+    IF NEW.direction = 'O' AND NEW.visibility = 'A' THEN
+      RAISE EXCEPTION 'Outgoing messages cannot be archived';
+    END IF;
+  END IF;
+
+  -- new message inserted
+  IF TG_OP = 'INSERT' THEN
+    _new_label_type := temba_msg_determine_system_label(NEW);
+    IF _new_label_type IS NOT NULL THEN
+      PERFORM temba_insert_system_label(NEW.org_id, _new_label_type, 1);
+    END IF;
+
+  -- existing message updated
+  ELSIF TG_OP = 'UPDATE' THEN
+    -- restrict changes
+    IF NEW.direction <> OLD.direction THEN RAISE EXCEPTION 'Cannot change direction on messages'; END IF;
+    IF NEW.created_on <> OLD.created_on THEN RAISE EXCEPTION 'Cannot change created_on on messages'; END IF;
+    IF NEW.msg_type <> OLD.msg_type THEN RAISE EXCEPTION 'Cannot change msg_type on messages'; END IF;
+
+    _old_label_type := temba_msg_determine_system_label(OLD);
+    _new_label_type := temba_msg_determine_system_label(NEW);
+
+    IF _old_label_type IS DISTINCT FROM _new_label_type THEN
+      IF _old_label_type IS NOT NULL THEN
+        PERFORM temba_insert_system_label(OLD.org_id, _old_label_type, -1);
+      END IF;
+      IF _new_label_type IS NOT NULL THEN
+        PERFORM temba_insert_system_label(NEW.org_id, _new_label_type, 1);
+      END IF;
+    END IF;
+
+    -- is being archived or deleted (i.e. no longer included for user labels)
+    IF OLD.visibility = 'V' AND NEW.visibility != 'V' THEN
+      PERFORM temba_insert_message_label_counts(NEW.id, FALSE, -1);
+    END IF;
+
+    -- is being restored (i.e. now included for user labels)
+    IF OLD.visibility != 'V' AND NEW.visibility = 'V' THEN
+      PERFORM temba_insert_message_label_counts(NEW.id, FALSE, 1);
+    END IF;
+
+  -- existing message deleted
+  ELSIF TG_OP = 'DELETE' THEN
+    _old_label_type := temba_msg_determine_system_label(OLD);
+
+    IF _old_label_type IS NOT NULL THEN
+      PERFORM temba_insert_system_label(OLD.org_id, _old_label_type, -1);
+    END IF;
+  END IF;
+
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+
 DROP TRIGGER temba_msg_update_channelcount ON msgs_msg;
 DROP FUNCTION temba_update_channelcount();
 """

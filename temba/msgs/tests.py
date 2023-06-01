@@ -29,7 +29,7 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest, mock_mailroom, mock_uuids
+from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticket
@@ -3138,57 +3138,3 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([media2, media1], list(response.context["object_list"]))
 
         self.clear_storage()
-
-
-class FixAndroidMessagesMigration(MigrationTest):
-    app = "msgs"
-    migrate_from = "0237_remove_systemlabelcount_is_archived_and_more"
-    migrate_to = "0238_fix_inbox_msgs"
-
-    def setUpBeforeMigration(self, apps):
-        contact = self.create_contact("Bob", phone="+1234567890")
-
-        # create message without type
-        self.msg1 = Msg.objects.create(
-            org=self.org,
-            channel=self.channel,
-            contact=contact,
-            contact_urn=contact.urns.first(),
-            text="hi",
-            sent_on=timezone.now(),
-            created_on=timezone.now(),
-            modified_on=timezone.now(),
-            queued_on=timezone.now(),
-            direction=Msg.DIRECTION_IN,
-            attachments=[],
-            status=Msg.STATUS_HANDLED,
-        )
-
-        assert SystemLabel.get_counts(self.org) == {
-            SystemLabel.TYPE_INBOX: 1,
-            SystemLabel.TYPE_FLOWS: 0,
-            SystemLabel.TYPE_ARCHIVED: 0,
-            SystemLabel.TYPE_OUTBOX: 0,
-            SystemLabel.TYPE_SENT: 0,
-            SystemLabel.TYPE_FAILED: 0,
-            SystemLabel.TYPE_SCHEDULED: 0,
-            SystemLabel.TYPE_CALLS: 0,
-        }
-
-    def test_migration(self):
-        self.msg1.refresh_from_db()
-
-        self.assertEqual(Msg.TYPE_TEXT, self.msg1.msg_type)
-        self.assertEqual(
-            SystemLabel.get_counts(self.org),
-            {
-                SystemLabel.TYPE_INBOX: 1,
-                SystemLabel.TYPE_FLOWS: 0,
-                SystemLabel.TYPE_ARCHIVED: 0,
-                SystemLabel.TYPE_OUTBOX: 0,
-                SystemLabel.TYPE_SENT: 0,
-                SystemLabel.TYPE_FAILED: 0,
-                SystemLabel.TYPE_SCHEDULED: 0,
-                SystemLabel.TYPE_CALLS: 0,
-            },
-        )

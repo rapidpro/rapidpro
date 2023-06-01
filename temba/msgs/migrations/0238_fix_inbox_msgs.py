@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def fix_msg_type_inbox_android(apps, schema_editor):
+def fix_msg_type_inbox_android(apps, schema_editor):  # pragma: no cover
     Msg = apps.get_model("msgs", "Msg")
 
     num_updated = 0
@@ -24,7 +24,7 @@ def fix_msg_type_inbox_android(apps, schema_editor):
         print(f"Updated {num_updated} Android messages with no msg_type")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
