@@ -547,7 +547,7 @@ class TembaTestMixin:
             sent_on=timezone.now(),
             created_on=timezone.now(),
         )
-        ChannelLog.objects.create(
+        log = ChannelLog.objects.create(
             channel=self.channel,
             call=call,
             log_type=ChannelLog.LOG_TYPE_IVR_START,
@@ -564,6 +564,10 @@ class TembaTestMixin:
                 }
             ],
         )
+
+        call.log_uuids = [log.uuid]
+        call.save(update_fields=("log_uuids",))
+
         return call
 
     def create_archive(

@@ -513,6 +513,8 @@ class ChannelCRUDL(SmartCRUDL):
             if obj.type.show_config_page:
                 menu.add_link(_("Settings"), reverse("channels.channel_configuration", args=[obj.uuid]))
 
+            menu.add_link(_("Logs"), reverse("channels.channellog_list", args=[obj.uuid]))
+
             if self.has_org_perm("channels.channel_update"):
                 menu.add_modax(
                     _("Edit"),
@@ -947,34 +949,12 @@ class ChannelLogCRUDL(SmartCRUDL):
         link_fields = ("channel", "description", "created_on")
         paginate_by = 50
 
-        FOLDER_MESSAGES = "messages"
-        FOLDER_CALLS = "calls"
-        FOLDER_OTHERS = "others"
-        FOLDER_ERRORS = "errors"
-
-        @property
-        def folder(self) -> str:
-            if self.request.GET.get("calls"):
-                return self.FOLDER_CALLS
-            elif self.request.GET.get("others"):
-                return self.FOLDER_OTHERS
-            elif self.request.GET.get("errors"):
-                return self.FOLDER_ERRORS
-            else:
-                return self.FOLDER_MESSAGES
-
         def derive_menu_path(self):
             return f"/settings/channels/{self.channel.uuid}"
 
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r"^%s/(?P<channel_uuid>[^/]+)/$" % path
-
-        def get_template_names(self):
-            if self.folder == self.FOLDER_CALLS:
-                return ("channels/channellog_calls.haml",)
-            else:
-                return super().get_template_names()
 
         @cached_property
         def channel(self):
@@ -984,34 +964,15 @@ class ChannelLogCRUDL(SmartCRUDL):
             return self.channel.org
 
         def derive_queryset(self, **kwargs):
-            if self.folder == self.FOLDER_CALLS:
-                logs = self.channel.logs.exclude(call=None).values_list("call_id", flat=True)
-                events = Call.objects.filter(id__in=logs).order_by("-created_on")
+            qs = self.channel.logs.order_by("-created_on")
 
-            elif self.folder == self.FOLDER_OTHERS:
-                events = self.channel.logs.filter(call=None, msg=None).order_by("-created_on")
+            patch_queryset_count(qs, self.channel.get_log_count)
 
-            else:
-                if self.folder == self.FOLDER_ERRORS:
-                    logs = self.channel.logs.filter(call=None, is_error=True)
-                else:
-                    logs = self.channel.logs.filter(call=None).exclude(msg=None)
-
-                events = logs.order_by("-created_on").select_related(
-                    "msg", "msg__contact", "msg__contact_urn", "channel", "channel__org"
-                )
-
-                if self.request.GET.get("errors"):
-                    patch_queryset_count(events, self.channel.get_error_log_count)
-                else:
-                    patch_queryset_count(events, self.channel.get_non_ivr_log_count)
-
-            return events
+            return qs
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["channel"] = self.channel
-            context["folder"] = self.folder
             return context
 
     class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
@@ -1051,7 +1012,8 @@ class ChannelLogCRUDL(SmartCRUDL):
             return self.msg.org
 
         def derive_queryset(self, **kwargs):
-            return super().derive_queryset(**kwargs).filter(msg=self.msg).order_by("created_on")
+            uuids = self.msg.log_uuids or []
+            return super().derive_queryset(**kwargs).filter(uuid__in=uuids).order_by("created_on")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -1059,7 +1021,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             context["logs"] = [log.get_display(self.request.user) for log in context["object_list"]]
             return context
 
-    class Call(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartListView):
+    class Call(SpaMixin, OrgObjPermsMixin, SmartListView):
         """
         All channel logs for a call
         """
@@ -1074,17 +1036,12 @@ class ChannelLogCRUDL(SmartCRUDL):
         def call(self):
             return get_object_or_404(Call, id=self.kwargs["call_id"])
 
-        def build_content_menu(self, menu):
-            menu.add_link(
-                _("More Calls"),
-                reverse("channels.channellog_list", args=[self.call.channel.uuid]) + "?calls=1",
-            )
-
         def get_object_org(self):
             return self.call.org
 
         def derive_queryset(self, **kwargs):
-            return super().derive_queryset(**kwargs).filter(call=self.call).order_by("created_on")
+            uuids = self.call.log_uuids or []
+            return super().derive_queryset(**kwargs).filter(uuid__in=uuids).order_by("created_on")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
