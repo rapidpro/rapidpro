@@ -1,3 +1,7 @@
+v8.1.173 (2023-06-01)
+-------------------------
+ * Remove support for filtering channel logs by folder
+
 v8.1.171 (2023-05-31)
 -------------------------
  * Add index on channellog.uuid
