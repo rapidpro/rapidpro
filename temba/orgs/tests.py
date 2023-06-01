@@ -2459,6 +2459,11 @@ class OrgDeleteTest(TembaTest):
         Model.delete(org1_child2)
         Model.delete(self.org)
 
+        # releasing an already released org won't do anything
+        prev_released_on = self.org.released_on
+        self.org.release(self.customer_support)
+        self.assertEqual(prev_released_on, self.org.released_on)
+
 
 class AnonOrgTest(TembaTest):
     """
