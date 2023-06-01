@@ -38,7 +38,7 @@
         -for obj in object_list
           %tr.trigger.object-row(data-object-id="{{ obj.id }}" onclick="updateTrigger(event, {{obj.id}})")
             - if org_perms.triggers.trigger_update
-              %td.trigger.checkbox.object-row-checkbox
+              %td.trigger.checkbox.object-row-checkbox(onclick="checkInner(event);")
                 %temba-checkbox{onclick:"handleRowSelection(this)"}
             %td.w-full
               -if obj.trigger_type == 'K'
