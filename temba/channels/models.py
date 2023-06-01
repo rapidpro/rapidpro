@@ -803,10 +803,12 @@ class ChannelCount(SquashableModel):
 
     squash_over = ("channel_id", "count_type", "day")
 
-    INCOMING_MSG_TYPE = "IM"  # Incoming message
-    OUTGOING_MSG_TYPE = "OM"  # Outgoing message
-    INCOMING_IVR_TYPE = "IV"  # Incoming IVR step
-    OUTGOING_IVR_TYPE = "OV"  # Outgoing IVR step
+    # tracked from insertions into the message table
+    INCOMING_MSG_TYPE = "IM"
+    OUTGOING_MSG_TYPE = "OM"
+    INCOMING_IVR_TYPE = "IV"
+    OUTGOING_IVR_TYPE = "OV"
+
     SUCCESS_LOG_TYPE = "LS"  # ChannelLog record
     ERROR_LOG_TYPE = "LE"  # ChannelLog record that is an error
 
