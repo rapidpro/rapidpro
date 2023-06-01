@@ -1200,6 +1200,9 @@ class Org(SmartModel):
         Releases this org, marking it as inactive. Actual deletion of org data won't happen until after 7 days.
         """
 
+        if not self.is_active:  # already released, nothing to do here
+            return
+
         # release any child orgs
         for child in self.children.all():
             child.release(user, release_users=release_users)
