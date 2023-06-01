@@ -6,7 +6,7 @@ SQL = """
 ----------------------------------------------------------------------
 -- Determines the channel count code for a message
 ----------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION temba_msg_determine_channel_count(_msg msgs_msg) RETURNS CHAR(2) AS $$
+CREATE OR REPLACE FUNCTION temba_msg_determine_channel_count_code(_msg msgs_msg) RETURNS CHAR(2) STABLE AS $$
 BEGIN
   IF _msg.direction = 'I' THEN
     IF _msg.msg_type = 'V' THEN RETURN 'IV'; ELSE RETURN 'IM'; END IF;
@@ -29,8 +29,8 @@ BEGIN
 
     -- add channel counts for all messages with a channel
     INSERT INTO channels_channelcount("channel_id", "count_type", "day", "count", "is_squashed")
-    SELECT channel_id, temba_msg_determine_channel_count(newtab), created_on::date, count(*), FALSE FROM newtab
-    WHERE channel_id IS NOT NULL GROUP BY channel_id, temba_msg_determine_channel_count(newtab), created_on::date;
+    SELECT channel_id, temba_msg_determine_channel_count_code(newtab), created_on::date, count(*), FALSE FROM newtab
+    WHERE channel_id IS NOT NULL GROUP BY channel_id, temba_msg_determine_channel_count_code(newtab), created_on::date;
 
     RETURN NULL;
 END;
