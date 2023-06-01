@@ -1,3 +1,8 @@
+v8.1.174 (2023-06-01)
+-------------------------
+ * Noop when releasing an already released org
+ * Rework and simplify channel count db triggers
+
 v8.1.173 (2023-06-01)
 -------------------------
  * Remove support for filtering channel logs by folder
