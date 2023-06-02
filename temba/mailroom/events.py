@@ -80,7 +80,8 @@ class Event:
         with an underscore.
         """
 
-        has_logs = (timezone.now() - obj.created_on) < (settings.RETENTION_PERIODS["channellog"] - timedelta(hours=4))
+        obj_age = timezone.now() - obj.created_on
+        has_logs = obj.channel and obj_age < (settings.RETENTION_PERIODS["channellog"] - timedelta(hours=4))
 
         logs_url = None
         if has_logs:
@@ -157,7 +158,8 @@ class Event:
 
     @classmethod
     def from_ivr_call(cls, org: Org, user: User, obj: Call) -> dict:
-        has_logs = (timezone.now() - obj.created_on) < (settings.RETENTION_PERIODS["channellog"] - timedelta(hours=4))
+        obj_age = timezone.now() - obj.created_on
+        has_logs = obj_age < (settings.RETENTION_PERIODS["channellog"] - timedelta(hours=4))
 
         logs_url = None
         if has_logs:

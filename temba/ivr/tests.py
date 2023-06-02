@@ -4,7 +4,6 @@ from unittest.mock import patch
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.channels.models import ChannelLog
 from temba.flows.models import FlowSession
 from temba.msgs.models import SystemLabel
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
@@ -60,17 +59,10 @@ class CallTest(TembaTest):
             wait_resume_on_expire=False,
             ended_on=timezone.now(),
         )
-        ChannelLog.objects.create(
-            log_type=ChannelLog.LOG_TYPE_IVR_START, channel=self.channel, call=call, http_logs=[], errors=[]
-        )
-        ChannelLog.objects.create(
-            log_type=ChannelLog.LOG_TYPE_IVR_HANGUP, channel=self.channel, call=call, http_logs=[], errors=[]
-        )
 
         call.release()
 
         self.assertEqual(0, FlowSession.objects.count())
-        self.assertEqual(0, ChannelLog.objects.count())
         self.assertEqual(0, Call.objects.count())
 
 

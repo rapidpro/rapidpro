@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -9,7 +10,7 @@ from django.utils import timezone
 
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.android import sync
-from temba.channels.models import ChannelEvent, ChannelLog
+from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowRun, FlowStart
 from temba.ivr.models import Call
 from temba.mailroom.client import ContactSpec, MailroomException, get_client
@@ -818,7 +819,14 @@ class EventTest(TembaTest):
         contact1 = self.create_contact("Jim", phone="0979111111")
         contact2 = self.create_contact("Bob", phone="0979222222")
 
-        msg_in = self.create_incoming_msg(contact1, "Hello", external_id="12345", attachments=["image:http://a.jpg"])
+        # create msg that is too old to still have logs
+        msg_in = self.create_incoming_msg(
+            contact1,
+            "Hello",
+            external_id="12345",
+            attachments=["image:http://a.jpg"],
+            created_on=timezone.now() - timedelta(days=10),
+        )
 
         self.assertEqual(
             {
@@ -887,12 +895,8 @@ class EventTest(TembaTest):
         )
 
         msg_out = self.create_outgoing_msg(
-            contact1, "Hello", channel=self.channel, status="E", quick_replies=("yes", "no"), created_by=self.agent
+            contact1, "Hello", channel=self.channel, status="E", quick_replies=["yes", "no"], created_by=self.agent
         )
-        ChannelLog.objects.create(
-            channel=self.channel, is_error=True, log_type=ChannelLog.LOG_TYPE_MSG_SEND, msg=msg_out
-        )
-        msg_out.refresh_from_db()
 
         self.assertEqual(
             {
@@ -944,7 +948,7 @@ class EventTest(TembaTest):
                 "status": "F",
                 "failed_reason": "D",
                 "failed_reason_display": "No suitable channel found",
-                "logs_url": None,
+                "logs_url": f"/channels/{str(self.channel.uuid)}/logs/msg/{msg_out.id}/",
             },
             Event.from_msg(self.org, self.admin, msg_out),
         )
@@ -965,7 +969,7 @@ class EventTest(TembaTest):
                 },
                 "created_by": None,
                 "status": "S",
-                "logs_url": None,
+                "logs_url": f"/channels/{str(self.channel.uuid)}/logs/msg/{ivr_out.id}/",
             },
             Event.from_msg(self.org, self.admin, ivr_out),
         )
@@ -994,7 +998,7 @@ class EventTest(TembaTest):
                 },
                 "status": "S",
                 "recipient_count": 2,
-                "logs_url": None,
+                "logs_url": f"/channels/{str(self.channel.uuid)}/logs/msg/{msg_out2.id}/",
             },
             Event.from_msg(self.org, self.admin, msg_out2),
         )
@@ -1133,28 +1137,16 @@ class EventTest(TembaTest):
         )
 
     def test_from_ivr_call(self):
+        flow = self.create_flow("IVR", flow_type="V")
         contact = self.create_contact("Jim", phone="0979111111")
 
-        call1 = Call.objects.create(
-            org=self.org,
-            contact=contact,
-            status=Call.STATUS_IN_PROGRESS,
-            channel=self.channel,
-            contact_urn=contact.urns.all().first(),
-            error_count=0,
+        # create call that is too old to still have logs
+        call1 = self.create_incoming_call(
+            flow, contact, status=Call.STATUS_IN_PROGRESS, created_on=timezone.now() - timedelta(days=10)
         )
-        call2 = Call.objects.create(
-            org=self.org,
-            contact=contact,
-            status=Call.STATUS_ERRORED,
-            error_reason=Call.ERROR_BUSY,
-            channel=self.channel,
-            contact_urn=contact.urns.first(),
-            error_count=0,
-        )
-        ChannelLog.objects.create(
-            channel=self.channel, is_error=True, log_type=ChannelLog.LOG_TYPE_IVR_START, call=call2
-        )
+
+        # and one that will have logs
+        call2 = self.create_incoming_call(flow, contact, status=Call.STATUS_ERRORED, error_reason=Call.ERROR_BUSY)
 
         self.assertEqual(
             {

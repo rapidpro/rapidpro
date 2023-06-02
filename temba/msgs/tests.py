@@ -360,18 +360,12 @@ class MsgTest(TembaTest, CRUDLTestMixin):
                 r"image/jpeg:http://s3.com/attachments/1/c/d%20e.jpg",
             ],
         )
-        msg2 = self.create_incoming_msg(self.frank, "ignore joe, he's a liar")
+        self.create_incoming_msg(self.frank, "ignore joe, he's a liar")
         out1 = self.create_outgoing_msg(self.frank, "hi")
-
-        # create a channel log for each message
-        ChannelLog.objects.create(channel=self.channel, msg=msg1, is_error=False)
-        ChannelLog.objects.create(channel=self.channel, msg=msg2, is_error=False)
-        ChannelLog.objects.create(channel=self.channel, msg=out1, is_error=False)
 
         Msg.bulk_delete([msg1, out1])
 
         self.assertEqual(1, Msg.objects.all().count())
-        self.assertEqual(1, ChannelLog.objects.filter(msg_id=msg2.id).count())
 
         mock_storage_delete.assert_any_call("/attachments/1/a/b.jpg")
         mock_storage_delete.assert_any_call("/attachments/1/c/d e.jpg")

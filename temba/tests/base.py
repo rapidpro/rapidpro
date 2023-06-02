@@ -510,14 +510,14 @@ class TembaTestMixin:
 
         return flow
 
-    def create_incoming_call(self, flow, contact, status=Call.STATUS_COMPLETED):
+    def create_incoming_call(self, flow, contact, status=Call.STATUS_COMPLETED, error_reason=None, created_on=None):
         """
         Create something that looks like an incoming IVR call handled by mailroom
         """
         log = ChannelLog.objects.create(
             channel=self.channel,
             log_type=ChannelLog.LOG_TYPE_IVR_START,
-            is_error=status == Call.STATUS_FAILED,
+            is_error=status in (Call.STATUS_FAILED, Call.STATUS_ERRORED),
             http_logs=[
                 {
                     "url": "https://acme-calls.com/reply",
@@ -537,6 +537,8 @@ class TembaTestMixin:
             contact=contact,
             contact_urn=contact.get_urn(),
             status=status,
+            error_reason=error_reason,
+            created_on=created_on or timezone.now(),
             duration=15,
             log_uuids=[log.uuid],
         )
