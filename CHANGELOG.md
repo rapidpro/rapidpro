@@ -2,6 +2,10 @@ v8.1.176 (2023-06-02)
 -------------------------
  * Add some blocks on main templates
 
+v8.1.176 (2023-06-02)
+-------------------------
+ * Add some blocks on main templates
+
 v8.1.175 (2023-06-02)
 -------------------------
  * Add select all on list pages
