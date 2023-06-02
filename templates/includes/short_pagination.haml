@@ -1,9 +1,12 @@
 -load humanize i18n
 
 .paging.px-2.flex.flex-row.items-center.h-10
+  %temba-checkbox.select-all(onclick="handleSelectAll(this)")
   .action-buttons.flex-grow
     .list-buttons-container
+
       .list-buttons.flex.items-center.h-full.-mx-1
+
         -if 'label' in actions
           %temba-dropdown.ml-4(offsety="8" offsetx="-8")
             %temba-tip(position="top" text='{{_("Labels")|escapejs}}'  slot="toggle")
