@@ -561,9 +561,6 @@ $$ LANGUAGE plpgsql;
 -- Trigger procedure to update user and system labels on column changes
 ----------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION temba_msg_on_change() RETURNS TRIGGER AS $$
-DECLARE
-  _new_label_type CHAR(1);
-  _old_label_type CHAR(1);
 BEGIN
   IF TG_OP IN ('INSERT', 'UPDATE') THEN
     -- prevent illegal message states
