@@ -29,7 +29,8 @@
       .card.content-card
         .flex.items-center
           .brand.flex-grow
-            <img class="no-nav-logo" style="max-height:4em;margin: 1em 0;" src="{{STATIC_URL}}{{ brand.logo }}">
+            -block logo
+              <img class="no-nav-logo" style="max-height:4em;margin: 1em 0;" src="{{STATIC_URL}}{{ brand.logo }}">
           .top-right
             -block top-right
         .page-title
