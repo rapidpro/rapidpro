@@ -1,3 +1,7 @@
+v8.1.177 (2023-06-02)
+-------------------------
+ * Remove dupe from changelog
+
 v8.1.176 (2023-06-02)
 -------------------------
  * Add some blocks on main templates
