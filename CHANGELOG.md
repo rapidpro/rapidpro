@@ -1,3 +1,7 @@
+v8.1.175 (2023-06-02)
+-------------------------
+ * Add select all on list pages
+
 v8.1.174 (2023-06-01)
 -------------------------
  * Noop when releasing an already released org
