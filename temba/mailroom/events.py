@@ -1,10 +1,12 @@
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import iso8601
 
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.urls import reverse
+from django.utils import timezone
 
 from temba.airtime.models import AirtimeTransfer
 from temba.campaigns.models import EventFire
@@ -78,8 +80,10 @@ class Event:
         with an underscore.
         """
 
+        has_logs = (timezone.now() - obj.created_on) < (settings.RETENTION_PERIODS["channellog"] - timedelta(hours=4))
+
         logs_url = None
-        if obj.channel_logs.exists():
+        if has_logs:
             logs_url = _url_for_user(
                 org, user, "channels.channellog_msg", args=[obj.channel.uuid, obj.id], perm="channels.channellog_read"
             )
@@ -153,8 +157,10 @@ class Event:
 
     @classmethod
     def from_ivr_call(cls, org: Org, user: User, obj: Call) -> dict:
+        has_logs = (timezone.now() - obj.created_on) < (settings.RETENTION_PERIODS["channellog"] - timedelta(hours=4))
+
         logs_url = None
-        if obj.channel_logs.exists():
+        if has_logs:
             logs_url = _url_for_user(
                 org, user, "channels.channellog_call", args=[obj.channel.uuid, obj.id], perm="channels.channellog_read"
             )

@@ -1515,10 +1515,8 @@ class ChannelCountTest(TembaTest):
         self.assertEqual(0, ChannelCount.objects.count())
 
         # ok, test outgoing now
-        msg3 = self.create_outgoing_msg(contact, "Real Message", channel=self.channel)
-        log = ChannelLog.objects.create(
-            channel=self.channel, msg=msg3, log_type=ChannelLog.LOG_TYPE_MSG_SEND, is_error=True
-        )
+        log = ChannelLog.objects.create(channel=self.channel, log_type=ChannelLog.LOG_TYPE_MSG_SEND, is_error=True)
+        msg3 = self.create_outgoing_msg(contact, "Real Message", channel=self.channel, logs=[log])
 
         # squash our counts
         squash_channel_counts()
@@ -1564,10 +1562,8 @@ class ChannelLogTest(TembaTest):
     def test_get_display(self):
         channel = self.create_channel("TG", "Telegram", "mybot")
         contact = self.create_contact("Fred Jones", urns=["telegram:74747474"])
-        msg_out = self.create_outgoing_msg(contact, "Working", channel=channel, status="S")
         log = ChannelLog.objects.create(
             channel=channel,
-            msg=msg_out,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=True,
             http_logs=[
@@ -1583,6 +1579,7 @@ class ChannelLogTest(TembaTest):
             ],
             errors=[{"code": "bad_response", "ext_code": "", "message": "response not right"}],
         )
+        msg_out = self.create_outgoing_msg(contact, "Working", channel=channel, status="S", logs=[log])
 
         expected_unredacted = {
             "description": "Message Send",
@@ -1618,20 +1615,18 @@ class ChannelLogTest(TembaTest):
             "created_on": matchers.Datetime(),
         }
 
-        self.assertEqual(expected_unredacted, log.get_display(self.admin))
-        self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+        self.assertEqual(expected_unredacted, log.get_display(self.admin, urn=msg_out.contact_urn))
+        self.assertEqual(expected_unredacted, log.get_display(self.customer_support, urn=msg_out.contact_urn))
 
         with AnonymousOrg(self.org):
-            self.assertEqual(expected_redacted, log.get_display(self.admin))
-            self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+            self.assertEqual(expected_redacted, log.get_display(self.admin, urn=msg_out.contact_urn))
+            self.assertEqual(expected_unredacted, log.get_display(self.customer_support, urn=msg_out.contact_urn))
 
     def test_get_display_timed_out(self):
         channel = self.create_channel("TG", "Telegram", "mybot")
         contact = self.create_contact("Fred Jones", urns=["telegram:74747474"])
-        msg_out = self.create_outgoing_msg(contact, "Working", channel=channel, status="S")
         log = ChannelLog.objects.create(
             channel=channel,
-            msg=msg_out,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=True,
             http_logs=[
@@ -1645,6 +1640,7 @@ class ChannelLogTest(TembaTest):
             ],
             errors=[{"code": "bad_response", "ext_code": "", "message": "response not right"}],
         )
+        msg_out = self.create_outgoing_msg(contact, "Working", channel=channel, status="S", logs=[log])
 
         expected_unredacted = {
             "description": "Message Send",
@@ -1680,20 +1676,16 @@ class ChannelLogTest(TembaTest):
             "created_on": matchers.Datetime(),
         }
 
-        self.assertEqual(expected_unredacted, log.get_display(self.admin))
-        self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+        self.assertEqual(expected_unredacted, log.get_display(self.admin, urn=msg_out.contact_urn))
+        self.assertEqual(expected_unredacted, log.get_display(self.customer_support, urn=msg_out.contact_urn))
 
         with AnonymousOrg(self.org):
-            self.assertEqual(expected_redacted, log.get_display(self.admin))
-            self.assertEqual(expected_unredacted, log.get_display(self.customer_support))
+            self.assertEqual(expected_redacted, log.get_display(self.admin, urn=msg_out.contact_urn))
+            self.assertEqual(expected_unredacted, log.get_display(self.customer_support, urn=msg_out.contact_urn))
 
     def test_trim_task(self):
-        contact = self.create_contact("Fred Jones", phone="12345")
-        msg = self.create_incoming_msg(contact, "incoming msg", channel=self.channel)
-
         ChannelLog.objects.create(
             channel=self.channel,
-            msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
             http_logs=[],
@@ -1702,7 +1694,6 @@ class ChannelLogTest(TembaTest):
         )
         l2 = ChannelLog.objects.create(
             channel=self.channel,
-            msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
             http_logs=[],
@@ -1722,10 +1713,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
     def test_msg(self):
         contact = self.create_contact("Fred", phone="+12067799191")
 
-        msg1 = self.create_outgoing_msg(contact, "success message", status="D")
         log1 = ChannelLog.objects.create(
             channel=self.channel,
-            msg=msg1,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
             http_logs=[
@@ -1743,7 +1732,6 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         )
         log2 = ChannelLog.objects.create(
             channel=self.channel,
-            msg=msg1,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
             http_logs=[
@@ -1759,14 +1747,11 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             ],
             errors=[],
         )
-        msg1.log_uuids = [log1.uuid, log2.uuid]
-        msg1.save(update_fields=("log_uuids",))
+        msg1 = self.create_outgoing_msg(contact, "success message", status="D", logs=[log1, log2])
 
         # create another msg and log that shouldn't be included
-        msg2 = self.create_outgoing_msg(contact, "success message", status="D")
         log3 = ChannelLog.objects.create(
             channel=self.channel,
-            msg=msg2,
             is_error=False,
             http_logs=[
                 {
@@ -1781,8 +1766,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             ],
             errors=[],
         )
-        msg2.log_uuids = [log3.uuid]
-        msg2.save(update_fields=("log_uuids",))
+        self.create_outgoing_msg(contact, "success message", status="D", logs=[log3])
 
         msg1_url = reverse("channels.channellog_msg", args=[self.channel.uuid, msg1.id])
 
@@ -1800,10 +1784,9 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         flow = self.create_flow("IVR")
 
         call1 = self.create_incoming_call(flow, contact)
-        log1 = call1.channel_logs.get()
+        log1 = ChannelLog.objects.get()
         log2 = ChannelLog.objects.create(
             channel=self.channel,
-            call=call1,
             log_type=ChannelLog.LOG_TYPE_IVR_START,
             is_error=False,
             http_logs=[
@@ -1841,10 +1824,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.create_incoming_msg(contact, "incoming msg")
 
         # create sent outgoing message with success channel log
-        success_msg = self.create_outgoing_msg(contact, "success message", status="D")
         success_log = ChannelLog.objects.create(
             channel=self.channel,
-            msg=success_msg,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
             http_logs=[
@@ -1859,12 +1840,11 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
+        self.create_outgoing_msg(contact, "success message", status="D", logs=[success_log])
 
         # create failed outgoing message with error channel log
-        failed_msg = self.create_outgoing_msg(contact, "failed message")
         failed_log = ChannelLog.objects.create(
-            channel=failed_msg.channel,
-            msg=failed_msg,
+            channel=self.channel,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=True,
             http_logs=[
@@ -1880,6 +1860,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             ],
             errors=[{"message": "invalid credentials", "code": ""}],
         )
+        self.create_outgoing_msg(contact, "failed message", logs=[failed_log])
 
         # create a non-message, non-call other log
         other_log = ChannelLog.objects.create(
@@ -1923,11 +1904,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         urn = "telegram:3527065"
         contact = self.create_contact("Fred Jones", urns=[urn])
         channel = self.create_channel("TG", "Test TG Channel", "234567")
-        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
-
         log = ChannelLog.objects.create(
             channel=channel,
-            msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
             http_logs=[
@@ -1942,8 +1920,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
-        msg.log_uuids = [log.uuid]
-        msg.save(update_fields=("log_uuids",))
+        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel, logs=[log])
 
         self.login(self.admin)
 
@@ -1985,11 +1962,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         urn = "telegram:3527065"
         contact = self.create_contact("Fred Jones", urns=[urn])
         channel = self.create_channel("TG", "Test TG Channel", "234567")
-        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
-
         log = ChannelLog.objects.create(
             channel=channel,
-            msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
             http_logs=[
@@ -2004,8 +1978,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
-        msg.log_uuids = [log.uuid]
-        msg.save(update_fields=("log_uuids",))
+        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel, logs=[log])
 
         self.login(self.admin)
 
@@ -2041,11 +2014,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         urn = "telegram:3527065"
         contact = self.create_contact("Fred Jones", urns=[urn])
         channel = self.create_channel("TG", "Test TG Channel", "234567")
-        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
-
         log = ChannelLog.objects.create(
             channel=channel,
-            msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
             http_logs=[
@@ -2060,8 +2030,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
-        msg.log_uuids = [log.uuid]
-        msg.save(update_fields=("log_uuids",))
+        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel, logs=[log])
 
         self.login(self.admin)
 
@@ -2097,11 +2066,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         urn = "twitterid:767659860"
         contact = self.create_contact("Fred Jones", urns=[urn])
         channel = self.create_channel("TWT", "Test TWT Channel", "nyaruka")
-        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
-
         log = ChannelLog.objects.create(
             channel=channel,
-            msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_RECEIVE,
             is_error=False,
             http_logs=[
@@ -2116,8 +2082,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
-        msg.log_uuids = [log.uuid]
-        msg.save(update_fields=("log_uuids",))
+        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel, logs=[log])
 
         self.login(self.admin)
 
@@ -2158,11 +2123,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         urn = "twitterid:767659860"
         contact = self.create_contact("Fred Jones", urns=[urn])
         channel = self.create_channel("TWT", "Test TWT Channel", "nyaruka")
-        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
-
         log = ChannelLog.objects.create(
             channel=channel,
-            msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
             http_logs=[
@@ -2177,8 +2139,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
-        msg.log_uuids = [log.uuid]
-        msg.save(update_fields=("log_uuids",))
+        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel, logs=[log])
 
         self.login(self.admin)
 
@@ -2213,11 +2174,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         urn = "facebook:2150393045080607"
         contact = self.create_contact("Fred Jones", urns=[urn])
         channel = self.create_channel("FB", "Test FB Channel", "54764868534")
-        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
-
         log = ChannelLog.objects.create(
             channel=channel,
-            msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_RECEIVE,
             is_error=False,
             http_logs=[
@@ -2232,8 +2190,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
-        msg.log_uuids = [log.uuid]
-        msg.save(update_fields=("log_uuids",))
+        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel, logs=[log])
 
         self.login(self.admin)
 
@@ -2276,11 +2233,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         urn = "facebook:2150393045080607"
         contact = self.create_contact("Fred Jones", urns=[urn])
         channel = self.create_channel("FB", "Test FB Channel", "54764868534")
-        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
-
         log = ChannelLog.objects.create(
             channel=channel,
-            msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
             http_logs=[
@@ -2295,8 +2249,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
-        msg.log_uuids = [log.uuid]
-        msg.save(update_fields=("log_uuids",))
+        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel, logs=[log])
 
         self.login(self.admin)
 
@@ -2333,11 +2286,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
     def test_redaction_for_twilio(self):
         contact = self.create_contact("Fred Jones", phone="+593979099111")
         channel = self.create_channel("T", "Test Twilio Channel", "+12345")
-        msg = self.create_outgoing_msg(contact, "Hi")
-
         log = ChannelLog.objects.create(
             channel=channel,
-            msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_STATUS,
             is_error=False,
             http_logs=[
@@ -2352,8 +2302,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
                 }
             ],
         )
-        msg.log_uuids = [log.uuid]
-        msg.save(update_fields=("log_uuids",))
+        msg = self.create_outgoing_msg(contact, "Hi", logs=[log])
 
         self.login(self.admin)
 
@@ -2397,11 +2346,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         urn = "whatsapp:15128505839"
         contact = self.create_contact("Fred Jones", urns=[urn])
         channel = self.create_channel("WAC", "Test WAC Channel", "54764868534")
-        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
-
         success_log = ChannelLog.objects.create(
             channel=channel,
-            msg=msg,
             log_type=ChannelLog.LOG_TYPE_MSG_SEND,
             is_error=False,
             http_logs=[
@@ -2426,8 +2372,7 @@ MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5
                 }
             ],
         )
-        msg.log_uuids = [success_log.uuid]
-        msg.save(update_fields=("log_uuids",))
+        self.create_incoming_msg(contact, "incoming msg", channel=channel, logs=[success_log])
 
         self.login(self.admin)
 
@@ -2445,7 +2390,6 @@ MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5
 
         failed_log = ChannelLog.objects.create(
             channel=tw_channel,
-            msg=None,
             log_type=ChannelLog.LOG_TYPE_MSG_STATUS,
             is_error=True,
             http_logs=[

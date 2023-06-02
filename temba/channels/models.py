@@ -958,11 +958,11 @@ class ChannelLog(models.Model):
     elapsed_ms = models.IntegerField(default=0)
     created_on = models.DateTimeField(default=timezone.now)
 
-    # deprecated
+    # TODO drop
     msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
     call = models.ForeignKey("ivr.Call", on_delete=models.PROTECT, related_name="channel_logs", null=True)
 
-    def _get_display_value(self, user, original, redact_keys=(), redact_values=()):
+    def _get_display_value(self, user, original, urn, redact_keys=(), redact_values=()):
         """
         Get a part of the log which may or may not have to be redacted to hide sensitive information in anon orgs
         """
@@ -975,16 +975,14 @@ class ChannelLog(models.Model):
         if not self.channel.org.is_anon or user.is_staff:
             return original
 
-        # if this log doesn't have a msg then we don't know what to redact, so redact completely
-        if not self.msg_id:
+        # if this log doesn't have a URN then we don't know what to redact, so redact completely
+        if not urn:
             return original[:10] + HTTPLog.REDACT_MASK
 
-        needle = self.msg.contact_urn.path
-
         if redact_keys:
-            redacted = redact.http_trace(original, needle, HTTPLog.REDACT_MASK, redact_keys)
+            redacted = redact.http_trace(original, urn.path, HTTPLog.REDACT_MASK, redact_keys)
         else:
-            redacted = redact.text(original, needle, HTTPLog.REDACT_MASK)
+            redacted = redact.text(original, urn.path, HTTPLog.REDACT_MASK)
 
         # if nothing was redacted, don't risk returning sensitive information we didn't find
         if original == redacted:
@@ -992,20 +990,28 @@ class ChannelLog(models.Model):
 
         return redacted
 
-    def get_display(self, user) -> dict:
+    def get_display(self, user, urn) -> dict:
         redact_values = self.channel.type.redact_values
         redact_request_keys = self.channel.type.redact_request_keys
         redact_response_keys = self.channel.type.redact_response_keys
 
         def redact_http(log: dict) -> dict:
             return {
-                "url": self._get_display_value(user, log["url"], redact_values=redact_values),
+                "url": self._get_display_value(user, log["url"], urn, redact_values=redact_values),
                 "status_code": log.get("status_code", 0),
                 "request": self._get_display_value(
-                    user, log["request"], redact_keys=redact_request_keys, redact_values=redact_values
+                    user,
+                    log["request"],
+                    urn,
+                    redact_keys=redact_request_keys,
+                    redact_values=redact_values,
                 ),
                 "response": self._get_display_value(
-                    user, log.get("response", ""), redact_keys=redact_response_keys, redact_values=redact_values
+                    user,
+                    log.get("response", ""),
+                    urn,
+                    redact_keys=redact_response_keys,
+                    redact_values=redact_values,
                 ),
                 "elapsed_ms": log["elapsed_ms"],
                 "retries": log["retries"],
@@ -1019,7 +1025,7 @@ class ChannelLog(models.Model):
             return {
                 "code": err["code"],
                 "ext_code": ext_code,
-                "message": self._get_display_value(user, err["message"], redact_values=redact_values),
+                "message": self._get_display_value(user, err["message"], urn, redact_values=redact_values),
                 "ref_url": ref_url,
             }
 
