@@ -150,6 +150,13 @@ FOR EACH STATEMENT EXECUTE PROCEDURE temba_msg_on_update();
 CREATE TRIGGER temba_msg_on_delete
 AFTER DELETE ON msgs_msg REFERENCING OLD TABLE AS oldtab
 FOR EACH STATEMENT EXECUTE PROCEDURE temba_msg_on_delete();
+
+
+CREATE TRIGGER temba_msg_on_change
+AFTER INSERT OR UPDATE ON msgs_msg
+FOR EACH ROW EXECUTE PROCEDURE temba_msg_on_change();
+
+DROP TRIGGER temba_msg_on_change_trg ON msgs_msg;
 """
 
 
