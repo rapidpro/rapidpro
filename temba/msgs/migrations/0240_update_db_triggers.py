@@ -63,18 +63,6 @@ BEGIN
     IF NEW.created_on <> OLD.created_on THEN RAISE EXCEPTION 'Cannot change created_on on messages'; END IF;
     IF NEW.msg_type <> OLD.msg_type THEN RAISE EXCEPTION 'Cannot change msg_type on messages'; END IF;
 
-    _old_label_type := temba_msg_determine_system_label(OLD);
-    _new_label_type := temba_msg_determine_system_label(NEW);
-
-    IF _old_label_type IS DISTINCT FROM _new_label_type THEN
-      IF _old_label_type IS NOT NULL THEN
-        PERFORM temba_insert_system_label(OLD.org_id, _old_label_type, -1);
-      END IF;
-      IF _new_label_type IS NOT NULL THEN
-        PERFORM temba_insert_system_label(NEW.org_id, _new_label_type, 1);
-      END IF;
-    END IF;
-
     -- is being archived or deleted (i.e. no longer included for user labels)
     IF OLD.visibility = 'V' AND NEW.visibility != 'V' THEN
       PERFORM temba_insert_message_label_counts(NEW.id, FALSE, -1);
@@ -116,6 +104,31 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
+----------------------------------------------------------------------
+-- Handles UPDATE statements on msg table
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_msg_on_update() RETURNS TRIGGER AS $$
+BEGIN
+    -- add negative counts for all old non-null system labels that don't match the new ones
+    INSERT INTO msgs_systemlabelcount("org_id", "label_type", "count", "is_squashed")
+    SELECT o.org_id, temba_msg_determine_system_label(o), -count(*), FALSE FROM oldtab o
+    INNER JOIN newtab n ON n.id = o.id
+    WHERE temba_msg_determine_system_label(o) IS DISTINCT FROM temba_msg_determine_system_label(n) AND temba_msg_determine_system_label(o) IS NOT NULL
+    GROUP BY o.org_id, temba_msg_determine_system_label(o);
+
+    -- add counts for all new system labels that don't match the old ones
+    INSERT INTO msgs_systemlabelcount("org_id", "label_type", "count", "is_squashed")
+    SELECT n.org_id, temba_msg_determine_system_label(n), count(*), FALSE FROM newtab n
+    INNER JOIN oldtab o ON o.id = n.id
+    WHERE temba_msg_determine_system_label(o) IS DISTINCT FROM temba_msg_determine_system_label(n) AND temba_msg_determine_system_label(n) IS NOT NULL
+    GROUP BY n.org_id, temba_msg_determine_system_label(n);
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+
 ----------------------------------------------------------------------
 -- Handles DELETE statements on msg table
 ----------------------------------------------------------------------
@@ -130,6 +143,11 @@ BEGIN
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+
+CREATE TRIGGER temba_msg_on_update
+AFTER UPDATE ON msgs_msg REFERENCING OLD TABLE AS oldtab NEW TABLE AS newtab
+FOR EACH STATEMENT EXECUTE PROCEDURE temba_msg_on_update();
 
 
 CREATE TRIGGER temba_msg_on_delete
