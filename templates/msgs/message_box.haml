@@ -86,6 +86,12 @@
     -else
       -include "msgs/empty_include.html"
 
+
+  -if org_perms.msgs.msg_delete
+  %temba-dialog#delete-confirmation.hide(header='{{ _("Delete Selected Messages")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+    .p-6
+      -trans "Are you sure you want to delete the selected messages? This cannot be undone."
+  
 -block extra-script
   {{ block.super }}
   :javascript
