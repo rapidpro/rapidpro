@@ -23,7 +23,7 @@ from django.utils import timezone
 
 from temba.airtime.models import AirtimeTransfer
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-from temba.channels.models import ChannelEvent, ChannelLog
+from temba.channels.models import ChannelEvent
 from temba.contacts.search import SearchException, search_contacts
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowSession, FlowStart
@@ -2367,9 +2367,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         failed = Msg.objects.filter(direction="O", contact=self.joe).last()
         failed.status = "F"
         failed.save(update_fields=("status",))
-        ChannelLog.objects.create(
-            channel=failed.channel, msg=failed, is_error=True, log_type=ChannelLog.LOG_TYPE_MSG_SEND
-        )
 
         # create an airtime transfer
         AirtimeTransfer.objects.create(
@@ -2403,8 +2400,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_NEW_CONVERSATION, extra={}
         )
 
-        # try adding some failed calls
-        call = Call.objects.create(
+        # add a failed call
+        Call.objects.create(
             contact=self.joe,
             status=Call.STATUS_ERRORED,
             error_reason=Call.ERROR_NOANSWER,
@@ -2412,11 +2409,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             org=self.org,
             contact_urn=self.joe.urns.all().first(),
             error_count=0,
-        )
-
-        # create a channel log for this call
-        ChannelLog.objects.create(
-            channel=self.channel, log_type=ChannelLog.LOG_TYPE_IVR_START, is_error=False, call=call
         )
 
         # add a note to our open ticket
@@ -2447,7 +2439,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         # fetch our contact history
         self.login(self.admin)
         with patch("temba.utils.s3.s3.client", return_value=self.mock_s3):
-            with self.assertNumQueries(29):
+            with self.assertNumQueries(28):
                 response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run

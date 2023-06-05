@@ -1361,6 +1361,9 @@ class MsgTest(TembaTest, CRUDLTestMixin):
 
     def test_big_ids(self):
         # create an incoming message with big id
+        log = ChannelLog.objects.create(
+            id=3_000_000_000, channel=self.channel, is_error=True, log_type=ChannelLog.LOG_TYPE_MSG_RECEIVE
+        )
         msg = Msg.objects.create(
             id=3_000_000_000,
             org=self.org,
@@ -1372,10 +1375,8 @@ class MsgTest(TembaTest, CRUDLTestMixin):
             status="H",
             msg_type="T",
             visibility="V",
+            log_uuids=[log.uuid],
             created_on=timezone.now(),
-        )
-        ChannelLog.objects.create(
-            id=3_000_000_000, channel=msg.channel, msg=msg, is_error=True, log_type=ChannelLog.LOG_TYPE_MSG_RECEIVE
         )
         spam = self.create_label("Spam")
         msg.labels.add(spam)
@@ -1411,8 +1412,6 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         msg4 = self.create_incoming_msg(contact2, "message number 4")
         msg5 = self.create_incoming_msg(contact2, "message number 5", visibility="A")
         self.create_incoming_msg(contact2, "message number 6", status=Msg.STATUS_PENDING)
-        ChannelLog.objects.create(channel=self.channel, msg=msg1, log_type=ChannelLog.LOG_TYPE_MSG_RECEIVE)
-        ChannelLog.objects.create(channel=self.channel, msg=msg2, log_type=ChannelLog.LOG_TYPE_MSG_RECEIVE)
 
         inbox_url = reverse("msgs.msg_inbox")
 
@@ -1522,8 +1521,6 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         msg3 = self.create_incoming_msg(contact2, "message number 3", visibility=Msg.VISIBILITY_ARCHIVED)
         msg4 = self.create_incoming_msg(contact2, "message number 4", visibility=Msg.VISIBILITY_DELETED_BY_USER)
         self.create_incoming_msg(contact2, "message number 5", status=Msg.STATUS_PENDING)
-        ChannelLog.objects.create(channel=self.channel, msg=msg1, log_type=ChannelLog.LOG_TYPE_MSG_RECEIVE)
-        ChannelLog.objects.create(channel=self.channel, msg=msg2, log_type=ChannelLog.LOG_TYPE_MSG_RECEIVE)
 
         archived_url = reverse("msgs.msg_archived")
 
@@ -1626,8 +1623,6 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         msg1 = self.create_outgoing_msg(contact1, "Hi 1", status="W", sent_on=timezone.now() - timedelta(hours=1))
         msg2 = self.create_outgoing_msg(contact1, "Hi 2", status="S", sent_on=timezone.now() - timedelta(hours=3))
         msg3 = self.create_outgoing_msg(contact2, "Hi 3", status="D", sent_on=timezone.now() - timedelta(hours=2))
-        ChannelLog.objects.create(channel=self.channel, msg=msg1, log_type=ChannelLog.LOG_TYPE_MSG_SEND)
-        ChannelLog.objects.create(channel=self.channel, msg=msg2, log_type=ChannelLog.LOG_TYPE_MSG_SEND)
 
         sent_url = reverse("msgs.msg_sent")
 
@@ -1650,7 +1645,6 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_failed(self, mock_msg_resend):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")
         msg1 = self.create_outgoing_msg(contact1, "message number 1", status="F")
-        ChannelLog.objects.create(channel=msg1.channel, msg=msg1, is_error=True, log_type=ChannelLog.LOG_TYPE_MSG_SEND)
 
         failed_url = reverse("msgs.msg_failed")
 
