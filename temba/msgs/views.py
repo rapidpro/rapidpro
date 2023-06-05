@@ -657,7 +657,7 @@ class MsgCRUDL(SmartCRUDL):
                         menu_id="outbox",
                         name="Outbox",
                         href=reverse("msgs.msg_outbox"),
-                        count=counts[SystemLabel.TYPE_OUTBOX],
+                        count=counts[SystemLabel.TYPE_OUTBOX] + Broadcast.get_queued(org).count(),
                     ),
                     self.create_menu_item(
                         menu_id="sent",
@@ -857,11 +857,9 @@ class MsgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
-            # stuff in any pending broadcasts
-            context["pending_broadcasts"] = (
-                Broadcast.objects.filter(
-                    org=self.request.org, status=Broadcast.STATUS_QUEUED, schedule=None, is_active=True
-                )
+            # stuff in any queued broadcasts
+            context["queued_broadcasts"] = (
+                Broadcast.get_queued(self.request.org)
                 .select_related("org")
                 .prefetch_related("groups", "contacts")
                 .order_by("-created_on")
