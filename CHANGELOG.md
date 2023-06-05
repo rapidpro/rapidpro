@@ -1,3 +1,9 @@
+v8.1.178 (2023-06-05)
+-------------------------
+ * Bump cryptography from 39.0.2 to 41.0.0
+ * Stop reading from ChannelLog.msg and .call
+ * Use per-statement db triggers for system label counts
+
 v8.1.177 (2023-06-02)
 -------------------------
  * Remove dupe from changelog
