@@ -66,9 +66,7 @@
     -if not COMPONENTS_DEV_MODE
       -include "components-head.html"
 
-    -if brand.favico
-      %link{type:"image/ico", rel:"shortcut icon", href:"{{ STATIC_URL }}{{ brand.favico }}"}
-    -else
+    -block favico
       %link{type:"image/ico", rel:"shortcut icon", href:"{{ STATIC_URL }}images/favicon.ico"}
 
     -block styles

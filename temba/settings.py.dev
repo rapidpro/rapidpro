@@ -8,7 +8,6 @@
 #     - a redis instance listening on localhost
 # -----------------------------------------------------------------------------------
 
-import copy
 import warnings
 
 from .settings_common import *  # noqa
