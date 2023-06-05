@@ -1,3 +1,7 @@
+v8.1.180 (2023-06-05)
+-------------------------
+ * Fix failed message resending and archived message deletion
+
 v8.1.179 (2023-06-05)
 -------------------------
  * Drop ChannelLog.msg and .call
