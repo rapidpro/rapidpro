@@ -1582,7 +1582,7 @@ class ChannelLogTest(TembaTest):
         msg_out = self.create_outgoing_msg(contact, "Working", channel=channel, status="S", logs=[log])
 
         expected_unredacted = {
-            "description": "Message Send",
+            "type": "msg_send",
             "http_logs": [
                 {
                     "url": "https://telegram.com/send?to=74747474",
@@ -1595,11 +1595,12 @@ class ChannelLogTest(TembaTest):
                 }
             ],
             "errors": [{"code": "bad_response", "ext_code": "", "message": "response not right", "ref_url": None}],
-            "created_on": matchers.Datetime(),
+            "elapsed_ms": 0,
+            "created_on": matchers.ISODate(),
         }
 
         expected_redacted = {
-            "description": "Message Send",
+            "type": "msg_send",
             "http_logs": [
                 {
                     "url": "https://telegram.com/send?to=********",
@@ -1612,7 +1613,8 @@ class ChannelLogTest(TembaTest):
                 }
             ],
             "errors": [{"code": "bad_response", "ext_code": "", "message": "response n********", "ref_url": None}],
-            "created_on": matchers.Datetime(),
+            "elapsed_ms": 0,
+            "created_on": matchers.ISODate(),
         }
 
         self.assertEqual(expected_unredacted, log.get_display(self.admin, urn=msg_out.contact_urn))
@@ -1643,11 +1645,10 @@ class ChannelLogTest(TembaTest):
         msg_out = self.create_outgoing_msg(contact, "Working", channel=channel, status="S", logs=[log])
 
         expected_unredacted = {
-            "description": "Message Send",
+            "type": "msg_send",
             "http_logs": [
                 {
                     "url": "https://telegram.com/send?to=74747474",
-                    "status_code": 0,
                     "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
                     "response": "",
                     "elapsed_ms": 30001,
@@ -1656,15 +1657,15 @@ class ChannelLogTest(TembaTest):
                 }
             ],
             "errors": [{"code": "bad_response", "ext_code": "", "message": "response not right", "ref_url": None}],
-            "created_on": matchers.Datetime(),
+            "elapsed_ms": 0,
+            "created_on": matchers.ISODate(),
         }
 
         expected_redacted = {
-            "description": "Message Send",
+            "type": "msg_send",
             "http_logs": [
                 {
                     "url": "https://telegram.com/send?to=********",
-                    "status_code": 0,
                     "request": 'POST https://telegram.com/send?to=******** HTTP/1.1\r\n\r\n{"to":"********"}',
                     "response": "********",
                     "elapsed_ms": 30001,
@@ -1673,7 +1674,8 @@ class ChannelLogTest(TembaTest):
                 }
             ],
             "errors": [{"code": "bad_response", "ext_code": "", "message": "response n********", "ref_url": None}],
-            "created_on": matchers.Datetime(),
+            "elapsed_ms": 0,
+            "created_on": matchers.ISODate(),
         }
 
         self.assertEqual(expected_unredacted, log.get_display(self.admin, urn=msg_out.contact_urn))

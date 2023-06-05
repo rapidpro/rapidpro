@@ -918,6 +918,8 @@ class ChannelLog(models.Model):
     A log of an interaction with a channel
     """
 
+    REDACT_MASK = "*" * 8  # used to mask redacted values
+
     LOG_TYPE_UNKNOWN = "unknown"
     LOG_TYPE_MSG_SEND = "msg_send"
     LOG_TYPE_MSG_STATUS = "msg_status"
@@ -958,78 +960,75 @@ class ChannelLog(models.Model):
     elapsed_ms = models.IntegerField(default=0)
     created_on = models.DateTimeField(default=timezone.now)
 
-    def _get_display_value(self, user, original, urn, redact_keys=(), redact_values=()):
+    @classmethod
+    def _get_display_value(cls, user, original, channel, urn, redact_keys=(), redact_values=()):
         """
         Get a part of the log which may or may not have to be redacted to hide sensitive information in anon orgs
         """
 
-        from temba.request_logs.models import HTTPLog
-
         for secret_val in redact_values:
-            original = redact.text(original, secret_val, HTTPLog.REDACT_MASK)
+            original = redact.text(original, secret_val, cls.REDACT_MASK)
 
-        if not self.channel.org.is_anon or user.is_staff:
+        if not channel.org.is_anon or user.is_staff:
             return original
 
         # if this log doesn't have a URN then we don't know what to redact, so redact completely
         if not urn:
-            return original[:10] + HTTPLog.REDACT_MASK
+            return original[:10] + cls.REDACT_MASK
 
         if redact_keys:
-            redacted = redact.http_trace(original, urn.path, HTTPLog.REDACT_MASK, redact_keys)
+            redacted = redact.http_trace(original, urn.path, cls.REDACT_MASK, redact_keys)
         else:
-            redacted = redact.text(original, urn.path, HTTPLog.REDACT_MASK)
+            redacted = redact.text(original, urn.path, cls.REDACT_MASK)
 
         # if nothing was redacted, don't risk returning sensitive information we didn't find
         if original == redacted:
-            return original[:10] + HTTPLog.REDACT_MASK
+            return original[:10] + cls.REDACT_MASK
 
         return redacted
 
+    @classmethod
+    def _redact(cls, clog: dict, user, channel, urn):
+        redact_values = channel.type.redact_values
+        redact_request_keys = channel.type.redact_request_keys
+        redact_response_keys = channel.type.redact_response_keys
+
+        for http_log in clog["http_logs"]:
+            http_log["url"] = cls._get_display_value(user, http_log["url"], channel, urn, redact_values=redact_values)
+            http_log["request"] = cls._get_display_value(
+                user, http_log["request"], channel, urn, redact_keys=redact_request_keys, redact_values=redact_values
+            )
+            http_log["response"] = cls._get_display_value(
+                user,
+                http_log.get("response", ""),
+                channel,
+                urn,
+                redact_keys=redact_response_keys,
+                redact_values=redact_values,
+            )
+
+        for err in clog["errors"]:
+            err["message"] = cls._get_display_value(user, err["message"], channel, urn, redact_values=redact_values)
+
     def get_display(self, user, urn) -> dict:
-        redact_values = self.channel.type.redact_values
-        redact_request_keys = self.channel.type.redact_request_keys
-        redact_response_keys = self.channel.type.redact_response_keys
+        clog = self.get_json()
 
-        def redact_http(log: dict) -> dict:
-            return {
-                "url": self._get_display_value(user, log["url"], urn, redact_values=redact_values),
-                "status_code": log.get("status_code", 0),
-                "request": self._get_display_value(
-                    user,
-                    log["request"],
-                    urn,
-                    redact_keys=redact_request_keys,
-                    redact_values=redact_values,
-                ),
-                "response": self._get_display_value(
-                    user,
-                    log.get("response", ""),
-                    urn,
-                    redact_keys=redact_response_keys,
-                    redact_values=redact_values,
-                ),
-                "elapsed_ms": log["elapsed_ms"],
-                "retries": log["retries"],
-                "created_on": log["created_on"],
-            }
-
-        def redact_error(err: dict) -> dict:
+        # add reference URLs to errors
+        for err in clog["errors"]:
             ext_code = err.get("ext_code")
-            ref_url = self.channel.type.get_error_ref_url(self.channel, ext_code) if ext_code else None
+            err["ref_url"] = self.channel.type.get_error_ref_url(self.channel, ext_code) if ext_code else None
 
-            return {
-                "code": err["code"],
-                "ext_code": ext_code,
-                "message": self._get_display_value(user, err["message"], urn, redact_values=redact_values),
-                "ref_url": ref_url,
-            }
+        self._redact(clog, user, self.channel, urn)
 
+        return clog
+
+    def get_json(self):
         return {
-            "description": self.get_log_type_display(),
-            "http_logs": [redact_http(h) for h in (self.http_logs or [])],
-            "errors": [redact_error(e) for e in (self.errors or [])],
-            "created_on": self.created_on,
+            "type": self.log_type,
+            "http_logs": [h.copy() for h in self.http_logs or []],
+            "errors": [e.copy() for e in self.errors or []],
+            "elapsed_ms": self.elapsed_ms,
+            "created_on": self.created_on.isoformat(),
         }
 
     class Meta:
