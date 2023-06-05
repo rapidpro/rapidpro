@@ -683,8 +683,6 @@ class Msg(models.Model):
         Bulk hard deletes the given messages.
         """
 
-        from temba.channels.models import ChannelLog
-
         attachments_to_delete = []
 
         for msg in msgs:
@@ -692,8 +690,6 @@ class Msg(models.Model):
                 attachments_to_delete.extend(msg.get_attachments())
 
         Attachment.bulk_delete(attachments_to_delete)
-
-        ChannelLog.objects.filter(msg__in=msgs).delete()
 
         cls.objects.filter(id__in=[m.id for m in msgs]).delete()
 

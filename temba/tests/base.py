@@ -286,6 +286,7 @@ class TembaTestMixin:
         voice=False,
         surveyor=False,
         flow=None,
+        logs=None,
     ):
         return self._create_msg(
             contact,
@@ -301,6 +302,7 @@ class TembaTestMixin:
             external_id=external_id,
             surveyor=surveyor,
             flow=flow,
+            logs=logs,
         )
 
     def create_incoming_msgs(self, contact, count):
@@ -325,6 +327,7 @@ class TembaTestMixin:
         failed_reason=None,
         flow=None,
         ticket=None,
+        logs=None,
     ):
         if status in (Msg.STATUS_WIRED, Msg.STATUS_SENT, Msg.STATUS_DELIVERED) and not sent_on:
             sent_on = timezone.now()
@@ -352,6 +355,7 @@ class TembaTestMixin:
             metadata=metadata,
             next_attempt=next_attempt,
             failed_reason=failed_reason,
+            logs=logs,
         )
 
     def _create_msg(
@@ -379,6 +383,7 @@ class TembaTestMixin:
         metadata=None,
         next_attempt=None,
         failed_reason=None,
+        logs=None,
     ):
         assert not (surveyor and channel), "surveyor messages don't have channels"
         assert not channel or channel.org == contact.org, "channel belong to different org than contact"
@@ -421,6 +426,7 @@ class TembaTestMixin:
             metadata=metadata,
             next_attempt=next_attempt,
             failed_reason=failed_reason,
+            log_uuids=[l.uuid for l in logs or []],
         )
 
     def create_broadcast(
@@ -504,10 +510,26 @@ class TembaTestMixin:
 
         return flow
 
-    def create_incoming_call(self, flow, contact, status=Call.STATUS_COMPLETED):
+    def create_incoming_call(self, flow, contact, status=Call.STATUS_COMPLETED, error_reason=None, created_on=None):
         """
         Create something that looks like an incoming IVR call handled by mailroom
         """
+        log = ChannelLog.objects.create(
+            channel=self.channel,
+            log_type=ChannelLog.LOG_TYPE_IVR_START,
+            is_error=status in (Call.STATUS_FAILED, Call.STATUS_ERRORED),
+            http_logs=[
+                {
+                    "url": "https://acme-calls.com/reply",
+                    "status_code": 200,
+                    "request": 'POST /reply\r\n\r\n{"say": "Hello"}',
+                    "response": '{"status": "%s"}' % ("error" if status == Call.STATUS_FAILED else "OK"),
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
+        )
         call = Call.objects.create(
             org=self.org,
             channel=self.channel,
@@ -515,7 +537,10 @@ class TembaTestMixin:
             contact=contact,
             contact_urn=contact.get_urn(),
             status=status,
+            error_reason=error_reason,
+            created_on=created_on or timezone.now(),
             duration=15,
+            log_uuids=[log.uuid],
         )
         session = FlowSession.objects.create(
             uuid=uuid4(),
@@ -547,26 +572,6 @@ class TembaTestMixin:
             sent_on=timezone.now(),
             created_on=timezone.now(),
         )
-        log = ChannelLog.objects.create(
-            channel=self.channel,
-            call=call,
-            log_type=ChannelLog.LOG_TYPE_IVR_START,
-            is_error=status == Call.STATUS_FAILED,
-            http_logs=[
-                {
-                    "url": "https://acme-calls.com/reply",
-                    "status_code": 200,
-                    "request": 'POST /reply\r\n\r\n{"say": "Hello"}',
-                    "response": '{"status": "%s"}' % ("error" if status == Call.STATUS_FAILED else "OK"),
-                    "elapsed_ms": 12,
-                    "retries": 0,
-                    "created_on": "2022-01-01T00:00:00Z",
-                }
-            ],
-        )
-
-        call.log_uuids = [log.uuid]
-        call.save(update_fields=("log_uuids",))
 
         return call
 

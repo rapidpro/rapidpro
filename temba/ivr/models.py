@@ -104,8 +104,6 @@ class Call(models.Model):
             return None
 
     def release(self):
-        self.channel_logs.all().delete()
-
         session = self.get_session()
         if session:
             session.delete()
