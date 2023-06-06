@@ -961,19 +961,9 @@ class ChannelLog(models.Model):
     created_on = models.DateTimeField(default=timezone.now)
 
     @classmethod
-    def _get_display_value(cls, user, original, channel, urn, redact_keys=(), redact_values=()):
-        """
-        Get a part of the log which may or may not have to be redacted to hide sensitive information in anon orgs
-        """
-
-        for secret_val in redact_values:
-            original = redact.text(original, secret_val, cls.REDACT_MASK)
-
-        if not channel.org.is_anon or user.is_staff:
-            return original
-
+    def _anonymize_value(cls, original, urn, redact_keys=()):
         # if this log doesn't have a URN then we don't know what to redact, so redact completely
-        if not urn:
+        if not urn and original:
             return original[:10] + cls.REDACT_MASK
 
         if redact_keys:
@@ -982,33 +972,25 @@ class ChannelLog(models.Model):
             redacted = redact.text(original, urn.path, cls.REDACT_MASK)
 
         # if nothing was redacted, don't risk returning sensitive information we didn't find
-        if original == redacted:
+        if original == redacted and original:
             return original[:10] + cls.REDACT_MASK
 
         return redacted
 
     @classmethod
-    def _redact(cls, clog: dict, user, channel, urn):
-        redact_values = channel.type.redact_values
+    def _anonymize(cls, clog: dict, channel, urn):
         redact_request_keys = channel.type.redact_request_keys
         redact_response_keys = channel.type.redact_response_keys
 
         for http_log in clog["http_logs"]:
-            http_log["url"] = cls._get_display_value(user, http_log["url"], channel, urn, redact_values=redact_values)
-            http_log["request"] = cls._get_display_value(
-                user, http_log["request"], channel, urn, redact_keys=redact_request_keys, redact_values=redact_values
-            )
-            http_log["response"] = cls._get_display_value(
-                user,
-                http_log.get("response", ""),
-                channel,
-                urn,
-                redact_keys=redact_response_keys,
-                redact_values=redact_values,
+            http_log["url"] = cls._anonymize_value(http_log["url"], urn)
+            http_log["request"] = cls._anonymize_value(http_log["request"], urn, redact_keys=redact_request_keys)
+            http_log["response"] = cls._anonymize_value(
+                http_log.get("response", ""), urn, redact_keys=redact_response_keys
             )
 
         for err in clog["errors"]:
-            err["message"] = cls._get_display_value(user, err["message"], channel, urn, redact_values=redact_values)
+            err["message"] = cls._anonymize_value(err["message"], urn)
 
     def get_display(self, user, urn) -> dict:
         clog = self.get_json()
@@ -1018,7 +1000,8 @@ class ChannelLog(models.Model):
             ext_code = err.get("ext_code")
             err["ref_url"] = self.channel.type.get_error_ref_url(self.channel, ext_code) if ext_code else None
 
-        self._redact(clog, user, self.channel, urn)
+        if self.channel.org.is_anon and not user.is_staff:
+            self._anonymize(clog, self.channel, urn)
 
         return clog
 

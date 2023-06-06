@@ -8,7 +8,6 @@ from urllib.parse import quote
 
 from smartmin.tests import SmartminTest
 
-from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core import mail
 from django.template import loader
@@ -1650,7 +1649,6 @@ class ChannelLogTest(TembaTest):
                 {
                     "url": "https://telegram.com/send?to=74747474",
                     "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
-                    "response": "",
                     "elapsed_ms": 30001,
                     "retries": 0,
                     "created_on": "2022-08-17T14:07:30Z",
@@ -1667,7 +1665,7 @@ class ChannelLogTest(TembaTest):
                 {
                     "url": "https://telegram.com/send?to=********",
                     "request": 'POST https://telegram.com/send?to=******** HTTP/1.1\r\n\r\n{"to":"********"}',
-                    "response": "********",
+                    "response": "",
                     "elapsed_ms": 30001,
                     "retries": 0,
                     "created_on": "2022-08-17T14:07:30Z",
@@ -2343,47 +2341,6 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             self.assertContains(response, "979099111", count=1)
             self.assertContains(response, "Quito", count=1)
             self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
-
-    def test_channellog_hide_whatsapp_cloud(self):
-        urn = "whatsapp:15128505839"
-        contact = self.create_contact("Fred Jones", urns=[urn])
-        channel = self.create_channel("WAC", "Test WAC Channel", "54764868534")
-        success_log = ChannelLog.objects.create(
-            channel=channel,
-            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
-            is_error=False,
-            http_logs=[
-                {
-                    "url": f"https://example.com/send/message?access_token={settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}",
-                    "status_code": 200,
-                    "request": f"""
-POST /send/message?access_token={settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN} HTTP/1.1
-Host: example.com
-Accept: */*
-Accept-Encoding: gzip;q=1.0,deflate;q=0.6,identity;q=0.3
-Content-Length: 343
-Content-Type: application/x-www-form-urlencoded
-User-Agent: SignalwireCallback/1.0
-Authorization: Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}
-
-MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5900db47e262&AccountSid=<redacted>&From=%2B15618981512&To=%2B15128505839&Body=Hi+Ben+Google+Voice%2C+Did+you+enjoy+your+stay+at+White+Bay+Villas%3F++Answer+with+Yes+or+No.+reply+STOP+to+opt-out.&NumMedia=0&NumSegments=1&MessageStatus=sent""",
-                    "response": '{"success": true }',
-                    "elapsed_ms": 12,
-                    "retries": 0,
-                    "created_on": "2022-01-01T00:00:00Z",
-                }
-            ],
-        )
-        self.create_incoming_msg(contact, "incoming msg", channel=channel, logs=[success_log])
-
-        self.login(self.admin)
-
-        read_url = reverse("channels.channellog_read", args=[success_log.id])
-
-        response = self.client.get(read_url)
-        self.assertNotContains(response, settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN)
-        self.assertContains(response, f"/send/message?access_token={HTTPLog.REDACT_MASK}")
-        self.assertContains(response, f"Authorization: Bearer {HTTPLog.REDACT_MASK}")
 
     def test_channellog_anonymous_org_no_msg(self):
         tw_urn = "15128505839"
