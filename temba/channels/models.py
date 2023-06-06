@@ -961,8 +961,8 @@ class ChannelLog(models.Model):
     created_on = models.DateTimeField(default=timezone.now)
 
     @classmethod
-    def _anonymize_value(cls, original, urn, redact_keys=()):
-        # if this log doesn't have a URN then we don't know what to redact, so redact completely
+    def _anonymize_value(cls, original: str, urn, redact_keys=()) -> str:
+        # if log doesn't have an associated URN then we don't know what to anonymize, so redact completely
         if not urn and original:
             return original[:10] + cls.REDACT_MASK
 
@@ -978,32 +978,30 @@ class ChannelLog(models.Model):
         return redacted
 
     @classmethod
-    def _anonymize(cls, clog: dict, channel, urn):
-        redact_request_keys = channel.type.redact_request_keys
-        redact_response_keys = channel.type.redact_response_keys
+    def _anonymize(cls, data: dict, channel, urn):
+        request_keys = channel.type.redact_request_keys
+        response_keys = channel.type.redact_response_keys
 
-        for http_log in clog["http_logs"]:
+        for http_log in data["http_logs"]:
             http_log["url"] = cls._anonymize_value(http_log["url"], urn)
-            http_log["request"] = cls._anonymize_value(http_log["request"], urn, redact_keys=redact_request_keys)
-            http_log["response"] = cls._anonymize_value(
-                http_log.get("response", ""), urn, redact_keys=redact_response_keys
-            )
+            http_log["request"] = cls._anonymize_value(http_log["request"], urn, redact_keys=request_keys)
+            http_log["response"] = cls._anonymize_value(http_log.get("response", ""), urn, redact_keys=response_keys)
 
-        for err in clog["errors"]:
+        for err in data["errors"]:
             err["message"] = cls._anonymize_value(err["message"], urn)
 
-    def get_display(self, user, urn) -> dict:
-        clog = self.get_json()
+    def get_display(self, anonymize: bool, urn) -> dict:
+        data = self.get_json()
 
         # add reference URLs to errors
-        for err in clog["errors"]:
+        for err in data["errors"]:
             ext_code = err.get("ext_code")
             err["ref_url"] = self.channel.type.get_error_ref_url(self.channel, ext_code) if ext_code else None
 
-        if self.channel.org.is_anon and not user.is_staff:
-            self._anonymize(clog, self.channel, urn)
+        if anonymize:
+            self._anonymize(data, self.channel, urn)
 
-        return clog
+        return data
 
     def get_json(self):
         return {

@@ -1900,6 +1900,16 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(reverse("channels.channellog_list", args=["invalid-uuid"]))
         self.assertEqual(404, response.status_code)
 
+    def assertRedacted(self, response, values: tuple):
+        for value in values:
+            self.assertNotContains(response, value)
+
+        self.assertContains(response, ChannelLog.REDACT_MASK)
+
+    def assertNotRedacted(self, response, values: tuple):
+        for value in values:
+            self.assertContains(response, value)
+
     def test_redaction_for_telegram(self):
         urn = "telegram:3527065"
         contact = self.create_contact("Fred Jones", urns=[urn])
@@ -1928,35 +1938,22 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # check read page shows un-redacted content for a regular org
         response = self.client.get(read_url)
+        self.assertNotRedacted(response, ("3527065", "Nic", "Pottier"))
 
-        self.assertContains(response, "3527065", count=3)
-        self.assertContains(response, "Nic", count=2)
-        self.assertContains(response, "Pottier", count=1)
-
-        # check read page shows redacted content for an anon org
+        # but for anon org we see redaction...
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
+            self.assertRedacted(response, ("3527065", "Nic", "Pottier"))
 
-            self.assertContains(response, "3527065", count=0)
-            self.assertContains(response, "Nic", count=0)
-            self.assertContains(response, "Pottier", count=0)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=8)
+            # even as customer support
+            self.login(self.customer_support, choose_org=self.org)
 
-        # login as customer support, must see URNs
-        self.login(self.customer_support, choose_org=self.org)
-
-        response = self.client.get(read_url)
-
-        self.assertContains(response, "3527065", count=3)
-
-        with AnonymousOrg(self.org):
             response = self.client.get(read_url)
-            # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-            # Contact.get_display does not check if user is staff
-            self.assertContains(response, "3527065", count=2)
-            self.assertContains(response, "Nic", count=2)
-            self.assertContains(response, "Pottier", count=1)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
+            self.assertRedacted(response, ("3527065", "Nic", "Pottier"))
+
+            # unless we explicitly break out of it
+            response = self.client.get(read_url + "?break=1")
+            self.assertNotRedacted(response, ("3527065", "Nic", "Pottier"))
 
     def test_redaction_for_telegram_with_invalid_json(self):
         urn = "telegram:3527065"
@@ -1983,32 +1980,15 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.login(self.admin)
 
         read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
+
+        # check read page shows un-redacted content for a regular org
         response = self.client.get(read_url)
+        self.assertNotRedacted(response, ("3527065", "Nic"))
 
-        self.assertContains(response, "3527065", count=2)
-
+        # but for anon org we see redaction...
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
-
-            self.assertContains(response, "3527065", count=0)
-            self.assertContains(response, "Nic", count=0)
-            self.assertContains(response, "Pottier", count=0)
-
-            # everything is masked
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
-
-        # login as customer support, must see URNs
-        self.login(self.customer_support, choose_org=self.org)
-
-        response = self.client.get(read_url)
-
-        self.assertContains(response, "3527065", count=2)
-
-        with AnonymousOrg(self.org):
-            response = self.client.get(read_url)
-            self.assertContains(response, "Nic", count=1)
-
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
+            self.assertRedacted(response, ("3527065", "Nic"))
 
     def test_redaction_for_telegram_when_no_match(self):
         urn = "telegram:3527065"
@@ -2035,32 +2015,15 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.login(self.admin)
 
         read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
+
+        # check read page shows un-redacted content for a regular org
         response = self.client.get(read_url)
+        self.assertNotRedacted(response, ("3527065",))
 
-        self.assertContains(response, "3527065", count=1)
-        self.assertContains(response, "There is no contact identifying information", count=2)
-
+        # but for anon org we see complete redaction
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
-
-            # url/request/reponse are masked
-            self.assertContains(response, "There is no contact identifying information", count=0)
-
-            self.assertContains(response, "3527065", count=0)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
-
-        # login as customer support, must see URNs
-        self.login(self.customer_support, choose_org=self.org)
-
-        response = self.client.get(read_url)
-
-        self.assertContains(response, "3527065", count=1)
-
-        with AnonymousOrg(self.org):
-            response = self.client.get(read_url)
-            self.assertContains(response, "There is no contact identifying information", count=2)
-
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
+            self.assertRedacted(response, ("3527065", "api.telegram.org", "/65474/sendMessage"))
 
     def test_redaction_for_twitter(self):
         urn = "twitterid:767659860"
@@ -2088,36 +2051,14 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
+        # check read page shows un-redacted content for a regular org
         response = self.client.get(read_url)
+        self.assertNotRedacted(response, ("767659860", "Aaron Tumukunde", "tumaaron"))
 
-        self.assertContains(response, "767659860", count=5)
-        self.assertContains(response, "Aaron Tumukunde", count=1)
-        self.assertContains(response, "tumaaron", count=2)
-
+        # but for anon org we see redaction...
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
-
-            self.assertContains(response, "767659860", count=0)
-            self.assertContains(response, "Aaron Tumukunde", count=0)
-            self.assertContains(response, "tumaaron", count=0)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=13)
-
-        # login as customer support, must see URNs
-        self.login(self.customer_support, choose_org=self.org)
-
-        response = self.client.get(read_url)
-
-        self.assertContains(response, "767659860", count=5)
-
-        with AnonymousOrg(self.org):
-            response = self.client.get(read_url)
-            # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-            # Contact.get_display does not check if user is staff
-            self.assertContains(response, "767659860", count=4)
-            self.assertContains(response, "Aaron Tumukunde", count=1)
-            self.assertContains(response, "tumaaron", count=2)
-
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
+            self.assertRedacted(response, ("767659860", "Aaron Tumukunde", "tumaaron"))
 
     def test_redaction_for_twitter_when_no_match(self):
         urn = "twitterid:767659860"
@@ -2144,31 +2085,15 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.login(self.admin)
 
         read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
+
+        # check read page shows un-redacted content for a regular org
         response = self.client.get(read_url)
+        self.assertNotRedacted(response, ("767659860",))
 
-        self.assertContains(response, "767659860", count=1)
-        self.assertContains(response, "There is no contact identifying information", count=2)
-
+        # but for anon org we see complete redaction...
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
-
-            # url/request/reponse are masked
-            self.assertContains(response, "There is no contact identifying information", count=0)
-
-            self.assertContains(response, "767659860", count=0)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
-
-        # login as customer support, must see URNs
-        self.login(self.customer_support, choose_org=self.org)
-        response = self.client.get(read_url)
-
-        self.assertContains(response, "767659860", count=1)
-
-        with AnonymousOrg(self.org):
-            response = self.client.get(read_url)
-            self.assertContains(response, "There is no contact identifying information", count=2)
-
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
+            self.assertRedacted(response, ("767659860", "twitter.com", "/65474/sendMessage"))
 
     def test_redaction_for_facebook(self):
         urn = "facebook:2150393045080607"
@@ -2198,35 +2123,14 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         response = self.client.get(read_url)
 
-        self.assertContains(response, "2150393045080607", count=3)
-        self.assertContains(response, "facebook:2150393045080607", count=1)
-
-        with AnonymousOrg(self.org):
-            response = self.client.get(read_url)
-
-            self.assertContains(response, "2150393045080607", count=0)
-            self.assertContains(response, "facebook:", count=1)
-
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
-
-        # login as customer support, must see URNs
-        self.login(self.customer_support, choose_org=self.org)
-
-        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
-
+        # check read page shows un-redacted content for a regular org
         response = self.client.get(read_url)
+        self.assertNotRedacted(response, ("2150393045080607",))
 
-        self.assertContains(response, "2150393045080607", count=3)
-        self.assertContains(response, "facebook:2150393045080607", count=1)
-
+        # but for anon org we see redaction...
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
-            # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-            # Contact.get_display does not check if user is staff
-            self.assertContains(response, "2150393045080607", count=2)
-            self.assertContains(response, "facebook:", count=1)
-
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
+            self.assertRedacted(response, ("2150393045080607",))
 
     def test_redaction_for_facebook_when_no_match(self):
         # in this case we are paranoid and mask everything
@@ -2255,33 +2159,14 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
 
+        # check read page shows un-redacted content for a regular org
         response = self.client.get(read_url)
+        self.assertNotRedacted(response, ("2150393045080607",))
 
-        self.assertContains(response, "2150393045080607", count=1)
-
+        # but for anon org we see complete redaction...
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
-
-            # url/request/reponse are masked
-            self.assertContains(response, "There is no contact identifying information", count=0)
-
-            self.assertContains(response, "2150393045080607", count=0)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
-
-        # login as customer support, must see URNs
-        self.login(self.customer_support, choose_org=self.org)
-
-        response = self.client.get(read_url)
-
-        self.assertContains(response, "2150393045080607", count=1)
-
-        with AnonymousOrg(self.org):
-            response = self.client.get(read_url)
-            self.assertContains(response, "There is no contact identifying information", count=2)
-
-            # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-            # Contact.get_display does not check if user is staff
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
+            self.assertRedacted(response, ("2150393045080607", "facebook.com", "/65474/sendMessage"))
 
     def test_redaction_for_twilio(self):
         contact = self.create_contact("Fred Jones", phone="+593979099111")
@@ -2310,37 +2195,12 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # check read page shows un-redacted content for a regular org
         response = self.client.get(read_url)
+        self.assertNotRedacted(response, ("097 909 9111", "979099111", "Quito"))
 
-        self.assertContains(response, "097 909 9111", count=1)
-        self.assertContains(response, "979099111", count=1)
-        self.assertContains(response, "Quito", count=1)
-
-        # check read page shows redacted content for an anon org
+        # but for anon org we see redaction...
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
-
-            self.assertContains(response, "097 909 9111", count=0)
-            self.assertContains(response, "979099111", count=0)
-            self.assertContains(response, "Quito", count=0)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=4)
-
-        # login as customer support, must see URNs
-        self.login(self.customer_support, choose_org=self.org)
-
-        response = self.client.get(read_url)
-
-        self.assertContains(response, "097 909 9111", count=1)
-        self.assertContains(response, "979099111", count=1)
-        self.assertContains(response, "Quito", count=1)
-
-        with AnonymousOrg(self.org):
-            response = self.client.get(read_url)
-            # contact_urn is still masked on the read page, it uses contacts.models.Contact.get_display
-            # Contact.get_display does not check if user is staff
-            self.assertContains(response, "097 909 9111", count=0)
-            self.assertContains(response, "979099111", count=1)
-            self.assertContains(response, "Quito", count=1)
-            self.assertContains(response, HTTPLog.REDACT_MASK, count=1)
+            self.assertRedacted(response, ("097 909 9111", "979099111", "Quito"))
 
     def test_channellog_anonymous_org_no_msg(self):
         tw_urn = "15128505839"
