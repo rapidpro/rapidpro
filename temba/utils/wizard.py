@@ -4,7 +4,7 @@ from smartmin.views import SmartView, smart_url
 from django.core.exceptions import ImproperlyConfigured
 
 
-class TembaWizardView(SmartView, SessionWizardView):
+class SmartWizardView(SmartView, SessionWizardView):
     submit_button_name = "Submit"
 
     def __init__(self, *args, **kwargs):

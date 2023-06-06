@@ -56,7 +56,7 @@ from temba.utils.fields import (
 )
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
-from temba.utils.wizard import TembaWizardView
+from temba.utils.wizard import SmartWizardView
 
 from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, SystemLabel
 from .tasks import export_messages_task
@@ -222,7 +222,7 @@ class BroadcastCRUDL(SmartCRUDL):
     )
     model = Broadcast
 
-    class Create(TembaWizardView):
+    class Create(SmartWizardView):
         form_list = [("compose", ComposeForm), ("target", TargetForm), ("schedule", ScheduleForm)]
         success_url = "@msgs.broadcast_scheduled"
         submit_button_name = _("Create Broadcast")

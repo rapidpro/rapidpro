@@ -1,16 +1,5 @@
 {% extends "utils/forms/wizard.html" %}
 {% load i18n %}
-{% block extra-style %}
-  {{ block.super }}
-  <style>
-    .control-group {
-      margin-bottom: 1em !important;
-    }
-
-  </style>
-{% endblock extra-style %}
-{% block extra-script %}
-{% endblock extra-script %}
 {% block pre-form %}
   {% blocktrans trimmed %}
     Enter the message you would like to send.
