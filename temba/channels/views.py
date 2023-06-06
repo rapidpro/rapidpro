@@ -990,7 +990,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
             anonymize = self.request.org.is_anon and not (self.request.GET.get("break") and self.request.user.is_staff)
 
-            context["log"] = self.object.get_display(anonymize, urn=None)
+            context["log"] = self.object.get_display(anonymize=anonymize, urn=None)
             return context
 
     class BaseOwned(SpaMixin, OrgObjPermsMixin, SmartListView):
@@ -1026,7 +1026,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             anonymize = self.request.org.is_anon and not (self.request.GET.get("break") and self.request.user.is_staff)
 
             context["msg"] = self.owner
-            context["logs"] = [log.get_display(anonymize, urn=urn) for log in context["object_list"]]
+            context["logs"] = [log.get_display(anonymize=anonymize, urn=urn) for log in context["object_list"]]
             return context
 
     class Call(BaseOwned):
@@ -1045,5 +1045,5 @@ class ChannelLogCRUDL(SmartCRUDL):
             anonymize = self.request.org.is_anon and not (self.request.GET.get("break") and self.request.user.is_staff)
 
             context["call"] = self.owner
-            context["logs"] = [log.get_display(anonymize, urn=urn) for log in context["object_list"]]
+            context["logs"] = [log.get_display(anonymize=anonymize, urn=urn) for log in context["object_list"]]
             return context

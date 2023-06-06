@@ -990,7 +990,7 @@ class ChannelLog(models.Model):
         for err in data["errors"]:
             err["message"] = cls._anonymize_value(err["message"], urn)
 
-    def get_display(self, anonymize: bool, urn) -> dict:
+    def get_display(self, *, anonymize: bool, urn) -> dict:
         data = self.get_json()
 
         # add reference URLs to errors

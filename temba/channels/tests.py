@@ -1580,48 +1580,69 @@ class ChannelLogTest(TembaTest):
         )
         msg_out = self.create_outgoing_msg(contact, "Working", channel=channel, status="S", logs=[log])
 
-        expected_unredacted = {
-            "type": "msg_send",
-            "http_logs": [
-                {
-                    "url": "https://telegram.com/send?to=74747474",
-                    "status_code": 400,
-                    "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
-                    "response": 'HTTP/2.0 200 OK\r\n\r\n{"to":"74747474","first_name":"Fred"}',
-                    "elapsed_ms": 263,
-                    "retries": 0,
-                    "created_on": "2022-08-17T14:07:30Z",
-                }
-            ],
-            "errors": [{"code": "bad_response", "ext_code": "", "message": "response not right", "ref_url": None}],
-            "elapsed_ms": 0,
-            "created_on": matchers.ISODate(),
-        }
+        self.assertEqual(
+            {
+                "type": "msg_send",
+                "http_logs": [
+                    {
+                        "url": "https://telegram.com/send?to=74747474",
+                        "status_code": 400,
+                        "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+                        "response": 'HTTP/2.0 200 OK\r\n\r\n{"to":"74747474","first_name":"Fred"}',
+                        "elapsed_ms": 263,
+                        "retries": 0,
+                        "created_on": "2022-08-17T14:07:30Z",
+                    }
+                ],
+                "errors": [{"code": "bad_response", "ext_code": "", "message": "response not right", "ref_url": None}],
+                "elapsed_ms": 0,
+                "created_on": matchers.ISODate(),
+            },
+            log.get_display(anonymize=False, urn=msg_out.contact_urn),
+        )
 
-        expected_redacted = {
-            "type": "msg_send",
-            "http_logs": [
-                {
-                    "url": "https://telegram.com/send?to=********",
-                    "status_code": 400,
-                    "request": 'POST https://telegram.com/send?to=******** HTTP/1.1\r\n\r\n{"to":"********"}',
-                    "response": 'HTTP/2.0 200 OK\r\n\r\n{"to": "********", "first_name": "********"}',
-                    "elapsed_ms": 263,
-                    "retries": 0,
-                    "created_on": "2022-08-17T14:07:30Z",
-                }
-            ],
-            "errors": [{"code": "bad_response", "ext_code": "", "message": "response n********", "ref_url": None}],
-            "elapsed_ms": 0,
-            "created_on": matchers.ISODate(),
-        }
+        self.assertEqual(
+            {
+                "type": "msg_send",
+                "http_logs": [
+                    {
+                        "url": "https://telegram.com/send?to=********",
+                        "status_code": 400,
+                        "request": 'POST https://telegram.com/send?to=******** HTTP/1.1\r\n\r\n{"to":"********"}',
+                        "response": 'HTTP/2.0 200 OK\r\n\r\n{"to": "********", "first_name": "********"}',
+                        "elapsed_ms": 263,
+                        "retries": 0,
+                        "created_on": "2022-08-17T14:07:30Z",
+                    }
+                ],
+                "errors": [{"code": "bad_response", "ext_code": "", "message": "response n********", "ref_url": None}],
+                "elapsed_ms": 0,
+                "created_on": matchers.ISODate(),
+            },
+            log.get_display(anonymize=True, urn=msg_out.contact_urn),
+        )
 
-        self.assertEqual(expected_unredacted, log.get_display(self.admin, urn=msg_out.contact_urn))
-        self.assertEqual(expected_unredacted, log.get_display(self.customer_support, urn=msg_out.contact_urn))
-
-        with AnonymousOrg(self.org):
-            self.assertEqual(expected_redacted, log.get_display(self.admin, urn=msg_out.contact_urn))
-            self.assertEqual(expected_unredacted, log.get_display(self.customer_support, urn=msg_out.contact_urn))
+        # if we don't pass it a URN, anonymization is more aggressive
+        self.assertEqual(
+            {
+                "type": "msg_send",
+                "http_logs": [
+                    {
+                        "url": "https://te********",
+                        "status_code": 400,
+                        "request": "POST https********",
+                        "response": "HTTP/2.0 2********",
+                        "elapsed_ms": 263,
+                        "retries": 0,
+                        "created_on": "2022-08-17T14:07:30Z",
+                    }
+                ],
+                "errors": [{"code": "bad_response", "ext_code": "", "message": "response n********", "ref_url": None}],
+                "elapsed_ms": 0,
+                "created_on": matchers.ISODate(),
+            },
+            log.get_display(anonymize=True, urn=None),
+        )
 
     def test_get_display_timed_out(self):
         channel = self.create_channel("TG", "Telegram", "mybot")
@@ -1643,45 +1664,43 @@ class ChannelLogTest(TembaTest):
         )
         msg_out = self.create_outgoing_msg(contact, "Working", channel=channel, status="S", logs=[log])
 
-        expected_unredacted = {
-            "type": "msg_send",
-            "http_logs": [
-                {
-                    "url": "https://telegram.com/send?to=74747474",
-                    "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
-                    "elapsed_ms": 30001,
-                    "retries": 0,
-                    "created_on": "2022-08-17T14:07:30Z",
-                }
-            ],
-            "errors": [{"code": "bad_response", "ext_code": "", "message": "response not right", "ref_url": None}],
-            "elapsed_ms": 0,
-            "created_on": matchers.ISODate(),
-        }
-
-        expected_redacted = {
-            "type": "msg_send",
-            "http_logs": [
-                {
-                    "url": "https://telegram.com/send?to=********",
-                    "request": 'POST https://telegram.com/send?to=******** HTTP/1.1\r\n\r\n{"to":"********"}',
-                    "response": "",
-                    "elapsed_ms": 30001,
-                    "retries": 0,
-                    "created_on": "2022-08-17T14:07:30Z",
-                }
-            ],
-            "errors": [{"code": "bad_response", "ext_code": "", "message": "response n********", "ref_url": None}],
-            "elapsed_ms": 0,
-            "created_on": matchers.ISODate(),
-        }
-
-        self.assertEqual(expected_unredacted, log.get_display(self.admin, urn=msg_out.contact_urn))
-        self.assertEqual(expected_unredacted, log.get_display(self.customer_support, urn=msg_out.contact_urn))
-
-        with AnonymousOrg(self.org):
-            self.assertEqual(expected_redacted, log.get_display(self.admin, urn=msg_out.contact_urn))
-            self.assertEqual(expected_unredacted, log.get_display(self.customer_support, urn=msg_out.contact_urn))
+        self.assertEqual(
+            {
+                "type": "msg_send",
+                "http_logs": [
+                    {
+                        "url": "https://telegram.com/send?to=74747474",
+                        "request": 'POST https://telegram.com/send?to=74747474 HTTP/1.1\r\n\r\n{"to":"74747474"}',
+                        "elapsed_ms": 30001,
+                        "retries": 0,
+                        "created_on": "2022-08-17T14:07:30Z",
+                    }
+                ],
+                "errors": [{"code": "bad_response", "ext_code": "", "message": "response not right", "ref_url": None}],
+                "elapsed_ms": 0,
+                "created_on": matchers.ISODate(),
+            },
+            log.get_display(anonymize=False, urn=msg_out.contact_urn),
+        )
+        self.assertEqual(
+            {
+                "type": "msg_send",
+                "http_logs": [
+                    {
+                        "url": "https://telegram.com/send?to=********",
+                        "request": 'POST https://telegram.com/send?to=******** HTTP/1.1\r\n\r\n{"to":"********"}',
+                        "response": "",
+                        "elapsed_ms": 30001,
+                        "retries": 0,
+                        "created_on": "2022-08-17T14:07:30Z",
+                    }
+                ],
+                "errors": [{"code": "bad_response", "ext_code": "", "message": "response n********", "ref_url": None}],
+                "elapsed_ms": 0,
+                "created_on": matchers.ISODate(),
+            },
+            log.get_display(anonymize=True, urn=msg_out.contact_urn),
+        )
 
     def test_trim_task(self):
         ChannelLog.objects.create(
