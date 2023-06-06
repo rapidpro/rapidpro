@@ -1,11 +1,10 @@
 coverage:
   precision: 2
   round: down
-
   status:
     project:
       default:
         target: 100%
-
 ignore:
   - "static"
+annotations: false
