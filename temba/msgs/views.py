@@ -18,7 +18,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.db.models.functions.text import Lower
 from django.forms import Form
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -56,6 +56,7 @@ from temba.utils.fields import (
 )
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
+from temba.utils.wizard import TembaWizardView
 
 from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, SystemLabel
 from .tasks import export_messages_task
@@ -156,8 +157,61 @@ class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
             menu.add_modax(_("Download"), "export-messages", self.derive_export_url(), title=_("Download Messages"))
 
 
+class ComposeForm(Form):
+    compose = ComposeField(
+        required=True,
+        initial={"text": "", "attachments": []},
+        widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True}),
+    )
+
+    def clean_compose(self):
+        compose = self.cleaned_data["compose"]
+        text = compose["text"]
+        attachments = compose["attachments"]
+        if not (text or attachments):
+            raise forms.ValidationError(_("Text or attachments are required."))
+        if text and len(text) > Msg.MAX_TEXT_LEN:
+            raise forms.ValidationError(_(f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters."))
+        if attachments and len(attachments) > Msg.MAX_ATTACHMENTS:
+            raise forms.ValidationError(_(f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files."))
+        return compose
+
+
+class ScheduleForm(ScheduleFormMixin):
+    def __init__(self, org, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.set_org(org)
+
+
+class TargetForm(Form):
+    omnibox = OmniboxField(
+        label=_("Recipients"),
+        required=True,
+        help_text=_("The contacts to send the message to."),
+        widget=OmniboxChoice(
+            attrs={
+                "placeholder": _("Search for contacts or groups"),
+                "groups": True,
+                "contacts": True,
+            }
+        ),
+    )
+
+    def __init__(self, org, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.org = org
+        self.fields["omnibox"].default_country = org.default_country_code
+
+    def clean_omnibox(self):
+        recipients = omnibox_deserialize(self.org, self.cleaned_data["omnibox"])
+        if not (recipients["groups"] or recipients["contacts"]):
+            raise forms.ValidationError(_("At least one recipient is required."))
+        return recipients
+
+
 class BroadcastCRUDL(SmartCRUDL):
     actions = (
+        "create",
         "scheduled",
         "scheduled_create",
         "scheduled_read",
@@ -167,6 +221,46 @@ class BroadcastCRUDL(SmartCRUDL):
         "send",
     )
     model = Broadcast
+
+    class Create(TembaWizardView):
+        form_list = [("compose", ComposeForm), ("target", TargetForm), ("schedule", ScheduleForm)]
+        success_url = "@msgs.broadcast_scheduled"
+        submit_button_name = _("Create Broadcast")
+
+        def get_form_kwargs(self, step):
+            if step in ("schedule", "target"):
+                return {"org": self.request.org}
+            return super().get_form_kwargs(step)
+
+        def done(self, form_list, form_dict, **kwargs):
+            user = self.request.user
+            org = self.request.org
+
+            compose = form_dict["compose"].cleaned_data["compose"]
+            text, attachments = compose_deserialize(compose)
+
+            recipients = form_dict["target"].cleaned_data["omnibox"]
+
+            schedule_form = form_dict["schedule"]
+            start_time = schedule_form.cleaned_data["start_datetime"]
+            repeat_period = schedule_form.cleaned_data["repeat_period"]
+            repeat_days_of_week = schedule_form.cleaned_data["repeat_days_of_week"]
+
+            schedule = Schedule.create_schedule(
+                org, user, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week
+            )
+
+            self.object = Broadcast.create(
+                org,
+                user,
+                text={"und": text},
+                attachments={"und": attachments},
+                groups=list(recipients["groups"]),
+                contacts=list(recipients["contacts"]),
+                schedule=schedule,
+            )
+
+            return HttpResponseRedirect(self.get_success_url())
 
     class Scheduled(MsgListView):
         title = _("Broadcasts")
@@ -182,7 +276,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 menu.add_modax(
                     _("New Broadcast"),
                     "new-scheduled",
-                    reverse("msgs.broadcast_scheduled_create"),
+                    reverse("msgs.broadcast_create"),
                     title=_("New Broadcast"),
                     as_button=True,
                 )
