@@ -385,7 +385,8 @@ class FormFields(BaseCheck):
     def check(self, test_cls, response, msg_prefix):
         form = self.get_context_item(test_cls, response, "form", msg_prefix)
         fields = list(form.fields.keys())
-        fields.remove("loc")
+        if "loc" in fields:
+            fields.remove("loc")
 
         test_cls.assertEqual(list(self.fields), list(fields), msg=f"{msg_prefix}: form fields mismatch")
 

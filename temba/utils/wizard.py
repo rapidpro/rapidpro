@@ -15,9 +15,6 @@ class SmartWizardView(SmartView, SessionWizardView):
     def derive_readonly(self):
         return []
 
-    def has_permission(self, request, *args, **kwargs):
-        return super().has_permission(request, *args, **kwargs)
-
     def lookup_field_help(self, field, default=None):
         form = self.get_form(self.steps.current)
         return form.fields[field].help_text or default
@@ -55,7 +52,8 @@ class SmartWizardView(SmartView, SessionWizardView):
         context["submit_button_name"] = self.derive_submit_button_name()
         return context
 
-    def get_success_url(self):
+    # here to support standard smartmin behavior, but pragma since object references aren't used yet
+    def get_success_url(self):  # pragma: no cover
         if self.success_url:
             # if our smart url references an object, pass that in
             if self.success_url.find("@") > 0:

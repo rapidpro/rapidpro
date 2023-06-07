@@ -1967,9 +1967,16 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_create(self):
         text = "I hope you are having a great day"
-        create_url = reverse("msgs.broadcast_create")
+        media = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
+            process=False,
+        )
 
-        self.login(self.editor)
+        create_url = reverse("msgs.broadcast_create")
+        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=("compose",))
+        self.login(self.admin)
 
         # missing text
         response = self.process_wizard("create", create_url, get_form_data(self.org, ""))
@@ -1980,17 +1987,13 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response.context["form"], "compose", ["Maximum allowed text is 640 characters."])
 
         # too many attachments
-
-        media = Media.from_upload(
-            self.org,
-            self.admin,
-            self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
-            process=False,
-        )
-
         attachments = compose_deserialize_attachments([{"content_type": media.content_type, "url": media.url}])
         response = self.process_wizard("create", create_url, get_form_data(self.org, text, attachments * 11))
         self.assertFormError(response.context["form"], "compose", ["Maximum allowed attachments is 10 files."])
+
+        # empty recipients
+        response = self.process_wizard("create", create_url, get_form_data(self.org, text, []))
+        self.assertFormError(response.context["form"], "omnibox", ["At least one recipient is required."])
 
         # successful broadcast creation
         response = self.process_wizard(
