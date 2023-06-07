@@ -7,7 +7,7 @@
 -block message-list
   %table.object-list.list.lined
     %tbody
-      -for broadcast in pending_broadcasts
+      -for broadcast in queued_broadcasts
         -with translation=broadcast.get_translation
           %tr
             %td.value-icon(style="width: 20px")
@@ -56,7 +56,7 @@
 
             {% channel_log_link object %}
 
-      -if not object_list and not pending_broadcasts
+      -if not object_list and not queued_broadcasts
         %tr.empty_list
           %td{ colspan:'99' }
             -trans "No matching messages."
