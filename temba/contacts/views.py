@@ -916,7 +916,7 @@ class ContactCRUDL(SmartCRUDL):
             )[0:6]
             return context
 
-    class Blocked(ContactListView):
+    class Blocked(ContentMenuMixin, ContactListView):
         title = _("Blocked Contacts")
         system_group = ContactGroup.TYPE_DB_BLOCKED
 
@@ -932,7 +932,7 @@ class ContactCRUDL(SmartCRUDL):
             context["reply_disabled"] = True
             return context
 
-    class Stopped(ContactListView):
+    class Stopped(ContentMenuMixin, ContactListView):
         title = _("Stopped Contacts")
         template_name = "contacts/contact_stopped.haml"
         system_group = ContactGroup.TYPE_DB_STOPPED

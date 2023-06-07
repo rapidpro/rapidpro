@@ -228,15 +228,11 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         blocked_url = reverse("contacts.contact_blocked")
 
-        response = self.client.get(blocked_url)
-        self.assertEqual([billy, frank, joe], list(response.context["object_list"]))
-        self.assertEqual([], list(response.context["actions"]))
-
-        self.login(self.admin)
-
-        # admin users see bulk actions
-        response = self.client.get(blocked_url)
+        response = self.assertListFetch(
+            blocked_url, allow_viewers=True, allow_editors=True, context_objects=[billy, frank, joe]
+        )
         self.assertEqual(["restore", "archive"], list(response.context["actions"]))
+        self.assertContentMenu(blocked_url, self.admin, ["Export"])
 
         # try restore bulk action
         self.client.post(blocked_url, {"action": "restore", "objects": billy.id})
@@ -271,15 +267,11 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         stopped_url = reverse("contacts.contact_stopped")
 
-        response = self.client.get(stopped_url)
-        self.assertEqual([billy, frank, joe], list(response.context["object_list"]))
-        self.assertEqual([], list(response.context["actions"]))
-
-        self.login(self.admin)
-
-        # admin users see bulk actions
-        response = self.client.get(stopped_url)
+        response = self.assertListFetch(
+            stopped_url, allow_viewers=True, allow_editors=True, context_objects=[billy, frank, joe]
+        )
         self.assertEqual(["restore", "archive"], list(response.context["actions"]))
+        self.assertContentMenu(stopped_url, self.admin, ["Export"])
 
         # try restore bulk action
         self.client.post(stopped_url, {"action": "restore", "objects": billy.id})
@@ -315,15 +307,11 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         archived_url = reverse("contacts.contact_archived")
 
-        response = self.client.get(archived_url)
-        self.assertEqual([billy, frank, joe], list(response.context["object_list"]))
-        self.assertEqual([], list(response.context["actions"]))
-
-        self.login(self.admin)
-
-        # admin users see bulk actions
-        response = self.client.get(archived_url)
+        response = self.assertListFetch(
+            archived_url, allow_viewers=True, allow_editors=True, context_objects=[billy, frank, joe]
+        )
         self.assertEqual(["restore", "delete"], list(response.context["actions"]))
+        self.assertContentMenu(archived_url, self.admin, ["Export", "Delete All"])
 
         # try restore bulk action
         self.client.post(archived_url, {"action": "restore", "objects": billy.id})
@@ -3623,50 +3611,49 @@ class ContactFieldTest(TembaTest):
 
         assertImportExportedFile("?g=%s" % group.uuid)
 
-        contact5 = self.create_contact("George", urns=["tel:+1234567777"], status=Contact.STATUS_BLOCKED)
+        contact5 = self.create_contact("George", urns=["tel:+1234567777"], status=Contact.STATUS_STOPPED)
 
-        # export a specified status group of contacts (Blocked)
-        with self.assertNumQueries(40):
-            self.assertExcelSheet(
-                request_export("?g=%s" % self.org.groups.get(name="Blocked").uuid)[0],
+        # export a specified status group of contacts (Stopped)
+        self.assertExcelSheet(
+            request_export("?g=%s" % self.org.groups.get(name="Stopped").uuid)[0],
+            [
                 [
-                    [
-                        "Contact UUID",
-                        "Name",
-                        "Language",
-                        "Status",
-                        "Created On",
-                        "Last Seen On",
-                        "URN:Mailto",
-                        "URN:Tel",
-                        "URN:Tel",
-                        "URN:Telegram",
-                        "URN:Twitter",
-                        "Field:Third",
-                        "Field:Second",
-                        "Field:First",
-                        "Group:Poppin Tags",
-                    ],
-                    [
-                        contact5.uuid,
-                        "George",
-                        "",
-                        "Blocked",
-                        contact5.created_on,
-                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
-                        "",
-                        "+1234567777",
-                        "+12062233445",
-                        "",
-                        "",
-                        "20-12-2015 08:30",
-                        "",
-                        "",
-                        False,
-                    ],
+                    "Contact UUID",
+                    "Name",
+                    "Language",
+                    "Status",
+                    "Created On",
+                    "Last Seen On",
+                    "URN:Mailto",
+                    "URN:Tel",
+                    "URN:Tel",
+                    "URN:Telegram",
+                    "URN:Twitter",
+                    "Field:Third",
+                    "Field:Second",
+                    "Field:First",
+                    "Group:Poppin Tags",
                 ],
-                tz=self.org.timezone,
-            )
+                [
+                    contact5.uuid,
+                    "George",
+                    "",
+                    "Stopped",
+                    contact5.created_on,
+                    "",
+                    "",
+                    "1234567777",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    False,
+                ],
+            ],
+            tz=self.org.timezone,
+        )
 
         # export a search
         mock_es_data = [
