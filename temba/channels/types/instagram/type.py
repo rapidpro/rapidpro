@@ -1,5 +1,6 @@
 import requests
 
+from django.conf import settings
 from django.urls import re_path
 from django.utils.translation import gettext_lazy as _
 
@@ -38,6 +39,8 @@ class InstagramType(ChannelType):
     schemes = [URN.INSTAGRAM_SCHEME]
     max_length = 2000
     free_sending = True
+
+    redact_values = (settings.FACEBOOK_APPLICATION_SECRET, settings.FACEBOOK_WEBHOOK_SECRET)
 
     def get_urls(self):
         return [
