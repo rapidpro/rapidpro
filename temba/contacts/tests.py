@@ -4993,6 +4993,7 @@ class ContactImportTest(TembaTest):
                 {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
                 {"header": "Name", "mapping": {"type": "attribute", "name": "name"}},
                 {"header": "language", "mapping": {"type": "attribute", "name": "language"}},
+                {"header": "Status", "mapping": {"type": "attribute", "name": "status"}},
                 {"header": "Created On", "mapping": {"type": "ignore"}},
                 {
                     "header": "field: goats",
@@ -5017,7 +5018,7 @@ class ContactImportTest(TembaTest):
                 "header": "field: goats",
                 "mapping": {"type": "field", "key": "num_goats", "name": "Goats"},  # matched by label
             },
-            imp.mappings[4],
+            imp.mappings[5],
         )
 
         # a header can be a number but it will be ignored
@@ -5191,6 +5192,7 @@ class ContactImportTest(TembaTest):
                     "_import_row": 2,
                     "name": "John Doe",
                     "language": "eng",
+                    "status": "archived",
                     "urns": ["tel:+250788123123"],
                     "fields": {"goats": "1", "sheep": "0"},
                     "groups": [str(imp.group.uuid)],
@@ -5199,6 +5201,7 @@ class ContactImportTest(TembaTest):
                     "_import_row": 3,
                     "name": "Mary Smith",
                     "language": "spa",
+                    "status": "blocked",
                     "urns": ["tel:+250788456456"],
                     "fields": {"goats": "3", "sheep": "5"},
                     "groups": [str(imp.group.uuid)],
@@ -5642,12 +5645,12 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
                 "group_mode",
                 "new_group_name",
                 "existing_group",
-                "column_4_include",
-                "column_4_name",
-                "column_4_value_type",
                 "column_5_include",
                 "column_5_name",
                 "column_5_value_type",
+                "column_6_include",
+                "column_6_name",
+                "column_6_value_type",
             ],
         )
 
@@ -5655,12 +5658,12 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             preview_url,
             {
-                "column_4_include": True,
-                "column_4_name": "Goats",
-                "column_4_value_type": "N",
                 "column_5_include": True,
-                "column_5_name": "age",
+                "column_5_name": "Goats",
                 "column_5_value_type": "N",
+                "column_6_include": True,
+                "column_6_name": "age",
+                "column_6_value_type": "N",
                 "add_to_group": False,
             },
         )
@@ -5671,12 +5674,12 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             preview_url,
             {
-                "column_4_include": True,
-                "column_4_name": "Goats",
-                "column_4_value_type": "N",
                 "column_5_include": True,
-                "column_5_name": "goats",
+                "column_5_name": "Goats",
                 "column_5_value_type": "N",
+                "column_6_include": True,
+                "column_6_name": "goats",
+                "column_6_value_type": "N",
                 "add_to_group": False,
             },
         )
@@ -5687,12 +5690,12 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             preview_url,
             {
-                "column_4_include": True,
-                "column_4_name": "Goats",
-                "column_4_value_type": "N",
                 "column_5_include": True,
-                "column_5_name": "#$%^@",
+                "column_5_name": "Goats",
                 "column_5_value_type": "N",
+                "column_6_include": True,
+                "column_6_name": "#$%^@",
+                "column_6_value_type": "N",
                 "add_to_group": False,
             },
         )
@@ -5703,12 +5706,12 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             preview_url,
             {
-                "column_4_include": True,
-                "column_4_name": "Goats",
-                "column_4_value_type": "N",
                 "column_5_include": True,
-                "column_5_name": "",
-                "column_5_value_type": "T",
+                "column_5_name": "Goats",
+                "column_5_value_type": "N",
+                "column_6_include": True,
+                "column_6_name": "",
+                "column_6_value_type": "T",
                 "add_to_group": False,
             },
         )
@@ -5719,12 +5722,12 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             preview_url,
             {
-                "column_4_include": True,
-                "column_4_name": "Goats",
-                "column_4_value_type": "N",
-                "column_5_include": False,
-                "column_5_name": "",
-                "column_5_value_type": "T",
+                "column_5_include": True,
+                "column_5_name": "Goats",
+                "column_5_value_type": "N",
+                "column_6_include": False,
+                "column_6_name": "",
+                "column_6_value_type": "T",
                 "add_to_group": False,
             },
         )
@@ -5737,6 +5740,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
                 {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
                 {"header": "Name", "mapping": {"type": "attribute", "name": "name"}},
                 {"header": "language", "mapping": {"type": "attribute", "name": "language"}},
+                {"header": "Status", "mapping": {"type": "attribute", "name": "status"}},
                 {"header": "Created On", "mapping": {"type": "ignore"}},
                 {
                     "header": "field: goats",
