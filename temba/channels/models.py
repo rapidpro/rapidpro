@@ -1001,6 +1001,11 @@ class ChannelLog(models.Model):
         if anonymize:
             self._anonymize(data, self.channel, urn)
 
+        # out of an abundance of caution, check that we're not returning one of our own credential values
+        for log in data["http_logs"]:
+            for secret in self.channel.type.redact_values:
+                assert secret not in log["url"] and secret not in log["request"] and secret not in log["response"]
+
         return data
 
     def get_json(self):

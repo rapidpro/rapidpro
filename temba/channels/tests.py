@@ -8,6 +8,7 @@ from urllib.parse import quote
 
 from smartmin.tests import SmartminTest
 
+from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core import mail
 from django.template import loader
@@ -2220,6 +2221,45 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         with AnonymousOrg(self.org):
             response = self.client.get(read_url)
             self.assertRedacted(response, ("097 909 9111", "979099111", "Quito"))
+
+    def test_channellog_whatsapp_cloud(self):
+        urn = "whatsapp:15128505839"
+        contact = self.create_contact("Fred Jones", urns=[urn])
+        channel = self.create_channel("WAC", "Test WAC Channel", "54764868534")
+        log = ChannelLog.objects.create(
+            channel=channel,
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
+            is_error=False,
+            http_logs=[
+                {
+                    "url": f"https://example.com/send/message?access_token={settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}",
+                    "status_code": 200,
+                    "request": f"""
+POST /send/message?access_token={settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN} HTTP/1.1
+Host: example.com
+Accept: */*
+Accept-Encoding: gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+Content-Length: 343
+Content-Type: application/x-www-form-urlencoded
+User-Agent: SignalwireCallback/1.0
+Authorization: Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}
+MessageSid=e1d12194-a643-4007-834a-5900db47e262&SmsSid=e1d12194-a643-4007-834a-5900db47e262&AccountSid=<redacted>&From=%2B15618981512&To=%2B15128505839&Body=Hi+Ben+Google+Voice%2C+Did+you+enjoy+your+stay+at+White+Bay+Villas%3F++Answer+with+Yes+or+No.+reply+STOP+to+opt-out.&NumMedia=0&NumSegments=1&MessageStatus=sent""",
+                    "response": '{"success": true }',
+                    "elapsed_ms": 12,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
+        )
+        self.create_incoming_msg(contact, "incoming msg", channel=channel, logs=[log])
+
+        self.login(self.admin)
+
+        read_url = reverse("channels.channellog_read", args=[log.id])
+
+        # the token should have been redacted by courier so blow up rather than let user see it
+        with self.assertRaises(AssertionError):
+            self.client.get(read_url)
 
     def test_channellog_anonymous_org_no_msg(self):
         tw_urn = "15128505839"
