@@ -16,8 +16,7 @@ class SmartWizardView(SmartView, SessionWizardView):
         return []
 
     def has_permission(self, request, *args, **kwargs):
-        # return super().has_permission(request, *args, **kwargs)
-        return True
+        return super().has_permission(request, *args, **kwargs)
 
     def lookup_field_help(self, field, default=None):
         form = self.get_form(self.steps.current)
