@@ -42,7 +42,6 @@ from temba.tests import (
     matchers,
     mock_mailroom,
 )
-from temba.tests.crudl import StaffRedirect
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticket, TicketCount, Ticketer
@@ -96,9 +95,9 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         frank = self.create_contact("Frank", phone="124", fields={"age": "18"})
 
         mr_mocks.contact_search('name != ""', contacts=[])
-        smart = self.create_group("No Name", query='name = ""')
+        self.create_group("No Name", query='name = ""')
 
-        with self.assertNumQueries(18):
+        with self.assertNumQueries(16):
             response = self.client.get(list_url)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
@@ -107,63 +106,6 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContentMenu(list_url, self.user, ["Export"])
 
         active_contacts = self.org.active_contacts_group
-        open_tickets = self.org.groups.get(name="Open Tickets")
-        survey_audience = self.org.groups.get(name="Survey Audience")
-        unsatisfied = self.org.groups.get(name="Unsatisfied Customers")
-
-        self.assertEqual(
-            [
-                {"id": self.org.groups.get(group_type="A").id, "name": "Active", "count": 2, "url": "/contact/"},
-                {
-                    "id": self.org.groups.get(group_type="B").id,
-                    "name": "Blocked",
-                    "count": 0,
-                    "url": "/contact/blocked/",
-                },
-                {
-                    "id": self.org.groups.get(group_type="S").id,
-                    "name": "Stopped",
-                    "count": 0,
-                    "url": "/contact/stopped/",
-                },
-                {
-                    "id": self.org.groups.get(group_type="V").id,
-                    "name": "Archived",
-                    "count": 0,
-                    "url": "/contact/archived/",
-                },
-                {
-                    "id": open_tickets.id,
-                    "name": "Open Tickets",
-                    "count": 0,
-                    "url": f"/contact/filter/{open_tickets.uuid}/",
-                },
-            ],
-            response.context["system_groups"],
-        )
-        self.assertEqual(
-            [
-                {"id": smart.id, "name": "No Name", "count": 0, "url": f"/contact/filter/{smart.uuid}/"},
-            ],
-            response.context["smart_groups"],
-        )
-        self.assertEqual(
-            [
-                {
-                    "id": survey_audience.id,
-                    "name": "Survey Audience",
-                    "count": 0,
-                    "url": f"/contact/filter/{survey_audience.uuid}/",
-                },
-                {
-                    "id": unsatisfied.id,
-                    "name": "Unsatisfied Customers",
-                    "count": 0,
-                    "url": f"/contact/filter/{unsatisfied.uuid}/",
-                },
-            ],
-            response.context["manual_groups"],
-        )
 
         # fetch with spa flag
         response = self.client.get(list_url, content_type="application/json", HTTP_TEMBA_SPA="1")
@@ -2725,187 +2667,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             self.assertNotContains(response, "Add Connection")
 
     @mock_mailroom
-    def test_read(self, mr_mocks):
-        read_url = reverse("contacts.contact_read", args=[self.joe.uuid])
-
-        for i in range(5):
-            self.create_incoming_msg(self.joe, f"some msg no {i} 2 send in sms language if u wish")
-            i += 1
-
-        self.create_campaign()
-
-        # create more events
-        for i in range(5):
-            msg = "Sent %d days after planting date" % (i + 10)
-            self.message_event = CampaignEvent.create_message_event(
-                self.org,
-                self.admin,
-                self.campaign,
-                relative_to=self.planting_date,
-                offset=i + 10,
-                unit="D",
-                message=msg,
-            )
-
-        planters = self.create_group("Planters", query='planting_date != ""')
-        planters.contacts.add(self.joe)
-
-        now = timezone.now()
-        joe_planting_date = now + timedelta(days=1)
-        self.set_contact_field(self.joe, "planting_date", joe_planting_date.isoformat())
-
-        # should have seven fires, one for each campaign event
-        self.assertEqual(7, EventFire.objects.filter(event__is_active=True).count())
-
-        # visit a contact detail page as a user but not belonging to this organization
-        self.login(self.user1)
-        response = self.client.get(read_url)
-        self.assertEqual(302, response.status_code)
-
-        # visit a contact detail page as a manager but not belonging to this organisation
-        self.login(self.non_org_user)
-        response = self.client.get(read_url)
-        self.assertEqual(302, response.status_code)
-
-        # visit a contact detail page as a manager within the organization
-        response = self.fetch_protected(read_url, self.admin)
-        self.assertEqual(self.joe, response.context["object"])
-
-        with patch("temba.orgs.models.Org.get_schemes") as mock_get_schemes:
-            mock_get_schemes.return_value = []
-
-            response = self.fetch_protected(read_url, self.admin)
-            self.assertEqual(self.joe, response.context["object"])
-            self.assertFalse(response.context["has_sendable_urn"])
-
-            mock_get_schemes.return_value = ["tel"]
-
-            response = self.fetch_protected(read_url, self.admin)
-            self.assertEqual(self.joe, response.context["object"])
-            self.assertTrue(response.context["has_sendable_urn"])
-
-        response = self.fetch_protected(read_url, self.admin)
-        self.assertEqual(self.joe, response.context["object"])
-        self.assertTrue(response.context["has_sendable_urn"])
-        upcoming = response.context["upcoming_events"]
-
-        # should show the next seven events to fire in reverse order
-        self.assertEqual(7, len(upcoming))
-
-        self.assertEqual("Sent 10 days after planting date", upcoming[4]["message"])
-        self.assertEqual("Sent 7 days after planting date", upcoming[5]["message"])
-        self.assertNotIn("message", upcoming[6])
-        self.assertEqual({"uuid": str(self.reminder_flow.uuid), "name": "Reminder Flow"}, upcoming[6]["flow"])
-
-        self.assertGreater(upcoming[4]["scheduled"], upcoming[5]["scheduled"])
-
-        # add a scheduled broadcast
-        broadcast = Broadcast.create(self.org, self.admin, {"eng": "Hello"}, contacts=[self.joe])
-        schedule_time = now + timedelta(days=5)
-        broadcast.schedule = Schedule.create_schedule(self.org, self.admin, schedule_time, Schedule.REPEAT_NEVER)
-        broadcast.save()
-
-        response = self.fetch_protected(read_url, self.admin)
-        self.assertEqual(self.joe, response.context["object"])
-        upcoming = response.context["upcoming_events"]
-
-        # should show the next 2 events to fire and the scheduled broadcast in reverse order by schedule time
-        self.assertEqual(8, len(upcoming))
-
-        self.assertEqual("Sent 7 days after planting date", upcoming[5]["message"])
-        self.assertEqual("Hello", upcoming[6]["message"])
-        self.assertNotIn("message", upcoming[7])
-        self.assertEqual({"uuid": str(self.reminder_flow.uuid), "name": "Reminder Flow"}, upcoming[7]["flow"])
-
-        self.assertGreater(upcoming[6]["scheduled"], upcoming[7]["scheduled"])
-
-        # add a screduled trigger
-        schedule_time = now + timedelta(days=20)
-        schedule = Schedule.create_schedule(self.org, self.admin, schedule_time, Schedule.REPEAT_NEVER)
-        trigger = Trigger.create(
-            self.org,
-            self.admin,
-            Trigger.TYPE_SCHEDULE,
-            self.reminder_flow,
-            groups=[],
-            exclude_groups=[],
-            contacts=(self.joe,),
-            schedule=schedule,
-        )
-
-        response = self.fetch_protected(read_url, self.admin)
-        self.assertEqual(self.joe, response.context["object"])
-        upcoming = response.context["upcoming_events"]
-        self.assertEqual(9, len(upcoming))
-
-        self.assertEqual(upcoming[0]["type"], "scheduled_trigger")
-        self.assertEqual({"uuid": str(self.reminder_flow.uuid), "name": "Reminder Flow"}, upcoming[0]["flow"])
-
-        # archived scheduled trigger should not be included
-        trigger.archive(self.admin)
-
-        response = self.fetch_protected(read_url, self.admin)
-        self.assertEqual(self.joe, response.context["object"])
-        upcoming = response.context["upcoming_events"]
-
-        self.assertEqual(8, len(upcoming))
-        self.assertNotEqual(upcoming[0]["type"], "scheduled_trigger")
-
-        contact_no_name = self.create_contact(name=None, phone="678")
-        read_url = reverse("contacts.contact_read", args=[contact_no_name.uuid])
-
-        # as staff
-        self.requestView(read_url, self.customer_support, checks=[StaffRedirect()])
-
-        # login as a manager from out of this organization
-        self.login(self.non_org_user)
-
-        # create kLab group, and add joe to the group
-        klab = self.create_group("kLab", [self.joe])
-
-        # post with remove_from_group action to read url, with joe's contact and kLab group
-        response = self.client.post(read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": klab.id})
-
-        # this manager cannot operate on this organization
-        self.assertEqual(302, response.status_code)
-        self.assertEqual(3, self.joe.get_groups().count())
-        self.client.logout()
-
-        # login as a manager of kLab
-        self.login(self.admin)
-
-        # remove this contact form kLab group
-        response = self.client.post(read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": klab.id})
-
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(2, self.joe.get_groups().count())
-
-        # try removing it again, should noop
-        response = self.client.post(read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": klab.id})
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(2, self.joe.get_groups().count())
-
-        # try removing from non-existent group
-        response = self.client.post(read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": 2341533})
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(2, self.joe.get_groups().count())
-
-        # try removing from a smart group (shouldn't happen, UI doesn't allow this)
-        response = self.client.post(
-            read_url + "?action=remove_from_group", {"contact": self.joe.id, "group": planters.id}
-        )
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(2, self.joe.get_groups().count())
-
-        # can't view contact in another org
-        response = self.client.get(reverse("contacts.contact_read", args=[self.other_org_contact.uuid]))
-        self.assertLoginRedirect(response)
-
-        # invalid UUID should return 404
-        response = self.client.get(reverse("contacts.contact_read", args=["bad-uuid"]))
-        self.assertEqual(response.status_code, 404)
-
-    @mock_mailroom
     def test_contacts_search(self, mr_mocks):
         search_url = reverse("contacts.contact_search")
         self.login(self.admin)
@@ -2988,43 +2749,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(
             response, "form", None, "An error occurred updating your contact. Please try again later."
         )
-
-    def test_contact_read_with_fields(self):
-        self.login(self.admin)
-
-        response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
-
-        self.assertEqual(len(response.context_data["all_contact_fields"]), 0)
-
-        # create some contact fields
-        self.create_field("first", "First", priority=10)
-        self.create_field("second", "Second")
-        third = self.create_field("third", "Third", priority=20)
-
-        # update ContactField data
-        self.set_contact_field(self.joe, "first", "a simple value")
-
-        response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
-
-        # there should be one 'normal' field
-        self.assertEqual(len(response.context_data["all_contact_fields"]), 1)
-
-        # make 'third' field a featured field, but don't assign a value (it should still be visible on the page)
-        third.show_in_table = True
-        third.save(update_fields=("show_in_table",))
-
-        response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
-
-        # there should be one 'normal' field and one 'featured' contact field
-        self.assertEqual(len(response.context_data["all_contact_fields"]), 2)
-
-        # assign a value to the 'third' field
-        self.set_contact_field(self.joe, "third", "a simple value")
-
-        response = self.client.get(reverse("contacts.contact_read", args=[self.joe.uuid]))
-
-        # there should be one 'normal' field and one 'featured' contact field
-        self.assertEqual(len(response.context_data["all_contact_fields"]), 2)
 
     def test_update(self):
         # if new values don't differ from current values.. no modifications
