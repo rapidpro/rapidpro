@@ -918,6 +918,8 @@ class ChannelLog(models.Model):
     A log of an interaction with a channel
     """
 
+    REDACT_MASK = "*" * 8  # used to mask redacted values
+
     LOG_TYPE_UNKNOWN = "unknown"
     LOG_TYPE_MSG_SEND = "msg_send"
     LOG_TYPE_MSG_STATUS = "msg_status"
@@ -958,78 +960,61 @@ class ChannelLog(models.Model):
     elapsed_ms = models.IntegerField(default=0)
     created_on = models.DateTimeField(default=timezone.now)
 
-    def _get_display_value(self, user, original, urn, redact_keys=(), redact_values=()):
-        """
-        Get a part of the log which may or may not have to be redacted to hide sensitive information in anon orgs
-        """
-
-        from temba.request_logs.models import HTTPLog
-
-        for secret_val in redact_values:
-            original = redact.text(original, secret_val, HTTPLog.REDACT_MASK)
-
-        if not self.channel.org.is_anon or user.is_staff:
-            return original
-
-        # if this log doesn't have a URN then we don't know what to redact, so redact completely
-        if not urn:
-            return original[:10] + HTTPLog.REDACT_MASK
+    @classmethod
+    def _anonymize_value(cls, original: str, urn, redact_keys=()) -> str:
+        # if log doesn't have an associated URN then we don't know what to anonymize, so redact completely
+        if not urn and original:
+            return original[:10] + cls.REDACT_MASK
 
         if redact_keys:
-            redacted = redact.http_trace(original, urn.path, HTTPLog.REDACT_MASK, redact_keys)
+            redacted = redact.http_trace(original, urn.path, cls.REDACT_MASK, redact_keys)
         else:
-            redacted = redact.text(original, urn.path, HTTPLog.REDACT_MASK)
+            redacted = redact.text(original, urn.path, cls.REDACT_MASK)
 
         # if nothing was redacted, don't risk returning sensitive information we didn't find
-        if original == redacted:
-            return original[:10] + HTTPLog.REDACT_MASK
+        if original == redacted and original:
+            return original[:10] + cls.REDACT_MASK
 
         return redacted
 
-    def get_display(self, user, urn) -> dict:
-        redact_values = self.channel.type.redact_values
-        redact_request_keys = self.channel.type.redact_request_keys
-        redact_response_keys = self.channel.type.redact_response_keys
+    @classmethod
+    def _anonymize(cls, data: dict, channel, urn):
+        request_keys = channel.type.redact_request_keys
+        response_keys = channel.type.redact_response_keys
 
-        def redact_http(log: dict) -> dict:
-            return {
-                "url": self._get_display_value(user, log["url"], urn, redact_values=redact_values),
-                "status_code": log.get("status_code", 0),
-                "request": self._get_display_value(
-                    user,
-                    log["request"],
-                    urn,
-                    redact_keys=redact_request_keys,
-                    redact_values=redact_values,
-                ),
-                "response": self._get_display_value(
-                    user,
-                    log.get("response", ""),
-                    urn,
-                    redact_keys=redact_response_keys,
-                    redact_values=redact_values,
-                ),
-                "elapsed_ms": log["elapsed_ms"],
-                "retries": log["retries"],
-                "created_on": log["created_on"],
-            }
+        for http_log in data["http_logs"]:
+            http_log["url"] = cls._anonymize_value(http_log["url"], urn)
+            http_log["request"] = cls._anonymize_value(http_log["request"], urn, redact_keys=request_keys)
+            http_log["response"] = cls._anonymize_value(http_log.get("response", ""), urn, redact_keys=response_keys)
 
-        def redact_error(err: dict) -> dict:
+        for err in data["errors"]:
+            err["message"] = cls._anonymize_value(err["message"], urn)
+
+    def get_display(self, *, anonymize: bool, urn) -> dict:
+        data = self.get_json()
+
+        # add reference URLs to errors
+        for err in data["errors"]:
             ext_code = err.get("ext_code")
-            ref_url = self.channel.type.get_error_ref_url(self.channel, ext_code) if ext_code else None
+            err["ref_url"] = self.channel.type.get_error_ref_url(self.channel, ext_code) if ext_code else None
 
-            return {
-                "code": err["code"],
-                "ext_code": ext_code,
-                "message": self._get_display_value(user, err["message"], urn, redact_values=redact_values),
-                "ref_url": ref_url,
-            }
+        if anonymize:
+            self._anonymize(data, self.channel, urn)
 
+        # out of an abundance of caution, check that we're not returning one of our own credential values
+        for log in data["http_logs"]:
+            for secret in self.channel.type.redact_values:
+                assert secret not in log["url"] and secret not in log["request"] and secret not in log["response"]
+
+        return data
+
+    def get_json(self):
         return {
-            "description": self.get_log_type_display(),
-            "http_logs": [redact_http(h) for h in (self.http_logs or [])],
-            "errors": [redact_error(e) for e in (self.errors or [])],
-            "created_on": self.created_on,
+            "type": self.log_type,
+            "http_logs": [h.copy() for h in self.http_logs or []],
+            "errors": [e.copy() for e in self.errors or []],
+            "elapsed_ms": self.elapsed_ms,
+            "created_on": self.created_on.isoformat(),
         }
 
     class Meta:
