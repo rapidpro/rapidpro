@@ -1,7 +1,11 @@
 -load humanize i18n
 
-.paging.px-2.flex.flex-row.items-center.h-10
-  %temba-checkbox.select-all(onclick="handleSelectAll(this)")
+.paging.flex.flex-row.items-center.h-10
+
+  -if actions|length and paginator.count
+    .check(style="padding-left: 0.55em")
+      %temba-checkbox.select-all(onclick="handleSelectAll(this)")
+
   .action-buttons.flex-grow
     .list-buttons-container
 
@@ -25,7 +29,11 @@
                 %li
                   .lbl-menu.add-label.linked{onclick:"handleAddLabelClicked()"}
                     -trans "New Label..."                      
-                    
+
+        -if 'resend' in actions
+          .linked.ml-4(onclick='runActionOnObjectRows("resend", refreshMenu)')
+            %temba-tip(position="top" text='{{_("Retry")|escapejs}}')
+              %temba-icon.show-loading(name="resend" size="1.2" clickable="true")
 
         -if 'restore' in actions
           .linked.ml-4(onclick='runActionOnObjectRows("restore", refreshMenu)')
