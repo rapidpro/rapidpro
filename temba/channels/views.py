@@ -987,70 +987,63 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["log"] = self.object.get_display(self.request.user, urn=None)
+
+            anonymize = self.request.org.is_anon and not (self.request.GET.get("break") and self.request.user.is_staff)
+
+            context["log"] = self.object.get_display(anonymize=anonymize, urn=None)
             return context
 
-    class Msg(SpaMixin, OrgObjPermsMixin, SmartListView):
+    class BaseOwned(SpaMixin, OrgObjPermsMixin, SmartListView):
+        permission = "channels.channellog_read"
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^(?P<channel_uuid>[0-9a-f-]+)/%s/%s/(?P<owner_id>\d+)/$" % (path, action)
+
+        def derive_menu_path(self):
+            return f"/settings/channels/{self.owner.channel.uuid}"
+
+        def get_object_org(self):
+            return self.owner.org
+
+        def derive_queryset(self, **kwargs):
+            uuids = self.owner.log_uuids or []
+            return super().derive_queryset(**kwargs).filter(uuid__in=uuids).order_by("created_on")
+
+    class Msg(BaseOwned):
         """
         All channel logs for a message
         """
 
-        permission = "channels.channellog_read"
-
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^(?P<channel_uuid>[0-9a-f-]+)/%s/%s/(?P<msg_id>\d+)/$" % (path, action)
-
         @cached_property
-        def msg(self):
-            return get_object_or_404(Msg, id=self.kwargs["msg_id"])
-
-        def derive_menu_path(self):
-            return f"/settings/channels/{self.msg.channel.uuid}"
-
-        def get_object_org(self):
-            return self.msg.org
-
-        def derive_queryset(self, **kwargs):
-            uuids = self.msg.log_uuids or []
-            return super().derive_queryset(**kwargs).filter(uuid__in=uuids).order_by("created_on")
+        def owner(self):
+            return get_object_or_404(Msg, id=self.kwargs["owner_id"])
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
-            urn = self.msg.contact_urn
+            urn = self.owner.contact_urn
+            anonymize = self.request.org.is_anon and not (self.request.GET.get("break") and self.request.user.is_staff)
 
-            context["msg"] = self.msg
-            context["logs"] = [log.get_display(self.request.user, urn=urn) for log in context["object_list"]]
+            context["msg"] = self.owner
+            context["logs"] = [log.get_display(anonymize=anonymize, urn=urn) for log in context["object_list"]]
             return context
 
-    class Call(SpaMixin, OrgObjPermsMixin, SmartListView):
+    class Call(BaseOwned):
         """
         All channel logs for a call
         """
 
-        permission = "channels.channellog_read"
-
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^(?P<channel_uuid>[0-9a-f-]+)/%s/%s/(?P<call_id>\d+)/$" % (path, action)
-
         @cached_property
-        def call(self):
-            return get_object_or_404(Call, id=self.kwargs["call_id"])
-
-        def get_object_org(self):
-            return self.call.org
-
-        def derive_queryset(self, **kwargs):
-            uuids = self.call.log_uuids or []
-            return super().derive_queryset(**kwargs).filter(uuid__in=uuids).order_by("created_on")
+        def owner(self):
+            return get_object_or_404(Call, id=self.kwargs["owner_id"])
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
-            urn = self.call.contact_urn
+            urn = self.owner.contact_urn
+            anonymize = self.request.org.is_anon and not (self.request.GET.get("break") and self.request.user.is_staff)
 
-            context["call"] = self.call
-            context["logs"] = [log.get_display(self.request.user, urn=urn) for log in context["object_list"]]
+            context["call"] = self.owner
+            context["logs"] = [log.get_display(anonymize=anonymize, urn=urn) for log in context["object_list"]]
             return context

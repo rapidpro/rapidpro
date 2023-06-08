@@ -695,6 +695,31 @@ class OrgTest(TembaTest):
         self.assertEqual([self.admin, admin3], list(self.org.get_admins().order_by("id")))
         self.assertEqual([self.admin, self.admin2], list(self.org2.get_admins().order_by("id")))
 
+    def test_get_allowed_user_roles(self):
+        self.assertEqual(
+            [OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.VIEWER, OrgRole.AGENT, OrgRole.SURVEYOR],
+            self.org.get_allowed_user_roles(),
+        )
+
+        self.user.release(self.customer_support)
+        self.surveyor.release(self.customer_support)
+
+        # should lose viewer because org doesn't have that feature but keep surveyor because deploy has that feature
+        self.assertEqual(
+            [OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.AGENT, OrgRole.SURVEYOR],
+            self.org.get_allowed_user_roles(),
+        )
+
+        self.org.features = [Org.FEATURE_VIEWERS]
+        self.org.save(update_fields=("features",))
+
+        with self.settings(FEATURES=[]):
+            # should gain viewer because it's a feature and lose surveyor
+            self.assertEqual(
+                [OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.VIEWER, OrgRole.AGENT],
+                self.org.get_allowed_user_roles(),
+            )
+
     def test_get_owner(self):
         # admins take priority
         self.assertEqual(self.admin, self.org.get_owner())
@@ -794,7 +819,7 @@ class OrgTest(TembaTest):
         self.assertContains(response, "Rwanda")
 
         # if location support is disabled in the settings, don't display country formax
-        with override_settings(FEATURES={}):
+        with override_settings(FEATURES=[]):
             response = self.client.get(settings_url)
             self.assertNotContains(response, "Rwanda")
 
@@ -1060,7 +1085,7 @@ class OrgTest(TembaTest):
         response = self.client.get(url)
         self.assertRedirect(response, settings_url)
 
-        self.org.features = [Org.FEATURE_USERS]
+        self.org.features = [Org.FEATURE_USERS, Org.FEATURE_VIEWERS]
         self.org.save(update_fields=("features",))
 
         response = self.client.get(url)
@@ -1351,6 +1376,18 @@ class OrgTest(TembaTest):
         self.assertEqual(2, Invitation.objects.filter(is_active=True).count())
         self.assertTrue(Invitation.objects.filter(is_active=True, email="code@temba.com").exists())
         self.assertEqual(4, len(mail.outbox))
+
+        # check restriction of roles - remove viewer (org level) and surveyor (deploy level) features
+        self.org.features = [Org.FEATURE_USERS]
+        self.org.save(update_fields=("features",))
+
+        with self.settings(FEATURES=[]):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(
+                [("A", "Administrator"), ("E", "Editor"), ("T", "Agent")],
+                response.context["form"].fields["invite_role"].choices,
+            )
 
     @patch("temba.utils.email.send_temba_email")
     def test_join(self, mock_send_temba_email):
