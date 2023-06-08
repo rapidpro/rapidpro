@@ -182,12 +182,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
     def derive_export_url(self):
         search = quote_plus(self.request.GET.get("search", ""))
         redirect = quote_plus(self.request.get_full_path())
-        return "%s?g=%s&s=%s&redirect=%s" % (
-            reverse("contacts.contact_export"),
-            self.group.uuid,
-            search,
-            redirect,
-        )
+        return f"{reverse('contacts.contact_export')}?g={self.group.uuid}&s={search}&redirect={redirect}"
 
     def derive_refresh(self):
         # smart groups that are reevaluating should refresh every 2 seconds
@@ -921,25 +916,33 @@ class ContactCRUDL(SmartCRUDL):
             )[0:6]
             return context
 
-    class Blocked(ContactListView):
+    class Blocked(ContentMenuMixin, ContactListView):
         title = _("Blocked Contacts")
         system_group = ContactGroup.TYPE_DB_BLOCKED
 
         def get_bulk_actions(self):
             return ("restore", "archive") if self.has_org_perm("contacts.contact_update") else ()
 
+        def build_content_menu(self, menu):
+            if self.has_org_perm("contacts.contact_export"):
+                menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
+
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
             context["reply_disabled"] = True
             return context
 
-    class Stopped(ContactListView):
+    class Stopped(ContentMenuMixin, ContactListView):
         title = _("Stopped Contacts")
         template_name = "contacts/contact_stopped.haml"
         system_group = ContactGroup.TYPE_DB_STOPPED
 
         def get_bulk_actions(self):
             return ("restore", "archive") if self.has_org_perm("contacts.contact_update") else ()
+
+        def build_content_menu(self, menu):
+            if self.has_org_perm("contacts.contact_export"):
+                menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -966,6 +969,9 @@ class ContactCRUDL(SmartCRUDL):
             return context
 
         def build_content_menu(self, menu):
+            if self.has_org_perm("contacts.contact_export"):
+                menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
+
             if self.has_org_perm("contacts.contact_delete"):
                 menu.add_js("contacts_delete_all", _("Delete All"))
 
