@@ -1,3 +1,9 @@
+v8.1.182 (2023-06-08)
+-------------------------
+ * Support imports with Status column
+ * Make viewer role users a feature that can be toggled
+ * Allow exporting of blocked, stopped and archived contacts
+
 v8.1.181 (2023-06-07)
 -------------------------
  * Add redact_values for FBA and IG channel types
