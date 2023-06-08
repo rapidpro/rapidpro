@@ -299,22 +299,18 @@ class ScheduleTest(TembaTest):
             process=False,
         )
         media_attachments.append({"content_type": media.content_type, "url": media.url})
-        attachments = compose_deserialize_attachments(media_attachments)
-        translation = {"text": text, "attachments": attachments}
+        compose_deserialize_attachments(media_attachments)
 
-        # create a new broadcast
-        self.client.post(
-            reverse("msgs.broadcast_scheduled_create"),
-            {
-                "omnibox": omnibox_serialize(self.org, [], [self.joe], json_encode=True),
-                "compose": compose_serialize(translation, json_encode=True),
-                "start_datetime": "2021-06-24 12:00",
-                "repeat_period": "D",
-            },
+        sched = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
+
+        # our view asserts that our schedule is connected to a broadcast
+        self.create_broadcast(
+            self.admin,
+            text,
+            contacts=[self.joe],
+            status=Broadcast.STATUS_QUEUED,
+            schedule=sched,
         )
-
-        bcast = Broadcast.objects.get()
-        sched = bcast.schedule
 
         update_url = reverse("schedules.schedule_update", args=[sched.id])
 
