@@ -2005,7 +2005,7 @@ class OrgCRUDL(SmartCRUDL):
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
-                role_choices = [(r.code, r.display) for r in OrgRole]
+                role_choices = [(r.code, r.display) for r in org.get_allowed_user_roles()]
 
                 self.fields["invite_role"].choices = role_choices
 
@@ -2156,6 +2156,7 @@ class OrgCRUDL(SmartCRUDL):
 
             cleaned_data = self.form.cleaned_data
             org = self.get_object()
+            allowed_roles = org.get_allowed_user_roles()
 
             # delete any invitations which have been checked for removal
             for invite in self.form.get_submitted_invite_removals():
@@ -2171,7 +2172,7 @@ class OrgCRUDL(SmartCRUDL):
             for user, new_role in self.form.get_submitted_roles().items():
                 if not new_role:
                     org.remove_user(user)
-                elif org.get_user_role(user) != new_role:
+                elif org.get_user_role(user) != new_role and new_role in allowed_roles:
                     org.add_user(user, new_role)
 
                 # when a user's role changes, delete any API tokens they're no longer allowed to have

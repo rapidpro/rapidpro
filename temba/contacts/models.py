@@ -1856,6 +1856,7 @@ class ExportContactsTask(BaseExport):
             dict(label="Contact UUID", key="uuid", field=None, urn_scheme=None),
             dict(label="Name", key="name", field=None, urn_scheme=None),
             dict(label="Language", key="language", field=None, urn_scheme=None),
+            dict(label="Status", key="status", field=None, urn_scheme=None),
             dict(label="Created On", key="created_on", field=None, urn_scheme=None),
             dict(label="Last Seen On", key="last_seen_on", field=None, urn_scheme=None),
         ]
@@ -1996,6 +1997,8 @@ class ExportContactsTask(BaseExport):
             return contact.uuid
         elif field["key"] == "language":
             return contact.language
+        elif field["key"] == "status":
+            return contact.get_status_display()
         elif field["key"] == "created_on":
             return contact.created_on
         elif field["key"] == "last_seen_on":
