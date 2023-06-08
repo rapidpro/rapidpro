@@ -1,3 +1,16 @@
+v8.1.181 (2023-06-07)
+-------------------------
+ * Add redact_values for FBA and IG channel types
+ * Remove unused code for legacy UI contact read and list pages
+ * Rework channel log anonymization so even staff users have to explicitly break out of it
+ * Rework channel log rendering to start from JSONified version
+ * Fix adding queued braodcasts to Outbox view and counts
+ * Cleanup db triggers for broadcasts
+
+v8.1.180 (2023-06-05)
+-------------------------
+ * Fix failed message resending and archived message deletion
+
 v8.1.179 (2023-06-05)
 -------------------------
  * Drop ChannelLog.msg and .call

@@ -1601,7 +1601,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # should see queued broadcast but not the scheduled one
-        self.assertEqual([broadcast3], list(response.context_data["pending_broadcasts"]))
+        self.assertEqual([broadcast3], list(response.context_data["queued_broadcasts"]))
 
         response = self.client.get(outbox_url + "?search=kevin")
         self.assertEqual([Msg.objects.get(contact=contact4)], list(response.context_data["object_list"]))
@@ -2935,7 +2935,7 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_INBOX: 4,
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 0,
-                SystemLabel.TYPE_OUTBOX: 1,
+                SystemLabel.TYPE_OUTBOX: 0,
                 SystemLabel.TYPE_SENT: 2,
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 1,
@@ -2964,7 +2964,7 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_INBOX: 3,
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 1,
-                SystemLabel.TYPE_OUTBOX: 3,
+                SystemLabel.TYPE_OUTBOX: 2,
                 SystemLabel.TYPE_SENT: 2,
                 SystemLabel.TYPE_FAILED: 0,
                 SystemLabel.TYPE_SCHEDULED: 2,
@@ -2987,7 +2987,7 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_INBOX: 1,
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 1,
-                SystemLabel.TYPE_OUTBOX: 1,
+                SystemLabel.TYPE_OUTBOX: 0,
                 SystemLabel.TYPE_SENT: 3,
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
@@ -3007,7 +3007,7 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_INBOX: 2,
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 0,
-                SystemLabel.TYPE_OUTBOX: 1,
+                SystemLabel.TYPE_OUTBOX: 0,
                 SystemLabel.TYPE_SENT: 3,
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
@@ -3015,7 +3015,7 @@ class SystemLabelTest(TembaTest):
             },
         )
 
-        self.assertEqual(SystemLabelCount.objects.all().count(), 26)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 25)
 
         # squash our counts
         squash_msg_counts()
@@ -3026,7 +3026,7 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_INBOX: 2,
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 0,
-                SystemLabel.TYPE_OUTBOX: 1,
+                SystemLabel.TYPE_OUTBOX: 0,
                 SystemLabel.TYPE_SENT: 3,
                 SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,

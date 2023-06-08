@@ -1338,7 +1338,7 @@ class Org(SmartModel):
             resthook.delete()
 
         # release our broadcasts
-        for bcast in self.broadcast_set.filter(parent=None):
+        for bcast in self.broadcasts.filter(parent=None):
             bcast.delete(user, soft=False)
 
         # delete other related objects

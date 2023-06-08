@@ -21,7 +21,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
-from django.db.models.functions import Lower, Upper
+from django.db.models.functions import Upper
 from django.forms import Form
 from django.http import Http404, HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
@@ -33,7 +33,6 @@ from django.views import View
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.mailroom.events import Event
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.models import User
@@ -90,32 +89,6 @@ HISTORY_INCLUDE_EVENTS = {
     Event.TYPE_RUN_RESULT_CHANGED,
     Event.TYPE_WEBHOOK_CALLED,
 }
-
-
-class RemoveFromGroupForm(forms.Form):
-    contact = TembaChoiceField(Contact.objects.none())
-    group = TembaChoiceField(ContactGroup.objects.none())
-
-    def __init__(self, *args, **kwargs):
-        org = kwargs.pop("org")
-        self.user = kwargs.pop("user")
-
-        super().__init__(*args, **kwargs)
-
-        self.fields["contact"].queryset = org.contacts.filter(is_active=True)
-        self.fields["group"].queryset = ContactGroup.get_groups(org=org, manual_only=True)
-
-    def execute(self):
-        data = self.cleaned_data
-        contact = data["contact"]
-        group = data["group"]
-
-        assert group.group_type == ContactGroup.TYPE_MANUAL
-
-        # remove contact from group
-        Contact.bulk_change_group(self.user, [contact], group, add=False)
-
-        return {"status": "success"}
 
 
 class ContactGroupForm(forms.ModelForm):
@@ -331,12 +304,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         contacts = context["object_list"]
         Contact.bulk_urn_cache_initialize(contacts)
 
-        system_groups, smart_groups, manual_groups = self.get_groups(org)
-
         context["contacts"] = contacts
-        context["system_groups"] = system_groups
-        context["smart_groups"] = smart_groups
-        context["manual_groups"] = manual_groups
         context["has_contacts"] = contacts or org.get_contact_count() > 0
         context["search_error"] = self.search_error
 
@@ -349,43 +317,6 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
             context["save_dynamic_search"] = self.save_dynamic_search
 
         return context
-
-    def get_groups(self, org) -> tuple:
-        # get all groups including status groups which one day will be regular smart+system groups
-        groups = org.groups.filter(is_active=True).select_related("org").order_by(Upper("name"))
-        group_counts = ContactGroupCount.get_totals(groups)
-
-        system, smart, manual = [], [], []
-
-        for group in groups:
-            obj = {
-                "id": group.id,
-                "name": group.name,
-                "count": group_counts[group],
-                "url": reverse("contacts.contact_filter", args=[group.uuid]),
-            }
-
-            if group.group_type == ContactGroup.TYPE_DB_ACTIVE:
-                obj.update({"name": _("Active"), "url": reverse("contacts.contact_list")})
-                system.append(obj)
-            elif group.group_type == ContactGroup.TYPE_DB_BLOCKED:
-                obj.update({"name": _("Blocked"), "url": reverse("contacts.contact_blocked")})
-                system.append(obj)
-            elif group.group_type == ContactGroup.TYPE_DB_STOPPED:
-                obj.update({"name": _("Stopped"), "url": reverse("contacts.contact_stopped")})
-                system.append(obj)
-            elif group.group_type == ContactGroup.TYPE_DB_ARCHIVED:
-                obj.update({"name": _("Archived"), "url": reverse("contacts.contact_archived")})
-                system.append(obj)
-            elif group.is_system:
-                system.append(obj)
-            elif group.group_type == ContactGroup.TYPE_SMART:
-                smart.append(obj)
-            else:
-                manual.append(obj)
-
-        # return system groups in the order we create them
-        return sorted(system, key=lambda g: g["id"]), smart, manual
 
 
 class ContactForm(forms.ModelForm):
@@ -767,78 +698,6 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_queryset(self):
             return Contact.objects.filter(is_active=True)
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            contact = self.object
-
-            context["contact_groups"] = contact.get_groups().order_by(Lower("name"))
-            context["upcoming_events"] = contact.get_scheduled(reverse=True)
-            context["open_tickets"] = list(
-                contact.tickets.filter(status=Ticket.STATUS_OPEN).select_related("ticketer").order_by("-opened_on")
-            )
-
-            # divide contact's URNs into those we can send to, and those we can't
-            sendable_schemes = contact.org.get_schemes(Channel.ROLE_SEND)
-            urns = contact.get_urns()
-            has_sendable_urn = False
-
-            for urn in urns:
-                if urn.scheme in sendable_schemes:
-                    urn.sendable = True
-                    has_sendable_urn = True
-
-            context["contact_urns"] = urns
-            context["has_sendable_urn"] = has_sendable_urn
-
-            # load our contacts values
-            Contact.bulk_urn_cache_initialize([contact])
-
-            # lookup all of our contact fields
-            all_contact_fields = []
-            fields = ContactField.user_fields.active_for_org(org=contact.org).order_by(
-                "-show_in_table", "-priority", "name", "id"
-            )
-
-            for field in fields:
-                value = contact.get_field_value(field)
-
-                if field.show_in_table:
-                    if not value:
-                        display = MISSING_VALUE
-                    else:
-                        display = contact.get_field_display(field)
-
-                    all_contact_fields.append(
-                        dict(id=field.id, name=field.name, value=display, show_in_table=field.show_in_table)
-                    )
-
-                else:
-                    display = contact.get_field_display(field)
-                    # add a contact field only if it has a value
-                    if display:
-                        all_contact_fields.append(
-                            dict(id=field.id, name=field.name, value=display, show_in_table=field.show_in_table)
-                        )
-
-            context["all_contact_fields"] = all_contact_fields
-
-            # calculate time after which timeline should be repeatedly refreshed - five minutes ago lets us pick up
-            # status changes on new messages
-            context["recent_start"] = datetime_to_timestamp(timezone.now() - timedelta(minutes=5))
-            return context
-
-        def post(self, request, *args, **kwargs):
-            action = request.GET.get("action")
-
-            if action == "remove_from_group":
-                form = RemoveFromGroupForm(self.request.POST, org=request.org, user=request.user)
-                if form.is_valid():
-                    return JsonResponse(form.execute())
-                else:
-                    return JsonResponse({"status": "failed"})
-
-            return HttpResponse("unknown action", status=400)  # pragma: no cover
 
         def build_content_menu(self, menu):
             obj = self.get_object()

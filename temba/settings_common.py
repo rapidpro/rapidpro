@@ -326,7 +326,6 @@ PERMISSIONS = {
     "classifiers.intent": ("api",),
     "contacts.contact": (
         "api",
-        "break_anon",
         "export",
         "history",
         "interrupt",
