@@ -23,7 +23,9 @@
 -block extra-script
   {{ block.super }}
   :javascript
-    prettyPrint();
+    onSpload(function () {
+      prettyPrint();
+    });
 
 -block extra-style
   {{ block.super }}

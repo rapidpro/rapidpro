@@ -13,23 +13,8 @@
   {{ block.super }}
 
   :javascript
-    prettyPrint();
-
-  :javascript
-    $('document').ready(function(){
-      $('.summary :first').click();
-    });
-
-    $('.summary').on('click', function() {
-      var top = $(this).parent('.log')
-      var ele = top.find(".details");
-      if (ele.is(':visible')) {
-        ele.slideUp();
-        top.removeClass('expanded');
-      } else {
-        ele.slideDown();
-        top.addClass('expanded')
-      }
+    onSpload(function () {
+      prettyPrint();
     });
 
 -block extra-style
