@@ -1,5 +1,6 @@
 import random
 import string
+from collections import OrderedDict
 from datetime import date, datetime, timedelta
 from unittest.mock import patch
 
@@ -1934,6 +1935,28 @@ class BroadcastTest(TembaTest):
         self.assertEqual(f'<Broadcast: id={broadcast.id} text="Hola a todos">', repr(broadcast))
 
 
+def get_form_data(
+    org, message, attachments=[], contacts=[], start_datetime="", repeat_period="", repeat_days_of_week=""
+):
+    return OrderedDict(
+        [
+            (
+                "compose",
+                {"compose": compose_serialize({"text": message, "attachments": attachments}, json_encode=True)},
+            ),
+            ("target", {"omnibox": omnibox_serialize(org, groups=[], contacts=contacts, json_encode=True)}),
+            (
+                "schedule",
+                {
+                    "start_datetime": start_datetime,
+                    "repeat_period": repeat_period,
+                    "repeat_days_of_week": repeat_days_of_week,
+                },
+            ),
+        ]
+    )
+
+
 class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
@@ -1941,6 +1964,46 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.joe = self.create_contact("Joe Blow", urns=["tel:+12025550149"])
         self.frank = self.create_contact("Frank Blow", urns=["tel:+12025550195"])
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
+
+    def test_create(self):
+        text = "I hope you are having a great day"
+        media = Media.from_upload(
+            self.org,
+            self.admin,
+            self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
+            process=False,
+        )
+
+        create_url = reverse("msgs.broadcast_create")
+        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=("compose",))
+        self.login(self.admin)
+
+        # missing text
+        response = self.process_wizard("create", create_url, get_form_data(self.org, ""))
+        self.assertFormError(response.context["form"], "compose", ["Text or attachments are required."])
+
+        # text too long
+        response = self.process_wizard("create", create_url, get_form_data(self.org, "." * 641))
+        self.assertFormError(response.context["form"], "compose", ["Maximum allowed text is 640 characters."])
+
+        # too many attachments
+        attachments = compose_deserialize_attachments([{"content_type": media.content_type, "url": media.url}])
+        response = self.process_wizard("create", create_url, get_form_data(self.org, text, attachments * 11))
+        self.assertFormError(response.context["form"], "compose", ["Maximum allowed attachments is 10 files."])
+
+        # empty recipients
+        response = self.process_wizard("create", create_url, get_form_data(self.org, text, []))
+        self.assertFormError(response.context["form"], "omnibox", ["At least one recipient is required."])
+
+        # successful broadcast creation
+        response = self.process_wizard(
+            "create", create_url, get_form_data(self.org, text, [], [self.joe], "2021-06-24 12:00", "W", ["M", "F"])
+        )
+        self.assertEqual(302, response.status_code)
+
+        self.assertEqual(1, Broadcast.objects.count())
+        broadcast = Broadcast.objects.filter(translations__icontains=text).first()
+        self.assertEqual("W", broadcast.schedule.repeat_period)
 
     @mock_mailroom
     def test_preview(self, mr_mocks):

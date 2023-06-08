@@ -209,6 +209,7 @@ INSTALLED_APPS = (
     "django.contrib.sitemaps",
     "django.contrib.postgres",
     "django.forms",
+    "formtools",
     # Haml-like templates
     "hamlpy",
     # Redis cache

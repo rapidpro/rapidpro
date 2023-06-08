@@ -1,0 +1,45 @@
+{% load i18n smartmin %}
+{% block head %}
+  {{ wizard.form.media }}
+{% endblock head %}
+{% block content %}
+  {% block extra-script %}
+  {% endblock extra-script %}
+  {% block extra-style %}
+    <style>
+      .pre-form {
+        margin-bottom: 0.5em;
+      }
+    </style>
+  {% endblock extra-style %}
+  <div class="pre-form">
+    {% block pre-form %}
+    {% endblock pre-form %}
+  </div>
+  <form id="wizard-form"
+        action=""
+        method="post"
+        data-completed="{{ completed }}"
+        data-step="{{ wizard.steps.step1 }}"
+        data-steps="{{ wizard.steps.count }}">
+    {% csrf_token %}
+    <table>
+      {{ wizard.management_form }}
+      {% if wizard.form.forms %}
+        {{ wizard.form.management_form }}
+        {% for form in wizard.form.forms %}{{ form.as_table }}{% endfor %}
+      {% else %}
+        {% block fields %}
+          {% for field in wizard.form.fields %}
+            {% render_field field %}
+          {% endfor %}
+        {% endblock fields %}
+      {% endif %}
+    </table>
+    {% if wizard.steps.step1 < wizard.steps.count %}
+      <button type="submit" value="{% translate "Next" %}" />
+    {% else %}
+      <button type="submit" value="{{ submit_button_name }}" />
+    {% endif %}
+  </form>
+{% endblock content %}

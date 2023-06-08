@@ -1,0 +1,31 @@
+{% extends "utils/forms/wizard.html" %}
+{% load i18n %}
+{% block extra-style %}
+  {{ block.super }}
+  <style>
+    .hidden {
+      display: none;
+    }
+  </style>
+{% endblock extra-style %}
+{% block extra-script %}
+  <script>
+    var modalBody = getModax("#shared-modax").shadowRoot;
+    var repeatPeriod = modalBody.querySelector("#id_schedule-repeat_period");
+    var repeatDays = modalBody.querySelector(".repeat-days-container");
+
+    if (repeatPeriod) {
+      repeatPeriod.addEventListener("change", function(event) {
+        var currentRepeat = event.currentTarget.values[0].value;
+        if (currentRepeat === 'W') {
+          repeatDays.classList.remove("hidden");
+        } else {
+          repeatDays.classList.add("hidden");
+        }
+      });
+    }
+  </script>
+{% endblock extra-script %}
+{% block fields %}
+  {% include "includes/schedule_fields.haml" with form=form %}
+{% endblock fields %}

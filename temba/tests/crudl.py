@@ -33,6 +33,17 @@ class CRUDLTestMixin:
 
         return response
 
+    def process_wizard(self, view_name, url, form_data):
+        for step, data in form_data.items():
+            # prepends each field name with the step name
+            data = {f"{step}-{key}": value for key, value in data.items()}
+            response = self.client.post(url, {f"{view_name}-current_step": step, **data})
+            if response.status_code == 200 and "form" in response.context and response.context["form"].errors:
+                return response
+
+            if response.status_code == 302:
+                return response
+
     def assertReadFetch(
         self, url, *, allow_viewers, allow_editors, allow_agents=False, context_object=None, status=200
     ):
@@ -374,7 +385,8 @@ class FormFields(BaseCheck):
     def check(self, test_cls, response, msg_prefix):
         form = self.get_context_item(test_cls, response, "form", msg_prefix)
         fields = list(form.fields.keys())
-        fields.remove("loc")
+        if "loc" in fields:
+            fields.remove("loc")
 
         test_cls.assertEqual(list(self.fields), list(fields), msg=f"{msg_prefix}: form fields mismatch")
 

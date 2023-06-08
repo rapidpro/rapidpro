@@ -55,6 +55,7 @@ chardet = "^4.0.0"
 openpyxl = "^3.1.2"
 ffmpeg-python = "^0.2.0"
 slack-sdk = "3.17.0"
+django-formtools = "^2.4.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.1.0"
