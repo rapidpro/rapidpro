@@ -2167,9 +2167,9 @@ class ContactImport(SmartModel):
 
             if header_prefix == "":
                 attribute = header_name.lower()
-                attribute = attribute.removeprefix("contact ")  # header "Contact UUID" -> uuid etc
+                attribute = attribute.removeprefix("contact ")  # header "contact uuid" -> "uuid" etc
 
-                if attribute in ("uuid", "name", "language"):
+                if attribute in ("uuid", "name", "language", "status"):
                     mapping = {"type": "attribute", "name": attribute}
             elif header_prefix == "urn" and header_name:
                 mapping = {"type": "scheme", "scheme": header_name.lower()}
@@ -2393,7 +2393,7 @@ class ContactImport(SmartModel):
 
             if mapping["type"] == "attribute":
                 attribute = mapping["name"]
-                if attribute in ("uuid", "language"):
+                if attribute in ("uuid", "language", "status"):
                     value = value.lower()
                 spec[attribute] = value
             elif mapping["type"] == "scheme":
