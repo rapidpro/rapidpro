@@ -41,4 +41,6 @@
 -block extra-script
   {{ block.super }}
   :javascript
-    prettyPrint();
+    onSpload(function () {
+      prettyPrint();
+    });

@@ -980,7 +980,8 @@ class ChannelLogCRUDL(SmartCRUDL):
         Detail view for a single channel log
         """
 
-        fields = ("description", "created_on")
+        def derive_menu_path(self):
+            return f"/settings/channels/{self.object.channel.uuid}"
 
         def get_object_org(self):
             return self.get_object().channel.org
