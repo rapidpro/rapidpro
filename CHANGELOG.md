@@ -1,3 +1,8 @@
+v8.1.183 (2023-06-08)
+-------------------------
+ * Add djLint config
+ * Add basic wizard support
+
 v8.1.182 (2023-06-08)
 -------------------------
  * Support imports with Status column
