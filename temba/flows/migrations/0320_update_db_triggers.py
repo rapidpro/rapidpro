@@ -213,6 +213,8 @@ BEGIN
     RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
+
+DROP FUNCTION temba_insert_flownodecount(INTEGER, UUID, INTEGER);
 """
 
 
