@@ -200,7 +200,7 @@ BEGIN
     INSERT INTO flows_flownodecount("flow_id", "node_uuid", "count", "is_squashed")
     SELECT o.flow_id, o.current_node_uuid, -count(*), FALSE FROM oldtab o
     INNER JOIN newtab n ON n.id = o.id
-    WHERE o.current_node_uuid IS NOT NULL AND o.current_node_uuid != n.current_node_uuid AND o.status IN ('A', 'W')
+    WHERE o.current_node_uuid IS NOT NULL AND o.status IN ('A', 'W') AND (o.current_node_uuid != n.current_node_uuid OR n.status NOT IN ('A', 'W'))
     GROUP BY o.flow_id, o.current_node_uuid;
 
     -- add node counts for all new current node values that don't match the old ones
