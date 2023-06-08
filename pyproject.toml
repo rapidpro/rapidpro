@@ -84,6 +84,23 @@ combine_as_imports = true
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "DJANGO", "FIRSTPARTY", "LOCALFOLDER"]
 known_django = ["django"]
 
+[tool.djlint]
+blank_line_after_tag = "load"
+custom_blocks = "render,render_field,getblock,get_label,get_value"
+custom_html="temba-\\w+"
+format_css = true
+format_js = true
+ignore = "H021,H023"
+indent = 2
+max_attribute_length = 100
+max_line_length = 200
+
+[tool.djlint.css]
+indent_size = 2
+
+[tool.djlint.js]
+indent_size = 2
+
 [tool.coverage.run]
 source = ["./temba"]
 
