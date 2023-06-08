@@ -1,3 +1,8 @@
+v8.1.186 (2023-06-08)
+-------------------------
+ * Format api_root.html and fix errors
+ * Fix channel log pretty printing
+
 v8.1.183 (2023-06-08)
 -------------------------
  * Add djLint config
