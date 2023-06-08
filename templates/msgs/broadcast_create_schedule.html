@@ -14,10 +14,7 @@
     var repeatPeriod = modalBody.querySelector("#id_schedule-repeat_period");
     var repeatDays = modalBody.querySelector(".repeat-days-container");
 
-    console.log(repeatPeriod);
-
     if (repeatPeriod) {
-      console.log(repeatPeriod.values);
       repeatPeriod.addEventListener("change", function(event) {
         var currentRepeat = event.currentTarget.values[0].value;
         if (currentRepeat === 'W') {
