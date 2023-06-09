@@ -1,3 +1,7 @@
+v8.1.188 (2023-06-09)
+-------------------------
+ * Tweak contact field access backfill migration
+
 v8.1.187 (2023-06-09)
 -------------------------
  * Add ContactField.agent_access and backfill to view
