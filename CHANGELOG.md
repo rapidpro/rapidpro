@@ -1,3 +1,9 @@
+v8.1.187 (2023-06-09)
+-------------------------
+ * Add ContactField.agent_access and backfill to view
+ * Use statement level triggers for tracking current node counts
+ * Remove old scheduled broadcast create view
+
 v8.1.186 (2023-06-08)
 -------------------------
  * Format api_root.html and fix errors
