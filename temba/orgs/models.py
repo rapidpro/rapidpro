@@ -23,6 +23,7 @@ from django.contrib.postgres.validators import ArrayMinLengthValidator
 from django.db import models, transaction
 from django.db.models import Prefetch
 from django.utils import timezone
+from django.utils.encoding import force_str
 from django.utils.functional import cached_property
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
@@ -1433,6 +1434,32 @@ class OrgImport(TembaUUIDMixin, SmartModel):
     started_on = models.DateTimeField(null=True)
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
     finished_on = models.DateTimeField(null=True)
+
+    def start(self):
+        assert self.status == self.STATUS_PENDING, "trying to start an already started import"
+
+        # mark us as processing to prevent double starting
+        self.status = self.STATUS_PROCESSING
+        self.started_on = timezone.now()
+        self.save(update_fields=("status", "started_on"))
+        try:
+            org = self.org
+            link = org.get_brand()["link"]
+            data = json.loads(force_str(self.file.read()))
+            org.import_app(data, self.created_by, link)
+        except Exception as e:
+            self.status = self.STATUS_FAILED
+            self.save(update_fields=("status",))
+
+            # this is an unexpected error, report it to sentry
+            logger = logging.getLogger(__name__)
+            logger.error("Exception on app import: %s" % str(e), exc_info=True)
+
+            raise e
+        else:
+            self.status = self.STATUS_COMPLETE
+            self.finished_on = timezone.now()
+            self.save(update_fields=("status", "finished_on"))
 
 
 class Invitation(SmartModel):
