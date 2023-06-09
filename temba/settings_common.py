@@ -369,7 +369,6 @@ PERMISSIONS = {
     "msgs.broadcast": (
         "api",
         "scheduled",
-        "scheduled_create",
         "scheduled_read",
         "scheduled_update",
         "scheduled_delete",

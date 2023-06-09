@@ -213,7 +213,6 @@ class BroadcastCRUDL(SmartCRUDL):
     actions = (
         "create",
         "scheduled",
-        "scheduled_create",
         "scheduled_read",
         "scheduled_update",
         "scheduled_delete",
@@ -272,7 +271,7 @@ class BroadcastCRUDL(SmartCRUDL):
         menu_path = "/msg/broadcasts"
 
         def build_content_menu(self, menu):
-            if self.has_org_perm("msgs.broadcast_scheduled_create"):
+            if self.has_org_perm("msgs.broadcast_create"):
                 menu.add_modax(
                     _("New Broadcast"),
                     "new-scheduled",
@@ -289,95 +288,6 @@ class BroadcastCRUDL(SmartCRUDL):
                 .select_related("org", "schedule")
                 .prefetch_related("groups", "contacts")
             )
-
-    class ScheduledCreate(OrgPermsMixin, ModalMixin, SmartFormView):
-        class Form(ScheduleFormMixin, Form):
-            omnibox = OmniboxField(
-                label=_("Recipients"),
-                required=True,
-                help_text=_("The contacts to send the message to."),
-                widget=OmniboxChoice(
-                    attrs={
-                        "placeholder": _("Search for contacts or groups"),
-                        "widget_only": True,
-                        "groups": True,
-                        "contacts": True,
-                    }
-                ),
-            )
-            compose = ComposeField(
-                required=True,
-                initial={"text": "", "attachments": []},
-                widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True}),
-            )
-
-            def __init__(self, org, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.set_org(org)
-                self.org = org
-                self.fields["omnibox"].default_country = org.default_country_code
-
-            def clean_omnibox(self):
-                recipients = omnibox_deserialize(self.org, self.cleaned_data["omnibox"])
-                if not (recipients["groups"] or recipients["contacts"]):
-                    raise forms.ValidationError(_("At least one recipient is required."))
-                return recipients
-
-            def clean_compose(self):
-                compose = self.cleaned_data["compose"]
-                text = compose["text"]
-                attachments = compose["attachments"]
-                if not (text or attachments):
-                    raise forms.ValidationError(_("Text or attachments are required."))
-                if text and len(text) > Msg.MAX_TEXT_LEN:
-                    raise forms.ValidationError(_(f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters."))
-                if attachments and len(attachments) > Msg.MAX_ATTACHMENTS:
-                    raise forms.ValidationError(_(f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files."))
-                return compose
-
-            def clean(self):
-                cleaned_data = super().clean()
-                ScheduleFormMixin.clean(self)
-                return cleaned_data
-
-        form_class = Form
-        title = _("New Broadcast")
-        fields = ("omnibox", "compose") + ScheduleFormMixin.Meta.fields
-        success_url = "@msgs.broadcast_scheduled"
-        submit_button_name = _("Create")
-        menu_path = "/msg/broadcasts"
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
-
-        def form_valid(self, form):
-            user = self.request.user
-            org = self.request.org
-            recipients = form.cleaned_data["omnibox"]
-
-            compose = form.cleaned_data["compose"]
-            text, attachments = compose_deserialize(compose)
-
-            start_time = form.cleaned_data["start_datetime"]
-            repeat_period = form.cleaned_data["repeat_period"]
-            repeat_days_of_week = form.cleaned_data["repeat_days_of_week"]
-
-            schedule = Schedule.create_schedule(
-                org, user, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week
-            )
-            self.object = Broadcast.create(
-                org,
-                user,
-                text={"und": text},
-                attachments={"und": attachments},
-                groups=list(recipients["groups"]),
-                contacts=list(recipients["contacts"]),
-                schedule=schedule,
-            )
-
-            return self.render_modal_response(form)
 
     class ScheduledRead(SpaMixin, ContentMenuMixin, FormaxMixin, OrgObjPermsMixin, SmartReadView):
         title = _("Broadcast")
