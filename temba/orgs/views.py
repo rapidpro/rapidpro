@@ -1441,7 +1441,6 @@ class OrgCRUDL(SmartCRUDL):
 
         class FlowImportForm(Form):
             import_file = forms.FileField(help_text=_("The import file"))
-            update = forms.BooleanField(help_text=_("Update all flows and campaigns"), required=False)
 
             def __init__(self, *args, **kwargs):
                 self.org = kwargs["org"]
