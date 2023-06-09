@@ -367,6 +367,11 @@ class ContactField(TembaModel, DependencyMixin):
     )
     TYPE_CHOICES = TYPE_CHOICES_BASIC + TYPE_CHOICES_LOCATIONS
 
+    ACCESS_NONE = "N"
+    ACCESS_VIEW = "V"
+    ACCESS_EDIT = "E"
+    ACCESS_CHOICES = ((ACCESS_NONE, _("Hidden")), (ACCESS_VIEW, _("View")), (ACCESS_EDIT, "Edit"))
+
     ENGINE_TYPES = {
         TYPE_TEXT: "text",
         TYPE_NUMBER: "number",
@@ -432,6 +437,7 @@ class ContactField(TembaModel, DependencyMixin):
     # how field is displayed in the UI
     show_in_table = models.BooleanField(default=False)
     priority = models.PositiveIntegerField(default=0)
+    agent_access = models.CharField(max_length=1, choices=ACCESS_CHOICES, default=ACCESS_VIEW)
 
     # model managers
     objects = models.Manager()
