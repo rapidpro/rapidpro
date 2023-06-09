@@ -1435,6 +1435,9 @@ class OrgImport(TembaUUIDMixin, SmartModel):
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
     finished_on = models.DateTimeField(null=True)
 
+    def is_import_finished(self):
+        return self.status in (OrgImport.STATUS_COMPLETE, OrgImport.STATUS_FAILED)
+
     def start(self):
         assert self.status == self.STATUS_PENDING, "trying to start an already started import"
 

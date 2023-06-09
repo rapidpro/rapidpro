@@ -53,7 +53,7 @@ from temba.utils.uuid import uuid4
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .context_processors import RolePermsWrapper
-from .models import BackupToken, Invitation, Org, OrgMembership, OrgRole, User
+from .models import BackupToken, Invitation, Org, OrgImport, OrgMembership, OrgRole, User
 from .tasks import delete_released_orgs, resume_failed_tasks
 
 
@@ -3947,6 +3947,8 @@ class BulkExportTest(TembaTest):
     def test_import(self):
         self.login(self.admin)
 
+        OrgImport.objects.all().delete()
+
         post_data = dict(import_file=open("%s/test_flows/too_old.json" % settings.MEDIA_ROOT, "rb"))
         response = self.client.post(reverse("orgs.org_import"), post_data)
         self.assertFormError(
@@ -3960,6 +3962,12 @@ class BulkExportTest(TembaTest):
         )
         self.assertEqual(302, response.status_code)
 
+        # should have created an org import object
+        self.assertTrue(OrgImport.objects.filter(org=self.org))
+
+        org_import = OrgImport.objects.filter(org=self.org).get()
+        self.assertEqual(org_import.status, OrgImport.STATUS_COMPLETE)
+
         flow = self.org.flows.filter(name="Favorites").get()
         self.assertEqual(Flow.CURRENT_SPEC_VERSION, flow.version_number)
 
@@ -3968,7 +3976,9 @@ class BulkExportTest(TembaTest):
             validate.side_effect = Exception("Unexpected Error")
             post_data = dict(import_file=open("%s/test_flows/new_mother.json" % settings.MEDIA_ROOT, "rb"))
             response = self.client.post(reverse("orgs.org_import"), post_data)
-            self.assertFormError(response, "form", "import_file", "Sorry, your import file is invalid.")
+
+            org_import = OrgImport.objects.filter(org=self.org).last()
+            self.assertEqual(org_import.status, OrgImport.STATUS_FAILED)
 
             # trigger import failed, new flows that were added should get rolled back
             self.assertIsNone(Flow.objects.filter(org=self.org, name="New Mother").first())
@@ -3977,12 +3987,16 @@ class BulkExportTest(TembaTest):
         junk_binary_data = io.BytesIO(b"\x00!\x00b\xee\x9dh^\x01\x00\x00\x04\x00\x02[Content_Types].xml \xa2\x04\x02(")
         post_data = dict(import_file=junk_binary_data)
         response = self.client.post(reverse("orgs.org_import"), post_data)
-        self.assertFormError(response, "form", "import_file", "This file is not a valid flow definition file.")
+
+        org_import = OrgImport.objects.filter(org=self.org).last()
+        self.assertEqual(org_import.status, OrgImport.STATUS_FAILED)
 
         junk_json_data = io.BytesIO(b'{"key": "data')
         post_data = dict(import_file=junk_json_data)
         response = self.client.post(reverse("orgs.org_import"), post_data)
-        self.assertFormError(response, "form", "import_file", "This file is not a valid flow definition file.")
+
+        org_import = OrgImport.objects.filter(org=self.org).last()
+        self.assertEqual(org_import.status, OrgImport.STATUS_FAILED)
 
     def test_import_campaign_with_translations(self):
         self.import_file("campaign_import_with_translations")
