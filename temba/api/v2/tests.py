@@ -97,7 +97,7 @@ class APITest(TembaTest):
 
         return self.client.delete(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS="https")
 
-    def assertEndpointAccess(self, url, query=None, *, viewer_get: int, admin_get: int):
+    def assertEndpointAccess(self, url, query=None, *, viewer_get: int, admin_get: int, agent_get: int):
         self.client.logout()
 
         # 403 if not authenticated but can read docs
@@ -119,8 +119,17 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, viewer_get, f"expected {viewer_get} for GET as viewer")
 
         # check POST JSON as viewer (never allowed)
-        response = self.postJSON(url, query, {})
+        response = self.postJSON(url, "", {})
         self.assertIn(response.status_code, [403, 405])
+
+        # check DELETE JSON as viewer (never allowed)
+        response = self.deleteJSON(url, "id=123")
+        self.assertIn(response.status_code, [403, 405])
+
+        # check GET JSON as agent
+        self.login(self.agent)
+        response = self.getJSON(url, query)
+        self.assertEqual(response.status_code, agent_get, f"expected {agent_get} for GET as agent")
 
         # check GET JSON as admin
         self.login(self.admin)
@@ -871,12 +880,135 @@ class EndpointsTest(APITest):
 
         self.assertFalse(Contact.objects.filter(urns__path="+12067791212"))
 
+    def test_archives(self):
+        archives_url = reverse("api.v2.archives")
+
+        self.assertEndpointAccess(archives_url, viewer_get=403, admin_get=200, agent_get=403)
+
+        # create some archives
+        Archive.objects.create(
+            org=self.org,
+            start_date=datetime(2017, 4, 5),
+            build_time=12,
+            record_count=34,
+            size=345,
+            hash="feca9988b7772c003204a28bd741d0d0",
+            archive_type=Archive.TYPE_MSG,
+            period=Archive.PERIOD_DAILY,
+        )
+        may_archive = Archive.objects.create(
+            org=self.org,
+            start_date=datetime(2017, 5, 5),
+            build_time=12,
+            record_count=34,
+            size=345,
+            hash="feca9988b7772c003204a28bd741d0d0",
+            archive_type=Archive.TYPE_MSG,
+            period=Archive.PERIOD_MONTHLY,
+        )
+        Archive.objects.create(
+            org=self.org,
+            start_date=datetime(2017, 6, 5),
+            build_time=12,
+            record_count=34,
+            size=345,
+            hash="feca9988b7772c003204a28bd741d0d0",
+            archive_type=Archive.TYPE_FLOWRUN,
+            period=Archive.PERIOD_DAILY,
+        )
+        Archive.objects.create(
+            org=self.org,
+            start_date=datetime(2017, 7, 5),
+            build_time=12,
+            record_count=34,
+            size=345,
+            hash="feca9988b7772c003204a28bd741d0d0",
+            archive_type=Archive.TYPE_FLOWRUN,
+            period=Archive.PERIOD_MONTHLY,
+        )
+        # this archive has been rolled up and it should not be included in the API responses
+        Archive.objects.create(
+            org=self.org,
+            start_date=datetime(2017, 5, 1),
+            build_time=12,
+            record_count=34,
+            size=345,
+            hash="feca9988b7772c003204a28bd741d0d0",
+            archive_type=Archive.TYPE_FLOWRUN,
+            period=Archive.PERIOD_DAILY,
+            rollup_id=may_archive.id,
+        )
+
+        # create archive for other org
+        Archive.objects.create(
+            org=self.org2,
+            start_date=datetime(2017, 5, 1),
+            build_time=12,
+            record_count=34,
+            size=345,
+            hash="feca9988b7772c003204a28bd741d123",
+            archive_type=Archive.TYPE_FLOWRUN,
+            period=Archive.PERIOD_DAILY,
+        )
+
+        response = self.getJSON(archives_url, readonly_models={Archive})
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        # there should be 4 archives in the response, because one has been rolled up
+        self.assertEqual(len(resp_json["results"]), 4)
+        self.assertEqual(
+            resp_json["results"][0],
+            {
+                "archive_type": "run",
+                "download_url": "",
+                "hash": "feca9988b7772c003204a28bd741d0d0",
+                "period": "monthly",
+                "record_count": 34,
+                "size": 345,
+                "start_date": "2017-07-05",
+            },
+        )
+
+        response = self.getJSON(archives_url, query="after=2017-05-01")
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(resp_json["results"]), 3)
+
+        response = self.getJSON(archives_url, query="after=2017-05-01&archive_type=run")
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(resp_json["results"]), 2)
+
+        # unknown archive type
+        response = self.getJSON(archives_url, query="after=2017-05-01&archive_type=!!!unknown!!!")
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(resp_json["results"]), 0)
+
+        # only for dailies
+        response = self.getJSON(archives_url, query="after=2017-05-01&archive_type=run&period=daily")
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(resp_json["results"]), 1)
+
+        # only for monthlies
+        response = self.getJSON(archives_url, query="period=monthly")
+        resp_json = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(resp_json["results"]), 2)
+
     def test_boundaries(self):
         self.setUpLocations()
 
         boundaries_url = reverse("api.v2.boundaries")
 
-        self.assertEndpointAccess(boundaries_url, viewer_get=403, admin_get=200)
+        self.assertEndpointAccess(boundaries_url, viewer_get=403, admin_get=200, agent_get=403)
 
         BoundaryAlias.create(self.org, self.admin, self.state1, "Kigali")
         BoundaryAlias.create(self.org, self.admin, self.state2, "East Prov")
@@ -935,7 +1067,7 @@ class EndpointsTest(APITest):
     def test_broadcasts(self, mock_queue_broadcast):
         broadcasts_url = reverse("api.v2.broadcasts")
 
-        self.assertEndpointAccess(broadcasts_url, viewer_get=403, admin_get=200)
+        self.assertEndpointAccess(broadcasts_url, viewer_get=403, admin_get=200, agent_get=200)
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
 
@@ -1136,133 +1268,10 @@ class EndpointsTest(APITest):
         response = self.postJSON(broadcasts_url, None, {"text": "Hello", "urns": ["twitter:franky"]})
         self.assertResponseError(response, "non_field_errors", Org.BLOCKER_FLAGGED)
 
-    def test_archives(self):
-        archives_url = reverse("api.v2.archives")
-
-        self.assertEndpointAccess(archives_url, viewer_get=403, admin_get=200)
-
-        # create some archives
-        Archive.objects.create(
-            org=self.org,
-            start_date=datetime(2017, 4, 5),
-            build_time=12,
-            record_count=34,
-            size=345,
-            hash="feca9988b7772c003204a28bd741d0d0",
-            archive_type=Archive.TYPE_MSG,
-            period=Archive.PERIOD_DAILY,
-        )
-        may_archive = Archive.objects.create(
-            org=self.org,
-            start_date=datetime(2017, 5, 5),
-            build_time=12,
-            record_count=34,
-            size=345,
-            hash="feca9988b7772c003204a28bd741d0d0",
-            archive_type=Archive.TYPE_MSG,
-            period=Archive.PERIOD_MONTHLY,
-        )
-        Archive.objects.create(
-            org=self.org,
-            start_date=datetime(2017, 6, 5),
-            build_time=12,
-            record_count=34,
-            size=345,
-            hash="feca9988b7772c003204a28bd741d0d0",
-            archive_type=Archive.TYPE_FLOWRUN,
-            period=Archive.PERIOD_DAILY,
-        )
-        Archive.objects.create(
-            org=self.org,
-            start_date=datetime(2017, 7, 5),
-            build_time=12,
-            record_count=34,
-            size=345,
-            hash="feca9988b7772c003204a28bd741d0d0",
-            archive_type=Archive.TYPE_FLOWRUN,
-            period=Archive.PERIOD_MONTHLY,
-        )
-        # this archive has been rolled up and it should not be included in the API responses
-        Archive.objects.create(
-            org=self.org,
-            start_date=datetime(2017, 5, 1),
-            build_time=12,
-            record_count=34,
-            size=345,
-            hash="feca9988b7772c003204a28bd741d0d0",
-            archive_type=Archive.TYPE_FLOWRUN,
-            period=Archive.PERIOD_DAILY,
-            rollup_id=may_archive.id,
-        )
-
-        # create archive for other org
-        Archive.objects.create(
-            org=self.org2,
-            start_date=datetime(2017, 5, 1),
-            build_time=12,
-            record_count=34,
-            size=345,
-            hash="feca9988b7772c003204a28bd741d123",
-            archive_type=Archive.TYPE_FLOWRUN,
-            period=Archive.PERIOD_DAILY,
-        )
-
-        response = self.getJSON(archives_url, readonly_models={Archive})
-        resp_json = response.json()
-
-        self.assertEqual(response.status_code, 200)
-        # there should be 4 archives in the response, because one has been rolled up
-        self.assertEqual(len(resp_json["results"]), 4)
-        self.assertEqual(
-            resp_json["results"][0],
-            {
-                "archive_type": "run",
-                "download_url": "",
-                "hash": "feca9988b7772c003204a28bd741d0d0",
-                "period": "monthly",
-                "record_count": 34,
-                "size": 345,
-                "start_date": "2017-07-05",
-            },
-        )
-
-        response = self.getJSON(archives_url, query="after=2017-05-01")
-        resp_json = response.json()
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(resp_json["results"]), 3)
-
-        response = self.getJSON(archives_url, query="after=2017-05-01&archive_type=run")
-        resp_json = response.json()
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(resp_json["results"]), 2)
-
-        # unknown archive type
-        response = self.getJSON(archives_url, query="after=2017-05-01&archive_type=!!!unknown!!!")
-        resp_json = response.json()
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(resp_json["results"]), 0)
-
-        # only for dailies
-        response = self.getJSON(archives_url, query="after=2017-05-01&archive_type=run&period=daily")
-        resp_json = response.json()
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(resp_json["results"]), 1)
-
-        # only for monthlies
-        response = self.getJSON(archives_url, query="period=monthly")
-        resp_json = response.json()
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(resp_json["results"]), 2)
-
     def test_campaigns(self):
         campaigns_url = reverse("api.v2.campaigns")
 
-        self.assertEndpointAccess(campaigns_url, viewer_get=403, admin_get=200)
+        self.assertEndpointAccess(campaigns_url, viewer_get=403, admin_get=200, agent_get=403)
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         other_group = self.create_group("Others", [])
@@ -1373,7 +1382,7 @@ class EndpointsTest(APITest):
     def test_campaign_events(self, mr_mocks):
         events_url = reverse("api.v2.campaign_events")
 
-        self.assertEndpointAccess(events_url, viewer_get=403, admin_get=200)
+        self.assertEndpointAccess(events_url, viewer_get=403, admin_get=200, agent_get=403)
 
         flow = self.create_flow("Test Flow")
         reporters = self.create_group("Reporters", [self.joe, self.frank])
@@ -1826,7 +1835,7 @@ class EndpointsTest(APITest):
     def test_channels(self):
         channels_url = reverse("api.v2.channels")
 
-        self.assertEndpointAccess(channels_url, viewer_get=403, admin_get=200)
+        self.assertEndpointAccess(channels_url, viewer_get=403, admin_get=200, agent_get=403)
 
         # create deleted channel
         deleted = self.create_channel("JC", "Deleted", "nyaruka")
@@ -1873,7 +1882,7 @@ class EndpointsTest(APITest):
     def test_channel_events(self):
         events_url = reverse("api.v2.channel_events")
 
-        self.assertEndpointAccess(events_url, viewer_get=403, admin_get=200)
+        self.assertEndpointAccess(events_url, viewer_get=403, admin_get=200, agent_get=403)
 
         call1 = self.create_channel_event(self.channel, "tel:0788123123", ChannelEvent.TYPE_CALL_IN_MISSED)
         call2 = self.create_channel_event(
@@ -1928,7 +1937,7 @@ class EndpointsTest(APITest):
     def test_classifiers(self):
         classifiers_url = reverse("api.v2.classifiers")
 
-        self.assertEndpointAccess(classifiers_url, viewer_get=200, admin_get=200)
+        self.assertEndpointAccess(classifiers_url, viewer_get=200, admin_get=200, agent_get=403)
 
         # create some classifiers
         c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {})
@@ -1980,7 +1989,7 @@ class EndpointsTest(APITest):
     def test_contacts(self, mr_mocks):
         contacts_url = reverse("api.v2.contacts")
 
-        self.assertEndpointAccess(contacts_url, viewer_get=403, admin_get=200)
+        self.assertEndpointAccess(contacts_url, viewer_get=403, admin_get=200, agent_get=200)
 
         # create some more contacts (in addition to Joe and Frank)
         contact1 = self.create_contact(
@@ -2670,7 +2679,7 @@ class EndpointsTest(APITest):
     def test_contact_actions(self, mr_mocks):
         actions_url = reverse("api.v2.contact_actions")
 
-        self.assertEndpointAccess(actions_url, viewer_get=403, admin_get=405)
+        self.assertEndpointAccess(actions_url, viewer_get=403, admin_get=405, agent_get=405)
 
         for contact in Contact.objects.all():
             contact.release(self.admin)
@@ -2852,7 +2861,7 @@ class EndpointsTest(APITest):
     def test_definitions(self):
         defs_url = reverse("api.v2.definitions")
 
-        self.assertEndpointAccess(defs_url, viewer_get=200, admin_get=200)
+        self.assertEndpointAccess(defs_url, viewer_get=200, admin_get=200, agent_get=200)
 
         self.import_file("subflow")
         flow = Flow.objects.filter(name="Parent Flow").first()
@@ -2958,7 +2967,7 @@ class EndpointsTest(APITest):
     def test_fields(self):
         fields_url = reverse("api.v2.fields")
 
-        self.assertEndpointAccess(fields_url, viewer_get=200, admin_get=200)
+        self.assertEndpointAccess(fields_url, viewer_get=200, admin_get=200, agent_get=200)
 
         self.create_field("nick_name", "Nick Name")
         registered = self.create_field("registered", "Registered On", value_type=ContactField.TYPE_DATETIME)
@@ -3090,7 +3099,7 @@ class EndpointsTest(APITest):
     def test_flows(self):
         flows_url = reverse("api.v2.flows")
 
-        self.assertEndpointAccess(flows_url, viewer_get=403, admin_get=200)
+        self.assertEndpointAccess(flows_url, viewer_get=403, admin_get=200, agent_get=403)
 
         survey = self.get_flow("media_survey")
         color = self.get_flow("color")
@@ -3255,7 +3264,7 @@ class EndpointsTest(APITest):
     def test_flow_starts(self, mock_async_start):
         starts_url = reverse("api.v2.flow_starts")
 
-        self.assertEndpointAccess(starts_url, viewer_get=403, admin_get=200)
+        self.assertEndpointAccess(starts_url, viewer_get=403, admin_get=200, agent_get=403)
 
         flow = self.get_flow("favorites_v13")
 
@@ -3533,7 +3542,7 @@ class EndpointsTest(APITest):
     def test_globals(self):
         globals_url = reverse("api.v2.globals")
 
-        self.assertEndpointAccess(globals_url, viewer_get=200, admin_get=200)
+        self.assertEndpointAccess(globals_url, viewer_get=200, admin_get=200, agent_get=200)
 
         # create some globals
         global1 = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Ltd")
@@ -3671,7 +3680,7 @@ class EndpointsTest(APITest):
     def test_groups(self, mr_mocks):
         groups_url = reverse("api.v2.groups")
 
-        self.assertEndpointAccess(groups_url, viewer_get=200, admin_get=200)
+        self.assertEndpointAccess(groups_url, viewer_get=200, admin_get=200, agent_get=200)
 
         self.create_field("isdeveloper", "Is developer")
         open_tickets = self.org.groups.get(name="Open Tickets")
@@ -3880,7 +3889,7 @@ class EndpointsTest(APITest):
     def test_labels(self):
         labels_url = reverse("api.v2.labels")
 
-        self.assertEndpointAccess(labels_url, viewer_get=200, admin_get=200)
+        self.assertEndpointAccess(labels_url, viewer_get=200, admin_get=200, agent_get=403)
 
         important = self.create_label("Important")
         feedback = self.create_label("Feedback")
@@ -3988,7 +3997,7 @@ class EndpointsTest(APITest):
     def test_media(self):
         media_url = reverse("api.v2.media")
 
-        self.assertEndpointAccess(media_url, viewer_get=403, admin_get=405)
+        self.assertEndpointAccess(media_url, viewer_get=403, admin_get=405, agent_get=405)
 
         def upload(filename: str):
             with open(filename, "rb") as data:
@@ -4051,8 +4060,7 @@ class EndpointsTest(APITest):
     def test_messages(self, mr_mocks):
         msgs_url = reverse("api.v2.messages")
 
-        # make sure user rights are correct
-        self.assertEndpointAccess(msgs_url, "folder=inbox", viewer_get=403, admin_get=200)
+        self.assertEndpointAccess(msgs_url, "folder=inbox", viewer_get=403, admin_get=200, agent_get=200)
 
         # create some messages
         flow = self.create_flow("Test")
@@ -4282,7 +4290,7 @@ class EndpointsTest(APITest):
     def test_message_actions(self):
         actions_url = reverse("api.v2.message_actions")
 
-        self.assertEndpointAccess(actions_url, viewer_get=403, admin_get=405)
+        self.assertEndpointAccess(actions_url, viewer_get=403, admin_get=405, agent_get=405)
 
         # create some messages to act on
         msg1 = self.create_incoming_msg(self.joe, "Msg #1")
@@ -4406,7 +4414,7 @@ class EndpointsTest(APITest):
     def test_runs(self):
         runs_url = reverse("api.v2.runs")
 
-        self.assertEndpointAccess(runs_url, viewer_get=403, admin_get=200)
+        self.assertEndpointAccess(runs_url, viewer_get=403, admin_get=200, agent_get=403)
 
         flow1 = self.get_flow("color_v13")
         flow2 = flow1.clone(self.user)
@@ -4735,7 +4743,7 @@ class EndpointsTest(APITest):
     def test_resthooks(self):
         hooks_url = reverse("api.v2.resthooks")
 
-        self.assertEndpointAccess(hooks_url, viewer_get=403, admin_get=200)
+        self.assertEndpointAccess(hooks_url, viewer_get=403, admin_get=200, agent_get=403)
 
         # create some resthooks
         resthook1 = Resthook.get_or_create(self.org, "new-mother", self.admin)
@@ -4773,7 +4781,7 @@ class EndpointsTest(APITest):
         # ok, let's look at subscriptions
         subs_url = reverse("api.v2.resthook_subscribers")
 
-        self.assertEndpointAccess(subs_url, viewer_get=403, admin_get=200)
+        self.assertEndpointAccess(subs_url, viewer_get=403, admin_get=200, agent_get=403)
 
         # try to create empty subscription
         response = self.postJSON(subs_url, None, {})
@@ -4855,7 +4863,7 @@ class EndpointsTest(APITest):
         # ok, let's look at the events on this resthook
         events_url = reverse("api.v2.resthook_events")
 
-        self.assertEndpointAccess(events_url, viewer_get=403, admin_get=200)
+        self.assertEndpointAccess(events_url, viewer_get=403, admin_get=200, agent_get=403)
 
         # create some events on our resthooks
         event1 = WebHookEvent.objects.create(
@@ -4893,7 +4901,7 @@ class EndpointsTest(APITest):
     def test_templates(self):
         templates_url = reverse("api.v2.templates")
 
-        self.assertEndpointAccess(templates_url, viewer_get=403, admin_get=200)
+        self.assertEndpointAccess(templates_url, viewer_get=403, admin_get=200, agent_get=403)
 
         # create some templates
         TemplateTranslation.get_or_create(
@@ -4996,7 +5004,7 @@ class EndpointsTest(APITest):
     def test_ticketers(self):
         ticketers_url = reverse("api.v2.ticketers")
 
-        self.assertEndpointAccess(ticketers_url, viewer_get=200, admin_get=200)
+        self.assertEndpointAccess(ticketers_url, viewer_get=200, admin_get=200, agent_get=403)
 
         t1 = self.org.ticketers.get()  # the internal ticketer
 
@@ -5060,7 +5068,7 @@ class EndpointsTest(APITest):
     def test_tickets(self, mock_ticket_reopen, mock_ticket_close):
         tickets_url = reverse("api.v2.tickets")
 
-        self.assertEndpointAccess(tickets_url, viewer_get=403, admin_get=200)
+        self.assertEndpointAccess(tickets_url, viewer_get=403, admin_get=200, agent_get=200)
 
         # create some tickets
         mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
@@ -5155,7 +5163,7 @@ class EndpointsTest(APITest):
     def test_ticket_actions(self, mr_mocks):
         actions_url = reverse("api.v2.ticket_actions")
 
-        self.assertEndpointAccess(actions_url, viewer_get=403, admin_get=405)
+        self.assertEndpointAccess(actions_url, viewer_get=403, admin_get=405, agent_get=405)
 
         # create some tickets
         mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
@@ -5270,7 +5278,7 @@ class EndpointsTest(APITest):
     def test_topics(self):
         topics_url = reverse("api.v2.topics")
 
-        self.assertEndpointAccess(topics_url, viewer_get=200, admin_get=200)
+        self.assertEndpointAccess(topics_url, viewer_get=200, admin_get=200, agent_get=200)
 
         # create some topics
         support = Topic.create(self.org, self.admin, "Support")
@@ -5384,7 +5392,7 @@ class EndpointsTest(APITest):
         self.surveyor.last_name = "McSurveys"
         self.surveyor.save()
 
-        self.assertEndpointAccess(users_url, viewer_get=200, admin_get=200)
+        self.assertEndpointAccess(users_url, viewer_get=200, admin_get=200, agent_get=200)
 
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
             response = self.getJSON(users_url, readonly_models={User})
@@ -5417,7 +5425,7 @@ class EndpointsTest(APITest):
     def test_workspace(self):
         workspace_url = reverse("api.v2.workspace")
 
-        self.assertEndpointAccess(workspace_url, viewer_get=200, admin_get=200)
+        self.assertEndpointAccess(workspace_url, viewer_get=200, admin_get=200, agent_get=200)
 
         # fetch as JSON
         response = self.getJSON(workspace_url)

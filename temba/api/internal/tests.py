@@ -11,7 +11,7 @@ class EndpointsTest(APITest):
     def test_notifications(self):
         notifications_url = reverse("api.internal.notifications")
 
-        self.assertEndpointAccess(notifications_url, viewer_get=200, admin_get=200)
+        self.assertEndpointAccess(notifications_url, viewer_get=200, admin_get=200, agent_get=200)
 
         # simulate an export finishing
         export = ExportContactsTask.create(self.org, self.admin)
