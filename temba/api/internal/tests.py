@@ -1,29 +1,17 @@
-from django.db import connection
 from django.urls import reverse
 
+from temba.api.v2.tests import APITest
 from temba.contacts.models import ExportContactsTask
 from temba.notifications.models import Notification
 from temba.notifications.types import ExportFinishedNotificationType
-from temba.tests import TembaTest, matchers
+from temba.tests import matchers
 
 
-class EndpointsTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        # this is needed to prevent REST framework from rolling back transaction created around each unit test
-        connection.settings_dict["ATOMIC_REQUESTS"] = False
-
-    def tearDown(self):
-        super().tearDown()
-
-        connection.settings_dict["ATOMIC_REQUESTS"] = True
-
+class EndpointsTest(APITest):
     def test_notifications(self):
-        endpoint_url = reverse("api.internal.notifications") + ".json"
+        notifications_url = reverse("api.internal.notifications")
 
-        response = self.client.get(endpoint_url)
-        self.assertEqual(403, response.status_code)
+        self.assertEndpointAccess(notifications_url, viewer_get=200, admin_get=200)
 
         # simulate an export finishing
         export = ExportContactsTask.create(self.org, self.admin)
@@ -32,10 +20,7 @@ class EndpointsTest(TembaTest):
         # and org being suspended
         self.org.suspend()
 
-        self.login(self.admin)
-
-        with self.mockReadOnly(assert_models={Notification}):
-            response = self.client.get(endpoint_url)
+        response = self.getJSON(notifications_url, readonly_models={Notification})
 
         self.assertEqual(200, response.status_code)
         self.assertEqual(
@@ -69,8 +54,7 @@ class EndpointsTest(TembaTest):
         # notifications are user specific
         self.login(self.editor)
 
-        with self.mockReadOnly(assert_models={Notification}):
-            response = self.client.get(endpoint_url)
+        response = self.getJSON(notifications_url, readonly_models={Notification})
 
         self.assertEqual(200, response.status_code)
         self.assertEqual(
