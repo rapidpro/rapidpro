@@ -26,6 +26,8 @@ def reverse(apps, schema_editor):  # pragma: no cover
 
 
 class Migration(migrations.Migration):
+    atomic = False
+
     dependencies = [("contacts", "0173_contactfield_agent_access")]
 
     operations = [migrations.RunPython(backfill_field_access, reverse)]
