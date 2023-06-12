@@ -1,3 +1,9 @@
+v8.1.190 (2023-06-12)
+-------------------------
+ * Add agent_access to API fields endpoint
+ * Restrict agent users view of field values on API contacts endpoint
+ * Remove use of django tags inside javascript
+
 v8.1.189 (2023-06-12)
 -------------------------
  * Fix broken list view template
