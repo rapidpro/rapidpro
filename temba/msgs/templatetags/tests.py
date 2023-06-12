@@ -20,6 +20,19 @@ class TestSMSTagLibrary(TembaTest):
             attachment_button("image/jpeg:https://example.com/test.jpg"),
         )
 
+        # now with thumbnail
+        self.assertEqual(
+            {
+                "content_type": "image/jpeg",
+                "category": "image",
+                "preview": "JPEG",
+                "url": "https://example.com/test.jpg",
+                "is_playable": False,
+                "thumb": "https://example.com/test.jpg",
+            },
+            attachment_button("image/jpeg:https://example.com/test.jpg", True),
+        )
+
         # missing extension and thus no subtype
         self.assertEqual(
             {
