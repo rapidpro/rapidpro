@@ -2499,6 +2499,53 @@ class EndpointsTest(APITest):
         response = self.deleteJSON(contacts_url, "uuid=%s" % hans.uuid)
         self.assert404(response)
 
+    @mock_mailroom
+    def test_contacts_as_agent(self, mr_mocks):
+        contacts_url = reverse("api.v2.contacts")
+
+        self.create_field("gender", "Gender", ContactField.TYPE_TEXT, agent_access=ContactField.ACCESS_NONE)
+        self.create_field("age", "Age", ContactField.TYPE_NUMBER, agent_access=ContactField.ACCESS_VIEW)
+        self.create_field("height", "Height", ContactField.TYPE_NUMBER, agent_access=ContactField.ACCESS_EDIT)
+
+        contact = self.create_contact(
+            "Bob", urns=["telegram:12345"], fields={"gender": "M", "age": "40", "height": "180"}
+        )
+
+        self.login(self.agent)
+
+        # fetching a contact returns only the fields that agents can access
+        response = self.getJSON(contacts_url, f"uuid={contact.uuid}")
+        self.assertEqual(
+            {
+                "uuid": str(contact.uuid),
+                "name": "Bob",
+                "status": "active",
+                "language": None,
+                "urns": ["telegram:12345"],
+                "groups": [],
+                "fields": {"age": "40", "height": "180"},
+                "flow": None,
+                "created_on": format_datetime(contact.created_on),
+                "modified_on": format_datetime(contact.modified_on),
+                "last_seen_on": None,
+                "blocked": False,
+                "stopped": False,
+            },
+            response.json()["results"][0],
+        )
+
+        # can't edit the field that we don't have any access to
+        response = self.postJSON(contacts_url, f"uuid={contact.uuid}", {"fields": {"gender": "M"}})
+        self.assertResponseError(response, "fields", "Invalid contact field key: gender")
+
+        # nor the field that we have view access to
+        response = self.postJSON(contacts_url, f"uuid={contact.uuid}", {"fields": {"age": "30"}})
+        self.assertResponseError(response, "fields", "Editing of 'age' values disallowed for current user.")
+
+        # but can edit the field we have edit access for
+        response = self.postJSON(contacts_url, f"uuid={contact.uuid}", {"fields": {"height": "160"}})
+        self.assertEqual(200, response.status_code)
+
     def test_contacts_prevent_null_chars(self):
         contacts_url = reverse("api.v2.contacts")
 

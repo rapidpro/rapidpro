@@ -538,12 +538,11 @@ class ContactCRUDL(SmartCRUDL):
             )
 
             if self.has_org_perm("contacts.contactfield_list"):
-                count = len(ContactField.user_fields.active_for_org(org=org))
                 menu.append(
                     dict(
                         id="fields",
                         icon="fields",
-                        count=count,
+                        count=ContactField.get_fields(org).count(),
                         name=_("Fields"),
                         href=reverse("contacts.contactfield_list"),
                     )

@@ -1478,7 +1478,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint
         So that we only fetch active contact fields once for all contacts
         """
         context = super().get_serializer_context()
-        context["contact_fields"] = ContactField.user_fields.active_for_org(org=self.request.org)
+        context["contact_fields"] = ContactField.get_fields(org=self.request.org, viewable_by=self.request.user)
         return context
 
     def get_object(self):
