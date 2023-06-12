@@ -1,3 +1,8 @@
+v8.1.189 (2023-06-12)
+-------------------------
+ * Fix broken list view template
+ * Add djlint and latest django-hamlpy
+
 v8.1.188 (2023-06-09)
 -------------------------
  * Tweak contact field access backfill migration
