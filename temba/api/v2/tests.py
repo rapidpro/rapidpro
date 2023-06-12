@@ -2999,6 +2999,7 @@ class EndpointsTest(APITest):
                     "featured": False,
                     "priority": 0,
                     "usages": {"campaign_events": 1, "flows": 0, "groups": 0},
+                    "agent_access": "view",
                     "label": "Registered On",
                     "value_type": "datetime",
                 },
@@ -3009,6 +3010,7 @@ class EndpointsTest(APITest):
                     "featured": False,
                     "priority": 0,
                     "usages": {"campaign_events": 0, "flows": 0, "groups": 0},
+                    "agent_access": "view",
                     "label": "Nick Name",
                     "value_type": "text",
                 },
@@ -3027,6 +3029,7 @@ class EndpointsTest(APITest):
                     "featured": False,
                     "priority": 0,
                     "usages": {"campaign_events": 0, "flows": 0, "groups": 0},
+                    "agent_access": "view",
                     "label": "Nick Name",
                     "value_type": "text",
                 }
