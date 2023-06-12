@@ -15,6 +15,7 @@ class TestSMSTagLibrary(TembaTest):
                 "preview": "JPEG",
                 "url": "https://example.com/test.jpg",
                 "is_playable": False,
+                "thumb": None,
             },
             attachment_button("image/jpeg:https://example.com/test.jpg"),
         )
@@ -27,6 +28,7 @@ class TestSMSTagLibrary(TembaTest):
                 "preview": "IMAGE",
                 "url": "https://example.com/test.aspx",
                 "is_playable": False,
+                "thumb": None,
             },
             attachment_button("image:https://example.com/test.aspx"),
         )
@@ -39,6 +41,7 @@ class TestSMSTagLibrary(TembaTest):
                 "preview": "OGG",
                 "url": "https://example.com/test.ogg",
                 "is_playable": True,
+                "thumb": None,
             },
             attachment_button("application/octet-stream:https://example.com/test.ogg"),
         )
@@ -51,6 +54,7 @@ class TestSMSTagLibrary(TembaTest):
                 "preview": "-35.998287,26.478109",
                 "url": "http://www.openstreetmap.org/?mlat=-35.998287&mlon=26.478109#map=18/-35.998287/26.478109",
                 "is_playable": False,
+                "thumb": None,
             },
             attachment_button("geo:-35.998287,26.478109"),
         )
