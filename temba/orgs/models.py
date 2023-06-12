@@ -1458,7 +1458,6 @@ class OrgImport(TembaUUIDMixin, SmartModel):
             logger = logging.getLogger(__name__)
             logger.error("Exception on app import: %s" % str(e), exc_info=True)
 
-            raise e
         else:
             self.status = self.STATUS_COMPLETE
             self.finished_on = timezone.now()

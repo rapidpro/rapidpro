@@ -3971,32 +3971,32 @@ class BulkExportTest(TembaTest):
         flow = self.org.flows.filter(name="Favorites").get()
         self.assertEqual(Flow.CURRENT_SPEC_VERSION, flow.version_number)
 
+        # test import using data that is not parsable
+        junk_binary_data = io.BytesIO(b"\x00!\x00b\xee\x9dh^\x01\x00\x00\x04\x00\x02[Content_Types].xml \xa2\x04\x02(")
+        post_data = dict(import_file=junk_binary_data)
+        response = self.client.post(reverse("orgs.org_import"), post_data)
+        self.assertFormError(response, "form", "import_file", "This file is not a valid flow definition file.")
+
+        junk_json_data = io.BytesIO(b'{"key": "data')
+        post_data = dict(import_file=junk_json_data)
+        response = self.client.post(reverse("orgs.org_import"), post_data)
+        self.assertFormError(response, "form", "import_file", "This file is not a valid flow definition file.")
+
+    def test_import_errors(self):
+        self.login(self.admin)
+        OrgImport.objects.all().delete()
+
         # simulate an unexpected exception during import
         with patch("temba.triggers.models.Trigger.import_triggers") as validate:
             validate.side_effect = Exception("Unexpected Error")
             post_data = dict(import_file=open("%s/test_flows/new_mother.json" % settings.MEDIA_ROOT, "rb"))
-            response = self.client.post(reverse("orgs.org_import"), post_data)
+            self.client.post(reverse("orgs.org_import"), post_data)
 
             org_import = OrgImport.objects.filter(org=self.org).last()
             self.assertEqual(org_import.status, OrgImport.STATUS_FAILED)
 
             # trigger import failed, new flows that were added should get rolled back
             self.assertIsNone(Flow.objects.filter(org=self.org, name="New Mother").first())
-
-        # test import using data that is not parsable
-        junk_binary_data = io.BytesIO(b"\x00!\x00b\xee\x9dh^\x01\x00\x00\x04\x00\x02[Content_Types].xml \xa2\x04\x02(")
-        post_data = dict(import_file=junk_binary_data)
-        response = self.client.post(reverse("orgs.org_import"), post_data)
-
-        org_import = OrgImport.objects.filter(org=self.org).last()
-        self.assertEqual(org_import.status, OrgImport.STATUS_FAILED)
-
-        junk_json_data = io.BytesIO(b'{"key": "data')
-        post_data = dict(import_file=junk_json_data)
-        response = self.client.post(reverse("orgs.org_import"), post_data)
-
-        org_import = OrgImport.objects.filter(org=self.org).last()
-        self.assertEqual(org_import.status, OrgImport.STATUS_FAILED)
 
     def test_import_campaign_with_translations(self):
         self.import_file("campaign_import_with_translations")
