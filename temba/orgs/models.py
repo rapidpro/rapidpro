@@ -31,7 +31,7 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.locations.models import AdminBoundary
-from temba.utils import json, languages
+from temba.utils import json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONField
@@ -1437,6 +1437,11 @@ class OrgImport(TembaUUIDMixin, SmartModel):
 
     def is_import_finished(self):
         return self.status in (OrgImport.STATUS_COMPLETE, OrgImport.STATUS_FAILED)
+
+    def start_async(self):
+        from .tasks import start_org_import_task
+
+        on_transaction_commit(lambda: start_org_import_task.delay(self.id))
 
     def start(self):
         assert self.status == self.STATUS_PENDING, "trying to start an already started import"

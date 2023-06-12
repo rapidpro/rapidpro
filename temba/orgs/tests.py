@@ -3949,16 +3949,16 @@ class BulkExportTest(TembaTest):
 
         OrgImport.objects.all().delete()
 
-        post_data = dict(import_file=open("%s/test_flows/too_old.json" % settings.MEDIA_ROOT, "rb"))
-        response = self.client.post(reverse("orgs.org_import"), post_data)
+        post_data = dict(file=open("%s/test_flows/too_old.json" % settings.MEDIA_ROOT, "rb"))
+        response = self.client.post(reverse("orgs.orgimport_create"), post_data)
         self.assertFormError(
-            response, "form", "import_file", "This file is no longer valid. Please export a new version and try again."
+            response, "form", "file", "This file is no longer valid. Please export a new version and try again."
         )
 
         # try a file which can be migrated forwards
         response = self.client.post(
-            reverse("orgs.org_import"),
-            {"import_file": open("%s/test_flows/favorites_v4.json" % settings.MEDIA_ROOT, "rb")},
+            reverse("orgs.orgimport_create"),
+            {"file": open("%s/test_flows/favorites_v4.json" % settings.MEDIA_ROOT, "rb")},
         )
         self.assertEqual(302, response.status_code)
 
@@ -3968,7 +3968,7 @@ class BulkExportTest(TembaTest):
         org_import = OrgImport.objects.filter(org=self.org).get()
         self.assertEqual(org_import.status, OrgImport.STATUS_COMPLETE)
 
-        response = self.client.get(reverse("orgs.org_import_progress", args=(org_import.uuid,)))
+        response = self.client.get(reverse("orgs.orgimport_read", args=(org_import.uuid,)))
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "Import finished successfully")
 
@@ -3977,14 +3977,14 @@ class BulkExportTest(TembaTest):
 
         # test import using data that is not parsable
         junk_binary_data = io.BytesIO(b"\x00!\x00b\xee\x9dh^\x01\x00\x00\x04\x00\x02[Content_Types].xml \xa2\x04\x02(")
-        post_data = dict(import_file=junk_binary_data)
-        response = self.client.post(reverse("orgs.org_import"), post_data)
-        self.assertFormError(response, "form", "import_file", "This file is not a valid flow definition file.")
+        post_data = dict(file=junk_binary_data)
+        response = self.client.post(reverse("orgs.orgimport_create"), post_data)
+        self.assertFormError(response, "form", "file", "This file is not a valid flow definition file.")
 
         junk_json_data = io.BytesIO(b'{"key": "data')
-        post_data = dict(import_file=junk_json_data)
-        response = self.client.post(reverse("orgs.org_import"), post_data)
-        self.assertFormError(response, "form", "import_file", "This file is not a valid flow definition file.")
+        post_data = dict(file=junk_json_data)
+        response = self.client.post(reverse("orgs.orgimport_create"), post_data)
+        self.assertFormError(response, "form", "file", "This file is not a valid flow definition file.")
 
     def test_import_errors(self):
         self.login(self.admin)
@@ -3993,8 +3993,8 @@ class BulkExportTest(TembaTest):
         # simulate an unexpected exception during import
         with patch("temba.triggers.models.Trigger.import_triggers") as validate:
             validate.side_effect = Exception("Unexpected Error")
-            post_data = dict(import_file=open("%s/test_flows/new_mother.json" % settings.MEDIA_ROOT, "rb"))
-            self.client.post(reverse("orgs.org_import"), post_data)
+            post_data = dict(file=open("%s/test_flows/new_mother.json" % settings.MEDIA_ROOT, "rb"))
+            self.client.post(reverse("orgs.orgimport_create"), post_data)
 
             org_import = OrgImport.objects.filter(org=self.org).last()
             self.assertEqual(org_import.status, OrgImport.STATUS_FAILED)

@@ -1,4 +1,4 @@
--extends "smartmin/base.html"
+-extends "smartmin/read.html"
 -load i18n smartmin
 
 -block styles
@@ -28,18 +28,18 @@
     #pjax
       .card
         .import-result.text-lg.mt-2
-          -if org_import.status == "C"
+          -if object.status == "C"
             %temba-icon.text-success.mr-2(name="check")
           -else
             %temba-icon.spin.mr-2(name="progress_spinner")
 
-          -if org_import.status == "P"
+          -if object.status == "P"
             -trans "Import starting soon"
-          -elif org_import.status == "O"
+          -elif object.status == "O"
             -trans "Import in progress ..."
-          -elif org_import.status == "F"
+          -elif object.status == "F"
             -trans "An error happened during import , please try again."
-          -elif org_import.status == "C"
+          -elif object.status == "C"
             -trans "Import finished successfully"
             .import-result.text-lg.mt-2
               %a(href="{% url 'flows.flow_list' %}")
