@@ -781,7 +781,7 @@ class TembaTestMixin:
 
     def assertModalResponse(self, response, *, redirect: str):
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "<div class='success-script'>")
+        self.assertContains(response, '<div class="success-script">')
         self.assertEqual(redirect, response.get("Temba-Success"))
         self.assertEqual(redirect, response.get("REDIRECT"))
 

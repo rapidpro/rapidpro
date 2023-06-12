@@ -34,7 +34,7 @@ def get_haml_loader(loader):
                 except TemplateDoesNotExist:
                     pass
                 else:
-                    haml_parser = Compiler()
+                    haml_parser = Compiler(options={"attr_wrapper": '"', "smart_quotes": True, "endblock_names": True})
                     return haml_parser.process(haml_source)
 
             raise TemplateDoesNotExist(origin.template_name)

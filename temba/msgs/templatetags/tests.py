@@ -56,6 +56,8 @@ class TestSMSTagLibrary(TembaTest):
         )
 
         context = Context(attachment_button("image/jpeg:https://example.com/test.jpg"))
-        template = Template("""{% load sms %}{% attachment_button 'image/jpeg:https://example.com/test.jpg' %}""")
-        self.assertIn("attachment", template.render(context))
-        self.assertIn('src="https://example.com/test.jpg"', template.render(context))
+        template = Template("""{% load sms %}{% attachment_button "image/jpeg:https://example.com/test.jpg" %}""")
+
+        rendered = template.render(context)
+        self.assertIn("attachment", rendered)
+        self.assertIn("src='https://example.com/test.jpg'", rendered)
