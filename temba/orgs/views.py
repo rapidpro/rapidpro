@@ -1504,9 +1504,9 @@ class OrgCRUDL(SmartCRUDL):
             context["org_import"] = org_import
             return context
 
-        def derive_refresh(self):
+        def derive_refresh(self):  # pragma: needs cover
             org_import = self.get_org_import()
-            if not org_import or org_import.is_import_finished():  # pragma: needs cover
+            if not org_import or org_import.is_import_finished():
                 return 0
             return 3000
 
