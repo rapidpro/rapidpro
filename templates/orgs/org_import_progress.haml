@@ -1,0 +1,46 @@
+-extends "smartmin/base.html"
+-load i18n smartmin
+
+-block styles
+  {{block.super}}
+  :css
+    .content-card {
+      width: 28rem;
+    }
+    
+    .import-result temba-icon {
+      display: inline-block;
+    }
+
+-block extra-script
+  {{block.super}}
+  -if not is_finished
+    :javascript
+      if (gotoURL) {
+        setTimeout(function(){
+          gotoURL(document.location.href);
+        }, 3000);
+      }
+
+
+-block content
+  -block pjax
+    #pjax
+      .card
+        .import-result.text-lg.mt-2
+          -if org_import.status == "C"
+            %temba-icon.text-success.mr-2(name="check")
+          -else
+            %temba-icon.spin.mr-2(name="progress_spinner")
+
+          -if org_import.status == "P"
+            -trans "Import starting soon"
+          -elif org_import.status == "O"
+            -trans "Import in progress ..."
+          -elif org_import.status == "F"
+            -trans "An error happened during import , please try again."
+          -elif org_import.status == "C"
+            -trans "Import finished successfully"
+            .import-result.text-lg.mt-2
+              %a(href="{% url 'flows.flow_list' %}")
+                -trans "View flows"
