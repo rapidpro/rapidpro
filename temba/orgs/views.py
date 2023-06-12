@@ -3121,7 +3121,9 @@ class OrgImportCRUDL(SmartCRUDL):
         success_message = _("Import started")
         success_url = "uuid@orgs.orgimport_read"
         form_class = FlowImportForm
-        title = _("Import Flows")
+
+        def derive_title(self):
+            return _("Import Flows")
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -3138,9 +3140,11 @@ class OrgImportCRUDL(SmartCRUDL):
             return obj
 
     class Read(SpaMixin, OrgPermsMixin, SmartReadView):
-        title = _("Import Flows and Campaigns")
         menu_path = "/settings/workspace"
         slug_url_kwarg = "uuid"
+
+        def derive_title(self):
+            return _("Import Flows and Campaigns")
 
         def derive_refresh(self):  # pragma: needs cover
             if self.get_object().is_import_finished():
