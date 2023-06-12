@@ -370,7 +370,6 @@ PERMISSIONS = {
         "api",
         "scheduled",
         "scheduled_read",
-        "scheduled_update",
         "scheduled_delete",
         "send",
     ),

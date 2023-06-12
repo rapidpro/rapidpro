@@ -155,6 +155,10 @@ body {
   visibility: visible !important;
 }
 
+.attachments {
+  display: flex;
+}
+
 // used on message views and contact history page
 .attachment {
   display: flex;
@@ -169,13 +173,18 @@ body {
     display: flex;
     font-size: 12px;
     height: 18px;
-    margin: 0;
     padding: 3px 8px;
     text-decoration: none;
+    overflow: hidden;
 
     .attachment-icon {
       margin-right: 3px;
     }
+  }
+
+  .thumb {
+    padding: 0;
+    
   }
 
   a.attachment-preview:hover {
@@ -190,8 +199,6 @@ body {
     color: #666;
     display: inline-block;
     font-size: 12px;
-    height: 18px;
-    margin: 0;
     padding: 3px;
 
     &:hover {
@@ -263,9 +270,7 @@ td.created_on {
     margin-bottom: 16px;
     color: #666;
   }
-
-  h3 {}
-
+  
   p {
     line-height: inherit;
     margin-bottom: 20px;

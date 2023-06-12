@@ -6,10 +6,9 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba import settings
-from temba.contacts.search.omnibox import omnibox_serialize
 from temba.msgs.models import Broadcast, Media
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
-from temba.utils.compose import compose_deserialize_attachments, compose_serialize
+from temba.utils.compose import compose_deserialize_attachments
 from temba.utils.dates import datetime_to_str
 
 from .models import Schedule
@@ -209,79 +208,6 @@ class ScheduleTest(TembaTest):
                 self.assertEqual(expected_next, next_fire, f"{label}: {expected_next} != {next_fire}")
 
             self.assertEqual(tc["display"], sched.get_display(), f"display mismatch for {label}")
-
-    def test_schedule_ui(self):
-        # you can no longer create blank schedules from the UI but they're still out there
-        schedule = Schedule.create_schedule(self.org, self.admin, None, Schedule.REPEAT_NEVER)
-        bcast = self.create_broadcast(
-            self.admin,
-            "A broadcast to Joe",
-            contacts=[self.joe],
-            schedule=schedule,
-        )
-
-        # update the broadcast's contacts, text, and attachments
-        update_bcast_url = reverse("msgs.broadcast_scheduled_update", args=[bcast.id])
-
-        self.login(self.editor)
-
-        omnibox = omnibox_serialize(self.org, [], [self.joe], json_encode=True)
-
-        # create a broadcast attachment
-        media_attachments = []
-        media = Media.from_upload(
-            self.org,
-            self.admin,
-            self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
-            process=False,
-        )
-        media_attachments.append({"content_type": media.content_type, "url": media.url})
-
-        text = "An updated broadcast"
-        attachments = compose_deserialize_attachments(media_attachments)
-        translation = {"text": text, "attachments": attachments}
-        compose = compose_serialize(translation, json_encode=True)
-
-        self.client.post(
-            update_bcast_url,
-            {
-                "omnibox": omnibox,
-                "compose": compose,
-            },
-        )
-
-        bcast.refresh_from_db()
-        self.assertEqual({"und": {"text": text, "attachments": attachments}}, bcast.translations)
-        self.assertEqual(self.editor, bcast.modified_by)
-
-        start = datetime(2045, 9, 19, hour=10, minute=15, second=0, microsecond=0)
-        start = pytz.utc.normalize(self.org.timezone.localize(start))
-
-        # update the schedule
-        self.client.post(
-            reverse("schedules.schedule_update", args=[bcast.schedule.id]),
-            {
-                "repeat_period": Schedule.REPEAT_WEEKLY,
-                "repeat_days_of_week": "W",
-                "start": "later",
-                "start_datetime": datetime_to_str(start, "%Y-%m-%dT%H:%MZ", timezone.utc),
-            },
-        )
-
-        # assert out next fire was updated properly
-        schedule.refresh_from_db()
-        self.assertEqual(Schedule.REPEAT_WEEKLY, schedule.repeat_period)
-        self.assertEqual("W", schedule.repeat_days_of_week)
-        self.assertEqual(10, schedule.repeat_hour_of_day)
-        self.assertEqual(15, schedule.repeat_minute_of_hour)
-        self.assertEqual(start, schedule.next_fire)
-        self.assertEqual(self.editor, schedule.modified_by)
-
-        # manually set our fire in the past
-        schedule.next_fire = timezone.now() - timedelta(days=1)
-        schedule.save(update_fields=["next_fire"])
-
-        self.assertIsNotNone(str(schedule))
 
     def test_update_near_day_boundary(self):
         self.org.timezone = pytz.timezone("US/Eastern")

@@ -1,7 +1,8 @@
 from formtools.wizard.views import SessionWizardView
-from smartmin.views import SmartView, smart_url
+from smartmin.views import SmartView, derive_single_object_url_pattern, smart_url
 
 from django.core.exceptions import ImproperlyConfigured
+from django.views.generic.detail import SingleObjectMixin
 
 
 class SmartWizardView(SmartView, SessionWizardView):
@@ -46,6 +47,7 @@ class SmartWizardView(SmartView, SessionWizardView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
         context["completed"] = ",".join(
             [step for step in self.steps.all if self.get_cleaned_data_for_step(step) is not None]
         )
@@ -61,3 +63,19 @@ class SmartWizardView(SmartView, SessionWizardView):
             else:
                 return smart_url(self.success_url, None)
         raise ImproperlyConfigured("No redirect location found, override get_success_url to not use redirect urls")
+
+
+class SmartWizardUpdateView(SingleObjectMixin, SmartWizardView):
+    slug_url_kwarg = None
+
+    @classmethod
+    def derive_url_pattern(cls, path, action):
+        return derive_single_object_url_pattern(cls.slug_url_kwarg, path, action)
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        return super().post(request, *args, **kwargs)
