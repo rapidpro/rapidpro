@@ -462,7 +462,9 @@ class ContactField(TembaModel, DependencyMixin):
             )
 
     @classmethod
-    def create(cls, org, user, name: str, value_type: str = TYPE_TEXT, featured: bool = False):
+    def create(
+        cls, org, user, name: str, value_type: str = TYPE_TEXT, featured: bool = False, agent_access: str = ACCESS_VIEW
+    ):
         """
         Creates a new non-system field based on the given name
         """
@@ -481,6 +483,7 @@ class ContactField(TembaModel, DependencyMixin):
             value_type=value_type,
             is_system=False,
             show_in_table=featured,
+            agent_access=agent_access,
             created_by=user,
             modified_by=user,
         )

@@ -4171,7 +4171,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
                 create_url,
                 allow_viewers=False,
                 allow_editors=True,
-                form_fields=["name", "value_type", "show_in_table"],
+                form_fields=["name", "value_type", "show_in_table", "agent_access"],
             )
             self.assertEqual(
                 [("T", "Text"), ("N", "Number"), ("D", "Date & Time")],
@@ -4179,7 +4179,10 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             )
 
         response = self.assertCreateFetch(
-            create_url, allow_viewers=False, allow_editors=True, form_fields=["name", "value_type", "show_in_table"]
+            create_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["name", "value_type", "show_in_table", "agent_access"],
         )
         self.assertEqual(
             [("T", "Text"), ("N", "Number"), ("D", "Date & Time"), ("S", "State"), ("I", "District"), ("W", "Ward")],
@@ -4189,37 +4192,37 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with empty name
         self.assertCreateSubmit(
             create_url,
-            {"name": "", "value_type": "T", "show_in_table": True},
+            {"name": "", "value_type": "T", "show_in_table": True, "agent_access": "E"},
             form_errors={"name": "This field is required."},
         )
 
         # try to submit with invalid name
         self.assertCreateSubmit(
             create_url,
-            {"name": "???", "value_type": "T", "show_in_table": True},
+            {"name": "???", "value_type": "T", "show_in_table": True, "agent_access": "E"},
             form_errors={"name": "Can only contain letters, numbers and hypens."},
         )
 
         # try to submit with something that would be an invalid key
         self.assertCreateSubmit(
             create_url,
-            {"name": "UUID", "value_type": "T", "show_in_table": True},
+            {"name": "UUID", "value_type": "T", "show_in_table": True, "agent_access": "E"},
             form_errors={"name": "Can't be a reserved word."},
         )
 
         # try to submit with name of existing field
         self.assertCreateSubmit(
             create_url,
-            {"name": "AGE", "value_type": "N", "show_in_table": True},
+            {"name": "AGE", "value_type": "N", "show_in_table": True, "agent_access": "E"},
             form_errors={"name": "Must be unique."},
         )
 
         # submit with valid data
         self.assertCreateSubmit(
             create_url,
-            {"name": "Goats", "value_type": "N", "show_in_table": True},
+            {"name": "Goats", "value_type": "N", "show_in_table": True, "agent_access": "E"},
             new_obj_query=ContactField.user_fields.filter(
-                org=self.org, name="Goats", value_type="N", show_in_table=True
+                org=self.org, name="Goats", value_type="N", show_in_table=True, agent_access="E"
             ),
             success_status=200,
         )
@@ -4229,9 +4232,9 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertCreateSubmit(
             create_url,
-            {"name": "Age", "value_type": "N", "show_in_table": True},
+            {"name": "Age", "value_type": "N", "show_in_table": True, "agent_access": "N"},
             new_obj_query=ContactField.user_fields.filter(
-                org=self.org, name="Age", value_type="N", show_in_table=True, is_active=True
+                org=self.org, name="Age", value_type="N", show_in_table=True, agent_access="N", is_active=True
             ),
             success_status=200,
         )
@@ -4240,7 +4243,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         with override_settings(ORG_LIMIT_DEFAULTS={"fields": 2}):
             self.assertCreateSubmit(
                 create_url,
-                {"name": "Sheep", "value_type": "T", "show_in_table": True},
+                {"name": "Sheep", "value_type": "T", "show_in_table": True, "agent_access": "E"},
                 form_errors={
                     "__all__": "This workspace has reached its limit of 2 fields. You must delete existing ones before you can create new ones."
                 },
@@ -4255,7 +4258,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
                 update_url,
                 allow_viewers=False,
                 allow_editors=True,
-                form_fields={"name": "Age", "value_type": "N", "show_in_table": True},
+                form_fields={"name": "Age", "value_type": "N", "show_in_table": True, "agent_access": "V"},
             )
             self.assertEqual(3, len(response.context["form"].fields["value_type"].choices))
 
@@ -4263,19 +4266,21 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             update_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields={"name": "Age", "value_type": "N", "show_in_table": True},
+            form_fields={"name": "Age", "value_type": "N", "show_in_table": True, "agent_access": "V"},
         )
         self.assertEqual(6, len(response.context["form"].fields["value_type"].choices))
 
         # try submit without change
         self.assertUpdateSubmit(
-            update_url, {"name": "Age", "value_type": "N", "show_in_table": True}, success_status=200
+            update_url,
+            {"name": "Age", "value_type": "N", "show_in_table": True, "agent_access": "V"},
+            success_status=200,
         )
 
         # try to submit with empty name
         self.assertUpdateSubmit(
             update_url,
-            {"name": "", "value_type": "N", "show_in_table": True},
+            {"name": "", "value_type": "N", "show_in_table": True, "agent_access": "V"},
             form_errors={"name": "This field is required."},
             object_unchanged=self.age,
         )
@@ -4283,7 +4288,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with invalid name
         self.assertUpdateSubmit(
             update_url,
-            {"name": "???", "value_type": "N", "show_in_table": True},
+            {"name": "???", "value_type": "N", "show_in_table": True, "agent_access": "V"},
             form_errors={"name": "Can only contain letters, numbers and hypens."},
             object_unchanged=self.age,
         )
@@ -4291,25 +4296,30 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with a name that is used by another field
         self.assertUpdateSubmit(
             update_url,
-            {"name": "GENDER", "value_type": "N", "show_in_table": True},
+            {"name": "GENDER", "value_type": "N", "show_in_table": True, "agent_access": "V"},
             form_errors={"name": "Must be unique."},
             object_unchanged=self.age,
         )
 
-        # submit with different name and type
+        # submit with different name, type and agent access
         self.assertUpdateSubmit(
-            update_url, {"name": "Age In Years", "value_type": "T", "show_in_table": False}, success_status=200
+            update_url,
+            {"name": "Age In Years", "value_type": "T", "show_in_table": False, "agent_access": "E"},
+            success_status=200,
         )
 
         self.age.refresh_from_db()
         self.assertEqual("Age In Years", self.age.name)
         self.assertEqual("T", self.age.value_type)
         self.assertFalse(self.age.show_in_table)
+        self.assertEqual("E", self.age.agent_access)
 
         # simulate an org which has reached the limit for fields - should still be able to update a field
         with override_settings(ORG_LIMIT_DEFAULTS={"fields": 2}):
             self.assertUpdateSubmit(
-                update_url, {"name": "Age 2", "value_type": "T", "show_in_table": True}, success_status=200
+                update_url,
+                {"name": "Age 2", "value_type": "T", "show_in_table": True, "agent_access": "E"},
+                success_status=200,
             )
 
         self.age.refresh_from_db()
@@ -4328,20 +4338,22 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             update_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields={"name": "Registered", "value_type": "D", "show_in_table": False},
+            form_fields={"name": "Registered", "value_type": "D", "show_in_table": False, "agent_access": "V"},
         )
 
         # try to submit with different type
         self.assertUpdateSubmit(
             update_url,
-            {"name": "Registered", "value_type": "T", "show_in_table": False},
+            {"name": "Registered", "value_type": "T", "show_in_table": False, "agent_access": "V"},
             form_errors={"value_type": "Can't change type of date field being used by campaign events."},
             object_unchanged=registered,
         )
 
         # submit with only a different name
         self.assertUpdateSubmit(
-            update_url, {"name": "Registered On", "value_type": "D", "show_in_table": False}, success_status=200
+            update_url,
+            {"name": "Registered On", "value_type": "D", "show_in_table": False, "agent_access": "V"},
+            success_status=200,
         )
 
         registered.refresh_from_db()
