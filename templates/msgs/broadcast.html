@@ -31,18 +31,18 @@
         <div class="inline-block align-bottom text-gray-700">
           {% if broadcast.schedule.repeat_period == 'M' %}
             {% blocktrans trimmed with date=broadcast.schedule.repeat_day_of_month|ordinal %}
-              It will repeat every <b>month</b> on the {{ date }}.
+              Repeats every <b>month</b> on the {{ date }}.
             {% endblocktrans %}
           {% elif broadcast.schedule.repeat_period == 'W' %}
             {% blocktrans trimmed %}
-              It will repeat every <b>week</b> on
+              Repeats every <b>week</b> on
             {% endblocktrans %}
             {% for day in broadcast.schedule.get_repeat_days_display %}<b>{{ day }}</b>{{ forloop|oxford }}{% endfor %}
             {% blocktrans trimmed %}
               at around the same time.
             {% endblocktrans %}
           {% elif broadcast.schedule.repeat_period == 'D' %}
-            It will repeat <b>daily</b> at around the same time.
+            Repeats <b>daily</b> at around the same time.
           {% endif %}
         </div>
       </div>
