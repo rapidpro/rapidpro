@@ -256,7 +256,16 @@ class TembaTestMixin:
     def create_label(self, name, *, org=None):
         return Label.create(org or self.org, self.admin, name)
 
-    def create_field(self, key, name, value_type=ContactField.TYPE_TEXT, priority=0, show_in_table=False, org=None):
+    def create_field(
+        self,
+        key,
+        name,
+        value_type=ContactField.TYPE_TEXT,
+        priority=0,
+        show_in_table=False,
+        agent_access=ContactField.ACCESS_VIEW,
+        org=None,
+    ):
         org = org or self.org
 
         assert not org.fields.filter(key=key, is_active=True).exists(), f"field with key {key} already exists"
@@ -269,6 +278,7 @@ class TembaTestMixin:
             value_type=value_type,
             priority=priority,
             show_in_table=show_in_table,
+            agent_access=agent_access,
             created_by=self.admin,
             modified_by=self.admin,
         )

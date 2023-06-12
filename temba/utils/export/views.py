@@ -43,9 +43,7 @@ class BaseExportView(ModalMixin, OrgPermsMixin, SmartFormView):
             super().__init__(*args, **kwargs)
 
             self.org = org
-            self.fields["with_fields"].queryset = ContactField.user_fields.active_for_org(org=org).order_by(
-                Lower("name")
-            )
+            self.fields["with_fields"].queryset = ContactField.get_fields(org).order_by(Lower("name"))
             self.fields["with_groups"].queryset = ContactGroup.get_groups(org=org, ready_only=True).order_by(
                 Lower("name")
             )
