@@ -3016,7 +3016,7 @@ class EndpointsTest(APITest):
 
         self.assertEndpointAccess(fields_url, viewer_get=200, admin_get=200, agent_get=200)
 
-        self.create_field("nick_name", "Nick Name")
+        self.create_field("nick_name", "Nick Name", agent_access=ContactField.ACCESS_EDIT)
         registered = self.create_field("registered", "Registered On", value_type=ContactField.TYPE_DATETIME)
         self.create_field("not_ours", "Something Else", org=self.org2)
 
@@ -3057,7 +3057,7 @@ class EndpointsTest(APITest):
                     "featured": False,
                     "priority": 0,
                     "usages": {"campaign_events": 0, "flows": 0, "groups": 0},
-                    "agent_access": "view",
+                    "agent_access": "edit",
                     "label": "Nick Name",
                     "value_type": "text",
                 },
@@ -3076,7 +3076,7 @@ class EndpointsTest(APITest):
                     "featured": False,
                     "priority": 0,
                     "usages": {"campaign_events": 0, "flows": 0, "groups": 0},
-                    "agent_access": "view",
+                    "agent_access": "edit",
                     "label": "Nick Name",
                     "value_type": "text",
                 }
