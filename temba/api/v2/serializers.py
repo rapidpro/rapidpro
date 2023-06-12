@@ -611,6 +611,9 @@ class ContactWriteSerializer(WriteSerializer):
             if not field_obj:
                 raise serializers.ValidationError(f"Invalid contact field key: {field_key}")
 
+            if field_obj.get_access(self.context["user"]) != ContactField.ACCESS_EDIT:
+                raise serializers.ValidationError(f"Editing of '{field_key}' values disallowed for current user.")
+
             values_by_field[field_obj] = field_val
 
         return values_by_field

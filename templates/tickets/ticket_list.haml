@@ -314,7 +314,6 @@
     }
 
     function handleNameClicked() {
-      {%if org_perms.contacts.contact_read%}
         var chat = document.querySelector("temba-contact-chat");
         if (chat.contact) {
           var url = "/contact/read/" + chat.contact + "/";
@@ -324,7 +323,6 @@
             document.location.href = url;
           }
         }
-      {%endif%}
     }
 
     function handleFieldSearch(evt) {
@@ -518,7 +516,7 @@
 
         .flex.flex-col.menu-flex
           .flex
-            %temba-contact-name-fetch.text-2xl.mb-4(-temba-refreshed="handleContactRefreshed" onclick="handleNameClicked()" class="{%if org_perms.contacts.contact_read%}clickable{%endif%}")
+            %temba-contact-name-fetch.text-2xl.mb-4(-temba-refreshed="handleContactRefreshed" onclick="{% if org_perms.contacts.contact_read %}handleNameClicked(){% endif %}" class="{%if org_perms.contacts.contact_read %}clickable{% endif %}")
             .flex-grow
             -include "spa_page_menu.haml"
           
