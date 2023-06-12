@@ -315,29 +315,12 @@ class URN:
 
 
 class UserContactFieldsQuerySet(models.QuerySet):
-    def collect_usage(self):
-        return (
-            self.annotate(
-                flow_count=Count("dependent_flows", distinct=True, filter=Q(dependent_flows__is_active=True))
-            )
-            .annotate(
-                campaign_count=Count("campaign_events", distinct=True, filter=Q(campaign_events__is_active=True))
-            )
-            .annotate(
-                contactgroup_count=Count("dependent_groups", distinct=True, filter=Q(dependent_groups__is_active=True))
-            )
-        )
-
-    def active_for_org(self, org):
-        return self.filter(is_active=True, org=org)
+    pass
 
 
 class UserContactFieldsManager(models.Manager):
     def get_queryset(self):
         return UserContactFieldsQuerySet(self.model, using=self._db).filter(is_system=False)
-
-    def active_for_org(self, org):
-        return self.get_queryset().active_for_org(org=org)
 
 
 class ContactField(TembaModel, DependencyMixin):

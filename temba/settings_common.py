@@ -334,7 +334,7 @@ PERMISSIONS = {
         "open_ticket",
         "start",
     ),
-    "contacts.contactfield": ("api", "menu", "update_priority", "featured", "filter_by_type"),
+    "contacts.contactfield": ("api", "update_priority"),
     "contacts.contactgroup": ("api", "menu"),
     "contacts.contactimport": ("preview",),
     "flows.flowstart": ("api",),
