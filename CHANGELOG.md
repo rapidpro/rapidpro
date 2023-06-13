@@ -1,3 +1,7 @@
+v8.1.191 (2023-06-13)
+-------------------------
+ * Broadcast update via wizard and updated list styling
+
 v8.1.190 (2023-06-12)
 -------------------------
  * Add agent_access to API fields endpoint
