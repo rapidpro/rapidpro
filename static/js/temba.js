@@ -15,6 +15,17 @@ function openWindow(evt, url, target) {
   window.open(url, target);
 }
 
+function showLightbox(evt, url) {
+  evt.stopPropagation();
+  evt.preventDefault();
+  const lightbox = document.querySelector('temba-lightbox');
+  if (lightbox.zoom) {
+    lightbox.zoom = false;
+  } else {
+    lightbox.showElement(evt.target);
+  }
+}
+
 function showPreview(evt, ele) {
   evt.stopPropagation();
   evt.preventDefault();

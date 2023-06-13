@@ -1,8 +1,14 @@
-.attachment
+.attachment.mb-2
   -if category == 'image'
-    .attachment-preview.button-light.rounded-r-none(onclick="showPreview(event, this)" attachment='<img style="max-width:500px;max-height:500px" src="{{url}}" />')
-      %temba-icon.mr-1(name="attachment_image")
-      {{preview}}
+
+    -if thumb
+      .thumb
+        %img.cursor-pointer.rounded-lg(src="{{thumb}}" style='height:50px;width:auto;' onclick='showLightbox(event, "{{url}}")')
+
+    -else
+      .attachment-preview.button-light.rounded-r-none(class="{% if thumb %}thumb{% endif %}" onclick="showPreview(event, this)" attachment='<img style="max-width:500px;max-height:500px" src="{{url}}" />')
+        %temba-icon.mr-1(name="attachment_image")
+        {{preview}}
 
   -elif category == 'audio' and is_playable
     %a.attachment-preview.button-light.rounded-r-none(onclick="showPreview(event, this)" attachment='<audio style="width: 360px;padding:2em;" controls><source type="{{content_type}}" src="{{url}}" /></audio>')
@@ -24,6 +30,7 @@
       %temba-icon.mr-1(name="attachment_document")
       {{preview}}
 
-  -if category != 'geo'
-    .attachment-download.rounded-l-none.button-light(onclick="goto(event, this)" href="{{url}}" download="true")
-      %temba-icon(name="download" onclick='downloadFile(event, "{{url}}")')
+  -if category != 'geo' and not thumb
+    %div
+      .flex-grow.attachment-download.rounded-l-none.button-light(onclick="goto(event, this)" href="{{url}}" download="true")
+        %temba-icon(name="download" onclick='downloadFile(event, "{{url}}")')
