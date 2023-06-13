@@ -29,7 +29,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
-from temba.orgs.models import DependencyMixin, Org
+from temba.orgs.models import DependencyMixin, Org, OrgRole
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExport, BaseExportAssetStore, MultiSheetExporter
 from temba.utils.models import JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
@@ -367,6 +367,11 @@ class ContactField(TembaModel, DependencyMixin):
     )
     TYPE_CHOICES = TYPE_CHOICES_BASIC + TYPE_CHOICES_LOCATIONS
 
+    ACCESS_NONE = "N"
+    ACCESS_VIEW = "V"
+    ACCESS_EDIT = "E"
+    ACCESS_CHOICES = ((ACCESS_NONE, _("Hidden")), (ACCESS_VIEW, _("View")), (ACCESS_EDIT, "Edit"))
+
     ENGINE_TYPES = {
         TYPE_TEXT: "text",
         TYPE_NUMBER: "number",
@@ -432,6 +437,7 @@ class ContactField(TembaModel, DependencyMixin):
     # how field is displayed in the UI
     show_in_table = models.BooleanField(default=False)
     priority = models.PositiveIntegerField(default=0)
+    agent_access = models.CharField(max_length=1, choices=ACCESS_CHOICES, default=ACCESS_VIEW)
 
     # model managers
     objects = models.Manager()
@@ -548,6 +554,19 @@ class ContactField(TembaModel, DependencyMixin):
         )
 
     @classmethod
+    def get_fields(cls, org: Org, viewable_by=None):
+        """
+        Gets the fields for the given org
+        """
+
+        fields = org.fields.filter(is_system=False, is_active=True)
+
+        if viewable_by and org.get_user_role(viewable_by) == OrgRole.AGENT:
+            fields = fields.exclude(agent_access=cls.ACCESS_NONE)
+
+        return fields
+
+    @classmethod
     def import_fields(cls, org, user, field_defs: list):
         """
         Import fields from a list of exported fields
@@ -569,6 +588,9 @@ class ContactField(TembaModel, DependencyMixin):
         dependents["group"] = self.dependent_groups.filter(is_active=True)
         dependents["campaign_event"] = self.campaign_events.filter(is_active=True)
         return dependents
+
+    def get_access(self, user) -> str:
+        return self.agent_access if self.org.get_user_role(user) == OrgRole.AGENT else self.ACCESS_EDIT
 
     def release(self, user):
         assert not (self.is_system and self.org.is_active), "can't release system fields"
@@ -1898,10 +1920,7 @@ class ExportContactsTask(BaseExport):
                     )
 
         contact_fields_list = (
-            ContactField.user_fields.active_for_org(org=self.org)
-            .using("readonly")
-            .select_related("org")
-            .order_by("-priority", "pk")
+            ContactField.get_fields(self.org).using("readonly").select_related("org").order_by("-priority", "pk")
         )
         for contact_field in contact_fields_list:
             fields.append(

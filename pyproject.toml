@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temba"
-version = "8.1.183"
+version = "8.1.190"
 description = "Hosted service for visually building interactive messaging applications"
 authors = ["Nyaruka <code@nyaruka.com>"]
 
@@ -12,7 +12,7 @@ python = "^3.10"
 Django = "4.1.9"
 django-compressor = "^4.3.1"
 django-countries = "^7.0"
-django-hamlpy = "^1.4.4"
+django-hamlpy = "^1.7.0"
 django-mptt = "^0.12.0"
 django-redis = "^4.12.1"
 django-storages = "^1.11.1"
@@ -64,6 +64,7 @@ isort = "^5.12.0"
 responses = "^0.12.1"
 beautifulsoup4 = "^4.9.3"
 ruff = "^0.0.263"
+djlint = "^1.30.2"
 
 [tool.poetry_bumpversion.file."temba/__init__.py"]
 

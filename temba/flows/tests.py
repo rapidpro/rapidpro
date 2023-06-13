@@ -240,7 +240,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(response.context["can_start"])
         self.assertTrue(response.context["can_simulate"])
         self.assertContains(response, reverse("flows.flow_simulate", args=[flow.id]))
-        self.assertContains(response, "id='rp-flow-editor'")
+        self.assertContains(response, 'id="rp-flow-editor"')
 
         # flows that are archived can't be edited, started or simulated
         self.login(self.admin)

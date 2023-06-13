@@ -611,6 +611,9 @@ class ContactWriteSerializer(WriteSerializer):
             if not field_obj:
                 raise serializers.ValidationError(f"Invalid contact field key: {field_key}")
 
+            if field_obj.get_access(self.context["user"]) != ContactField.ACCESS_EDIT:
+                raise serializers.ValidationError(f"Editing of '{field_key}' values disallowed for current user.")
+
             values_by_field[field_obj] = field_val
 
         return values_by_field
@@ -704,10 +707,16 @@ class ContactFieldReadSerializer(ReadSerializer):
         ContactField.TYPE_DISTRICT: "district",
         ContactField.TYPE_WARD: "ward",
     }
+    ACCESS_TYPES = {
+        ContactField.ACCESS_NONE: "none",
+        ContactField.ACCESS_VIEW: "view",
+        ContactField.ACCESS_EDIT: "edit",
+    }
 
     type = serializers.SerializerMethodField()
     featured = serializers.SerializerMethodField()
     usages = serializers.SerializerMethodField()
+    agent_access = serializers.SerializerMethodField()
 
     # for backwards compatibility
     label = serializers.SerializerMethodField()
@@ -726,6 +735,9 @@ class ContactFieldReadSerializer(ReadSerializer):
             "campaign_events": getattr(obj, "campaignevent_count", 0),
         }
 
+    def get_agent_access(self, obj):
+        return self.ACCESS_TYPES[obj.agent_access]
+
     def get_label(self, obj):
         return obj.name
 
@@ -734,7 +746,7 @@ class ContactFieldReadSerializer(ReadSerializer):
 
     class Meta:
         model = ContactField
-        fields = ("key", "name", "type", "featured", "priority", "usages", "label", "value_type")
+        fields = ("key", "name", "type", "featured", "priority", "usages", "agent_access", "label", "value_type")
 
 
 class ContactFieldWriteSerializer(WriteSerializer):

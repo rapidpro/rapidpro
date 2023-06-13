@@ -1,3 +1,29 @@
+v8.1.190 (2023-06-12)
+-------------------------
+ * Add agent_access to API fields endpoint
+ * Restrict agent users view of field values on API contacts endpoint
+ * Remove use of django tags inside javascript
+
+v8.1.189 (2023-06-12)
+-------------------------
+ * Fix broken list view template
+ * Add djlint and latest django-hamlpy
+
+v8.1.188 (2023-06-09)
+-------------------------
+ * Tweak contact field access backfill migration
+
+v8.1.187 (2023-06-09)
+-------------------------
+ * Add ContactField.agent_access and backfill to view
+ * Use statement level triggers for tracking current node counts
+ * Remove old scheduled broadcast create view
+
+v8.1.186 (2023-06-08)
+-------------------------
+ * Format api_root.html and fix errors
+ * Fix channel log pretty printing
+
 v8.1.183 (2023-06-08)
 -------------------------
  * Add djLint config

@@ -3,7 +3,7 @@
 
 {% block html-tag %}
 <html lang="{{ LANGUAGE_CODE }}">
-{% endblock %}
+{% endblock html-tag %}
   %head
     %title
       -block page-title
@@ -11,7 +11,7 @@
 
     %meta{charset:"utf-8"}
     %meta{name:"viewport", content:"width=device-width, initial-scale=1.0"}
-    %meta{name:"description", content:"{% block page-description %}{{brand.name}} lets you visually build interactive SMS applications and launch them anywhere in the world.{% endblock %}"}
+    %meta{name:"description", content:"{% block page-description %}{{brand.name}} lets you visually build interactive SMS applications and launch them anywhere in the world.{% endblock page-description %}"}
     %meta{name:"author", content:"Nyaruka Ltd"}
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
 
@@ -30,25 +30,22 @@
     -if not debug and not testing
       %script{src:"{{ STATIC_URL }}lib/raven.min.js"}
 
-    :javascript
-      var static_url = "{{STATIC_URL}}";
-      var org_id = {% if active_org %}{{active_org.id}}{% else %}null{%endif%};
-      var tembaVersion= "{{temba_version}}";
-      var params = '{{url_params|safe}}';
+    -compress js
+      %script{src:"{{ STATIC_URL }}js/utils.js"}
 
-      {% if user_org %}{% if user_org.is_anon %}
-      var anon_org = true;
-      {% else %}
-      var anon_org = false;
-      {% endif %}{% endif %}
+    :javascript
+      var static_url = "{{ STATIC_URL }}";
+      var org_id = {% if active_org %}{{ active_org.id }}{% else %}null{% endif %};
+      var tembaVersion = "{{ temba_version }}";
+      var params = "{{ url_params|safe }}";
+      var anon_org = asBool("{{ user_org.is_anon }}");
+      var menuSelection = "{{ temba_menu_selection }}";
 
       function handleMenuReady() {
         var selection = window.location.pathname.split("/").filter(function(path){ return !!path});
         var menu = document.querySelector("temba-menu");
-        if (menu) {
-          {% if temba_menu_selection %}
-          menu.setFocusedItem("{{temba_menu_selection}}");          
-          {% endif %}
+        if (menu && menuSelection) {
+          menu.setFocusedItem(menuSelection);          
         }
       }
 
