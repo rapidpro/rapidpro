@@ -35,7 +35,6 @@ from temba.utils import json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONField
-from temba.utils.models.base import TembaUUIDMixin
 from temba.utils.text import generate_token, random_string
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
@@ -1414,10 +1413,10 @@ class OrgMembership(models.Model):
 
 def get_import_upload_path(instance: Any, filename: str):
     ext = Path(filename).suffix.lower()
-    return f"org_imports/{instance.org_id}/{instance.uuid}{ext}"
+    return f"org_imports/{instance.org_id}/{uuid4()}{ext}"
 
 
-class OrgImport(TembaUUIDMixin, SmartModel):
+class OrgImport(SmartModel):
     STATUS_PENDING = "P"
     STATUS_PROCESSING = "O"
     STATUS_COMPLETE = "C"
@@ -1431,9 +1430,7 @@ class OrgImport(TembaUUIDMixin, SmartModel):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="imports")
     file = models.FileField(upload_to=get_import_upload_path)
-    started_on = models.DateTimeField(null=True)
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
-    finished_on = models.DateTimeField(null=True)
 
     def is_import_finished(self):
         return self.status in (OrgImport.STATUS_COMPLETE, OrgImport.STATUS_FAILED)
@@ -1448,8 +1445,7 @@ class OrgImport(TembaUUIDMixin, SmartModel):
 
         # mark us as processing to prevent double starting
         self.status = self.STATUS_PROCESSING
-        self.started_on = timezone.now()
-        self.save(update_fields=("status", "started_on"))
+        self.save(update_fields=("status",))
         try:
             org = self.org
             link = org.get_brand()["link"]
@@ -1465,8 +1461,7 @@ class OrgImport(TembaUUIDMixin, SmartModel):
 
         else:
             self.status = self.STATUS_COMPLETE
-            self.finished_on = timezone.now()
-            self.save(update_fields=("status", "finished_on"))
+            self.save(update_fields=("status", "modified_on"))
 
 
 class Invitation(SmartModel):

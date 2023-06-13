@@ -3119,7 +3119,7 @@ class OrgImportCRUDL(SmartCRUDL):
                 fields = ("file",)
 
         success_message = _("Import started")
-        success_url = "uuid@orgs.orgimport_read"
+        success_url = "id@orgs.orgimport_read"
         form_class = FlowImportForm
 
         def derive_title(self):
@@ -3141,7 +3141,6 @@ class OrgImportCRUDL(SmartCRUDL):
 
     class Read(SpaMixin, OrgPermsMixin, SmartReadView):
         menu_path = "/settings/workspace"
-        slug_url_kwarg = "uuid"
 
         def derive_title(self):
             return _("Import Flows and Campaigns")
