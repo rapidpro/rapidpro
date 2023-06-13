@@ -20,6 +20,7 @@ from temba.flows.models import Flow
 from temba.tests import TembaTest, matchers, override_brand
 from temba.triggers.models import Trigger
 from temba.utils import json, uuid
+from temba.utils.compose import compose_serialize
 from temba.utils.templatetags.temba import format_datetime, icon
 
 from . import chunk_list, countries, format_number, languages, percentage, redact, sizeof_fmt, str_to_bool
@@ -942,3 +943,8 @@ class TestUUIDs(TembaTest):
         g = uuid.seeded_generator(456)
         self.assertEqual(uuid.UUID("8c338abf-94e2-4c73-9944-72f7a6ff5877", version=4), g())
         self.assertEqual(uuid.UUID("c8e0696f-b3f6-4e63-a03a-57cb95bdb6e3", version=4), g())
+
+
+class ComposeTest(TembaTest):
+    def test_empty_compose(self):
+        self.assertEqual(compose_serialize(), {"text": "", "attachments": []})
