@@ -6,26 +6,25 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
-from temba.channels.types.dialog360.views import ClaimView
+from temba.channels.types.dialog360_cloud.views import ClaimView
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
-from temba.utils.whatsapp import update_api_version
 from temba.utils.whatsapp.views import SyncLogsView, TemplatesView
 
 from ...models import ChannelType
 
 
-class Dialog360Type(ChannelType):
+class Dialog360CloudType(ChannelType):
     """
     A 360 Dialog Channel Type
     """
 
-    extra_links = [dict(label=_("Message Templates"), view_name="channels.types.dialog360.templates")]
+    extra_links = [dict(label=_("Message Templates"), view_name="channels.types.dialog360_cloud.templates")]
 
-    code = "D3"
+    code = "D3C"
     category = ChannelType.Category.SOCIAL_MEDIA
 
-    courier_url = r"^d3/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
+    courier_url = r"^d3c/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
 
     name = "360Dialog WhatsApp"
 
@@ -51,7 +50,7 @@ class Dialog360Type(ChannelType):
         domain = channel.org.get_brand_domain()
 
         # first set our callbacks
-        payload = {"url": "https://" + domain + reverse("courier.d3", args=[channel.uuid, "receive"])}
+        payload = {"url": "https://" + domain + reverse("courier.d3c", args=[channel.uuid, "receive"])}
         resp = requests.post(
             channel.config[Channel.CONFIG_BASE_URL] + "/v1/configs/webhook",
             json=payload,
@@ -60,8 +59,6 @@ class Dialog360Type(ChannelType):
 
         if resp.status_code != 200:
             raise ValidationError(_("Unable to register callbacks: %(resp)s"), params={"resp": resp.content})
-
-        update_api_version(channel)
 
     def get_api_templates(self, channel):
         if Channel.CONFIG_AUTH_TOKEN not in channel.config:  # pragma: no cover
@@ -82,16 +79,3 @@ class Dialog360Type(ChannelType):
         except requests.RequestException as e:
             HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, e, start, channel=channel)
             return [], False
-
-    def check_health(self, channel):
-        response = requests.get(
-            channel.config[Channel.CONFIG_BASE_URL] + "/v1/health", headers=self.get_headers(channel)
-        )
-
-        if response.status_code != 200:
-            raise requests.RequestException("Could not check api status", response=response)
-
-        return response
-
-    def is_available_to(self, org, user):
-        return False, False
