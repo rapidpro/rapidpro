@@ -83,10 +83,13 @@ class SpaMixin(View):
             dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
             prefix = "/dev" if dev_mode else settings.STATIC_URL
 
+            print("full page")
+
             # get our list of assets to incude
             scripts = []
             styles = []
 
+            print("dev_mode", dev_mode)
             if dev_mode:  # pragma: no cover
                 response = requests.get("http://localhost:3000/asset-manifest.json")
                 data = response.json()
@@ -109,6 +112,7 @@ class SpaMixin(View):
                 # javascript
                 if key.endswith(".js") and filename.endswith(".js"):
                     scripts.append(filename)
+                    print("filename", filename)
 
             context["flow_editor_scripts"] = scripts
             context["flow_editor_styles"] = styles
