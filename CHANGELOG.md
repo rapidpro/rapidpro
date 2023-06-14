@@ -1,3 +1,7 @@
+v8.1.193 (2023-06-14)
+-------------------------
+ * Add surveyor icon
+
 v8.1.192 (2023-06-14)
 -------------------------
  * Add icons for flows, fix issue with some spload fires
