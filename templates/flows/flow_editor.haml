@@ -97,9 +97,6 @@
 -block extra-script
   {{ block.super }}
 
-  -for script in scripts
-    %script(type="text/javascript" src="{{script}}")
-
   :javascript
     var base = '/flow/assets/{{object.org.id}}/' + new Date().getTime() + '/';
     var api = '/api/v2/';
@@ -190,7 +187,7 @@
       }
     };
 
-    onSpload(function(){
+    onSpload(function(){ 
       // wait for our component to load, then show the editor
       if (window.showFlowEditor) {
         window.showFlowEditor(document.getElementById("rp-flow-editor"), config);
@@ -210,6 +207,18 @@
         %temba-alert.mb-3
           -blocktrans trimmed
             This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
+
+-block spa-title
+  .title-text.flex
+    .inline-block.flex.items-center.text-gray-600
+      -if object.flow_type == 'V'
+        %temba-icon.mr-3(name="flow_ivr")
+      -elif object.flow_type == 'S'
+        %temba-icon.mr-3(name="flow_surveyor")
+      -elif object.flow_type == 'B'
+        %temba-icon.mr-3(name="flow_background") 
+    {{ title }}
+          
 
 -block content
   %temba-modax#send-message-modal{ header:"Send Message" }

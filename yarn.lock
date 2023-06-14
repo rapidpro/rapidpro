@@ -55,10 +55,10 @@
     react "^16.8.6"
     react-dom "^16.8.6"
 
-"@nyaruka/temba-components@0.53.1":
-  version "0.53.1"
-  resolved "https://registry.npmjs.org/@nyaruka/temba-components/-/temba-components-0.53.1.tgz#4016c15455b2ac0c37474294fa090f27e0b1c0ff"
-  integrity sha512-ZdOOdYPNS/ty+HKYcvRETWQ0JwxFQUdkbDo5xUUUyVVui7YNhy4BvCurcyv9hgUYogV+46NKk5WlWDBIEw80qA==
+"@nyaruka/temba-components@0.53.3":
+  version "0.53.3"
+  resolved "https://registry.npmjs.org/@nyaruka/temba-components/-/temba-components-0.53.3.tgz#69299b358222ddec3912847ee504ac5354ec2ea4"
+  integrity sha512-SJrmcriX794HjUcPBvukmm34vfm5OzBA2vHSP974PKFUdzyi+AIKm2o21PkLKwEcLMhx1h1dcdMFZz6khGAa7A==
   dependencies:
     color-hash "^2.0.2"
     geojson "^0.5.0"

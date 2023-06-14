@@ -429,7 +429,14 @@ class FlowCRUDL(SmartCRUDL):
                     label=_("Type"),
                     help_text=_("Choose the method for your flow"),
                     choices=Flow.TYPE_CHOICES if "surveyor" in settings.FEATURES else Flow.TYPE_CHOICES[:3],
-                    widget=SelectWidget(attrs={"widget_only": False}),
+                    widget=SelectWidget(
+                        attrs={"widget_only": False},
+                        option_attrs={
+                            Flow.TYPE_BACKGROUND: {"icon": "flow_background"},
+                            Flow.TYPE_SURVEY: {"icon": "flow_surveyor"},
+                            Flow.TYPE_VOICE: {"icon": "flow_ivr"},
+                        },
+                    ),
                 )
 
                 self.fields["base_language"] = forms.ChoiceField(
