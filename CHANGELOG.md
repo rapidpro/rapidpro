@@ -1,3 +1,7 @@
+v8.1.192 (2023-06-14)
+-------------------------
+ * Add icons for flows, fix issue with some spload fires
+
 v8.1.191 (2023-06-13)
 -------------------------
  * Broadcast update via wizard and updated list styling
