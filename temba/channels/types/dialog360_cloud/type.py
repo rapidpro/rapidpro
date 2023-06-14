@@ -28,6 +28,8 @@ class Dialog360CloudType(ChannelType):
 
     name = "360Dialog WhatsApp"
 
+    beta_only = True
+
     claim_blurb = _(
         "Activate your own enterprise WhatsApp account in %(link)s to communicate with your contacts. "
     ) % {"link": '<a target="_blank" href="https://www.360dialog.com/">360Dialog</a>'}

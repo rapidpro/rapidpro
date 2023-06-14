@@ -92,6 +92,3 @@ class Dialog360Type(ChannelType):
             raise requests.RequestException("Could not check api status", response=response)
 
         return response
-
-    def is_available_to(self, org, user):
-        return False, False
