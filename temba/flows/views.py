@@ -1095,7 +1095,7 @@ class FlowCRUDL(SmartCRUDL):
             response["Content-Disposition"] = f'attachment; filename="{filename}"'
             return response
 
-    class ImportTranslation(OrgObjPermsMixin, SmartUpdateView):
+    class ImportTranslation(SpaMixin, OrgObjPermsMixin, SmartUpdateView):
         class UploadForm(forms.Form):
             po_file = forms.FileField(label=_("PO translation file"), required=True)
 
@@ -1146,6 +1146,7 @@ class FlowCRUDL(SmartCRUDL):
         title = _("Import Translation")
         submit_button_name = _("Import")
         success_url = "uuid@flows.flow_editor"
+        menu_path = "/flow/active"
 
         def get_form_class(self):
             return self.ConfirmForm if self.request.GET.get("po") else self.UploadForm

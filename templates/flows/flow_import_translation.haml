@@ -3,75 +3,79 @@
 -load smartmin
 -load temba
 
--block pre-form
-  -blocktrans trimmed
-    Importing a PO file will replace all matching translations in the flow for the selected language.
-  %br
-  %br
-  .flow-info
-    %h3
-      -trans "Selected Flow"
-    .
-      {% trans "Name" %}:
-      %b
-        {{ object.name }}
-    .
-      {% trans "Base Language" %}:
-      %b
-        {{ flow_language.name }} ({{ flow_language.iso_code }})
-  -if po_info
-    .po-info
+
+-block content
+  .mb-2
+    -trans "Importing a PO file will replace all matching translations in the flow for the selected language."
+    %br
+    %br
+    .flow-info
       %h3
-        -trans "Uploaded PO File"
+        -trans "Selected Flow"
       .
-        {% trans "Language" %}:
-          %b
-            -if po_info.language_name
-              {{ po_info.language_name }} ({{ po_info.language_code }})
-            -else
-              -trans "Unknown"
+        {% trans "Name" %}:
+        %b
+          {{ object.name }}
       .
-        {% trans "Number of entries" %}:
-          %b
-            {{ po_info.num_entries }}
-      .
-        {% trans "Number of translations" %}:
-          %b
-            {{ po_info.num_translations }}
+        {% trans "Base Language" %}:
+        %b
+          {{ flow_language.name }} ({{ flow_language.iso_code }})
+    -if po_info
+      .po-info
+        %h3
+          -trans "Uploaded PO File"
+        .
+          {% trans "Language" %}:
+            %b
+              -if po_info.language_name
+                {{ po_info.language_name }} ({{ po_info.language_code }})
+              -else
+                -trans "Unknown"
+        .
+          {% trans "Number of entries" %}:
+            %b
+              {{ po_info.num_entries }}
+        .
+          {% trans "Number of translations" %}:
+            %b
+              {{ po_info.num_translations }}
 
--block fields
-  %fieldset
-    -if show_upload_form
-      .control-group.field_po_file
-        %label.control-label
-          PO Translation File
-        .controls
-          #po_file_errors
-            {{ form.po_file.errors }}
-          #file-upload
-            %input(type="file" name="po_file" id="id_po_file" onchange='updatePOFile()')
-          #real_button
-            %input(type="text" id="file-field")
-            %a.btn.btn-primary
-              -trans "Choose File"
-      {% render_field "loc" %}
-    -else
-      {% render_field "language" %}
-      {% render_field "loc" %}
+  -block import-status
+    .flex.w-full.mb-4.items-end.flex-wrap{style:"min-height:41px"}
+      %form#import-form(method="post" enctype="multipart/form-data")
+        - if form.non_field_errors
+          .text-error
+            {{ form.non_field_errors }}
 
--block form-buttons
-  .form-group.smartmin-form-buttons
-    .col-sm-offset-2.col-sm-10
-      -if show_upload_form
-        %button.btn.btn-primary(type="submit")
-          -trans "Upload"
-        %a.btn.btn-default(onclick="javascript:history.go(-1)")
-          -trans "Cancel"
-      -else
-        %button.btn.btn-primary(type="submit")
-          -trans "Import"
-        %a.btn.btn-default(href="{% url 'flows.flow_import_translation' object.id %}")
-          -trans "Back"
+        -csrf_token
+        -if form.non_field_errors
+          .text-error
+            {{ form.non_field_errors }}
+
+        -block fields
+          -if show_upload_form
+            .mt-4.mb-4.text-error
+              {{ form.import_po_file.errors }}
+            #file-upload
+              %input{type:"file", name:"po_file", id:"id_po_file", onchange:'updatePOFile()'}
+            #real_button.flex
+              %input{type:"text", id:"file-field"}
+              .block.button-primary.ml-4(style="margin-top:-1px")
+                -trans "Choose File"
+            {% render_field "loc" %}
+          -else
+            {% render_field "language" %}
+            {% render_field "loc" %}
+        .my-6
+        .flex
+          - if show_upload_form
+            %input.button-primary{type:"submit", value:'{% trans "Upload" %}'}
+            .ml-4.button-light{onclick:"javascript:history.go(-1)"}
+              -trans "Cancel"
+          -else
+            %input.button-primary{type:"submit", value:'{% trans "Import" %}'}
+            %a.ml-4.button-light{href:"{% url 'flows.flow_import_translation' object.id %}"}
+              -trans "Cancel"
 
 -block extra-script
   {{ block.super }}
@@ -87,6 +91,12 @@
 
 -block extra-style
   :css
+    input {
+      padding: 9px;
+      cursor: pointer;
+      box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 1px, rgba(0, 0, 0, 0.04) 0px 3px 20px 0px, rgba(0, 0, 0, 0.02) 0px 1px 2px 0px;
+    }
+
     .flow-info, .po-info {
       padding-bottom: 2em;
     }
@@ -109,16 +119,16 @@
     }
 
     #file-field {
-      width:255px;
-      height:25px;
+      width:300px;
+      height:35px;
       font-size:16px;
-      border:solid 1px #777;
       margin-bottom: 0px;
+      border-radius: 5px;
     }
 
     #id_po_file {
       position:absolute;
-      width:340px;
+      width:450px;
       height:35px;
       top: 0px;
       left: 0px;
