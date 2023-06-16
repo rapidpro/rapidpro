@@ -26,6 +26,7 @@ from temba.flows.models import Flow
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
 from temba.orgs.models import Org, OrgRole, User
+from temba.templates.models import TemplateTranslation
 from temba.utils import chunk_list
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 
@@ -62,6 +63,8 @@ USERS = (
 )
 CHANNELS = (
     {"name": "Android", "channel_type": "A", "scheme": "tel", "address": "1234"},
+    {"name": "Facebook", "channel_type": "FBA", "scheme": "facebook", "address": "FacebookPage"},
+    {"name": "WhatsApp", "channel_type": "WAC", "scheme": "whatsapp", "address": "3456"},
     {"name": "Vonage", "channel_type": "NX", "scheme": "tel", "address": "2345"},
     {"name": "Twitter", "channel_type": "TWT", "scheme": "twitter", "address": "my_handle"},
 )
@@ -316,7 +319,7 @@ class Command(BaseCommand):
         for org in orgs:
             user = org.cache["users"][0]
             for c in CHANNELS:
-                Channel.objects.create(
+                channel = Channel.objects.create(
                     org=org,
                     name=c["name"],
                     channel_type=c["channel_type"],
@@ -326,7 +329,35 @@ class Command(BaseCommand):
                     modified_by=user,
                 )
 
-        self._log(self.style.SUCCESS("OK") + "\n")
+                # Create some whatsapp message templates
+                if channel.channel_type == "WAC":
+                    TemplateTranslation.get_or_create(
+                        channel,
+                        "hello",
+                        "eng",
+                        "US",
+                        "Hello {{1}}",
+                        1,
+                        TemplateTranslation.STATUS_APPROVED,
+                        "1234",
+                        "",
+                    )
+                    TemplateTranslation.get_or_create(
+                        channel,
+                        "hello",
+                        "fra",
+                        "FR",
+                        "Bonjour {{1}}",
+                        1,
+                        TemplateTranslation.STATUS_APPROVED,
+                        "5678",
+                        "",
+                    )
+                    TemplateTranslation.get_or_create(
+                        channel, "bye", "eng", "US", "See ya {{1}}", 1, TemplateTranslation.STATUS_PENDING, "6789", ""
+                    )
+
+            self._log(self.style.SUCCESS("OK") + "\n")
 
     def create_archives(self, orgs):
         """
