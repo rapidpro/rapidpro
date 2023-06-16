@@ -61,6 +61,8 @@ class Command(BaseCommand):
                     parent_osm_id = str(props["is_in_country"])
                 elif level == AdminBoundary.LEVEL_DISTRICT:
                     parent_osm_id = str(props["is_in_state"])
+                elif level == AdminBoundary.LEVEL_WARD:
+                    parent_osm_id = str(props["is_in_state"])
 
             osm_id = str(props["osm_id"])
             name = props.get("name", "")
