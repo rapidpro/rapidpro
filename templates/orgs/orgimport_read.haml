@@ -34,13 +34,13 @@
             %temba-icon.spin.mr-2(name="progress_spinner")
 
           -if object.status == "P"
-            -trans "Import starting soon"
+            -trans "About to start..."
           -elif object.status == "O"
-            -trans "Import in progress ..."
+            -trans "In progress..."
           -elif object.status == "F"
-            -trans "An error happened during import , please try again."
+            -trans "An error happened, please try again."
           -elif object.status == "C"
-            -trans "Import finished successfully"
+            -trans "Finished successfully"
             .import-result.text-lg.mt-2
               %a(href="{% url 'flows.flow_list' %}")
                 -trans "View flows"

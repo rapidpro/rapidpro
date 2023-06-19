@@ -3091,13 +3091,12 @@ class OrgImportCRUDL(SmartCRUDL):
     class Create(SpaMixin, OrgPermsMixin, SmartCreateView):
         menu_path = "/settings/workspace"
 
-        class FlowImportForm(forms.ModelForm):
+        class Form(forms.ModelForm):
             file = forms.FileField(help_text=_("The import file"))
 
-            def __init__(self, *args, **kwargs):
-                self.org = kwargs["org"]
-                del kwargs["org"]
+            def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+                self.org = org
 
             def clean_file(self):
                 # check that it isn't too old
@@ -3120,7 +3119,7 @@ class OrgImportCRUDL(SmartCRUDL):
 
         success_message = _("Import started")
         success_url = "id@orgs.orgimport_read"
-        form_class = FlowImportForm
+        form_class = Form
 
         def derive_title(self):
             return _("Import Flows")
