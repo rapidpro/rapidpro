@@ -3970,7 +3970,7 @@ class BulkExportTest(TembaTest):
 
         response = self.client.get(reverse("orgs.orgimport_read", args=(org_import.id,)))
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Import finished successfully")
+        self.assertContains(response, "Finished successfully")
 
         flow = self.org.flows.filter(name="Favorites").get()
         self.assertEqual(Flow.CURRENT_SPEC_VERSION, flow.version_number)
