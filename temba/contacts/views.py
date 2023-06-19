@@ -1359,7 +1359,7 @@ class ContactFieldForm(forms.ModelForm):
         }
         help_texts = {
             "value_type": _("Type of the values that will be stored in this field."),
-            "agent_access": _("Type of access that agent users have this field."),
+            "agent_access": _("Type of access that agent users have for this field."),
         }
         widgets = {
             "name": InputWidget(attrs={"widget_only": False}),
