@@ -914,6 +914,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.clicksend.ClickSendType",
     "temba.channels.types.dartmedia.DartMediaType",
     "temba.channels.types.dialog360.Dialog360Type",
+    "temba.channels.types.dialog360_cloud.Dialog360CloudType",
     "temba.channels.types.discord.DiscordType",
     "temba.channels.types.dmark.DMarkType",
     "temba.channels.types.external.ExternalType",
