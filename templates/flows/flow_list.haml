@@ -2,8 +2,6 @@
 -load smartmin sms temba compress i18n humanize
 
 -block content
-  // legacy requirement for bulk actions
-  .page-title
   -if org_perms.flows.flow_update
     %temba-modax#export-results{ header:'{% trans "Download Results" %}' }
     %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'flows.flowlabel_create' %}", "-temba-loaded": "handleCreateLabelModalLoaded", "-temba-submitted": "handleCreateLabelModalSubmitted"}
@@ -27,7 +25,7 @@
               -if org_perms.flows.flow_update
                 %th
               %th
-              %th.whitespace-nowrap
+              %th.whitespace-nowrap(style="text-align:right")
                 Runs / Completion
 
         %tbody
@@ -41,11 +39,14 @@
                 .flex.items-center
                   .flex-grow
                     .flex.inline.whitespace-nowrap.flex-grow.items-center(style="max-width:80%")
-                      -if object.flow_type == 'V'
-                        .icon-phone.mr-2.leading-snug
-                      -elif object.flow_type == 'S'
-                        .icon-mobile.mr-2.leading-snug
-                      .name.truncate
+                      .inline-block.flex.items-center.text-gray-600
+                        -if object.flow_type == 'V'
+                          %temba-icon.mr-2(name="flow_ivr")
+                        -elif object.flow_type == 'S'
+                          %temba-icon.mr-2(name="flow_surveyor")
+                        -elif object.flow_type == 'B'
+                          %temba-icon.mr-2(name="flow_background") 
+                      .name.truncate.flex-grow
                         {{ object.name }}
 
                   .whitespace-no-break.flex.items-center.ml-2.justify-end.flex-wrap
@@ -83,7 +84,6 @@
   :javascript
 
     function handleRowClicked(event) {
-
       if (event.target.tagName == "TEMBA-CHECKBOX") {
         return;
       }

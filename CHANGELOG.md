@@ -1,3 +1,23 @@
+v8.1.194 (2023-06-19)
+-------------------------
+ * Don't ignore user provided role for somleng shortcodes
+ * Fix flow export button height
+ * Fix import translation to use new UI
+ * Fix parent ID lookup in import geojson
+ * Support Dialog360 Cloud API channels
+
+v8.1.193 (2023-06-14)
+-------------------------
+ * Add surveyor icon
+
+v8.1.192 (2023-06-14)
+-------------------------
+ * Add icons for flows, fix issue with some spload fires
+
+v8.1.191 (2023-06-13)
+-------------------------
+ * Broadcast update via wizard and updated list styling
+
 v8.1.190 (2023-06-12)
 -------------------------
  * Add agent_access to API fields endpoint

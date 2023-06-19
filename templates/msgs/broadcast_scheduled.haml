@@ -5,45 +5,20 @@
   %span.title-icon
     .glyph.icon-clock
 
--block action-buttons
-
--block content
-  .mt-4
-    %table.list.lined.w-full
-      %tbody
-        -for object in object_list
-          -with translation=object.get_translation
-            %tr.select-row.cursor-pointer{class:'{% cycle row1 row1 %}', onclick:'goto(event, this)', href:'{%url "msgs.broadcast_scheduled_read" object.id%}'}
-
-              %td.value-contacts.field_phone
-                -include "includes/recipients.haml" with groups=object.groups.all contacts=object.contacts.all
-
-              %td.w-full
-                .flex-grow.inline.flex-wrap.flex-end.items-center.justify-end
-                  .value-text.field_text
-                    {{ translation.text }}
-                    -if translation.attachments
-                      -for attachment in translation.attachments
-                        .ml-2.inline-block
-                          {% attachment_button attachment %}
-              %td.value-next
-                .whitespace-nowrap.pr-2.pointer-events-none
-                  -if object.schedule.next_fire
-                    .glyph.icon-clock
-                    {{object.schedule.next_fire|timeuntil}}
-
-          -empty
-            %tr
-              %td{colspan:3}
-                -trans "No matching broadcasts"
-
 
 -block extra-style
   {{block.super}}
   :css
-    td.clickable a:hover {
-      text-decoration: none;
+
+    .broadcast-item .broadcast:hover {
+      cursor: pointer;
+      box-shadow: 0 0 0 2px var(--color-focus);
     }
-    .list-table {
-      margin-top:48px;
-    }
+
+
+-block action-buttons
+
+-block content
+  -for object in object_list    
+    .broadcast-item(href="{% url 'msgs.broadcast_scheduled_read' object.id %}" onclick="goto(event, this)")
+      -include "msgs/broadcast.html" with broadcast=object

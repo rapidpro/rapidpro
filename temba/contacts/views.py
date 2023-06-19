@@ -910,9 +910,7 @@ class ContactCRUDL(SmartCRUDL):
             context = super().get_context_data(*args, **kwargs)
             org = self.request.org
 
-            context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by(
-                "-show_in_table", "-priority", "pk"
-            )[0:6]
+            context["contact_fields"] = ContactField.get_fields(org).order_by("-show_in_table", "-priority", "id")[0:6]
             return context
 
     class Blocked(ContentMenuMixin, ContactListView):
@@ -1001,7 +999,7 @@ class ContactCRUDL(SmartCRUDL):
             org = self.request.org
 
             context["current_group"] = self.group
-            context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
+            context["contact_fields"] = ContactField.get_fields(org).order_by("-priority", "id")
             return context
 
         @classmethod
@@ -1371,23 +1369,6 @@ class ContactFieldForm(forms.ModelForm):
         }
 
 
-class ContactFieldListView(SpaMixin, OrgPermsMixin, SmartListView):
-    queryset = ContactField.user_fields
-    title = _("Fields")
-    fields = ("name", "show_in_table", "key", "value_type")
-    search_fields = ("name__icontains", "key__icontains")
-    default_order = ("name",)
-
-    success_url = "@contacts.contactfield_list"
-    link_fields = ()
-    paginate_by = 10000
-
-    template_name = "contacts/contactfield_list.haml"
-
-    def get_queryset(self, **kwargs):
-        return super().get_queryset(**kwargs).collect_usage().filter(org=self.request.org, is_active=True)
-
-
 class FieldLookupMixin:
     @classmethod
     def derive_url_pattern(cls, path, action):
@@ -1407,35 +1388,7 @@ class FieldLookupMixin:
 
 class ContactFieldCRUDL(SmartCRUDL):
     model = ContactField
-    actions = ("list", "create", "update", "update_priority", "delete", "featured", "filter_by_type", "menu", "usages")
-
-    class Menu(OrgPermsMixin, SmartTemplateView):
-        def render_to_response(self, context, **response_kwargs):
-            org = self.request.org
-            menu = []
-
-            if self.has_org_perm("contacts.contactfield_list"):
-                qs = ContactField.user_fields
-                active_user_fields = qs.filter(org=org, is_active=True)
-                featured_count = active_user_fields.filter(show_in_table=True).count()
-
-                menu = [
-                    {
-                        "id": "all",
-                        "name": _("All"),
-                        "count": len(active_user_fields),
-                        "href": reverse("contacts.contactfield_list"),
-                    },
-                    {
-                        "icon": "bookmark",
-                        "id": "featured",
-                        "name": _("Featured"),
-                        "count": featured_count,
-                        "href": reverse("contacts.contactfield_featured"),
-                    },
-                ]
-
-            return JsonResponse({"results": menu})
+    actions = ("list", "create", "update", "update_priority", "delete", "usages")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         class Form(ContactFieldForm):
@@ -1527,8 +1480,9 @@ class ContactFieldCRUDL(SmartCRUDL):
 
                 return HttpResponse(json.dumps(payload), status=400, content_type="application/json")
 
-    class List(ContentMenuMixin, ContactFieldListView):
+    class List(ContentMenuMixin, SpaMixin, OrgPermsMixin, SmartListView):
         menu_path = "/contact/fields"
+        title = _("Fields")
 
         def build_content_menu(self, menu):
             menu.add_modax(
@@ -1538,41 +1492,8 @@ class ContactFieldCRUDL(SmartCRUDL):
                 on_submit="handleFieldUpdated()",
             )
 
-    class Featured(ContactFieldListView):
-        search_fields = None  # search and reordering do not work together
-        default_order = ("-priority", "name")
-
         def get_queryset(self, **kwargs):
-            qs = super().get_queryset(**kwargs)
-            qs = qs.filter(org=self.request.org, is_active=True, show_in_table=True)
-
-            return qs
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            context["is_featured_category"] = True
-
-            return context
-
-    class FilterByType(ContactFieldListView):
-        def get_queryset(self, **kwargs):
-            qs = super().get_queryset(**kwargs)
-
-            qs = qs.filter(value_type=self.kwargs["value_type"])
-
-            return qs
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            context["selected_value_type"] = self.kwargs["value_type"]
-
-            return context
-
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<value_type>[^/]+)/$" % (path, action)
+            return super().get_queryset(**kwargs).filter(org=self.request.org, is_active=True, is_system=False)
 
     class Usages(FieldLookupMixin, DependencyUsagesModal):
         permission = "contacts.contactfield_read"

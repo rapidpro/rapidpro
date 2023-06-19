@@ -141,10 +141,17 @@ class SelectWidget(forms.Select):
     is_annotated = True
     option_inherits_attrs = True
 
+    def __init__(self, attrs=None, choices=(), *, option_attrs={}):
+        super().__init__(attrs, choices)
+        self.option_attrs = option_attrs
+
     def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
         if hasattr(self.choices, "option_attrs_by_value"):
             attrs = self.choices.option_attrs_by_value.get(value)
+
+        extra = self.option_attrs.get(value, {})
         attrs = attrs if attrs else {}
+        attrs.update(extra)
         option = super().create_option(name, value, label, selected, index, subindex, attrs)
         return option
 
@@ -248,7 +255,6 @@ class TembaChoiceIterator(forms.models.ModelChoiceIterator):
     def choice(self, obj):
         value = self.field.prepare_value(obj)
         option = (value, self.field.label_from_instance(obj))
-
         if hasattr(obj, "get_attrs"):
             self.option_attrs_by_value[value] = obj.get_attrs()
 

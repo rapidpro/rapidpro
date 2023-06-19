@@ -6,14 +6,13 @@
 
 
 -block content
-  -include "formax.haml"
-
+  -include "msgs/broadcast.html" with broadcast=object
   -if send_history
     
-    .shadow-lg.bg-white.rounded-t-lg.px-4.py-3.border-b.bg-gray-100
+    .shadow-lg.bg-white.rounded-t-lg.px-4.py-3.border-b.bg-gray-300.font-normal.text-gray-600
       -trans "Send History"
     
-    .shadow-lg.overflow-y-auto.rounded-b-lg
+    .shadow.overflow-y-auto.rounded-b-lg
       %table.list.bg-white(style='border-radius: 0;{% if not org_perms.msgs.broadcast_send %}margin-top:10px{% endif %}')
         %tbody
           -for object in send_history

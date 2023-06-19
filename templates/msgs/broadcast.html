@@ -1,0 +1,51 @@
+{% load sms i18n humanize %}
+
+{% with translation=broadcast.get_translation %}
+  <div class="broadcast flex flex-col card m-0 mb-6 rounded overflow-hidden p-0 flex-shrink-0">
+    <div class="broadcast-top-bar px-2 pt-2 pb-1 bg-gray-300 flex flex-row"
+         style="--color-overlay-light:#fff;
+                --color-background-hover:transparent">
+      <div class="recipients flex-grow">{% include "includes/recipients.haml" with groups=object.groups.all contacts=object.contacts.all %}</div>
+      <div class="flex-grow text-right mr-2 text-sm self-center text-gray-600 font-normal -mt-1">
+        {% if broadcast.schedule.next_fire %}
+          {{ broadcast.schedule.next_fire|duration }}
+        {% else %}
+          {% blocktrans trimmed %}
+            Complete
+          {% endblocktrans %}
+        {% endif %}
+      </div>
+    </div>
+    <div class="flex flex-row p-4">
+      <div class="flex-grow">
+        <div class="text">{{ translation.text }}</div>
+      </div>
+      <div class="attachments flex-shrink ml-2 flex-wrap">
+        {% for attachment in translation.attachments %}
+          {% attachment_button attachment True %}
+        {% endfor %}
+      </div>
+    </div>
+    {% if broadcast.schedule.repeat_period != "O" %}
+      <div class="flex flex-row px-4 py-2 bg-gray-100 text-sm schedule text-center">
+        <div class="inline-block align-bottom text-gray-700">
+          {% if broadcast.schedule.repeat_period == 'M' %}
+            {% blocktrans trimmed with date=broadcast.schedule.repeat_day_of_month|ordinal %}
+              Repeats every <b>month</b> on the {{ date }}.
+            {% endblocktrans %}
+          {% elif broadcast.schedule.repeat_period == 'W' %}
+            {% blocktrans trimmed %}
+              Repeats every <b>week</b> on
+            {% endblocktrans %}
+            {% for day in broadcast.schedule.get_repeat_days_display %}<b>{{ day }}</b>{{ forloop|oxford }}{% endfor %}
+            {% blocktrans trimmed %}
+              at around the same time.
+            {% endblocktrans %}
+          {% elif broadcast.schedule.repeat_period == 'D' %}
+            Repeats <b>daily</b> at around the same time.
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+{% endwith %}

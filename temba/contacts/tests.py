@@ -4023,71 +4023,6 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response.context["sort_direction"], "desc")
         self.assertIn("search", response.context)
 
-    def test_list(self):
-        manage_fields_url = reverse("contacts.contactfield_list")
-
-        self.login(self.non_org_user)
-        response = self.client.get(manage_fields_url)
-
-        # redirect to login because of no access to org
-        self.assertEqual(302, response.status_code)
-
-        self.login(self.admin)
-
-        response = self.client.get(manage_fields_url)
-        self.assertEqual(len(response.context["object_list"]), 3)
-
-        # deactivate a field
-        a_contactfield = ContactField.user_fields.order_by("id").first()
-        a_contactfield.is_active = False
-        a_contactfield.save(update_fields=("is_active",))
-
-        response = self.client.get(manage_fields_url)
-        self.assertEqual(len(response.context["object_list"]), 2)
-
-    def test_view_featured(self):
-        featured1 = ContactField.user_fields.get(key="first")
-        featured1.show_in_table = True
-        featured1.save(update_fields=["show_in_table"])
-
-        featured2 = ContactField.user_fields.get(key="second")
-        featured2.show_in_table = True
-        featured2.save(update_fields=["show_in_table"])
-
-        self.login(self.admin)
-
-        featured_cf_url = reverse("contacts.contactfield_featured")
-
-        response = self.client.get(featured_cf_url)
-        self.assertEqual(response.status_code, 200)
-
-        # there are 2 featured fields
-        self.assertEqual(len(response.context_data["object_list"]), 2)
-        self.assertTrue(response.context_data["is_featured_category"])
-
-    def test_view_filter_by_type(self):
-        self.login(self.admin)
-
-        # an invalid type
-        featured_cf_url = reverse("contacts.contactfield_filter_by_type", args=("xXx",))
-
-        response = self.client.get(featured_cf_url)
-        self.assertEqual(response.status_code, 200)
-
-        # there are no contact fields
-        self.assertEqual(len(response.context_data["object_list"]), 0)
-
-        # a type that is valid
-        featured_cf_url = reverse("contacts.contactfield_filter_by_type", args=("T"))
-
-        response = self.client.get(featured_cf_url)
-        self.assertEqual(response.status_code, 200)
-
-        # there are some contact fields of type text
-        self.assertEqual(len(response.context_data["object_list"]), 3)
-
-        self.assertEqual(response.context_data["selected_value_type"], "T")
-
     def test_view_updatepriority_valid(self):
         org_fields = ContactField.user_fields.filter(org=self.org, is_active=True)
 
@@ -4155,12 +4090,6 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.deleted.save(update_fields=("is_active",))
 
         self.other_org_field = self.create_field("other", "Other", org=self.org2)
-
-    def test_menu(self):
-        menu_url = reverse("contacts.contactfield_menu")
-        response = self.assertListFetch(menu_url, allow_viewers=False, allow_editors=True, allow_agents=False)
-        menu = response.json()["results"]
-        self.assertEqual(2, len(menu))
 
     def test_create(self):
         create_url = reverse("contacts.contactfield_create")

@@ -25,10 +25,10 @@
 
               -if org_perms.msgs.label_create
                 -if labels
-                  %li.separator.-mx-4.border-b.my-3
-                %li
-                  .lbl-menu.add-label.linked{onclick:"handleAddLabelClicked()"}
-                    -trans "New Label..."                      
+                  .separator.-mx-4.border-b.my-3
+                
+                .lbl-menu.add-label.linked{onclick:"handleAddLabelClicked()"}
+                  -trans "New Label..."                      
 
         -if 'resend' in actions
           .linked.ml-4(onclick='runActionOnObjectRows("resend", refreshMenu)')

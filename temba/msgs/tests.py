@@ -1,5 +1,3 @@
-import random
-import string
 from collections import OrderedDict
 from datetime import date, datetime, timedelta
 from unittest.mock import patch
@@ -1935,7 +1933,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(f'<Broadcast: id={broadcast.id} text="Hola a todos">', repr(broadcast))
 
 
-def get_form_data(
+def get_broadcast_form_data(
     org, message, attachments=[], contacts=[], start_datetime="", repeat_period="", repeat_days_of_week=""
 ):
     return OrderedDict(
@@ -1979,31 +1977,58 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.login(self.admin)
 
         # missing text
-        response = self.process_wizard("create", create_url, get_form_data(self.org, ""))
+        response = self.process_wizard("create", create_url, get_broadcast_form_data(self.org, ""))
         self.assertFormError(response.context["form"], "compose", ["Text or attachments are required."])
 
         # text too long
-        response = self.process_wizard("create", create_url, get_form_data(self.org, "." * 641))
+        response = self.process_wizard("create", create_url, get_broadcast_form_data(self.org, "." * 641))
         self.assertFormError(response.context["form"], "compose", ["Maximum allowed text is 640 characters."])
 
         # too many attachments
         attachments = compose_deserialize_attachments([{"content_type": media.content_type, "url": media.url}])
-        response = self.process_wizard("create", create_url, get_form_data(self.org, text, attachments * 11))
+        response = self.process_wizard("create", create_url, get_broadcast_form_data(self.org, text, attachments * 11))
         self.assertFormError(response.context["form"], "compose", ["Maximum allowed attachments is 10 files."])
 
         # empty recipients
-        response = self.process_wizard("create", create_url, get_form_data(self.org, text, []))
+        response = self.process_wizard("create", create_url, get_broadcast_form_data(self.org, text, []))
         self.assertFormError(response.context["form"], "omnibox", ["At least one recipient is required."])
 
         # successful broadcast creation
         response = self.process_wizard(
-            "create", create_url, get_form_data(self.org, text, [], [self.joe], "2021-06-24 12:00", "W", ["M", "F"])
+            "create",
+            create_url,
+            get_broadcast_form_data(self.org, text, [], [self.joe], "2021-06-24 12:00", "W", ["M", "F"]),
         )
         self.assertEqual(302, response.status_code)
 
         self.assertEqual(1, Broadcast.objects.count())
         broadcast = Broadcast.objects.filter(translations__icontains=text).first()
         self.assertEqual("W", broadcast.schedule.repeat_period)
+
+    def test_update(self):
+        updated_text = "Updated broadcast"
+
+        broadcast = self.create_broadcast(
+            self.admin,
+            "Please update this broadcast when you get a chance.",
+            groups=[self.joe_and_frank],
+            contacts=[self.joe],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+        )
+        update_url = reverse("msgs.broadcast_update", args=[broadcast.id])
+
+        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=("compose",))
+        self.login(self.admin)
+
+        response = self.process_wizard(
+            "update",
+            update_url,
+            get_broadcast_form_data(self.org, updated_text, [], [self.joe], "2021-06-24 12:00", "W", ["M", "F"]),
+        )
+        self.assertEqual(302, response.status_code)
+
+        broadcast.refresh_from_db()
+        self.assertEqual(updated_text, broadcast.get_translation(self.joe)["text"])
 
     @mock_mailroom
     def test_preview(self, mr_mocks):
@@ -2276,168 +2301,6 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual(response.context["object"], broadcast)
         self.assertEqual(list(reversed(sends)), list(response.context["send_history"]))
-
-    def test_scheduled_update(self):
-        # create a broadcast via send
-        self.login(self.editor)
-        omnibox = omnibox_serialize(self.org, [], [self.joe], json_encode=True)
-        text = "Lunch reminder"
-        attachments = []
-        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text=text, schedule=True))
-        broadcast = Broadcast.objects.get()
-        url = reverse("msgs.broadcast_scheduled_update", args=[broadcast.pk])
-        response = self.client.get(url)
-        self.assertEqual(list(response.context["form"].fields.keys()), ["omnibox", "compose", "loc"])
-
-        # update the broadcast's contact
-        omnibox = omnibox_serialize(self.org, [], [self.frank], json_encode=True)
-        translation = {"text": text, "attachments": attachments}
-        compose = compose_serialize(translation, json_encode=True)
-        response = self.client.post(url, dict(omnibox=omnibox, compose=compose))
-        self.assertEqual(response.status_code, 302)
-        broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.translations, {"und": {"text": text, "attachments": attachments}})
-        self.assertEqual(broadcast.base_language, "und")
-        self.assertEqual(set(broadcast.contacts.all()), {self.frank})
-
-        # update the broadcast's text
-        text = "Dinner reminder"
-        translation = {"text": text, "attachments": attachments}
-        compose = compose_serialize(translation, json_encode=True)
-        response = self.client.post(url, dict(omnibox=omnibox, compose=compose))
-        self.assertEqual(response.status_code, 302)
-        broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.translations, {"und": {"text": text, "attachments": attachments}})
-        self.assertEqual(broadcast.base_language, "und")
-        self.assertEqual(set(broadcast.contacts.all()), {self.frank})
-
-        # create an attachment and update the broadcast's attachments
-        media_attachments = []
-        media1 = Media.from_upload(
-            self.org,
-            self.admin,
-            self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
-            process=False,
-        )
-        media_attachments.append({"content_type": media1.content_type, "url": media1.url})
-
-        attachments = compose_deserialize_attachments(media_attachments)
-        translation = {"text": text, "attachments": attachments}
-        compose = compose_serialize(translation, json_encode=True)
-        response = self.client.post(url, dict(omnibox=omnibox, compose=compose))
-        self.assertEqual(response.status_code, 302)
-        broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.translations, {"und": {"text": text, "attachments": attachments}})
-        self.assertEqual(broadcast.base_language, "und")
-        self.assertEqual(set(broadcast.contacts.all()), {self.frank})
-
-        # create another attachment and update the broadcast's text and attachments
-        media2 = Media.from_upload(
-            self.org,
-            self.admin,
-            self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
-            process=False,
-        )
-        media_attachments.append({"content_type": media2.content_type, "url": media2.url})
-
-        text = "Midnight snack reminder"
-        attachments = compose_deserialize_attachments(media_attachments)
-        translation = {"text": text, "attachments": attachments}
-        compose = compose_serialize(translation, json_encode=True)
-        response = self.client.post(url, dict(omnibox=omnibox, compose=compose))
-        self.assertEqual(response.status_code, 302)
-        broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.translations, {"und": {"text": text, "attachments": attachments}})
-        self.assertEqual(broadcast.base_language, "und")
-        self.assertEqual(set(broadcast.contacts.all()), {self.frank})
-
-    def test_scheduled_update_missing_contacts(self):
-        self.login(self.editor)
-
-        # create a broadcast via send
-        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], json_encode=True)
-        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
-        broadcast = Broadcast.objects.get()
-
-        # update the broadcast with no groups or contacts
-        omnibox = omnibox_serialize(self.org, [], [], json_encode=True)
-        text = "Empty contacts"
-        attachments = []
-        translation = {"text": text, "attachments": attachments}
-        compose = compose_serialize(translation, json_encode=True)
-        response = self.client.post(
-            reverse("msgs.broadcast_scheduled_update", args=[broadcast.pk]),
-            dict(omnibox=omnibox, compose=compose, schedule=True),
-        )
-        self.assertFormError(response, "form", None, "At least one recipient is required.")
-
-    def test_scheduled_update_missing_media(self):
-        self.login(self.editor)
-
-        # create a broadcast via send
-        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], json_encode=True)
-        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
-        broadcast = Broadcast.objects.get()
-
-        # update the broadcast with no text or attachments
-        compose = compose_serialize(json_encode=True)
-        response = self.client.post(
-            reverse("msgs.broadcast_scheduled_update", args=[broadcast.pk]),
-            dict(omnibox=omnibox, compose=compose, schedule=True),
-        )
-        self.assertFormError(response, "form", None, "Text or attachments are required.")
-
-    def test_scheduled_update_text_max_length(self):
-        self.login(self.editor)
-
-        # create a broadcast via send
-        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], json_encode=True)
-        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
-        broadcast = Broadcast.objects.get()
-
-        # update the broadcast's text
-        text = "".join(
-            random.choices(string.ascii_letters + string.digits + string.punctuation, k=Msg.MAX_TEXT_LEN + 1)
-        )
-        attachments = []
-        translation = {"text": text, "attachments": attachments}
-        compose = compose_serialize(translation, json_encode=True)
-
-        response = self.client.post(
-            reverse("msgs.broadcast_scheduled_update", args=[broadcast.pk]),
-            dict(omnibox=omnibox, compose=compose, schedule=True),
-        )
-        self.assertFormError(response, "form", None, f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters.")
-
-    def test_scheduled_update_attachments_max_files(self):
-        self.login(self.editor)
-
-        # create a broadcast via send
-        omnibox = omnibox_serialize(self.org, [self.joe_and_frank], [self.joe], json_encode=True)
-        self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
-        broadcast = Broadcast.objects.get()
-
-        # update the broadcast's attachments
-        media_attachments = []
-        for _ in range(Msg.MAX_ATTACHMENTS + 1):
-            media = Media.from_upload(
-                self.org,
-                self.admin,
-                self.upload(f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg", "image/jpeg"),
-                process=False,
-            )
-            media_attachments.append({"content_type": media.content_type, "url": media.url})
-
-        text = ""
-        attachments = compose_deserialize_attachments(media_attachments)
-        translation = {"text": text, "attachments": attachments}
-        compose = compose_serialize(translation, json_encode=True)
-
-        response = self.client.post(
-            reverse("msgs.broadcast_scheduled_update", args=[broadcast.pk]),
-            dict(omnibox=omnibox, compose=compose, schedule=True),
-        )
-        self.assertFormError(response, "form", None, f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files.")
 
     def test_scheduled_delete(self):
         self.login(self.editor)

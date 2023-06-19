@@ -79,12 +79,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         if not is_short_code:
             phone_number = phonenumbers.parse(number=number, region=country)
             address = f"+{str(phone_number.country_code)}{str(phone_number.national_number)}"
-
             name = phonenumbers.format_number(
                 phonenumbers.parse(address, None), phonenumbers.PhoneNumberFormat.NATIONAL
             )
         else:
-            role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
             address = number
             name = number
 

@@ -9,6 +9,7 @@ function onSpload(fn) {
     var isLoading = container.classList.contains('loading');
     if (isInitial) {
       document.addEventListener('DOMContentLoaded', fn, { once: true });
+      container.classList.remove('initial-load');
     } else {
       if (isLoading) {
         var eventContainer = document.querySelector('.spa-content');
@@ -237,9 +238,8 @@ function hideLoading(response) {
   var containers = document.querySelectorAll(
     '.spa-container, .widget-container'
   );
-  for (container of containers) {
-    container.classList.remove('loading');
-    container.classList.remove('initial-load');
+  for (cont of containers) {
+    cont.classList.remove('loading');
   }
 
   // scroll our content to the top if needed
