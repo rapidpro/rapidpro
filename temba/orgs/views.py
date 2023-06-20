@@ -3143,8 +3143,3 @@ class OrgImportCRUDL(SmartCRUDL):
 
         def derive_title(self):
             return _("Import Flows and Campaigns")
-
-        def derive_refresh(self):  # pragma: needs cover
-            if self.get_object().is_import_finished():
-                return 0
-            return 3000
