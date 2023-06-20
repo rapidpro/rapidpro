@@ -6,6 +6,7 @@ from .views import (
     ConfirmAccessView,
     LoginView,
     OrgCRUDL,
+    OrgImportCRUDL,
     TwoFactorBackupView,
     TwoFactorVerifyView,
     UserCRUDL,
@@ -13,6 +14,7 @@ from .views import (
 )
 
 urlpatterns = OrgCRUDL().as_urlpatterns()
+urlpatterns += OrgImportCRUDL().as_urlpatterns()
 urlpatterns += UserCRUDL().as_urlpatterns()
 
 # we iterate all our integration types, finding all the URLs they want to wire in

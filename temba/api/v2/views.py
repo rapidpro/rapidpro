@@ -1881,7 +1881,7 @@ class FlowsEndpoint(ListAPIMixin, BaseEndpoint):
      * **archived** - whether this flow is archived (boolean), filterable as `archived`
      * **labels** - the labels for this flow (array of objects)
      * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer)
-     * **runs** - the counts of completed, interrupted and expired runs (object)
+     * **runs** - the counts of active, completed, interrupted and expired runs (object)
      * **results** - the results that this flow may create (array)
      * **parent_refs** - the keys of the parent flow results referenced in this flow (array)
      * **created_on** - when this flow was created (datetime)

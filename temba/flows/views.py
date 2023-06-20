@@ -823,8 +823,8 @@ class FlowCRUDL(SmartCRUDL):
                     on_submit="handleCreateLabelModalSubmitted()",
                 )
 
-            if self.has_org_perm("orgs.org_import"):
-                menu.add_link(_("Import"), reverse("orgs.org_import"))
+            if self.has_org_perm("orgs.orgimport_create"):
+                menu.add_link(_("Import"), reverse("orgs.orgimport_create"))
             if self.has_org_perm("orgs.org_export"):
                 menu.add_link(_("Export"), reverse("orgs.org_export"))
 

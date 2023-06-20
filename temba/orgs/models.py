@@ -5,6 +5,8 @@ from abc import ABCMeta
 from collections import defaultdict
 from datetime import timedelta
 from enum import Enum
+from pathlib import Path
+from typing import Any
 from urllib.parse import quote, urlencode, urlparse
 
 import pycountry
@@ -21,6 +23,7 @@ from django.contrib.postgres.validators import ArrayMinLengthValidator
 from django.db import models, transaction
 from django.db.models import Prefetch
 from django.utils import timezone
+from django.utils.encoding import force_str
 from django.utils.functional import cached_property
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
@@ -28,7 +31,7 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.locations.models import AdminBoundary
-from temba.utils import json, languages
+from temba.utils import json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONField
@@ -1406,6 +1409,56 @@ class OrgMembership(models.Model):
 
     class Meta:
         unique_together = (("org", "user"),)
+
+
+def get_import_upload_path(instance: Any, filename: str):
+    ext = Path(filename).suffix.lower()
+    return f"{settings.STORAGE_ROOT_DIR}/{instance.org_id}/org_imports/{uuid4()}{ext}"
+
+
+class OrgImport(SmartModel):
+    STATUS_PENDING = "P"
+    STATUS_PROCESSING = "O"
+    STATUS_COMPLETE = "C"
+    STATUS_FAILED = "F"
+    STATUS_CHOICES = (
+        (STATUS_PENDING, "Pending"),
+        (STATUS_PROCESSING, "Processing"),
+        (STATUS_COMPLETE, "Complete"),
+        (STATUS_FAILED, "Failed"),
+    )
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="imports")
+    file = models.FileField(upload_to=get_import_upload_path)
+    status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
+
+    def start_async(self):
+        from .tasks import start_org_import_task
+
+        on_transaction_commit(lambda: start_org_import_task.delay(self.id))
+
+    def start(self):
+        assert self.status == self.STATUS_PENDING, "trying to start an already started import"
+
+        # mark us as processing to prevent double starting
+        self.status = self.STATUS_PROCESSING
+        self.save(update_fields=("status",))
+        try:
+            org = self.org
+            link = org.get_brand()["link"]
+            data = json.loads(force_str(self.file.read()))
+            org.import_app(data, self.created_by, link)
+        except Exception as e:
+            self.status = self.STATUS_FAILED
+            self.save(update_fields=("status",))
+
+            # this is an unexpected error, report it to sentry
+            logger = logging.getLogger(__name__)
+            logger.error("Exception on app import: %s" % str(e), exc_info=True)
+
+        else:
+            self.status = self.STATUS_COMPLETE
+            self.save(update_fields=("status", "modified_on"))
 
 
 class Invitation(SmartModel):
