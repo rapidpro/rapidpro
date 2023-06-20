@@ -1432,9 +1432,6 @@ class OrgImport(SmartModel):
     file = models.FileField(upload_to=get_import_upload_path)
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
 
-    def is_import_finished(self):
-        return self.status in (OrgImport.STATUS_COMPLETE, OrgImport.STATUS_FAILED)
-
     def start_async(self):
         from .tasks import start_org_import_task
 
