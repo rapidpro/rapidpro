@@ -218,7 +218,7 @@ class RocketChatViewTest(RocketChatMixin):
 
         data["base_url"] = "domain.com"
         response = self.submit_form(data)
-        self.assertFormError(response, "form", "base_url", "Invalid URL http://domain.com")
+        self.assertFormError(response, "form", "base_url", "Enter a valid URL.")
 
     def test_form_invalid_secret(self):
         data = self.new_form_data()
