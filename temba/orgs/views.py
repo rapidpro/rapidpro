@@ -1,5 +1,4 @@
 import itertools
-import logging
 import random
 import smtplib
 import string
@@ -36,7 +35,7 @@ from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError
-from django.forms import Form, ModelChoiceField
+from django.forms import ModelChoiceField
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import resolve_url
 from django.urls import reverse, reverse_lazy
@@ -72,7 +71,7 @@ from temba.utils.views import (
     StaffOnlyMixin,
 )
 
-from .models import BackupToken, IntegrationType, Invitation, Org, OrgRole, User
+from .models import BackupToken, IntegrationType, Invitation, Org, OrgImport, OrgRole, User
 
 # session key for storing a two-factor enabled user's id once we've checked their password
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
@@ -1146,7 +1145,6 @@ class OrgCRUDL(SmartCRUDL):
         "sub_orgs",
         "create",
         "export",
-        "import",
         "prometheus",
         "resthooks",
         "service",
@@ -1435,59 +1433,6 @@ class OrgCRUDL(SmartCRUDL):
 
             # Other Plugins:
             # Wit.ai, Luis, Bothub, ZenDesk, DT One, Chatbase, Prometheus, Zapier/Resthooks
-
-    class Import(SpaMixin, NonAtomicMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
-        menu_path = "/settings/workspace"
-
-        class FlowImportForm(Form):
-            import_file = forms.FileField(help_text=_("The import file"))
-            update = forms.BooleanField(help_text=_("Update all flows and campaigns"), required=False)
-
-            def __init__(self, *args, **kwargs):
-                self.org = kwargs["org"]
-                del kwargs["org"]
-                super().__init__(*args, **kwargs)
-
-            def clean_import_file(self):
-                # check that it isn't too old
-                data = self.cleaned_data["import_file"].read()
-                try:
-                    json_data = json.loads(force_str(data))
-                except (DjangoUnicodeDecodeError, ValueError):
-                    raise ValidationError(_("This file is not a valid flow definition file."))
-
-                if Version(str(json_data.get("version", 0))) < Version(Org.EARLIEST_IMPORT_VERSION):
-                    raise ValidationError(
-                        _("This file is no longer valid. Please export a new version and try again.")
-                    )
-
-                return data
-
-        success_message = _("Import successful")
-        form_class = FlowImportForm
-        title = _("Import Flows")
-
-        def get_success_url(self):  # pragma: needs cover
-            return reverse("flows.flow_list")
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
-
-        def form_valid(self, form):
-            try:
-                org = self.request.org
-                data = json.loads(form.cleaned_data["import_file"])
-                org.import_app(data, self.request.user, self.request.branding["link"])
-            except Exception as e:
-                # this is an unexpected error, report it to sentry
-                logger = logging.getLogger(__name__)
-                logger.error("Exception on app import: %s" % str(e), exc_info=True)
-                form._errors["import_file"] = form.error_class([_("Sorry, your import file is invalid.")])
-                return self.form_invalid(form)
-
-            return super().form_valid(form)  # pragma: needs cover
 
     class Export(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         title = _("Create Export")
@@ -2952,8 +2897,8 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_export"):
                 menu.add_link(_("Export"), reverse("orgs.org_export"))
 
-            if self.has_org_perm("orgs.org_import"):
-                menu.add_link(_("Import"), reverse("orgs.org_import"))
+            if self.has_org_perm("orgs.orgimport_create"):
+                menu.add_link(_("Import"), reverse("orgs.orgimport_create"))
 
         def derive_formax_sections(self, formax, context):
             if self.has_org_perm("orgs.org_edit"):
@@ -3137,3 +3082,64 @@ class OrgCRUDL(SmartCRUDL):
 
             self.org = self.derive_org()
             return self.request.user.has_perm(perm) or self.has_org_perm(perm)
+
+
+class OrgImportCRUDL(SmartCRUDL):
+    model = OrgImport
+    actions = ("create", "read")
+
+    class Create(SpaMixin, OrgPermsMixin, SmartCreateView):
+        menu_path = "/settings/workspace"
+
+        class Form(forms.ModelForm):
+            file = forms.FileField(help_text=_("The import file"))
+
+            def __init__(self, org, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.org = org
+
+            def clean_file(self):
+                # check that it isn't too old
+                data = self.cleaned_data["file"].read()
+                try:
+                    json_data = json.loads(force_str(data))
+                except (DjangoUnicodeDecodeError, ValueError):
+                    raise ValidationError(_("This file is not a valid flow definition file."))
+
+                if Version(str(json_data.get("version", 0))) < Version(Org.EARLIEST_IMPORT_VERSION):
+                    raise ValidationError(
+                        _("This file is no longer valid. Please export a new version and try again.")
+                    )
+
+                return self.cleaned_data["file"]
+
+            class Meta:
+                model = OrgImport
+                fields = ("file",)
+
+        success_message = _("Import started")
+        success_url = "id@orgs.orgimport_read"
+        form_class = Form
+
+        def derive_title(self):
+            return _("Import Flows")
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
+            return kwargs
+
+        def pre_save(self, obj):
+            obj = super().pre_save(obj)
+            obj.org = self.request.org
+            return obj
+
+        def post_save(self, obj):
+            obj.start_async()
+            return obj
+
+    class Read(SpaMixin, OrgPermsMixin, SmartReadView):
+        menu_path = "/settings/workspace"
+
+        def derive_title(self):
+            return _("Import Flows and Campaigns")
