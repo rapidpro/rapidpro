@@ -1777,6 +1777,3 @@ class ContactImportCRUDL(SmartCRUDL):
 
         def is_import_finished(self):
             return self.import_info["status"] in (ContactImport.STATUS_COMPLETE, ContactImport.STATUS_FAILED)
-
-        def derive_refresh(self):
-            return 0 if self.is_import_finished() else 3000

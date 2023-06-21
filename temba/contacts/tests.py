@@ -5517,7 +5517,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         imp = ContactImport.objects.get()
         self.assertEqual(self.org, imp.org)
         self.assertEqual(3, imp.num_records)
-        self.assertRegexpMatches(imp.file.name, rf"^contact_imports/{self.org.id}/[\w-]{{36}}.xlsx$")
+        self.assertRegexpMatches(imp.file.name, rf"test_orgs/{self.org.id}/contact_imports/[\w-]{{36}}.xlsx$")
         self.assertEqual("simple.xlsx", imp.original_filename)
         self.assertIsNone(imp.started_on)
         self.assertIsNone(imp.group)

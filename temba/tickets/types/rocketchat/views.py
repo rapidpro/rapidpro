@@ -67,7 +67,7 @@ class ConnectView(BaseConnectView):
             if base_url:
                 base_url = base_url.group()
             else:
-                raise forms.ValidationError(_("Invalid URL: %(base_url)s") % self.cleaned_data)
+                raise forms.ValidationError(_("Enter a valid URL."))
 
             base_url_exists = org.ticketers.filter(
                 is_active=True,

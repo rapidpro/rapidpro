@@ -1,3 +1,13 @@
+v8.1.196 (2023-06-21)
+-------------------------
+ * Improve ExternalURLField and don't assume http
+ * Use org import task to import flows
+
+v8.1.195 (2023-06-19)
+-------------------------
+ * Name override for oro language
+ * Remove no longer used code relating to contact fields
+
 v8.1.194 (2023-06-19)
 -------------------------
  * Don't ignore user provided role for somleng shortcodes

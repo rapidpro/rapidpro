@@ -1,7 +1,5 @@
 -extends "smartmin/form.html"
-
--load smartmin
--load i18n humanize
+-load smartmin i18n humanize
 
 -block title
   -trans "Import Flows and Campaigns"
@@ -12,7 +10,7 @@
 
   -block import-status
     .flex.w-full.mb-4.items-end.flex-wrap{style:"min-height:41px"}
-      %form#import-form(method="post" action="{% url 'orgs.org_import' %}" enctype="multipart/form-data")
+      %form#import-form(method="post" action="{% url 'orgs.orgimport_create' %}" enctype="multipart/form-data")
         - if form.non_field_errors
           .text-error
             {{ form.non_field_errors }}
@@ -24,9 +22,9 @@
 
         -block fields
           .mt-4.mb-4.text-error
-            {{ form.import_file.errors }}
+            {{ form.file.errors }}
           #file-upload
-            %input{type:"file", name:"import_file", id:"import_file", onchange:'updateFlowImportFile()'}
+            %input{type:"file", name:"file", id:"file", onchange:'updateFlowImportFile()'}
           #real_button.flex
             %input{type:"text", id:"file-field"}
             .block.button-primary.ml-4(style="margin-top:-1px")
@@ -77,7 +75,7 @@
     border-radius: 5px;
   }
 
-  #import_file {
+  #file {
     position:absolute;
     width:450px;
     height:35px;
@@ -90,25 +88,15 @@
     z-index: 2;
   }
 
-{% endblock %}
+{% endblock extra-style %}
 
 -block extra-script
   {{block.super}}
   :javascript
     function updateFlowImportFile(){
-      var file = $("#import_file").val();
+      var file = $("#file").val();
       while (file.indexOf("\\") >= 0){
 	    file = file.substring(file.indexOf("\\")+1, file.length);
       }
       $("#file-field").val(file);
     }
-
-    $(document).ready(function() {
-      $('#update').on('change', function() {
-        if ($(this).attr('checked')) {
-          $('.warning').slideDown();
-        } else {
-          $('.warning').slideUp();
-        }
-      });
-    });

@@ -196,7 +196,7 @@ class RocketChatViewTest(RocketChatMixin):
 
         choices = (c for c in self.secret)
         response = self.client.post(self.connect_url, data={**base, "secret": self.secret, "base_url": "domain.com"})
-        self.assertFormError(response, "form", "base_url", "Invalid URL: http://domain.com")
+        self.assertFormError(response, "form", "base_url", "Enter a valid URL.")
 
         for path in ["", "/", "/path", f"/path{self.app_id}/"]:
             for scheme in ["", "http", "https"]:
@@ -211,7 +211,7 @@ class RocketChatViewTest(RocketChatMixin):
                 url = data["base_url"]
                 if not url.startswith("http"):
                     url = f"http://{url}"
-                self.assertFormError(response, "form", "base_url", f"Invalid URL: {url}")
+                self.assertFormError(response, "form", "base_url", "Enter a valid URL.")
 
         choices = (c for c in self.secret)
         data = {**base, "secret": self.secret, "base_url": self.new_url("domain.com", path=f"/{self.app_id}")}

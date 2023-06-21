@@ -13,7 +13,13 @@ from temba.msgs.models import ExportMessagesTask
 from temba.msgs.tasks import export_messages_task
 from temba.utils.crons import cron_task
 
-from .models import Invitation, Org
+from .models import Invitation, Org, OrgImport
+
+
+@shared_task
+def start_org_import_task(import_id):
+    org_import = OrgImport.objects.get(pk=import_id)
+    org_import.start()
 
 
 @shared_task
