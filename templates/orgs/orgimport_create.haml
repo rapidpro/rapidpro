@@ -1,7 +1,5 @@
 -extends "smartmin/form.html"
-
--load smartmin
--load i18n humanize
+-load smartmin i18n humanize
 
 -block title
   -trans "Import Flows and Campaigns"
@@ -24,7 +22,7 @@
 
         -block fields
           .mt-4.mb-4.text-error
-            {{ form.import_file.errors }}
+            {{ form.file.errors }}
           #file-upload
             %input{type:"file", name:"file", id:"file", onchange:'updateFlowImportFile()'}
           #real_button.flex
@@ -90,7 +88,7 @@
     z-index: 2;
   }
 
-{% endblock %}
+{% endblock extra-style %}
 
 -block extra-script
   {{block.super}}
@@ -102,13 +100,3 @@
       }
       $("#file-field").val(file);
     }
-
-    $(document).ready(function() {
-      $('#update').on('change', function() {
-        if ($(this).attr('checked')) {
-          $('.warning').slideDown();
-        } else {
-          $('.warning').slideUp();
-        }
-      });
-    });
