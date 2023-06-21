@@ -40,10 +40,25 @@
   resolved "https://registry.npmjs.org/@lit-labs/ssr-dom-shim/-/ssr-dom-shim-1.1.1.tgz#64df34e2f12e68e78ac57e571d25ec07fa460ca9"
   integrity sha512-kXOeFbfCm4fFf2A3WwVEeQj55tMZa8c8/f9AKHMobQMkzNUfUj+antR3fRPaZJawsa1aZiP/Da3ndpZrwEe4rQ==
 
+"@lit/localize@^0.11.4":
+  version "0.11.4"
+  resolved "https://registry.npmjs.org/@lit/localize/-/localize-0.11.4.tgz#4a5758965977828c10c51738fbb1890decb3d8f6"
+  integrity sha512-RRIwIX2tAm3+DuEndoXSJrFjGrAK5cb5IXo5K6jcJ6sbgD829B8rSqHC5MaKVUmXTVLIR1bk5IZOZDf9wFereA==
+  dependencies:
+    "@lit/reactive-element" "^1.4.0"
+    lit "^2.3.0"
+
 "@lit/reactive-element@^1.3.0":
   version "1.6.1"
   resolved "https://registry.npmjs.org/@lit/reactive-element/-/reactive-element-1.6.1.tgz#0d958b6d479d0e3db5fc1132ecc4fa84be3f0b93"
   integrity sha512-va15kYZr7KZNNPZdxONGQzpUr+4sxVu7V/VG7a8mRfPPXUyhEYj5RzXCQmGrlP3tAh0L3HHm5AjBMFYRqlM9SA==
+  dependencies:
+    "@lit-labs/ssr-dom-shim" "^1.0.0"
+
+"@lit/reactive-element@^1.4.0", "@lit/reactive-element@^1.6.0":
+  version "1.6.2"
+  resolved "https://registry.npmjs.org/@lit/reactive-element/-/reactive-element-1.6.2.tgz#c256690f82f2d7d0ffb0b1cdf68dcb1ec86cea28"
+  integrity sha512-rDfl+QnCYjuIGf5xI2sVJWdYIi56CTCwWa+nidKYX6oIuBYwUbT/vX4qbUDlHiZKJ/3FRNQ/tWJui44p6/stSA==
   dependencies:
     "@lit-labs/ssr-dom-shim" "^1.0.0"
 
@@ -55,11 +70,12 @@
     react "^16.8.6"
     react-dom "^16.8.6"
 
-"@nyaruka/temba-components@0.53.4":
-  version "0.53.4"
-  resolved "https://registry.npmjs.org/@nyaruka/temba-components/-/temba-components-0.53.4.tgz#0daf0414aa9250e246406aa7f5063634b0fb58ce"
-  integrity sha512-j3tbRPrYT4Tibo3UljERH0HiVSB2UqyHGthuzHCwrWboGnzitflP0DweDgGZdAHBycKktBo3oLQvEa6xguB3Dg==
+"@nyaruka/temba-components@0.54.0":
+  version "0.54.0"
+  resolved "https://registry.npmjs.org/@nyaruka/temba-components/-/temba-components-0.54.0.tgz#293bcf4bba6abea950dc62b281b482a5b8df64be"
+  integrity sha512-AGZZIopNOJ/zvr+QpVG+J00eNs9oM+xb4TgTWJa1pP1n+0/9NSP/fns8DsS3nyOceHltj6YnamScX9Y5TY3wcw==
   dependencies:
+    "@lit/localize" "^0.11.4"
     color-hash "^2.0.2"
     geojson "^0.5.0"
     highlight.js "^10.7.1"
@@ -573,7 +589,7 @@ lit-element@^2.2.1:
   dependencies:
     lit-html "^1.1.1"
 
-lit-element@^3.2.0:
+lit-element@^3.2.0, lit-element@^3.3.0:
   version "3.3.2"
   resolved "https://registry.npmjs.org/lit-element/-/lit-element-3.3.2.tgz#9913bf220b85065f0e5f1bb8878cc44f36b50cfa"
   integrity sha512-xXAeVWKGr4/njq0rGC9dethMnYCq5hpKYrgQZYTzawt9YQhMiXfD+T1RgrdY3NamOxwq2aXlb0vOI6e29CKgVQ==
@@ -602,6 +618,15 @@ lit@2.2.0:
     "@lit/reactive-element" "^1.3.0"
     lit-element "^3.2.0"
     lit-html "^2.2.0"
+
+lit@^2.3.0:
+  version "2.7.5"
+  resolved "https://registry.npmjs.org/lit/-/lit-2.7.5.tgz#60bc82990cfad169d42cd786999356dcf79b035f"
+  integrity sha512-i/cH7Ye6nBDUASMnfwcictBnsTN91+aBjXoTHF2xARghXScKxpD4F4WYI+VLXg9lqbMinDfvoI7VnZXjyHgdfQ==
+  dependencies:
+    "@lit/reactive-element" "^1.6.0"
+    lit-element "^3.3.0"
+    lit-html "^2.7.0"
 
 lodash@^4.17.21:
   version "4.17.21"
