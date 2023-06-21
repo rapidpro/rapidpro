@@ -2,7 +2,7 @@ import ipaddress
 import json
 import socket
 from datetime import datetime
-from urllib import parse
+from urllib.parse import urlparse
 
 from django import forms
 from django.core.validators import URLValidator
@@ -101,34 +101,48 @@ class NameValidator:
         return isinstance(other, NameValidator) and self.max_length == other.max_length
 
 
-def validate_external_url(value):
-    parsed = parse.urlparse(value)
-
-    # if it isn't http or https, fail
-    if parsed.scheme not in ("http", "https"):
-        raise ValidationError(_("Must use HTTP or HTTPS."), params={"value": value})
-
-    # resolve the host
-    try:
-        host = parsed.netloc
-        if parsed.port:
-            host = parsed.netloc[: -(len(str(parsed.port)) + 1)]
-        ip = socket.gethostbyname(host)
-    except Exception:
-        raise ValidationError(_("Unable to resolve host."), params={"value": value})
-
-    ip = ipaddress.ip_address(ip)
-
-    if ip.is_loopback or ip.is_multicast or ip.is_private or ip.is_link_local:
-        raise ValidationError(_("Cannot be a local or private host."), params={"value": value})
-
-
 class ExternalURLField(forms.URLField):
     """
     Just like a normal URLField but also validates that the URL is external (not localhost)
     """
 
-    default_validators = [URLValidator(), validate_external_url]
+    default_validators = [URLValidator()]
+
+    def to_python(self, value):
+        """
+        Overrides URLField.to_python to remove assuming http scheme
+        """
+        value = super(forms.CharField, self).to_python(value)
+        if value:
+            try:
+                parsed = urlparse(value)
+            except ValueError:
+                raise ValidationError(self.error_messages["invalid"], code="invalid")
+
+            if not parsed.scheme or not parsed.netloc:
+                raise ValidationError(self.error_messages["invalid"], code="invalid")
+
+            # if it isn't http or https, fail
+            if parsed.scheme not in ("http", "https"):
+                raise ValidationError(_("Must use HTTP or HTTPS."), params={"value": value})
+
+            # resolve the host
+            try:
+                if parsed.port:
+                    host = parsed.netloc[: -(len(str(parsed.port)) + 1)]
+                else:
+                    host = parsed.netloc
+
+                ip = socket.gethostbyname(host)
+            except Exception:
+                raise ValidationError(_("Unable to resolve host."), params={"value": value})
+
+            ip = ipaddress.ip_address(ip)
+
+            if ip.is_loopback or ip.is_multicast or ip.is_private or ip.is_link_local:
+                raise ValidationError(_("Cannot be a local or private host."), params={"value": value})
+
+        return value
 
 
 class CheckboxWidget(forms.CheckboxInput):

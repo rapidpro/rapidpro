@@ -9,6 +9,7 @@ import pytz
 from celery.app.task import Task
 from django_redis import get_redis_connection
 
+from django import forms
 from django.conf import settings
 from django.forms import ValidationError
 from django.test import TestCase, override_settings
@@ -27,7 +28,7 @@ from . import chunk_list, countries, format_number, languages, percentage, redac
 from .crons import clear_cron_stats, cron_task
 from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
-from .fields import NameValidator, validate_external_url
+from .fields import ExternalURLField, NameValidator
 from .templatetags.temba import oxford, short_datetime
 from .text import clean_string, decode_stream, generate_token, random_string, slugify_with, truncate, unsnakify
 from .timezones import TimeZoneFormField, timezone_to_country_code
@@ -898,34 +899,38 @@ class TestValidators(TestCase):
         self.assertEqual(NameValidator(64), validator)
         self.assertNotEqual(NameValidator(32), validator)
 
-    def test_validate_external_url(self):
+    def test_external_url_field(self):
+        class Form(forms.Form):
+            url = ExternalURLField()
+
         cases = (
-            ("ftp://google.com", "Must use HTTP or HTTPS."),
-            ("http://localhost/foo", "Cannot be a local or private host."),
-            ("http://localhost:80/foo", "Cannot be a local or private host."),
-            ("http://127.0.00.1/foo", "Cannot be a local or private host."),  # loop back
-            ("http://192.168.0.0/foo", "Cannot be a local or private host."),  # private
-            ("http://255.255.255.255", "Cannot be a local or private host."),  # multicast
-            ("http://169.254.169.254/latest", "Cannot be a local or private host."),  # link local
-            ("http://::1:80/foo", "Unable to resolve host."),  # no ipv6 addresses for now
-            ("http://google.com/foo", None),
-            ("http://google.com:8000/foo", None),
-            ("HTTP://google.com:8000/foo", None),
-            ("HTTP://8.8.8.8/foo", None),
+            ("//[", ["Enter a valid URL."]),
+            ("ftp://google.com", ["Must use HTTP or HTTPS."]),
+            ("google.com", ["Enter a valid URL."]),
+            ("http://localhost/foo", ["Cannot be a local or private host."]),
+            ("http://localhost:80/foo", ["Cannot be a local or private host."]),
+            ("http://127.0.00.1/foo", ["Cannot be a local or private host."]),  # loop back
+            ("http://192.168.0.0/foo", ["Cannot be a local or private host."]),  # private
+            ("http://255.255.255.255", ["Cannot be a local or private host."]),  # multicast
+            ("http://169.254.169.254/latest", ["Cannot be a local or private host."]),  # link local
+            ("http://::1:80/foo", ["Unable to resolve host."]),  # no ipv6 addresses for now
+            ("http://google.com/foo", []),
+            ("http://google.com:8000/foo", []),
+            ("HTTP://google.com:8000/foo", []),
+            ("HTTP://8.8.8.8/foo", []),
         )
 
         for tc in cases:
-            if tc[1]:
-                with self.assertRaises(ValidationError) as cm:
-                    validate_external_url(tc[0])
+            form = Form({"url": tc[0]})
+            is_valid = form.is_valid()
 
-                self.assertEqual(tc[1], cm.exception.message)
+            if tc[1]:
+                self.assertFalse(is_valid, f"form.is_valid() unexpectedly true for '{tc[0]}'")
+                self.assertEqual({"url": tc[1]}, form.errors, f"validation errors mismatch for '{tc[0]}'")
+
             else:
-                with patch("socket.gethostbyname", return_value="123.123.123.123"):
-                    try:
-                        validate_external_url(tc[0])
-                    except Exception:
-                        self.fail(f"unexpected validation error for '{tc[0]}'")
+                self.assertTrue(is_valid, f"form.is_valid() unexpectedly false for '{tc[0]}'")
+                self.assertEqual({}, form.errors)
 
 
 class TestUUIDs(TembaTest):
