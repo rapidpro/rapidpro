@@ -23,7 +23,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.assets.models import register_asset_store
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelLog
 from temba.contacts import search
 from temba.contacts.models import Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Org
@@ -594,6 +594,9 @@ class Msg(models.Model):
         Gets this message's attachments parsed into actual attachment objects
         """
         return Attachment.parse_all(self.attachments)
+
+    def get_logs(self) -> list:
+        return ChannelLog.get_logs(self.log_uuids or [])
 
     def handle(self):
         """

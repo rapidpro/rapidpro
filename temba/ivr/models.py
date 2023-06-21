@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import Contact, ContactURN
 from temba.orgs.models import Org
 
@@ -102,6 +102,9 @@ class Call(models.Model):
             return self.session
         except ObjectDoesNotExist:  # pragma: no cover
             return None
+
+    def get_logs(self) -> list:
+        return ChannelLog.get_logs(self.log_uuids or [])
 
     def release(self):
         session = self.get_session()

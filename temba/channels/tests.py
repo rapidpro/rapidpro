@@ -1791,9 +1791,12 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         msg1_url = reverse("channels.channellog_msg", args=[self.channel.uuid, msg1.id])
 
-        self.assertListFetch(
-            msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log1, log2]
+        response = self.assertListFetch(
+            msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[]
         )
+        self.assertEqual(2, len(response.context["logs"]))
+        self.assertEqual("https://foo.bar/send1", response.context["logs"][0]["http_logs"][0]["url"])
+        self.assertEqual("https://foo.bar/send2", response.context["logs"][1]["http_logs"][0]["url"])
 
         self.login(self.admin)
 
@@ -1831,9 +1834,12 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         call1_url = reverse("channels.channellog_call", args=[self.channel.uuid, call1.id])
 
-        self.assertListFetch(
-            call1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log1, log2]
+        response = self.assertListFetch(
+            call1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[]
         )
+        self.assertEqual(2, len(response.context["logs"]))
+        self.assertEqual("https://acme-calls.com/reply", response.context["logs"][0]["http_logs"][0]["url"])
+        self.assertEqual("https://foo.bar/call2", response.context["logs"][1]["http_logs"][0]["url"])
 
     def test_read_and_list(self):
         self.channel.role = "CASR"
@@ -1959,6 +1965,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # check read page shows un-redacted content for a regular org
         response = self.client.get(read_url)
+        self.assertEqual(1, len(response.context["logs"]))
         self.assertNotRedacted(response, ("3527065", "Nic", "Pottier"))
 
         # but for anon org we see redaction...
