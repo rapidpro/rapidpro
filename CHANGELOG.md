@@ -1,3 +1,9 @@
+v8.1.197 (2023-06-22)
+-------------------------
+ * Override the correct alpha3 code for Oromifa
+ * Update form components to use element internals
+ * Rework loading of channel logs so easier to fetch from S3 too
+
 v8.1.196 (2023-06-21)
 -------------------------
  * Improve ExternalURLField and don't assume http

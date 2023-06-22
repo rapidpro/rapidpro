@@ -640,6 +640,7 @@ class LanguagesTest(TembaTest):
             self.assertEqual("Arabic (Omani, ISO-639-3)", languages.get_name("acx"))  # name is overridden
             self.assertEqual("Cajun French", languages.get_name("frc"))  # non ISO-639-1 lang explicitly included
             self.assertEqual("Kyrgyz", languages.get_name("kir"))
+            self.assertEqual("Oromifa", languages.get_name("orm"))
 
             self.assertEqual("", languages.get_name("cpi"))  # not in our allowed languages
             self.assertEqual("", languages.get_name("xyz"))

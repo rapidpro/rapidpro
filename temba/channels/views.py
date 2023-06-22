@@ -977,7 +977,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
     class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         """
-        Detail view for a single channel log
+        Detail view for a single channel log (that is in the database rather than S3).
         """
 
         def derive_menu_path(self):
@@ -1008,8 +1008,22 @@ class ChannelLogCRUDL(SmartCRUDL):
             return self.owner.org
 
         def derive_queryset(self, **kwargs):
-            uuids = self.owner.log_uuids or []
-            return super().derive_queryset(**kwargs).filter(uuid__in=uuids).order_by("created_on")
+            return ChannelLog.objects.none()  # not used as logs may be in S3
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            anonymize = self.request.org.is_anon and not (self.request.GET.get("break") and self.request.user.is_staff)
+            logs = []
+            for log in self.owner.get_logs():
+                logs.append(
+                    ChannelLog.display(
+                        log, anonymize=anonymize, channel=self.owner.channel, urn=self.owner.contact_urn
+                    )
+                )
+
+            context["logs"] = logs
+            return context
 
     class Msg(BaseOwned):
         """
@@ -1022,12 +1036,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-
-            urn = self.owner.contact_urn
-            anonymize = self.request.org.is_anon and not (self.request.GET.get("break") and self.request.user.is_staff)
-
             context["msg"] = self.owner
-            context["logs"] = [log.get_display(anonymize=anonymize, urn=urn) for log in context["object_list"]]
             return context
 
     class Call(BaseOwned):
@@ -1041,10 +1050,5 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-
-            urn = self.owner.contact_urn
-            anonymize = self.request.org.is_anon and not (self.request.GET.get("break") and self.request.user.is_staff)
-
             context["call"] = self.owner
-            context["logs"] = [log.get_display(anonymize=anonymize, urn=urn) for log in context["object_list"]]
             return context
