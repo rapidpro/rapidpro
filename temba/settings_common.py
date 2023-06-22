@@ -49,7 +49,7 @@ OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
 # -----------------------------------------------------------------------------------
 
 # S3 bucket names for different things
-BUCKETS = {
+STORAGE_BUCKETS = {
     "archives": "dl-temba-archives",
     "sessions": "dl-temba-sessions",
     "storage": "dl-temba-io",
@@ -62,7 +62,7 @@ STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
 AWS_ACCESS_KEY_ID = "aws_access_key_id"
 AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
 AWS_DEFAULT_ACL = "private"
-AWS_STORAGE_BUCKET_NAME = BUCKETS["storage"]
+AWS_STORAGE_BUCKET_NAME = STORAGE_BUCKETS["storage"]
 AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + ".s3.amazonaws.com"
 
 # -----------------------------------------------------------------------------------
