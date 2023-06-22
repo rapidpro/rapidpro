@@ -391,7 +391,12 @@ class CampaignEventForm(forms.ModelForm):
             is_system=False,
         ).order_by("name")
 
-        if self.instance.id and self.instance.flow and self.instance.flow.flow_type == Flow.TYPE_BACKGROUND:
+        if (
+            self.instance.id
+            and self.instance.flow
+            and self.instance.flow.flow_type == Flow.TYPE_BACKGROUND
+            and not self.instance.message
+        ):
             flow.widget.attrs["info_text"] = CampaignEventCRUDL.BACKGROUND_WARNING
 
         message = self.instance.message or {}

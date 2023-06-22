@@ -153,7 +153,7 @@ class CheckboxWidget(forms.CheckboxInput):
 class SelectWidget(forms.Select):
     template_name = "utils/forms/select.haml"
     is_annotated = True
-    option_inherits_attrs = True
+    option_inherits_attrs = False
 
     def __init__(self, attrs=None, choices=(), *, option_attrs={}):
         super().__init__(attrs, choices)
@@ -166,8 +166,26 @@ class SelectWidget(forms.Select):
         extra = self.option_attrs.get(value, {})
         attrs = attrs if attrs else {}
         attrs.update(extra)
-        option = super().create_option(name, value, label, selected, index, subindex, attrs)
-        return option
+
+        # django doen't include attrs if inherits is false, this doesn't seem right
+        # so we'll include them ourselves
+        index = str(index) if subindex is None else "%s_%s" % (index, subindex)
+        option_attrs = self.build_attrs(self.attrs, attrs) if self.option_inherits_attrs else attrs
+
+        if "id" in option_attrs:
+            option_attrs["id"] = self.id_for_label(option_attrs["id"], index)
+
+        return {
+            "name": name,
+            "value": value,
+            "label": label,
+            "selected": selected,
+            "index": index,
+            "attrs": option_attrs,
+            "type": self.input_type,
+            "template_name": self.option_template_name,
+            "wrap_label": True,
+        }
 
     def format_value(self, value):
         def format_single(v):
