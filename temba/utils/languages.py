@@ -17,7 +17,7 @@ NAME_OVERRIDES = {
     "mul": "Multiple",
     "nep": "Nepali",  # ne in ISO-639-1
     "npi": "Nepali (Indiv. lang., ISO-639-3)",
-    "oro": "Oromifa",
+    "orm": "Oromifa",
     "swa": "Swahili",  # sw in ISO-639-1
     "swc": "Swahili (Congo, ISO-639-3)",
     "swh": "Swahili (Indiv. lang., ISO-639-3)",
