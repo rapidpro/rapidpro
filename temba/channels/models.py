@@ -960,6 +960,26 @@ class ChannelLog(models.Model):
     elapsed_ms = models.IntegerField(default=0)
     created_on = models.DateTimeField(default=timezone.now)
 
+    def get_display(self, *, anonymize: bool, urn) -> dict:
+        return self.display(self._get_json(), anonymize=anonymize, channel=self.channel, urn=urn)
+
+    @classmethod
+    def display(cls, data: dict, *, anonymize: bool, channel, urn) -> dict:
+        # add reference URLs to errors
+        for err in data["errors"]:
+            ext_code = err.get("ext_code")
+            err["ref_url"] = channel.type.get_error_ref_url(channel, ext_code) if ext_code else None
+
+        if anonymize:
+            cls._anonymize(data, channel, urn)
+
+        # out of an abundance of caution, check that we're not returning one of our own credential values
+        for log in data["http_logs"]:
+            for secret in channel.type.redact_values:
+                assert secret not in log["url"] and secret not in log["request"] and secret not in log["response"]
+
+        return data
+
     @classmethod
     def _anonymize_value(cls, original: str, urn, redact_keys=()) -> str:
         # if log doesn't have an associated URN then we don't know what to anonymize, so redact completely
@@ -990,25 +1010,18 @@ class ChannelLog(models.Model):
         for err in data["errors"]:
             err["message"] = cls._anonymize_value(err["message"], urn)
 
-    def get_display(self, *, anonymize: bool, urn) -> dict:
-        data = self.get_json()
+    @classmethod
+    def get_logs(cls, uuids: list) -> list:
+        logs = [l._get_json() for l in cls.objects.filter(uuid__in=uuids)]
 
-        # add reference URLs to errors
-        for err in data["errors"]:
-            ext_code = err.get("ext_code")
-            err["ref_url"] = self.channel.type.get_error_ref_url(self.channel, ext_code) if ext_code else None
+        # TODO look in S3 for any missing ones.. when we start doing that
 
-        if anonymize:
-            self._anonymize(data, self.channel, urn)
+        return sorted(logs, key=lambda l: l["created_on"])
 
-        # out of an abundance of caution, check that we're not returning one of our own credential values
-        for log in data["http_logs"]:
-            for secret in self.channel.type.redact_values:
-                assert secret not in log["url"] and secret not in log["request"] and secret not in log["response"]
-
-        return data
-
-    def get_json(self):
+    def _get_json(self):
+        """
+        Get a database instance in the same JSON format we write to S3
+        """
         return {
             "type": self.log_type,
             "http_logs": [h.copy() for h in self.http_logs or []],
