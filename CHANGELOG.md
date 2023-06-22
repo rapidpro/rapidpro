@@ -1,3 +1,7 @@
+v8.1.199 (2023-06-22)
+-------------------------
+ * Updates for select widget to behave with more standard form controls
+
 v8.1.198 (2023-06-22)
 -------------------------
  * Rollback components
