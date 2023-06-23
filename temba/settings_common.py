@@ -314,6 +314,7 @@ PERMISSIONS = {
     "campaigns.campaignevent": ("api",),
     "channels.channel": (
         "api",
+        "chart",
         "claim",
         "configuration",
         "errors",
