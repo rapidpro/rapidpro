@@ -1,3 +1,7 @@
+v8.1.201 (2023-06-23)
+-------------------------
+ * Support runtime locales in components
+
 v8.1.200 (2023-06-23)
 -------------------------
  * Update for flow editor text inputs with null values
