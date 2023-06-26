@@ -36,8 +36,8 @@
     }
     
     flowSelect.addEventListener('change', function(event) {
-      var option = event.target.values[0];
-      var isBackground = option.type == "B";
+      var selection = event.target.selection;
+      var isBackground = selection.type == "B";
       
       if (isBackground) {
         body.querySelector("#event-flow-start-mode").classList.add("hide");
@@ -49,7 +49,7 @@
     });
 
     eventTypeSelect.addEventListener('change', function(event){
-      var type = event.target.values[0].value;
+      var type = event.target.value;
       if (type == 'F') {
         flowSection.style.display = 'block';
         messageSection.style.display = 'none';
