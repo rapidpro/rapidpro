@@ -33,7 +33,7 @@ def is_uuid(val: str) -> bool:
     Returns whether the given string is a valid UUID
     """
     try:
-        UUID(val)
+        UUID(str(val))
         return True
     except Exception:
         return False
