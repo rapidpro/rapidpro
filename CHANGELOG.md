@@ -1,3 +1,7 @@
+v8.1.204 (2023-06-26)
+-------------------------
+ * Fix inline group created and broadcast action
+
 v8.1.203 (2023-06-26)
 -------------------------
  * Update contact action fix
