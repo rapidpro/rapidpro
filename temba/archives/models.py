@@ -99,13 +99,14 @@ class Archive(models.Model):
             archive.release()
 
         # find any remaining S3 files and remove them for this org
+        s3_bucket = settings.STORAGE_BUCKETS["archives"]
         s3_client = s3.client()
         paginator = s3_client.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=settings.ARCHIVE_BUCKET, Prefix=f"{org.id}/"):
+        for page in paginator.paginate(Bucket=s3_bucket, Prefix=f"{org.id}/"):
             archive_objs = page.get("Contents", [])
             if archive_objs:
                 s3_client.delete_objects(
-                    Bucket=settings.ARCHIVE_BUCKET, Delete={"Objects": [{"Key": o["Key"]} for o in archive_objs]}
+                    Bucket=s3_bucket, Delete={"Objects": [{"Key": o["Key"]} for o in archive_objs]}
                 )
 
     def get_download_link(self):
