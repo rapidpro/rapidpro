@@ -1584,6 +1584,7 @@ class ChannelLogTest(TembaTest):
 
         self.assertEqual(
             {
+                "uuid": str(log.uuid),
                 "type": "msg_send",
                 "http_logs": [
                     {
@@ -1605,6 +1606,7 @@ class ChannelLogTest(TembaTest):
 
         self.assertEqual(
             {
+                "uuid": str(log.uuid),
                 "type": "msg_send",
                 "http_logs": [
                     {
@@ -1627,6 +1629,7 @@ class ChannelLogTest(TembaTest):
         # if we don't pass it a URN, anonymization is more aggressive
         self.assertEqual(
             {
+                "uuid": str(log.uuid),
                 "type": "msg_send",
                 "http_logs": [
                     {
@@ -1668,6 +1671,7 @@ class ChannelLogTest(TembaTest):
 
         self.assertEqual(
             {
+                "uuid": str(log.uuid),
                 "type": "msg_send",
                 "http_logs": [
                     {
@@ -1686,6 +1690,7 @@ class ChannelLogTest(TembaTest):
         )
         self.assertEqual(
             {
+                "uuid": str(log.uuid),
                 "type": "msg_send",
                 "http_logs": [
                     {
