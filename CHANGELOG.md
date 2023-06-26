@@ -1,3 +1,7 @@
+v8.1.202 (2023-06-26)
+-------------------------
+ * Rework settings for S3 buckets
+
 v8.1.201 (2023-06-23)
 -------------------------
  * Support runtime locales in components
