@@ -1,3 +1,7 @@
+v8.1.203 (2023-06-26)
+-------------------------
+ * Update contact action fix
+
 v8.1.202 (2023-06-26)
 -------------------------
  * Rework settings for S3 buckets
