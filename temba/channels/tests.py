@@ -432,13 +432,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             # now that we can access the channel, which messages do we display in the chart?
             joe = self.create_contact("Joe", phone="+2501234567890")
 
-            # should have two series, one for incoming one for outgoing
-            self.assertEqual(2, len(response.context["message_stats"]))
-
-            # but only an outgoing message so far
-            self.assertEqual(0, len(response.context["message_stats"][0]["data"]))
-            self.assertEqual(1, response.context["message_stats"][1]["data"][-1]["count"])
-
             # we have one row for the message stats table
             self.assertEqual(1, len(response.context["message_stats_table"]))
             # only one outgoing message
@@ -454,8 +447,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             # now we have an inbound message and two outbounds
             response = self.fetch_protected(tel_channel_read_url, self.admin)
             self.assertEqual(200, response.status_code)
-            self.assertEqual(1, response.context["message_stats"][0]["data"][-1]["count"])
-            self.assertEqual(1, response.context["message_stats"][1]["data"][-1]["count"])
 
             # message stats table have an inbound and two outbounds in the last month
             self.assertEqual(1, len(response.context["message_stats_table"]))
@@ -472,10 +463,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             self.create_incoming_msg(joe, "incoming ivr", channel=self.tel_channel, voice=True)
             self.create_outgoing_msg(joe, "outgoing ivr", channel=self.tel_channel, voice=True)
             response = self.fetch_protected(tel_channel_read_url, self.admin)
-
-            self.assertEqual(4, len(response.context["message_stats"]))
-            self.assertEqual(1, response.context["message_stats"][2]["data"][0]["count"])
-            self.assertEqual(1, response.context["message_stats"][3]["data"][0]["count"])
 
             self.assertEqual(1, len(response.context["message_stats_table"]))
             self.assertEqual(1, response.context["message_stats_table"][0]["incoming_messages_count"])
