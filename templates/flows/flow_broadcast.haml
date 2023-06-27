@@ -123,22 +123,23 @@
 
       flowSelect.addEventListener("change", function(evt) {
         var inFlowCheckbox = modalBody.querySelector("temba-checkbox[name='in_a_flow']");
+        if (this.selection){
+          var flowType = this.selection.type;
 
-        var flowType = this.value.type;
-
-        if (flowType == 'B') {
-          inFlowCheckbox.style.display = "none";
-          // uncheck it if we need to
-          if (inFlowCheckbox.checked) {
-            inFlowCheckbox.click();
+          if (flowType == 'B') {
+            inFlowCheckbox.style.display = "none";
+            // uncheck it if we need to
+            if (inFlowCheckbox.checked) {
+              inFlowCheckbox.click();
+            }
+          } else {
+            inFlowCheckbox.style.display = "block";
           }
-        } else {
-          inFlowCheckbox.style.display = "block";
+  
+          resetWarnings();
+          modax.disabled = true;
+          queryWidget.endpoint = "/flow/preview_start/" + this.value + "/";
         }
-
-        resetWarnings();
-        modax.disabled = true;
-        queryWidget.endpoint = "/flow/preview_start/" + this.value.value + "/";
       });
 
       queryWidget.addEventListener("temba-content-changed", function(e) {
@@ -166,8 +167,6 @@
             warnings.appendChild(alert);
           });
         }
-
-        modalBody.querySelector("input[name='query']").value = e.detail.query;
       });
 
       queryWidget.addEventListener("input", function(){

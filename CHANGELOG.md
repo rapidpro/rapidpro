@@ -1,3 +1,35 @@
+v8.1.205 (2023-06-27)
+-------------------------
+ * Replace index on channellog.channel
+
+v8.1.204 (2023-06-26)
+-------------------------
+ * Fix inline group created and broadcast action
+
+v8.1.203 (2023-06-26)
+-------------------------
+ * Update contact action fix
+
+v8.1.202 (2023-06-26)
+-------------------------
+ * Rework settings for S3 buckets
+
+v8.1.201 (2023-06-23)
+-------------------------
+ * Support runtime locales in components
+
+v8.1.200 (2023-06-23)
+-------------------------
+ * Update for flow editor text inputs with null values
+
+v8.1.199 (2023-06-22)
+-------------------------
+ * Updates for select widget to behave with more standard form controls
+
+v8.1.198 (2023-06-22)
+-------------------------
+ * Rollback components
+
 v8.1.197 (2023-06-22)
 -------------------------
  * Override the correct alpha3 code for Oromifa

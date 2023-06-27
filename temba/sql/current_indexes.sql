@@ -14,9 +14,6 @@ ON channels_channel(last_seen ASC NULLS LAST) WHERE channel_type = 'A' and is_ac
 CREATE INDEX channels_channelcount_unsquashed
 ON channels_channelcount(channel_id, count_type, day) WHERE NOT is_squashed;
 
-CREATE INDEX channels_channellog_channel_created_on
-ON channels_channellog(channel_id, created_on desc);
-
 CREATE INDEX contacts_contact_modified_on ON contacts_contact(modified_on);
 
 CREATE INDEX contacts_contact_org_modified_id_active
