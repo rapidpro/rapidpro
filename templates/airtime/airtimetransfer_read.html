@@ -1,0 +1,34 @@
+{% extends "smartmin/read.html" %}
+{% load smartmin i18n %}
+
+{% block title %}
+  <div style="float:left;" class="medium-help icon-cloud-upload"></div>
+  <h2 class="header-margin">{% trans "Airtime Transfer Details" %}</h2>
+{% endblock title %}
+{% block above-bar %}
+  <a href="{% url "airtime.airtimetransfer_list" %}" class="btn btn-primary">Back</a>
+{% endblock above-bar %}
+{% block post-fields %}
+  {% if show_logs %}
+    <h3>
+      {% trans "HTTP Logs" %}
+      {% for log in object.http_logs.all %}
+        <hr>
+        <pre style="margin-top:10px;" class="data prettyprint">{{ log.request|default:"" }}</pre>
+        <pre style="margin-top:10px;" class="data prettyprint">{% if log.response %}{{ log.response|default:"" }}{% else %}{% trans "No Data" %}{% endif %}</pre>
+      {% endfor %}
+    </h3>
+  {% endif %}
+{% endblock post-fields %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    onSpload(function() {
+      prettyPrint();
+    });
+  </script>
+{% endblock extra-script %}
+{% block extra-style %}
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css" />
+{% endblock extra-style %}
