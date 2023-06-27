@@ -16,7 +16,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from django.db.models import Q, Sum
+from django.db.models import Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template import Context, Engine, TemplateDoesNotExist
@@ -952,7 +952,7 @@ class ChannelLog(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(default=uuid4, db_index=True)
-    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs")
+    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs", db_index=False)  # index below
 
     log_type = models.CharField(max_length=16, choices=LOG_TYPE_CHOICES)
     http_logs = models.JSONField(null=True)
@@ -1036,6 +1036,7 @@ class ChannelLog(models.Model):
         Get a database instance in the same JSON format we write to S3
         """
         return {
+            "uuid": str(self.uuid),
             "type": self.log_type,
             "http_logs": [h.copy() for h in self.http_logs or []],
             "errors": [e.copy() for e in self.errors or []],
@@ -1044,13 +1045,7 @@ class ChannelLog(models.Model):
         }
 
     class Meta:
-        indexes = [
-            models.Index(
-                name="channels_log_error_created",
-                fields=("channel", "is_error", "-created_on"),
-                condition=Q(is_error=True),
-            )
-        ]
+        indexes = [models.Index(name="channellogs_by_channel", fields=("channel", "-created_on"))]
 
 
 class SyncEvent(SmartModel):

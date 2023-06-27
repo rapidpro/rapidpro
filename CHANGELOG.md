@@ -1,3 +1,15 @@
+v8.1.205 (2023-06-27)
+-------------------------
+ * Replace index on channellog.channel
+
+v8.1.204 (2023-06-26)
+-------------------------
+ * Fix inline group created and broadcast action
+
+v8.1.203 (2023-06-26)
+-------------------------
+ * Update contact action fix
+
 v8.1.202 (2023-06-26)
 -------------------------
  * Rework settings for S3 buckets
