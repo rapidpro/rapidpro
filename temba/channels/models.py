@@ -16,7 +16,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from django.db.models import Q, Sum
+from django.db.models import Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template import Context, Engine, TemplateDoesNotExist
@@ -26,10 +26,11 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import DependencyMixin, Org
-from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact
+from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact, s3
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
+from temba.utils.uuid import is_uuid
 
 logger = logging.getLogger(__name__)
 
@@ -951,7 +952,7 @@ class ChannelLog(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(default=uuid4, db_index=True)
-    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs")
+    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs", db_index=False)  # index below
 
     log_type = models.CharField(max_length=16, choices=LOG_TYPE_CHOICES)
     http_logs = models.JSONField(null=True)
@@ -1011,18 +1012,31 @@ class ChannelLog(models.Model):
             err["message"] = cls._anonymize_value(err["message"], urn)
 
     @classmethod
-    def get_logs(cls, uuids: list) -> list:
-        logs = [l._get_json() for l in cls.objects.filter(uuid__in=uuids)]
+    def get_logs(cls, channel, uuids: list) -> list:
+        # look for logs in the database
+        logs = {l.uuid: l._get_json() for l in cls.objects.filter(channel=channel, uuid__in=uuids)}
 
-        # TODO look in S3 for any missing ones.. when we start doing that
+        # and in S3
+        s3_client = s3.client()
+        for log_uuid in uuids:
+            assert is_uuid(log_uuid), f"{log_uuid} is not a valid log UUID"
 
-        return sorted(logs, key=lambda l: l["created_on"])
+            if log_uuid not in logs:
+                s3_key = f"/{channel.uuid}/{str(log_uuid)[0:4]}/{log_uuid}.json"
+                try:
+                    s3_obj = s3_client.get_object(Bucket=settings.STORAGE_BUCKETS["logs"], Key=s3_key)
+                    logs[log_uuid] = json.loads(s3_obj["Body"].read())
+                except Exception:
+                    logger.exception("unable to read log from S3", extra={"key": s3_key})
+
+        return sorted(logs.values(), key=lambda l: l["created_on"])
 
     def _get_json(self):
         """
         Get a database instance in the same JSON format we write to S3
         """
         return {
+            "uuid": str(self.uuid),
             "type": self.log_type,
             "http_logs": [h.copy() for h in self.http_logs or []],
             "errors": [e.copy() for e in self.errors or []],
@@ -1031,13 +1045,7 @@ class ChannelLog(models.Model):
         }
 
     class Meta:
-        indexes = [
-            models.Index(
-                name="channels_log_error_created",
-                fields=("channel", "is_error", "-created_on"),
-                condition=Q(is_error=True),
-            )
-        ]
+        indexes = [models.Index(name="channellogs_by_channel", fields=("channel", "-created_on"))]
 
 
 class SyncEvent(SmartModel):

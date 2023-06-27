@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.urls import reverse
 from django.utils import timezone
 
+from temba.campaigns.views import CampaignEventCRUDL
 from temba.contacts.models import ContactField
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
@@ -1352,11 +1353,15 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         registered = self.org.fields.get(key="registered")
         campaign = Campaign.create(org, user, name, group)
         flow = self.create_flow(f"{name} Flow", org=org)
+        background_flow = self.create_flow(f"{name} Background Flow", org=org, flow_type=Flow.TYPE_BACKGROUND)
         CampaignEvent.create_flow_event(
             org, user, campaign, registered, offset=1, unit="W", flow=flow, delivery_hour="13"
         )
         CampaignEvent.create_flow_event(
             org, user, campaign, registered, offset=2, unit="W", flow=flow, delivery_hour="13"
+        )
+        CampaignEvent.create_flow_event(
+            org, user, campaign, registered, offset=2, unit="W", flow=background_flow, delivery_hour="13"
         )
         return campaign
 
@@ -1634,7 +1639,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(response.context["form"].fields["eng"].initial, "Required")
 
     def test_update(self):
-        event1, event2 = self.campaign1.events.order_by("id")
+        event1, event2, event3 = self.campaign1.events.order_by("id")
         other_org_event1 = self.other_org_campaign.events.order_by("id").first()
 
         update_url = reverse("campaigns.campaignevent_update", args=[event1.id])
@@ -1693,7 +1698,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFalse(event1.is_active)
 
         # but will have a new replacement event
-        new_event1 = self.campaign1.events.filter(id__gt=event2.id).get()
+        new_event1 = self.campaign1.events.filter(id__gt=event2.id).last()
 
         self.assertEqual(accepted, new_event1.relative_to)
         self.assertEqual("M", new_event1.event_type)
@@ -1720,6 +1725,14 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         other_org_event1.refresh_from_db()
         self.assertEqual("F", other_org_event1.event_type)
         self.assertTrue(other_org_event1.is_active)
+
+        # event based on background flow should show a warning for it's info text
+        update_url = reverse("campaigns.campaignevent_update", args=[event3.id])
+        response = self.client.get(update_url)
+        self.assertEqual(
+            CampaignEventCRUDL.BACKGROUND_WARNING,
+            response.context["form"].fields["flow_to_start"].widget.attrs["info_text"],
+        )
 
     def test_delete(self):
         # update event to have a field dependency

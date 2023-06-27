@@ -596,7 +596,7 @@ class Msg(models.Model):
         return Attachment.parse_all(self.attachments)
 
     def get_logs(self) -> list:
-        return ChannelLog.get_logs(self.log_uuids or [])
+        return ChannelLog.get_logs(self.channel, self.log_uuids or [])
 
     def handle(self):
         """
