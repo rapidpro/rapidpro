@@ -1014,18 +1014,18 @@ class ChannelLog(models.Model):
     @classmethod
     def get_logs(cls, channel, uuids: list) -> list:
         # look for logs in the database
-        logs = {str(l.uuid): l._get_json() for l in cls.objects.filter(channel=channel, uuid__in=uuids)}
+        logs = {l.uuid: l._get_json() for l in cls.objects.filter(channel=channel, uuid__in=uuids)}
 
         # and in S3
         s3_client = s3.client()
         for log_uuid in uuids:
             assert is_uuid(log_uuid), f"{log_uuid} is not a valid log UUID"
 
-            if log_uuid not in uuids:
-                s3_key = f"/{channel.uuid}/{log_uuid[0:4]}/{log_uuid}.json"
+            if log_uuid not in logs:
+                s3_key = f"/{channel.uuid}/{str(log_uuid)[0:4]}/{log_uuid}.json"
                 try:
                     s3_obj = s3_client.get_object(Bucket=settings.STORAGE_BUCKETS["logs"], Key=s3_key)
-                    logs[log_uuid] = json.loads(s3_obj)
+                    logs[log_uuid] = json.loads(s3_obj["Body"].read())
                 except Exception:
                     logger.exception("unable to read log from S3", extra={"key": s3_key})
 
