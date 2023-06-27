@@ -1,3 +1,9 @@
+v8.1.206 (2023-06-27)
+-------------------------
+ * Drop duplicate index
+ * Look for channel logs in S3 when not found in database
+ * Move tracking label counts to statement level triggers
+
 v8.1.205 (2023-06-27)
 -------------------------
  * Replace index on channellog.channel
