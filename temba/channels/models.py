@@ -26,10 +26,11 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import DependencyMixin, Org
-from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact
+from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact, s3
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
+from temba.utils.uuid import is_uuid
 
 logger = logging.getLogger(__name__)
 
@@ -1011,12 +1012,24 @@ class ChannelLog(models.Model):
             err["message"] = cls._anonymize_value(err["message"], urn)
 
     @classmethod
-    def get_logs(cls, uuids: list) -> list:
-        logs = [l._get_json() for l in cls.objects.filter(uuid__in=uuids)]
+    def get_logs(cls, channel, uuids: list) -> list:
+        # look for logs in the database
+        logs = {l.uuid: l._get_json() for l in cls.objects.filter(channel=channel, uuid__in=uuids)}
 
-        # TODO look in S3 for any missing ones.. when we start doing that
+        # and in S3
+        s3_client = s3.client()
+        for log_uuid in uuids:
+            assert is_uuid(log_uuid), f"{log_uuid} is not a valid log UUID"
 
-        return sorted(logs, key=lambda l: l["created_on"])
+            if log_uuid not in logs:
+                s3_key = f"/{channel.uuid}/{str(log_uuid)[0:4]}/{log_uuid}.json"
+                try:
+                    s3_obj = s3_client.get_object(Bucket=settings.STORAGE_BUCKETS["logs"], Key=s3_key)
+                    logs[log_uuid] = json.loads(s3_obj["Body"].read())
+                except Exception:
+                    logger.exception("unable to read log from S3", extra={"key": s3_key})
+
+        return sorted(logs.values(), key=lambda l: l["created_on"])
 
     def _get_json(self):
         """
