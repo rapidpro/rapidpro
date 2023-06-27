@@ -1,3 +1,7 @@
+v8.1.207 (2023-06-27)
+-------------------------
+ * Convert some haml templates to html
+
 v8.1.206 (2023-06-27)
 -------------------------
  * Drop duplicate index
