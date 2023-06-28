@@ -353,8 +353,7 @@ class UpdateForm(UpdateChannelForm):
             forms.CharField(
                 max_length=128,
                 label=_("Twilio Account SID"),
-                required=True,
-                widget=InputWidget(attrs={"disabled": "disabled"}),
+                disabled=True,
             ),
             default="",
         )
