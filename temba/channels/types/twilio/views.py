@@ -353,7 +353,6 @@ class UpdateForm(UpdateChannelForm):
             forms.CharField(
                 max_length=128,
                 label=_("Twilio Account SID"),
-                required=False,
                 disabled=True,
             ),
             default="",
