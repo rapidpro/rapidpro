@@ -1022,7 +1022,7 @@ class ChannelLog(models.Model):
             assert is_uuid(log_uuid), f"{log_uuid} is not a valid log UUID"
 
             if log_uuid not in logs:
-                s3_key = f"{channel.uuid}/{str(log_uuid)[0:4]}/{log_uuid}.json"
+                s3_key = f"channels/{channel.uuid}/{str(log_uuid)[0:4]}/{log_uuid}.json"
                 try:
                     s3_obj = s3_client.get_object(Bucket=settings.STORAGE_BUCKETS["logs"], Key=s3_key)
                     logs[log_uuid] = json.loads(s3_obj["Body"].read())
