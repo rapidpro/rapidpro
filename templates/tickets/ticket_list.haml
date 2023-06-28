@@ -528,13 +528,12 @@
               %temba-contact-chat(agent="{{request.user.email}}" monitor="true" -temba-message-sent="handleMessageSent")
 
           %temba-tab(icon="fields" name='{{_("Fields")|escapejs}}')
-            .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
 
-              <temba-contact-fields class="featured-fields pb-1" timezone="{{object.org.timezone}}" featured="true" -temba-button-clicked="handleFieldSearch" {%if not org_perms.contacts.contact_update%}disabled{%endif%}></temba-contact-fields>
-              <temba-contact-fields class="all-fields" timezone="{{object.org.timezone}}" -temba-button-clicked="handleFieldSearch" {%if not org_perms.contacts.contact_update%}disabled{%endif%}>
+            .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
+              <temba-contact-fields timezone="{{object.org.timezone}}" -temba-button-clicked="handleFieldSearch" role="{{request.role.code}}">
                 .no-fields.p-16.text-center(slot="empty")
                   .text-xl.mb-4
-                    -trans "No Fields"        
+                    -trans "No Fields"
               </temba-contact-fields>
           
       

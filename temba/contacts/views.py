@@ -1350,13 +1350,22 @@ class ContactFieldForm(forms.ModelForm):
 
     class Meta:
         model = ContactField
-        fields = ("name", "value_type", "show_in_table")
-        labels = {"name": _("Name"), "value_type": _("Data Type"), "show_in_table": _("Featured")}
-        help_texts = {"value_type": _("The type of the values that will be stored in this field.")}
+        fields = ("name", "value_type", "show_in_table", "agent_access")
+        labels = {
+            "name": _("Name"),
+            "value_type": _("Data Type"),
+            "show_in_table": _("Featured"),
+            "agent_access": _("Agent Access"),
+        }
+        help_texts = {
+            "value_type": _("Type of the values that will be stored in this field."),
+            "agent_access": _("Type of access that agent users have for this field."),
+        }
         widgets = {
             "name": InputWidget(attrs={"widget_only": False}),
             "value_type": SelectWidget(attrs={"widget_only": False}),
             "show_in_table": CheckboxWidget(attrs={"widget_only": True}),
+            "agent_access": SelectWidget(attrs={"widget_only": False}),
         }
 
 
@@ -1421,6 +1430,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 name=form.cleaned_data["name"],
                 value_type=form.cleaned_data["value_type"],
                 featured=form.cleaned_data["show_in_table"],
+                agent_access=form.cleaned_data["agent_access"],
             )
             return self.render_modal_response(form)
 
