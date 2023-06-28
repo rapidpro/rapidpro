@@ -1,3 +1,7 @@
+v8.1.209 (2023-06-28)
+-------------------------
+ * Fix creating PublicFileStorage
+
 v8.1.208 (2023-06-28)
 -------------------------
  * Fix S3 channel logs paths to not start with slash
