@@ -1,6 +1,7 @@
 import ipaddress
 import json
 import socket
+from copy import deepcopy
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -163,8 +164,8 @@ class SelectWidget(forms.Select):
         if hasattr(self.choices, "option_attrs_by_value"):
             attrs = self.choices.option_attrs_by_value.get(value)
 
+        attrs = deepcopy(attrs) if attrs else {}
         extra = self.option_attrs.get(value, {})
-        attrs = attrs if attrs else {}
         attrs.update(extra)
 
         # django doen't include attrs if inherits is false, this doesn't seem right
