@@ -1,3 +1,7 @@
+v8.1.211 (2023-06-28)
+-------------------------
+ * Fix Twilio channel update modal
+
 v8.1.210 (2023-06-28)
 -------------------------
  * Fix mangling of option attributes
