@@ -1,3 +1,8 @@
+v8.1.208 (2023-06-28)
+-------------------------
+ * Fix S3 channel logs paths to not start with slash
+ * Update to Django 4.2
+
 v8.1.207 (2023-06-27)
 -------------------------
  * Convert some haml templates to html
