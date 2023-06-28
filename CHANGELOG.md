@@ -1,3 +1,9 @@
+v8.1.210 (2023-06-28)
+-------------------------
+ * Fix mangling of option attributes
+ * Save channel logs with channels/ prefix
+ * Add configurable agent access per contact field
+
 v8.1.209 (2023-06-28)
 -------------------------
  * Fix creating PublicFileStorage
