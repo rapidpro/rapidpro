@@ -53,12 +53,15 @@ class OrgMiddleware:
         assert hasattr(request, "user"), "must be called after django.contrib.auth.middleware.AuthenticationMiddleware"
 
         request.org = self.determine_org(request)
+        if request.org:
+            # set our current role for this org
+            request.role = request.org.get_user_role(request.user)
 
         # continue the chain, which in the case of the API will set request.org
         response = self.get_response(request)
 
-        # set a response header to make it easier to find the current org id
         if request.org:
+            # set a response header to make it easier to find the current org id
             response["X-Temba-Org"] = request.org.id
 
         return response
