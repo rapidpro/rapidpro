@@ -4,19 +4,11 @@ from urllib.parse import urlparse
 import boto3
 from botocore.client import Config
 
-from django.core.files.storage import DefaultStorage
+from django.core.files.storage import storages
 
 from temba.utils import json
 
-
-class PublicFileStorage(DefaultStorage):
-    default_acl = "public-read"
-
-
-public_file_storage = PublicFileStorage()
-public_file_storage.default_acl = "public-read"
-public_file_storage.querystring_auth = False  # don't include access token in attachment URLs
-
+public_file_storage = storages["public"]
 _s3_client = None
 
 

@@ -48,6 +48,12 @@ OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
 # Storage
 # -----------------------------------------------------------------------------------
 
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "public": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+
 # S3 bucket names for different things
 STORAGE_BUCKETS = {
     "default": "dl-temba-io",
