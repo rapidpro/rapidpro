@@ -68,9 +68,9 @@ def print_sad():
 
 if os.path.isdir(source):
     convert_directory(source)
-    format_path(source, delete=False)
+    format_path(source, delete=True)
     print_sad()
 else:
     convert_template(source)
-    format_path(source.replace(".haml", ".html"), delete=False)
+    format_path(source.replace(".haml", ".html"), delete=True)
     print_sad()
