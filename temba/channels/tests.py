@@ -367,6 +367,33 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             data=post_data,
         )
 
+    def test_chart(self):
+        chart_url = reverse("channels.channel_chart", args=[self.tel_channel.uuid])
+        self.assertReadFetch(chart_url, allow_viewers=True, allow_editors=True)
+
+        # create some test messages
+        test_date = datetime(2020, 1, 20, 0, 0, 0, 0, timezone.utc)
+        test_date - timedelta(hours=2)
+        bob = self.create_contact("Bob", phone="+250785551212")
+        joe = self.create_contact("Joe", phone="+2501234567890")
+
+        with patch("django.utils.timezone.now", return_value=test_date):
+            self.create_outgoing_msg(bob, "Hey there Bob", channel=self.tel_channel)
+            self.create_incoming_msg(joe, "This incoming message will be counted", channel=self.tel_channel)
+            self.create_outgoing_msg(joe, "This outgoing message will be counted", channel=self.tel_channel)
+
+            response = self.fetch_protected(chart_url, self.admin)
+            chart = response.json()
+
+            # an entry for each incoming and outgoing
+            self.assertEqual(2, len(chart["series"]))
+
+            # one incoming message in the first entry
+            self.assertEqual(1, chart["series"][0]["data"][0][1])
+
+            # two outgoing messages in the second entry
+            self.assertEqual(2, chart["series"][1]["data"][0][1])
+
     def test_read(self):
         # now send the channel's updates
         self.sync(
@@ -469,6 +496,13 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             self.assertEqual(2, response.context["message_stats_table"][0]["outgoing_messages_count"])
             self.assertEqual(1, response.context["message_stats_table"][0]["incoming_ivr_count"])
             self.assertEqual(1, response.context["message_stats_table"][0]["outgoing_ivr_count"])
+
+            # look at the chart for our messages
+            chart_url = reverse("channels.channel_chart", args=[self.tel_channel.uuid])
+            response = self.fetch_protected(chart_url, self.admin)
+
+            # incoming, outgoing for both text and our ivr messages
+            self.assertEqual(4, len(response.json()["series"]))
 
         # as staff
         self.requestView(tel_channel_read_url, self.customer_support, checks=[StaffRedirect()])
