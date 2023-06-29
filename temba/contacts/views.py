@@ -438,7 +438,7 @@ class UpdateContactForm(ContactForm):
         )
 
         self.fields["groups"].initial = self.instance.get_groups(manual_only=True)
-        self.fields["groups"].queryset = ContactGroup.get_groups(self.org, manual_only=True)
+        self.fields["groups"].queryset = ContactGroup.get_groups(self.org, manual_only=True).order_by(Upper("name"))
 
     class Meta:
         model = Contact
