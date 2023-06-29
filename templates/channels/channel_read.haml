@@ -95,79 +95,78 @@
 
 -block content
   -block charts-zone
-    -if start_date
-      -if object.is_android
-        -if last_sync
-          .sync-summary.mb-4
-            .flex.text-gray-600
-              .i-status.w-12.py-1.px-2
-                -if last_sync.network_type == "WIFI"
-                  .icon-connection.-mt-1{style:"font-size: 16px"}
-                -else
-                  .icon-radio{style:"font-size: 16px"}
+    -if object.is_android
+      -if last_sync
+        .sync-summary.mb-4
+          .flex.text-gray-600
+            .i-status.w-12.py-1.px-2
+              -if last_sync.network_type == "WIFI"
+                .icon-connection.-mt-1{style:"font-size: 16px"}
+              -else
+                .icon-radio{style:"font-size: 16px"}
 
-              .t-status
-                -trans "ON"
-                {{ last_sync.network_type }}
+            .t-status
+              -trans "ON"
+              {{ last_sync.network_type }}
 
-            .flex.text-gray-600
-              .i-status.w-12.px-3
-                -if last_sync.power_level < 20
-                  .mini-status.icon-battery-empty
-                -elif last_sync.power_level >= 20 and last_sync.power_level <= 80
-                  .mini-status.icon-battery-half
-                -else
-                  .mini-status.icon-battery-full.rotate
-              
-              .t-status
-                {{last_sync.power_level}}%
+          .flex.text-gray-600
+            .i-status.w-12.px-3
+              -if last_sync.power_level < 20
+                .mini-status.icon-battery-empty
+              -elif last_sync.power_level >= 20 and last_sync.power_level <= 80
+                .mini-status.icon-battery-half
+              -else
+                .mini-status.icon-battery-full.rotate
+            
+            .t-status
+              {{last_sync.power_level}}%
 
-              .plugged.px-2
-                -if last_sync.power_status == 'UNK'
-                  -trans "UNKNOWN"
-                -if last_sync.power_status == 'DIS'
-                  -trans "DISCHARGING"
-                -if last_sync.power_status == 'CHA'
-                  -trans "CHARGING"
-                -if last_sync.power_status == 'FUL'
-                  -trans "FULLY CHARGED"
+            .plugged.px-2
+              -if last_sync.power_status == 'UNK'
+                -trans "UNKNOWN"
+              -if last_sync.power_status == 'DIS'
+                -trans "DISCHARGING"
+              -if last_sync.power_status == 'CHA'
+                -trans "CHARGING"
+              -if last_sync.power_status == 'FUL'
+                -trans "FULLY CHARGED"
 
-      .card.pt-8.flex-shrink-0
-        %div#channel-chart
+    .card.pt-8.flex-shrink-0
+      %div#channel-chart
 
-      -if ivr_count
-        .minutes-disclaimer
-          -blocktrans trimmed
-            In many cases operators round up to the nearest minute for billing. Minutes shown here are only a usage guideline.
+    -if ivr_count
+      .minutes-disclaimer
+        -blocktrans trimmed
+          In many cases operators round up to the nearest minute for billing. Minutes shown here are only a usage guideline.
 
-      %table.list.lined
-        %thead
+    %table.list.lined
+      %thead
+        %tr
+          %th
+            -trans "Month"
+          %th
+            -trans "Incoming Text Messages"
+          %th
+            -trans "Outgoing Text Messages"
+          -if ivr_count
+            %th
+              -trans "Incoming IVR Messages"
+            %th
+              -trans "Outgoing IVR Messages"
+      %tbody
+        -for month_data in message_stats_table
           %tr
-            %th
-              -trans "Month"
-            %th
-              -trans "Incoming Text Messages"
-            %th
-              -trans "Outgoing Text Messages"
+            %td
+              = month_data.month_start|utc|date:"F Y"
+            %td
+              = month_data.incoming_messages_count|intcomma
+            %td
+              = month_data.outgoing_messages_count|intcomma
             -if ivr_count
-              %th
-                -trans "Incoming IVR Messages"
-              %th
-                -trans "Outgoing IVR Messages"
-        %tbody
-          -for month_data in message_stats_table
-            %tr
               %td
-                = month_data.month_start|utc|date:"F Y"
+                = month_data.incoming_ivr_count|intcomma
               %td
-                = month_data.incoming_messages_count|intcomma
-              %td
-                = month_data.outgoing_messages_count|intcomma
-              -if ivr_count
-                %td
-                  = month_data.incoming_ivr_count|intcomma
-                %td
-                  = month_data.outgoing_ivr_count|intcomma
+                = month_data.outgoing_ivr_count|intcomma
 
   -if object.is_android
     %table.list.lined.mt-4
@@ -226,108 +225,85 @@
   {{ block.super }}
 
   :javascript
-    {% if start_date %}
+    var chartUrl = "{% url 'channels.channel_chart' channel.uuid %}";
+    var chart;
+    onSpload(function() { 
 
-      $(function () {
-        var chart;
-        $(document).ready(function() {
-            chart = new Highcharts.Chart({
+        var store = document.querySelector('temba-store');
+        store.getUrl(chartUrl, {
+          force: true
+        }).then(function(response) {
+          var chartData = response.json;
+          if(chartData.start_date) {
+            window.setTimeout(function (){
+              chart = new Highcharts.Chart({
                 credits: {
-                    enabled: false
+                  enabled: false
                 },
                 colors: ['#80b9fb',
-                        '#2980b9',
-                        '#CD76F0',
-                        '#8e44ad',
-                        '#633077'],
+                  '#2980b9',
+                  '#CD76F0',
+                  '#8e44ad',
+                  '#633077'
+                ],
                 chart: {
-                    renderTo: 'channel-chart',
-                    zoomType: 'x',
-                    type: 'column'
+                  renderTo: 'channel-chart',
+                  zoomType: 'x',
+                  type: 'column'
                 },
                 title: {
-                    text: null
+                  text: null
                 },
                 xAxis: {
-                    type: 'datetime',
-                    min: Date.UTC({{start_date|date:'Y'}}, {{start_date|date:'m'|add:-1}}, {{start_date|date:'d'}}),
-                    max: Date.UTC({{end_date|date:'Y'}}, {{end_date|date:'m'|add:-1}}, {{end_date|date:'d'}}),
-                    dateTimeLabelFormats:
-                    {
-                      millisecond: '%H:%M:%S.%L',
-                      second: '%H:%M:%S',
-                      minute: '%H:%M',
-                      hour: '%H:%M',
-                      day: '%b %e',
-                      week: '%e. %b',
-                      month: '%b \'%y',
-                      year: '%Y'
-                    },
-
+                  type: 'datetime',
+                  min: chartData.start_date,
+                  max: chartData.end_date,
+                  dateTimeLabelFormats: {
+                    millisecond: '%H:%M:%S.%L',
+                    second: '%H:%M:%S',
+                    minute: '%H:%M',
+                    hour: '%H:%M',
+                    day: '%b %e',
+                    week: '%e. %b',
+                    month: '%b \'%y',
+                    year: '%Y'
+                  },
+        
                 },
                 yAxis: [{
-                    title: {
-                        text: '{{ _("Minutes")|escapejs }}'
-                    },
-                    opposite: false,
-                    min: 0,
-                    allowDecimals: false
-                    {% if not has_messages %}
-                    , max: 10
-                    {% endif %}
-                },{
-                    title: {
-                        text: '{{ _("Messages")|escapejs }}'
-                    },
-                    opposite: true,
-                    min: 0,
-                    allowDecimals: false
-                    {% if not has_messages %}
-                    , max: 10
-                    {% endif %}
+                  title: {
+                    text: '{{ _("Minutes")|escapejs }}'
+                  },
+                  opposite: false,
+                  min: 0,
+                  allowDecimals: false,
+                  max: 10
+                }, {
+                  title: {
+                    text: '{{ _("Messages")|escapejs }}'
+                  },
+                  opposite: true,
+                  min: 0,
+                  allowDecimals: false,
+                  max: 10
                 }],
                 plotOptions: {
-                series: {
-                  pointPadding: .1,
-                  groupPadding: .1,
-                  stacking: 'normal'
-                }
+                  series: {
+                    pointPadding: .1,
+                    groupPadding: .1,
+                    stacking: 'normal'
+                  }
                 },
                 tooltip: {
-                    formatter: function() {
-                            return '<b>'+ this.series.name + '</b>: ' + this.y +'<br/>'+
-                            Highcharts.dateFormat('%b %e, %Y', this.x);
-                    }
+                  formatter: function() {
+                    return '<b>' + this.series.name + '</b>: ' + this.y + '<br/>' +
+                      Highcharts.dateFormat('%b %e, %Y', this.x);
+                  }
                 },
-                series: [
-                  {% for msg_stat in message_stats %}
-                  {
-                    yAxis:1,
-                    name: '{{msg_stat.name|safe}}',
-                    data: [
-                    {% for elt in msg_stat.data %}[Date.UTC({{elt.date|date:'Y'}}, {{elt.date|date:'m'|add:-1}}, {{elt.date|date:'d'}}), {{elt.count}}]{% if not forloop.last %},
-                    {% endif %}{% endfor %}
-                    ]
-                  }
-                  {% if not forloop.last %},{% endif %}
-                  {% empty %}
-                    {}
-                  {% endfor %}
-                  {% if ivr_count %}
-                  ,{
-                    type: 'spline',
-                    name: 'Minutes',
-                    yAxis:0,
-                    data: [
-                    {% for point in call_duration %}[Date.UTC({{point.date|date:'Y'}}, {{point.date|date:'m'|add:-1}}, {{point.date|date:'d'}}), Math.floor(100 * ({{point.duration}} / 60)) / 100]{% if not forloop.last %},
-                    {% endif %}{% endfor %}
-                    ]
-                  }
+                series: chartData.series
+              });
 
-                  {% endif %}
-                ]
-            });
-          });
-
-      });
-    {% endif %}
+            }, 100);
+          }
+        });
+      });   
