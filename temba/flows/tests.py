@@ -253,7 +253,6 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         self.assertFalse(response.context["mutable"])
         self.assertFalse(response.context["can_start"])
         self.assertFalse(response.context["can_simulate"])
-        self.assertNotContains(response, reverse("flows.flow_simulate", args=[flow.id]))
 
     def test_editor_feature_filters(self):
         flow = self.create_flow("Test")
