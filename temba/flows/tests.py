@@ -2988,16 +2988,17 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         FlowCRUDL.ActivityChart.PERIOD_MIN = 0
 
         # and some charts
-        response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
+        response = self.client.get(reverse("flows.flow_activity_data", args=[flow.id]))
+        data = response.json()
 
         # we have two waiting runs, one failed run
-        self.assertEqual(response.context["failed"], 1)
-        self.assertEqual(response.context["active"], 0)
-        self.assertEqual(response.context["waiting"], 2)
-        self.assertEqual(response.context["completed"], 0)
-        self.assertEqual(response.context["expired"], 0)
-        self.assertEqual(response.context["interrupted"], 0)
-        self.assertContains(response, "3 Responses")
+        self.assertEqual(data["summary"]["failed"], 1)
+        self.assertEqual(data["summary"]["active"], 0)
+        self.assertEqual(data["summary"]["waiting"], 2)
+        self.assertEqual(data["summary"]["completed"], 0)
+        self.assertEqual(data["summary"]["expired"], 0)
+        self.assertEqual(data["summary"]["interrupted"], 0)
+        self.assertEqual(data["summary"]["title"], "3 Responses")
 
         # now complete the flow for Pete
         (
@@ -3014,40 +3015,45 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # now only one waiting, one completed, one failed and 5 total responses
-        response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
+        response = self.client.get(reverse("flows.flow_activity_data", args=[flow.id]))
+        data = response.json()
 
-        self.assertEqual(response.context["failed"], 1)
-        self.assertEqual(response.context["active"], 0)
-        self.assertEqual(response.context["waiting"], 1)
-        self.assertEqual(response.context["completed"], 1)
-        self.assertEqual(response.context["expired"], 0)
-        self.assertEqual(response.context["interrupted"], 0)
-        self.assertContains(response, "5 Responses")
+        self.assertEqual(data["summary"]["failed"], 1)
+        self.assertEqual(data["summary"]["active"], 0)
+        self.assertEqual(data["summary"]["waiting"], 1)
+        self.assertEqual(data["summary"]["completed"], 1)
+        self.assertEqual(data["summary"]["expired"], 0)
+        self.assertEqual(data["summary"]["interrupted"], 0)
+        self.assertEqual(data["summary"]["title"], "5 Responses")
 
         # they all happened on the same day
-        response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
-        points = response.context["histogram"]
+        response = self.client.get(reverse("flows.flow_activity_data", args=[flow.id]))
+        data = response.json()
+        points = data["histogram"]
         self.assertEqual(1, len(points))
 
         # put one of our counts way in the past so we get a different histogram scale
         count = FlowPathCount.objects.filter(flow=flow).order_by("id")[1]
         count.period = count.period - timedelta(days=25)
         count.save()
-        response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
-        points = response.context["histogram"]
-        self.assertTrue(timedelta(days=24) < (points[1]["bucket"] - points[0]["bucket"]))
+
+        response = self.client.get(reverse("flows.flow_activity_data", args=[flow.id]))
+        data = response.json()
+        points = data["histogram"]
+        self.assertTrue(timedelta(days=24).total_seconds() * 1000 < (points[1][0] - points[0][0]))
 
         # pick another scale
         count.period = count.period - timedelta(days=600)
         count.save()
-        response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
+        response = self.client.get(reverse("flows.flow_activity_data", args=[flow.id]))
 
         # this should give us a more compressed histogram
-        points = response.context["histogram"]
-        self.assertTrue(timedelta(days=620) < (points[1]["bucket"] - points[0]["bucket"]))
+        data = response.json()
+        points = data["histogram"]
+        self.assertTrue(timedelta(days=620).total_seconds() * 1000 < (points[1][0] - points[0][0]))
 
-        self.assertEqual(24, len(response.context["hod"]))
-        self.assertEqual(7, len(response.context["dow"]))
+        self.assertEqual(24, len(data["hod"]))
+        self.assertEqual(7, len(data["dow"]))
 
     def test_activity(self):
         flow = self.get_flow("favorites_v13")
