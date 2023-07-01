@@ -1,4 +1,3 @@
-import datetime
 import logging
 from collections import defaultdict
 from datetime import timedelta
@@ -23,7 +22,6 @@ from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Sum
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
@@ -38,6 +36,7 @@ from temba.msgs.models import Msg
 from temba.orgs.views import DependencyDeleteModal, MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import countries
 from temba.utils.fields import SelectWidget
+from temba.utils.json import EpochEncoder
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
@@ -50,13 +49,6 @@ ALL_COUNTRIES = countries.choices()
 
 def get_channel_read_url(channel):
     return reverse("channels.channel_read", args=[channel.uuid])
-
-
-class EpochEncoder(DjangoJSONEncoder):
-    def default(self, o: Any) -> Any:
-        if isinstance(o, datetime.date):
-            return int(o.strftime("%s")) * 1000
-        return super().default(o)
 
 
 class ChannelTypeMixin(SpaMixin):
@@ -655,7 +647,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             return context
 
-    class Chart(OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
+    class Chart(OrgObjPermsMixin, SmartReadView):
         permission = "channels.channel_read"
         slug_url_kwarg = "uuid"
 

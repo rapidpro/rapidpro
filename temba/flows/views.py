@@ -17,13 +17,14 @@ from smartmin.views import (
 from django import forms
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.humanize.templatetags import humanize
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Max, Min, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.encoding import force_str
 from django.utils.functional import cached_property
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, ngettext_lazy as _p
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 
@@ -200,6 +201,7 @@ class FlowCRUDL(SmartCRUDL):
         "broadcast",
         "activity",
         "activity_chart",
+        "activity_data",
         "filter",
         "revisions",
         "recent_contacts",
@@ -1300,21 +1302,15 @@ class FlowCRUDL(SmartCRUDL):
             response["REDIRECT"] = self.get_success_url()
             return response
 
-    class ActivityChart(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
-        """
-        Intercooler helper that renders a chart of activity by a given period
-        """
-
+    class ActivityData(OrgObjPermsMixin, SmartReadView):
         # the min number of responses to show a histogram
         HISTOGRAM_MIN = 0
 
         # the min number of responses to show the period charts
         PERIOD_MIN = 0
 
-        def get_context_data(self, *args, **kwargs):
+        def render_to_response(self, context, **response_kwargs):
             total_responses = 0
-            context = super().get_context_data(*args, **kwargs)
-
             flow = self.get_object()
             from temba.flows.models import FlowPathCount
 
@@ -1334,7 +1330,7 @@ class FlowCRUDL(SmartCRUDL):
 
             hours = []
             for x in range(0, 24):
-                hours.append({"bucket": datetime(1970, 1, 1, hour=x), "count": hod_dict.get(x, 0)})
+                hours.append([x, hod_dict.get(x, 0)])
 
             # by day of the week
             dow = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids).extra(
@@ -1346,11 +1342,11 @@ class FlowCRUDL(SmartCRUDL):
             dow = []
             for x in range(0, 7):
                 day_count = dow_dict.get(x, 0)
-                dow.append({"day": x, "count": day_count})
+                dow.append({"name": x, "msgs": day_count})
                 total_responses += day_count
 
             if total_responses > self.PERIOD_MIN:
-                dow = sorted(dow, key=lambda k: k["day"])
+                dow = sorted(dow, key=lambda k: k["name"])
                 days = (
                     _("Sunday"),
                     _("Monday"),
@@ -1362,14 +1358,15 @@ class FlowCRUDL(SmartCRUDL):
                 )
                 dow = [
                     {
-                        "day": days[d["day"]],
-                        "count": d["count"],
-                        "pct": 100 * float(d["count"]) / float(total_responses),
+                        "name": days[d["name"]],
+                        "msgs": d["msgs"],
+                        "y": 100 * float(d["msgs"]) / float(total_responses),
                     }
                     for d in dow
                 ]
-                context["dow"] = dow
-                context["hod"] = hours
+
+            min_date = None
+            histogram = []
 
             if total_responses > self.HISTOGRAM_MIN:
                 # our main histogram
@@ -1386,19 +1383,67 @@ class FlowCRUDL(SmartCRUDL):
                     min_date = end_date - timedelta(days=500)
 
                 histogram = histogram.values("bucket").annotate(count=Sum("count")).order_by("bucket")
-                context["histogram"] = histogram
+                histogram = [[_["bucket"], _["count"]] for _ in histogram]
 
-                # highcharts works in UTC, but we want to offset our chart according to the org timezone
-                context["min_date"] = min_date
+            summary = {
+                "responses": total_responses,
+            }
 
             stats = flow.get_run_stats()
             for status, count in stats["status"].items():
-                context[status] = count
+                summary[status] = count
 
-            context["total_runs"] = stats["total"]
-            context["total_responses"] = total_responses
+            completion = {
+                "summary": [
+                    {
+                        "name": _("Active"),
+                        "y": summary.get("active", 0) + summary.get("waiting", 0),
+                        "drilldown": None,
+                        "color": "#2387CA",
+                    },
+                    {"name": _("Completed"), "y": summary.get("completed", 0), "drilldown": None, "color": "#8FC93A"},
+                    {
+                        "name": _("Interrupted, Expired and Failed"),
+                        "y": summary.get("interrupted", 0) + summary.get("expired", 0) + summary.get("failed", 0),
+                        "drilldown": "incomplete",
+                        "color": "#CCC",
+                    },
+                ],
+                "drilldown": [
+                    {
+                        "name": "Interrupted, Expired and Failed",
+                        "id": "incomplete",
+                        "innerSize": "50%",
+                        "data": [
+                            {"name": _("Expired"), "y": summary.get("expired", 0), "color": "#CCC"},
+                            {"name": _("Interrupted"), "y": summary.get("interrupted", 0), "color": "#EEE"},
+                            {"name": _("Failed"), "y": summary.get("failed", 0), "color": "#FEE"},
+                        ],
+                    }
+                ],
+            }
 
-            return context
+            summary["title"] = _p("%(total)s Response", "%(total)s Responses", summary["responses"]) % {
+                "total": humanize.intcomma(summary["responses"])
+            }
+
+            return JsonResponse(
+                {
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "min_date": min_date,
+                    "summary": summary,
+                    "dow": dow,
+                    "hod": hours,
+                    "histogram": histogram,
+                    "completion": completion,
+                },
+                json_dumps_params={"indent": 2},
+                encoder=json.EpochEncoder,
+            )
+
+    class ActivityChart(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+        pass
 
     class CategoryCounts(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
