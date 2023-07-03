@@ -1,0 +1,88 @@
+{% extends "smartmin/list.html" %}
+{% load smartmin sms temba compress %}
+{% load i18n humanize %}
+
+{% block page-title %}
+  {{ title }}
+{% endblock page-title %}
+{% block title %}
+  {{ title }}
+{% endblock title %}
+{% block table %}
+  <table class="list lined header">
+    <thead>
+      <tr>
+        <th colspan="3">
+          <div class="flex justify-end">
+            <div class="flow-start-type-selector flex">
+              <div onclick="goto(event, this)"
+                   href="{% url 'flows.flowstart_list' %}"
+                   class="{% if not filtered %}is-active{% endif %} linked mr-1">{% trans "All" %}</div>
+              |
+              <div onclick="goto(event, this)"
+                   href="{% url 'flows.flowstart_list' %}?type=manual"
+                   class="{% if filtered %}is-active{% endif %} linked ml-1">{% trans "Manual" %}</div>
+            </div>
+          </div>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for obj in object_list %}
+        <tr>
+          <td width="16px">
+            {% if obj.status == "P" or obj.status == "S" %}
+              <span title="{{ obj.get_status_display }}" class="spin icon-loop"></span>
+            {% elif obj.status == "C" %}
+              <span title="{{ obj.get_status_display }}" class="icon-checkmark text-success"></span>
+            {% elif obj.status == "F" %}
+              <span title="{{ obj.get_status_display }}" class="icon-warning"></span>
+            {% endif %}
+          </td>
+          <td>
+            <div onclick="goto(event, this)"
+                 href="{% url 'flows.flow_editor' obj.flow.uuid %}"
+                 class="linked inline">{{ obj.flow.name }}</div>
+            {% if obj.start_type == "M" %}
+              {% blocktrans trimmed with user=obj.created_by %}
+                was started by {{ user }} for
+              {% endblocktrans %}
+            {% elif obj.start_type == "Z" %}
+              {% trans "was started by Zapier for" %}
+            {% else %}
+              {% trans "was started by an API call for" %}
+            {% endif %}
+            {% if not obj.exclusions %}
+              {% trans "all contacts" %}
+            {% elif not obj.exclusions.started_previously and obj.exclusions.in_a_flow %}
+              {% trans "contacts not in other flows" %}
+            {% elif obj.exclusions.started_previously and obj.exclusions.in_a_flow %}
+              {% trans "contacts not in other flows who haven't already been through this flow" %}
+            {% else %}
+              {% trans "contacts who haven't already been through this flow" %}
+            {% endif %}
+            <div style="padding-top: 10px; max-height: 150px; overflow-y: auto;" class="flex flex-wrap">
+              {% include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all query=obj.query %}
+            </div>
+          </td>
+          <td style="text-align: right">
+            <div class="flex flex-col">
+              <div>{% short_datetime obj.created_on %}</div>
+              <div style="padding-top: 10px; font-size: 11px">
+                {% blocktrans trimmed with count=obj.run_count|intcomma count counter=obj.run_count %}
+                  <b>{{ count }}</b> run
+                {% plural %}
+                  <b>{{ count }}</b> runs
+                {% endblocktrans %}
+              </div>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr class="empty_list">
+          <td colspan="99">{% trans "No flow starts" %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock table %}

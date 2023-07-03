@@ -1,0 +1,32 @@
+{% extends 'includes/modax.haml' %}
+{% load smartmin i18n %}
+
+{% block fields %}
+  <div class="flex items-start">
+    <div class="flex-grow">{% render_field 'name' %}</div>
+    <div class="ml-3">{% render_field 'flow_type' %}</div>
+  </div>
+  <div class="{% if form.flow_type.value == 'B' or form.flow_type.value == 'S' %}hidden{% endif %} keywords">{% render_field 'keyword_triggers' %}</div>
+  {% if form.fields.base_language %}
+    <div class="flex flex-col">{% render_field 'base_language' %}</div>
+  {% endif %}
+{% endblock fields %}
+{% block modal-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    var modalBody = getModax("#create-flow-modal").shadowRoot;
+    var typeSelect = modalBody.querySelector("temba-select[name='flow_type']");
+    var keywords = modalBody.querySelector(".keywords");
+    var keywordsSelect = modalBody.querySelector("temba-select[name='keyword_triggers']");
+
+    typeSelect.addEventListener("change", function(evt) {
+      var selected = evt.target.values[0];
+      if (selected.value === "B" || selected.value === "S") {
+        keywords.classList.add("hidden");
+        keywordsSelect.clear();
+      } else {
+        keywords.classList.remove("hidden");
+      }
+    });
+  </script>
+{% endblock modal-script %}

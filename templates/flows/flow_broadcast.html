@@ -1,88 +1,92 @@
--extends 'includes/modax.html'
--load smartmin i18n
+{% extends 'includes/modax.html' %}
+{% load smartmin i18n %}
 
+{% block fields %}
+  <div class="{% if not form.mode.value == "select" %}query-mode{% endif %} start-form">
+    <div class="warnings"></div>
+    <div class="blockers"></div>
+    <div class="mb-4">{% render_field 'flow' %}</div>
+    <div class="field recipient-mode mb-4">
+      <temba-select name="mode">
+        <temba-option name="{{ _("Enter contacts and groups to start below") |escapejs }}" value="select">
+        </temba-option>
+        <temba-option name="{{ _("Search for contacts to start") |escapejs }}" value="query">
+        </temba-option>
+      </temba-select>
+    </div>
+    <div class="field recipents mb-4">{% render_field 'recipients' %}</div>
+    <div class="field query -mb-2">{% render_field 'query' %}</div>
+  </div>
+{% endblock fields %}
+{% block form-buttons %}
+  <input type="submit" value="{{ submit_button_name }}" class="btn btn-primary">
+{% endblock form-buttons %}
+{% block modal-extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    .warnings {
+      opacity: 1;
+    }
 
--block fields
-  .start-form(class='{% if not form.mode.value == "select" %}query-mode{%endif%}')
-    .warnings    
-    .blockers
-    .mb-4
-      -render_field 'flow'
-    .field.recipient-mode.mb-4     
-      %temba-select(name="mode")
-        %temba-option(name='{{_("Enter contacts and groups to start below")|escapejs}}' value='select')
-        %temba-option(name='{{_("Search for contacts to start")|escapejs}}' value='query')
-      
-    .field.recipents.mb-4
-      -render_field 'recipients'        
+    .warnings temba-alert,
+    .blockers temba-alert {
+      margin-bottom: 1em;
+    }
 
-    .field.query.-mb-2
-      -render_field 'query'
+    .warnings,
+    .blockers {
+      max-height: 0;
+      transition: max-height 1000ms ease-in-out;
+      overflow: hidden;
+    }
 
--block form-buttons
-  %input.btn.btn-primary(type="submit" value="{{ submit_button_name }}")
+    .warnings.opened,
+    .blockers.opened {
+      max-height: 1000px;
+    }
 
--block modal-extra-style
-    {{ block.super }}  
-    :css
-      .warnings {
-        opacity: 1;
-      }
+    .card-option {
+      border-radius: var(--curvature);
+      padding: 14px;
+      background: #fafafa;
+      border: 2px solid transparent;
+    }
 
-      .warnings temba-alert, .blockers temba-alert {
-        margin-bottom: 1em;
-      }
+    .selected {
+      border-color: var(--color-primary-dark);
+    }
 
-      .warnings, .blockers {
-        max-height: 0;
-        transition: max-height 1000ms ease-in-out;
-        overflow: hidden;
-      }
+    .card-option:hover {
+      cursor: pointer;
+      background: var(--color-selection);
+    }
 
-      .warnings.opened, .blockers.opened {
-        max-height: 1000px;
-      }
+    .field_query.control-group,
+    .start-options .control-group {
+      margin-bottom: 3px;
+    }
 
-      .card-option {
-        border-radius: var(--curvature);
-        padding: 14px;
-        background: #fafafa;
-        border: 2px solid transparent;
-      }
+    .start-form {
+      --contact-search-query-display: none;
+    }
 
-      .selected {
-        border-color: var(--color-primary-dark);
-      }
+    .start-form.query-mode {
+      --contact-search-query-display: block;
+    }
 
-      .card-option:hover {
-        cursor: pointer;
-        background: var(--color-selection);        
-      }
-
-      .field_query.control-group, .start-options .control-group {
-        margin-bottom: 3px;
-      }
-
-      .start-form {
-        --contact-search-query-display: none;
-      }
-
-      .start-form.query-mode {
-        --contact-search-query-display: block;
-      }
-
-      .start-form.query-mode temba-omnibox {
-        display: none;
-      }
-  
--block modal-script
-  {{block.super}}
-  :javascript
-     {
+    .start-form.query-mode temba-omnibox {
+      display: none;
+    }
+  </style>
+{% endblock modal-extra-style %}
+{% block modal-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    {
       const resetWarnings = function() {
         var modax = getModax("#start-flow");
         var modalBody = modax.shadowRoot;
-    
+
         var warnings = modalBody.querySelector(".warnings");
         warnings.innerHTML = '';
         warnings.classList.remove("opened");
@@ -123,7 +127,7 @@
 
       flowSelect.addEventListener("change", function(evt) {
         var inFlowCheckbox = modalBody.querySelector("temba-checkbox[name='in_a_flow']");
-        if (this.selection){
+        if (this.selection) {
           var flowType = this.selection.type;
 
           if (flowType == 'B') {
@@ -135,7 +139,7 @@
           } else {
             inFlowCheckbox.style.display = "block";
           }
-  
+
           resetWarnings();
           modax.disabled = true;
           queryWidget.endpoint = "/flow/preview_start/" + this.value + "/";
@@ -144,7 +148,7 @@
 
       queryWidget.addEventListener("temba-content-changed", function(e) {
         resetWarnings();
-        
+
         modax.disabled = e.detail.total == 0;
 
         if (e.detail.blockers.length) {
@@ -169,11 +173,11 @@
         }
       });
 
-      queryWidget.addEventListener("input", function(){
+      queryWidget.addEventListener("input", function() {
         modax.disabled = true;
       });
 
-      const handleDialogButton = function(event){
+      const handleDialogButton = function(event) {
 
         const modax = getModax("#start-flow");
         const modalBody = modax.shadowRoot;
@@ -190,8 +194,8 @@
         dialog.addEventListener("temba-button-clicked", handleDialogButton);
         dialog.registered = true;
       }
-      
-      omnibox.addEventListener("change", function(evt){
+
+      omnibox.addEventListener("change", function(evt) {
         resetWarnings();
         if (flowSelect.value && flowSelect.value.value) {
           queryWidget.endpoint = "/flow/preview_start/" + flowSelect.value.value + "/";
@@ -220,6 +224,5 @@
         }
       });
     }
-    
-
-
+  </script>
+{% endblock modal-script %}

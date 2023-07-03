@@ -1,100 +1,108 @@
--load humanize i18n compress temba l10n
+{% load humanize i18n compress temba l10n %}
 
--block extra-style
-  :css
-    #overview > div {
+{% block extra-style %}
+  <style type="text/css">
+    #overview>div {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
     }
-    #overview > div > div {
+
+    #overview>div>div {
       flex-basis: 400px;
     }
+
     #histogram_container {
       height: 200px;
     }
+
     #histogram {
       height: 200px;
     }
-    #completion_container {
-      
-    }
+
+    #completion_container {}
+
     #completion_container #completion {
       height: 200px;
     }
+
     #dow_container {
       width: 49%;
     }
+
     #dow_container #dow {
       height: 200px;
     }
+
     #hod_container #hod {
       height: 200px;
     }
+
     .datalabel {
       size: 75%;
       color: red;
     }
-
-  #no-results.hidden
-    -blocktrans trimmed
+  </style>
+  <div class="hidden" id="no-results">
+    {% blocktrans trimmed %}
       No responses have been received for this flow yet.
-
-  #histogram_container.chart.hidden
-    %h4#summary-title
-      Responses
-
-    #histogram
-
-  #completion_container.chart.hidden
-    %h4
-      -trans "Completion"
-    #completion
-  
-  #dow_container.chart.hidden
-    %h4
-      -trans "Day of Week"
-    #dow
-
-  #hod_container.chart.hidden
-    %h4
-      -trans "Time of Day"
-    #hod
-
-  :javascript
-
+    {% endblocktrans %}
+  </div>
+  <div class="chart hidden" id="histogram_container">
+    <h4 id="summary-title">Responses</h4>
+    <div id="histogram"></div>
+  </div>
+  <div class="chart hidden" id="completion_container">
+    <h4>{% trans "Completion" %}</h4>
+    <div id="completion"></div>
+  </div>
+  <div class="chart hidden" id="dow_container">
+    <h4>{% trans "Day of Week" %}</h4>
+    <div id="dow"></div>
+  </div>
+  <div class="chart hidden" id="hod_container">
+    <h4>{% trans "Time of Day" %}</h4>
+    <div id="hod"></div>
+  </div>
+  <script type="text/javascript">
     new function() {
       const dataUrl = "{% url 'flows.flow_activity_data' flow.id %}";
       const store = document.querySelector('temba-store');
-  
+
       store.getUrl(dataUrl, {
         force: true
       }).then(function(response) {
         const chartData = response.json;
         const hasResponses = chartData.summary.responses > 0;
-  
+
         if (hasResponses) {
-          document.querySelectorAll('#overview-charts .chart').forEach(function(chart){chart.classList.remove('hidden')});
+          document.querySelectorAll('#overview-charts .chart').forEach(function(chart) {
+            chart.classList.remove('hidden')
+          });
         } else {
           document.getElementById('no-results').classList.remove('hidden');
         }
-  
+
         document.getElementById('summary-title').innerText = chartData.summary.title;
-  
+
         // hour of day histogram
         new Highcharts.Chart({
-          credits: { enabled: false },
+          credits: {
+            enabled: false
+          },
           colors: ['#2387CA'],
           chart: {
-              renderTo: 'hod',
-              type: 'column',
-              backgroundColor: 'transparent',
+            renderTo: 'hod',
+            type: 'column',
+            backgroundColor: 'transparent',
           },
           title: {
-              text: null
+            text: null
           },
           xAxis: {
-            title: { text: null },
+            title: {
+              text: null
+            },
             min: 0,
             max: 23,
             labels: {
@@ -111,8 +119,12 @@
             categories: ['12a', '', '', '', '', '', '6a', '', '', '', '', '', '12p', '', '', '', '', '', '6p', '', '', '', '', '']
           },
           yAxis: {
-            title: { text: null },
-            labels: { enabled: false },
+            title: {
+              text: null
+            },
+            labels: {
+              enabled: false
+            },
             lineWidth: 0,
             minorGridLineWidth: 0,
             lineColor: 'transparent',
@@ -133,29 +145,31 @@
               return '<b>{{ _("Messages")|escapejs }}</b>: ' + Highcharts.numberFormat(this.point.y, 0);
             }
           },
-          series:[{
+          series: [{
             data: chartData.hod
           }]
         });
-  
+
         // load our run status pie chart
         new Highcharts.chart({
-          credits: { enabled: false },
+          credits: {
+            enabled: false
+          },
           chart: {
-              renderTo: 'completion',
-              type: 'pie',
-              backgroundColor: 'transparent',
-              margin: [0, 0, -40, 0],
-              spacingTop: 0,
-              spacingBottom: 0,
-              spacingLeft: 0,
-              spacingRight: 0
+            renderTo: 'completion',
+            type: 'pie',
+            backgroundColor: 'transparent',
+            margin: [0, 0, -40, 0],
+            spacingTop: 0,
+            spacingBottom: 0,
+            spacingLeft: 0,
+            spacingRight: 0
           },
           title: {
-              text: chartData.summary.responses + '<br/>runs',
-              align: 'center',
-              verticalAlign: 'middle',
-              y: 40
+            text: chartData.summary.responses + '<br />runs',
+            align: 'center',
+            verticalAlign: 'middle',
+            y: 40
           },
           legend: {
             enabled: false
@@ -165,7 +179,7 @@
               return '<b>' + this.point.name + ':</b> ' + Highcharts.numberFormat(this.point.y, 0) + '</b> <span style="font-size:90%"> (' + Highcharts.numberFormat(this.percentage, 2) + '%)</span>';
             }
           },
-          series:[{
+          series: [{
             name: '{{ _("Completion")|escapejs }}',
             innerSize: '50%',
             data: chartData.completion.summary
@@ -175,10 +189,10 @@
           },
           plotOptions: {
             pie: {
-              size:'130%',
+              size: '130%',
               dataLabels: {
-                  enabled: false,
-                  distance: -50,
+                enabled: false,
+                distance: -50,
               },
               startAngle: -90,
               endAngle: 90,
@@ -186,33 +200,43 @@
             }
           }
         });
-  
+
         // day of week histogram
         new Highcharts.Chart({
-          credits: { enabled: false },
+          credits: {
+            enabled: false
+          },
           colors: ['#2387CA'],
           chart: {
-              renderTo: 'dow',
-              type: 'column',
-              backgroundColor: 'transparent'
+            renderTo: 'dow',
+            type: 'column',
+            backgroundColor: 'transparent'
           },
           title: {
-              text: null
+            text: null
           },
           xAxis: {
-            title: { text: null },
-            labels: { enabled: true },
+            title: {
+              text: null
+            },
+            labels: {
+              enabled: true
+            },
             lineWidth: 1,
             minorGridLineWidth: 0,
             lineColor: '#2387CA',
             minorTickLength: 0,
             tickLength: 0,
-    
+
             categories: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
           },
           yAxis: {
-            title: { text: null },
-            labels: { enabled: false },
+            title: {
+              text: null
+            },
+            labels: {
+              enabled: false
+            },
             lineWidth: 0,
             minorGridLineWidth: 0,
             lineColor: 'transparent',
@@ -230,8 +254,8 @@
             column: {
               dataLabels: {
                 enabled: true,
-                formatter:function() {
-                  return '<span style="font-size:75%">' + Highcharts.numberFormat(this.point.y,0) + '%</span>';
+                formatter: function() {
+                  return '<span style="font-size:75%">' + Highcharts.numberFormat(this.point.y, 0) + '%</span>';
                 }
               }
             }
@@ -241,27 +265,31 @@
               return '<b>{{ _("Messages")|escapejs }}</b>: ' + Highcharts.numberFormat(this.point.msgs, 0);
             }
           },
-          series:[{
+          series: [{
             data: chartData.dow
           }]
         });
-  
+
         // response history histogram
         new Highcharts.chart({
           credits: {
-              enabled: false
+            enabled: false
           },
           chart: {
-              renderTo: 'histogram',
-              type: 'column',
-              backgroundColor: 'transparent',
+            renderTo: 'histogram',
+            type: 'column',
+            backgroundColor: 'transparent',
           },
           title: {
             text: null
           },
           xAxis: {
-            title: { text: null },
-            labels: { enabled: true },
+            title: {
+              text: null
+            },
+            labels: {
+              enabled: true
+            },
             lineWidth: 1,
             minorGridLineWidth: 0,
             lineColor: '#2980b9',
@@ -281,8 +309,12 @@
             }
           },
           yAxis: {
-            title: { text: null },
-            labels: { enabled: false },
+            title: {
+              text: null
+            },
+            labels: {
+              enabled: false
+            },
             lineWidth: 0,
             minorGridLineWidth: 0,
             lineColor: 'transparent',
@@ -300,14 +332,15 @@
           },
           tooltip: {
             formatter: function() {
-              return '<b>'+ this.series.name + '</b>: ' + this.y +'<br/>' + Highcharts.dateFormat('%b %e, %Y %l:%M %P', this.x);
+              return '<b>' + this.series.name + '</b>: ' + this.y + '<br />' + Highcharts.dateFormat('%b %e, %Y %l:%M %P', this.x);
             }
           },
-          series:[{
+          series: [{
             name: '{{ _("Messages")|escapejs }}',
             data: chartData.histogram
           }]
         });
       });
     }();
-
+  </script>
+{% endblock extra-style %}
