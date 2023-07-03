@@ -21,7 +21,7 @@ class Home(SpaMixin, OrgPermsMixin, SmartTemplateView):
 
     title = _("Dashboard")
     permission = "orgs.org_dashboard"
-    template_name = "dashboard/home.haml"
+    template_name = "dashboard/home.html"
     menu_path = "/settings/dashboard"
 
 
@@ -114,7 +114,7 @@ class RangeDetails(OrgPermsMixin, SmartTemplateView):
     """
 
     permission = "orgs.org_dashboard"
-    template_name = "dashboard/range_details.haml"
+    template_name = "dashboard/range_details.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

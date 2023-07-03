@@ -11,7 +11,7 @@ from temba.msgs.models import Msg
 register = template.Library()
 
 
-@register.inclusion_tag("channels/tags/channel_log_link.haml", takes_context=True)
+@register.inclusion_tag("channels/tags/channel_log_link.html", takes_context=True)
 def channel_log_link(context, obj):
     assert isinstance(obj, (Msg, Call)), "tag only supports Msg or Call instances"
 

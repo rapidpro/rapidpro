@@ -2,7 +2,7 @@
 
 -for http_log in log.http_logs
   .mb-4
-    -include "includes/http_log.haml" with log=http_log
+    -include "includes/http_log.html" with log=http_log
 -if log.errors
   -for err in log.errors
     .p-4.shadow.bg-white.rounded-lg.my-4

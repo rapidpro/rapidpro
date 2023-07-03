@@ -518,7 +518,7 @@
           .flex
             %temba-contact-name-fetch.text-2xl.mb-4(-temba-refreshed="handleContactRefreshed" onclick="{% if org_perms.contacts.contact_read %}handleNameClicked(){% endif %}" class="{%if org_perms.contacts.contact_read %}clickable{% endif %}")
             .flex-grow
-            -include "spa_page_menu.haml"
+            -include "spa_page_menu.html"
           
           %temba-contact-tickets.mb-1(agent="{{request.user.email}}" -temba-refreshed="handleTicketUpdated" expandable="true")
 

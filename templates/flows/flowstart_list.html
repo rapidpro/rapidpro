@@ -62,7 +62,7 @@
               {% trans "contacts who haven't already been through this flow" %}
             {% endif %}
             <div style="padding-top: 10px; max-height: 150px; overflow-y: auto;" class="flex flex-wrap">
-              {% include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all query=obj.query %}
+              {% include "includes/recipients.html" with groups=obj.groups.all contacts=obj.contacts.all query=obj.query %}
             </div>
           </td>
           <td style="text-align: right">

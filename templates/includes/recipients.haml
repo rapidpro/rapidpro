@@ -2,11 +2,11 @@
 
 -for group in groups
   -if group.is_active
-    -include "includes/recipients_group.haml" with group=group
+    -include "includes/recipients_group.html" with group=group
 
 -for contact in contacts
   -if contact.is_active
-    -include "includes/recipients_contact.haml" with contact=contact
+    -include "includes/recipients_contact.html" with contact=contact
 
 -with groups|inactive_count as num_deleted_groups
   -if num_deleted_groups

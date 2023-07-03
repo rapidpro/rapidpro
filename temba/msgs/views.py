@@ -379,7 +379,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 )
 
     class ScheduledDelete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-        default_template = "broadcast_scheduled_delete.haml"
+        default_template = "broadcast_scheduled_delete.html"
         cancel_url = "id@msgs.broadcast_scheduled_read"
         success_url = "@msgs.broadcast_scheduled"
         fields = ("id",)
@@ -776,7 +776,7 @@ class MsgCRUDL(SmartCRUDL):
 
     class Inbox(MsgListView):
         title = _("Inbox Messages")
-        template_name = "msgs/message_box.haml"
+        template_name = "msgs/message_box.html"
         system_label = SystemLabel.TYPE_INBOX
         bulk_actions = ("archive", "label")
         allow_export = True
@@ -792,7 +792,7 @@ class MsgCRUDL(SmartCRUDL):
 
     class Flow(MsgListView):
         title = _("Flow Messages")
-        template_name = "msgs/message_box.haml"
+        template_name = "msgs/message_box.html"
         system_label = SystemLabel.TYPE_FLOWS
         bulk_actions = ("archive", "label")
         allow_export = True
@@ -804,7 +804,7 @@ class MsgCRUDL(SmartCRUDL):
 
     class Archived(MsgListView):
         title = _("Archived Messages")
-        template_name = "msgs/msg_archived.haml"
+        template_name = "msgs/msg_archived.html"
         system_label = SystemLabel.TYPE_ARCHIVED
         bulk_actions = ("restore", "label", "delete")
         allow_export = True
@@ -815,7 +815,7 @@ class MsgCRUDL(SmartCRUDL):
 
     class Outbox(MsgListView):
         title = _("Outbox Messages")
-        template_name = "msgs/msg_outbox.haml"
+        template_name = "msgs/msg_outbox.html"
         system_label = SystemLabel.TYPE_OUTBOX
         bulk_actions = ()
         allow_export = True
@@ -837,7 +837,7 @@ class MsgCRUDL(SmartCRUDL):
 
     class Sent(MsgListView):
         title = _("Sent Messages")
-        template_name = "msgs/msg_sent.haml"
+        template_name = "msgs/msg_sent.html"
         system_label = SystemLabel.TYPE_SENT
         bulk_actions = ()
         allow_export = True
@@ -848,7 +848,7 @@ class MsgCRUDL(SmartCRUDL):
 
     class Failed(MsgListView):
         title = _("Failed Messages")
-        template_name = "msgs/msg_failed.haml"
+        template_name = "msgs/msg_failed.html"
         success_message = ""
         system_label = SystemLabel.TYPE_FAILED
         allow_export = True
@@ -860,7 +860,7 @@ class MsgCRUDL(SmartCRUDL):
             return super().get_queryset(**kwargs).select_related("contact", "channel", "flow")
 
     class Filter(MsgListView):
-        template_name = "msgs/msg_filter.haml"
+        template_name = "msgs/msg_filter.html"
         bulk_actions = ("label",)
 
         def derive_menu_path(self):

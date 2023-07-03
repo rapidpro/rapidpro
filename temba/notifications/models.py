@@ -73,7 +73,7 @@ class Incident(models.Model):
 
     @property
     def template(self):
-        return f"notifications/incidents/{self.incident_type.replace(':', '_')}.haml"
+        return f"notifications/incidents/{self.incident_type.replace(':', '_')}.html"
 
     @property
     def type(self):

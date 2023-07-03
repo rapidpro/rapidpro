@@ -19,7 +19,7 @@ class JSONField(forms.Field):
 
 
 class DateWidget(forms.DateTimeInput):
-    template_name = "utils/forms/datepicker.haml"
+    template_name = "utils/forms/datepicker.html"
     is_annotated = True
 
     def get_context(self, name, value, attrs):
@@ -50,7 +50,7 @@ class TembaDateTimeField(forms.DateTimeField):
 
 
 class ColorPickerWidget(forms.TextInput):  # pragma: needs cover
-    template_name = "utils/forms/color_picker.haml"
+    template_name = "utils/forms/color_picker.html"
     is_annotated = True
 
     def get_context(self, name, value, attrs):
@@ -62,7 +62,7 @@ class ColorPickerWidget(forms.TextInput):  # pragma: needs cover
 
 
 class InputWidget(forms.TextInput):
-    template_name = "utils/forms/input.haml"
+    template_name = "utils/forms/input.html"
     is_annotated = True
 
     def get_context(self, name, value, attrs):
@@ -147,12 +147,12 @@ class ExternalURLField(forms.URLField):
 
 
 class CheckboxWidget(forms.CheckboxInput):
-    template_name = "utils/forms/checkbox.haml"
+    template_name = "utils/forms/checkbox.html"
     is_annotated = True
 
 
 class SelectWidget(forms.Select):
-    template_name = "utils/forms/select.haml"
+    template_name = "utils/forms/select.html"
     is_annotated = True
     option_inherits_attrs = False
 
@@ -204,7 +204,7 @@ class SelectWidget(forms.Select):
 
 
 class SelectMultipleWidget(SelectWidget):
-    template_name = "utils/forms/select.haml"
+    template_name = "utils/forms/select.html"
     is_annotated = True
     allow_multiple_selected = True
 
@@ -216,12 +216,12 @@ class SelectMultipleWidget(SelectWidget):
 
 
 class ContactSearchWidget(forms.Widget):
-    template_name = "utils/forms/contact_search.haml"
+    template_name = "utils/forms/contact_search.html"
     is_annotated = True
 
 
 class CompletionTextarea(forms.Widget):
-    template_name = "utils/forms/completion_textarea.haml"
+    template_name = "utils/forms/completion_textarea.html"
     is_annotated = True
 
     def __init__(self, attrs=None):
@@ -232,7 +232,7 @@ class CompletionTextarea(forms.Widget):
 
 
 class OmniboxChoice(forms.Widget):
-    template_name = "utils/forms/omnibox_choice.haml"
+    template_name = "utils/forms/omnibox_choice.html"
     is_annotated = True
 
     def __init__(self, attrs=None):
@@ -265,7 +265,7 @@ class OmniboxField(JSONField):
 
 
 class ComposeWidget(forms.Widget):
-    template_name = "utils/forms/compose.haml"
+    template_name = "utils/forms/compose.html"
     is_annotated = True
 
     def render(self, name, value, attrs=None, renderer=None):

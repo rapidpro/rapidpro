@@ -18,7 +18,7 @@ from temba.utils.views import NoNavMixin, SpaMixin
 
 
 class IndexView(NoNavMixin, SmartTemplateView):
-    template_name = "public/public_index.haml"
+    template_name = "public/public_index.html"
 
     def derive_title(self):
         return f"{self.request.branding['name']} - {self.request.branding['title']}"
@@ -48,7 +48,7 @@ class WelcomeRedirect(RedirectView):
 
 
 class Style(SmartTemplateView):
-    template_name = "public/public_style.haml"
+    template_name = "public/public_style.html"
 
 
 class Android(SmartTemplateView):
@@ -74,7 +74,7 @@ class Android(SmartTemplateView):
 
 
 class Welcome(SpaMixin, SmartTemplateView):
-    template_name = "public/public_welcome.haml"
+    template_name = "public/public_welcome.html"
     menu_path = "/settings"
 
     def get_context_data(self, **kwargs):
