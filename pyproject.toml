@@ -102,6 +102,7 @@ indent_size = 2
 
 [tool.djlint.js]
 indent_size = 2
+templating = "django"
 
 [tool.coverage.run]
 source = ["./temba"]
