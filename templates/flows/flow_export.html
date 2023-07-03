@@ -1,0 +1,46 @@
+{% extends "smartmin/read.html" %}
+{% load i18n %}
+
+{% block extra-style %}
+  <style type="text/css">
+    .icon-warning {
+      color: red;
+      float: left;
+      font-size: 16px;
+    }
+
+    .referenced-flows {
+      margin: 20px;
+    }
+
+    .referenced-flow {
+      margin-top: 20px;
+      margin-bottom: 10px;
+    }
+
+    .referenced-flow .flow {
+      margin-left: 25px;
+      font-size: 18px;
+      color: #666;
+      line-height: 20px;
+    }
+  </style>
+{% endblock extra-style %}
+{% block content %}
+  <p>
+    {% blocktrans trimmed %}
+      Sorry, this flow cannot be exported because it references another flow. To export it, please remove any
+      actions that reference other flows and try again.
+    {% endblocktrans %}
+  </p>
+  <div class="referenced-flows">
+    {% for name in other_flow_names %}
+      <div class="referenced-flow">
+        <div class="icon-warning"></div>
+        <div class="flow">{{ name }}</div>
+      </div>
+    {% endfor %}
+  </div>
+  <br>
+  <a href="{% url 'flows.flow_editor' object.uuid %}" class="btn btn-primary">{% trans "Back to Flow" %}</a>
+{% endblock content %}

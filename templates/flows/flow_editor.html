@@ -1,13 +1,14 @@
--extends "smartmin/base.html"
--load compress temba i18n
+{% extends "smartmin/base.html" %}
+{% load compress temba i18n %}
 
--block spa-style
-  {{block.super}}
-  :css
+{% block spa-style %}
+  {{ block.super }}
+  <style type="text/css">
     .spa-content {
       margin-bottom: 0;
-      padding-bottom: 0;      
+      padding-bottom: 0;
     }
+
     .more .submenu {
       top: 2.5em !important;
       right: 0.5em !important;
@@ -70,18 +71,18 @@
     }
 
     .spa-footer {
-      display:none;
+      display: none;
     }
 
     #canvas::after {
       background-color: #ffffff;
     }
 
-    #canvas-container > div {
+    #canvas-container>div {
       background-color: #ffffff;
     }
 
-    .language-selector > div {
+    .language-selector>div {
       right: 4em !important;
     }
 
@@ -90,23 +91,23 @@
     }
 
     .flow_node {
-      box-shadow: 0px 0px 4px 2px rgba(0,0,0,.05);
+      box-shadow: 0px 0px 4px 2px rgba(0, 0, 0, .05);
       border: 1px solid transparent;
     }
-
--block extra-script
+  </style>
+{% endblock spa-style %}
+{% block extra-script %}
   {{ block.super }}
-
-  :javascript
+  <script type="text/javascript">
     var base = '/flow/assets/{{object.org.id}}/' + new Date().getTime() + '/';
     var api = '/api/v2/';
     var flowType = '{{ object.engine_type }}';
 
     onSpload(function() {
       var confirmation = document.getElementById("confirm-language");
-      confirmation.addEventListener("temba-button-clicked", function(event){
+      confirmation.addEventListener("temba-button-clicked", function(event) {
         var code = confirmation.dataset.code;
-        if(!event.detail.button.secondary) {
+        if (!event.detail.button.secondary) {
           posterize('{% url "flows.flow_change_language" object.id %}?language=' + code);
         }
         confirmation.open = false;
@@ -130,10 +131,10 @@
       var confirmation = document.getElementById("confirm-language");
       confirmation.classList.remove("hide");
       confirmation.dataset.code = code;
-      
+
       var body = confirmation.querySelector('.body');
       body.innerHTML = body.innerHTML.replace(/%LANG%/g, name);
-      confirmation.open = true;      
+      confirmation.open = true;
     }
 
     var canSimulate = JSON.parse("{{can_simulate|js_bool}}");
@@ -190,50 +191,68 @@
       }
     };
 
-    onSpload(function(){ 
+    onSpload(function() {
       // wait for our component to load, then show the editor
       if (window.showFlowEditor) {
         window.showFlowEditor(document.getElementById("rp-flow-editor"), config);
       } else {
-        document.addEventListener("temba-floweditor-loaded", function(){
+        document.addEventListener("temba-floweditor-loaded", function() {
           window.showFlowEditor(document.getElementById("rp-flow-editor"), config);
         });
       }
     });
-  
-  
--block alert-messages
-  -if is_starting or messages or user_org.is_suspended
-    .pt-5.pr-5.pl-5
-      {{block.super}}
-      -if is_starting
-        %temba-alert.mb-3
-          -blocktrans trimmed
+  </script>
+{% endblock extra-script %}
+{% block alert-messages %}
+  {% if is_starting or messages or user_org.is_suspended %}
+    <div class="pt-5 pr-5 pl-5">
+      {{ block.super }}
+      {% if is_starting %}
+        <temba-alert class="mb-3">
+          {% blocktrans trimmed %}
             This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.
-
--block spa-title
-  .title-text.flex
-    .inline-block.flex.items-center.text-gray-600
-      -if object.flow_type == 'V'
-        %temba-icon.mr-3(name="flow_ivr")
-      -elif object.flow_type == 'S'
-        %temba-icon.mr-3(name="flow_surveyor")
-      -elif object.flow_type == 'B'
-        %temba-icon.mr-3(name="flow_background") 
+          {% endblocktrans %}
+        </temba-alert>
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock alert-messages %}
+{% block spa-title %}
+  <div class="title-text flex">
+    <div class="inline-block flex items-center text-gray-600">
+      {% if object.flow_type == 'V' %}
+        <temba-icon name="flow_ivr" class="mr-3">
+        </temba-icon>
+      {% elif object.flow_type == 'S' %}
+        <temba-icon name="flow_surveyor" class="mr-3">
+        </temba-icon>
+      {% elif object.flow_type == 'B' %}
+        <temba-icon name="flow_background" class="mr-3">
+        </temba-icon>
+      {% endif %}
+    </div>
     {{ title }}
-          
-
--block content
-  %temba-modax#send-message-modal{ header:"Send Message" }
-
-  %temba-dialog.hide#confirm-language(header='{{_("Change Language")|escapejs}}' primaryButtonName='{{_("Update")|escapejs}}')
-    .p-6.body
-      -blocktrans trimmed with language="%LANG%"
+  </div>
+{% endblock spa-title %}
+{% block content %}
+  <temba-modax header="Send Message" id="send-message-modal">
+  </temba-modax>
+  <temba-dialog header="{{ _("Change Language") |escapejs }}"
+                primaryButtonName="{{ _("Update") |escapejs }}"
+                class="hide"
+                id="confirm-language">
+    <div class="p-6 body">
+      {% blocktrans trimmed with language="%LANG%" %}
         This will change the default language of the flow to <b>{{ language }}</b>. This means that by default the
         flow will be appear in that language and can be translated into other languages. Also if a contact is
         in this flow and no translation exists for their language or the default language of the workspace,
         communication with that contact will default to <b>{{ language }}</b>.
-
-  #grid.card.p-0
-    <temba-loading class="editor-loader" units="10" size="8"></temba-loading>
-    #rp-flow-editor
+      {% endblocktrans %}
+    </div>
+  </temba-dialog>
+  <div class="card p-0" id="grid">
+    <temba-loading class="editor-loader" units="10" size="8">
+    </temba-loading>
+    <div id="rp-flow-editor"></div>
+  </div>
+{% endblock content %}

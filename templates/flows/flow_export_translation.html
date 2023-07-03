@@ -1,10 +1,12 @@
--extends 'smartmin/form.html'
--load i18n
+{% extends 'smartmin/form.html' %}
+{% load i18n %}
 
--block pre-form
-  -blocktrans trimmed
+{% block pre-form %}
+  {% blocktrans trimmed %}
     Extracts a <a href="https://en.wikipedia.org/wiki/Gettext">gettext</a> PO file from the flow which can later be
     re-imported with updated translations. Note that split arguments will not be included in the translation file and
     should be translated from the editor if necessary.
-  %br
-  %br
+  {% endblocktrans %}
+  <br>
+  <br>
+{% endblock pre-form %}

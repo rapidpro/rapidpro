@@ -1,0 +1,98 @@
+<div class="hide" id="simulator">
+  <div class="simulator-content">
+    <div class="simulator-close icon-close"></div>
+    <div class="simulator-body"></div>
+    <div class="simulator-loading">
+      <img src="{{ STATIC_URL }}images/loader-bars.gif">
+    </div>
+    <div class="simulator-hidden"></div>
+    <div class="simulator-footer">
+      <div class="media-button gps-button hide">
+        <a class="btn btn-primary">GPS</a>
+      </div>
+      <div class="media-button photo-button hide">
+        <a class="btn btn-primary">Photo</a>
+      </div>
+      <div class="media-button video-button hide">
+        <a class="btn btn-primary">Video</a>
+      </div>
+      <div class="media-button audio-button hide">
+        <a class="btn btn-primary">Audio</a>
+      </div>
+      <div class="imessage">
+        <textarea></textarea>
+        <span style="padding-left:2px" class="send-message">Send</span>
+      </div>
+      <div class="keypad hide">
+        <div class="display"></div>
+        <table>
+          <tr>
+            <td>
+              <a class="btn btn-primary">1</a>
+            </td>
+            <td>
+              <a class="btn btn-primary">2</a>
+            </td>
+            <td>
+              <a class="btn btn-primary">3</a>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <a class="btn btn-primary">4</a>
+            </td>
+            <td>
+              <a class="btn btn-primary">5</a>
+            </td>
+            <td>
+              <a class="btn btn-primary">6</a>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <a class="btn btn-primary">7</a>
+            </td>
+            <td>
+              <a class="btn btn-primary">8</a>
+            </td>
+            <td>
+              <a class="btn btn-primary">9</a>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <a class="btn btn-primary">*</a>
+            </td>
+            <td>
+              <a class="btn btn-primary">0</a>
+            </td>
+            <td>
+              <a class="btn btn-primary">#</a>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+    <div class="simulator-actions">
+      <div class="simulator-refresh icon-loop"></div>
+    </div>
+  </div>
+</div>
+<style type="text/css">
+  .simulator-content {
+    background: url('{{STATIC_URL}}images/simulator/bg.png') top center no-repeat;
+  }
+
+  .simulator-content.v2 {
+    background: url('{{STATIC_URL}}images/simulator/bg_v2.png') top center no-repeat;
+  }
+
+  .media-button {
+    text-align: center;
+  }
+
+  .media-button .btn {
+    padding: 2px 12px;
+    margin-top: 3px;
+  }
+</style>

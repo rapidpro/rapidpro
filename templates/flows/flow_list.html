@@ -1,0 +1,154 @@
+{% extends "smartmin/list.html" %}
+{% load smartmin sms temba compress i18n humanize %}
+
+{% block content %}
+  {% if org_perms.flows.flow_update %}
+    <temba-modax header="{% trans "Download Results" %}" id="export-results">
+    </temba-modax>
+    <temba-modax header="{% trans "Create Label" %}"
+                 endpoint="{% url 'flows.flowlabel_create' %}"
+                 -temba-loaded="handleCreateLabelModalLoaded"
+                 -temba-submitted="handleCreateLabelModalSubmitted"
+                 id="create-label-modal">
+    </temba-modax>
+  {% endif %}
+  {% if org_has_flows %}
+    {% if view.search_fields %}
+      <form method="get" action="{{ request.path }}" class="mb-4" id="search-form">
+        <temba-textinput type="text" placeholder="{% trans "Search" %}" name="search" value="{{ search }}">
+        </temba-textinput>
+        {% if request.REQUEST.status %}<input type="hidden" name="status" value="{{ request.REQUEST.status }}">{% endif %}
+        <input type="submit" class="hide">
+      </form>
+    {% endif %}
+    <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.haml" %}</div>
+    <div class="flex-grow overflow-y-auto shadow">
+      <table class="relative list object-list lined selectable scrolled">
+        {% if object_list %}
+          <thead>
+            <tr>
+              {% if org_perms.flows.flow_update %}<th></th>{% endif %}
+              <th></th>
+              <th style="text-align:right" class="whitespace-nowrap">Runs / Completion</th>
+            </tr>
+          </thead>
+        {% endif %}
+        <tbody>
+          {% for object in object_list %}
+            <tr onclick="handleRowClicked(event)"
+                data-uuid="{{ object.uuid }}"
+                data-object-id="{{ object.id }}"
+                href="{% url 'flows.flow_editor' object.uuid %}"
+                class="object-row select-row">
+              {% if org_perms.flows.flow_update %}
+                <td onclick="checkInner(event);" style="width:0px" class="checkbox object-row-checkbox">
+                  <temba-checkbox onclick="handleRowSelection(this)">
+                  </temba-checkbox>
+                </td>
+              {% endif %}
+              <td>
+                <div class="flex items-center">
+                  <div class="flex-grow">
+                    <div style="max-width:80%" class="flex inline whitespace-nowrap flex-grow items-center">
+                      <div class="inline-block flex items-center text-gray-600">
+                        {% if object.flow_type == 'V' %}
+                          <temba-icon name="flow_ivr" class="mr-2">
+                          </temba-icon>
+                        {% elif object.flow_type == 'S' %}
+                          <temba-icon name="flow_surveyor" class="mr-2">
+                          </temba-icon>
+                        {% elif object.flow_type == 'B' %}
+                          <temba-icon name="flow_background" class="mr-2">
+                          </temba-icon>
+                        {% endif %}
+                      </div>
+                      <div class="name truncate flex-grow">{{ object.name }}</div>
+                    </div>
+                  </div>
+                  <div class="whitespace-no-break flex items-center ml-2 justify-end flex-wrap">
+                    {% for label in object.labels.all %}
+                      <a href="{% url 'flows.flow_filter' label.uuid %}" onclick="goto(event, this)">
+                        <temba-label data-id="{{ label.id }}" icon="label" clickable class="mx-1 my-1">
+                          {{ label.name }}
+                        </temba-label>
+                      </a>
+                    {% endfor %}
+                  </div>
+                </div>
+              </td>
+              <td>
+                {% if not object.is_archived %}
+                  <div class="whitespace-no-break flex items-center justify-end">
+                    {% if object.has_issues %}<div title="{{ _("Has issues") |escapejs }}" class="icon-warning mr-2"></div>{% endif %}
+                    {% if object.run_stats.total %}
+                      <div onclick="goto(event)"
+                           href="{% url "flows.flow_results" object.uuid %}"
+                           class="linked mr-2 whitespace-nowrap">{{ object.run_stats.total|intcomma }}</div>
+                      /
+                      <div onclick="goto(event)"
+                           href="{% url "flows.flow_results" object.uuid %}"
+                           class="text-center linked mx-2 whitespace-nowrap">{{ object.run_stats.completion }}%</div>
+                    {% endif %}
+                  </div>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr class="empty_list">
+              <td colspan="99">{% trans "No matching flows." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {% include "flows/empty_include.html" %}
+  {% endif %}
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    function handleRowClicked(event) {
+      if (event.target.tagName == "TEMBA-CHECKBOX") {
+        return;
+      }
+
+      var row = event.target.closest("tr");
+      var uuid = row.getAttribute("data-uuid");
+      goto(event, row);
+    }
+  </script>
+  {% if org_perms.flows.flow_update %}
+    <script type="text/javascript">
+      function handleAddLabelClicked() {
+        document.getElementById("create-label-modal").open = true;
+      }
+
+      function handleCreateLabelModalLoaded(event) {
+        window.lastChecked = getCheckedIds();
+        var body = event.detail.body;
+        body.querySelector("#id_flows").value = lastChecked.join();
+      }
+
+      function handleCreateLabelModalSubmitted(event) {
+        refresh(function() {
+          recheckIds();
+        }, true);
+        refreshMenu();
+      }
+
+      function handleDownloadFlowResults(evt) {
+        var endpoint = '{% url "flows.flow_export_results" %}';
+        var modal = document.querySelector("#export-results");
+        var ids = getCheckedIds();
+        if (ids.length > 0) {
+          modal.setAttribute("endpoint", endpoint + '?ids=' + ids);
+        }
+        modal.open = true;
+
+        evt.preventDefault();
+        evt.stopPropagation();
+      }
+    </script>
+  {% endif %}
+{% endblock extra-script %}

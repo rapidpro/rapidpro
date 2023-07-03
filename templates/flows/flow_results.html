@@ -1,13 +1,12 @@
--extends "smartmin/read.html"
--load smartmin sms compress temba contacts i18n
+{% extends "smartmin/read.html" %}
+{% load smartmin sms compress temba contacts i18n %}
 
--block title
-  {{object.name}}
-  
-
--block extra-style
-  {{block.super}}
-  :css
+{% block title %}
+  {{ object.name }}
+{% endblock title %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
     .chart .chart-name {
       padding-left: 50px;
       padding-right: 50px;
@@ -19,35 +18,39 @@
       z-index: 1;
       text-shadow: -1px 0 white, 0 1px white, 1px 0 white, 0 -1px white;
     }
+
     .chart {
       flex-basis: 400px;
     }
+
     .modal .modal-body {
       max-height: 450px;
     }
+
     #category-charts {
       justify-content: center;
     }
+
     #overview-charts {
       justify-content: center;
       padding-top: 2em;
     }
-    #overview-charts > div {
+
+    #overview-charts>div {
       margin-bottom: 6em;
       align-self: flex-start;
       flex-basis: 400px;
     }
+
     h4 {
       font-weight: 300;
       text-align: center;
     }
-
--block extra-script
+  </style>
+{% endblock extra-style %}
+{% block extra-script %}
   {{ block.super }}
-
-  :javascript
-
-
+  <script type="text/javascript">
     Highcharts.setOptions({
       global: {
         timezoneOffset: -1 * parseInt('{{utcoffset}}')
@@ -56,17 +59,19 @@
         thousandsSep: ','
       }
     })
-    
+
     Highcharts.setOptions({
       colors: ['#2387CA', '#8FC93A', '#E18335', '#483C46', '#E4CC37', '#723D46', '#606C38', '#7DCFB6']
     });
 
     var colors = Highcharts.getOptions().colors;
+
     function getColor(index) {
       return colors[index % colors.length];
     }
 
     var charts = {}
+
     function handleFlowRefreshed(evt) {
       var flow = evt.detail.data;
       if (flow.runs) {
@@ -96,7 +101,7 @@
       var dialog = document.getElementById("confirm-run-delete");
       dialog.open = false;
 
-      if(evt.detail.button.destructive) {
+      if (evt.detail.button.destructive) {
         var store = document.querySelector("temba-store");
         store.postUrl("/flowrun/delete/" + dialog.runId + "/").then(function(response) {
           if (response.status == 200) {
@@ -125,14 +130,14 @@
         // init with highcharts
         chart = Highcharts.chart(key + '-chart', {
           chart: {
-              type: 'column',
-              margin: [25, 25, 90, 25]
+            type: 'column',
+            margin: [25, 25, 90, 25]
           },
           title: {
-              text: null
+            text: null
           },
           credits: {
-             enabled: false
+            enabled: false
           },
           yAxis: {
             min: 0,
@@ -193,7 +198,12 @@
           pointLabels.y = 25;
         }
 
-        seriesData.push({name: category.name, count: category.count, y: pct, dataLabels: pointLabels});
+        seriesData.push({
+          name: category.name,
+          count: category.count,
+          y: pct,
+          dataLabels: pointLabels
+        });
       }
 
       seriesData.sort(function(a, b) {
@@ -214,7 +224,11 @@
         seriesData[idx].color = color;
       }
 
-      var series = { name: chartData.name, showInLegend: false, data: seriesData};
+      var series = {
+        name: chartData.name,
+        showInLegend: false,
+        data: seriesData
+      };
 
       if (chart.series.length == 0) {
         chart.addSeries(series);
@@ -222,7 +236,9 @@
         chart.series[0].setData(seriesData, true);
       }
 
-      chart.xAxis[0].update({categories:labels});
+      chart.xAxis[0].update({
+        categories: labels
+      });
 
       // on larger series make sure we are wide
       var size = chartData['size'];
@@ -243,7 +259,7 @@
       }
 
       // check if order changed
-      for (var i=0; i<counts.length; i++) {
+      for (var i = 0; i < counts.length; i++) {
         if (counts[i]['key'] != keys[i]) {
           return true;
         }
@@ -258,7 +274,7 @@
         cats.removeChild(cats.firstChild);
       }
 
-      for (var key in charts){
+      for (var key in charts) {
         charts[key].destroy();
       }
       charts = {};
@@ -267,11 +283,11 @@
     function updatePreviousCharts(from, to, counts) {
       var chartCount = to - from;
       if (chartCount % 3 == 0) {
-        for (var j=from; j < to; j++) {
+        for (var j = from; j < to; j++) {
           counts[j]['size'] = 'small';
         }
       } else if (chartCount == 1) {
-        counts[to-1]['size'] = 'large';
+        counts[to - 1]['size'] = 'large';
       }
     }
 
@@ -284,13 +300,15 @@
         return;
       }
 
-      store.getUrl("/flow/category_counts/{{object.uuid}}/", { force: true }).then(function(response){
+      store.getUrl("/flow/category_counts/{{object.uuid}}/", {
+        force: true
+      }).then(function(response) {
         var data = response.json;
 
         if (data.counts) {
           // determine chart sizes
           var lastBigChart = -1;
-          for (var i=0; i<data.counts.length; i++) {
+          for (var i = 0; i < data.counts.length; i++) {
             data.counts[i]['size'] = 'medium';
             if (data.counts[i].categories.length > 5) {
               data.counts[i]['size'] = 'large';
@@ -330,33 +348,45 @@
       runs.paused = tabs.index != 2;
 
       if (tabs.index == 0) {
-        fetchAjax('/flow/activity_chart/{{object.id}}/', "#overview-charts", {"headers": {"TEMBA-SPA": 1}});
+        fetchAjax('/flow/activity_chart/{{object.id}}/', "#overview-charts", {
+          "headers": {
+            "TEMBA-SPA": 1
+          }
+        });
       }
 
       if (tabs.index == 1) {
         updateCharts();
       }
     }
-
--block content
-
-  .chart-template
-    .chart-name
-    .chart-container
-
-  %temba-flow-details(flow="{{object.uuid}}" -temba-refreshed="handleFlowRefreshed")
-
-  %temba-tabs.flex-grow(-temba-context-changed="handleTabChanged" collapses="true")
-
-    %temba-tab(name='{{_("Overview")|escapejs}}' icon="overview")
-      #overview-charts.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
-
-    %temba-tab(name='{{_("Analytics")|escapejs}}' icon="analytics")
-      #category-charts.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
-
-    %temba-tab(name='{{_("Runs")|escapejs}}' icon="runs")
-      %temba-run-list.p-4.flex.flex-col.flex-grow.overflow-hidden(flow="{{object.uuid}}" -temba-refreshed="handleRunsRefreshed")
-
-  %temba-dialog#confirm-run-delete(header='{{ _("Delete Run")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true' -temba-button-clicked="performDelete")
-    .p-6
-      -trans "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
+  </script>
+{% endblock extra-script %}
+{% block content %}
+  <div class="chart-template">
+    <div class="chart-name"></div>
+    <div class="chart-container"></div>
+  </div>
+  <temba-flow-details flow="{{ object.uuid }}" -temba-refreshed="handleFlowRefreshed">
+  </temba-flow-details>
+  <temba-tabs -temba-context-changed="handleTabChanged" collapses="true" class="flex-grow">
+    <temba-tab name="{{ _("Overview") |escapejs }}" icon="overview">
+      <div class="flex flex-wrap overflow-y-scroll overflow-x-hidden" id="overview-charts"></div>
+    </temba-tab>
+    <temba-tab name="{{ _("Analytics") |escapejs }}" icon="analytics">
+      <div class="flex flex-wrap overflow-y-scroll overflow-x-hidden" id="category-charts"></div>
+    </temba-tab>
+    <temba-tab name="{{ _("Runs") |escapejs }}" icon="runs">
+      <temba-run-list flow="{{ object.uuid }}"
+                      -temba-refreshed="handleRunsRefreshed"
+                      class="p-4 flex flex-col flex-grow overflow-hidden">
+      </temba-run-list>
+    </temba-tab>
+  </temba-tabs>
+  <temba-dialog header="{{ _("Delete Run") |escapejs }}"
+                primaryButtonName="{{ _("Delete") |escapejs }}"
+                destructive="true"
+                -temba-button-clicked="performDelete"
+                id="confirm-run-delete">
+    <div class="p-6">{% trans "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever." %}</div>
+  </temba-dialog>
+{% endblock content %}

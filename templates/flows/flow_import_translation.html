@@ -1,0 +1,158 @@
+{% extends 'smartmin/update.html' %}
+{% load i18n %}
+{% load smartmin %}
+{% load temba %}
+
+{% block content %}
+  <div class="mb-2">
+    {% trans "Importing a PO file will replace all matching translations in the flow for the selected language." %}
+    <br>
+    <br>
+    <div class="flow-info">
+      <h3>{% trans "Selected Flow" %}</h3>
+      <div>
+        {% trans "Name" %}:
+        <b>
+          {{ object.name }}
+        </b>
+      </div>
+      <div>
+        {% trans "Base Language" %}:
+        <b>
+          {{ flow_language.name }} ({{ flow_language.iso_code }})
+        </b>
+      </div>
+    </div>
+    {% if po_info %}
+      <div class="po-info">
+        <h3>{% trans "Uploaded PO File" %}</h3>
+        <div>
+          {% trans "Language" %}:
+          <b>
+            {% if po_info.language_name %}
+              {{ po_info.language_name }} ({{ po_info.language_code }})
+            {% else %}
+              {% trans "Unknown" %}
+            {% endif %}
+          </b>
+        </div>
+        <div>
+          {% trans "Number of entries" %}:
+          <b>
+            {{ po_info.num_entries }}
+          </b>
+        </div>
+        <div>
+          {% trans "Number of translations" %}:
+          <b>
+            {{ po_info.num_translations }}
+          </b>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+  {% block import-status %}
+    <div style="min-height:41px" class="flex w-full mb-4 items-end flex-wrap">
+      <form method="post" enctype="multipart/form-data" id="import-form">
+        {% if form.non_field_errors %}<div class="text-error">{{ form.non_field_errors }}</div>{% endif %}
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="text-error">{{ form.non_field_errors }}</div>{% endif %}
+        {% block fields %}
+          {% if show_upload_form %}
+            <div class="mt-4 mb-4 text-error">{{ form.import_po_file.errors }}</div>
+            <div id="file-upload">
+              <input type="file" name="po_file" onchange="updatePOFile()" id="id_po_file">
+            </div>
+            <div class="flex" id="real_button">
+              <input type="text" id="file-field">
+              <div style="margin-top:-1px" class="block button-primary ml-4">{% trans "Choose File" %}</div>
+            </div>
+            {% render_field "loc" %}
+          {% else %}
+            {% render_field "language" %}
+            {% render_field "loc" %}
+          {% endif %}
+        {% endblock fields %}
+        <div class="my-6"></div>
+        <div class="flex">
+          {% if show_upload_form %}
+            <input type="submit" value="{% trans "Upload" %}" class="button-primary">
+            <div onclick="javascript:history.go(-1)" class="ml-4 button-light">{% trans "Cancel" %}</div>
+          {% else %}
+            <input type="submit" value="{% trans "Import" %}" class="button-primary">
+            <a href="{% url 'flows.flow_import_translation' object.id %}" class="ml-4 button-light">{% trans "Cancel" %}</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  {% endblock import-status %}
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script>
+    function updatePOFile() {
+      var file = $("#id_po_file").val();
+      while (file.indexOf("\\") >= 0) {
+        file = file.substring(file.indexOf("\\") + 1, file.length);
+      }
+      $("#file-field").val(file);
+    }
+  </script>
+{% endblock extra-script %}
+{% block extra-style %}
+  <style type="text/css">
+    input {
+      padding: 9px;
+      cursor: pointer;
+      box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 1px, rgba(0, 0, 0, 0.04) 0px 3px 20px 0px, rgba(0, 0, 0, 0.02) 0px 1px 2px 0px;
+    }
+
+    .flow-info,
+    .po-info {
+      padding-bottom: 2em;
+    }
+
+    #file-upload {
+      position: relative;
+    }
+
+    #po_file_errors {
+      font-size: 14px;
+    }
+
+    #real-button {
+      position: absolute;
+      top: 0px;
+      left: 0px;
+      z-index: 1;
+      height: 35px;
+      width: 340px;
+    }
+
+    #file-field {
+      width: 300px;
+      height: 35px;
+      font-size: 16px;
+      margin-bottom: 0px;
+      border-radius: 5px;
+    }
+
+    #id_po_file {
+      position: absolute;
+      width: 450px;
+      height: 35px;
+      top: 0px;
+      left: 0px;
+      text-align: right;
+      -moz-opacity: 0;
+      filter: alpha(opacity: 0);
+      opacity: 0;
+      z-index: 2;
+    }
+
+    #id_language {
+      display: block;
+      width: 500px;
+    }
+  </style>
+{% endblock extra-style %}

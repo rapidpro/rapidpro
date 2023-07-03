@@ -1,0 +1,24 @@
+{% extends "flows/flow_list.haml" %}
+{% load smartmin sms temba compress i18n %}
+
+{% block title-icon %}
+  <span class="title-icon">
+    <div class="glyph icon-tag"></div>
+  </span>
+{% endblock title-icon %}
+{% block above-bar %}
+  {% block top-form %}
+    <form method="get">
+      <input type="text"
+             placeholder="{% trans "Search" %}"
+             name="search"
+             value="{{ search }}"
+             class="input-medium search-query">
+    </form>
+  {% endblock top-form %}
+{% endblock above-bar %}
+{% block buttons-right %}
+  {% block gear-menu %}
+    {% include "spa_page_menu.haml" %}
+  {% endblock gear-menu %}
+{% endblock buttons-right %}
