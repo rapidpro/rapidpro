@@ -40,7 +40,7 @@
           %input.hide(type="submit")
 
   .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
-    -include "includes/short_pagination.haml"
+    -include "includes/short_pagination.html"
 
   .flex-grow.overflow-y-auto.shadow          
     %table.list.lined.selectable.scrolled
@@ -55,7 +55,7 @@
 
             %td.whitespace-nowrap
               .recipients.inline-block
-                -include "includes/recipients_group.haml" with group=obj.group
+                -include "includes/recipients_group.html" with group=obj.group
 
             %td.whitespace-nowrap
               {{ obj.get_events|length }} event{{ obj.get_events|length|pluralize }}

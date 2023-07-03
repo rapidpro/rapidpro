@@ -14,7 +14,7 @@
     .summary
       .inline-block
         -if object.group.is_active
-          -include "includes/recipients_group.haml" with group=object.group
+          -include "includes/recipients_group.html" with group=object.group
         -else
           -trans "No group assigned to this campaign"
 

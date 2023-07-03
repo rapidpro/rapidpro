@@ -103,7 +103,7 @@ def render(parser, token):
     return RenderNode(nodes, as_var)
 
 
-@register.inclusion_tag("msgs/tags/attachment.haml")
+@register.inclusion_tag("msgs/tags/attachment.html")
 def attachment_button(attachment: str, show_thumb=False) -> dict:
     content_type, delim, url = attachment.partition(":")
     thumb = None

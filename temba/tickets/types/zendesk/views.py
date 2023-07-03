@@ -212,8 +212,8 @@ class AdminUIView(SmartFormView):
             return data
 
     form_class = Form
-    template_name = "tickets/types/zendesk/admin_ui.haml"
-    return_template = "tickets/types/zendesk/admin_ui_return.haml"
+    template_name = "tickets/types/zendesk/admin_ui.html"
+    return_template = "tickets/types/zendesk/admin_ui_return.html"
 
     @xframe_options_exempt
     @csrf_exempt

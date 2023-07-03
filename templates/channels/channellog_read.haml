@@ -11,7 +11,7 @@
   {{ object.channel.get_channel_type_display }}
 
 -block content
-  -include "channels/channellog.haml" with log=log
+  -include "channels/channellog.html" with log=log
 
 -block extra-script
   {{ block.super }}

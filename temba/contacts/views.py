@@ -816,7 +816,7 @@ class ContactCRUDL(SmartCRUDL):
             )
 
     class Search(ContactListView):
-        template_name = "contacts/contact_list.haml"
+        template_name = "contacts/contact_list.html"
 
         def get(self, request, *args, **kwargs):
             org = self.request.org
@@ -931,7 +931,7 @@ class ContactCRUDL(SmartCRUDL):
 
     class Stopped(ContentMenuMixin, ContactListView):
         title = _("Stopped Contacts")
-        template_name = "contacts/contact_stopped.haml"
+        template_name = "contacts/contact_stopped.html"
         system_group = ContactGroup.TYPE_DB_STOPPED
 
         def get_bulk_actions(self):
@@ -948,7 +948,7 @@ class ContactCRUDL(SmartCRUDL):
 
     class Archived(ContentMenuMixin, ContactListView):
         title = _("Archived Contacts")
-        template_name = "contacts/contact_archived.haml"
+        template_name = "contacts/contact_archived.html"
         system_group = ContactGroup.TYPE_DB_ARCHIVED
         bulk_action_permissions = {"delete": "contacts.contact_delete"}
 
@@ -973,7 +973,7 @@ class ContactCRUDL(SmartCRUDL):
                 menu.add_js("contacts_delete_all", _("Delete All"))
 
     class Filter(OrgObjPermsMixin, ContentMenuMixin, ContactListView):
-        template_name = "contacts/contact_filter.haml"
+        template_name = "contacts/contact_filter.html"
 
         def build_content_menu(self, menu):
             if not self.group.is_system and self.has_org_perm("contacts.contactgroup_update"):

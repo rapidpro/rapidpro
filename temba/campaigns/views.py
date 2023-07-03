@@ -678,7 +678,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         ]
         form_class = CampaignEventForm
         success_message = ""
-        template_name = "campaigns/campaignevent_update.haml"
+        template_name = "campaigns/campaignevent_update.html"
         submit_button_name = _("Save")
 
         def get_context_data(self, **kwargs):

@@ -27,7 +27,7 @@
     %input.hidden(type="submit")
 
   .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
-    -include "includes/short_pagination.haml"
+    -include "includes/short_pagination.html"
     -if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000
       .text-gray-400.text-sm.self-end.mt-2
         -trans "To view more than 10,000 search results, save it as a group."
@@ -84,7 +84,7 @@
                   -trans "is not scheduled"
 
             %td(onclick="handleRowSelection(this)" width="250px")
-              -include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all
+              -include "includes/recipients.html" with groups=obj.groups.all contacts=obj.contacts.all
 
           -empty
             %tr.empty_list

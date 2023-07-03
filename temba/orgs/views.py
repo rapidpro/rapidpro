@@ -301,7 +301,7 @@ class DependencyUsagesModal(DependencyModalMixin, SmartReadView):
     """
 
     slug_url_kwarg = "uuid"
-    template_name = "orgs/dependency_usages_modal.haml"
+    template_name = "orgs/dependency_usages_modal.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -318,7 +318,7 @@ class DependencyDeleteModal(DependencyModalMixin, ModalMixin, SmartDeleteView):
     fields = ("uuid",)
     success_message = ""
     submit_button_name = _("Delete")
-    template_name = "orgs/dependency_delete_modal.haml"
+    template_name = "orgs/dependency_delete_modal.html"
 
     # warnings for soft dependencies
     type_warnings = {
@@ -451,7 +451,7 @@ class LoginView(Login):
     Overrides the smartmin login view to redirect users with 2FA enabled to a second verification view.
     """
 
-    template_name = "orgs/login/login.haml"
+    template_name = "orgs/login/login.html"
 
     def form_valid(self, form):
         user = form.get_user()
@@ -558,7 +558,7 @@ class TwoFactorVerifyView(BaseTwoFactorView):
             return data
 
     form_class = Form
-    template_name = "orgs/login/two_factor_verify.haml"
+    template_name = "orgs/login/two_factor_verify.html"
 
 
 class TwoFactorBackupView(BaseTwoFactorView):
@@ -580,7 +580,7 @@ class TwoFactorBackupView(BaseTwoFactorView):
             return data
 
     form_class = Form
-    template_name = "orgs/login/two_factor_backup.haml"
+    template_name = "orgs/login/two_factor_backup.html"
 
 
 class ConfirmAccessView(Login):
@@ -607,7 +607,7 @@ class ConfirmAccessView(Login):
         def get_user(self):
             return self.user
 
-    template_name = "orgs/login/confirm_access.haml"
+    template_name = "orgs/login/confirm_access.html"
     form_class = Form
 
     def dispatch(self, request, *args, **kwargs):
@@ -2693,7 +2693,7 @@ class OrgCRUDL(SmartCRUDL):
                 or "mobile" in self.request.GET
                 or "Android" in self.request.META.get("HTTP_USER_AGENT", "")
             ):
-                return ["orgs/org_surveyor_mobile.haml"]
+                return ["orgs/org_surveyor_mobile.html"]
             else:
                 return super().get_template_names()
 

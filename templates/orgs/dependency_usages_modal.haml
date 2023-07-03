@@ -5,6 +5,6 @@
   -block pjax
     -if dependents
       -for type_qs in dependents.values
-        -include "includes/dependents.haml" with dependents=type_qs
+        -include "includes/dependents.html" with dependents=type_qs
     -else
       -trans "None"

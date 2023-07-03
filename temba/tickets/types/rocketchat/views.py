@@ -134,4 +134,4 @@ class ConnectView(BaseConnectView):
         return super().get_context_data(**kwargs)
 
     form_class = Form
-    template_name = "tickets/types/rocketchat/connect.haml"
+    template_name = "tickets/types/rocketchat/connect.html"

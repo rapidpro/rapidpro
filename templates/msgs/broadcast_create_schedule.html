@@ -1,5 +1,6 @@
 {% extends "utils/forms/wizard.html" %}
 {% load i18n %}
+
 {% block extra-style %}
   {{ block.super }}
   <style>
@@ -27,5 +28,5 @@
   </script>
 {% endblock extra-script %}
 {% block fields %}
-  {% include "includes/schedule_fields.haml" with form=form %}
+  {% include "includes/schedule_fields.html" with form=form %}
 {% endblock fields %}

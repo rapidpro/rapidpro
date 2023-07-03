@@ -29,7 +29,7 @@ class AccountView(IntegrationFormaxView):
                     )
 
     form_class = Form
-    template_name = "orgs/integrations/dtone/account.haml"
+    template_name = "orgs/integrations/dtone/account.html"
 
     def derive_initial(self):
         initial = super().derive_initial()

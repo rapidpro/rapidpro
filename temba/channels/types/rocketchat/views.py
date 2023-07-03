@@ -143,4 +143,4 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         return super().get_context_data(**kwargs)
 
     form_class = Form
-    template_name = "channels/types/rocketchat/claim.haml"
+    template_name = "channels/types/rocketchat/claim.html"

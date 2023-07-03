@@ -30,7 +30,7 @@
         -trans "Date"
       {% format_datetime object.created_on seconds=True %}
 
-  -include "includes/http_log.haml" with log=object.get_display
+  -include "includes/http_log.html" with log=object.get_display
 
 -block extra-script
   {{ block.super }}

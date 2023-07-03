@@ -42,7 +42,7 @@ class AssetDownloadView(SpaMixin, NotificationTargetMixin, SmartTemplateView):
     Provides a landing page for an asset, e.g. /assets/download/contact_export/123/
     """
 
-    template_name = "assets/asset_read.haml"
+    template_name = "assets/asset_read.html"
     menu_path = "/settings/workspace"
     title = _("Download")
 
