@@ -1,3 +1,8 @@
+v8.1.212 (2023-07-03)
+-------------------------
+ * Sorted group list when editing contacts
+ * Switch channel charts to load with json instead of embedded data
+
 v8.1.211 (2023-06-28)
 -------------------------
  * Fix Twilio channel update modal
