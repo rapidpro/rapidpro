@@ -131,6 +131,11 @@ def delta_filter(delta):
 
 
 @register.filter
+def js_bool(value):
+    return "true" if value else "false"
+
+
+@register.filter
 def to_json(value):
     """
     To use a python variable in JS, we call json.dumps to serialize as JSON server-side and reconstruct using

@@ -136,6 +136,15 @@
       confirmation.open = true;      
     }
 
+    var canSimulate = JSON.parse("{{can_simulate|js_bool}}");
+    var simulateStart = null;
+    var simulateResume = null;
+
+    if (canSimulate) {
+      simulateStart = '/flow/simulate/{{object.id}}/';
+      simulateResume = '/flow/simulate/{{object.id}}/';
+    }
+
     var config = {
       flow: '{{object.uuid}}',
       flowType: flowType,
@@ -143,8 +152,8 @@
       onLoad: handleEditorLoaded,
       onActivityClicked: handleActivityClicked,
       onChangeLanguage: handleChangeLanguage,
-      mutable: {{mutable|lower}},
-      filters: {{feature_filters|to_json}},
+      mutable: JSON.parse("{{mutable|js_bool}}"),
+      filters: JSON.parse("{{feature_filters|escapejs}}"),
       brand: '{{brand.name|escapejs}}',
 
       help: {
@@ -154,7 +163,6 @@
       },
 
       endpoints: {
-
         groups: api + 'groups.json',
         fields: api + 'fields.json',
         labels: api + 'labels.json',
@@ -168,8 +176,6 @@
         users: api + 'users.json',
         topics: api + 'topics.json',
         editor: '/flow/editor',
-
-        // TODO: migrate to API?
         revisions: '/flow/revisions/{{object.uuid}}/',
         recents: '/flow/recent_contacts/{{object.uuid}}/',
         attachments: '{% url "msgs.media_upload" %}',
@@ -179,11 +185,8 @@
         recipients: '/contact/omnibox?v=2&types=gc',
         contacts: '/contact/omnibox?v=2&types=c',
         contact: '/contact/read/',
-
-        {% if can_simulate %}
-        simulateStart: '/flow/simulate/{{object.id}}/',
-        simulateResume: '/flow/simulate/{{object.id}}/'
-        {% endif %}
+        simulateStart: simulateStart,
+        simulateResume: simulateResume,
       }
     };
 
