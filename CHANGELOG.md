@@ -1,3 +1,8 @@
+v8.1.214 (2023-07-03)
+-------------------------
+ * Update to psycopg3 non-binary
+ * Reference templates as html
+
 v8.1.213 (2023-07-03)
 -------------------------
  * Convert flows app to be hamless
