@@ -92,8 +92,10 @@
       var uuid = row.getAttribute("data-uuid");
       goto(event, row);
     }
+  
+  {% if org_perms.flows.flow_update %}
+    :javascript
 
-    {% if org_perms.flows.flow_update %}
       function handleAddLabelClicked() {
         document.getElementById("create-label-modal").open = true;
       }
@@ -121,4 +123,4 @@
         evt.preventDefault();
         evt.stopPropagation();
       }
-    {% endif %}
+  {% endif %}
