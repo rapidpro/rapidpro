@@ -89,7 +89,7 @@ known_django = ["django"]
 [tool.djlint]
 blank_line_after_tag = "load"
 custom_blocks = "render,render_field,getblock,get_label,get_value"
-custom_html="temba-\\w+"
+custom_html="temba-[a-z-]+"
 format_css = true
 format_js = true
 ignore = "H021,H023"
