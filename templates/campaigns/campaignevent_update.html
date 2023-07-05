@@ -1,16 +1,13 @@
--extends "smartmin/form.html"
+{% extends "smartmin/form.html" %}
+{% load smartmin temba i18n %}
 
--load smartmin temba i18n
-
--block extra-script
+{% block extra-script %}
   {{ block.super }}
-  :javascript
-
-
--block modal-script
+  <script type="text/javascript"></script>
+{% endblock extra-script %}
+{% block modal-script %}
   {{ block.super }}
-
-  :javascript
+  <script type="text/javascript">
     var modax = getModax("#event-add, #event-update");
     var body = modax.getBody();
     var languageLinks = body.querySelectorAll(".show_language");
@@ -34,11 +31,11 @@
       body.querySelector("." + link.dataset.iso).style.display = display;
       display = 'none';
     }
-    
+
     flowSelect.addEventListener('change', function(event) {
       var selection = event.target.selection;
       var isBackground = selection.type == "B";
-      
+
       if (isBackground) {
         body.querySelector("#event-flow-start-mode").classList.add("hide");
         flowSelect.infoText = "{{background_warning|escapejs}}";
@@ -48,7 +45,7 @@
       }
     });
 
-    eventTypeSelect.addEventListener('change', function(event){
+    eventTypeSelect.addEventListener('change', function(event) {
       var type = event.target.value;
       if (type == 'F') {
         flowSection.style.display = 'block';
@@ -72,26 +69,23 @@
 
     // set our initial values according to the form
     {% if form.event_type.value == 'F' %}
-      flowSection.style.display = 'block';
-      messageSection.style.display = 'none';
+    flowSection.style.display = 'block';
+    messageSection.style.display = 'none';
     {% else %}
-      flowSection.style.display = 'none';
-      messageSection.style.display = 'block';
+    flowSection.style.display = 'none';
+    messageSection.style.display = 'block';
     {% endif %}
 
     {% if form.unit.value == 'M' or form.unit.value == 'D' %}
-      deliveryHourOptions.style.display = 'flex';
+    deliveryHourOptions.style.display = 'flex';
     {% else %}
-      deliveryHourOptions.style.display = 'none';
+    deliveryHourOptions.style.display = 'none';
     {% endif %}
-
-
-
--block modal-extra-style
+  </script>
+{% endblock modal-script %}
+{% block modal-extra-style %}
   {{ block.super }}
-
-  :css
-
+  <style type="text/css">
     .delivered {
       color: inherit;
     }
@@ -100,7 +94,7 @@
       margin-bottom: 8px;
     }
 
-    #languages{
+    #languages {
       position: relative;
       text-align: right;
     }
@@ -108,14 +102,14 @@
     #schedule-section {
       display: flex;
     }
-    
+
     #message-section {
       display: none;
     }
 
     #flow-section {
       display: none;
-      padding-top:5px;
+      padding-top: 5px;
     }
 
     #field-offset {
@@ -143,14 +137,14 @@
       opacity: 0;
       max-height: 0;
       pointer-events: none;
-      margin-bottom:0;
-      overflow:hidden;
+      margin-bottom: 0;
+      overflow: hidden;
     }
 
     #event-flow-start-mode {
       opacity: 1;
     }
-    
+
     #background-flow-message {
       opacity: 1;
       transition: margin 200ms ease-in-out;
@@ -161,7 +155,7 @@
       padding-top: 1.5em;
       border-radius: var(--curvature);
       font-size: .9em;
-      color: rgba(0,0,0,.5);
+      color: rgba(0, 0, 0, .5);
       box-shadow: inset 0px 0px 4px rgb(0 0 0 / 10%)
     }
 
@@ -182,7 +176,7 @@
     }
 
     .delivered {
-      padding-top:10px;
+      padding-top: 10px;
       margin-right: 12px;
       vertical-align: center;
     }
@@ -195,52 +189,43 @@
       margin: 10px 0px 20px 0px;
       --textarea-height: 125px;
     }
-
--block fields
-
-  -render_field 'event_type'
-
-  #message-section
-
-    #languages
-
-      -if form.languages|length > 1
-        -for field in form.languages
-          {%if forloop.counter0 > 0%} | {% endif %}
-          -if field.language.name
-            %a.show_language{data-iso:"{{field.language.iso_code}}", href:"javascript:void(0);"}><
-              {{field.language.name}}
-
-    -for field in form.languages
-      .language{class:'{{field.language.iso_code}} {%if forloop.counter0 > 0%}hide{%endif%}'}
-        -render_field field.language.iso_code
-
-    #event-message-start-mode
-      .start-mode-help
-        - trans "If the contact is already active in a flow"
-      -render_field 'message_start_mode'
-
-  #flow-section
-    -render_field 'flow_to_start'
-    
-    #event-flow-start-mode(class="{% if form.initial.flow_to_start.flow_type == 'B' %}hide{%endif%}")
-      .start-mode-help
-        -trans "If the contact is already active in a flow"
-      -render_field 'flow_start_mode'
-
-  #schedule-section
-    #field-offset
-      -render_field 'offset'
-    #field-unit
-      -render_field 'unit'
-    #field-direction
-      -render_field 'direction'
-    #field-relative
-      -render_field 'relative_to'
-
-  #send-at.hide
-    .delivered
-      -trans "Delivered"
-    #field-hour
-      -render_field 'delivery_hour'
-
+  </style>
+{% endblock modal-extra-style %}
+{% block fields %}
+  {% render_field 'event_type' %}
+  <div id="message-section">
+    <div id="languages">
+      {% if form.languages|length > 1 %}
+        {% for field in form.languages %}
+          {% if forloop.counter0 > 0 %}|{% endif %}
+          {% if field.language.name %}<a data-iso="{{ field.language.iso_code }}" href="javascript:void(0);" class="show_language">{{ field.language.name }}</a>{% endif %}
+        {% endfor %}
+      {% endif %}
+    </div>
+    {% for field in form.languages %}
+      <div class="{{ field.language.iso_code }} {% if forloop.counter0 > 0 %}hide{% endif %} language">{% render_field field.language.iso_code %}</div>
+    {% endfor %}
+    <div id="event-message-start-mode">
+      <div class="start-mode-help">{% trans "If the contact is already active in a flow" %}</div>
+      {% render_field 'message_start_mode' %}
+    </div>
+  </div>
+  <div id="flow-section">
+    {% render_field 'flow_to_start' %}
+    <div class="{% if form.initial.flow_to_start.flow_type == 'B' %}hide{% endif %}"
+         id="event-flow-start-mode">
+      <div class="start-mode-help">{% trans "If the contact is already active in a flow" %}</div>
+      {% render_field 'flow_start_mode' %}
+    </div>
+  </div>
+  <div id="schedule-section">
+    <div id="field-offset">{% render_field 'offset' %}</div>
+    <div id="field-unit">{% render_field 'unit' %}</div>
+    <div id="field-direction">{% render_field 'direction' %}</div>
+    <div id="field-relative">{% render_field 'relative_to' %}</div>
+  </div>
+  <div class="hide" id="send-at">
+    <div class="delivered">{% trans "Delivered" %}</div>
+    <div id="field-hour">{% render_field 'delivery_hour' %}</div>
+  </div>
+{% endblock fields %}
