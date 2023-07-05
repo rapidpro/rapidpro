@@ -1,3 +1,9 @@
+v8.1.215 (2023-07-05)
+-------------------------
+ * Add missing migration that rebuilds constraint on contact URNs
+ * Update channel log retention to 2 weeks
+ * Disable old 360 Dilalog channel type, and take the new integration out of beta
+
 v8.1.214 (2023-07-03)
 -------------------------
  * Update to psycopg3 non-binary
