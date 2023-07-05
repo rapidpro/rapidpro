@@ -1,0 +1,54 @@
+{% extends "smartmin/read.html" %}
+{% load smartmin i18n %}
+
+{% block fields %}
+{% endblock fields %}
+{% block title %}
+  {{ object.name }}
+{% endblock title %}
+{% block subtitle %}
+  {{ object.get_type.name }}
+  {% trans "Classifier" %}
+{% endblock subtitle %}
+{% block content %}
+  <table class="list lined">
+    <thead>
+      <tr>
+        <th>{% trans "Intent" %}</th>
+        <th>{% trans "External ID" %}</th>
+        <th>{% trans "Created On" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for intent in object.active_intents %}
+        <tr>
+          <td class="intent-name">{{ intent.name }}</td>
+          <td class="intent-id">{{ intent.external_id }}</td>
+          <td class="intent-created">{{ intent.created_on }}</td>
+        </tr>
+      {% empty %}
+        <tr class="empty">
+          <td colspan="3">{% trans "No synced intents at this time." %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="text-center mt-2 text-sm text-gray-500">{% trans "Intents are synced automatically every 5 minutes" %}</div>
+{% endblock content %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    td {
+      padding: 5px;
+    }
+
+    td.intent-id {
+      font-family: monospace;
+      width: 400px;
+    }
+
+    td.intent-created {
+      width: 200px;
+    }
+  </style>
+{% endblock extra-style %}
