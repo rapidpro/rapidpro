@@ -14,7 +14,7 @@ class ChannelsTest(TembaTest):
         joe = self.create_contact("Joe", phone="+1234567890")
         msg = self.create_incoming_msg(joe, "Hi")
         call = self.create_incoming_call(flow, joe)
-        old_msg = self.create_incoming_msg(joe, "Hi", created_on=timezone.now() - timedelta(days=7))
+        old_msg = self.create_incoming_msg(joe, "Hi", created_on=timezone.now() - timedelta(days=15))
         surveyor_msg = self.create_incoming_msg(joe, "Submitted", surveyor=True)
 
         call_logs_url = f"/channels/{self.channel.uuid}/logs/call/{call.id}/"

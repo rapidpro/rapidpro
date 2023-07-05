@@ -4,9 +4,6 @@
 -block spa-title
   -trans "Channel Logs"
 
--block subtitle
-  -trans "Logs are kept for 7 days."
-
 -block extra-style
   {{ block.super }}
   :css
@@ -15,6 +12,11 @@
     }
 
 -block content
+  .mt-4
+    -blocktrans trimmed
+      These are the logs which have no associated message or call. To access logs for a specific message or call, use the 
+      link from the message or call itself. Logs are kept for 14 days.
+
   .mt-4.shadow.rounded-lg.rounded-bl-none.rounded-br-none.bg-white
     -include "includes/short_pagination.html"
 

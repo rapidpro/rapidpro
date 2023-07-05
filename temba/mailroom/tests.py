@@ -825,7 +825,7 @@ class EventTest(TembaTest):
             "Hello",
             external_id="12345",
             attachments=["image:http://a.jpg"],
-            created_on=timezone.now() - timedelta(days=10),
+            created_on=timezone.now() - timedelta(days=15),
         )
 
         self.assertEqual(
@@ -1142,7 +1142,7 @@ class EventTest(TembaTest):
 
         # create call that is too old to still have logs
         call1 = self.create_incoming_call(
-            flow, contact, status=Call.STATUS_IN_PROGRESS, created_on=timezone.now() - timedelta(days=10)
+            flow, contact, status=Call.STATUS_IN_PROGRESS, created_on=timezone.now() - timedelta(days=15)
         )
 
         # and one that will have logs

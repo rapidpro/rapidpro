@@ -1071,7 +1071,7 @@ ORG_LIMIT_DEFAULTS = {
 # Data retention periods - tasks trim away data older than these settings
 # -----------------------------------------------------------------------------------
 RETENTION_PERIODS = {
-    "channellog": timedelta(days=7),
+    "channellog": timedelta(days=14),
     "eventfire": timedelta(days=90),  # matches default rp-archiver behavior
     "flowsession": timedelta(days=7),
     "httplog": timedelta(days=3),

@@ -1739,7 +1739,7 @@ class ChannelLogTest(TembaTest):
             is_error=False,
             http_logs=[],
             errors=[],
-            created_on=timezone.now() - timedelta(days=7),
+            created_on=timezone.now() - timedelta(days=15),
         )
         l2 = ChannelLog.objects.create(
             channel=self.channel,
