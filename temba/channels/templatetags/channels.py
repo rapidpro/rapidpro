@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 from django import template
 from django.conf import settings
 from django.urls import reverse
@@ -23,9 +21,8 @@ def channel_log_link(context, obj):
         has_channel = obj.channel and obj.channel.is_active
 
         obj_age = timezone.now() - obj.created_on
-        has_logs = obj_age < (settings.RETENTION_PERIODS["channellog"] - timedelta(hours=4))
 
-        if has_channel and has_logs:
+        if has_channel and obj_age < settings.RETENTION_PERIODS["channellog"]:
             if isinstance(obj, Call):
                 logs_url = reverse("channels.channellog_call", args=[obj.channel.uuid, obj.id])
             if isinstance(obj, Msg):
