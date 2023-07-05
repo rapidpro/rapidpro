@@ -1,3 +1,8 @@
+v8.1.216 (2023-07-05)
+-------------------------
+ * Add data migration to fix archived message counts for labels
+ * Convert haml templates in campaigns and classifiers apps
+
 v8.1.215 (2023-07-05)
 -------------------------
  * Add missing migration that rebuilds constraint on contact URNs
