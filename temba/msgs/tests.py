@@ -6,6 +6,7 @@ import pytz
 from openpyxl import load_workbook
 
 from django.conf import settings
+from django.db.models import Sum
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -28,7 +29,7 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_mailroom, mock_uuids
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticket
@@ -2890,3 +2891,40 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([media2, media1], list(response.context["object_list"]))
 
         self.clear_storage()
+
+
+class FixArchivedLabelCountsTest(MigrationTest):
+    app = "msgs"
+    migrate_from = "0242_update_db_triggers"
+    migrate_to = "0243_fix_archived_label_counts"
+
+    def setUpBeforeMigration(self, apps):
+        contact = self.create_contact("Bob", phone="+1234567890")
+        self.label1 = self.create_label("Label1")
+        self.label2 = self.create_label("Label2")
+        self.label3 = self.create_label("Label3")
+
+        msg1 = self.create_incoming_msg(contact=contact, text="1", visibility=Msg.VISIBILITY_VISIBLE)
+        msg2 = self.create_incoming_msg(contact=contact, text="2", visibility=Msg.VISIBILITY_ARCHIVED)
+        msg3 = self.create_incoming_msg(contact=contact, text="3", visibility=Msg.VISIBILITY_ARCHIVED)
+        msg4 = self.create_incoming_msg(contact=contact, text="4", visibility=Msg.VISIBILITY_ARCHIVED)
+
+        self.label1.toggle_label([msg1, msg2, msg3], add=True)
+        self.label2.toggle_label([msg2, msg3, msg4], add=True)
+
+        # make archived message count for label 2 wrong
+        LabelCount.objects.filter(label=self.label2, is_archived=True).update(count=5)
+
+        assert self._get_label_count(self.label1) == (1, 2)
+        assert self._get_label_count(self.label2) == (0, 15)  # because 3 count=5 rows, but should really be 3
+        assert self._get_label_count(self.label3) == (0, 0)
+
+    def test_execute(self):
+        self.assertEqual((1, 2), self._get_label_count(self.label1))
+        self.assertEqual((0, 3), self._get_label_count(self.label2))
+        self.assertEqual((0, 0), self._get_label_count(self.label3))
+
+    def _get_label_count(self, lbl) -> tuple:
+        counts = LabelCount.objects.filter(label=lbl).values_list("is_archived").annotate(count_sum=Sum("count"))
+        counts_by_is_archived = {c[0]: c[1] for c in counts}
+        return counts_by_is_archived.get(False, 0), counts_by_is_archived.get(True, 0)
