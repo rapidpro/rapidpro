@@ -9,12 +9,14 @@ def fix_archived_label_counts(apps, schema_editor):
     Label = apps.get_model("msgs", "Label")
 
     for org in Org.objects.filter(is_active=True):
+        num_archived_msgs = org.system_labels.filter(label_type="A").aggregate(total=Sum("count"))["total"] or 0
+
         # skip orgs with no archived messages
-        if org.system_labels.filter(label_type="A").aggregate(total=Sum("count"))["total"] == 0:
+        if not num_archived_msgs:
             continue
 
         for label in Label.objects.filter(org=org, is_active=True):
-            archived_count = label.counts.filter(is_archived=True).aggregate(total=Sum("count"))["total"]
+            archived_count = label.counts.filter(is_archived=True).aggregate(total=Sum("count"))["total"] or 0
             actual_count = label.msgs.filter(visibility="A").count()
 
             if archived_count != actual_count:
