@@ -1,3 +1,8 @@
+v8.1.217 (2023-07-06)
+-------------------------
+ * Convert haml files in contacts app
+ * Bump django from 4.2.2 to 4.2.3
+
 v8.1.216 (2023-07-05)
 -------------------------
  * Add data migration to fix archived message counts for labels
