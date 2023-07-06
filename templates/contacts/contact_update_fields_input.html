@@ -1,0 +1,20 @@
+<style type="text/css">
+  .controls {
+    --textarea-height: 5em;
+  }
+</style>
+<label class="control-label">{{ contact_field.get_value_type_display }} Value</label>
+<div class="controls">
+  {% if contact_field %}
+    {% if contact_field.get_value_type_display == 'Text' %}
+      <temba-textinput name="field_value" type="text" textarea="true" value="{% if value %}{{ value }}{% endif %}">
+      </temba-textinput>
+    {% else %}
+      <temba-textinput name="field_value" type="text" value="{% if value %}{{ value }}{% endif %}">
+      </temba-textinput>
+    {% endif %}
+  {% else %}
+    <temba-textinput name="field_value" type="text" disabled="disabled">
+    </temba-textinput>
+  {% endif %}
+</div>

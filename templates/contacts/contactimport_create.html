@@ -1,0 +1,216 @@
+{% extends "smartmin/form.html" %}
+{% load smartmin i18n humanize sms %}
+
+{% block spa-title %}
+  {% trans "Import Contacts" %}
+{% endblock spa-title %}
+{% block content %}
+  <div style="min-height:41px" class="flex mb-4 flex-col">
+    {% blocktrans trimmed %}
+      You can import contacts from an Excel spreadsheet or comma separated values file.
+    {% endblocktrans %}
+    <table class="list my-6" id="example">
+      <tr>
+        <th>URN:Tel</th>
+        <th>Name</th>
+        <th>Field:Team</th>
+      </tr>
+      <tr>
+        <td>+12025550199</td>
+        <td>John Smith</td>
+        <td>Managers</td>
+      </tr>
+      <tr>
+        <td>+14045550178</td>
+        <td>Mary Green</td>
+        <td>Advisors</td>
+      </tr>
+    </table>
+    <div class="text-lg">{% trans "Supported Fields" %}</div>
+    {% trans "Any columns that do not match the following table will be ignored." %}
+    <table class="list my-6">
+      <tr>
+        <th class="whitespace-nowrap">{% trans "Column Header" %}</th>
+        <th class="whitespace-nowrap">{% trans "Imported As" %}</th>
+        <th class="whitespace-nowrap">{% trans "Details" %}</th>
+      </tr>
+      <tr>
+        <td class="whitespace-nowrap">Name</td>
+        <td class="whitespace-nowrap">{% trans "Contact name" %}</td>
+        <td></td>
+      </tr>
+      <tr>
+        <td class="whitespace-nowrap">Language</td>
+        <td class="whitespace-nowrap">{% trans "Contact language" %}</td>
+        <td>
+          {% blocktrans trimmed %}
+            Only valid <a href="https://en.wikipedia.org/wiki/ISO_639-3" target="_new">ISO639-3</a> codes supported.
+          {% endblocktrans %}
+        </td>
+      </tr>
+      {% for scheme in urn_schemes %}
+        <tr>
+          <td>URN:{{ scheme.0 }}</td>
+          <td>{{ scheme.1 }}</td>
+          <td>
+            {% if scheme.0 == 'tel' and org_country %}
+              {% blocktrans trimmed with country=org_country.name %}
+                Numbers without a country code will be treated as local numbers in {{ country }}.
+              {% endblocktrans %}
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      <tr>
+        <td class="whitespace-nowrap">
+          Field:<i>custom_field</i>
+        </td>
+        <td class="whitespace-nowrap">
+          <i>custom_field</i>
+        </td>
+        <td>
+          {% blocktrans trimmed %}
+            If fields don't exist you will have the option to create them or ignore them.
+          {% endblocktrans %}
+        </td>
+      </tr>
+    </table>
+    <p>
+      {% blocktrans trimmed with sample_url=STATIC_URL|add:"examples/sample_import.xlsx" code=explicit_clear max=max_records|intcomma %}
+        You can download <a href="{{ sample_url }}">this Excel template</a> as a sample. Imports files can contain a
+        maximum of {{ max }} records. Note that blank values will be ignored. If you want to explicitly clear values
+        use <tt>{{ code }}</tt>.
+      {% endblocktrans %}
+    </p>
+    <form method="post" enctype="multipart/form-data" id="import-form">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="text-error py-2">{{ form.non_field_errors }}</div>{% endif %}
+      {% block fields %}
+        <div class="mt-4 mb-6 text-error">{{ form.file.errors }}</div>
+        <div id="file-upload">
+          <input type="file" name="file" onchange="onFileChange()" id="import-file">
+        </div>
+        <div class="flex mb-4" id="real-button">
+          <input type="text" id="file-field">
+          <div style="margin-top:-1px" class="button-light ml-4">{% trans "Choose File" %}</div>
+        </div>
+      {% endblock fields %}
+      <div class="flex">
+        <input type="submit" value="{% trans "Preview" %}" class="button-primary">
+        <div onclick="javascript:history.go(-1)" class="ml-4 button-light">{% trans "Cancel" %}</div>
+      </div>
+    </form>
+  </div>
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  {% block spa-script %}
+    <script type="text/javascript">
+      function onFileChange() {
+        var file = $('#import-file').val();
+        while (file.indexOf('\\') >= 0) {
+          file = file.substring(file.indexOf('\\') + 1, file.length);
+        }
+        $('#file-field').val(file);
+      }
+    </script>
+  {% endblock spa-script %}
+{% endblock extra-script %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    input {
+      padding: 9px;
+      cursor: pointer;
+      box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 1px, rgba(0, 0, 0, 0.04) 0px 3px 20px 0px, rgba(0, 0, 0, 0.02) 0px 1px 2px 0px;
+    }
+
+    table.list tr th {
+      text-transform: none;
+      font-size: 0.85rem;
+    }
+
+    #file-upload {
+      position: relative;
+    }
+
+    #file_errors {
+      font-size: 20px;
+    }
+
+    #real-button {
+      position: relative;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    #file-field {
+      width: 300px;
+      height: 35px;
+      font-size: 16px;
+      margin-bottom: 0px;
+      border-radius: 5px;
+    }
+
+    #import-file {
+      position: absolute;
+      width: 450px;
+      height: 35px;
+      top: 0;
+      left: 0;
+      text-align: right;
+      -moz-opacity: 0;
+      filter: alpha(opacity: 0);
+      opacity: 0;
+      z-index: 2;
+    }
+
+    input {
+      padding: 9px;
+      cursor: pointer;
+      border: 1px solid var(--color-widget-border);
+    }
+
+    table.list tr th {
+      text-transform: none;
+      font-size: 0.85rem;
+    }
+
+    #file-upload {
+      position: relative;
+    }
+
+    #file_errors {
+      font-size: 20px;
+    }
+
+    #real-button {
+      position: relative;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    #file-field {
+      width: 300px;
+      height: 35px;
+      font-size: 16px;
+      margin-bottom: 0px;
+      border-radius: 5px;
+    }
+
+    #import-file {
+      position: absolute;
+      width: 450px;
+      height: 35px;
+      top: 0;
+      left: 0;
+      text-align: right;
+      -moz-opacity: 0;
+      filter: alpha(opacity: 0);
+      opacity: 0;
+      z-index: 2;
+    }
+  </style>
+{% endblock extra-style %}

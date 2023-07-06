@@ -1,0 +1,7 @@
+{% extends "contacts/contact_list.html" %}
+{% load i18n %}
+
+{% block title-text %}
+  <div class="title leading-tight">{% trans "Archived Contacts" %}</div>
+  <div class="text-base mt-1">{% trans "These contacts have been removed from all groups and can be deleted permanently." %}</div>
+{% endblock title-text %}
