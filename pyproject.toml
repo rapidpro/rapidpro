@@ -9,7 +9,7 @@ repository = "http://github.com/rapidpro/rapidpro"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-Django = "^4.2.2"
+Django = "^4.2.3"
 django-compressor = "^4.3.1"
 django-countries = "^7.0"
 django-hamlpy = "^1.7.0"
