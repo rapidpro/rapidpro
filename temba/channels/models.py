@@ -717,6 +717,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
             trigger.release(user)
 
     def delete(self):
+        self.counts.all().delete()
         self.alerts.all().delete()
         self.sync_events.all().delete()
 

@@ -69,19 +69,27 @@ def trim_sync_events():
     """
 
     trim_before = timezone.now() - settings.RETENTION_PERIODS["syncevent"]
+    num_deleted = 0
 
-    channels_with_sync_events = (
+    channels_with_events = (
         SyncEvent.objects.filter(created_on__lte=trim_before)
         .values("channel")
         .annotate(Count("id"))
         .filter(id__count__gt=1)
     )
-    for channel_sync_events in channels_with_sync_events:
-        sync_events = SyncEvent.objects.filter(
-            created_on__lte=trim_before, channel_id=channel_sync_events["channel"]
-        ).order_by("-created_on")[1:]
-        for event in sync_events:
-            event.release()
+    for result in channels_with_events:
+        # trim older but always leave at least one per channel
+        event_ids = list(
+            SyncEvent.objects.filter(created_on__lte=trim_before, channel_id=result["channel"])
+            .order_by("-created_on")
+            .values_list("id", flat=True)[1:]
+        )
+
+        Alert.objects.filter(sync_event__in=event_ids).delete()
+        SyncEvent.objects.filter(id__in=event_ids).delete()
+        num_deleted += len(event_ids)
+
+    return {"deleted": num_deleted}
 
 
 @cron_task(lock_timeout=7200)

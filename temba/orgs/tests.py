@@ -2191,9 +2191,18 @@ class OrgDeleteTest(TembaTest):
                 user,
                 flow=flow1,
                 trigger_type=Trigger.TYPE_KEYWORD,
-                channel=channels[0],
                 keyword="color",
                 match_type=Trigger.MATCH_FIRST_WORD,
+                groups=groups,
+            )
+        )
+        add(
+            Trigger.create(
+                org,
+                user,
+                flow=flow1,
+                trigger_type=Trigger.TYPE_NEW_CONVERSATION,
+                channel=channels[0],
                 groups=groups,
             )
         )
