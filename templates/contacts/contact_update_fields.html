@@ -1,9 +1,9 @@
--extends 'includes/modax.html'
--load smartmin
+{% extends "includes/modax.html" %}
+{% load smartmin %}
 
--block modal-extra-style
-  {{block.super}}
-  :css
+{% block modal-extra-style %}
+  {{ block.super }}
+  <style type="text/css">
     input[name="field_value"]:disabled {
       background: #ffffff !important;
     }
@@ -13,29 +13,29 @@
       left: 150px;
       top: 130px;
     }
-
-
--block modal-script
-  {{block.super}}
-  :javascript
+  </style>
+{% endblock modal-extra-style %}
+{% block modal-script %}
+  {{ block.super }}
+  <script type="text/javascript">
     var input_url = '/contact/update_fields_input/{{contact.id}}/?field=';
     var body = getModax("#shared-modax").shadowRoot.querySelector(".modax-body");
     var fieldSelect = body.querySelector("temba-select[name='contact_field']");
     fieldSelect.addEventListener('change', function(event) {
       var selectedField = event.target.values[0].value;
-    	$(body).find('.rendered-field-input').attr('ic-src', input_url + selectedField);
+      $(body).find('.rendered-field-input').attr('ic-src', input_url + selectedField);
       Intercooler.triggerRequest($(body).find('.rendered-field-input'));
     });
 
     {% if contact_field %}
-    window.setTimeout(function(){
+    window.setTimeout(function() {
       fieldSelect.setSelection("{{contact_field.id}}");
     }, 0);
     {% endif %}
-
-
--block fields
-  .field-choice
-    -render_field 'contact_field'
-  .loader-circles.hidden
-  .rendered-field-input
+  </script>
+{% endblock modal-script %}
+{% block fields %}
+  <div class="field-choice">{% render_field 'contact_field' %}</div>
+  <div class="loader-circles hidden"></div>
+  <div class="rendered-field-input"></div>
+{% endblock fields %}

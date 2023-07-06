@@ -1,0 +1,28 @@
+{% extends "includes/modax.html" %}
+{% load i18n smartmin %}
+
+{% block fields %}
+  {% if total_count >= total_limit %}
+    <div class="mb-4">
+      <temba-alert level="warning">
+        {% blocktrans trimmed with limit=total_limit %}
+          You have reached the limit of {{ limit }} fields per workspace. Please remove fields that you are no longer using.
+        {% endblocktrans %}
+      </temba-alert>
+    </div>
+  {% elif total_count >= total_limit|add:-10 %}
+    <div class="mb-4">
+      <temba-alert level="warning">
+        {% blocktrans trimmed with limit=total_limit %}
+          You are approaching the limit of {{ limit }} fields per workspace. You should remove fields that you are no longer using.
+        {% endblocktrans %}
+      </temba-alert>
+    </div>
+  {% endif %}
+  <div class="flex items-start flex-col">
+    <div class="w-full">{% render_field 'name' %}</div>
+    <div class="w-full">{% render_field 'value_type' %}</div>
+    {% render_field 'show_in_table' %}
+    {% render_field 'agent_access' %}
+  </div>
+{% endblock fields %}

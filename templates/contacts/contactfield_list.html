@@ -1,21 +1,25 @@
--extends "smartmin/base.html"
--load smartmin i18n humanize
+{% extends "smartmin/base.html" %}
+{% load smartmin i18n humanize %}
 
--block page-title
-  -trans "Custom Fields"
-
--block content
-
-  %temba-field-manager(priority-endpoint='{% url "contacts.contactfield_update_priority" %}' -temba-selection="handleFieldClicked")
-
-  -block pre-tables
-    %temba-modax(id='update-field' header='{{_("Update Field")|escapejs}}' -temba-submitted="handleFieldUpdated")
-    %temba-modax(id='delete-modal' header='{{_("Delete Field")|escapejs}}' -temba-submitted="handleFieldUpdated")
-    %temba-modax(id='usages-modal' header='{{_("Usages")|escapejs}}')
-
--block extra-script
+{% block page-title %}
+  {% trans "Custom Fields" %}
+{% endblock page-title %}
+{% block content %}
+  <temba-field-manager priority-endpoint="{% url "contacts.contactfield_update_priority" %}"
+                       -temba-selection="handleFieldClicked">
+  </temba-field-manager>
+  {% block pre-tables %}
+    <temba-modax header="{{ _("Update Field") |escapejs }}" -temba-submitted="handleFieldUpdated" id="update-field">
+    </temba-modax>
+    <temba-modax header="{{ _("Delete Field") |escapejs }}" -temba-submitted="handleFieldUpdated" id="delete-modal">
+    </temba-modax>
+    <temba-modax header="{{ _("Usages") |escapejs }}" id="usages-modal">
+    </temba-modax>
+  {% endblock pre-tables %}
+{% endblock content %}
+{% block extra-script %}
   {{ block.super }}
-  :javascript
+  <script type="text/javascript">
     function showUpdateContactFieldModal(key) {
       var modax = document.querySelector('#update-field');
       modax.endpoint = `/contactfield/update/${key}/`;
@@ -51,10 +55,11 @@
         showFieldDeleteModal(key);
       }
     }
-
--block extra-style
-  {{block.super}}
-  :css
+  </script>
+{% endblock extra-script %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
     .page-content {
       align-self: auto;
       max-width: 100%;
@@ -76,7 +81,8 @@
     }
 
     .sortable-drag {
-      background-color: #f5f9fa;;
+      background-color: #f5f9fa;
+      ;
     }
 
     .sortable-ghost {
@@ -87,17 +93,17 @@
       display: none;
     }
 
-    .draggable-row > td {
+    .draggable-row>td {
       cursor: move;
     }
 
-    .draggable-row > td * {
+    .draggable-row>td * {
       user-select: none;
       -webkit-user-select: none;
       pointer-events: none;
     }
 
-    .draggable-row > td:nth-child(2) > div {
+    .draggable-row>td:nth-child(2)>div {
       padding-left: 0rem;
       cursor: move !important;
     }
@@ -110,3 +116,5 @@
     tr:hover .delete-link {
       visibility: visible !important;
     }
+  </style>
+{% endblock extra-style %}
