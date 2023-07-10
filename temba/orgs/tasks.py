@@ -74,8 +74,10 @@ def delete_released_orgs():
         try:
             org.delete()
             num_deleted += 1
+
+            logging.warning(f"successfully deleted '{org.name}' (#{org.id})")
         except Exception:  # pragma: no cover
-            logging.exception(f"exception while deleting {org.name}")
+            logging.exception(f"exception while deleting '{org.name}' (#{org.id})")
             num_failed += 1
 
     return {"deleted": num_deleted, "failed": num_failed}
