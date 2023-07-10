@@ -1290,11 +1290,11 @@ class Org(SmartModel):
         for c in self.campaigns.all():
             c.delete()
 
-        # delete everything associated with our flows
+        # release flows (actual deletion occurs later after contacts and tickets are gone)
+        # we want to manually release runs so we don't fire a mailroom task to do it
         for flow in self.flows.all():
-            # we want to manually release runs so we don't fire a mailroom task to do it
             flow.release(user, interrupt_sessions=False)
-            flow.delete()
+            flow.delete_runs()
 
         # delete our flow labels (deleting a label deletes its children)
         for flow_label in self.flow_labels.filter(parent=None):
@@ -1344,6 +1344,9 @@ class Org(SmartModel):
         for ticketer in self.ticketers.all():
             ticketer.release(user)
             ticketer.delete()
+
+        for flow in self.flows.all():
+            flow.delete()
 
         # release all archives objects and files for this org
         Archive.release_org_archives(self)

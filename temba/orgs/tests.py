@@ -2152,7 +2152,7 @@ class OrgDeleteTest(TembaTest):
         flows = self._create_flow_content(org, user, channels, contacts, groups, add)
         labels = self._create_message_content(org, user, channels, contacts, groups, add)
         self._create_campaign_content(org, user, fields, groups, flows, contacts, add)
-        self._create_ticket_content(org, user, contacts, add)
+        self._create_ticket_content(org, user, contacts, flows, add)
         self._create_export_content(org, user, flows, groups, fields, labels, add)
         self._create_archive_content(org, add)
 
@@ -2191,9 +2191,18 @@ class OrgDeleteTest(TembaTest):
                 user,
                 flow=flow1,
                 trigger_type=Trigger.TYPE_KEYWORD,
-                channel=channels[0],
                 keyword="color",
                 match_type=Trigger.MATCH_FIRST_WORD,
+                groups=groups,
+            )
+        )
+        add(
+            Trigger.create(
+                org,
+                user,
+                flow=flow1,
+                trigger_type=Trigger.TYPE_NEW_CONVERSATION,
+                channel=channels[0],
                 groups=groups,
             )
         )
@@ -2220,6 +2229,8 @@ class OrgDeleteTest(TembaTest):
                 exited_on=timezone.now(),
             )
         )
+        contacts[0].current_flow = flow1
+        contacts[0].save(update_fields=("current_flow",))
 
         flow_label1 = add(FlowLabel.create(org, user, "Cool Flows"))
         flow_label2 = add(FlowLabel.create(org, user, "Crazy Flows"))
@@ -2322,12 +2333,12 @@ class OrgDeleteTest(TembaTest):
         )
         add(EventFire.objects.create(event=event1, contact=contacts[0], scheduled=timezone.now()))
 
-    def _create_ticket_content(self, org, user, contacts, add):
+    def _create_ticket_content(self, org, user, contacts, flows, add):
         ticket1 = add(self.create_ticket(org.ticketers.get(), contacts[0], "Help"))
         ticket1.events.create(org=org, contact=contacts[0], event_type="N", note="spam", created_by=user)
 
         ticketer = add(Ticketer.create(org, user, MailgunType.slug, "Email (bob)", {}))
-        add(self.create_ticket(ticketer, contacts[0], "Help"))
+        add(self.create_ticket(ticketer, contacts[0], "Help", opened_in=flows[0]))
 
     def _create_export_content(self, org, user, flows, groups, fields, labels, add):
         results = add(

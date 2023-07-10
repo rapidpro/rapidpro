@@ -247,9 +247,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         flow.refresh_from_db()
         self.assertTrue(flow.has_issues)
         self.assertNotIn(channel1, flow.channel_dependencies.all())
-
-        self.assertEqual(0, channel1.alerts.count())
-        self.assertEqual(0, channel1.sync_events.count())
         self.assertEqual(0, channel1.triggers.filter(is_active=True).count())
 
         # check that we queued a task to interrupt sessions tied to this channel
@@ -268,6 +265,12 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, channel2.alerts.count())
         self.assertEqual(1, channel2.sync_events.count())
         self.assertEqual(1, channel2.triggers.filter(is_active=True).count())
+
+        # now do actual delete of channel
+        channel1.msgs.all().delete()
+        channel1.delete()
+
+        self.assertFalse(Channel.objects.filter(id=channel1.id).exists())
 
     @mock_mailroom
     def test_release_android(self, mr_mocks):

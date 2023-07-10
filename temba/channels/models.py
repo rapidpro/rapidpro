@@ -695,13 +695,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         # disassociate them
         Channel.objects.filter(parent=self).update(parent=None)
 
-        # delete any alerts
-        self.alerts.all().delete()
-
-        # any related sync events
-        for sync_event in self.sync_events.all():
-            sync_event.release()
-
         # delay mailroom task for 5 seconds, so mailroom assets cache expires
         interrupt_channel_task.apply_async((self.id,), countdown=5)
 
@@ -722,6 +715,16 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for trigger in self.triggers.all():
             trigger.archive(user)
             trigger.release(user)
+
+    def delete(self):
+        self.counts.all().delete()
+        self.alerts.all().delete()
+        self.sync_events.all().delete()
+
+        for trigger in self.triggers.all():
+            trigger.delete()
+
+        super().delete()
 
     def trigger_sync(self, registration_id=None):  # pragma: no cover
         """
@@ -1127,10 +1130,6 @@ class SyncEvent(SmartModel):
         sync_event.retry_messages = cmd.get("retry", cmd.get("retry_messages"))
 
         return sync_event
-
-    def release(self):
-        self.alerts.all().delete()
-        self.delete()
 
     def get_pending_messages(self):
         return getattr(self, "pending_messages", [])
