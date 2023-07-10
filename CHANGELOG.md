@@ -1,3 +1,7 @@
+v8.1.220 (2023-07-10)
+-------------------------
+ * Delete is only for deleting child workspaces
+
 v8.1.219 (2023-07-10)
 -------------------------
  * Fix problems with org deletion
