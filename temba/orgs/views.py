@@ -1134,7 +1134,7 @@ class OrgCRUDL(SmartCRUDL):
         "grant",
         "create_login",
         "choose",
-        "delete",
+        "delete_child",
         "manage_accounts",
         "manage_accounts_sub_org",
         "manage",
@@ -1723,15 +1723,6 @@ class OrgCRUDL(SmartCRUDL):
                 menu.add_url_post(_("Verify"), f"{reverse('orgs.org_update', args=[obj.id])}?action=verify")
 
             menu.new_group()
-            menu.add_modax(
-                _("Delete"),
-                "delete-org",
-                reverse("orgs.org_delete", args=[obj.id]),
-                title=_("Delete Workspace"),
-                disabled=True,
-            )
-
-            menu.new_group()
             menu.add_url_post(
                 _("Service"),
                 f'{reverse("orgs.org_service")}?other_org={obj.id}&next={reverse("msgs.msg_inbox", args=[])}',
@@ -1905,23 +1896,11 @@ class OrgCRUDL(SmartCRUDL):
             obj.limits = cleaned_data["limits"]
             return obj
 
-    class Delete(SpaMixin, OrgObjPermsMixin, ModalMixin, SmartDeleteView):
-        cancel_url = "id@orgs.org_update"
+    class DeleteChild(SpaMixin, OrgObjPermsMixin, ModalMixin, SmartDeleteView):
+        cancel_url = "@orgs.org_sub_orgs"
         success_url = "@orgs.org_sub_orgs"
         fields = ("id",)
         submit_button_name = _("Delete")
-
-        # we don't want to reroute delete requests
-        def pre_process(self, request, *args, **kwargs):
-            return
-
-        def has_org_perm(self, codename):
-            # users can't delete the primary org
-            org = self.get_object()
-            if not org.is_child:
-                return False
-
-            return super().has_org_perm(codename)
 
         def get_object_org(self):
             # child orgs work in the context of their parent
@@ -1934,6 +1913,8 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def post(self, request, *args, **kwargs):
+            assert self.get_object().is_child, "can only delete child orgs"
+
             self.object = self.get_object()
             self.object.release(request.user)
             return self.render_modal_response()
