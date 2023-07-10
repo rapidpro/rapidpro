@@ -2332,6 +2332,7 @@ class OrgDeleteTest(TembaTest):
             )
         )
         add(EventFire.objects.create(event=event1, contact=contacts[0], scheduled=timezone.now()))
+        add(FlowStart.objects.create(org=org, flow=flows[0], campaign_event=event1))
 
     def _create_ticket_content(self, org, user, contacts, flows, add):
         ticket1 = add(self.create_ticket(org.ticketers.get(), contacts[0], "Help"))
