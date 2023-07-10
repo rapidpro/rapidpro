@@ -79,21 +79,21 @@ class OrgContextProcessorTest(TembaTest):
         self.assertTrue(perms["contacts"]["contact_update"])
         self.assertTrue(perms["orgs"]["org_country"])
         self.assertTrue(perms["orgs"]["org_manage_accounts"])
-        self.assertTrue(perms["orgs"]["org_delete"])
+        self.assertTrue(perms["orgs"]["org_delete_child"])
 
         perms = RolePermsWrapper(OrgRole.EDITOR)
 
         self.assertTrue(perms["msgs"]["msg_list"])
         self.assertTrue(perms["contacts"]["contact_update"])
         self.assertFalse(perms["orgs"]["org_manage_accounts"])
-        self.assertFalse(perms["orgs"]["org_delete"])
+        self.assertFalse(perms["orgs"]["org_delete_child"])
 
         perms = RolePermsWrapper(OrgRole.VIEWER)
 
         self.assertTrue(perms["msgs"]["msg_list"])
         self.assertFalse(perms["contacts"]["contact_update"])
         self.assertFalse(perms["orgs"]["org_manage_accounts"])
-        self.assertFalse(perms["orgs"]["org_delete"])
+        self.assertFalse(perms["orgs"]["org_delete_child"])
 
         self.assertFalse(perms["msgs"]["foo"])  # no blow up if perm doesn't exist
         self.assertFalse(perms["chickens"]["foo"])  # or app doesn't exist
@@ -2657,16 +2657,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, len(response.context["children"]))
 
         # we should have options to flag and suspend
-        self.assertContentMenu(
-            read_url, self.customer_support, ["Edit", "Flag", "Suspend", "Verify", "-", "Delete", "-", "Service"]
-        )
+        self.assertContentMenu(read_url, self.customer_support, ["Edit", "Flag", "Suspend", "Verify", "-", "Service"])
 
         # flag and content menu option should be inverted
         self.org.flag()
         self.org.suspend()
 
         self.assertContentMenu(
-            read_url, self.customer_support, ["Edit", "Unflag", "Unsuspend", "Verify", "-", "Delete", "-", "Service"]
+            read_url, self.customer_support, ["Edit", "Unflag", "Unsuspend", "Verify", "-", "Service"]
         )
 
         # no menu for inactive orgs
@@ -3449,43 +3447,25 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("Y", self.org.date_format)
         self.assertEqual("es", self.org.language)
 
-    def test_delete(self):
+    def test_delete_child(self):
         self.org.features = [Org.FEATURE_CHILD_ORGS]
         self.org.save(update_fields=("features",))
 
-        workspace = self.org.create_new(self.admin, "Child Workspace", self.org.timezone, as_child=True)
-        delete_workspace = reverse("orgs.org_delete", args=[workspace.id])
+        child = self.org.create_new(self.admin, "Child Workspace", self.org.timezone, as_child=True)
+        delete_url = reverse("orgs.org_delete_child", args=[child.id])
 
-        # choose the parent org, try to delete the workspace
-        self.assertDeleteFetch(delete_workspace)
+        self.assertDeleteFetch(delete_url)
 
         # schedule for deletion
-        response = self.client.get(delete_workspace)
+        response = self.client.get(delete_url)
         self.assertContains(response, "You are about to delete the workspace <b>Child Workspace</b>")
 
         # go through with it, redirects to main workspace page
-        response = self.client.post(delete_workspace)
+        response = self.client.post(delete_url)
         self.assertEqual(reverse("orgs.org_sub_orgs"), response["Temba-Success"])
 
-        workspace.refresh_from_db()
-        self.assertFalse(workspace.is_active)
-
-        # can't delete primary workspace
-        primary_delete = reverse("orgs.org_delete", args=[self.org.id])
-        response = self.client.get(primary_delete)
-        self.assertRedirect(response, "/users/login/")
-
-        response = self.client.post(primary_delete)
-        self.assertRedirect(response, "/users/login/")
-
-        self.login(self.customer_support)
-        primary_delete = reverse("orgs.org_delete", args=[self.org.id])
-        response = self.client.get(primary_delete)
-        self.assertContains(response, "You are about to delete the workspace <b>Nyaruka</b>")
-
-        response = self.client.post(primary_delete)
-        self.org.refresh_from_db()
-        self.assertFalse(self.org.is_active)
+        child.refresh_from_db()
+        self.assertFalse(child.is_active)
 
     def test_administration(self):
         self.setUpLocations()
