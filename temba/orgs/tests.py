@@ -22,7 +22,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-from temba.channels.models import Alert, Channel, SyncEvent
+from temba.channels.models import Alert, Channel, ChannelLog, SyncEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
 from temba.contacts.models import (
@@ -2170,13 +2170,23 @@ class OrgDeleteTest(TembaTest):
         channel1 = add(self.create_channel("TG", "Telegram", "+250785551212", org=org))
         channel2 = add(self.create_channel("A", "Android", "+1234567890", org=org))
         channel3 = add(self.create_channel("T", "Twilio", "+1098765432", parent=channel2, org=org))
-        SyncEvent.create(
-            channel2,
-            dict(pending=[], retry=[], power_source="P", power_status="full", power_level="100", network_type="W"),
-            [],
+        add(
+            SyncEvent.create(
+                channel2,
+                dict(pending=[], retry=[], power_source="P", power_status="full", power_level="100", network_type="W"),
+                [],
+            )
         )
-        Alert.objects.create(
-            channel=channel2, alert_type=Alert.TYPE_POWER, created_by=self.admin, modified_by=self.admin
+        add(
+            Alert.objects.create(
+                channel=channel2, alert_type=Alert.TYPE_POWER, created_by=self.admin, modified_by=self.admin
+            )
+        )
+        add(ChannelLog.objects.create(channel=channel1, log_type=ChannelLog.LOG_TYPE_MSG_SEND))
+        add(
+            HTTPLog.objects.create(
+                org=org, channel=channel2, log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, request_time=10, is_error=False
+            )
         )
 
         return (channel1, channel2, channel3)

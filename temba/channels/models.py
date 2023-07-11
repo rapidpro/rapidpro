@@ -28,7 +28,14 @@ from django.utils.translation import gettext_lazy as _
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact, s3
 from temba.utils.email import send_template_email
-from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, generate_uuid
+from temba.utils.models import (
+    JSONAsTextField,
+    LegacyUUIDMixin,
+    SquashableModel,
+    TembaModel,
+    delete_in_batches,
+    generate_uuid,
+)
 from temba.utils.text import random_string
 from temba.utils.uuid import is_uuid
 
@@ -717,9 +724,11 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
             trigger.release(user)
 
     def delete(self):
-        self.counts.all().delete()
-        self.alerts.all().delete()
-        self.sync_events.all().delete()
+        delete_in_batches(self.counts.all())
+        delete_in_batches(self.alerts.all())
+        delete_in_batches(self.sync_events.all())
+        delete_in_batches(self.logs.all())
+        delete_in_batches(self.http_logs.all())
 
         for trigger in self.triggers.all():
             trigger.delete()

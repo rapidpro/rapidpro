@@ -25,6 +25,24 @@ def patch_queryset_count(qs, function):
     qs.count = types.MethodType(lambda s: function(), qs)
 
 
+def delete_in_batches(qs, batch_size: int = 1000, pk: str = "id") -> int:
+    """
+    Deletes objects from the given queryset in batches returning the number deleted.
+    """
+
+    num_deleted = 0
+
+    while True:
+        batch = list(qs.values_list(pk, flat=True)[:batch_size])
+        if not batch:
+            break
+
+        qs.model.objects.filter(**{f"{pk}__in": batch}).delete()
+        num_deleted += len(batch)
+
+    return num_deleted
+
+
 class LegacyUUIDMixin(SmartModel):
     """
     Model mixin for things with an old-style VARCHAR(36) UUID
