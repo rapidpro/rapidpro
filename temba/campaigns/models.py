@@ -504,26 +504,23 @@ class CampaignEvent(TembaUUIDMixin, SmartModel):
         self.modified_by = user
         self.save(update_fields=("is_active", "modified_by", "modified_on"))
 
-        # detach any associated flow starts
-        self.flow_starts.all().update(campaign_event=None)
-
         # if flow isn't a user created flow we can delete it too
         if self.event_type == CampaignEvent.TYPE_MESSAGE:
             self.flow.release(user)
 
     def delete(self):
         """
-        Deletes this event completely along with associated fires
+        Deletes this event completely along with associated fires and starts.
         """
 
-        # delete any associated fires
         self.fires.all().delete()
+        self.flow_starts.all().delete()
 
         # and ourselves
         super().delete()
 
-    def __str__(self):
-        return f'Event[relative_to={self.relative_to.key}, offset={self.offset}, flow="{self.flow.name}"]'
+    def __repr__(self):
+        return f'<Event: relative_to={self.relative_to.key} offset={self.offset} flow="{self.flow.name}">'
 
     class Meta:
         verbose_name = _("Campaign Event")
