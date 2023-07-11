@@ -724,14 +724,15 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
             trigger.release(user)
 
     def delete(self):
-        delete_in_batches(self.counts.all())
+        for trigger in self.triggers.all():
+            trigger.delete()
+
         delete_in_batches(self.alerts.all())
         delete_in_batches(self.sync_events.all())
         delete_in_batches(self.logs.all())
         delete_in_batches(self.http_logs.all())
-
-        for trigger in self.triggers.all():
-            trigger.delete()
+        delete_in_batches(self.template_translations.all())
+        delete_in_batches(self.counts.all())  # needs to be after log deletion
 
         super().delete()
 
