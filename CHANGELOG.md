@@ -1,3 +1,7 @@
+v8.1.221 (2023-07-11)
+-------------------------
+ * Fix deleting of campaign events and add more logging to org deletion
+
 v8.1.220 (2023-07-10)
 -------------------------
  * Delete is only for deleting child workspaces
