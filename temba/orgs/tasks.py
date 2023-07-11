@@ -71,13 +71,18 @@ def delete_released_orgs():
     num_deleted, num_failed = 0, 0
 
     for org in Org.objects.filter(is_active=False, released_on__lt=week_ago, deleted_on=None):
-        try:
-            org.delete()
-            num_deleted += 1
+        start = timezone.now()
 
-            logging.warning(f"successfully deleted '{org.name}' (#{org.id})")
+        try:
+            counts = org.delete()
         except Exception:  # pragma: no cover
             logging.exception(f"exception while deleting '{org.name}' (#{org.id})")
             num_failed += 1
+            continue
+
+        seconds = (timezone.now() - start).total_seconds
+        stats = " ".join([f"{k}={v}" for k, v in counts.items()])
+        logging.warning(f"successfully deleted '{org.name}' (#{org.id}) in {seconds} seconds ({stats})")
+        num_deleted += 1
 
     return {"deleted": num_deleted, "failed": num_failed}

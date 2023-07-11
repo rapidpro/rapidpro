@@ -1248,9 +1248,9 @@ class Org(SmartModel):
         for org_user in self.users.all():
             self.remove_user(org_user)
 
-    def delete(self):
+    def delete(self) -> dict:
         """
-        Does an actual delete of this org
+        Does an actual delete of this org, returning counts of what was deleted.
         """
 
         from temba.msgs.models import Msg
@@ -1260,6 +1260,7 @@ class Org(SmartModel):
         assert not self.deleted_on, "can't delete org twice"
 
         user = self.modified_by
+        counts = defaultdict(int)
 
         # delete notifications and exports
         self.notifications.all().delete()
@@ -1282,6 +1283,7 @@ class Org(SmartModel):
             if not msg_batch:
                 break
             Msg.bulk_delete(msg_batch)
+            counts["messages"] += len(msg_batch)
 
         # our system label counts
         self.system_labels.all().delete()
@@ -1294,7 +1296,7 @@ class Org(SmartModel):
         # we want to manually release runs so we don't fire a mailroom task to do it
         for flow in self.flows.all():
             flow.release(user, interrupt_sessions=False)
-            flow.delete_runs()
+            counts["runs"] += flow.delete_runs()
 
         # delete our flow labels (deleting a label deletes its children)
         for flow_label in self.flow_labels.filter(parent=None):
@@ -1313,6 +1315,7 @@ class Org(SmartModel):
         for contact in self.contacts.all():
             contact.release(user, immediately=True)
             contact.delete()
+            counts["contacts"] += 1
 
         # delete all our URNs
         self.urns.all().delete()
@@ -1379,6 +1382,8 @@ class Org(SmartModel):
         self.config = {}
         self.surveyor_password = None
         self.save()
+
+        return counts
 
     def as_environment_def(self):
         """
