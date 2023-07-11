@@ -514,7 +514,9 @@ class CampaignEvent(TembaUUIDMixin, SmartModel):
         """
 
         self.fires.all().delete()
-        self.flow_starts.all().delete()
+
+        for start in self.flow_starts.all():
+            start.delete()
 
         # and ourselves
         super().delete()
