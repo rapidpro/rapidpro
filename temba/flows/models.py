@@ -956,6 +956,8 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         We keep FlowRevisions and FlowStarts however.
         """
 
+        from temba.campaigns.models import CampaignEvent
+
         super().release(user)
 
         self.name = self._deleted_name()
@@ -964,18 +966,12 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
 
         # release any campaign events that depend on this flow
-        from temba.campaigns.models import CampaignEvent
-
         for event in CampaignEvent.objects.filter(flow=self, is_active=True):
             event.release(user)
 
         # release any triggers that depend on this flow
         for trigger in self.triggers.all():
             trigger.release(user)
-
-        # release any starts
-        for start in self.starts.all():
-            start.release()
 
         self.channel_dependencies.clear()
         self.classifier_dependencies.clear()
@@ -1030,6 +1026,9 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         for trigger in self.triggers.all():
             trigger.delete()
+
+        for start in self.starts.all():
+            start.delete()
 
         self.category_counts.all().delete()
         self.path_counts.all().delete()
@@ -2003,14 +2002,19 @@ class FlowStart(models.Model):
     def async_start(self):
         on_transaction_commit(lambda: mailroom.queue_flow_start(self))
 
-    def release(self):
-        with transaction.atomic():
-            self.groups.clear()
-            self.contacts.clear()
-            self.calls.clear()
-            FlowRun.objects.filter(start=self).update(start=None)
-            FlowStartCount.objects.filter(start=self).delete()
-            self.delete()
+    def delete(self):
+        """
+        Deletes this flow start - called during org deletion or trimming task.
+        """
+
+        self.groups.clear()
+        self.contacts.clear()
+        self.calls.clear()
+        self.counts.all().delete()
+
+        FlowRun.objects.filter(start=self).update(start=None)
+
+        super().delete()
 
     def __str__(self):  # pragma: no cover
         return f"FlowStart[id={self.id}, flow={self.flow.uuid}]"

@@ -35,7 +35,7 @@ from temba.contacts.models import (
     ContactURN,
     ExportContactsTask,
 )
-from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowSession, FlowStart
+from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowSession, FlowStart, FlowStartCount
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import ExportMessagesTask, Label, Msg
@@ -2185,7 +2185,9 @@ class OrgDeleteTest(TembaTest):
         flow1 = add(self.create_flow("Registration", org=org))
         flow2 = add(self.create_flow("Goodbye", org=org))
 
-        add(FlowStart.objects.create(org=org, flow=flow1))
+        start1 = add(FlowStart.objects.create(org=org, flow=flow1))
+        add(FlowStartCount.objects.create(start=start1, count=1))
+
         add(
             Trigger.create(
                 org,
@@ -2333,7 +2335,8 @@ class OrgDeleteTest(TembaTest):
             )
         )
         add(EventFire.objects.create(event=event1, contact=contacts[0], scheduled=timezone.now()))
-        add(FlowStart.objects.create(org=org, flow=flows[0], campaign_event=event1))
+        start1 = add(FlowStart.objects.create(org=org, flow=flows[0], campaign_event=event1))
+        add(FlowStartCount.objects.create(start=start1, count=1))
 
     def _create_ticket_content(self, org, user, contacts, flows, add):
         ticket1 = add(self.create_ticket(org.ticketers.get(), contacts[0], "Help"))
