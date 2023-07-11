@@ -1,3 +1,8 @@
+v8.1.222 (2023-07-11)
+-------------------------
+ * Add delete_in_batches util function to improve org deletion
+ * Actually fix deletion of campaign events during org deletion
+
 v8.1.221 (2023-07-11)
 -------------------------
  * Fix deleting of campaign events and add more logging to org deletion
