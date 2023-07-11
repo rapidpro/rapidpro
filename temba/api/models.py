@@ -122,6 +122,11 @@ class Resthook(SmartModel):
         self.modified_by = user
         self.save(update_fields=["is_active", "modified_on", "modified_by"])
 
+    def delete(self):
+        self.subscribers.all().delete()
+
+        super().delete()
+
     def __str__(self):  # pragma: needs cover
         return str(self.slug)
 

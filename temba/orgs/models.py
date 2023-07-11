@@ -1285,9 +1285,6 @@ class Org(SmartModel):
             Msg.bulk_delete(msg_batch)
             counts["messages"] += len(msg_batch)
 
-        # our system label counts
-        self.system_labels.all().delete()
-
         # delete all our campaigns and associated events
         for c in self.campaigns.all():
             c.delete()
@@ -1331,10 +1328,6 @@ class Org(SmartModel):
 
         # delete our channels
         for channel in self.channels.all():
-            channel.counts.all().delete()
-            channel.logs.all().delete()
-            channel.template_translations.all().delete()
-
             channel.delete()
 
         for glob in self.globals.all():
@@ -1351,20 +1344,18 @@ class Org(SmartModel):
         for flow in self.flows.all():
             flow.delete()
 
-        # release all archives objects and files for this org
-        Archive.release_org_archives(self)
-
         delete_in_batches(self.webhookevent_set.all())
 
         for resthook in self.resthooks.all():
             resthook.release(user)
-            for sub in resthook.subscribers.all():
-                sub.delete()
             resthook.delete()
 
         # release our broadcasts
         for bcast in self.broadcasts.filter(parent=None):
             bcast.delete(user, soft=False)
+
+        # release all archives objects and files for this org
+        Archive.release_org_archives(self)
 
         # delete other related objects
         delete_in_batches(self.api_tokens.all(), pk="key")
