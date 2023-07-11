@@ -80,7 +80,7 @@ def delete_released_orgs():
             num_failed += 1
             continue
 
-        seconds = (timezone.now() - start).total_seconds
+        seconds = (timezone.now() - start).total_seconds()
         stats = " ".join([f"{k}={v}" for k, v in counts.items()])
         logging.warning(f"successfully deleted '{org.name}' (#{org.id}) in {seconds} seconds ({stats})")
         num_deleted += 1
