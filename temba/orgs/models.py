@@ -34,7 +34,7 @@ from temba.locations.models import AdminBoundary
 from temba.utils import json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
-from temba.utils.models import JSONField
+from temba.utils.models import JSONField, delete_in_batches
 from temba.utils.text import generate_token, random_string
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
@@ -1263,13 +1263,13 @@ class Org(SmartModel):
         counts = defaultdict(int)
 
         # delete notifications and exports
-        self.notifications.all().delete()
-        self.notification_counts.all().delete()
-        self.incidents.all().delete()
-        self.exportcontactstasks.all().delete()
-        self.exportmessagestasks.all().delete()
-        self.exportflowresultstasks.all().delete()
-        self.exportticketstasks.all().delete()
+        delete_in_batches(self.notifications.all())
+        delete_in_batches(self.notification_counts.all())
+        delete_in_batches(self.incidents.all())
+        delete_in_batches(self.exportcontactstasks.all())
+        delete_in_batches(self.exportmessagestasks.all())
+        delete_in_batches(self.exportflowresultstasks.all())
+        delete_in_batches(self.exportticketstasks.all())
 
         for imp in self.contact_imports.all():
             imp.delete()
@@ -1303,13 +1303,13 @@ class Org(SmartModel):
             flow_label.delete()
 
         # delete contact-related data
-        self.http_logs.all().delete()
-        self.sessions.all().delete()
-        self.ticket_events.all().delete()
-        self.tickets.all().delete()
-        self.ticket_counts.all().delete()
-        self.topics.all().delete()
-        self.airtime_transfers.all().delete()
+        delete_in_batches(self.http_logs.all())
+        delete_in_batches(self.sessions.all())
+        delete_in_batches(self.ticket_events.all())
+        delete_in_batches(self.tickets.all())
+        delete_in_batches(self.ticket_counts.all())
+        delete_in_batches(self.topics.all())
+        delete_in_batches(self.airtime_transfers.all())
 
         # delete our contacts
         for contact in self.contacts.all():
@@ -1354,7 +1354,7 @@ class Org(SmartModel):
         # release all archives objects and files for this org
         Archive.release_org_archives(self)
 
-        self.webhookevent_set.all().delete()
+        delete_in_batches(self.webhookevent_set.all())
 
         for resthook in self.resthooks.all():
             resthook.release(user)
@@ -1367,14 +1367,14 @@ class Org(SmartModel):
             bcast.delete(user, soft=False)
 
         # delete other related objects
-        self.api_tokens.all().delete()
-        self.invitations.all().delete()
-        self.schedules.all().delete()
-        self.boundaryalias_set.all().delete()
-        self.templates.all().delete()
+        delete_in_batches(self.api_tokens.all(), pk="key")
+        delete_in_batches(self.invitations.all())
+        delete_in_batches(self.schedules.all())
+        delete_in_batches(self.boundaryalias_set.all())
+        delete_in_batches(self.templates.all())
 
         # needs to come after deletion of msgs and broadcasts as those insert new counts
-        self.system_labels.all().delete()
+        delete_in_batches(self.system_labels.all())
 
         # save when we were actually deleted
         self.modified_on = timezone.now()

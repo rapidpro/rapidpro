@@ -33,7 +33,7 @@ from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
-from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel
+from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, delete_in_batches
 from temba.utils.uuid import uuid4
 
 from . import legacy
@@ -1030,10 +1030,10 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for start in self.starts.all():
             start.delete()
 
-        self.category_counts.all().delete()
-        self.path_counts.all().delete()
-        self.node_counts.all().delete()
-        self.status_counts.all().delete()
+        delete_in_batches(self.category_counts.all())
+        delete_in_batches(self.path_counts.all())
+        delete_in_batches(self.node_counts.all())
+        delete_in_batches(self.status_counts.all())
         self.labels.clear()
 
         super().delete()
