@@ -638,8 +638,9 @@ class TembaTestMixin:
         country=None,
         secret=None,
         config=None,
+        parent=None,
         org=None,
-    ):
+    ) -> Channel:
         channel_type = Channel.get_type_from_code(channel_type)
 
         return Channel.objects.create(
@@ -650,6 +651,7 @@ class TembaTestMixin:
             address=address,
             config=config or {},
             role=role or Channel.DEFAULT_ROLE,
+            parent=parent,
             secret=secret,
             schemes=schemes or channel_type.schemes,
             created_by=self.admin,
