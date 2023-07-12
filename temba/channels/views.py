@@ -33,7 +33,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.contacts.models import URN
 from temba.ivr.models import Call
 from temba.msgs.models import Msg
-from temba.orgs.views import DependencyDeleteModal, MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import countries
 from temba.utils.fields import SelectWidget
 from temba.utils.json import EpochEncoder
@@ -461,37 +461,12 @@ class ChannelCRUDL(SmartCRUDL):
         "chart",
         "claim",
         "claim_all",
-        "menu",
         "update",
         "read",
         "delete",
         "configuration",
         "facebook_whitelist",
     )
-    permissions = True
-
-    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):  # pragma: no cover
-        def derive_menu(self):
-            org = self.request.org
-
-            menu = []
-            if self.has_org_perm("channels.channel_read"):
-                from temba.channels.views import get_channel_read_url
-
-                channels = Channel.objects.filter(org=org, is_active=True, parent=None).order_by("-role")
-                for channel in channels:
-                    menu.append(
-                        self.create_menu_item(
-                            menu_id=channel.uuid,
-                            name=channel.name,
-                            href=get_channel_read_url(channel),
-                            icon=channel.type.get_icon(),
-                        )
-                    )
-
-            menu.append(self.create_menu_item(menu_id="claim", name=_("Add Channel"), href="channels.channel_claim"))
-
-            return menu
 
     class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"

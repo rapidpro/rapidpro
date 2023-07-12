@@ -35,6 +35,7 @@ from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError
+from django.db.models.functions import Lower
 from django.forms import ModelChoiceField
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import resolve_url
@@ -47,8 +48,6 @@ from django.views.decorators.csrf import csrf_exempt
 
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
-from temba.channels.models import Channel
-from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages
@@ -1244,11 +1243,11 @@ class OrgCRUDL(SmartCRUDL):
                     from temba.channels.views import get_channel_read_url
 
                     items = []
-                    channels = Channel.objects.filter(org=self.org, is_active=True, parent=None).order_by("-role")
+                    channels = self.org.channels.filter(is_active=True, parent=None).order_by(Lower("name"))
                     for channel in channels:
                         items.append(
                             self.create_menu_item(
-                                menu_id=f"{channel.uuid}",
+                                menu_id=str(channel.uuid),
                                 name=channel.name,
                                 href=get_channel_read_url(channel),
                                 icon=channel.type.get_icon(),
@@ -1260,7 +1259,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 if self.has_org_perm("classifiers.classifier_read"):
                     items = []
-                    classifiers = Classifier.objects.filter(org=self.org, is_active=True).order_by("-created_on")
+                    classifiers = self.org.classifiers.filter(is_active=True).order_by(Lower("name"))
                     for classifier in classifiers:
                         items.append(
                             self.create_menu_item(
