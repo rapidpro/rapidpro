@@ -443,7 +443,7 @@ class UpdateChannelForm(forms.ModelForm):
 
     class Meta:
         model = Channel
-        fields = ("name", "alert_email")
+        fields = ("name", "alert_email", "log_policy")
         readonly = ()
         labels = {}
         helps = {}
@@ -856,6 +856,9 @@ class ChannelCRUDL(SmartCRUDL):
         def derive_title(self):
             return _("%s Channel") % self.object.get_channel_type_display()
 
+        def derive_exclude(self):
+            return [] if self.request.user.is_staff else ["log_policy"]
+
         def derive_readonly(self):
             return self.form.Meta.readonly if hasattr(self, "form") else []
 
@@ -887,18 +890,9 @@ class ChannelCRUDL(SmartCRUDL):
         def post_save(self, obj):
             # update our delegate channels with the new number
             if not obj.parent and URN.TEL_SCHEME in obj.schemes:
-                e164_phone_number = None
-                try:
-                    parsed = phonenumbers.parse(obj.address, None)
-                    e164_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip(
-                        "+"
-                    )
-                except Exception:  # pragma: needs cover
-                    pass
                 for channel in obj.get_delegate_channels():  # pragma: needs cover
                     channel.address = obj.address
-                    channel.bod = e164_phone_number
-                    channel.save(update_fields=("address", "bod"))
+                    channel.save(update_fields=("address",))
             return obj
 
     class Claim(SpaMixin, OrgPermsMixin, SmartTemplateView):

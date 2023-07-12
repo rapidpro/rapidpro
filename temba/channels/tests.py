@@ -1228,6 +1228,14 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
 
+        # staff users see extra log policy field
+        self.login(self.customer_support, choose_org=self.org)
+        response = self.client.get(vonage_url)
+        self.assertEqual(
+            ["name", "alert_email", "log_policy", "allow_international", "machine_detection", "loc"],
+            list(response.context["form"].fields.keys()),
+        )
+
     def test_delete(self):
         delete_url = reverse("channels.channel_delete", args=[self.ex_channel.uuid])
 
