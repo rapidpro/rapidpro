@@ -64,7 +64,7 @@ black = "^22.1.0"
 coverage = "^5.5"
 flake8 = "^4.0.1"
 isort = "^5.10.1"
-codecov = "^2.1.11"
+codecov = "^2.1.13"
 responses = "^0.12.1"
 beautifulsoup4 = "^4.9.3"
 
