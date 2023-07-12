@@ -280,7 +280,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     ENCODING_DEFAULT = "D"  # we just pass the text down to the endpoint
     ENCODING_SMART = "S"  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
     ENCODING_UNICODE = "U"  # we send everything as unicode
-
     ENCODING_CHOICES = (
         (ENCODING_DEFAULT, _("Default Encoding")),
         (ENCODING_SMART, _("Smart Encoding")),
@@ -293,23 +292,29 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     ROLE_CALL = "C"
     ROLE_ANSWER = "A"
     ROLE_USSD = "U"
-
     DEFAULT_ROLE = ROLE_SEND + ROLE_RECEIVE
 
     CONTENT_TYPE_URLENCODED = "urlencoded"
     CONTENT_TYPE_JSON = "json"
     CONTENT_TYPE_XML = "xml"
-
     CONTENT_TYPES = {
         CONTENT_TYPE_URLENCODED: "application/x-www-form-urlencoded",
         CONTENT_TYPE_JSON: "application/json",
         CONTENT_TYPE_XML: "text/xml; charset=utf-8",
     }
-
     CONTENT_TYPE_CHOICES = (
         (CONTENT_TYPE_URLENCODED, _("URL Encoded - application/x-www-form-urlencoded")),
         (CONTENT_TYPE_JSON, _("JSON - application/json")),
         (CONTENT_TYPE_XML, _("XML - text/xml; charset=utf-8")),
+    )
+
+    LOG_POLICY_NONE = "N"
+    LOG_POLICY_ERRORS = "E"
+    LOG_POLICY_ALL = "A"
+    LOG_POLICY_CHOICES = (
+        (LOG_POLICY_NONE, "Discard All"),
+        (LOG_POLICY_ERRORS, "Write Errors Only"),
+        (LOG_POLICY_ALL, "Write All"),
     )
 
     SIMULATOR_CHANNEL = {
@@ -348,6 +353,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     config = models.JSONField(default=dict)
     schemes = ArrayField(models.CharField(max_length=16), default=_get_default_channel_scheme)
     role = models.CharField(max_length=4, default=DEFAULT_ROLE)
+    log_policy = models.CharField(max_length=1, default=LOG_POLICY_ALL, choices=LOG_POLICY_CHOICES)
     parent = models.ForeignKey("self", on_delete=models.PROTECT, null=True)
     tps = models.IntegerField(null=True)
 
