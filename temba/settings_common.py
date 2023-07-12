@@ -327,7 +327,7 @@ PERMISSIONS = {
     "channels.channel": ("api", "chart", "claim", "configuration", "errors", "facebook_whitelist"),
     "channels.channellog": ("connection",),
     "channels.channelevent": ("api",),
-    "classifiers.classifier": ("connect", "api", "sync", "menu"),
+    "classifiers.classifier": ("connect", "api", "sync"),
     "classifiers.intent": ("api",),
     "contacts.contact": (
         "api",

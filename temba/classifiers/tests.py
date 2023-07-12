@@ -106,12 +106,6 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
         self.flow = self.create_flow("Color Flow")
         self.flow.classifier_dependencies.add(self.c1)
 
-    def test_menu(self):
-        menu_url = reverse("classifiers.classifier_menu")
-        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
-        menu = response.json()["results"]
-        self.assertEqual(3, len(menu))
-
     def test_views(self):
         # fetch workspace menu
         self.login(self.admin)
