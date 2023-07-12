@@ -46,6 +46,8 @@
         %h1.description
           {{ brand.description }}
 
+ # only show if allow signups
+  -if brand.allow_signups
     .row
       #lead-form
         %form{action:'{% ssl_brand_url "public.lead_create" %}', method:'POST'}
