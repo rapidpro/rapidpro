@@ -364,9 +364,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     os = models.CharField(max_length=255, null=True, blank=True)
     last_seen = models.DateTimeField(null=True)
 
-    # TODO drop
-    bod = models.TextField(null=True)
-
     @classmethod
     def create(
         cls,

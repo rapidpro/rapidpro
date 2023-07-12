@@ -293,7 +293,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             address=android.address,
             role=Channel.ROLE_SEND,
             parent=android,
-            bod=android.address,
         )
 
         # release it
@@ -1285,7 +1284,6 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             address=android.address,
             role=Channel.ROLE_SEND,
             parent=android,
-            bod=android.address,
         )
 
         response = self.assertReadFetch(

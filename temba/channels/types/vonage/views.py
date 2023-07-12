@@ -389,13 +389,9 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         if is_shortcode:
             phone = phone_number
-            vonage_phone_number = phone_number
         else:
             parsed = phonenumbers.parse(phone_number, None)
             phone = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
-
-            # vonage ships numbers around as E164 without the leading +
-            vonage_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip("+")
 
         config = {
             self.channel_type.CONFIG_APP_ID: app_id,
@@ -405,7 +401,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             Channel.CONFIG_CALLBACK_DOMAIN: callback_domain,
         }
 
-        channel = Channel.create(
+        return Channel.create(
             org,
             user,
             country,
@@ -414,12 +410,9 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             address=phone_number,
             role=role,
             config=config,
-            bod=vonage_phone_number,
             uuid=channel_uuid,
             tps=1,
         )
-
-        return channel
 
 
 class SearchView(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
