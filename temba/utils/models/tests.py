@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core import checks
 from django.db import connection, models
 from django.test import TestCase
@@ -9,7 +9,7 @@ from temba.contacts.models import Contact
 from temba.flows.models import Flow
 from temba.tests import TembaTest
 
-from .base import patch_queryset_count
+from .base import delete_in_batches, patch_queryset_count
 from .es import IDSliceQuerySet
 from .fields import JSONAsTextField
 
@@ -24,6 +24,32 @@ class ModelsTest(TembaTest):
             patch_queryset_count(qs, lambda: 33)
 
             self.assertEqual(qs.count(), 33)
+
+    def test_delete_in_batches(self):
+        to_keep = Group.objects.create(name="Test")
+        to_delete = [Group.objects.create(name=f"YY{i}") for i in range(10)]
+
+        delete_in_batches(Group.objects.filter(name__startswith="YY"), batch_size=3)
+
+        self.assertTrue(Group.objects.filter(id=to_keep.id).exists())
+        self.assertEqual(0, Group.objects.filter(id__in=[g.id for g in to_delete]).count())
+
+        to_delete = [Group.objects.create(name=f"ZZ{i}") for i in range(10)]
+        state = {"count": 0}
+
+        def pre_delete(ids):
+            state["count"] += 1
+
+        # test with a post_delete callback function that stops deletion after 2 batches
+        def post_delete():
+            return state["count"] < 2
+
+        delete_in_batches(
+            Group.objects.filter(name__startswith="ZZ"), batch_size=3, pre_delete=pre_delete, post_delete=post_delete
+        )
+
+        self.assertTrue(Group.objects.filter(id=to_keep.id).exists())
+        self.assertEqual(4, Group.objects.filter(id__in=[g.id for g in to_delete]).count())
 
 
 class IDSliceQuerySetTest(TembaTest):

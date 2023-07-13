@@ -15,6 +15,7 @@ from temba import mailroom
 from temba.contacts.models import ContactField, ContactGroup
 from temba.utils import chunk_list
 from temba.utils.crons import cron_task
+from temba.utils.models import delete_in_batches
 
 from .models import (
     ExportFlowResultsTask,
@@ -120,17 +121,11 @@ def trim_flow_sessions():
     """
 
     trim_before = timezone.now() - settings.RETENTION_PERIODS["flowsession"]
-    num_deleted = 0
 
-    while True:
-        session_ids = list(FlowSession.objects.filter(ended_on__lte=trim_before).values_list("id", flat=True)[:1000])
-        if not session_ids:
-            break
-
+    def pre_delete(session_ids):
         # detach any flows runs that belong to these sessions
         FlowRun.objects.filter(session_id__in=session_ids).update(session_id=None)
 
-        FlowSession.objects.filter(id__in=session_ids).delete()
-        num_deleted += len(session_ids)
+    num_deleted = delete_in_batches(FlowSession.objects.filter(ended_on__lte=trim_before), pre_delete=pre_delete)
 
     return {"deleted": num_deleted}

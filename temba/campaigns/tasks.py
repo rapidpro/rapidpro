@@ -1,36 +1,29 @@
-import logging
+from datetime import timedelta
 
 from django.conf import settings
 from django.utils import timezone
 
 from temba.campaigns.models import EventFire
-from temba.utils import chunk_list
 from temba.utils.crons import cron_task
-
-logger = logging.getLogger(__name__)
-
-EVENT_FIRES_TO_TRIM = 100_000
+from temba.utils.models import delete_in_batches
 
 
 @cron_task()
 def trim_event_fires():
-    trim_before = timezone.now() - settings.RETENTION_PERIODS["eventfire"]
+    start = timezone.now()
 
-    # first look for unfired fires that belong to inactive events
-    trim_ids = list(
-        EventFire.objects.filter(fired=None, event__is_active=False).values_list("id", flat=True)[:EVENT_FIRES_TO_TRIM]
+    def can_continue():
+        return (timezone.now() - start) < timedelta(minutes=5)
+
+    # first delete any unfired fires for inactive events - these aren't retained for any period
+    num_deleted = delete_in_batches(
+        EventFire.objects.filter(fired=None, event__is_active=False), post_delete=can_continue
     )
 
-    # if we have trimmed all of our unfired inactive fires, look for old fired ones
-    if len(trim_ids) < EVENT_FIRES_TO_TRIM:
-        trim_ids += list(
-            EventFire.objects.filter(fired__lt=trim_before)
-            .values_list("id", flat=True)
-            .order_by("fired")[: EVENT_FIRES_TO_TRIM - len(trim_ids)]
-        )
+    # secondly (if we have time left) delete any fired fires that are older than the retention period
+    if can_continue():
+        trim_before = timezone.now() - settings.RETENTION_PERIODS["eventfire"]
 
-    for batch in chunk_list(trim_ids, 100):
-        # use a bulk delete for performance reasons, nothing references EventFire
-        EventFire.objects.filter(id__in=batch).delete()
+        num_deleted += delete_in_batches(EventFire.objects.filter(fired__lt=trim_before), post_delete=can_continue)
 
-    return {"deleted": len(trim_ids)}
+    return {"deleted": num_deleted}
