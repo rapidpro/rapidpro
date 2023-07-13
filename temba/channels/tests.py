@@ -23,16 +23,7 @@ from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.request_logs.models import HTTPLog
-from temba.tests import (
-    AnonymousOrg,
-    CRUDLTestMixin,
-    MigrationTest,
-    MockResponse,
-    TembaTest,
-    matchers,
-    mock_mailroom,
-    override_brand,
-)
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
 from temba.tests.crudl import StaffRedirect
 from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
@@ -2450,46 +2441,3 @@ class CourierTest(TembaTest):
         response = self.client.get(reverse("courier.t", args=[self.channel.uuid, "receive"]))
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.content, b"this URL should be mapped to a Courier instance")
-
-
-class MoveTwilioNumberSidTest(MigrationTest):
-    app = "channels"
-    migrate_from = "0168_channel_log_policy"
-    migrate_to = "0169_move_twilio_number_sid"
-
-    def setUpBeforeMigration(self, apps):
-        # new channel with sid in config
-        self.channel1 = Channel.create(
-            self.org, self.admin, "US", channel_type="T", config={"account_sid": "ACC23", "number_sid": "SID1"}
-        )
-
-        # old channel with sid in bod
-        self.channel2 = Channel.create(
-            self.org, self.admin, "US", channel_type="T", config={"account_sid": "ACC23"}, bod="SID2"
-        )
-
-        # new channel with junk in bod
-        self.channel3 = Channel.create(
-            self.org,
-            self.admin,
-            "US",
-            channel_type="T",
-            config={"account_sid": "ACC23", "number_sid": "SID3"},
-            bod="XX",
-        )
-
-        # non-Twilio channel
-        self.channel4 = Channel.create(self.org, self.admin, "US", channel_type="NX", config={"foo": "bar"}, bod="XX")
-
-    def test_migration(self):
-        self.channel1.refresh_from_db()
-        self.assertEqual({"account_sid": "ACC23", "number_sid": "SID1"}, self.channel1.config)
-
-        self.channel2.refresh_from_db()
-        self.assertEqual({"account_sid": "ACC23", "number_sid": "SID2"}, self.channel2.config)
-
-        self.channel3.refresh_from_db()
-        self.assertEqual({"account_sid": "ACC23", "number_sid": "SID3"}, self.channel3.config)
-
-        self.channel4.refresh_from_db()
-        self.assertEqual({"foo": "bar"}, self.channel4.config)

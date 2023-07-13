@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def move_twilio_sid(apps, schema_editor):
+def move_twilio_sid(apps, schema_editor):  # pragma: no cover
     Channel = apps.get_model("channels", "Channel")
 
     num_updated = 0
@@ -18,7 +18,7 @@ def move_twilio_sid(apps, schema_editor):
         print(f"Updated {num_updated} Twilio channels to not use deprecated bod field")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
