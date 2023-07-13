@@ -1,3 +1,9 @@
+v8.1.225 (2023-07-13)
+-------------------------
+ * Fix icon for globals delete
+ * Migrate old Twilio channels using .bod to use .config instead
+ * Remove duplicate menu views in classifiers and channels apps
+
 v8.1.224 (2023-07-12)
 -------------------------
  * Add log_policy to channel
