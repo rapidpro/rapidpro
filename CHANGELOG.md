@@ -1,3 +1,8 @@
+v8.1.226 (2023-07-13)
+-------------------------
+ * Rework trimming cron tasks to use delete_in_batches
+ * Drop no longer used Binary Optional Data field
+
 v8.1.225 (2023-07-13)
 -------------------------
  * Fix icon for globals delete
