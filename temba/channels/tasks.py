@@ -12,6 +12,7 @@ from temba import mailroom
 from temba.orgs.models import Org
 from temba.utils.analytics import track
 from temba.utils.crons import cron_task
+from temba.utils.models import delete_in_batches
 
 from .android import sync
 from .models import Alert, Channel, ChannelCount, ChannelLog, SyncEvent
@@ -100,15 +101,11 @@ def trim_channel_logs():
 
     trim_before = timezone.now() - settings.RETENTION_PERIODS["channellog"]
     start = timezone.now()
-    num_deleted = 0
 
-    while (timezone.now() - start) < timedelta(hours=1):
-        batch = list(ChannelLog.objects.filter(created_on__lte=trim_before).values_list("id", flat=True)[:1000])
-        if not batch:
-            break
+    def can_continue():
+        return (timezone.now() - start) < timedelta(hours=1)
 
-        ChannelLog.objects.filter(id__in=batch).delete()
-        num_deleted += len(batch)
+    num_deleted = delete_in_batches(ChannelLog.objects.filter(created_on__lte=trim_before), post_delete=can_continue)
 
     return {"deleted": num_deleted}
 
