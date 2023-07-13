@@ -64,7 +64,7 @@ class TwilioType(ChannelType):
 
         try:
             try:
-                number_sid = channel.bod or channel.config.get("number_sid")
+                number_sid = channel.config["number_sid"]
                 client.api.incoming_phone_numbers.get(number_sid).update(**number_update_args)
             except Exception:
                 if client:
