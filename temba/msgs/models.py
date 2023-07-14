@@ -479,8 +479,6 @@ class Msg(models.Model):
     DIRECTION_OUT = "O"
     DIRECTION_CHOICES = ((DIRECTION_IN, "Incoming"), (DIRECTION_OUT, "Outgoing"))
 
-    TYPE_INBOX = "I"  # no longer used
-    TYPE_FLOW = "F"  # no longer used
     TYPE_TEXT = "T"
     TYPE_VOICE = "V"
     TYPE_CHOICES = (
@@ -727,23 +725,19 @@ class Msg(models.Model):
             models.Index(
                 name="msgs_inbox",
                 fields=["org", "-created_on", "-id"],
-                condition=Q(
-                    direction="I", visibility="V", status="H", flow__isnull=True, msg_type__in=("I", "F", "T")
-                ),
+                condition=Q(direction="I", visibility="V", status="H", flow__isnull=True, msg_type="T"),
             ),
             # used for Flows view and API folder
             models.Index(
                 name="msgs_flows",
                 fields=["org", "-created_on", "-id"],
-                condition=Q(
-                    direction="I", visibility="V", status="H", flow__isnull=False, msg_type__in=("I", "F", "T")
-                ),
+                condition=Q(direction="I", visibility="V", status="H", flow__isnull=False, msg_type="T"),
             ),
             # used for Archived view and API folder
             models.Index(
                 name="msgs_archived",
                 fields=["org", "-created_on", "-id"],
-                condition=Q(direction="I", visibility="A", status="H", msg_type__in=("I", "F", "T")),
+                condition=Q(direction="I", visibility="A", status="H", msg_type="T"),
             ),
             # used for Outbox and Failed views and API folders
             models.Index(
@@ -841,7 +835,7 @@ class SystemLabel:
                 visibility=Msg.VISIBILITY_VISIBLE,
                 status=Msg.STATUS_HANDLED,
                 flow__isnull=True,
-                msg_type__in=(Msg.TYPE_INBOX, Msg.TYPE_FLOW, Msg.TYPE_TEXT),
+                msg_type=Msg.TYPE_TEXT,
             )
         elif label_type == cls.TYPE_FLOWS:
             qs = Msg.objects.filter(
@@ -849,14 +843,14 @@ class SystemLabel:
                 visibility=Msg.VISIBILITY_VISIBLE,
                 status=Msg.STATUS_HANDLED,
                 flow__isnull=False,
-                msg_type__in=(Msg.TYPE_INBOX, Msg.TYPE_FLOW, Msg.TYPE_TEXT),
+                msg_type=Msg.TYPE_TEXT,
             )
         elif label_type == cls.TYPE_ARCHIVED:
             qs = Msg.objects.filter(
                 direction=Msg.DIRECTION_IN,
                 visibility=Msg.VISIBILITY_ARCHIVED,
                 status=Msg.STATUS_HANDLED,
-                msg_type__in=(Msg.TYPE_INBOX, Msg.TYPE_FLOW, Msg.TYPE_TEXT),
+                msg_type=Msg.TYPE_TEXT,
             )
         elif label_type == cls.TYPE_OUTBOX:
             qs = Msg.objects.filter(
