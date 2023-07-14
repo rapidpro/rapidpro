@@ -9,7 +9,7 @@ def convert_msg_types(apps, schema_editor):  # pragma: no cover
     num_updated = 0
 
     while True:
-        id_batch = list(Msg.objects.filter(msg_type__in=("I", "F").values_list("id", flat=True)[:1000]))
+        id_batch = list(Msg.objects.filter(msg_type__in=("I", "F")).values_list("id", flat=True)[:1000])
         if not id_batch:
             break
 
@@ -19,7 +19,11 @@ def convert_msg_types(apps, schema_editor):  # pragma: no cover
         print(f"Updated {num_updated} messages with old msg type values")
 
 
+def reverse(apps, schema_editor):  # pragma: no cover
+    pass
+
+
 class Migration(migrations.Migration):
     dependencies = [("msgs", "0243_fix_archived_label_counts")]
 
-    operations = [migrations.RunPython(convert_msg_types)]
+    operations = [migrations.RunPython(convert_msg_types, reverse)]
