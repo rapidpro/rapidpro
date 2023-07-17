@@ -1063,9 +1063,14 @@ version = "0.4.5"
 description = "Python library for ISO 639 standard"
 optional = false
 python-versions = "*"
-files = [
-    {file = "iso-639-0.4.5.tar.gz", hash = "sha256:dc9cd4b880b898d774c47fe9775167404af8a85dd889d58f9008035109acce49"},
-]
+files = []
+develop = false
+
+[package.source]
+type = "git"
+url = "https://github.com/noumar/iso639.git"
+reference = "0.4.5"
+resolved_reference = "2175cf04b8b8cec79d99a6c4ad31295d67c22cd6"
 
 [[package]]
 name = "iso8601"
@@ -2295,4 +2300,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "561fd90a1d7ec7705a048b781cf31aa5b45416c1f69d3a56eea85b22e0773b50"
+content-hash = "7239a75607f27589a36efe2f41b68b87cf61d77a097ad6aea02c7572af0c98d2"
