@@ -1,3 +1,7 @@
+v8.1.227 (2023-07-17)
+-------------------------
+ * Bump cryptography from 41.0.0 to 41.0.2
+
 v8.1.226 (2023-07-13)
 -------------------------
  * Rework trimming cron tasks to use delete_in_batches
