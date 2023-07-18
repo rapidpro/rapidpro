@@ -1,3 +1,8 @@
+v8.1.228 (2023-07-18)
+-------------------------
+ * Update Instagram docs broken link
+ * Allow initiating flow results download form the the flow labels filter view
+
 v8.1.227 (2023-07-17)
 -------------------------
  * Bump cryptography from 41.0.0 to 41.0.2
