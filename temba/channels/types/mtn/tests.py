@@ -47,6 +47,7 @@ class MtnTypeTest(TembaTest):
             post_data["country"] = "RW"
             post_data["consumer_key"] = "foofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoofoo"
             post_data["consumer_secret"] = "barbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbarbar"
+            post_data["cp_address"] = "FOO"
 
             response = self.client.post(url, post_data)
 
@@ -58,6 +59,7 @@ class MtnTypeTest(TembaTest):
             self.assertEqual("MTN", channel.channel_type)
             self.assertEqual(post_data["consumer_key"], channel.config[Channel.CONFIG_API_KEY])
             self.assertEqual(post_data["consumer_secret"], channel.config[Channel.CONFIG_AUTH_TOKEN])
+            self.assertEqual(post_data["cp_address"], channel.config[MtnType.CP_ADDRESS])
             self.assertEqual("sub-123", channel.config["mtn_subscription_id"])
 
             self.assertEqual(mock_post.call_count, 2)
