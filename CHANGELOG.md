@@ -1,3 +1,8 @@
+v8.1.229 (2023-07-19)
+-------------------------
+ * Fix tickets list, to show compose properly on Firefox
+ * Add cpAddress parameter as optional for MTN channel type
+
 v8.1.228 (2023-07-18)
 -------------------------
  * Update Instagram docs broken link
