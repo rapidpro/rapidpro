@@ -2392,7 +2392,7 @@ class OrgDeleteTest(TembaTest):
             body, md5, size = jsonlgz_encode([{"id": 1}])
             archive = Archive.objects.create(
                 org=org,
-                url=f"http://{settings.STORAGE_BUCKETS['archives']}.aws.com/{file}",
+                url=f"http://{settings.ARCHIVE_BUCKET}.aws.com/{file}",
                 start_date=timezone.now(),
                 build_time=100,
                 archive_type=Archive.TYPE_MSG,
@@ -2401,14 +2401,14 @@ class OrgDeleteTest(TembaTest):
                 size=size,
                 hash=md5,
             )
-            self.mock_s3.put_object(settings.STORAGE_BUCKETS["archives"], file, body)
+            self.mock_s3.put_object(settings.ARCHIVE_BUCKET, file, body)
             return archive
 
         daily = add(create_archive(org, Archive.PERIOD_DAILY))
         add(create_archive(org, Archive.PERIOD_MONTHLY, daily))
 
         # extra S3 file in child archive dir
-        self.mock_s3.put_object(settings.STORAGE_BUCKETS["archives"], f"{org.id}/extra_file.json", io.StringIO("[]"))
+        self.mock_s3.put_object(settings.ARCHIVE_BUCKET, f"{org.id}/extra_file.json", io.StringIO("[]"))
 
     def _exists(self, obj) -> bool:
         return obj._meta.model.objects.filter(id=obj.id).exists()
