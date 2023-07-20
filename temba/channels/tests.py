@@ -12,6 +12,7 @@ from smartmin.tests import SmartminTest
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core import mail
+from django.core.files.storage import storages
 from django.template import loader
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -25,7 +26,6 @@ from temba.orgs.models import Org
 from temba.request_logs.models import HTTPLog
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
 from temba.tests.crudl import StaffRedirect
-from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.models import generate_uuid
@@ -1767,11 +1767,7 @@ class ChannelLogTest(TembaTest):
 
 
 class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
-    @patch("temba.utils.s3.client")
-    def test_msg(self, mock_s3_client):
-        mock_s3 = MockS3Client()
-        mock_s3_client.return_value = mock_s3
-
+    def test_msg(self):
         contact = self.create_contact("Fred", phone="+12067799191")
 
         log1 = ChannelLog.objects.create(
@@ -1843,15 +1839,17 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(msg1_url)
         self.assertEqual(f"/settings/channels/{self.channel.uuid}", response.headers[TEMBA_MENU_SELECTION])
 
-        # try when log objects are in S3 rather than the database
+        # try when log objects are in storage rather than the database
         ChannelLog.objects.all().delete()
 
-        mock_s3.objects[
-            ("dl-temba-logs", f"channels/{self.channel.uuid}/{str(log1.uuid)[:4]}/{log1.uuid}.json")
-        ] = io.StringIO(json.dumps(log1._get_json()))
-        mock_s3.objects[
-            ("dl-temba-logs", f"channels/{self.channel.uuid}/{str(log2.uuid)[:4]}/{log2.uuid}.json")
-        ] = io.StringIO(json.dumps(log2._get_json()))
+        storages["logs"].save(
+            f"channels/{self.channel.uuid}/{str(log1.uuid)[:4]}/{log1.uuid}.json",
+            io.StringIO(json.dumps(log1._get_json())),
+        )
+        storages["logs"].save(
+            f"channels/{self.channel.uuid}/{str(log2.uuid)[:4]}/{log2.uuid}.json",
+            io.StringIO(json.dumps(log2._get_json())),
+        )
 
         response = self.assertListFetch(
             msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[]
@@ -1861,7 +1859,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual("https://foo.bar/send2", response.context["logs"][1]["http_logs"][0]["url"])
 
         # missing logs are logged as errors and ignored
-        del mock_s3.objects[("dl-temba-logs", f"channels/{self.channel.uuid}/{str(log2.uuid)[:4]}/{log2.uuid}.json")]
+        storages["logs"].delete(f"channels/{self.channel.uuid}/{str(log2.uuid)[:4]}/{log2.uuid}.json")
 
         response = self.assertListFetch(
             msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[]

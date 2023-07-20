@@ -50,17 +50,13 @@ OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
 
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "logs": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
     "public": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
-# S3 bucket names for different things
-STORAGE_BUCKETS = {
-    "default": "dl-temba-io",
-    "archives": "dl-temba-archives",
-    "logs": "dl-temba-logs",
-    "sessions": "dl-temba-sessions",
-}
+# deprecated
+STORAGE_BUCKETS = {"archives": "dl-temba-archives"}
 
 STORAGE_URL = None  # may be an absolute URL to /media (like http://localhost:8000/media) or AWS S3
 STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
@@ -68,9 +64,6 @@ STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
 # settings used by django-storages
 AWS_ACCESS_KEY_ID = "aws_access_key_id"
 AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
-AWS_DEFAULT_ACL = "private"
-AWS_STORAGE_BUCKET_NAME = STORAGE_BUCKETS["default"]
-AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + ".s3.amazonaws.com"
 
 # -----------------------------------------------------------------------------------
 # On Unix systems, a value of None will cause Django to use the same
