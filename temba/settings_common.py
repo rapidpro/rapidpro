@@ -55,15 +55,15 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
-# deprecated
-STORAGE_BUCKETS = {"archives": "dl-temba-archives"}
-
 STORAGE_URL = None  # may be an absolute URL to /media (like http://localhost:8000/media) or AWS S3
 STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
 
 # settings used by django-storages
 AWS_ACCESS_KEY_ID = "aws_access_key_id"
 AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
+
+# TODO convert archive access to use storages
+ARCHIVE_BUCKET = "dl-temba-archives"
 
 # -----------------------------------------------------------------------------------
 # On Unix systems, a value of None will cause Django to use the same

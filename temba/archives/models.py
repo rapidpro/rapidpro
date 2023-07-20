@@ -99,7 +99,7 @@ class Archive(models.Model):
             archive.release()
 
         # find any remaining S3 files and remove them for this org
-        s3_bucket = settings.STORAGE_BUCKETS["archives"]
+        s3_bucket = settings.ARCHIVE_BUCKET
         s3_client = s3.client()
         paginator = s3_client.get_paginator("list_objects_v2")
         for page in paginator.paginate(Bucket=s3_bucket, Prefix=f"{org.id}/"):
