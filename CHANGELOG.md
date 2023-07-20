@@ -1,3 +1,9 @@
+v8.1.230 (2023-07-20)
+-------------------------
+ * Tweak system check for storage settings to check different storages are configured
+ * Convert S3 log access to be via django storages
+ * Use pg_dump/restore from docker container in mailroom_db command so it's always correct version
+
 v8.1.229 (2023-07-19)
 -------------------------
  * Fix tickets list, to show compose properly on Firefox
