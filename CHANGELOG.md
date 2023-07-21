@@ -1,3 +1,7 @@
+v8.1.231 (2023-07-21)
+-------------------------
+ * Simplify redis settings and organize settings better in sections
+
 v8.1.230 (2023-07-20)
 -------------------------
  * Tweak system check for storage settings to check different storages are configured
