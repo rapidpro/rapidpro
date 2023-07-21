@@ -34,7 +34,7 @@ from temba.locations.models import AdminBoundary
 from temba.utils import json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
-from temba.utils.models import JSONField
+from temba.utils.models import JSONField, delete_in_batches
 from temba.utils.text import generate_token, random_string
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
@@ -1248,9 +1248,9 @@ class Org(SmartModel):
         for org_user in self.users.all():
             self.remove_user(org_user)
 
-    def delete(self):
+    def delete(self) -> dict:
         """
-        Does an actual delete of this org
+        Does an actual delete of this org, returning counts of what was deleted.
         """
 
         from temba.msgs.models import Msg
@@ -1260,15 +1260,16 @@ class Org(SmartModel):
         assert not self.deleted_on, "can't delete org twice"
 
         user = self.modified_by
+        counts = defaultdict(int)
 
         # delete notifications and exports
-        self.notifications.all().delete()
-        self.notification_counts.all().delete()
-        self.incidents.all().delete()
-        self.exportcontactstasks.all().delete()
-        self.exportmessagestasks.all().delete()
-        self.exportflowresultstasks.all().delete()
-        self.exportticketstasks.all().delete()
+        delete_in_batches(self.notifications.all())
+        delete_in_batches(self.notification_counts.all())
+        delete_in_batches(self.incidents.all())
+        delete_in_batches(self.exportcontactstasks.all())
+        delete_in_batches(self.exportmessagestasks.all())
+        delete_in_batches(self.exportflowresultstasks.all())
+        delete_in_batches(self.exportticketstasks.all())
 
         for imp in self.contact_imports.all():
             imp.delete()
@@ -1282,37 +1283,36 @@ class Org(SmartModel):
             if not msg_batch:
                 break
             Msg.bulk_delete(msg_batch)
-
-        # our system label counts
-        self.system_labels.all().delete()
+            counts["messages"] += len(msg_batch)
 
         # delete all our campaigns and associated events
         for c in self.campaigns.all():
             c.delete()
 
-        # delete everything associated with our flows
+        # release flows (actual deletion occurs later after contacts and tickets are gone)
+        # we want to manually release runs so we don't fire a mailroom task to do it
         for flow in self.flows.all():
-            # we want to manually release runs so we don't fire a mailroom task to do it
             flow.release(user, interrupt_sessions=False)
-            flow.delete()
+            counts["runs"] += flow.delete_runs()
 
         # delete our flow labels (deleting a label deletes its children)
         for flow_label in self.flow_labels.filter(parent=None):
             flow_label.delete()
 
         # delete contact-related data
-        self.http_logs.all().delete()
-        self.sessions.all().delete()
-        self.ticket_events.all().delete()
-        self.tickets.all().delete()
-        self.ticket_counts.all().delete()
-        self.topics.all().delete()
-        self.airtime_transfers.all().delete()
+        delete_in_batches(self.http_logs.all())
+        delete_in_batches(self.sessions.all())
+        delete_in_batches(self.ticket_events.all())
+        delete_in_batches(self.tickets.all())
+        delete_in_batches(self.ticket_counts.all())
+        delete_in_batches(self.topics.all())
+        delete_in_batches(self.airtime_transfers.all())
 
         # delete our contacts
         for contact in self.contacts.all():
             contact.release(user, immediately=True)
             contact.delete()
+            counts["contacts"] += 1
 
         # delete all our URNs
         self.urns.all().delete()
@@ -1328,10 +1328,6 @@ class Org(SmartModel):
 
         # delete our channels
         for channel in self.channels.all():
-            channel.counts.all().delete()
-            channel.logs.all().delete()
-            channel.template_translations.all().delete()
-
             channel.delete()
 
         for glob in self.globals.all():
@@ -1345,30 +1341,31 @@ class Org(SmartModel):
             ticketer.release(user)
             ticketer.delete()
 
-        # release all archives objects and files for this org
-        Archive.release_org_archives(self)
+        for flow in self.flows.all():
+            flow.delete()
 
-        self.webhookevent_set.all().delete()
+        delete_in_batches(self.webhookevent_set.all())
 
         for resthook in self.resthooks.all():
             resthook.release(user)
-            for sub in resthook.subscribers.all():
-                sub.delete()
             resthook.delete()
 
         # release our broadcasts
         for bcast in self.broadcasts.filter(parent=None):
             bcast.delete(user, soft=False)
 
+        # release all archives objects and files for this org
+        Archive.release_org_archives(self)
+
         # delete other related objects
-        self.api_tokens.all().delete()
-        self.invitations.all().delete()
-        self.schedules.all().delete()
-        self.boundaryalias_set.all().delete()
-        self.templates.all().delete()
+        delete_in_batches(self.api_tokens.all(), pk="key")
+        delete_in_batches(self.invitations.all())
+        delete_in_batches(self.schedules.all())
+        delete_in_batches(self.boundaryalias_set.all())
+        delete_in_batches(self.templates.all())
 
         # needs to come after deletion of msgs and broadcasts as those insert new counts
-        self.system_labels.all().delete()
+        delete_in_batches(self.system_labels.all())
 
         # save when we were actually deleted
         self.modified_on = timezone.now()
@@ -1376,6 +1373,8 @@ class Org(SmartModel):
         self.config = {}
         self.surveyor_password = None
         self.save()
+
+        return counts
 
     def as_environment_def(self):
         """

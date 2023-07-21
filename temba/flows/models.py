@@ -33,7 +33,7 @@ from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
-from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel
+from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, delete_in_batches
 from temba.utils.uuid import uuid4
 
 from . import legacy
@@ -956,6 +956,8 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         We keep FlowRevisions and FlowStarts however.
         """
 
+        from temba.campaigns.models import CampaignEvent
+
         super().release(user)
 
         self.name = self._deleted_name()
@@ -964,18 +966,12 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
 
         # release any campaign events that depend on this flow
-        from temba.campaigns.models import CampaignEvent
-
         for event in CampaignEvent.objects.filter(flow=self, is_active=True):
             event.release(user)
 
         # release any triggers that depend on this flow
         for trigger in self.triggers.all():
             trigger.release(user)
-
-        # release any starts
-        for start in self.starts.all():
-            start.release()
 
         self.channel_dependencies.clear()
         self.classifier_dependencies.clear()
@@ -993,24 +989,37 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         if interrupt_sessions:
             mailroom.queue_interrupt(self.org, flow=self)
 
+    def delete_runs(self) -> int:
+        """
+        Deletes any runs and sessions associated with this flow. Called as part of org deletion. Returns number of runs
+        deleted.
+        """
+
+        assert not self.is_active, "can't delete runs for flow which hasn't been released"
+
+        num_deleted = 0
+
+        while True:
+            batch = list(self.runs.only("id", "session_id")[:1000])
+            if not batch:
+                break
+
+            # delete the runs (won't call FlowRun.delete() so won't create mailroom interrupt tasks)
+            FlowRun.objects.filter(id__in=[r.id for r in batch]).delete()
+            num_deleted += len(batch)
+
+            # delete the sessions
+            session_ids = {r.session_id for r in batch}
+            FlowSession.objects.filter(id__in=session_ids).delete()
+
+        return num_deleted
+
     def delete(self):
         """
-        Does actual deletion of this flow's data
+        Does actual deletion of this flow during org deletion.
         """
 
         assert not self.is_active, "can't delete flow which hasn't been released"
-
-        # clear our association with any related sessions
-        self.sessions.all().update(current_flow=None)
-
-        # grab the ids of all our runs
-        run_ids = self.runs.all().values_list("id", flat=True)
-
-        # batch this for 1,000 runs at a time so we don't grab locks for too long
-        for id_batch in chunk_list(run_ids, 1000):
-            runs = FlowRun.objects.filter(id__in=id_batch)
-            for run in runs:
-                run.delete()
 
         for rev in self.revisions.all():
             rev.release()
@@ -1018,10 +1027,13 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for trigger in self.triggers.all():
             trigger.delete()
 
-        self.category_counts.all().delete()
-        self.path_counts.all().delete()
-        self.node_counts.all().delete()
-        self.status_counts.all().delete()
+        for start in self.starts.all():
+            start.delete()
+
+        delete_in_batches(self.category_counts.all())
+        delete_in_batches(self.path_counts.all())
+        delete_in_batches(self.node_counts.all())
+        delete_in_batches(self.status_counts.all())
         self.labels.clear()
 
         super().delete()
@@ -1990,14 +2002,19 @@ class FlowStart(models.Model):
     def async_start(self):
         on_transaction_commit(lambda: mailroom.queue_flow_start(self))
 
-    def release(self):
-        with transaction.atomic():
-            self.groups.clear()
-            self.contacts.clear()
-            self.calls.clear()
-            FlowRun.objects.filter(start=self).update(start=None)
-            FlowStartCount.objects.filter(start=self).delete()
-            self.delete()
+    def delete(self):
+        """
+        Deletes this flow start - called during org deletion or trimming task.
+        """
+
+        self.groups.clear()
+        self.contacts.clear()
+        self.calls.clear()
+        self.counts.all().delete()
+
+        FlowRun.objects.filter(start=self).update(start=None)
+
+        super().delete()
 
     def __str__(self):  # pragma: no cover
         return f"FlowStart[id={self.id}, flow={self.flow.uuid}]"

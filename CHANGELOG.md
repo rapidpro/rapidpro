@@ -1,3 +1,88 @@
+v8.1.231 (2023-07-21)
+-------------------------
+ * Simplify redis settings and organize settings better in sections
+
+v8.1.230 (2023-07-20)
+-------------------------
+ * Tweak system check for storage settings to check different storages are configured
+ * Convert S3 log access to be via django storages
+ * Use pg_dump/restore from docker container in mailroom_db command so it's always correct version
+
+v8.1.229 (2023-07-19)
+-------------------------
+ * Fix tickets list, to show compose properly on Firefox
+ * Add cpAddress parameter as optional for MTN channel type
+
+v8.1.228 (2023-07-18)
+-------------------------
+ * Update Instagram docs broken link
+ * Allow initiating flow results download form the the flow labels filter view
+
+v8.1.227 (2023-07-17)
+-------------------------
+ * Bump cryptography from 41.0.0 to 41.0.2
+
+v8.1.226 (2023-07-13)
+-------------------------
+ * Rework trimming cron tasks to use delete_in_batches
+ * Drop no longer used Binary Optional Data field
+
+v8.1.225 (2023-07-13)
+-------------------------
+ * Fix icon for globals delete
+ * Migrate old Twilio channels using .bod to use .config instead
+ * Remove duplicate menu views in classifiers and channels apps
+
+v8.1.224 (2023-07-12)
+-------------------------
+ * Add log_policy to channel
+
+v8.1.223 (2023-07-11)
+-------------------------
+ * More tweaks to org deletion
+
+v8.1.222 (2023-07-11)
+-------------------------
+ * Add delete_in_batches util function to improve org deletion
+ * Actually fix deletion of campaign events during org deletion
+
+v8.1.221 (2023-07-11)
+-------------------------
+ * Fix deleting of campaign events and add more logging to org deletion
+
+v8.1.220 (2023-07-10)
+-------------------------
+ * Delete is only for deleting child workspaces
+
+v8.1.219 (2023-07-10)
+-------------------------
+ * Fix problems with org deletion
+
+v8.1.218 (2023-07-07)
+-------------------------
+ * Update to flow editor with fix for ward cases
+
+v8.1.217 (2023-07-06)
+-------------------------
+ * Convert haml files in contacts app
+ * Bump django from 4.2.2 to 4.2.3
+
+v8.1.216 (2023-07-05)
+-------------------------
+ * Add data migration to fix archived message counts for labels
+ * Convert haml templates in campaigns and classifiers apps
+
+v8.1.215 (2023-07-05)
+-------------------------
+ * Add missing migration that rebuilds constraint on contact URNs
+ * Update channel log retention to 2 weeks
+ * Disable old 360 Dilalog channel type, and take the new integration out of beta
+
+v8.1.214 (2023-07-03)
+-------------------------
+ * Update to psycopg3 non-binary
+ * Reference templates as html
+
 v8.1.213 (2023-07-03)
 -------------------------
  * Convert flows app to be hamless

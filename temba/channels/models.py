@@ -15,6 +15,7 @@ from twilio.base.exceptions import TwilioRestException
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
+from django.core.files.storage import storages
 from django.db import models
 from django.db.models import Sum
 from django.db.models.signals import pre_save
@@ -26,9 +27,16 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import DependencyMixin, Org
-from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact, s3
+from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
-from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, generate_uuid
+from temba.utils.models import (
+    JSONAsTextField,
+    LegacyUUIDMixin,
+    SquashableModel,
+    TembaModel,
+    delete_in_batches,
+    generate_uuid,
+)
 from temba.utils.text import random_string
 from temba.utils.uuid import is_uuid
 
@@ -273,7 +281,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     ENCODING_DEFAULT = "D"  # we just pass the text down to the endpoint
     ENCODING_SMART = "S"  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
     ENCODING_UNICODE = "U"  # we send everything as unicode
-
     ENCODING_CHOICES = (
         (ENCODING_DEFAULT, _("Default Encoding")),
         (ENCODING_SMART, _("Smart Encoding")),
@@ -286,23 +293,29 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     ROLE_CALL = "C"
     ROLE_ANSWER = "A"
     ROLE_USSD = "U"
-
     DEFAULT_ROLE = ROLE_SEND + ROLE_RECEIVE
 
     CONTENT_TYPE_URLENCODED = "urlencoded"
     CONTENT_TYPE_JSON = "json"
     CONTENT_TYPE_XML = "xml"
-
     CONTENT_TYPES = {
         CONTENT_TYPE_URLENCODED: "application/x-www-form-urlencoded",
         CONTENT_TYPE_JSON: "application/json",
         CONTENT_TYPE_XML: "text/xml; charset=utf-8",
     }
-
     CONTENT_TYPE_CHOICES = (
         (CONTENT_TYPE_URLENCODED, _("URL Encoded - application/x-www-form-urlencoded")),
         (CONTENT_TYPE_JSON, _("JSON - application/json")),
         (CONTENT_TYPE_XML, _("XML - text/xml; charset=utf-8")),
+    )
+
+    LOG_POLICY_NONE = "N"
+    LOG_POLICY_ERRORS = "E"
+    LOG_POLICY_ALL = "A"
+    LOG_POLICY_CHOICES = (
+        (LOG_POLICY_NONE, "Discard All"),
+        (LOG_POLICY_ERRORS, "Write Errors Only"),
+        (LOG_POLICY_ALL, "Write All"),
     )
 
     SIMULATOR_CHANNEL = {
@@ -341,6 +354,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     config = models.JSONField(default=dict)
     schemes = ArrayField(models.CharField(max_length=16), default=_get_default_channel_scheme)
     role = models.CharField(max_length=4, default=DEFAULT_ROLE)
+    log_policy = models.CharField(max_length=1, default=LOG_POLICY_ALL, choices=LOG_POLICY_CHOICES)
     parent = models.ForeignKey("self", on_delete=models.PROTECT, null=True)
     tps = models.IntegerField(null=True)
 
@@ -350,9 +364,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     device = models.CharField(max_length=255, null=True, blank=True)
     os = models.CharField(max_length=255, null=True, blank=True)
     last_seen = models.DateTimeField(null=True)
-
-    # TODO drop
-    bod = models.TextField(null=True)
 
     @classmethod
     def create(
@@ -695,13 +706,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         # disassociate them
         Channel.objects.filter(parent=self).update(parent=None)
 
-        # delete any alerts
-        self.alerts.all().delete()
-
-        # any related sync events
-        for sync_event in self.sync_events.all():
-            sync_event.release()
-
         # delay mailroom task for 5 seconds, so mailroom assets cache expires
         interrupt_channel_task.apply_async((self.id,), countdown=5)
 
@@ -722,6 +726,19 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for trigger in self.triggers.all():
             trigger.archive(user)
             trigger.release(user)
+
+    def delete(self):
+        for trigger in self.triggers.all():
+            trigger.delete()
+
+        delete_in_batches(self.alerts.all())
+        delete_in_batches(self.sync_events.all())
+        delete_in_batches(self.logs.all())
+        delete_in_batches(self.http_logs.all())
+        delete_in_batches(self.template_translations.all())
+        delete_in_batches(self.counts.all())  # needs to be after log deletion
+
+        super().delete()
 
     def trigger_sync(self, registration_id=None):  # pragma: no cover
         """
@@ -1016,18 +1033,18 @@ class ChannelLog(models.Model):
         # look for logs in the database
         logs = {l.uuid: l._get_json() for l in cls.objects.filter(channel=channel, uuid__in=uuids)}
 
-        # and in S3
-        s3_client = s3.client()
+        # and in storage
         for log_uuid in uuids:
             assert is_uuid(log_uuid), f"{log_uuid} is not a valid log UUID"
 
             if log_uuid not in logs:
-                s3_key = f"channels/{channel.uuid}/{str(log_uuid)[0:4]}/{log_uuid}.json"
+                key = f"channels/{channel.uuid}/{str(log_uuid)[0:4]}/{log_uuid}.json"
                 try:
-                    s3_obj = s3_client.get_object(Bucket=settings.STORAGE_BUCKETS["logs"], Key=s3_key)
-                    logs[log_uuid] = json.loads(s3_obj["Body"].read())
+                    log_file = storages["logs"].open(key)
+                    logs[log_uuid] = json.loads(log_file.read())
+                    log_file.close()
                 except Exception:
-                    logger.exception("unable to read log from S3", extra={"key": s3_key})
+                    logger.exception("unable to read log from storage", extra={"key": key})
 
         return sorted(logs.values(), key=lambda l: l["created_on"])
 
@@ -1127,10 +1144,6 @@ class SyncEvent(SmartModel):
         sync_event.retry_messages = cmd.get("retry", cmd.get("retry_messages"))
 
         return sync_event
-
-    def release(self):
-        self.alerts.all().delete()
-        self.delete()
 
     def get_pending_messages(self):
         return getattr(self, "pending_messages", [])

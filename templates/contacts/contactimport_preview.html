@@ -1,0 +1,183 @@
+{% extends "smartmin/update.html" %}
+{% load smartmin temba i18n %}
+
+{% block title %}
+  {% trans "Preview Contact Import" %}
+{% endblock title %}
+{% block spa-title %}
+  {% trans "Preview Contact Import" %}
+{% endblock spa-title %}
+{% block content %}
+  <div class="summary">
+    {% blocktrans trimmed with count=object.num_records %}
+      This import file contains <b>{{ count }}</b> records. Headers that didn't match existing fields
+      can be ignored or added as new custom fields by editing them below.
+    {% endblocktrans %}
+  </div>
+  <form method="post" enctype="multipart/form-data" class="smartmin-form horizontal-form">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <temba-alert level="error" class="form-errors">
+        {{ form.non_field_errors }}
+      </temba-alert>
+    {% endif %}
+    <div class="card w-full">
+      {% block fields %}
+        <fieldset>
+          <table>
+            {% for column in form.columns %}
+              <tr class="mapping w-full items-center">
+                <td class="mapping-include pt-2">
+                  {% if column.controls %}
+                    {% render_field column.controls.0 %}
+                  {% elif column.mapping.type == "ignore" %}
+                    <temba-checkbox disabled="true">
+                    </temba-checkbox>
+                  {% else %}
+                    <temba-checkbox checked="true" disabled="true">
+                    </temba-checkbox>
+                  {% endif %}
+                </td>
+                <td class="mapping-header p-1 pr-4">
+                  <b>{{ column.header }}</b>
+                </td>
+                <td class="mapping-as p-1 whitespace-nowrap">
+                  {% if column.mapping.type == "ignore" %}
+                    {% trans "will be ignored" %}
+                  {% else %}
+                    {% trans "as" %}
+                    {% if column.mapping.type == "new_field" %}
+                      {% trans "new field" %}
+                      <div class="name-control">{% render_field column.controls.1 %}</div>
+                      {% trans "of type" %}
+                      <div class="value-type-control">{% render_field column.controls.2 %}</div>
+                    {% elif column.mapping.type == "field" %}
+                      {% trans "field" %}
+                      <strong>{{ column.mapping.name }}</strong>
+                    {% elif column.mapping.type == "scheme" %}
+                      {% blocktrans trimmed with scheme=column.mapping.scheme %}
+                        a <strong>{{ scheme }}</strong> URN
+                      {% endblocktrans %}
+                    {% else %}
+                      <strong>{{ column.mapping.name }}</strong>
+                    {% endif %}
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </table>
+        </fieldset>
+      {% endblock fields %}
+    </div>
+    <div class="mb-5">
+      <div class="inline-flex">
+        <div class="flex-none pl-1 pt-2 pr-2">{% render_field 'add_to_group' %}</div>
+        <div class="flex-none pr-2 pt-2">{% trans "Add contacts to" %}</div>
+        <div class="flex-none">
+          <div class="inline-flex">
+            <div class="flex-none">{% render_field 'group_mode' %}</div>
+            <div class="flex-none">
+              <div class="inline-flex new-group-controls">
+                <div class="flex-none p-2">{% trans "called" %}</div>
+                <div class="flex-none">{% render_field 'new_group_name' %}</div>
+              </div>
+            </div>
+            <div class="flex-none existing-group-controls pl-2 hide">{% render_field 'existing_group' %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="flex mt-4">
+      <input type="submit" value="{% trans "Import" %}" class="button-primary">
+      <div onclick="javascript:history.go(-1)" class="ml-4 button-light">{% trans "Cancel" %}</div>
+    </div>
+  </form>
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    function updateGroupMode(groupMode) {
+      if (groupMode === "N") {
+        $(".new-group-controls").show();
+        $(".existing-group-controls").hide();
+      } else {
+        $(".new-group-controls").hide();
+        $(".existing-group-controls").show();
+      }
+    }
+
+    function updateAddToGroup(enabled) {
+      if (enabled) {
+        document.querySelector("temba-select[name='group_mode']").disabled = false;
+        document.querySelector("temba-select[name='existing_group']").disabled = false;
+        document.querySelector("temba-textinput[name='new_group_name']").disabled = false;
+      } else {
+        document.querySelector("temba-select[name='group_mode']").disabled = true;
+        document.querySelector("temba-select[name='existing_group']").disabled = true;
+        document.querySelector("temba-textinput[name='new_group_name']").disabled = true;
+      }
+    }
+
+    $(function() {
+      var groupMode = document.querySelector("temba-select[name='group_mode']");
+      groupMode.addEventListener('change', function(event) {
+        updateGroupMode(event.target.values[0].value);
+      });
+
+      updateGroupMode("{{ form.group_mode.value }}");
+
+      var addToGroup = document.querySelector("temba-checkbox[name='add_to_group']");
+      addToGroup.addEventListener('change', function(event) {
+        updateAddToGroup(event.target.checked)
+      });
+
+      updateAddToGroup({{ form.add_to_group.value|lower }});
+    });
+  </script>
+{% endblock extra-script %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    .page-content {
+      align-self: auto;
+      max-width: 1024px;
+    }
+
+    .mapping .checkbox-label {
+      display: none;
+    }
+
+    .mapping .inline-block {
+      padding: 0 5px;
+    }
+
+    .mapping .control-group {
+      margin-bottom: 0;
+    }
+
+    .mapping .name-control {
+      display: inline-block;
+      width: 200px;
+      margin: 0 3px;
+    }
+
+    .mapping .value-type-control {
+      display: inline-block;
+      width: 120px;
+      margin: 0 3px;
+    }
+
+    .field_group_mode {
+      width: 160px;
+    }
+
+    .field_new_group_name {
+      width: 200px;
+      margin-top: -4px;
+    }
+
+    .field_existing_group {
+      width: 200px;
+    }
+  </style>
+{% endblock extra-style %}

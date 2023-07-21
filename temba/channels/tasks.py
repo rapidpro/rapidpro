@@ -12,6 +12,7 @@ from temba import mailroom
 from temba.orgs.models import Org
 from temba.utils.analytics import track
 from temba.utils.crons import cron_task
+from temba.utils.models import delete_in_batches
 
 from .android import sync
 from .models import Alert, Channel, ChannelCount, ChannelLog, SyncEvent
@@ -69,19 +70,27 @@ def trim_sync_events():
     """
 
     trim_before = timezone.now() - settings.RETENTION_PERIODS["syncevent"]
+    num_deleted = 0
 
-    channels_with_sync_events = (
+    channels_with_events = (
         SyncEvent.objects.filter(created_on__lte=trim_before)
         .values("channel")
         .annotate(Count("id"))
         .filter(id__count__gt=1)
     )
-    for channel_sync_events in channels_with_sync_events:
-        sync_events = SyncEvent.objects.filter(
-            created_on__lte=trim_before, channel_id=channel_sync_events["channel"]
-        ).order_by("-created_on")[1:]
-        for event in sync_events:
-            event.release()
+    for result in channels_with_events:
+        # trim older but always leave at least one per channel
+        event_ids = list(
+            SyncEvent.objects.filter(created_on__lte=trim_before, channel_id=result["channel"])
+            .order_by("-created_on")
+            .values_list("id", flat=True)[1:]
+        )
+
+        Alert.objects.filter(sync_event__in=event_ids).delete()
+        SyncEvent.objects.filter(id__in=event_ids).delete()
+        num_deleted += len(event_ids)
+
+    return {"deleted": num_deleted}
 
 
 @cron_task(lock_timeout=7200)
@@ -92,15 +101,11 @@ def trim_channel_logs():
 
     trim_before = timezone.now() - settings.RETENTION_PERIODS["channellog"]
     start = timezone.now()
-    num_deleted = 0
 
-    while (timezone.now() - start) < timedelta(hours=1):
-        batch = list(ChannelLog.objects.filter(created_on__lte=trim_before).values_list("id", flat=True)[:1000])
-        if not batch:
-            break
+    def can_continue():
+        return (timezone.now() - start) < timedelta(hours=1)
 
-        ChannelLog.objects.filter(id__in=batch).delete()
-        num_deleted += len(batch)
+    num_deleted = delete_in_batches(ChannelLog.objects.filter(created_on__lte=trim_before), post_delete=can_continue)
 
     return {"deleted": num_deleted}
 

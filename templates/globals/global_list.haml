@@ -63,7 +63,7 @@
             %td.w-10
               -if org_perms.globals.global_delete
                 .pl-2.pt-1.delete-link.linked.text-gray-400(style="visibility:hidden" onclick='event.stopPropagation(); showDeleteGlobalModal("{{obj.uuid}}");')
-                    %span.icon-close
+                  %temba-icon(name="delete_small")
         -empty
           %tr.empty_list
             %td(colspan='99')

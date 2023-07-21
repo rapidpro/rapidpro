@@ -10,7 +10,7 @@ from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import json, on_transaction_commit
-from temba.utils.models import TembaModel, TembaUUIDMixin, TranslatableField
+from temba.utils.models import TembaModel, TembaUUIDMixin, TranslatableField, delete_in_batches
 
 
 class Campaign(TembaModel):
@@ -504,26 +504,25 @@ class CampaignEvent(TembaUUIDMixin, SmartModel):
         self.modified_by = user
         self.save(update_fields=("is_active", "modified_by", "modified_on"))
 
-        # detach any associated flow starts
-        self.flow_starts.all().update(campaign_event=None)
-
         # if flow isn't a user created flow we can delete it too
         if self.event_type == CampaignEvent.TYPE_MESSAGE:
             self.flow.release(user)
 
     def delete(self):
         """
-        Deletes this event completely along with associated fires
+        Deletes this event completely along with associated fires and starts.
         """
 
-        # delete any associated fires
-        self.fires.all().delete()
+        delete_in_batches(self.fires.all())
+
+        for start in self.flow_starts.all():
+            start.delete()
 
         # and ourselves
         super().delete()
 
-    def __str__(self):
-        return f'Event[relative_to={self.relative_to.key}, offset={self.offset}, flow="{self.flow.name}"]'
+    def __repr__(self):
+        return f'<Event: relative_to={self.relative_to.key} offset={self.offset} flow="{self.flow.name}">'
 
     class Meta:
         verbose_name = _("Campaign Event")

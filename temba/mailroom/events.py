@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import iso8601
 
@@ -81,10 +81,9 @@ class Event:
         """
 
         obj_age = timezone.now() - obj.created_on
-        has_logs = obj.channel and obj_age < (settings.RETENTION_PERIODS["channellog"] - timedelta(hours=4))
 
         logs_url = None
-        if has_logs:
+        if obj.channel and obj_age < settings.RETENTION_PERIODS["channellog"]:
             logs_url = _url_for_user(
                 org, user, "channels.channellog_msg", args=[obj.channel.uuid, obj.id], perm="channels.channellog_read"
             )
@@ -159,10 +158,9 @@ class Event:
     @classmethod
     def from_ivr_call(cls, org: Org, user: User, obj: Call) -> dict:
         obj_age = timezone.now() - obj.created_on
-        has_logs = obj_age < (settings.RETENTION_PERIODS["channellog"] - timedelta(hours=4))
 
         logs_url = None
-        if has_logs:
+        if obj_age < settings.RETENTION_PERIODS["channellog"]:
             logs_url = _url_for_user(
                 org, user, "channels.channellog_call", args=[obj.channel.uuid, obj.id], perm="channels.channellog_read"
             )

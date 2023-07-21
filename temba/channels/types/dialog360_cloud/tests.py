@@ -22,11 +22,9 @@ class Dialog360CloudTypeTest(CRUDLTestMixin, TembaTest):
         url = reverse("channels.types.dialog360_cloud.claim")
         self.login(self.admin)
 
-        # make sure 360dialog Cloud is NOT on the claim page
+        # make sure 360dialog Cloud is on the claim page
         response = self.client.get(reverse("channels.channel_claim"), follow=True)
-        self.assertNotContains(response, url)
-
-        self.make_beta(self.admin)
+        self.assertContains(response, url)
 
         # should see the general channel claim page
         response = self.client.get(reverse("channels.channel_claim"))

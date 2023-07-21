@@ -1,0 +1,200 @@
+{% extends "smartmin/read.html" %}
+{% load smartmin sms temba compress humanize contacts i18n %}
+
+{% block page-title %}
+  {{ object.offset_display }} {{ object.relative_to.name }}
+{% endblock page-title %}
+{% block title-icon %}
+  <div class="title-icon">
+    <span class="glyph icon-campaign"></span>
+  </div>
+{% endblock title-icon %}
+{% block subtitle %}
+  <div class="event-details p-4 bg-gray-200 rounded-lg mt-4">{{ object.offset_display }} {{ object.relative_to.name }}</div>
+{% endblock subtitle %}
+{% block content %}
+  <div class="event-details p-4 bg-gray-200 rounded-lg mb-6">
+    {% if object.event_type == 'M' %}
+      <div class="cap-label">{% trans "Send Message" %}</div>
+      <div class="text-gray-600">{{ object.get_message }}</div>
+    {% else %}
+      <div class="start-flow">
+        {% trans "Start" %}
+        <span onclick="goto(event)" href="{% url 'flows.flow_editor' object.flow.uuid %}" class="linked">{{ object.flow.name }}</span>
+      </div>
+    {% endif %}
+  </div>
+  {% if not scheduled_event_fires %}
+    <table class="list">
+      <thead>
+        <tr>
+          <th colspan="99">{% trans "Upcoming Events" %}</th>
+        </tr>
+      </thead>
+      <body>
+        <tr class="empty_list">
+          <td>
+            <div class="ml-3">{% trans "No events scheduled" %}</div>
+          </td>
+        </tr>
+      </body>
+    </table>
+  {% else %}
+    <table class="list">
+      <thead>
+        <tr>
+          <th colspan="99">Next {{ scheduled_event_fires|length|intcomma }} Event{{ scheduled_event_fires|length|pluralize }}</th>
+        </tr>
+      </thead>
+      <body>
+        {% for fire in scheduled_event_fires %}
+          <tr class="event_fire">
+            <td>
+              <div onclick="goto(event)"
+                   href="{% url 'contacts.contact_read' fire.contact.uuid %}"
+                   class="name linked">{{ fire.contact|name_or_urn:user_org }}</div>
+              <div class="relative-to">
+                <div class="flex">
+                  {{ object.relative_to }}&nbsp;
+                  {{ fire.get_relative_to_value|duration }}
+                </div>
+              </div>
+            </td>
+            <td class="event_date">{{ fire.scheduled|duration }}</td>
+          </tr>
+        {% endfor %}
+        {% if scheduled_event_fires_count %}
+          <tr>
+            <td colspan="2">
+              <div class="total">{{ scheduled_event_fires_count }} more</div>
+            </td>
+          </tr>
+        {% endif %}
+      </body>
+    </table>
+  {% endif %}
+  <div class="mt-6"></div>
+  {% if not fired_event_fires %}
+    <table class="list">
+      <thead>
+        <tr>
+          <th colspan="99">{% trans "Recent Events" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="empty_list">
+          <td>
+            <div class="ml-3">No events yet</div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  {% else %}
+    <table class="list">
+      <thead>
+        <tr>
+          <th colspan="99">{% trans "Recent Events" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fire in fired_event_fires %}
+          <tr class="event_fire">
+            <td>
+              <div onclick="goto(event)"
+                   href="{% url 'contacts.contact_read' fire.contact.uuid %}"
+                   class="name linked">{{ fire.contact.name }}</div>
+              <div class="relative-to">{{ object.relative_to }}</div>
+            </td>
+            <td class="event_date">{{ fire.fired|duration }}</td>
+          </tr>
+        {% endfor %}
+        {% if fired_event_fires_count %}
+          <tr>
+            <td colspan="2">
+              <div class="total">{{ fired_event_fires_count }} more</div>
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  {% endif %}
+{% endblock content %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    h2 a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    h2 a:hover {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    h4 {
+      margin-bottom: 6px;
+    }
+
+    .total {
+      color: #999;
+      font-size: 12px;
+      text-align: right;
+      margin-top: -5px;
+    }
+
+    .name {
+      display: inline-block;
+      width: 150px;
+    }
+
+    .relative-to {
+      display: inline-block;
+      margin-left: 10px;
+    }
+
+    .message {
+      font-size: 15px;
+      line-height: 17px;
+      border: 0px solid green;
+      color: #999;
+      margin-left: -13px;
+    }
+
+    .message .text {
+      position: relative;
+      z-index: 1;
+      letter-spacing: 0.1em;
+      top: -10px;
+      left: 14px;
+      right: -14px;
+      margin-right: 25px;
+    }
+
+    .message .icon-left-quote {
+      position: relative;
+      z-index: 0;
+      top: -5px;
+      font-size: 28px;
+      color: #eee;
+      margin-right: 4px;
+    }
+
+    span.strong {
+      font-weight: 400;
+    }
+
+    tr.event-fire td {
+      margin-bottom: 5px;
+    }
+
+    tr.empty_list td {
+      border-bottom: 0px solid #ccc;
+      padding: 10px;
+    }
+
+    table .event_date {
+      text-align: right;
+    }
+  </style>
+{% endblock extra-style %}

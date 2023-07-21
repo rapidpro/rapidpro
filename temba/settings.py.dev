@@ -12,21 +12,12 @@ import warnings
 
 from .settings_common import *  # noqa
 
+DEBUG = True
+
 STORAGE_URL = "http://localhost:8000/media"
 
 # allow all hosts in dev
 ALLOWED_HOSTS = ["*"]
-
-# -----------------------------------------------------------------------------------
-# Redis & Cache Configuration (we expect a Redis instance on localhost)
-# -----------------------------------------------------------------------------------
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://%s:%s/%s" % (REDIS_HOST, REDIS_PORT, REDIS_DB),
-        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
-    }
-}
 
 INTERNAL_IPS = ("127.0.0.1",)
 
@@ -35,11 +26,6 @@ INTERNAL_IPS = ("127.0.0.1",)
 # -----------------------------------------------------------------------------------
 MAILROOM_URL = os.environ.get("MAILROOM_URL", "http://localhost:8090")
 MAILROOM_AUTH_TOKEN = None
-
-# -----------------------------------------------------------------------------------
-# Load development apps
-# -----------------------------------------------------------------------------------
-INSTALLED_APPS = INSTALLED_APPS + ("storages",)
 
 # -----------------------------------------------------------------------------------
 # In development, add in extra logging for exceptions and the debug toolbar

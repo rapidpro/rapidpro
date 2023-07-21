@@ -139,13 +139,11 @@ class TembaTestMixin:
 
     def clear_cache(self):
         """
-        Clears the redis cache. We are extra paranoid here and check that redis host is 'localhost'
-        Redis 10 is our testing redis db
+        Clears the redis cache. Out of paranoia we don't even use the configured cache settings but instead hardcode
+        to the local test instance.
         """
-        if settings.REDIS_HOST != "localhost":
-            raise ValueError(f"Expected redis test server host to be: 'localhost', got '{settings.REDIS_HOST}'")
 
-        r = redis.StrictRedis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=10)
+        r = redis.StrictRedis(host="localhost", port=6379, db=10)
         r.flushdb()
 
     def clear_storage(self):
@@ -638,8 +636,9 @@ class TembaTestMixin:
         country=None,
         secret=None,
         config=None,
+        parent=None,
         org=None,
-    ):
+    ) -> Channel:
         channel_type = Channel.get_type_from_code(channel_type)
 
         return Channel.objects.create(
@@ -650,6 +649,7 @@ class TembaTestMixin:
             address=address,
             config=config or {},
             role=role or Channel.DEFAULT_ROLE,
+            parent=parent,
             secret=secret,
             schemes=schemes or channel_type.schemes,
             created_by=self.admin,

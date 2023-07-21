@@ -33,7 +33,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.contacts.models import URN
 from temba.ivr.models import Call
 from temba.msgs.models import Msg
-from temba.orgs.views import DependencyDeleteModal, MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import countries
 from temba.utils.fields import SelectWidget
 from temba.utils.json import EpochEncoder
@@ -443,7 +443,7 @@ class UpdateChannelForm(forms.ModelForm):
 
     class Meta:
         model = Channel
-        fields = ("name", "alert_email")
+        fields = ("name", "alert_email", "log_policy")
         readonly = ()
         labels = {}
         helps = {}
@@ -461,37 +461,12 @@ class ChannelCRUDL(SmartCRUDL):
         "chart",
         "claim",
         "claim_all",
-        "menu",
         "update",
         "read",
         "delete",
         "configuration",
         "facebook_whitelist",
     )
-    permissions = True
-
-    class Menu(MenuMixin, OrgPermsMixin, SmartTemplateView):  # pragma: no cover
-        def derive_menu(self):
-            org = self.request.org
-
-            menu = []
-            if self.has_org_perm("channels.channel_read"):
-                from temba.channels.views import get_channel_read_url
-
-                channels = Channel.objects.filter(org=org, is_active=True, parent=None).order_by("-role")
-                for channel in channels:
-                    menu.append(
-                        self.create_menu_item(
-                            menu_id=channel.uuid,
-                            name=channel.name,
-                            href=get_channel_read_url(channel),
-                            icon=channel.type.get_icon(),
-                        )
-                    )
-
-            menu.append(self.create_menu_item(menu_id="claim", name=_("Add Channel"), href="channels.channel_claim"))
-
-            return menu
 
     class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
@@ -856,6 +831,9 @@ class ChannelCRUDL(SmartCRUDL):
         def derive_title(self):
             return _("%s Channel") % self.object.get_channel_type_display()
 
+        def derive_exclude(self):
+            return [] if self.request.user.is_staff else ["log_policy"]
+
         def derive_readonly(self):
             return self.form.Meta.readonly if hasattr(self, "form") else []
 
@@ -887,18 +865,9 @@ class ChannelCRUDL(SmartCRUDL):
         def post_save(self, obj):
             # update our delegate channels with the new number
             if not obj.parent and URN.TEL_SCHEME in obj.schemes:
-                e164_phone_number = None
-                try:
-                    parsed = phonenumbers.parse(obj.address, None)
-                    e164_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip(
-                        "+"
-                    )
-                except Exception:  # pragma: needs cover
-                    pass
                 for channel in obj.get_delegate_channels():  # pragma: needs cover
                     channel.address = obj.address
-                    channel.bod = e164_phone_number
-                    channel.save(update_fields=("address", "bod"))
+                    channel.save(update_fields=("address",))
             return obj
 
     class Claim(SpaMixin, OrgPermsMixin, SmartTemplateView):

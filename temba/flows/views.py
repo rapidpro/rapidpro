@@ -848,7 +848,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class Filter(BaseList, OrgObjPermsMixin):
         add_button = True
-        bulk_actions = ("label",)
+        bulk_actions = ("label", "download-results")
         slug_url_kwarg = "uuid"
 
         def derive_menu_path(self):

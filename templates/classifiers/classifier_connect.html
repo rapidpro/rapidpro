@@ -1,0 +1,42 @@
+{% extends "smartmin/base.html" %}
+{% load i18n compress temba %}
+
+{% block title %}
+  {% trans "Connect a Classifier" %}
+{% endblock title %}
+{% block content %}
+  {% blocktrans trimmed %}
+    Classifiers let you interpret words and phrases into intents you can act on. Various services let you
+    train your own classifier which you can then use in your flows to draw meaning from the unstructured text your
+    contacts send you.
+  {% endblocktrans %}
+  <div class="mt-2">
+    {% blocktrans trimmed %}
+      Select your provider below to get started.
+    {% endblocktrans %}
+  </div>
+  <div class="classifier-options">
+    {% for cl_type in classifier_types %}
+      <div onclick="goto(event, this)"
+           href="{% url 'classifiers.types.'|add:cl_type.slug|add:'.connect' %}"
+           class="card link">
+        <div class="relative">
+          <temba-icon name="{{ cl_type.get_icon }}" class="text-base absolute text-gray-100 bg-icon">
+          </temba-icon>
+        </div>
+        <div class="flex flex-col mx-20 relative">
+          <div class="title">{{ cl_type.name }}</div>
+          <div class="mt-2">{% include cl_type.get_connect_blurb %}</div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock content %}
+{% block extra-style %}
+  <style type="text/css">
+    .bg-icon {
+      font-size: 90px;
+      transform: translate(-45px, 10px) rotate(-15deg);
+    }
+  </style>
+{% endblock extra-style %}

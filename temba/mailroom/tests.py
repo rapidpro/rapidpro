@@ -4,7 +4,6 @@ from unittest.mock import patch
 
 from django_redis import get_redis_connection
 
-from django.conf import settings
 from django.test import override_settings
 from django.utils import timezone
 
@@ -515,13 +514,13 @@ class MailroomQueueTest(TembaTest):
     def setUp(self):
         super().setUp()
         r = get_redis_connection()
-        r.execute_command("select", "9")
+        r.execute_command("select", 10)
         r.execute_command("flushdb")
 
     def tearDown(self):
         super().tearDown()
         r = get_redis_connection()
-        r.execute_command("select", settings.REDIS_DB)
+        r.execute_command("select", 10)
 
     @mock_mailroom(queue=False)
     def test_queue_msg_handling(self, mr_mocks):
@@ -825,7 +824,7 @@ class EventTest(TembaTest):
             "Hello",
             external_id="12345",
             attachments=["image:http://a.jpg"],
-            created_on=timezone.now() - timedelta(days=10),
+            created_on=timezone.now() - timedelta(days=15),
         )
 
         self.assertEqual(
@@ -1142,7 +1141,7 @@ class EventTest(TembaTest):
 
         # create call that is too old to still have logs
         call1 = self.create_incoming_call(
-            flow, contact, status=Call.STATUS_IN_PROGRESS, created_on=timezone.now() - timedelta(days=10)
+            flow, contact, status=Call.STATUS_IN_PROGRESS, created_on=timezone.now() - timedelta(days=15)
         )
 
         # and one that will have logs

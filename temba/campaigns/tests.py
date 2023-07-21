@@ -56,7 +56,7 @@ class CampaignTest(TembaTest):
 
         self.assertEqual("Reminders", campaign.name)
         self.assertEqual("Reminders", str(campaign))
-        self.assertEqual('Event[relative_to=planting_date, offset=1, flow="Test Flow"]', str(event1))
+        self.assertEqual('<Event: relative_to=planting_date offset=1 flow="Test Flow">', repr(event1))
         self.assertEqual([event1, event2], list(campaign.get_events()))
         self.assertEqual(None, event1.get_message(contact))
         self.assertEqual("Hello", event2.get_message(contact))

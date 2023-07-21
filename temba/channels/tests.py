@@ -12,6 +12,7 @@ from smartmin.tests import SmartminTest
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core import mail
+from django.core.files.storage import storages
 from django.template import loader
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -25,7 +26,6 @@ from temba.orgs.models import Org
 from temba.request_logs.models import HTTPLog
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
 from temba.tests.crudl import StaffRedirect
-from temba.tests.s3 import MockS3Client
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.models import generate_uuid
@@ -247,9 +247,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         flow.refresh_from_db()
         self.assertTrue(flow.has_issues)
         self.assertNotIn(channel1, flow.channel_dependencies.all())
-
-        self.assertEqual(0, channel1.alerts.count())
-        self.assertEqual(0, channel1.sync_events.count())
         self.assertEqual(0, channel1.triggers.filter(is_active=True).count())
 
         # check that we queued a task to interrupt sessions tied to this channel
@@ -268,6 +265,12 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, channel2.alerts.count())
         self.assertEqual(1, channel2.sync_events.count())
         self.assertEqual(1, channel2.triggers.filter(is_active=True).count())
+
+        # now do actual delete of channel
+        channel1.msgs.all().delete()
+        channel1.delete()
+
+        self.assertFalse(Channel.objects.filter(id=channel1.id).exists())
 
     @mock_mailroom
     def test_release_android(self, mr_mocks):
@@ -290,7 +293,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             address=android.address,
             role=Channel.ROLE_SEND,
             parent=android,
-            bod=android.address,
         )
 
         # release it
@@ -620,7 +622,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "BL")
         self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "A")
 
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "D3")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "D3C")
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "DS")
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "FBA")
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-2].code, "WC")
@@ -640,10 +642,9 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "BL")
         self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "A")
 
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "D3")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "D3C")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "DS")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][3].code, "FBA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "D3C")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "DS")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "FBA")
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-2].code, "WA")
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][-1].code, "ZVW")
 
@@ -1226,6 +1227,14 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
 
+        # staff users see extra log policy field
+        self.login(self.customer_support, choose_org=self.org)
+        response = self.client.get(vonage_url)
+        self.assertEqual(
+            ["name", "alert_email", "log_policy", "allow_international", "machine_detection", "loc"],
+            list(response.context["form"].fields.keys()),
+        )
+
     def test_delete(self):
         delete_url = reverse("channels.channel_delete", args=[self.ex_channel.uuid])
 
@@ -1275,7 +1284,6 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             address=android.address,
             role=Channel.ROLE_SEND,
             parent=android,
-            bod=android.address,
         )
 
         response = self.assertReadFetch(
@@ -1739,7 +1747,7 @@ class ChannelLogTest(TembaTest):
             is_error=False,
             http_logs=[],
             errors=[],
-            created_on=timezone.now() - timedelta(days=7),
+            created_on=timezone.now() - timedelta(days=15),
         )
         l2 = ChannelLog.objects.create(
             channel=self.channel,
@@ -1759,11 +1767,7 @@ class ChannelLogTest(TembaTest):
 
 
 class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
-    @patch("temba.utils.s3.client")
-    def test_msg(self, mock_s3_client):
-        mock_s3 = MockS3Client()
-        mock_s3_client.return_value = mock_s3
-
+    def test_msg(self):
         contact = self.create_contact("Fred", phone="+12067799191")
 
         log1 = ChannelLog.objects.create(
@@ -1835,15 +1839,17 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(msg1_url)
         self.assertEqual(f"/settings/channels/{self.channel.uuid}", response.headers[TEMBA_MENU_SELECTION])
 
-        # try when log objects are in S3 rather than the database
+        # try when log objects are in storage rather than the database
         ChannelLog.objects.all().delete()
 
-        mock_s3.objects[
-            ("dl-temba-logs", f"channels/{self.channel.uuid}/{str(log1.uuid)[:4]}/{log1.uuid}.json")
-        ] = io.StringIO(json.dumps(log1._get_json()))
-        mock_s3.objects[
-            ("dl-temba-logs", f"channels/{self.channel.uuid}/{str(log2.uuid)[:4]}/{log2.uuid}.json")
-        ] = io.StringIO(json.dumps(log2._get_json()))
+        storages["logs"].save(
+            f"channels/{self.channel.uuid}/{str(log1.uuid)[:4]}/{log1.uuid}.json",
+            io.StringIO(json.dumps(log1._get_json())),
+        )
+        storages["logs"].save(
+            f"channels/{self.channel.uuid}/{str(log2.uuid)[:4]}/{log2.uuid}.json",
+            io.StringIO(json.dumps(log2._get_json())),
+        )
 
         response = self.assertListFetch(
             msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[]
@@ -1853,7 +1859,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual("https://foo.bar/send2", response.context["logs"][1]["http_logs"][0]["url"])
 
         # missing logs are logged as errors and ignored
-        del mock_s3.objects[("dl-temba-logs", f"channels/{self.channel.uuid}/{str(log2.uuid)[:4]}/{log2.uuid}.json")]
+        storages["logs"].delete(f"channels/{self.channel.uuid}/{str(log2.uuid)[:4]}/{log2.uuid}.json")
 
         response = self.assertListFetch(
             msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[]
