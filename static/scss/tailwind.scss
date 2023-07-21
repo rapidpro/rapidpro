@@ -966,4 +966,14 @@ code {
 
 }
 
+.filter {
+  @apply flex items-center text-sm mx-2;
+
+  temba-icon {
+    @apply mr-1;
+  }
+
+
+}
+
 @tailwind utilities;

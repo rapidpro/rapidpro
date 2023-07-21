@@ -1,26 +1,6 @@
-{% extends 'includes/modax.html' %}
+{% extends "includes/modax.html" %}
 {% load smartmin i18n %}
 
-{% block fields %}
-  <div class="{% if not form.mode.value == "select" %}query-mode{% endif %} start-form">
-    <div class="warnings"></div>
-    <div class="blockers"></div>
-    <div class="mb-4">{% render_field 'flow' %}</div>
-    <div class="field recipient-mode mb-4">
-      <temba-select name="mode">
-        <temba-option name="{{ _("Enter contacts and groups to start below") |escapejs }}" value="select">
-        </temba-option>
-        <temba-option name="{{ _("Search for contacts to start") |escapejs }}" value="query">
-        </temba-option>
-      </temba-select>
-    </div>
-    <div class="field recipents mb-4">{% render_field 'recipients' %}</div>
-    <div class="field query -mb-2">{% render_field 'query' %}</div>
-  </div>
-{% endblock fields %}
-{% block form-buttons %}
-  <input type="submit" value="{{ submit_button_name }}" class="btn btn-primary">
-{% endblock form-buttons %}
 {% block modal-extra-style %}
   {{ block.super }}
   <style type="text/css">
@@ -83,105 +63,39 @@
   {{ block.super }}
   <script type="text/javascript">
     {
-      const resetWarnings = function() {
-        var modax = getModax("#start-flow");
-        var modalBody = modax.shadowRoot;
-
-        var warnings = modalBody.querySelector(".warnings");
-        warnings.innerHTML = '';
-        warnings.classList.remove("opened");
-
-        var blockers = modalBody.querySelector(".blockers");
-        blockers.innerHTML = '';
-        blockers.classList.remove("opened");
-      }
-
-      const addClass = function(ele, className) {
-        ele.classList.add(className);
-      }
-
-      const removeClass = function(ele, className) {
-        ele.classList.remove(className);
-      }
-
-      const createQuery = function(omniValues) {
-        var operands = omniValues.map(function(value) {
-          if (value.type == "group") {
-            return "group = " + JSON.stringify(value.name);
-          } else {
-            return "uuid = " + JSON.stringify(value.id);
-          }
-        });
-        return operands.join(" OR ");
-      }
 
       const modax = getModax("#start-flow");
       const modalBody = modax.shadowRoot;
-      const queryField = modalBody.querySelector('.query');
       const flowSelect = modalBody.querySelector("temba-select[name='flow']");
-      const queryWidget = queryField.querySelector("temba-contact-search");
-
-      const startForm = modalBody.querySelector('.start-form');
-      const omnibox = modalBody.querySelector('temba-omnibox');
-      const modeSelect = modalBody.querySelector("temba-select[name='mode']");
+      const queryWidget = modalBody.querySelector("temba-contact-search");
+      let flowInitialized = false;
 
       flowSelect.addEventListener("change", function(evt) {
-        var inFlowCheckbox = modalBody.querySelector("temba-checkbox[name='in_a_flow']");
         if (this.selection) {
-          var flowType = this.selection.type;
-
-          if (flowType == 'B') {
-            inFlowCheckbox.style.display = "none";
-            // uncheck it if we need to
-            if (inFlowCheckbox.checked) {
-              inFlowCheckbox.click();
-            }
-          } else {
-            inFlowCheckbox.style.display = "block";
-          }
-
-          resetWarnings();
           modax.disabled = true;
+          var flowType = this.selection.type;
+          queryWidget.in_a_flow = flowType != 'B';
           queryWidget.endpoint = "/flow/preview_start/" + this.value + "/";
+          if (flowInitialized) {
+            queryWidget.refresh();
+          }
+          flowInitialized = true;
         }
       });
 
       queryWidget.addEventListener("temba-content-changed", function(e) {
-        resetWarnings();
 
-        modax.disabled = e.detail.total == 0;
 
-        if (e.detail.blockers.length) {
-          var blockers = modalBody.querySelector(".blockers");
-          blockers.classList.add("opened");
-          e.detail.blockers.forEach(function(blocker) {
-            var alert = document.createElement("temba-alert");
-            alert.level = "error"
-            alert.innerHTML = blocker;
-            blockers.appendChild(alert);
-          });
+        if (e.detail.reset || (e.detail.blockers && e.detail.blockers.length > 0)) {
           modax.disabled = true;
-        } else if (e.detail.warnings.length) {
-          var warnings = modalBody.querySelector(".warnings");
-          warnings.classList.add("opened");
-          e.detail.warnings.forEach(function(warning) {
-            var alert = document.createElement("temba-alert");
-            alert.level = "warning"
-            alert.innerHTML = warning;
-            warnings.appendChild(alert);
-          });
+        } else if (e.detail.query) {
+          modax.disabled = e.detail.total == 0;
         }
       });
 
-      queryWidget.addEventListener("input", function() {
-        modax.disabled = true;
-      });
-
       const handleDialogButton = function(event) {
-
         const modax = getModax("#start-flow");
         const modalBody = modax.shadowRoot;
-
         if (modax.suspendSubmit) {
           event.stopPropagation();
           event.preventDefault();
@@ -194,35 +108,17 @@
         dialog.addEventListener("temba-button-clicked", handleDialogButton);
         dialog.registered = true;
       }
-
-      omnibox.addEventListener("change", function(evt) {
-        resetWarnings();
-        if (flowSelect.value && flowSelect.value.value) {
-          queryWidget.endpoint = "/flow/preview_start/" + flowSelect.value.value + "/";
-        }
-
-        var query = createQuery(evt.target.getValues());
-        queryWidget.query = query;
-        if (query.trim().length == 0) {
-          modax.disabled = true;
-        }
-        omnibox.blur();
-      });
-
-      modeSelect.addEventListener("change", function(evt) {
-        var selected = evt.target.values[0];
-        if (selected.value === "query") {
-          addClass(startForm, "query-mode");
-        } else {
-          removeClass(startForm, "query-mode");
-          var query = createQuery(omnibox.getValues());
-          queryWidget.query = query;
-          if (query.trim().length == 0) {
-            modax.disabled = true;
-          }
-          omnibox.blur();
-        }
-      });
     }
   </script>
 {% endblock modal-script %}
+{% block fields %}
+  <div class="{% if not form.mode.value == "select" %}query-mode{% endif %} start-form">
+    <div class="warnings"></div>
+    <div class="blockers"></div>
+    <div class="mb-4">{% render_field 'flow' %}</div>
+    <div class="field contact_search -mb-2">{% render_field 'contact_search' %}</div>
+  </div>
+{% endblock fields %}
+{% block form-buttons %}
+  <input type="submit" value="{{ submit_button_name }}" class="btn btn-primary">
+{% endblock form-buttons %}
