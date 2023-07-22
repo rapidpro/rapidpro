@@ -48,14 +48,7 @@ from temba.orgs.views import (
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit
 from temba.utils.export.views import BaseExportView
-from temba.utils.fields import (
-    CheckboxWidget,
-    ContactSearchWidget,
-    InputWidget,
-    SelectMultipleWidget,
-    SelectWidget,
-    TembaChoiceField,
-)
+from temba.utils.fields import CheckboxWidget, ContactSearchWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.text import slugify_with
 from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
 
@@ -1689,10 +1682,10 @@ class FlowCRUDL(SmartCRUDL):
 
     class Broadcast(OrgPermsMixin, ModalMixin):
         class Form(forms.ModelForm):
-            flow = TembaChoiceField(
+            flow = forms.ModelChoiceField(
                 queryset=Flow.objects.none(),
                 required=True,
-                widget=SelectWidget(
+                widget=forms.HiddenInput(
                     attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
                 ),
             )
@@ -1701,7 +1694,6 @@ class FlowCRUDL(SmartCRUDL):
                 required=True,
                 widget=ContactSearchWidget(
                     attrs={
-                        "in_a_flow": True,
                         "started_previously": True,
                         "not_seen_since_days": True,
                         "widget_only": True,
@@ -1722,7 +1714,13 @@ class FlowCRUDL(SmartCRUDL):
                     is_active=True,
                 ).order_by("name")
 
-                self.fields["contact_search"].widget.attrs["flow_id"] = self.flow_id
+                self.fields["contact_search"].widget.attrs["endpoint"] = reverse(
+                    "flows.flow_preview_start", args=[self.flow_id]
+                )
+
+                flow = Flow.objects.filter(id=self.flow_id, org=self.org).first()
+                if flow and flow.flow_type != Flow.TYPE_BACKGROUND:
+                    self.fields["contact_search"].widget.attrs["in_a_flow"] = True
 
             def clean_contact_search(self):
                 contact_search = self.cleaned_data.get("contact_search")
@@ -1795,7 +1793,7 @@ class FlowCRUDL(SmartCRUDL):
                 groups=(self.org.groups.filter(uuid__in=group_uuids)),
                 contacts=(self.org.contacts.filter(uuid__in=contact_uuids)),
                 query=contact_search.get("query", None) if contact_search.get("advanced") else None,
-                exclusions=contact_search["exclusions"],
+                exclusions=contact_search.get("exclusions", {}),
             )
             return super().form_valid(form)
 

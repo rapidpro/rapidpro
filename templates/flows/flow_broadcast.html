@@ -66,26 +66,9 @@
 
       const modax = getModax("#start-flow");
       const modalBody = modax.shadowRoot;
-      const flowSelect = modalBody.querySelector("temba-select[name='flow']");
       const queryWidget = modalBody.querySelector("temba-contact-search");
-      let flowInitialized = false;
-
-      flowSelect.addEventListener("change", function(evt) {
-        if (this.selection) {
-          modax.disabled = true;
-          var flowType = this.selection.type;
-          queryWidget.in_a_flow = flowType != 'B';
-          queryWidget.endpoint = "/flow/preview_start/" + this.value + "/";
-          if (flowInitialized) {
-            queryWidget.refresh();
-          }
-          flowInitialized = true;
-        }
-      });
 
       queryWidget.addEventListener("temba-content-changed", function(e) {
-
-
         if (e.detail.reset || (e.detail.blockers && e.detail.blockers.length > 0)) {
           modax.disabled = true;
         } else if (e.detail.query) {
@@ -111,14 +94,6 @@
     }
   </script>
 {% endblock modal-script %}
-{% block fields %}
-  <div class="{% if not form.mode.value == "select" %}query-mode{% endif %} start-form">
-    <div class="warnings"></div>
-    <div class="blockers"></div>
-    <div class="mb-4">{% render_field 'flow' %}</div>
-    <div class="field contact_search -mb-2">{% render_field 'contact_search' %}</div>
-  </div>
-{% endblock fields %}
 {% block form-buttons %}
   <input type="submit" value="{{ submit_button_name }}" class="btn btn-primary">
 {% endblock form-buttons %}
