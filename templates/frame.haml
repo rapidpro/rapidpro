@@ -6,8 +6,6 @@
 {% endblock html-tag %}
   %head
     %title
-      -block page-title
-        {{title}}
 
     %meta{charset:"utf-8"}
     %meta{name:"viewport", content:"width=device-width, initial-scale=1.0"}
@@ -48,6 +46,14 @@
           menu.setFocusedItem(menuSelection);          
         }
       }
+
+      // set our initial title
+      document.addEventListener("DOMContentLoaded", function(event) {
+        const titleText = document.querySelector("#title-text");
+        if (titleText){ 
+          document.title = titleText.innerText;
+        }
+      });
 
     -block scripts
       -compress js
@@ -151,7 +157,7 @@
     
               -block page-header
                 .mb-4
-                  .spa-title.no-menu.flex.items-center
+                  .no-menu.flex.items-center
                     .text-container.text-2xl.text-gray-700
                       .flex.flex-row
                         -block title
