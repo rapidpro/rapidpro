@@ -1,9 +1,5 @@
 
 :css
-  .spa-title {
-
-  }
-
   .text-container {
     min-height:2.5em;
   }
@@ -21,24 +17,22 @@
   }
 
 -block page-header
-  -if title or has_content_menu
-    .mb-4
-      .spa-title.no-menu.flex.items-center
-        .text-container.text-2xl.text-gray-700
-          .flex.flex-row
-            -block spa-title
-              #title-text
-                {{title}}
-        .line.flex-grow.mr-2.ml-6
-          .h-0.border.border-gray-200
-        
-        -if has_content_menu
-          -include "spa_page_menu.html"
+  .mb-4
+    .no-menu.flex.items-center
+      .text-container.text-2xl.text-gray-700
+        .flex.flex-row
+          -block title
+            #title-text
+              {{title}}
+      .line.flex-grow.mr-2.ml-6
+        .h-0.border.border-gray-200
+      
+      -if has_content_menu
+        -include "spa_page_menu.html"
 
-      .text-lg.text-gray-600
-        -block subtitle
+    .text-lg.text-gray-600
+      -block subtitle
 
--block spa-style
 -block extra-style
 -block extra-script
 

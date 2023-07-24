@@ -1,18 +1,10 @@
 -extends "smartmin/read.html"
 -load smartmin temba compress humanize channels i18n tz
 
--block spa-title
+-block title
   %temba-urn.mr-2(scheme="{{channel.schemes|first}}")
   .flex.items-start.flex-col
     #title-text.name
-      -if object.parent
-        {{ object.parent.name }}
-      -else
-        {{ object.name|default:object.get_address_display }}
-  
--block title
-  .flex.items-start.flex-col
-    .name
       -if object.parent
         {{ object.parent.name }}
       -else

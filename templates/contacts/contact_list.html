@@ -1,16 +1,9 @@
 {% extends "smartmin/list.html" %}
 {% load smartmin sms contacts temba i18n humanize %}
 
-{% block page-title %}
-  {% if current_group %}
-    {{ current_group.name }}
-  {% else %}
-    {{ title }}
-  {% endif %}
-{% endblock page-title %}
-{% block spa-title %}
+{% block title %}
   <div id="title-text">{{ title }}</div>
-{% endblock spa-title %}
+{% endblock title %}
 {% block title-icon %}
   <span class="title-icon">
     <div class="glyph icon-users"></div>

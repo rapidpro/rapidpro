@@ -3,8 +3,7 @@
 
 -block page-header
 
--block page-title
-  {{ title }}
+
 
 -block extra-style
   {{block.super}}
@@ -458,10 +457,6 @@
     });    
 
 
--block spa-title
-  #title-text
-    {{title}}
-
 -block content
 
   .page.flex-grow.flex.flex-col.min-h-0.max-h-screen
@@ -471,7 +466,8 @@
         .ticket-list.flex.flex-col.p-5.pr-0
           .flex.mb-2
               #folder-title.flex-grow.relative
-                {{title}}
+                #title-text
+                  {{title}}
             %temba-content-menu#topic-content-menu.relative(endpoint="{% url 'tickets.ticket_folder' folder status uuid %}" -temba-selection="handleContentMenuSelected(event)")
           %temba-select.mb-2(name="ticket-status" onchange="handleStatusFilterChanged(event)" value="{{status}}")
             %temba-option(name="Open" value="open" icon="tickets_open")
