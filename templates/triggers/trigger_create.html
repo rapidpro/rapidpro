@@ -1,0 +1,10 @@
+{% extends "smartmin/base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {{ title }}
+  <div class="mb-3 text-xl mt-2">{% trans "Triggers allow users to start flows based on user actions or schedules." %}</div>
+{% endblock title %}
+{% block content %}
+  {% include "formax.html" %}
+{% endblock content %}
