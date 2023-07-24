@@ -25,6 +25,7 @@ from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
+from temba.tests.base import get_contact_search
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticketer
@@ -2771,27 +2772,21 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_broadcast(self, mr_mocks):
         contact = self.create_contact("Bob", phone="+593979099111")
         flow = self.create_flow("Test")
-
-        broadcast_url = reverse("flows.flow_broadcast", args=[])
+        broadcast_url = f"{reverse('flows.flow_broadcast', args=[])}?flow={flow.id}"
 
         self.assertUpdateFetch(
             broadcast_url,
             allow_viewers=False,
             allow_editors=True,
             allow_org2=True,
-            form_fields=["query", "flow", "recipients"],
+            form_fields=["contact_search", "flow"],
         )
-
-        # fetch the broadcast with flow prepopulated
-        response = self.client.get(f"{broadcast_url}?flow={flow.id}")
-        self.assertContains(response, flow.name)
 
         # create flow start with a query
         mr_mocks.parse_query("frank", cleaned='name ~ "frank"')
-
         self.assertUpdateSubmit(
             broadcast_url,
-            {"flow": flow.id, "query": "frank"},
+            {"flow": flow.id, "contact_search": get_contact_search("frank")},
         )
 
         start = FlowStart.objects.get()
@@ -2807,19 +2802,18 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create flow start with a bogus query
         mr_mocks.error("query contains an error")
-
         self.assertUpdateSubmit(
             broadcast_url,
-            {"flow": flow.id, "query": 'name = "frank'},
-            form_errors={"query": "query contains an error"},
+            {"flow": flow.id, "contact_search": get_contact_search('name = "frank')},
+            form_errors={"contact_search": "query contains an error"},
             object_unchanged=flow,
         )
 
         # try to create with an empty query
         self.assertUpdateSubmit(
             broadcast_url,
-            {"flow": flow.id, "query": ""},
-            form_errors={"query": "This field is required."},
+            {"flow": flow.id, "contact_search": get_contact_search("")},
+            form_errors={"contact_search": "A contact query is required."},
             object_unchanged=flow,
         )
 
@@ -2829,7 +2823,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # create flow start with exclude_in_other and exclude_reruns both left unchecked
         self.assertUpdateSubmit(
             broadcast_url,
-            {"flow": flow.id, "query": query},
+            {"flow": flow.id, "contact_search": get_contact_search(query)},
         )
 
         start = FlowStart.objects.get()
@@ -2852,8 +2846,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # create flow start with a query
         mr_mocks.parse_query("frank", cleaned='name ~ "frank"')
 
-        broadcast_url = reverse("flows.flow_broadcast", args=[])
-        self.assertUpdateSubmit(broadcast_url, {"flow": flow.id, "query": "frank"})
+        broadcast_url = f"{reverse('flows.flow_broadcast', args=[])}?flow={flow.id}"
+        self.assertUpdateSubmit(broadcast_url, {"flow": flow.id, "contact_search": get_contact_search("frank")})
 
         start = FlowStart.objects.get()
         self.assertEqual(flow, start.flow)
@@ -5486,11 +5480,10 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
             list_url, allow_viewers=True, allow_editors=True, context_objects=[start3, start2, start1]
         )
 
-        self.assertContains(response, "was started by admin@nyaruka.com for")
-        self.assertContains(response, "was started by an API call for")
-        self.assertContains(response, "was started by Zapier for")
-        self.assertContains(response, "all contacts")
-        self.assertContains(response, "contacts who haven't already been through this flow")
+        self.assertContains(response, "was started by admin@nyaruka.com")
+        self.assertContains(response, "was started by an API call")
+        self.assertContains(response, "was started by Zapier")
+        self.assertContains(response, "Skip contacts currently in a flow")
         self.assertContains(response, "<b>1,234</b> runs")
 
         response = self.assertListFetch(

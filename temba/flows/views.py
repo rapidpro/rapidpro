@@ -1726,7 +1726,7 @@ class FlowCRUDL(SmartCRUDL):
                 contact_search = self.cleaned_data.get("contact_search")
                 recipients = contact_search.get("recipients", [])
 
-                if contact_search["advanced"] and "query" not in contact_search:
+                if contact_search["advanced"] and "query" not in contact_search or not contact_search["query"]:
                     raise ValidationError(_("A contact query is required."))
 
                 if not contact_search["advanced"] and len(recipients) == 0:
@@ -1734,7 +1734,9 @@ class FlowCRUDL(SmartCRUDL):
 
                 if contact_search["advanced"]:
                     try:
-                        parse_query(self.org, contact_search["query"], parse_only=True)
+                        contact_search["parsed_query"] = parse_query(
+                            self.org, contact_search["query"], parse_only=True
+                        )
                     except SearchException as e:
                         raise ValidationError(str(e))
 
@@ -1792,7 +1794,7 @@ class FlowCRUDL(SmartCRUDL):
                 self.request.user,
                 groups=(self.org.groups.filter(uuid__in=group_uuids)),
                 contacts=(self.org.contacts.filter(uuid__in=contact_uuids)),
-                query=contact_search.get("query", None) if contact_search.get("advanced") else None,
+                query=contact_search["parsed_query"].query if "parsed_query" in contact_search else None,
                 exclusions=contact_search.get("exclusions", {}),
             )
             return super().form_valid(form)

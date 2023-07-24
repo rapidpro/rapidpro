@@ -939,3 +939,8 @@ def mock_uuids(method=None, *, seed=1234):
         return wrapper
 
     return actual_decorator(method) if method else actual_decorator
+
+
+def get_contact_search(query):
+    contact_search = dict(query=query, advanced=True)
+    return json.dumps(contact_search)

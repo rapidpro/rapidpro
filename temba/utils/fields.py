@@ -226,8 +226,8 @@ class ContactSearchWidget(forms.Widget):
             if value:
                 attrs["advanced"] = value["advanced"]
                 attrs["query"] = value["query"]
-                attrs["recipients"] = json.dumps(value["recipients"])
-                attrs["exclusions"] = json.dumps(value["exclusions"])
+                attrs["recipients"] = json.dumps(value.get("recipients", []))
+                attrs["exclusions"] = json.dumps(value.get("exclusions", []))
 
         return super().render(name, value, attrs)
 
