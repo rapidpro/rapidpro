@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 from dateutil.relativedelta import relativedelta
 
-from django.conf import settings
+from django.core.files.storage import storages
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
@@ -34,9 +34,7 @@ class Archive(models.Model):
     PERIOD_CHOICES = ((PERIOD_DAILY, "Day"), (PERIOD_MONTHLY, "Month"))
 
     org = models.ForeignKey("orgs.Org", related_name="archives", on_delete=models.PROTECT)
-
     archive_type = models.CharField(choices=TYPE_CHOICES, max_length=16)
-
     created_on = models.DateTimeField(default=timezone.now)
 
     # the length of time this archive covers
@@ -89,17 +87,16 @@ class Archive(models.Model):
             return self.start_date + relativedelta(months=1)
 
     @classmethod
-    def release_org_archives(cls, org):
+    def delete_for_org(cls, org):
         """
-        Deletes all the archives for an org, also iterating any remaining files in S3 and removing that path
-        as well.
+        Deletes all the archives for an org and any additional archive files in storage.
         """
-        # release all of our archives in turn
+
         for archive in Archive.objects.filter(org=org):
-            archive.release()
+            archive.delete()
 
         # find any remaining S3 files and remove them for this org
-        s3_bucket = settings.ARCHIVE_BUCKET
+        s3_bucket = storages["archives"].bucket.name
         s3_client = s3.client()
         paginator = s3_client.get_paginator("list_objects_v2")
         for page in paginator.paginate(Bucket=s3_bucket, Prefix=f"{org.id}/"):
@@ -242,7 +239,7 @@ class Archive(models.Model):
         if delete_old:
             s3_client.delete_object(Bucket=bucket, Key=key)
 
-    def release(self):
+    def delete(self):
         # detach us from our rollups
         Archive.objects.filter(rollup=self).update(rollup=None)
 
@@ -252,7 +249,7 @@ class Archive(models.Model):
             s3.client().delete_object(Bucket=bucket, Key=key)
 
         # and lastly delete ourselves
-        self.delete()
+        super().delete()
 
     class Meta:
         unique_together = ("org", "archive_type", "start_date", "period")

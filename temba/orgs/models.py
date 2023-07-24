@@ -1354,8 +1354,7 @@ class Org(SmartModel):
         for bcast in self.broadcasts.filter(parent=None):
             bcast.delete(user, soft=False)
 
-        # release all archives objects and files for this org
-        Archive.release_org_archives(self)
+        Archive.delete_for_org(self)
 
         # delete other related objects
         delete_in_batches(self.api_tokens.all(), pk="key")
