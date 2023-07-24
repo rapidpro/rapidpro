@@ -1,0 +1,32 @@
+{% extends 'smartmin/form.html' %}
+{% load i18n smartmin %}
+
+{% block summary %}
+  {% trans "Start a flow in the future or on a schedule." %}
+{% endblock summary %}
+{% block fields %}
+  {% include 'includes/schedule_fields.html' with form=form %}
+  {% render_field 'flow' %}
+  {% render_field 'groups' %}
+  {% render_field 'contacts' %}
+  {% render_field 'exclude_groups' %}
+{% endblock fields %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    document.addEventListener("DOMContentLoaded", function() {
+      var repeatPeriod = document.querySelector("#id_repeat_period");
+      var repeatDays = document.querySelector(".repeat-days-container");
+      if (repeatPeriod) {
+        repeatPeriod.addEventListener("change", function(event) {
+          var currentRepeat = event.currentTarget.values[0].value;
+          if (currentRepeat === 'W') {
+            repeatDays.classList.remove("hidden");
+          } else {
+            repeatDays.classList.add("hidden");
+          }
+        });
+      }
+    });
+  </script>
+{% endblock extra-script %}
