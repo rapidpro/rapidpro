@@ -81,7 +81,7 @@
           selector += '[data-type="' + type + '"]';
         }
     
-        document.querySelectorAll(selector).forEach(function(cb) {cb.checked = checked;});
+        document.querySelectorAll(selector).forEach(function(checkbox) {checkbox.checked = checked;});
       }
 
       const preSelectFlow = document.querySelector('temba-checkbox[name="flows"][value="{{ initial_flow_id }};"]');
