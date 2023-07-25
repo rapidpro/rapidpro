@@ -975,7 +975,7 @@ class OrgTest(TembaTest):
             AssertionError,
             self.client.post,
             broadcast_url,
-            {"flow": flow.id, "contact_search": get_contact_search('uuid="{mark.uuid}"')},
+            {"flow": flow.id, "contact_search": get_contact_search(query='uuid="{mark.uuid}"')},
         )
 
         response = send_broadcast_via_api()
@@ -999,7 +999,7 @@ class OrgTest(TembaTest):
             AssertionError,
             self.client.post,
             broadcast_url,
-            {"flow": flow.id, "contact_search": get_contact_search('uuid="{mark.uuid}"')},
+            {"flow": flow.id, "contact_search": get_contact_search(query='uuid="{mark.uuid}"')},
         )
 
         response = send_broadcast_via_api()
@@ -1022,7 +1022,7 @@ class OrgTest(TembaTest):
 
         self.client.post(
             broadcast_url,
-            {"flow": flow.id, "contact_search": get_contact_search('uuid="{mark.uuid}"')},
+            {"flow": flow.id, "contact_search": get_contact_search(query='uuid="{mark.uuid}"')},
         )
 
         mock_async_start.assert_called_once()

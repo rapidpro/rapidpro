@@ -2855,7 +2855,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         mr_mocks.parse_query("frank", cleaned='name ~ "frank"')
 
         broadcast_url = f"{reverse('flows.flow_broadcast', args=[])}?flow={flow.id}"
-        self.assertUpdateSubmit(broadcast_url, {"flow": flow.id, "contact_search": get_contact_search("frank")})
+        self.assertUpdateSubmit(broadcast_url, {"flow": flow.id, "contact_search": get_contact_search(query="frank")})
 
         start = FlowStart.objects.get()
         self.assertEqual(flow, start.flow)
