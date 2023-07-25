@@ -671,6 +671,7 @@ GROUP_PERMISSIONS = {
         "contacts.contactgroup_menu",
         "contacts.contactgroup_read",
         "contacts.contactimport_read",
+        "flows.flow_api",
         "flows.flow_activity_chart",
         "flows.flow_activity_data",
         "flows.flow_activity",
