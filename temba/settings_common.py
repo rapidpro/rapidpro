@@ -674,6 +674,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_activity_chart",
         "flows.flow_activity_data",
         "flows.flow_activity",
+        "flows.flow_api",
         "flows.flow_archived",
         "flows.flow_assets",
         "flows.flow_category_counts",

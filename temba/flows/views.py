@@ -1457,7 +1457,7 @@ class FlowCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             obj = self.get_object()
 
-            if self.has_org_perm("flows.flow_update"):
+            if self.has_org_perm("flows.flow_export_results"):
                 menu.add_modax(
                     _("Download"),
                     "download-results",

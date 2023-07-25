@@ -6,7 +6,6 @@ from unittest.mock import patch
 from urllib.parse import urlencode
 
 import pytz
-from bs4 import BeautifulSoup
 from smartmin.users.models import FailedLogin, RecoveryToken
 
 from django.conf import settings
@@ -3935,11 +3934,8 @@ class BulkExportTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_export"))
 
-        soup = BeautifulSoup(response.content, "html.parser")
-        group = str(soup.findAll("div", {"class": "exportables-grp"})[0])
-
-        self.assertIn("Parent Flow", group)
-        self.assertIn("Child Flow", group)
+        self.assertEqual(1, len(response.context["buckets"]))
+        self.assertEqual([child, parent], response.context["buckets"][0])
 
     def test_import_voice_flows_expiration_time(self):
         # import file has invalid expires for an IVR flow so it should get the default (5)
