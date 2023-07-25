@@ -1,20 +1,2 @@
 {% extends base_template %}
 {% load smartmin %}
-{% block pre-content %}
-  <div class="page-header">
-    <h2>{{ title }}</h2>
-  </div>
-{% endblock pre-content %}
-{% block extra-script %}
-  {{ block.super }}
-  {# embed refresh script if refresh is active #}
-  {% if refresh %}
-    <script>
-      var refreshTimeout = parseInt("{{ refresh }}");
-
-      function scheduleRefresh() {
-        window.setTimeout(refresh, refreshTimeout);
-      }
-    </script>
-  {% endif %}
-{% endblock extra-script %}

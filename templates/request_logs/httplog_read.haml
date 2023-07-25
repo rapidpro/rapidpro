@@ -1,11 +1,9 @@
 -extends "smartmin/read.html"
 -load i18n compress humanize
 
--block page-title
-  HTTP Log - {{ object.get_log_type_display }}
-
 -block title
-  -block spa-title
+
+  #title-text
     -if object.flow
       -trans "Flow Event"
     -elif object.classifier

@@ -71,6 +71,8 @@ class SpaMixin(View):
 
         if self.is_content_only():
             context["base_template"] = "spa.html"
+        else:
+            context["base_template"] = "frame.html"
 
         context["is_spa"] = True
         context["is_content_only"] = self.is_content_only()
