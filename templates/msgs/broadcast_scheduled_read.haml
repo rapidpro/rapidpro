@@ -1,10 +1,6 @@
 -extends "smartmin/read.html"
 -load smartmin sms temba i18n humanize
 
--block title
-  {{ title }}
-
-
 -block content
   -include "msgs/broadcast.html" with broadcast=object
   -if send_history

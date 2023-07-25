@@ -1026,7 +1026,7 @@ class UserCRUDL(SmartCRUDL):
 
         def derive_formax_sections(self, formax, context):
             if self.has_org_perm("orgs.org_profile"):
-                formax.add_section("org", reverse("orgs.user_edit"), icon="icon-user")
+                formax.add_section("org", reverse("orgs.user_edit"), icon="user")
 
 
 class MenuMixin(OrgPermsMixin):

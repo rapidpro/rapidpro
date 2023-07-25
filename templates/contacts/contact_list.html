@@ -1,14 +1,6 @@
 {% extends "smartmin/list.html" %}
 {% load smartmin sms contacts temba i18n humanize %}
 
-{% block title %}
-  <div id="title-text">{{ title }}</div>
-{% endblock title %}
-{% block title-icon %}
-  <span class="title-icon">
-    <div class="glyph icon-users"></div>
-  </span>
-{% endblock title-icon %}
 {% block extra-style %}
   {{ block.super }}
   <style type="text/css">
