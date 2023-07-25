@@ -1470,8 +1470,8 @@ class OrgCRUDL(SmartCRUDL):
             context["buckets"] = buckets
             context["singles"] = singles
 
-            context["flow_id"] = int(self.request.GET.get("flow", 0))
-            context["campaign_id"] = int(self.request.GET.get("campaign", 0))
+            context["initial_flow_id"] = int(self.request.GET.get("flow", 0))
+            context["initial_campaign_id"] = int(self.request.GET.get("campaign", 0))
 
             return context
 
