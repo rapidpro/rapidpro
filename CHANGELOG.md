@@ -1,3 +1,10 @@
+v8.1.233 (2023-07-25)
+-------------------------
+ * Simpliy convert_templates script
+ * Consistent title for initial page load
+ * Remove spa-title and spa-style
+ * Add archives to STORAGES
+
 v8.1.232 (2023-07-24)
 -------------------------
  * Do not set the max for y axis chart to allow that to be calculated
