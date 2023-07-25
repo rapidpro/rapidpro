@@ -2121,6 +2121,8 @@ class OrgCRUDL(SmartCRUDL):
             return reverse("orgs.org_manage_accounts") if still_in_org else reverse("orgs.org_choose")
 
     class ManageAccountsSubOrg(ManageAccounts):
+        menu_path = "/settings/workspaces"
+
         def pre_process(self, request, *args, **kwargs):
             pass
 

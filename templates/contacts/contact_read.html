@@ -2,7 +2,7 @@
 {% load i18n humanize smartmin sms contacts compress temba channels %}
 
 {% block title %}
-  <div class="hidden" id="title-text">{{ title }}</div>
+  <div class="hidden" id="title-text">{{ title|default:"Contact Details" }}</div>
   <temba-contact-name-fetch contact="{{ object.uuid }}" -temba-refreshed="handleContactRefreshed" showLoading>
   </temba-contact-name-fetch>
 {% endblock title %}
