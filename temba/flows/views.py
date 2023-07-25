@@ -1726,11 +1726,11 @@ class FlowCRUDL(SmartCRUDL):
                 contact_search = self.cleaned_data.get("contact_search")
                 recipients = contact_search.get("recipients", [])
 
-                if contact_search["advanced"] and "query" not in contact_search or not contact_search["query"]:
+                if contact_search["advanced"] and ("query" not in contact_search or not contact_search["query"]):
                     raise ValidationError(_("A contact query is required."))
 
                 if not contact_search["advanced"] and len(recipients) == 0:
-                    raise ValidationError(_("Contacts or groups are required"))
+                    raise ValidationError(_("Contacts or groups are required."))
 
                 if contact_search["advanced"]:
                     try:

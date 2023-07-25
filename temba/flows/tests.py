@@ -2786,7 +2786,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         mr_mocks.parse_query("frank", cleaned='name ~ "frank"')
         self.assertUpdateSubmit(
             broadcast_url,
-            {"flow": flow.id, "contact_search": get_contact_search("frank")},
+            {"flow": flow.id, "contact_search": get_contact_search(query="frank")},
         )
 
         start = FlowStart.objects.get()
@@ -2804,15 +2804,23 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         mr_mocks.error("query contains an error")
         self.assertUpdateSubmit(
             broadcast_url,
-            {"flow": flow.id, "contact_search": get_contact_search('name = "frank')},
+            {"flow": flow.id, "contact_search": get_contact_search(query='name = "frank')},
             form_errors={"contact_search": "query contains an error"},
+            object_unchanged=flow,
+        )
+
+        # try missing contacts
+        self.assertUpdateSubmit(
+            broadcast_url,
+            {"flow": flow.id, "contact_search": get_contact_search(contacts=[])},
+            form_errors={"contact_search": "Contacts or groups are required."},
             object_unchanged=flow,
         )
 
         # try to create with an empty query
         self.assertUpdateSubmit(
             broadcast_url,
-            {"flow": flow.id, "contact_search": get_contact_search("")},
+            {"flow": flow.id, "contact_search": get_contact_search(query="")},
             form_errors={"contact_search": "A contact query is required."},
             object_unchanged=flow,
         )
@@ -2823,7 +2831,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # create flow start with exclude_in_other and exclude_reruns both left unchecked
         self.assertUpdateSubmit(
             broadcast_url,
-            {"flow": flow.id, "contact_search": get_contact_search(query)},
+            {"flow": flow.id, "contact_search": get_contact_search(query=query)},
         )
 
         start = FlowStart.objects.get()
