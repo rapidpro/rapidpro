@@ -1,0 +1,12 @@
+<html>
+  <body>
+    <form method="post" action="{{ return_url }}" id="finish">
+      <input type="hidden" name="name" value="{{ name }}">
+      <input type="hidden" name="metadata" value="{{ metadata }}">
+    </form>
+    <script>
+      var form = document.forms['finish'];
+      form.submit();
+    </script>
+  </body>
+</html>
