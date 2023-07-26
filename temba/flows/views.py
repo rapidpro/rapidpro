@@ -48,7 +48,14 @@ from temba.orgs.views import (
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit
 from temba.utils.export.views import BaseExportView
-from temba.utils.fields import CheckboxWidget, ContactSearchWidget, InputWidget, SelectMultipleWidget, SelectWidget
+from temba.utils.fields import (
+    CheckboxWidget,
+    ContactSearchWidget,
+    InputWidget,
+    SelectMultipleWidget,
+    SelectWidget,
+    TembaChoiceField,
+)
 from temba.utils.text import slugify_with
 from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
 
@@ -1682,10 +1689,10 @@ class FlowCRUDL(SmartCRUDL):
 
     class Broadcast(OrgPermsMixin, ModalMixin):
         class Form(forms.ModelForm):
-            flow = forms.ModelChoiceField(
+            flow = TembaChoiceField(
                 queryset=Flow.objects.none(),
                 required=True,
-                widget=forms.HiddenInput(
+                widget=SelectWidget(
                     attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
                 ),
             )
@@ -1694,8 +1701,6 @@ class FlowCRUDL(SmartCRUDL):
                 required=True,
                 widget=ContactSearchWidget(
                     attrs={
-                        "started_previously": True,
-                        "not_seen_since_days": True,
                         "widget_only": True,
                         "placeholder": _("Enter contact query"),
                     }
@@ -1714,13 +1719,20 @@ class FlowCRUDL(SmartCRUDL):
                     is_active=True,
                 ).order_by("name")
 
-                self.fields["contact_search"].widget.attrs["endpoint"] = reverse(
-                    "flows.flow_preview_start", args=[self.flow_id]
-                )
+                if self.flow_id:
+                    self.fields["flow"].widget = forms.HiddenInput(
+                        attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
+                    )
 
-                flow = Flow.objects.filter(id=self.flow_id, org=self.org).first()
-                if flow and flow.flow_type != Flow.TYPE_BACKGROUND:
-                    self.fields["contact_search"].widget.attrs["in_a_flow"] = True
+                    search_attrs = self.fields["contact_search"].widget.attrs
+                    search_attrs["endpoint"] = reverse("flows.flow_preview_start", args=[self.flow_id])
+                    flow = Flow.objects.filter(id=self.flow_id, org=self.org).first()
+
+                    if flow:
+                        search_attrs["started_previously"] = True
+                        search_attrs["not_seen_since_days"] = True
+                        if flow.flow_type != Flow.TYPE_BACKGROUND:
+                            search_attrs["in_a_flow"] = True
 
             def clean_contact_search(self):
                 contact_search = self.cleaned_data.get("contact_search")
@@ -1744,7 +1756,10 @@ class FlowCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Flow
-                fields = ("contact_search",)
+                fields = (
+                    "flow",
+                    "contact_search",
+                )
 
         form_class = Form
         submit_button_name = _("Start Flow")
@@ -1762,7 +1777,7 @@ class FlowCRUDL(SmartCRUDL):
                     urn = urn.get_display(org=org, international=True)
                 recipients.append({"id": contact.uuid, "name": contact.name, "urn": urn, "type": "contact"})
 
-            initial = {"recipients": recipients}
+            initial = {"contact_search": {"recipients": recipients, "advanced": False, "query": "", "exclusions": {}}}
             flow_id = self.request.GET.get("flow", None)
             if flow_id:
                 initial["flow"] = flow_id
