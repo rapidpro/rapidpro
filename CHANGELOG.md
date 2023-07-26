@@ -1,3 +1,9 @@
+v8.1.235 (2023-07-26)
+-------------------------
+ * Convert templates in dashboard, docs, globals, ivr, locations and notifications apps
+ * Use title-text for just overriding the text
+ * Restore missing msg box templates
+
 v8.1.234 (2023-07-25)
 -------------------------
  * Fix org export page
