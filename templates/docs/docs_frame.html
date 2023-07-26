@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>{{ brand.name }} Documentation</title>
+    <style>
+      /* beautify ignore:start */
+      {{ css|safe }}
+      /* beautify ignore:end */
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <img src="http://docs.{{ hostname }}/logo.png" class="logo" alt="logo">
+      <h1 class="section-header">Table of Contents</h1>
+      <ol class="topics">
+        {% for topic in topics %}
+          <li class="topic">
+            <a href="#topic_{{ forloop.counter }}">{{ topic.name }}</a>
+            <ol class="articles">
+              {% for article in topic.articles %}
+                <li class="article">
+                  <a href="#article_{{ article.id }}">{{ article.title }}</a>
+                </li>
+              {% endfor %}
+            </ol>
+          </li>
+        {% endfor %}
+      </ol>
+      {% for topic in topics %}
+        <h1 class="docs" id="topic_{{ forloop.counter }}">
+          {{ topic.name }}
+          <span class="left">{{ forloop.counter }}</span>
+          {% for article in topic.articles %}
+            <h2 class="docs" id="article_{{ article.id }}">
+              <span class="right">{{ forloop.parentloop.counter }}.{{ forloop.counter }}</span>
+              {{ article.title }}
+            </h2>
+            {{ article.formatted_text|safe }}
+          {% endfor %}
+        </h1>
+      {% endfor %}
+      <div id="footer">Generated on {{ now }}</div>
+    </div>
+  </body>
+</html>
