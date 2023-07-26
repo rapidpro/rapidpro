@@ -872,7 +872,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             allow_viewers=False,
             allow_editors=True,
             allow_org2=True,
-            form_fields=["contact_search", "flow"],
+            form_fields=["flow", "contact_search"],
         )
 
         self.assertEqual([background_flow] + sample_flows, list(response.context["form"].fields["flow"].queryset))
