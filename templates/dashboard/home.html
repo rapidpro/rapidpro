@@ -1,19 +1,24 @@
--extends "smartmin/base.html"
+{% extends "smartmin/base.html" %}
+{% load smartmin temba compress i18n humanize tz %}
 
--load smartmin temba compress i18n humanize tz
--block messages
--block content
-  #range-group.card.scrollable.flex-shrink-0
-    #range-header.bg-gray-700.text-gray-400.-mx-6.-mt-6.px-4.py-2.border-b(style="min-height:2.55em")
-      #dates.flex.opacity-0.transition-opacity
-        #range-from.flex-grow
-        #range-to
-    #message-chart
-
--block extra-script
-  {{block.super}}
-
-  :javascript
+{% block messages %}
+{% endblock messages %}
+{% block content %}
+  <div class="card scrollable flex-shrink-0" id="range-group">
+    <div style="min-height:2.55em"
+         class="bg-gray-700 text-gray-400 -mx-6 -mt-6 px-4 py-2 border-b"
+         id="range-header">
+      <div class="flex opacity-0 transition-opacity" id="dates">
+        <div class="flex-grow" id="range-from"></div>
+        <div id="range-to"></div>
+      </div>
+    </div>
+    <div id="message-chart"></div>
+  </div>
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
     var redrawMarker = null;
 
     function setChartOptions(begin, end, direction) {
@@ -51,9 +56,9 @@
           thousandsSep: ','
         }
       });
-    
-      var store = document.querySelector("temba-store");    
-      store.getUrl('/dashboard/message_history').then(function(response){
+
+      var store = document.querySelector("temba-store");
+      store.getUrl('/dashboard/message_history').then(function(response) {
         var data = response.json;
         // Create the chart
         Highcharts.stockChart('message-chart', {
@@ -79,12 +84,23 @@
             enabled: true
           },
           rangeSelector: {
-            buttons: [
-              {type: 'week', count: 1, text: 'W'},
-              {type: 'month', count: 1, text: 'M'},
-              {type: 'year', count: 1, text: 'Y'},
-              {type: 'all', count: 1, text: 'all'}
-            ],
+            buttons: [{
+              type: 'week',
+              count: 1,
+              text: 'W'
+            }, {
+              type: 'month',
+              count: 1,
+              text: 'M'
+            }, {
+              type: 'year',
+              count: 1,
+              text: 'Y'
+            }, {
+              type: 'all',
+              count: 1,
+              text: 'all'
+            }],
             inputEnabled: false,
             selected: 1
           },
@@ -102,9 +118,10 @@
           },
           series: data
         });
-  
+
       });
     }
 
     onSpload(loadCharts);
-
+  </script>
+{% endblock extra-script %}
