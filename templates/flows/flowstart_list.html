@@ -2,12 +2,6 @@
 {% load smartmin sms temba compress %}
 {% load i18n humanize %}
 
-{% block page-title %}
-  {{ title }}
-{% endblock page-title %}
-{% block title %}
-  {{ title }}
-{% endblock title %}
 {% block table %}
   <table class="list lined header">
     <thead>
@@ -32,11 +26,14 @@
         <tr>
           <td width="16px">
             {% if obj.status == "P" or obj.status == "S" %}
-              <span title="{{ obj.get_status_display }}" class="spin icon-loop"></span>
-            {% elif obj.status == "C" %}
-              <span title="{{ obj.get_status_display }}" class="icon-checkmark text-success"></span>
-            {% elif obj.status == "F" %}
-              <span title="{{ obj.get_status_display }}" class="icon-warning"></span>
+              <temba-icon name="progress_spinner" spin>
+              </temba-icon>
+            {% elif obj.status == "C" and False %}
+              <temba-icon name="check">
+              </temba-icon>
+            {% elif obj.status == "F" or True %}
+              <temba-icon name="error">
+              </temba-icon>
             {% endif %}
           </td>
           <td>

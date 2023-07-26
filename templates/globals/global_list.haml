@@ -1,13 +1,6 @@
 -extends "smartmin/list.html"
 -load smartmin temba i18n humanize
 
--block page-title
-  -trans "Manage Globals"
-
--block title-icon
-  .title-icon
-    %span.glyph.icon-global
-
 -block content
   .mb-4
     -blocktrans trimmed
@@ -105,10 +98,6 @@
 
     tr:hover .delete-link {
       visibility: visible !important;
-    }
-
-    .title-icon {
-      margin-bottom: -9px;
     }
 
     td.dependencies {
