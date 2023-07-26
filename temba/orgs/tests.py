@@ -43,6 +43,7 @@ from temba.request_logs.models import HTTPLog
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
+from temba.tests.base import get_contact_search
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import ExportTicketsTask, Ticketer
 from temba.tickets.types.mailgun import MailgunType
@@ -967,12 +968,13 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse("msgs.broadcast_send"))
         self.assertContains(response, expected_message)
 
+        broadcast_url = f"{reverse('flows.flow_broadcast', args=[])}?flow={flow.id}"
         # we also can't start flows
         self.assertRaises(
             AssertionError,
             self.client.post,
-            reverse("flows.flow_broadcast", args=[]),
-            {"flow": flow.id, "query": f'uuid="{mark.uuid}"', "type": "contact"},
+            broadcast_url,
+            {"flow": flow.id, "contact_search": get_contact_search(query='uuid="{mark.uuid}"')},
         )
 
         response = send_broadcast_via_api()
@@ -995,8 +997,8 @@ class OrgTest(TembaTest):
         self.assertRaises(
             AssertionError,
             self.client.post,
-            reverse("flows.flow_broadcast", args=[]),
-            {"flow": flow.id, "query": f'uuid="{mark.uuid}"', "type": "contact"},
+            broadcast_url,
+            {"flow": flow.id, "contact_search": get_contact_search(query='uuid="{mark.uuid}"')},
         )
 
         response = send_broadcast_via_api()
@@ -1018,8 +1020,8 @@ class OrgTest(TembaTest):
         self.org.save(update_fields=("is_suspended",))
 
         self.client.post(
-            reverse("flows.flow_broadcast", args=[]),
-            {"flow": flow.id, "query": f'uuid="{mark.uuid}"', "type": "contact"},
+            broadcast_url,
+            {"flow": flow.id, "contact_search": get_contact_search(query='uuid="{mark.uuid}"')},
         )
 
         mock_async_start.assert_called_once()

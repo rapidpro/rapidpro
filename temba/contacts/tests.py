@@ -865,31 +865,36 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         archived_flow.archive(self.admin)
 
         contact = self.create_contact("Joe", phone="+593979000111")
-        start_url = reverse("flows.flow_broadcast", args=[]) + "?c=" + contact.uuid
+        start_url = f"{reverse('flows.flow_broadcast', args=[])}?flow={sample_flows[0].id}&c={contact.uuid}"
 
         response = self.assertUpdateFetch(
             start_url,
             allow_viewers=False,
             allow_editors=True,
             allow_org2=True,
-            form_fields=["query", "flow", "recipients"],
+            form_fields=["contact_search", "flow"],
         )
 
         self.assertEqual([background_flow] + sample_flows, list(response.context["form"].fields["flow"].queryset))
 
         # try to submit without specifying a flow
         self.assertUpdateSubmit(
-            start_url, data={}, form_errors={"flow": "This field is required."}, object_unchanged=contact
+            start_url,
+            data={},
+            form_errors={"flow": "This field is required.", "contact_search": "This field is required."},
+            object_unchanged=contact,
         )
 
         # submit with flow...
-        query = f"uuid='{contact.uuid}'"
-        self.assertUpdateSubmit(start_url, data={"flow": background_flow.id, "query": query})
+        contact_search = dict(query=f"uuid='{contact.uuid}'", advanced=True)
+        self.assertUpdateSubmit(
+            start_url, data={"flow": background_flow.id, "contact_search": json.dumps(contact_search)}
+        )
 
         # should now have a flow start
         start = FlowStart.objects.get()
         self.assertEqual(background_flow, start.flow)
-        self.assertEqual(query, start.query)
+        self.assertEqual(contact_search["query"], start.query)
         self.assertEqual({}, start.exclusions)
 
         # that has been queued to mailroom
