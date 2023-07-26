@@ -1,0 +1,9 @@
+{% extends "smartmin/form.html" %}
+{% load smartmin %}
+
+{% block pre-form %}
+  {{ form_blurb }}
+{% endblock pre-form %}
+{% block form %}
+  <div class="card">{{ block.super }}</div>
+{% endblock form %}

@@ -6,7 +6,6 @@ from unittest.mock import patch
 from urllib.parse import urlencode
 
 import pytz
-from bs4 import BeautifulSoup
 from smartmin.users.models import FailedLogin, RecoveryToken
 
 from django.conf import settings
@@ -2394,7 +2393,7 @@ class OrgDeleteTest(TembaTest):
             body, md5, size = jsonlgz_encode([{"id": 1}])
             archive = Archive.objects.create(
                 org=org,
-                url=f"http://{settings.ARCHIVE_BUCKET}.aws.com/{file}",
+                url=f"http://temba-archives.aws.com/{file}",
                 start_date=timezone.now(),
                 build_time=100,
                 archive_type=Archive.TYPE_MSG,
@@ -2403,14 +2402,14 @@ class OrgDeleteTest(TembaTest):
                 size=size,
                 hash=md5,
             )
-            self.mock_s3.put_object(settings.ARCHIVE_BUCKET, file, body)
+            self.mock_s3.put_object("temba-archives", file, body)
             return archive
 
         daily = add(create_archive(org, Archive.PERIOD_DAILY))
         add(create_archive(org, Archive.PERIOD_MONTHLY, daily))
 
-        # extra S3 file in child archive dir
-        self.mock_s3.put_object(settings.ARCHIVE_BUCKET, f"{org.id}/extra_file.json", io.StringIO("[]"))
+        # extra S3 file in archive dir
+        self.mock_s3.put_object("temba-archives", f"{org.id}/extra_file.json", io.StringIO("[]"))
 
     def _exists(self, obj) -> bool:
         return obj._meta.model.objects.filter(id=obj.id).exists()
@@ -2512,9 +2511,9 @@ class OrgDeleteTest(TembaTest):
         # only org 2 files left in S3
         self.assertEqual(
             [
-                ("dl-temba-archives", f"{self.org2.id}/archive2.jsonl.gz"),
-                ("dl-temba-archives", f"{self.org2.id}/archive3.jsonl.gz"),
-                ("dl-temba-archives", f"{self.org2.id}/extra_file.json"),
+                ("temba-archives", f"{self.org2.id}/archive2.jsonl.gz"),
+                ("temba-archives", f"{self.org2.id}/archive3.jsonl.gz"),
+                ("temba-archives", f"{self.org2.id}/extra_file.json"),
             ],
             list(self.mock_s3.objects.keys()),
         )
@@ -3937,11 +3936,8 @@ class BulkExportTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_export"))
 
-        soup = BeautifulSoup(response.content, "html.parser")
-        group = str(soup.findAll("div", {"class": "exportables-grp"})[0])
-
-        self.assertIn("Parent Flow", group)
-        self.assertIn("Child Flow", group)
+        self.assertEqual(1, len(response.context["buckets"]))
+        self.assertEqual([child, parent], response.context["buckets"][0])
 
     def test_import_voice_flows_expiration_time(self):
         # import file has invalid expires for an IVR flow so it should get the default (5)

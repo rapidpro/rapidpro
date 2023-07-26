@@ -55,9 +55,18 @@ FLOW_FROM_EMAIL = "Temba <no-reply@temba.io>"
 # -----------------------------------------------------------------------------------
 
 STORAGES = {
+    # default storage for things like exports, imports
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    # wherever rp-archiver writes archive files (must be S3 compatible)
+    "archives": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "OPTIONS": {"bucket_name": "temba-archives"},
+    },
+    # wherever courier and mailroom are writing logs
     "logs": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
+    # media file uploads that need to be publicly accessible
     "public": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    # standard Django static files storage
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
@@ -67,9 +76,6 @@ STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
 # settings used by django-storages
 AWS_ACCESS_KEY_ID = "aws_access_key_id"
 AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
-
-# TODO convert archive access to use storages
-ARCHIVE_BUCKET = "dl-temba-archives"
 
 # -----------------------------------------------------------------------------------
 # Localization
@@ -668,6 +674,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_activity_chart",
         "flows.flow_activity_data",
         "flows.flow_activity",
+        "flows.flow_api",
         "flows.flow_archived",
         "flows.flow_assets",
         "flows.flow_category_counts",

@@ -1,22 +1,19 @@
--extends 'smartmin/form.html'
--load i18n smartmin
+{% extends "smartmin/form.html" %}
+{% load i18n smartmin %}
 
--block summary
-  -trans "Start a flow after receiving a call."
-
--block fields 
-  -render_field "action"
-  .voice-flow-container(class="{% if form.action.value == 'hangup' %}hidden{%endif%}")
-    -render_field "voice_flow"
-  .msg-flow-container(class="{% if form.action.value == 'answer' %}hidden{%endif%}")
-    -render_field "msg_flow"
-  -render_field "groups"
-  -render_field "exclude_groups"
-
--block extra-script
+{% block summary %}
+  {% trans "Start a flow after receiving a call." %}
+{% endblock summary %}
+{% block fields %}
+  {% render_field "action" %}
+  <div class="{% if form.action.value == 'hangup' %}hidden{% endif %} voice-flow-container">{% render_field "voice_flow" %}</div>
+  <div class="{% if form.action.value == 'answer' %}hidden{% endif %} msg-flow-container">{% render_field "msg_flow" %}</div>
+  {% render_field "groups" %}
+  {% render_field "exclude_groups" %}
+{% endblock fields %}
+{% block extra-script %}
   {{ block.super }}
-
-  :javascript
+  <script type="text/javascript">
     function addActionChangeHandler(root) {
       var actionSelect = root.querySelector("temba-select[name='action']");
       var voiceFlow = root.querySelector(".voice-flow-container");
@@ -37,4 +34,8 @@
       });
     }
 
-    onSpload(function(){ addActionChangeHandler(document)});
+    onSpload(function() {
+      addActionChangeHandler(document)
+    });
+  </script>
+{% endblock extra-script %}

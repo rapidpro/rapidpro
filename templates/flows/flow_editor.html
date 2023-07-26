@@ -1,7 +1,24 @@
 {% extends "smartmin/base.html" %}
 {% load compress temba i18n %}
 
-{% block spa-style %}
+{% block title %}
+  <div class="flex">
+    <div class="flex items-center text-gray-600">
+      {% if object.flow_type == 'V' %}
+        <temba-icon name="flow_ivr" class="mr-3">
+        </temba-icon>
+      {% elif object.flow_type == 'S' %}
+        <temba-icon name="flow_surveyor" class="mr-3">
+        </temba-icon>
+      {% elif object.flow_type == 'B' %}
+        <temba-icon name="flow_background" class="mr-3">
+        </temba-icon>
+      {% endif %}
+    </div>
+    <div id="title-text">{{ title }}</div>
+  </div>
+{% endblock title %}
+{% block extra-style %}
   {{ block.super }}
   <style type="text/css">
     .spa-content {
@@ -95,7 +112,7 @@
       border: 1px solid transparent;
     }
   </style>
-{% endblock spa-style %}
+{% endblock extra-style %}
 {% block extra-script %}
   {{ block.super }}
   <script type="text/javascript">
@@ -217,23 +234,6 @@
     </div>
   {% endif %}
 {% endblock alert-messages %}
-{% block spa-title %}
-  <div class="title-text flex">
-    <div class="inline-block flex items-center text-gray-600">
-      {% if object.flow_type == 'V' %}
-        <temba-icon name="flow_ivr" class="mr-3">
-        </temba-icon>
-      {% elif object.flow_type == 'S' %}
-        <temba-icon name="flow_surveyor" class="mr-3">
-        </temba-icon>
-      {% elif object.flow_type == 'B' %}
-        <temba-icon name="flow_background" class="mr-3">
-        </temba-icon>
-      {% endif %}
-    </div>
-    {{ title }}
-  </div>
-{% endblock spa-title %}
 {% block content %}
   <temba-modax header="Send Message" id="send-message-modal">
   </temba-modax>

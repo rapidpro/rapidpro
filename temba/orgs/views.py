@@ -1026,7 +1026,7 @@ class UserCRUDL(SmartCRUDL):
 
         def derive_formax_sections(self, formax, context):
             if self.has_org_perm("orgs.org_profile"):
-                formax.add_section("org", reverse("orgs.user_edit"), icon="icon-user")
+                formax.add_section("org", reverse("orgs.user_edit"), icon="user")
 
 
 class MenuMixin(OrgPermsMixin):
@@ -1470,8 +1470,8 @@ class OrgCRUDL(SmartCRUDL):
             context["buckets"] = buckets
             context["singles"] = singles
 
-            context["flow_id"] = int(self.request.GET.get("flow", 0))
-            context["campaign_id"] = int(self.request.GET.get("campaign", 0))
+            context["initial_flow_id"] = int(self.request.GET.get("flow", 0))
+            context["initial_campaign_id"] = int(self.request.GET.get("campaign", 0))
 
             return context
 
@@ -2121,6 +2121,8 @@ class OrgCRUDL(SmartCRUDL):
             return reverse("orgs.org_manage_accounts") if still_in_org else reverse("orgs.org_choose")
 
     class ManageAccountsSubOrg(ManageAccounts):
+        menu_path = "/settings/workspaces"
+
         def pre_process(self, request, *args, **kwargs):
             pass
 

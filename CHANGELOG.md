@@ -1,3 +1,20 @@
+v8.1.234 (2023-07-25)
+-------------------------
+ * Fix org export page
+ * Fix permissions for viewer for flow results
+
+v8.1.233 (2023-07-25)
+-------------------------
+ * Simpliy convert_templates script
+ * Consistent title for initial page load
+ * Remove spa-title and spa-style
+ * Add archives to STORAGES
+
+v8.1.232 (2023-07-24)
+-------------------------
+ * Do not set the max for y axis chart to allow that to be calculated
+ * Convert templates in the triggers app from haml
+
 v8.1.231 (2023-07-21)
 -------------------------
  * Simplify redis settings and organize settings better in sections

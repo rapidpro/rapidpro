@@ -8,9 +8,6 @@
       width: 28rem;
     }
 
--block title
-  {{title}}
-
 -block content
   %form#login-form.mt-6(method="post" action="{% url 'users.user_login' %}?next={% url 'orgs.org_join_accept' secret %}")
     %fieldset

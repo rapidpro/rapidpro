@@ -1,20 +1,16 @@
--extends "smartmin/list.html"
--load smartmin i18n contacts compress
+{% extends "smartmin/list.html" %}
+{% load smartmin i18n contacts compress %}
 
--block page-header
-
--block page-title
-  {{ title }}
-
--block extra-style
-  {{block.super}}
-  :css
-
+{% block page-header %}
+{% endblock page-header %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
     .ticket-ui {
-      position:relative;
-      margin:0;
-      padding:0;
-      height:100%;
+      position: relative;
+      margin: 0;
+      padding: 0;
+      height: 100%;
       flex-grow: 1;
     }
 
@@ -23,10 +19,8 @@
       margin-top: 0em !important;
     }
 
-    .spa-footer {
-      
-    }
-    
+    .spa-footer {}
+
     temba-contact-tickets {
       margin-bottom: -0.5em;
     }
@@ -57,8 +51,9 @@
       height: 100%;
     }
 
-    .add-note, .assign-ticket {
-      --header-bg: rgb(255,249,194);
+    .add-note,
+    .assign-ticket {
+      --header-bg: rgb(255, 249, 194);
       --header-text: #555;
       --textarea-height: 5em;
     }
@@ -92,7 +87,7 @@
         padding-bottom: 1em;
         margin-right: -2em;
         padding-right: 2em;
-      
+
       }
 
       .ticket-ui {
@@ -100,7 +95,7 @@
       }
 
       temba-ticket-list {
-        max-height:7em;
+        max-height: 7em;
       }
 
       temba-contact-tickets {
@@ -130,12 +125,11 @@
       overflow-y: clip;
       overflow-x: visible;
     }
-   
-
--block extra-script
+  </style>
+{% endblock extra-style %}
+{% block extra-script %}
   {{ block.super }}
-    
-  :javascript
+  <script type="text/javascript">
     // current state
     var folder = '{{folder}}';
     var status = '{{status}}';
@@ -150,7 +144,7 @@
         // auto assign tickets when a message is sent
         var contactTickets = document.querySelector("temba-contact-tickets");
         var assigned = contactTickets.handleTicketAssignment(ticket, "{{user.email}}");
-        
+
         // if we performed assignment, track our sent message
         if (assigned) {
           messageSent = true;
@@ -181,7 +175,7 @@
           folder = menuItem.id;
           updateTicketList();
         }
-      }                    
+      }
     }
 
     function handleFlowStarted(event) {
@@ -190,14 +184,14 @@
       name.refresh();
 
       // give our flow a chance to start
-      window.setTimeout(function(){
+      window.setTimeout(function() {
         // refresh the main menu
         refreshMenu();
-  
+
         // grab our latest chat
         var chat = document.querySelector("temba-contact-chat");
         chat.refresh();
-  
+
         // refresh our content menu too
         var contentMenu = document.querySelector("#default-content-menu");
         contentMenu.refresh();
@@ -284,7 +278,7 @@
 
       } else {
         tabs.classList.add("hidden");
-        chat.style.opacity = '0';    
+        chat.style.opacity = '0';
         empty.style.opacity = '1';
         chat.contact = null;
         chat.currentTicket = null;
@@ -293,9 +287,9 @@
         contactTickets.ticket = null;
         contactHeader.contact = null;
       }
-      
+
       updateTicketList();
-      
+
       var path = `${folder}/${status}/${ticketUUID || ''}`;
       var show = `/ticket/${path}`;
 
@@ -309,20 +303,23 @@
       var contentMenu = document.querySelector("#default-content-menu");
       contentMenu.endpoint = show;
 
-      window.history.replaceState({ url: show, show: show } ,"", show);
-      
+      window.history.replaceState({
+        url: show,
+        show: show
+      }, "", show);
+
     }
 
     function handleNameClicked() {
-        var chat = document.querySelector("temba-contact-chat");
-        if (chat.contact) {
-          var url = "/contact/read/" + chat.contact + "/";
-          if (typeof gotoURL !== 'undefined') {
-            gotoURL(url);
-          } else {
-            document.location.href = url;
-          }
+      var chat = document.querySelector("temba-contact-chat");
+      if (chat.contact) {
+        var url = "/contact/read/" + chat.contact + "/";
+        if (typeof gotoURL !== 'undefined') {
+          gotoURL(url);
+        } else {
+          document.location.href = url;
         }
+      }
     }
 
     function handleFieldSearch(evt) {
@@ -339,7 +336,7 @@
       var tabs = document.querySelector("temba-tabs");
 
       // update our set field count
-      var fields = Object.keys(contact.fields).filter(function (key) {
+      var fields = Object.keys(contact.fields).filter(function(key) {
         return !!contact.fields[key]
       });
 
@@ -349,7 +346,7 @@
       // render our tabs
       tabs.requestUpdate();
     }
-    
+
     function handleTicketsRefreshed(event) {
       refreshMenu();
     }
@@ -363,7 +360,7 @@
       chat.currentContact = null;
       tickets.removeItem(uuid);
     }
-    
+
     function handleTicketAssigned() {
       var contactTickets = document.querySelector("temba-contact-tickets");
       contactTickets.refresh();
@@ -376,7 +373,7 @@
       chat.refresh();
     }
 
-    
+
 
     function handleTicketUpdated(event) {
       if (event.detail.data) {
@@ -406,7 +403,7 @@
           else if ((!ticket.assignee || ticket.assignee.email != '{{request.user.email}}') && folder == "mine" && previous.assignee) {
             removeTicket(ticket.uuid);
           }
-    
+
           // ticket was reopened
           else if (ticket.status == "open" && previous.status != "open") {
             chat.contactUUID = null;
@@ -416,11 +413,11 @@
             contactTickets.contact = null;
             focusNext = ticket.uuid;
             statusSelect.setSelection("open");
-          } 
+          }
           // ticket was closed
           else if (ticket.status == "closed" && previous.status != "closed") {
             removeTicket(ticket.uuid);
-          } 
+          }
 
           if (folder == previous.topic.uuid && folder != ticket.topic.uuid) {
             removeTicket(ticket.uuid);
@@ -436,7 +433,10 @@
     function handleTabChanged() {
       var tab = document.querySelector("temba-tabs").index;
       var url = window.location.pathname + "?tab=" + tab;
-      window.history.replaceState({ url:url, show: url }, "", "?tab=" + tab);
+      window.history.replaceState({
+        url: url,
+        show: url
+      }, "", "?tab=" + tab);
     }
 
     function handleTicketListResized(event) {
@@ -455,91 +455,125 @@
       const width = store.get('ticket-list-width', '300');
       const resizer = document.querySelector('temba-resizer');
       resizer.currentWidth = width;
-    });    
-
-
--block spa-title
-  #title-text
-    {{title}}
-
--block content
-
-  .page.flex-grow.flex.flex-col.min-h-0.max-h-screen
-    .flex.ticket-ui
-      %temba-resizer.flex.flex-row(-temba-resized="handleTicketListResized")
-
-        .ticket-list.flex.flex-col.p-5.pr-0
-          .flex.mb-2
-              #folder-title.flex-grow.relative
-                {{title}}
-            %temba-content-menu#topic-content-menu.relative(endpoint="{% url 'tickets.ticket_folder' folder status uuid %}" -temba-selection="handleContentMenuSelected(event)")
-          %temba-select.mb-2(name="ticket-status" onchange="handleStatusFilterChanged(event)" value="{{status}}")
-            %temba-option(name="Open" value="open" icon="tickets_open")
-            %temba-option(name="Closed" value="closed" icon="tickets_closed")
-
-          .flex.flex-grow(style="max-height:100%;")
-            -if uuid
-              %temba-ticket-list.flex-grow(agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status uuid %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
-                .filter-note.m-2.hidden(style="text-align:center")
-                  .linked(onclick="clearFilter()")
-                    -trans "See more tickets"
-            -else
-              %temba-ticket-list.flex-grow(nextselection="{{nextUUID}}" agent="{{request.user.email}}" endpoint="{% url 'tickets.ticket_folder' folder status %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
-
-      .chat-pane.flex-grow.flex-col.flex.ml-4.p-5.pl-0
-        .empty
-          -if has_tickets
-            %h2
-              .popper
-                🎉
-
-              -blocktrans trimmed
+    });
+  </script>
+{% endblock extra-script %}
+{% block content %}
+  <div class="page flex-grow flex flex-col min-h-0 max-h-screen">
+    <div class="flex ticket-ui">
+      <temba-resizer -temba-resized="handleTicketListResized" class="flex flex-row">
+        <div class="ticket-list flex flex-col p-5 pr-0">
+          <div class="flex mb-2">
+            <div class="flex-grow relative" id="folder-title">
+              <div id="title-text">{{ title }}</div>
+            </div>
+            <temba-content-menu endpoint="{% url 'tickets.ticket_folder' folder status uuid %}"
+                                -temba-selection="handleContentMenuSelected(event)"
+                                class="relative"
+                                id="topic-content-menu">
+            </temba-content-menu>
+          </div>
+          <temba-select name="ticket-status" onchange="handleStatusFilterChanged(event)" value="{{ status }}" class="mb-2">
+            <temba-option name="Open" value="open" icon="tickets_open">
+            </temba-option>
+            <temba-option name="Closed" value="closed" icon="tickets_closed">
+            </temba-option>
+          </temba-select>
+          <div style="max-height:100%;" class="flex flex-grow">
+            {% if uuid %}
+              <temba-ticket-list agent="{{ request.user.email }}"
+                                 endpoint="{% url 'tickets.ticket_folder' folder status uuid %}"
+                                 -temba-refreshed="handleTicketsRefreshed"
+                                 onchange="handleContactChanged(event)"
+                                 class="flex-grow">
+                <div style="text-align:center" class="filter-note m-2 hidden">
+                  <div onclick="clearFilter()" class="linked">{% trans "See more tickets" %}</div>
+                </div>
+              </temba-ticket-list>
+            {% else %}
+              <temba-ticket-list nextselection="{{ nextUUID }}"
+                                 agent="{{ request.user.email }}"
+                                 endpoint="{% url 'tickets.ticket_folder' folder status %}"
+                                 -temba-refreshed="handleTicketsRefreshed"
+                                 onchange="handleContactChanged(event)"
+                                 class="flex-grow">
+              </temba-ticket-list>
+            {% endif %}
+          </div>
+        </div>
+      </temba-resizer>
+      <div class="chat-pane flex-grow flex-col flex ml-4 p-5 pl-0">
+        <div class="empty">
+          {% if has_tickets %}
+            <h2>
+              <div class="popper">🎉</div>
+              {% blocktrans trimmed %}
                 All done!
-            .mt-4
-              -blocktrans trimmed
+              {% endblocktrans %}
+            </h2>
+            <div class="mt-4">
+              {% blocktrans trimmed %}
                 Nice work, there aren't any more tickets here that need your attention.
-
-          -else
-            %h2
-              -blocktrans trimmed
+              {% endblocktrans %}
+            </div>
+          {% else %}
+            <h2>
+              {% blocktrans trimmed %}
                 Tickets
-
-            .mt-6
-              -blocktrans with name=brand.name trimmed
-                {{name}} Tickets makes it easy to chat directly with your contacts.
-
-            .mt-4
-              -blocktrans trimmed
+              {% endblocktrans %}
+            </h2>
+            <div class="mt-6">
+              {% blocktrans with name=brand.name trimmed %}
+                {{ name }} Tickets makes it easy to chat directly with your contacts.
+              {% endblocktrans %}
+            </div>
+            <div class="mt-4">
+              {% blocktrans trimmed %}
                 Sometimes an automated chatbot isn't enough. When your contacts need to chat with a real person, you can use the
                 Open Ticket action to open a new ticket.
-
-
-        .flex.flex-col.menu-flex
-          .flex
-            %temba-contact-name-fetch.text-2xl.mb-4(-temba-refreshed="handleContactRefreshed" onclick="{% if org_perms.contacts.contact_read %}handleNameClicked(){% endif %}" class="{%if org_perms.contacts.contact_read %}clickable{% endif %}")
-            .flex-grow
-            -include "spa_page_menu.html"
-          
-          %temba-contact-tickets.mb-1(agent="{{request.user.email}}" -temba-refreshed="handleTicketUpdated" expandable="true")
-
-        %temba-tabs.flex-grow(-temba-context-changed="handleTabChanged" index="{{request.GET.tab}}" collapses="true")
-          %temba-tab(icon="message" name='{{_("Chat")|escapejs}}')
-            .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
-              %temba-contact-chat(agent="{{request.user.email}}" monitor="true" -temba-message-sent="handleMessageSent")
-
-          %temba-tab(icon="fields" name='{{_("Fields")|escapejs}}')
-
-            .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
-              <temba-contact-fields timezone="{{object.org.timezone}}" -temba-button-clicked="handleFieldSearch" role="{{request.role.code}}">
-                .no-fields.p-16.text-center(slot="empty")
-                  .text-xl.mb-4
-                    -trans "No Fields"
+              {% endblocktrans %}
+            </div>
+          {% endif %}
+        </div>
+        <div class="flex flex-col menu-flex">
+          <div class="flex">
+            <temba-contact-name-fetch -temba-refreshed="handleContactRefreshed"
+                                      onclick="{% if org_perms.contacts.contact_read %}handleNameClicked(){% endif %}"
+                                      class="{% if org_perms.contacts.contact_read %}clickable{% endif %} text-2xl mb-4">
+            </temba-contact-name-fetch>
+            <div class="flex-grow"></div>
+            {% include "spa_page_menu.html" %}
+          </div>
+          <temba-contact-tickets agent="{{ request.user.email }}"
+                                 -temba-refreshed="handleTicketUpdated"
+                                 expandable="true"
+                                 class="mb-1">
+          </temba-contact-tickets>
+        </div>
+        <temba-tabs -temba-context-changed="handleTabChanged"
+                    index="{{ request.GET.tab }}"
+                    collapses="true"
+                    class="flex-grow">
+          <temba-tab icon="message" name="{{ _("Chat") |escapejs }}">
+            <div style="border-top-right-radius: var(--curvature);" class="flex flex-grow flex-col overflow-y-auto">
+              <temba-contact-chat agent="{{ request.user.email }}" monitor="true" -temba-message-sent="handleMessageSent">
+              </temba-contact-chat>
+            </div>
+          </temba-tab>
+          <temba-tab icon="fields" name="{{ _("Fields") |escapejs }}">
+            <div style="border-top-right-radius: var(--curvature)"
+                 class="flex flex-grow flex-col p-4 overflow-y-auto">
+              <temba-contact-fields timezone="{{ object.org.timezone }}"
+                                    -temba-button-clicked="handleFieldSearch"
+                                    role="{{ request.role.code }}">
+                <div slot="empty" class="no-fields p-16 text-center">
+                  <div class="text-xl mb-4">{% trans "No Fields" %}</div>
+                </div>
               </temba-contact-fields>
-          
-      
-
-
-
-
-
-
+            </div>
+          </temba-tab>
+        </temba-tabs>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
