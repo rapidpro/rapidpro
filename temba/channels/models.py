@@ -943,6 +943,7 @@ class ChannelLog(models.Model):
     LOG_TYPE_MSG_STATUS = "msg_status"
     LOG_TYPE_MSG_RECEIVE = "msg_receive"
     LOG_TYPE_EVENT_RECEIVE = "event_receive"
+    LOG_TYPE_MULTI_RECEIVE = "multi_receive"
     LOG_TYPE_IVR_START = "ivr_start"
     LOG_TYPE_IVR_INCOMING = "ivr_incoming"
     LOG_TYPE_IVR_CALLBACK = "ivr_callback"
@@ -951,12 +952,14 @@ class ChannelLog(models.Model):
     LOG_TYPE_ATTACHMENT_FETCH = "attachment_fetch"
     LOG_TYPE_TOKEN_REFRESH = "token_refresh"
     LOG_TYPE_PAGE_SUBSCRIBE = "page_subscribe"
+    LOG_TYPE_WEBHOOK_VERIFY = "webhook_verify"
     LOG_TYPE_CHOICES = (
         (LOG_TYPE_UNKNOWN, _("Other Event")),
         (LOG_TYPE_MSG_SEND, _("Message Send")),
         (LOG_TYPE_MSG_STATUS, _("Message Status")),
         (LOG_TYPE_MSG_RECEIVE, _("Message Receive")),
         (LOG_TYPE_EVENT_RECEIVE, _("Event Receive")),
+        (LOG_TYPE_MULTI_RECEIVE, _("Events Receive")),
         (LOG_TYPE_IVR_START, _("IVR Start")),
         (LOG_TYPE_IVR_INCOMING, _("IVR Incoming")),
         (LOG_TYPE_IVR_CALLBACK, _("IVR Callback")),
@@ -965,6 +968,7 @@ class ChannelLog(models.Model):
         (LOG_TYPE_ATTACHMENT_FETCH, _("Attachment Fetch")),
         (LOG_TYPE_TOKEN_REFRESH, _("Token Refresh")),
         (LOG_TYPE_PAGE_SUBSCRIBE, _("Page Subscribe")),
+        (LOG_TYPE_WEBHOOK_VERIFY, _("Webhook Verify")),
     )
 
     id = models.BigAutoField(primary_key=True)
