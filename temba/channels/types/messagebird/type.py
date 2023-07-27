@@ -5,6 +5,7 @@ from temba.contacts.models import URN
 from ...models import ChannelType
 from .views import ClaimView
 
+
 class MessageBirdType(ChannelType):
     """
     An MessageBird channel
@@ -26,14 +27,17 @@ class MessageBirdType(ChannelType):
     free_sending = True
 
     configuration_blurb = _(
-        "To use your Messagebirld channel you'll have to configure the Messagebird flow builder to direct "
-        "messages to the url below using the Call HTTP endpoint with SMS Flow."
+        "To use your Messagebirld channel you'll have to configure the Messagebird to send raw  "
+        "receivedSMS messages to the url below either with a flow or by registering the webhook with them"
+        "Shortcodes don't work with flows and require a webhook."
     )
 
     configuration_urls = (
         dict(
             label=_("Receive URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.mbd' channel.uuid 'receive'%}",
-            description=_("POST Call HTTP endpoint with SMS to this address."),
+            description=_(
+                "Webhook address for inbmound messages to this address."
+            ),
         ),
     )
