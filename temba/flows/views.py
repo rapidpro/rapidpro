@@ -1737,7 +1737,7 @@ class FlowCRUDL(SmartCRUDL):
                     try:
                         contact_search["parsed_query"] = parse_query(
                             self.org, contact_search["query"], parse_only=True
-                        )
+                        ).query
                     except SearchException as e:
                         raise ValidationError(str(e))
 
@@ -1793,7 +1793,7 @@ class FlowCRUDL(SmartCRUDL):
                 self.request.user,
                 groups=(self.org.groups.filter(uuid__in=group_uuids)),
                 contacts=(self.org.contacts.filter(uuid__in=contact_uuids)),
-                query=contact_search["parsed_query"].query if "parsed_query" in contact_search else None,
+                query=contact_search["parsed_query"] if "parsed_query" in contact_search else None,
                 exclusions=contact_search.get("exclusions", {}),
             )
             return super().form_valid(form)

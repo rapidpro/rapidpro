@@ -28,10 +28,10 @@
             {% if obj.status == "P" or obj.status == "S" %}
               <temba-icon name="progress_spinner" spin>
               </temba-icon>
-            {% elif obj.status == "C" and False %}
+            {% elif obj.status == "C" %}
               <temba-icon name="check">
               </temba-icon>
-            {% elif obj.status == "F" or True %}
+            {% elif obj.status == "F" %}
               <temba-icon name="error">
               </temba-icon>
             {% endif %}
