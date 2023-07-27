@@ -56,7 +56,6 @@ ffmpeg-python = "^0.2.0"
 slack-sdk = "3.17.0"
 django-formtools = "^2.4.1"
 psycopg = "^3.1.9"
-messagebird = "^2.1.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.7.0"
