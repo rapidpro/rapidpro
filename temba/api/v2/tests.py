@@ -3149,7 +3149,7 @@ class EndpointsTest(APITest):
     def test_flows(self):
         flows_url = reverse("api.v2.flows")
 
-        self.assertEndpointAccess(flows_url, viewer_get=403, admin_get=200, agent_get=403)
+        self.assertEndpointAccess(flows_url, viewer_get=200, admin_get=200, agent_get=403)
 
         survey = self.get_flow("media_survey")
         color = self.get_flow("color")
@@ -4464,7 +4464,7 @@ class EndpointsTest(APITest):
     def test_runs(self):
         runs_url = reverse("api.v2.runs")
 
-        self.assertEndpointAccess(runs_url, viewer_get=403, admin_get=200, agent_get=403)
+        self.assertEndpointAccess(runs_url, viewer_get=200, admin_get=200, agent_get=403)
 
         flow1 = self.get_flow("color_v13")
         flow2 = flow1.clone(self.user)

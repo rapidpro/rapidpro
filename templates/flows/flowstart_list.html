@@ -1,13 +1,7 @@
 {% extends "smartmin/list.html" %}
-{% load smartmin sms temba compress %}
+{% load smartmin sms temba compress flows %}
 {% load i18n humanize %}
 
-{% block page-title %}
-  {{ title }}
-{% endblock page-title %}
-{% block title %}
-  {{ title }}
-{% endblock title %}
 {% block table %}
   <table class="list lined header">
     <thead>
@@ -32,11 +26,14 @@
         <tr>
           <td width="16px">
             {% if obj.status == "P" or obj.status == "S" %}
-              <span title="{{ obj.get_status_display }}" class="spin icon-loop"></span>
-            {% elif obj.status == "C" %}
-              <span title="{{ obj.get_status_display }}" class="icon-checkmark text-success"></span>
-            {% elif obj.status == "F" %}
-              <span title="{{ obj.get_status_display }}" class="icon-warning"></span>
+              <temba-icon name="progress_spinner" spin>
+              </temba-icon>
+            {% elif obj.status == "C" and False %}
+              <temba-icon name="check">
+              </temba-icon>
+            {% elif obj.status == "F" or True %}
+              <temba-icon name="error">
+              </temba-icon>
             {% endif %}
           </td>
           <td>
@@ -45,24 +42,16 @@
                  class="linked inline">{{ obj.flow.name }}</div>
             {% if obj.start_type == "M" %}
               {% blocktrans trimmed with user=obj.created_by %}
-                was started by {{ user }} for
+                was started by {{ user }}
               {% endblocktrans %}
             {% elif obj.start_type == "Z" %}
-              {% trans "was started by Zapier for" %}
+              {% trans "was started by Zapier" %}
             {% else %}
-              {% trans "was started by an API call for" %}
-            {% endif %}
-            {% if not obj.exclusions %}
-              {% trans "all contacts" %}
-            {% elif not obj.exclusions.started_previously and obj.exclusions.in_a_flow %}
-              {% trans "contacts not in other flows" %}
-            {% elif obj.exclusions.started_previously and obj.exclusions.in_a_flow %}
-              {% trans "contacts not in other flows who haven't already been through this flow" %}
-            {% else %}
-              {% trans "contacts who haven't already been through this flow" %}
+              {% trans "was started by an API call" %}
             {% endif %}
             <div style="padding-top: 10px; max-height: 150px; overflow-y: auto;" class="flex flex-wrap">
               {% include "includes/recipients.html" with groups=obj.groups.all contacts=obj.contacts.all query=obj.query %}
+              {{ obj.exclusions|exclusions }}
             </div>
           </td>
           <td style="text-align: right">

@@ -1,0 +1,8 @@
+{% load i18n %}
+
+{% url 'request_logs.httplog_webhooks' as logs_url %}
+{% blocktrans with logs_url=logs_url %}
+  Some webhook calls from your flows are taking too long to respond or failing too frequently. If the problem persists
+  these calls will be temporarily disabled. You can check the <a href="{{ logs_url }}">webhook call log</a> to see which
+  calls are the problem.
+{% endblocktrans %}

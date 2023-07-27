@@ -35,6 +35,9 @@
             -block top-right
         .page-title
           -block title
+            #title-text.hidden
+              -block title-text
+                {{title}}
         -block content
       .flex-grow
           

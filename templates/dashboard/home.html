@@ -1,0 +1,127 @@
+{% extends "smartmin/base.html" %}
+{% load smartmin temba compress i18n humanize tz %}
+
+{% block messages %}
+{% endblock messages %}
+{% block content %}
+  <div class="card scrollable flex-shrink-0" id="range-group">
+    <div style="min-height:2.55em"
+         class="bg-gray-700 text-gray-400 -mx-6 -mt-6 px-4 py-2 border-b"
+         id="range-header">
+      <div class="flex opacity-0 transition-opacity" id="dates">
+        <div class="flex-grow" id="range-from"></div>
+        <div id="range-to"></div>
+      </div>
+    </div>
+    <div id="message-chart"></div>
+  </div>
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    var redrawMarker = null;
+
+    function setChartOptions(begin, end, direction) {
+      var from = Highcharts.dateFormat('%A, %B %e, %Y', begin);
+      var to = Highcharts.dateFormat('%A, %B %e, %Y', end)
+      document.querySelector("#dates").classList.add("opacity-100");
+      document.querySelector("#range-from").innerText = from;
+      document.querySelector("#range-to").innerText = to;
+    }
+
+    function selectionChanged(chart) {
+      var direction = "";
+      if (chart.series[0].visible) {
+        direction += "I";
+      }
+
+      if (chart.series[1].visible) {
+        direction += "O";
+      }
+
+      var axis = chart.xAxis[0];
+      setChartOptions(axis.min, axis.max, direction);
+    }
+
+    function markDirty(chart) {
+      if (redrawMarker != null) {
+        window.clearTimeout(redrawMarker);
+      }
+      redrawMarker = window.setTimeout(selectionChanged.bind(null, chart), 200);
+    }
+
+    function loadCharts() {
+      Highcharts.setOptions({
+        lang: {
+          thousandsSep: ','
+        }
+      });
+
+      var store = document.querySelector("temba-store");
+      store.getUrl('/dashboard/message_history').then(function(response) {
+        var data = response.json;
+        // Create the chart
+        Highcharts.stockChart('message-chart', {
+          chart: {
+            zoomType: 'x',
+            events: {
+              // mark dirty out the gate
+              load: function(e) {
+                markDirty(this);
+              },
+              redraw: function(e) {
+                markDirty(this);
+              }
+            }
+          },
+          plotOptions: {
+            series: {
+              showInLegend: true,
+              stacking: 'normal'
+            }
+          },
+          legend: {
+            enabled: true
+          },
+          rangeSelector: {
+            buttons: [{
+              type: 'week',
+              count: 1,
+              text: 'W'
+            }, {
+              type: 'month',
+              count: 1,
+              text: 'M'
+            }, {
+              type: 'year',
+              count: 1,
+              text: 'Y'
+            }, {
+              type: 'all',
+              count: 1,
+              text: 'all'
+            }],
+            inputEnabled: false,
+            selected: 1
+          },
+          xAxis: {
+            minRange: 3600000 * 24
+          },
+          credits: {
+            enabled: false
+          },
+          navigator: {
+            series: {
+              stacking: 'normal',
+              type: 'column'
+            }
+          },
+          series: data
+        });
+
+      });
+    }
+
+    onSpload(loadCharts);
+  </script>
+{% endblock extra-script %}

@@ -1,11 +1,6 @@
 -extends "msgs/message_box.html"
 -load smartmin sms temba compress i18n humanize
 
--block title-icon
-  %span.title-icon
-    .glyph.icon-clock
-
-
 -block extra-style
   {{block.super}}
   :css
@@ -14,7 +9,6 @@
       cursor: pointer;
       box-shadow: 0 0 0 2px var(--color-focus);
     }
-
 
 -block action-buttons
 

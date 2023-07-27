@@ -1,14 +1,6 @@
 {% extends "smartmin/read.html" %}
 {% load smartmin sms temba compress humanize contacts i18n %}
 
-{% block page-title %}
-  {{ object.offset_display }} {{ object.relative_to.name }}
-{% endblock page-title %}
-{% block title-icon %}
-  <div class="title-icon">
-    <span class="glyph icon-campaign"></span>
-  </div>
-{% endblock title-icon %}
 {% block subtitle %}
   <div class="event-details p-4 bg-gray-200 rounded-lg mt-4">{{ object.offset_display }} {{ object.relative_to.name }}</div>
 {% endblock subtitle %}

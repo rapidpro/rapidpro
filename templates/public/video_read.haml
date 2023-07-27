@@ -69,7 +69,7 @@
     .manage
       %a.btn.btn-primary{href:'{% url "public.video_update" object.pk%}'}
         -trans "Edit"
-  %h1
+  %h1#title-text
     {{object.name}}
 
 -block content
