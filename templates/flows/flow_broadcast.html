@@ -63,10 +63,10 @@
   {{ block.super }}
   <script type="text/javascript">
     {
-
       const modax = getModax("#start-flow");
       const modalBody = modax.shadowRoot;
       const queryWidget = modalBody.querySelector("temba-contact-search");
+      const flowSelect = modalBody.querySelector("temba-select[name='flow']");
 
       queryWidget.addEventListener("temba-content-changed", function(e) {
         if (e.detail.reset || (e.detail.blockers && e.detail.blockers.length > 0)) {
@@ -75,6 +75,20 @@
           modax.disabled = e.detail.total == 0;
         }
       });
+
+      if (flowSelect) {
+        flowSelect.addEventListener("change", function(evt) {
+          if (this.selection) {
+            var flowType = this.selection.type;
+            modax.disabled = true;
+            queryWidget.in_a_flow = flowType !== 'B';
+            queryWidget.started_previously = true;
+            queryWidget.not_seen_since_days = true;
+            queryWidget.endpoint = "/flow/preview_start/" + this.value + "/";
+            queryWidget.refresh();
+          }
+        });
+      }
 
       const handleDialogButton = function(event) {
         const modax = getModax("#start-flow");

@@ -2779,7 +2779,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             allow_viewers=False,
             allow_editors=True,
             allow_org2=True,
-            form_fields=["contact_search", "flow"],
+            form_fields=["flow", "contact_search"],
         )
 
         # create flow start with a query
