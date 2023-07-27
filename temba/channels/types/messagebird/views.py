@@ -1,13 +1,12 @@
 from smartmin.views import SmartFormView
 import phonenumbers
-from phonenumbers.phonenumberutil import region_code_for_number
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from temba.utils import countries
 from temba.utils.fields import SelectWidget
 
 from ...models import Channel
-from ...views import ClaimViewMixin, ALL_COUNTRIES
+from ...views import ClaimViewMixin
 
 SUPPORTED_COUNTRIES = {
     "AU",  # Australia
