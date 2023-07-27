@@ -1,3 +1,10 @@
+v8.1.236 (2023-07-27)
+-------------------------
+ * Rename flow_broadcast to flow_start
+ * Update editor to fix cases on result split
+ * Add new channel log types used by courier
+ * Update contact search widget for flow starts
+
 v8.1.235 (2023-07-26)
 -------------------------
  * Convert templates in dashboard, docs, globals, ivr, locations and notifications apps
