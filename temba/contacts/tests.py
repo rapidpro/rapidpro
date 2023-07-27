@@ -865,7 +865,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         archived_flow.archive(self.admin)
 
         contact = self.create_contact("Joe", phone="+593979000111")
-        start_url = f"{reverse('flows.flow_broadcast', args=[])}?flow={sample_flows[0].id}&c={contact.uuid}"
+        start_url = f"{reverse('flows.flow_start', args=[])}?flow={sample_flows[0].id}&c={contact.uuid}"
 
         response = self.assertUpdateFetch(
             start_url,
