@@ -331,16 +331,15 @@
     }
 
     function handleStartFlowClicked(evt) {
-
-      var sendEndpoint = "{% url 'flows.flow_broadcast' %}";
+      var startEndpoint = "{% url 'flows.flow_start' %}";
       var startModal = getModax("#start-modal");
 
       startModal.header = '{{_("Start Flow")|escapejs}}';
       var ids = getCheckedUuids();
       if (ids.length > 0) {
-        startModal.setAttribute("endpoint", sendEndpoint + '?c=' + ids);
+        startModal.setAttribute("endpoint", startEndpoint + '?c=' + ids);
       } else {
-        startModal.setAttribute("endpoint", sendEndpoint);
+        startModal.setAttribute("endpoint", startEndpoint);
       }
       startModal.open = true;
 

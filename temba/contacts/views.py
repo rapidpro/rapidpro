@@ -697,11 +697,11 @@ class ContactCRUDL(SmartCRUDL):
             obj = self.get_object()
 
             if obj.status == Contact.STATUS_ACTIVE:
-                if self.has_org_perm("flows.flow_broadcast"):
+                if self.has_org_perm("flows.flow_start"):
                     menu.add_modax(
                         _("Start Flow"),
                         "start-flow",
-                        f"{reverse('flows.flow_broadcast')}?c={obj.uuid}",
+                        f"{reverse('flows.flow_start')}?c={obj.uuid}",
                         on_submit="contactUpdated()",
                         disabled=True,
                     )

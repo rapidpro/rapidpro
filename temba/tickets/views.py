@@ -251,11 +251,11 @@ class TicketCRUDL(SmartCRUDL):
                             )
                             interrupt_added = True
 
-                        if not interrupt_added and self.has_org_perm("flows.flow_broadcast"):
+                        if not interrupt_added and self.has_org_perm("flows.flow_start"):
                             menu.add_modax(
                                 _("Start Flow"),
                                 "start-flow",
-                                f"{reverse('flows.flow_broadcast')}?c={ticket.contact.uuid}",
+                                f"{reverse('flows.flow_start')}?c={ticket.contact.uuid}",
                                 disabled=True,
                                 on_submit="handleFlowStarted()",
                             )

@@ -67,7 +67,7 @@
             %temba-tip(position="top" text='{{_("Block")|escapejs}}')
               %temba-icon.show-loading(name="contact_blocked" clickable="true")
 
-        -if 'start-flow' in actions and org_perms.flows.flow_broadcast
+        -if 'start-flow' in actions and org_perms.flows.flow_start
           .linked.ml-4(onclick='handleStartFlowClicked(event)')
             %temba-tip(position="top" text='{{_("Start Flow")|escapejs}}')
               %temba-icon.show-loading(name="flow" clickable="true")
