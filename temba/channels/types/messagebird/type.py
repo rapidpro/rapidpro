@@ -23,6 +23,8 @@ class MessageBirdType(ChannelType):
     }
     claim_view = ClaimView
 
+    beta_only = True
+
     schemes = [URN.TEL_SCHEME]
 
     available_timezones = SUPPORTED_TIMEZONES
@@ -30,6 +32,7 @@ class MessageBirdType(ChannelType):
         "To use your Messagebirld channel you'll have to configure the Messagebird to send raw  "
         "receivedSMS messages to the url below either with a flow or by registering the webhook with them"
         "Shortcodes don't work with flows and require a webhook."
+        "Configure the status url under Developer Settings to receive status updates for your messages."
     )
 
     configuration_urls = (
@@ -37,5 +40,8 @@ class MessageBirdType(ChannelType):
             label=_("Receive URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.mbd' channel.uuid 'receive'%}",
             description=_("Webhook address for inbmound messages to this address."),
+            label=_("Status URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.mbd' channel.uuid 'status'%}",
+            description=_("Webhook address for message status calls to this address."),
         ),
     )

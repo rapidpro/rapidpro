@@ -85,7 +85,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             help_text=_("The API auth token"),
         )
 
-        def clean_phone_number(self):
+        def clean_number(self):
             phone = self.cleaned_data["number"]
 
             # short code should not be formatted
@@ -99,7 +99,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
     def form_valid(self, form):
         country = form.cleaned_data.get("country")[0]
-        number = self.clean_phone_number()
+        number = form.cleaned_data.get("number")
         title = f"Messagebird: {number}"
         auth_token = form.cleaned_data.get("auth_token")
         secret = form.cleaned_data.get("secret")
