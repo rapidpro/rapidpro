@@ -40,6 +40,8 @@ class MessageBirdType(ChannelType):
             label=_("Receive URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.mbd' channel.uuid 'receive'%}",
             description=_("Webhook address for inbmound messages to this address."),
+        ),
+        dict(
             label=_("Status URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.mbd' channel.uuid 'status'%}",
             description=_("Webhook address for message status calls to this address."),
