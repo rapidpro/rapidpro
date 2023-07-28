@@ -17,7 +17,7 @@ class MessagebirdTypeTest(TembaTest):
             name="Messagebird: 12345",
             address="12345",
             role="SR",
-            schemes=["freshchat"],
+            schemes=["tel"],
             config={
                 "secret": "my_super_secret",
                 "auth_token": "authtoken",
