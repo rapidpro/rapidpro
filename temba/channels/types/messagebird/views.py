@@ -61,6 +61,9 @@ def get_tz_for_countries(countries: dict) -> list:
     return sorted(timezones)
 
 
+SUPPORTED_TIMEZONES = get_tz_for_countries(SUPPORTED_COUNTRIES)
+
+
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         number = forms.CharField(
