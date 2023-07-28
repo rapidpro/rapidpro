@@ -29,10 +29,15 @@ class MessagebirdTypeTest(TembaTest):
 
         self.login(self.admin)
 
-        # check that claim page URL appears on claim list page
+        # beta- should not see the general channel claim page
+        response = self.client.get(reverse("channels.channel_claim"))
+        self.assertNotContains(response, url)
+
+        self.make_beta(self.admin)
+
+        # should see the general channel claim page
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertContains(response, url)
-
         # can fetch the claim page
         response = self.client.get(url)
         self.assertContains(response, "Connect Messagebird")
