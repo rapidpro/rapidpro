@@ -35,7 +35,7 @@ class MessagebirdTypeTest(TembaTest):
 
         self.make_beta(self.admin)
 
-        # should see the general channel claim page
+        # check that claim page URL appears on claim list page
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertContains(response, url)
         # can fetch the claim page
@@ -45,7 +45,9 @@ class MessagebirdTypeTest(TembaTest):
         post_data = response.context["form"].initial
         post_data["secret"] = "my_super_secret"
         post_data["auth_token"] = "authtoken"
-        post_data["title"] = "Messagebird: 12345"
+        post_data["country"] = "US"
+        # title too long
+        post_data["title"] = "Messagebird: 12345" * 20
 
         response = self.client.post(url, post_data, follow=True)
         self.assertFormError(
