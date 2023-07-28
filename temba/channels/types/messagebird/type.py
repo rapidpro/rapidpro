@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.contacts.models import URN
 
 from ...models import ChannelType
-from .views import ClaimView
+from .views import SUPPORTED_TIMEZONES, ClaimView
 
 
 class MessageBirdType(ChannelType):
@@ -24,8 +24,8 @@ class MessageBirdType(ChannelType):
     claim_view = ClaimView
 
     schemes = [URN.TEL_SCHEME]
-    free_sending = True
 
+    available_timezones = SUPPORTED_TIMEZONES
     configuration_blurb = _(
         "To use your Messagebirld channel you'll have to configure the Messagebird to send raw  "
         "receivedSMS messages to the url below either with a flow or by registering the webhook with them"

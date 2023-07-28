@@ -1,4 +1,5 @@
 import phonenumbers
+import pytz
 from smartmin.views import SmartFormView
 
 from django import forms
@@ -52,26 +53,23 @@ COUNTRY_CHOICES = countries.choices(SUPPORTED_COUNTRIES)
 CALLING_CODES = countries.calling_codes(SUPPORTED_COUNTRIES)
 
 
+def get_tz_for_countries(countries: dict) -> list:
+    """Get a list of timezones for a list of countries"""
+    timezones = set()
+    for country in countries:
+        timezones.update(pytz.country_timezones[country])
+    return sorted(timezones)
+
+
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
-        phone_num = forms.CharField(
+        number = forms.CharField(
             required=True,
             label=_("Originating Phone number"),
             help_text=_("The phone number being added"),
         )
-
-        def clean_phone_number(self):
-            phone = self.cleaned_data["phone_number"]
-
-            # short code should not be formatted
-            if len(phone) <= 6:
-                return phone
-
-            phone = phonenumbers.parse(phone, self.cleaned_data["country"])
-            return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
-
         country = forms.ChoiceField(choices=COUNTRY_CHOICES, widget=SelectWidget(attrs={"searchable": True}))
-        signing_key = forms.CharField(
+        secret = forms.CharField(
             required=True,
             label=_("Messagebird API Signing Key"),
             help_text=_(
@@ -84,16 +82,26 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             help_text=_("The API auth token"),
         )
 
+        def clean_phone_number(self):
+            phone = self.cleaned_data["number"]
+
+            # short code should not be formatted
+            if len(phone) <= 6:
+                return phone
+
+            phone = phonenumbers.parse(phone, self.cleaned_data["country"])
+            return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
+
     form_class = Form
 
     def form_valid(self, form):
         country = form.cleaned_data.get("country")[0]
-        phone_num = self.clean_phone_number()
-        title = f"Messagebird: {phone_num}"
+        number = self.clean_phone_number()
+        title = f"Messagebird: {number}"
         auth_token = form.cleaned_data.get("auth_token")
-        signing_key = form.cleaned_data.get("signing_key")
+        secret = form.cleaned_data.get("secret")
         config = {
-            Channel.CONFIG_SECRET: signing_key,
+            Channel.CONFIG_SECRET: secret,
             Channel.CONFIG_AUTH_TOKEN: auth_token,
         }
 
@@ -102,7 +110,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             self.request.user,
             country,
             self.channel_type,
-            address=phone_num,
+            address=number,
             name=title,
             config=config,
         )
