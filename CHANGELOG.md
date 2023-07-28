@@ -1,3 +1,8 @@
+v8.1.237 (2023-07-28)
+-------------------------
+ * Only consider the parsed query string in contact_search clean
+ * Add show CSS class to icon for contact list sorting
+
 v8.1.236 (2023-07-27)
 -------------------------
  * Rename flow_broadcast to flow_start
