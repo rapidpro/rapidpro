@@ -1,3 +1,8 @@
+v8.1.238 (2023-07-28)
+-------------------------
+ * Fix flow start log when starts don't have exclusions
+ * Remove unnecessary CSS class to hover
+
 v8.1.237 (2023-07-28)
 -------------------------
  * Only consider the parsed query string in contact_search clean
