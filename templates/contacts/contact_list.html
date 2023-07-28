@@ -55,7 +55,7 @@
       opacity: 0;
     }
 
-    th:hover a div temba-icon.sorting.hover {
+    th:hover a div temba-icon.sorting {
       opacity: 1;
     }
 
@@ -152,7 +152,7 @@
                     <a href="{{ request.path }}?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}">
                       <div>
                         {{ field.name }}
-                        <temba-icon name="sort" class="sorting hover">
+                        <temba-icon name="sort" class="sorting">
                         </temba-icon>
                       </div>
                     </a>
@@ -184,7 +184,7 @@
                   <a href="{{ request.path }}?sort_on=-last_seen_on{% if search %}&search={{ search|escape }}{% endif %}">
                     <div>
                       {% trans "Last Seen On" %}
-                      <temba-icon name="sort" class="sorting hover">
+                      <temba-icon name="sort" class="sorting">
                       </temba-icon>
                     </div>
                   </a>
@@ -215,7 +215,7 @@
                   <a href="{{ request.path }}?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}">
                     <div>
                       {% trans "Created On" %}
-                      <temba-icon name="sort" class="sorting hover">
+                      <temba-icon name="sort" class="sorting">
                       </temba-icon>
                     </div>
                   </a>
