@@ -58,6 +58,8 @@ def get_tz_for_countries(countries: dict) -> list:
     timezones = set()
     for country in countries:
         timezones.update(pytz.country_timezones[country])
+    """Add UTC as a timezone"""
+    timezones.append("UTC")
     return sorted(timezones)
 
 
