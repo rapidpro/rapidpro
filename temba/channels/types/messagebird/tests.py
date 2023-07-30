@@ -29,6 +29,10 @@ class MessagebirdTypeTest(TembaTest):
 
         self.login(self.admin)
 
+        # Switch to supported timezone
+        self.org.timezone = "America/New_York"
+        self.org.save(update_fields=("timezone",))
+
         # beta- should not see the general channel claim page
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertNotContains(response, url)
