@@ -3,6 +3,7 @@ import pytz
 from smartmin.views import SmartFormView
 
 from django import forms
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 from temba.utils import countries
@@ -73,7 +74,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             label=_("Originating Phone number"),
             help_text=_("The phone number being added"),
         )
-        country = forms.ChoiceField(choices=COUNTRY_CHOICES, widget=SelectWidget(attrs={"searchable": True}))
+        country = forms.ChoiceField(
+            choices=COUNTRY_CHOICES,
+            widget=SelectWidget(attrs={"searchable": True}),
+            label=_("Country"),
+            help_text=_("The country this channel will be used in"),
+        )
         secret = forms.CharField(
             required=True,
             label=_("Messagebird API Signing Key"),
@@ -88,6 +94,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         def clean_number(self):
+            if not self.cleaned_data.get("country", None):
+                raise ValidationError(_("That country is not currently supported."))
+
             phone = self.cleaned_data["number"]
 
             # short code should not be formatted
@@ -100,7 +109,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     form_class = Form
 
     def form_valid(self, form):
-        country = form.cleaned_data.get("country")[0]
+        country = form.cleaned_data.get("country")
         number = form.cleaned_data.get("number")
         title = f"Messagebird: {number}"
         auth_token = form.cleaned_data.get("auth_token")
