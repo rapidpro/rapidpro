@@ -16,7 +16,7 @@ class MessageBirdType(ChannelType):
 
     courier_url = r"^mbd/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
 
-    name = "MessageBird"
+    name = "Messagebird"
 
     claim_blurb = _("Connect your approved %(link)s channel") % {
         "link": '<a target="_blank" href="https://www.messagebird.com/">Messagebird</a>'

@@ -44,7 +44,7 @@ class MessagebirdTypeTest(TembaTest):
         self.assertContains(response, url)
         # can fetch the claim page
         response = self.client.get(url)
-        self.assertContains(response, "Connect your approved Messagebird channel")
+        self.assertContains(response, "Connect Messagebird")
 
         post_data = response.context["form"].initial
         post_data["secret"] = "my_super_secret"
