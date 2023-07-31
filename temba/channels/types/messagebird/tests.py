@@ -54,10 +54,11 @@ class MessagebirdTypeTest(TembaTest):
 
         response = self.client.post(url, post_data, follow=True)
         # assert our channel got created
-        channel = Channel.objects.get(address="c0534f78-b6e9-4f79-8853-11cedfc1f35b")
+        channel = Channel.objects.get(address="12345")
         self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], "authtoken")
         self.assertEqual(
             channel.config[Channel.CONFIG_SECRET],
             "my_super_secret",
         )
-        self.assertEqual(channel.address, "c0534f78-b6e9-4f79-8853-11cedfc1f35b")
+        self.assertEqual(channel.address, "12345")
+        self.assertEqual(channel.name, "Messagebird: 12345")
