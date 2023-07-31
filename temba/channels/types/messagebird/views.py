@@ -55,11 +55,11 @@ CALLING_CODES = countries.calling_codes(SUPPORTED_COUNTRIES)
 
 def get_tz_for_countries(countries: dict) -> list:
     """Get a list of timezones for a list of countries"""
-    timezones = []
+    timezones = set()
     for country in countries:
-        timezones.append(pytz.country_timezones[country])
+        timezones.update(pytz.country_timezones[country])
     """Add UTC as a timezone"""
-    timezones.append("UTC")
+    timezones.add("UTC")
     return sorted(timezones)
 
 
