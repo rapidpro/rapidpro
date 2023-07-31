@@ -50,15 +50,15 @@ class MessagebirdTypeTest(TembaTest):
         post_data["secret"] = "my_super_secret"
         post_data["auth_token"] = "authtoken"
         post_data["country"] = "US"
-        post_data["number"] = "12345"
+        post_data["number"] = "1234567"
 
         response = self.client.post(url, post_data, follow=True)
         # assert our channel got created
-        channel = Channel.objects.get(name="Messagebird: 12345")
+        channel = Channel.objects.get(name="Messagebird: 1234567")
         self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], "authtoken")
         self.assertEqual(
             channel.config[Channel.CONFIG_SECRET],
             "my_super_secret",
         )
-        self.assertEqual(channel.address, "12345")
-        self.assertEqual(channel.name, "Messagebird: 12345")
+        self.assertEqual(channel.address, "1234567")
+        self.assertEqual(channel.name, "Messagebird: 1234567")
