@@ -3,7 +3,6 @@ import pytz
 from smartmin.views import SmartFormView
 
 from django import forms
-from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 from temba.utils import countries
@@ -94,9 +93,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         def clean_number(self):
-            if not self.data.get("country", None):
-                raise ValidationError(_("That country is not currently supported."))
-
             phone = self.cleaned_data["number"]
 
             # short code should not be formatted
