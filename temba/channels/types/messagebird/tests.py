@@ -54,7 +54,7 @@ class MessagebirdTypeTest(TembaTest):
 
         response = self.client.post(url, post_data, follow=True)
         # assert our channel got created
-        channel = Channel.objects.get(address="12345")
+        channel = Channel.objects.get(name="Messagebird: 12345")
         self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], "authtoken")
         self.assertEqual(
             channel.config[Channel.CONFIG_SECRET],
