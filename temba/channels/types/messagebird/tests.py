@@ -49,16 +49,34 @@ class MessagebirdTypeTest(TembaTest):
         post_data = response.context["form"].initial
         post_data["secret"] = "my_super_secret"
         post_data["auth_token"] = "authtoken"
+        post_data["country"] = "PK"
+        post_data["number"] = "33333"
+        response = self.client.post(url, post_data, follow=True)
+
+        # assert our channel failed to create due to invalid country
+        self.assertFormError(
+            response, "form", "country", "Select a valid choice. PK is not one of the available choices."
+        )
+
+        # update country and try again
         post_data["country"] = "US"
-        post_data["number"] = "1234567"
+        post_data["number"] = "8005551212"
 
         response = self.client.post(url, post_data, follow=True)
+
         # assert our channel got created
-        channel = Channel.objects.get(name="Messagebird: 1234567")
+        channel = Channel.objects.get(name="Messagebird: +18005551212")
         self.assertEqual(channel.config[Channel.CONFIG_AUTH_TOKEN], "authtoken")
         self.assertEqual(
             channel.config[Channel.CONFIG_SECRET],
             "my_super_secret",
         )
-        self.assertEqual(channel.address, "1234567")
-        self.assertEqual(channel.name, "Messagebird: 1234567")
+        self.assertEqual(channel.address, "+18005551212")
+        self.assertEqual(channel.name, "Messagebird: +18005551212")
+
+        post_data["country"] = "PK"
+        post_data["number"] = "33333"
+        response = self.client.post(url, post_data, follow=True)
+        self.assertFormError(
+            response, "form", "country", "Select a valid choice. PK is not one of the available choices."
+        )

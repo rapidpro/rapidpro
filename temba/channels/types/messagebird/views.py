@@ -94,7 +94,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         def clean_number(self):
-            if not self.cleaned_data.get("country", None):
+            if not self.data.get("country", None):
                 raise ValidationError(_("That country is not currently supported."))
 
             phone = self.cleaned_data["number"]
@@ -103,7 +103,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             if len(phone) <= 6:
                 return phone
 
-            phone = phonenumbers.parse(phone, self.cleaned_data["country"])
+            phone = phonenumbers.parse(phone, self.data["country"])
             return phonenumbers.format_number(phone, phonenumbers.PhoneNumberFormat.E164)
 
     form_class = Form
