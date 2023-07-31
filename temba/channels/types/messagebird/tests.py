@@ -50,18 +50,7 @@ class MessagebirdTypeTest(TembaTest):
         post_data["secret"] = "my_super_secret"
         post_data["auth_token"] = "authtoken"
         post_data["country"] = "US"
-        # title too long
-        post_data["title"] = "Messagebird: 12345" * 20
-
-        response = self.client.post(url, post_data, follow=True)
-        self.assertFormError(
-            response,
-            "form",
-            "title",
-            "Ensure this value has at most 64 characters (it has 180).",
-        )
-
-        post_data["title"] = "Messagebird: 12345"
+        post_data["number"] = "12345"
 
         response = self.client.post(url, post_data, follow=True)
         # assert our channel got created
