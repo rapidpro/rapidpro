@@ -434,7 +434,6 @@ class Org(SmartModel):
     uuid = models.UUIDField(unique=True, default=uuid4)
     name = models.CharField(verbose_name=_("Name"), max_length=128)
     parent = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, null=True, related_name="children")
-    brand = models.CharField(max_length=128, default="rapidpro", verbose_name=_("Brand"))
     users = models.ManyToManyField(User, through="OrgMembership", related_name="orgs")
 
     language = models.CharField(
