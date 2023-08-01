@@ -1041,11 +1041,7 @@ class CampaignTest(TembaTest):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         new_org = Org.objects.create(
-            name="Temba New",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand=settings.BRAND["slug"],
-            created_by=self.user,
-            modified_by=self.user,
+            name="Temba New", timezone=pytz.timezone("Africa/Kigali"), created_by=self.user, modified_by=self.user
         )
 
         self.assertRaises(
@@ -1104,11 +1100,7 @@ class CampaignTest(TembaTest):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         new_org = Org.objects.create(
-            name="Temba New",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand=settings.BRAND["slug"],
-            created_by=self.user,
-            modified_by=self.user,
+            name="Temba New", timezone=pytz.timezone("Africa/Kigali"), created_by=self.user, modified_by=self.user
         )
 
         with self.assertRaises(AssertionError):

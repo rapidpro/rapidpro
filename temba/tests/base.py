@@ -66,7 +66,6 @@ class TembaTestMixin:
         self.org = Org.objects.create(
             name="Nyaruka",
             timezone=pytz.timezone("Africa/Kigali"),
-            brand="rapidpro",
             flow_languages=["eng", "kin"],
             created_by=self.user,
             modified_by=self.user,
@@ -83,7 +82,6 @@ class TembaTestMixin:
         self.org2 = Org.objects.create(
             name="Trileet Inc.",
             timezone=pytz.timezone("US/Pacific"),
-            brand="rapidpro",
             flow_languages=["eng"],
             created_by=self.admin2,
             modified_by=self.admin2,

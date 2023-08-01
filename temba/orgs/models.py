@@ -507,7 +507,7 @@ class Org(SmartModel):
             return unique_slug
 
     @classmethod
-    def create(cls, user, branding, name: str, tz):
+    def create(cls, user, name: str, tz):
         """
         Creates a new workspace.
         """
@@ -525,7 +525,6 @@ class Org(SmartModel):
             date_format=date_format,
             language=settings.DEFAULT_LANGUAGE,
             flow_languages=flow_languages,
-            brand=branding["slug"],
             slug=cls.get_unique_slug(name),
             created_by=user,
             modified_by=user,
@@ -552,7 +551,6 @@ class Org(SmartModel):
             date_format=self.date_format,
             language=self.language,
             flow_languages=self.flow_languages,
-            brand=self.brand,
             parent=self if as_child else None,
             slug=self.get_unique_slug(name),
             created_by=user,
