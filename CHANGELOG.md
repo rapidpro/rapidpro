@@ -1,3 +1,8 @@
+v8.1.240 (2023-08-01)
+-------------------------
+ * Update components with checkbox value update
+ * Stop writing no longer used Org.brand
+
 v8.1.239 (2023-08-01)
 -------------------------
  * Temp fix for org export page by replacing temba-checkbox with regular inputs
