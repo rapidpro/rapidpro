@@ -34,20 +34,20 @@
                   {% with exportable_type=exportable|object_class_name|lower %}
                     {% ifchanged exportable_type %}
                       <div class="flex">
-                        <temba-checkbox data-bucket="bucket{{ bucket_idx }}"
-                                        data-type="{{ exportable_type }}"
-                                        label="{{ exportable|verbose_name_plural|capfirst }}"
-                                        class="bucket-toggle-type">
-                        </temba-checkbox>
+                        <input type="checkbox"
+                               data-bucket="bucket{{ bucket_idx }}"
+                               data-type="{{ exportable_type }}"
+                               class="bucket-toggle-type" />
+                        &nbsp;{{ exportable|verbose_name_plural|capfirst }}
                       </div>
                     {% endifchanged %}
                     <div class="w-2/5 inline-flex pl-8">
-                      <temba-checkbox name="{{ exportable_type }}s"
-                                      value="{{ exportable.id }}"
-                                      data-bucket="bucket{{ bucket_idx }}"
-                                      data-type="{{ exportable_type }}"
-                                      label="{{ exportable.name }}">
-                      </temba-checkbox>
+                      <input type="checkbox"
+                             name="{{ exportable_type }}s"
+                             value="{{ exportable.id }}"
+                             data-bucket="bucket{{ bucket_idx }}"
+                             data-type="{{ exportable_type }}" />
+                      &nbsp;{{ exportable.name }}
                     </div>
                   {% endwith %}
                 {% endfor %}
@@ -76,20 +76,17 @@
                 {% with exportable_type=exportable|object_class_name|lower %}
                   {% ifchanged exportable_type %}
                     <div class="flex">
-                      <temba-checkbox data-bucket="singles"
-                                      data-type="{{ exportable_type }}"
-                                      label="{{ exportable|verbose_name_plural|capfirst }}"
-                                      class="bucket-toggle-type">
-                      </temba-checkbox>
+                      <input type="checkbox" data-bucket="singles" data-type="{{ exportable_type }}" class="bucket-toggle-type" />
+                      &nbsp;{{ exportable|verbose_name_plural|capfirst }}
                     </div>
                   {% endifchanged %}
                   <div class="w-2/5 inline-flex pl-8">
-                    <temba-checkbox name="{{ exportable_type }}s"
-                                    value="{{ exportable.id }}"
-                                    data-bucket="singles"
-                                    data-type="{{ exportable_type }}"
-                                    label="{{ exportable.name }}">
-                    </temba-checkbox>
+                    <input type="checkbox"
+                           name="{{ exportable_type }}s"
+                           value="{{ exportable.id }}"
+                           data-bucket="singles"
+                           data-type="{{ exportable_type }}" />
+                    &nbsp;{{ exportable.name }}
                   </div>
                 {% endwith %}
               {% endfor %}
