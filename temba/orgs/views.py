@@ -973,7 +973,7 @@ class UserCRUDL(SmartCRUDL):
                 return data
 
         form_class = Form
-        success_url = "@orgs.org_workspace"
+        success_url = "@orgs.user_two_factor_enable"
         success_message = _("Two-factor authentication disabled")
         submit_button_name = _("Disable")
         permission = "orgs.org_two_factor"
