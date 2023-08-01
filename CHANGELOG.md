@@ -1,3 +1,8 @@
+v8.1.239 (2023-08-01)
+-------------------------
+ * Temp fix for org export page by replacing temba-checkbox with regular inputs
+ * Cleanup msg_console
+
 v8.1.238 (2023-07-28)
 -------------------------
  * Fix flow start log when starts don't have exclusions
