@@ -263,7 +263,6 @@ class Command(BaseCommand):
                 Org.objects.create(
                     name=org_names[o % len(org_names)],
                     timezone=self.random.choice(pytz.all_timezones),
-                    brand="rapidpro",
                     country=country,
                     created_on=self.db_begins_on,
                     created_by=superuser,

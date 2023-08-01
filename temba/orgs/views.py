@@ -2688,10 +2688,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def save(self, obj):
             self.object = Org.create(
-                self.request.user,
-                self.request.branding,
-                self.form.cleaned_data["name"],
-                self.form.cleaned_data["timezone"],
+                self.request.user, self.form.cleaned_data["name"], self.form.cleaned_data["timezone"]
             )
 
             user = User.get_or_create(
@@ -2736,12 +2733,7 @@ class OrgCRUDL(SmartCRUDL):
                 language=settings.DEFAULT_LANGUAGE,
             )
 
-            self.object = Org.create(
-                new_user,
-                self.request.branding,
-                self.form.cleaned_data["name"],
-                self.form.cleaned_data["timezone"],
-            )
+            self.object = Org.create(new_user, self.form.cleaned_data["name"], self.form.cleaned_data["timezone"])
 
             analytics.identify(new_user, brand=self.request.branding, org=obj)
             analytics.track(new_user, "temba.org_signup", properties=dict(org=self.object.name))
