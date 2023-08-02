@@ -485,7 +485,7 @@ class UserTest(TembaTest):
 
         # submit with valid password
         response = self.client.post(disable_url, {"password": "Qwerty123"})
-        self.assertRedirect(response, reverse("orgs.org_workspace"))
+        self.assertRedirect(response, reverse("orgs.user_two_factor_enable"))
 
         del self.admin.settings  # clear cached_property
         self.assertFalse(self.admin.settings.two_factor_enabled)
