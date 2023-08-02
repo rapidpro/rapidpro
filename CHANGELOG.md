@@ -1,3 +1,7 @@
+v8.1.241 (2023-08-02)
+-------------------------
+ * Fix two factor disable and initial QR code rendering
+
 v8.1.240 (2023-08-01)
 -------------------------
  * Update components with checkbox value update
