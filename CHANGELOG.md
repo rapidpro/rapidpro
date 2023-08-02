@@ -1,3 +1,7 @@
+v8.1.242 (2023-08-02)
+-------------------------
+ * Update to components with modax serialize fix
+
 v8.1.241 (2023-08-02)
 -------------------------
  * Fix two factor disable and initial QR code rendering
