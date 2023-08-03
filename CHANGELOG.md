@@ -1,3 +1,8 @@
+v8.1.243 (2023-08-03)
+-------------------------
+ * Fix DELETE endpoints in API explorer
+ * Bump cryptography from 41.0.2 to 41.0.3
+
 v8.1.242 (2023-08-02)
 -------------------------
  * Update to components with modax serialize fix
