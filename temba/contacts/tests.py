@@ -1650,9 +1650,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("Ben Haggerty", Contact.from_urn(self.org, "tel:+250788888888").name)
 
         # check we display error for invalid input
-        response = self.client.post(
-            reverse("contacts.contact_create"), data=dict(name="Ben Haggerty", urn__tel__0="=")
-        )
+        response = self.client.post(reverse("contacts.contact_create"), data=dict(name="Ben Haggerty", urn__tel__0="="))
         self.assertFormError(response, "form", "urn__tel__0", "Invalid input")
 
     @patch("temba.mailroom.client.MailroomClient.contact_modify")
@@ -2054,9 +2052,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         with self.assertNumQueries(0):
             self.assertEqual(["twitter:blow80", "tel:+250781111111"], [u.urn for u in self.joe.get_urns()])
-            self.assertEqual(
-                ["twitter:blow80", "tel:+250781111111"], [u.urn for u in getattr(self.joe, "_urns_cache")]
-            )
+            self.assertEqual(["twitter:blow80", "tel:+250781111111"], [u.urn for u in getattr(self.joe, "_urns_cache")])
             self.assertEqual(["tel:+250782222222"], [u.urn for u in self.frank.get_urns()])
             self.assertEqual([], [u.urn for u in self.billy.get_urns()])
 
@@ -2366,9 +2362,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # set an output URL on our session so we fetch from there
         s = FlowSession.objects.get(contact=self.joe)
-        FlowSession.objects.filter(id=s.id).update(
-            output_url="https://temba-sessions.s3.aws.amazon.com/c/session.json"
-        )
+        FlowSession.objects.filter(id=s.id).update(output_url="https://temba-sessions.s3.aws.amazon.com/c/session.json")
         self.mock_s3.objects[("temba-sessions", "c/session.json")] = io.StringIO(json.dumps(s.output))
 
         # fetch our contact history
@@ -2739,9 +2733,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             ),
         )
 
-        self.assertFormError(
-            response, "form", None, "An error occurred updating your contact. Please try again later."
-        )
+        self.assertFormError(response, "form", None, "An error occurred updating your contact. Please try again later.")
 
     def test_update(self):
         # if new values don't differ from current values.. no modifications
@@ -2912,9 +2904,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # clear our previous fields
         self.set_contact_field(self.joe, "dog", "")
-        self.assertEqual(
-            self.joe.fields, {cat_uuid: {"text": "Rwanda > Kigali City", "state": "Rwanda > Kigali City"}}
-        )
+        self.assertEqual(self.joe.fields, {cat_uuid: {"text": "Rwanda > Kigali City", "state": "Rwanda > Kigali City"}})
         self.joe.refresh_from_db()
 
         self.set_contact_field(self.joe, "cat", "")
@@ -5568,9 +5558,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response, "form", "new_group_name", "Invalid group name.")
 
         # try creating new group but providing a name of an existing group
-        response = self.client.post(
-            preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "testERs"}
-        )
+        response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "testERs"})
         self.assertFormError(response, "form", "new_group_name", "Already exists.")
 
         # try creating new group when we've already reached our group limit

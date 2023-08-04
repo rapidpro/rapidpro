@@ -757,8 +757,7 @@ class MsgCRUDL(SmartCRUDL):
                     dl_url = reverse("assets.download", kwargs=dict(type="message_export", pk=export.pk))
                     messages.info(
                         self.request,
-                        _("Export complete, you can find it here: %s (production users " "will get an email)")
-                        % dl_url,
+                        _("Export complete, you can find it here: %s (production users " "will get an email)") % dl_url,
                     )
 
             messages.success(self.request, self.derive_success_message())
@@ -879,9 +878,7 @@ class MsgCRUDL(SmartCRUDL):
                 )
 
             if self.has_org_perm("msgs.msg_export"):
-                menu.add_modax(
-                    _("Download"), "export-messages", self.derive_export_url(), title=_("Download Messages")
-                )
+                menu.add_modax(_("Download"), "export-messages", self.derive_export_url(), title=_("Download Messages"))
 
             menu.add_modax(_("Usages"), "label-usages", reverse("msgs.label_usages", args=[self.label.uuid]))
 

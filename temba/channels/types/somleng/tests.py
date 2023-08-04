@@ -144,6 +144,4 @@ class SomlengTypeTest(TembaTest):
         self.assertContains(response, reverse("courier.tw", args=[channel.uuid, "receive"]))
 
     def test_get_error_ref_url(self):
-        self.assertEqual(
-            "https://www.twilio.com/docs/api/errors/30006", SomlengType().get_error_ref_url(None, "30006")
-        )
+        self.assertEqual("https://www.twilio.com/docs/api/errors/30006", SomlengType().get_error_ref_url(None, "30006"))
