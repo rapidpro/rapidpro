@@ -248,6 +248,7 @@ class ExplorerView(SmartTemplateView):
     """
 
     template_name = "api/v2/api_explorer.html"
+    title = _("API Explorer")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
