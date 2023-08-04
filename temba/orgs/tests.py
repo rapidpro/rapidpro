@@ -1601,9 +1601,7 @@ class OrgTest(TembaTest):
         # try creating a surveyor account with a bogus password
         post_data = dict(surveyor_password="badpassword")
         response = self.client.post(url, post_data)
-        self.assertContains(
-            response, "Invalid surveyor password, please check with your project leader and try again."
-        )
+        self.assertContains(response, "Invalid surveyor password, please check with your project leader and try again.")
 
         # put a space in the org name to test URL encoding and set a surveyor password
         self.org.name = "Temba Org"

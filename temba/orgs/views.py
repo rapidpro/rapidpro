@@ -408,9 +408,7 @@ class OrgGrantForm(forms.ModelForm):
         help_text=_("Your last name of the workspace administrator"),
         max_length=User._meta.get_field("last_name").max_length,
     )
-    email = forms.EmailField(
-        help_text=_("Their email address"), max_length=User._meta.get_field("username").max_length
-    )
+    email = forms.EmailField(help_text=_("Their email address"), max_length=User._meta.get_field("username").max_length)
     timezone = TimeZoneFormField(help_text=_("The timezone for the workspace"))
     password = forms.CharField(
         widget=forms.PasswordInput,
@@ -1311,9 +1309,7 @@ class OrgCRUDL(SmartCRUDL):
 
             menu = []
             if self.org:
-                other_orgs = (
-                    User.get_orgs_for_request(self.request).exclude(id=self.org.id).order_by("-parent", "name")
-                )
+                other_orgs = User.get_orgs_for_request(self.request).exclude(id=self.org.id).order_by("-parent", "name")
                 other_org_items = [
                     self.create_menu_item(menu_id=other_org.id, name=other_org.name, avatar=other_org.name, event=True)
                     for other_org in other_orgs
@@ -3081,9 +3077,7 @@ class OrgImportCRUDL(SmartCRUDL):
                     raise ValidationError(_("This file is not a valid flow definition file."))
 
                 if Version(str(json_data.get("version", 0))) < Version(Org.EARLIEST_IMPORT_VERSION):
-                    raise ValidationError(
-                        _("This file is no longer valid. Please export a new version and try again.")
-                    )
+                    raise ValidationError(_("This file is no longer valid. Please export a new version and try again."))
 
                 return self.cleaned_data["file"]
 

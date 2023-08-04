@@ -805,9 +805,7 @@ class ChannelCRUDL(SmartCRUDL):
             except TwilioRestException as e:
                 messages.error(
                     request,
-                    _(
-                        f"Twilio reported an error removing your channel (error code {e.code}). Please try again later."
-                    ),
+                    _(f"Twilio reported an error removing your channel (error code {e.code}). Please try again later."),
                 )
 
                 response = HttpResponse()
@@ -1052,9 +1050,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             logs = []
             for log in self.owner.get_logs():
                 logs.append(
-                    ChannelLog.display(
-                        log, anonymize=anonymize, channel=self.owner.channel, urn=self.owner.contact_urn
-                    )
+                    ChannelLog.display(log, anonymize=anonymize, channel=self.owner.channel, urn=self.owner.contact_urn)
                 )
 
             context["logs"] = logs

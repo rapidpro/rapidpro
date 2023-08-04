@@ -124,9 +124,7 @@ class TicketTest(TembaTest):
             self.assertEqual(sum(assignee_closed.values()), TicketCount.get_all(org, Ticket.STATUS_CLOSED))
 
             self.assertEqual(topic_open, TicketCount.get_by_topics(org, list(org.topics.all()), Ticket.STATUS_OPEN))
-            self.assertEqual(
-                topic_closed, TicketCount.get_by_topics(org, list(org.topics.all()), Ticket.STATUS_CLOSED)
-            )
+            self.assertEqual(topic_closed, TicketCount.get_by_topics(org, list(org.topics.all()), Ticket.STATUS_CLOSED))
 
             self.assertEqual(contacts, {c: Contact.objects.get(id=c.id).ticket_count for c in contacts})
 
@@ -257,9 +255,7 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_update(self):
         system_topic = Topic.objects.filter(org=self.org, is_system=True).first()
-        user_topic = Topic.objects.create(
-            org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin
-        )
+        user_topic = Topic.objects.create(org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin)
 
         # can't edit a system topic
         update_url = reverse("tickets.topic_update", args=[system_topic.uuid])
@@ -366,9 +362,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=["topic", "body"])
 
-        user_topic = Topic.objects.create(
-            org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin
-        )
+        user_topic = Topic.objects.create(org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin)
 
         # edit successfully
         self.assertUpdateSubmit(update_url, {"topic": user_topic.id, "body": "This is silly"}, success_status=302)
@@ -392,9 +386,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_folder(self, mr_mocks):
         self.login(self.admin)
 
-        user_topic = Topic.objects.create(
-            org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin
-        )
+        user_topic = Topic.objects.create(org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin)
 
         contact1 = self.create_contact("Joe", phone="123", last_seen_on=timezone.now())
         contact2 = self.create_contact("Frank", phone="124", last_seen_on=timezone.now())

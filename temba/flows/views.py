@@ -258,9 +258,7 @@ class FlowCRUDL(SmartCRUDL):
 
             if self.has_org_perm("flows.flowstart_list"):
                 history_items.append(
-                    self.create_menu_item(
-                        menu_id="starts", name=_("Flow Starts"), href=reverse("flows.flowstart_list")
-                    )
+                    self.create_menu_item(menu_id="starts", name=_("Flow Starts"), href=reverse("flows.flowstart_list"))
                 )
 
             if history_items:
@@ -1652,9 +1650,7 @@ class FlowCRUDL(SmartCRUDL):
                             _(f"The message template {ref['name']} does not exist on your account and cannot be sent.")
                         )
                     elif not template.is_approved():
-                        warnings.append(
-                            _(f"Your message template {template.name} is not approved and cannot be sent.")
-                        )
+                        warnings.append(_(f"Your message template {template.name} is not approved and cannot be sent."))
             return warnings
 
         def has_facebook_topic(self, flow):

@@ -203,9 +203,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # add channel trigger
         flow = self.get_flow("color")
-        Trigger.objects.create(
-            org=self.org, flow=flow, channel=channel1, modified_by=self.admin, created_by=self.admin
-        )
+        Trigger.objects.create(org=self.org, flow=flow, channel=channel1, modified_by=self.admin, created_by=self.admin)
 
         # create some activity on this channel
         contact = self.create_contact("Bob", phone="+593979123456")
@@ -235,9 +233,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc="RW"),
             [1, 2],
         )
-        Trigger.objects.create(
-            org=self.org, flow=flow, channel=channel2, modified_by=self.admin, created_by=self.admin
-        )
+        Trigger.objects.create(org=self.org, flow=flow, channel=channel2, modified_by=self.admin, created_by=self.admin)
 
         # add channel to a flow as a dependency
         flow.channel_dependencies.add(channel1)
@@ -767,9 +763,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         msg6 = self.send_message(["250788382382"], "from when?")
 
         # an incoming message that should not be included even if it is still pending
-        incoming_message = self.create_incoming_msg(
-            contact, "hey", channel=self.tel_channel, status=Msg.STATUS_PENDING
-        )
+        incoming_message = self.create_incoming_msg(contact, "hey", channel=self.tel_channel, status=Msg.STATUS_PENDING)
 
         # Check our sync point has all three messages queued for delivery
         response = self.sync(self.tel_channel, cmds=[])
