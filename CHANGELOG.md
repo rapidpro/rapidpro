@@ -1,3 +1,7 @@
+v8.1.244 (2023-08-04)
+-------------------------
+ * Fix error handling for temba-contact-search
+
 v8.1.243 (2023-08-03)
 -------------------------
  * Fix DELETE endpoints in API explorer
