@@ -52,13 +52,7 @@ from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address, send_template_email
-from temba.utils.fields import (
-    ArbitraryJsonChoiceField,
-    CheckboxWidget,
-    InputWidget,
-    SelectMultipleWidget,
-    SelectWidget,
-)
+from temba.utils.fields import ArbitraryJsonChoiceField, CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import (
     ComponentFormMixin,
