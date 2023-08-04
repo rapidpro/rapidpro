@@ -1,6 +1,14 @@
 {% extends "smartmin/list.html" %}
 {% load smartmin sms temba i18n humanize %}
 
+{% block extra-style %}
+  {{ block.super }}
+  <style>
+    temba-label {
+      max-width: 400px;
+    }
+  </style>
+{% endblock extra-style %}
 {% block table %}
   <table class="list lined header">
     <thead>
