@@ -1,3 +1,9 @@
+v8.1.245 (2023-08-05)
+-------------------------
+ * Truncate query lables on flow start
+ * Fix line length formatting
+ * Fixes for login and API titles
+
 v8.1.244 (2023-08-04)
 -------------------------
  * Fix error handling for temba-contact-search
