@@ -1,3 +1,7 @@
+v8.2.0 (2023-08-07)
+-------------------------
+ * Update stable versions
+
 v8.1.245 (2023-08-05)
 -------------------------
  * Truncate query lables on flow start
