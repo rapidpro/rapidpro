@@ -1,3 +1,8 @@
+v8.3.0 (2023-08-09)
+-------------------------
+ * Drop no longer used Org.brand field
+ * Add messagebird channel type
+
 v8.2.0 (2023-08-07)
 -------------------------
  * Update stable versions
