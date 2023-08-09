@@ -94,9 +94,7 @@ class TranslatedTextField(LanguageDictField):
     """
 
     def __init__(self, max_length, **kwargs):
-        super().__init__(
-            allow_empty=False, max_length=50, child=serializers.CharField(max_length=max_length), **kwargs
-        )
+        super().__init__(allow_empty=False, max_length=50, child=serializers.CharField(max_length=max_length), **kwargs)
 
     def to_internal_value(self, data):
         if isinstance(data, str):

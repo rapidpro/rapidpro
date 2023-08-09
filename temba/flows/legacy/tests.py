@@ -909,9 +909,7 @@ class FlowMigrationTest(TembaTest):
             flow_json["action_sets"][0]["actions"][0]["msg"]["eng"], "Hi @(UPPER(contact.name)). Today is @(date.now)"
         )
         self.assertEqual(flow_json["action_sets"][1]["actions"][0]["groups"][0], "@flow.response_1.category")
-        self.assertEqual(
-            flow_json["action_sets"][1]["actions"][1]["msg"]["eng"], "Was @(PROPER(LOWER(contact.name)))."
-        )
+        self.assertEqual(flow_json["action_sets"][1]["actions"][1]["msg"]["eng"], "Was @(PROPER(LOWER(contact.name))).")
         self.assertEqual(flow_json["action_sets"][1]["actions"][1]["variables"][0]["id"], "@flow.response_1.category")
         self.assertEqual(
             flow_json["rule_sets"][0]["webhook"], "http://example.com/query.php?contact=@(UPPER(contact.name))"
@@ -960,9 +958,7 @@ class FlowMigrationTest(TembaTest):
         # now we should have a language
         self.assertEqual("base", definition.get("base_language", None))
         self.assertEqual("Yes", definition["rule_sets"][0]["rules"][0]["category"]["base"])
-        self.assertEqual(
-            "Press one, two, or three. Thanks.", definition["action_sets"][0]["actions"][0]["msg"]["base"]
-        )
+        self.assertEqual("Press one, two, or three. Thanks.", definition["action_sets"][0]["actions"][0]["msg"]["base"])
         self.assertEqual("/recording.mp3", definition["action_sets"][0]["actions"][0]["recording"]["base"])
 
         # now try one that doesn't have a recording set

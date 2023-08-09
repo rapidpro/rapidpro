@@ -18,9 +18,9 @@ class I2SMSType(ChannelType):
 
     name = "I2SMS"
 
-    claim_blurb = _(
-        "If you have a long number or short code with %(link)s you can connect it in a few easy steps."
-    ) % {"link": '<a target="_blank" href="https://www.i2sms.com/">I2SMS</a>'}
+    claim_blurb = _("If you have a long number or short code with %(link)s you can connect it in a few easy steps.") % {
+        "link": '<a target="_blank" href="https://www.i2sms.com/">I2SMS</a>'
+    }
     claim_view = ClaimView
 
     schemes = [URN.TEL_SCHEME]

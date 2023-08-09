@@ -144,9 +144,7 @@ class MediaTest(TembaTest):
             f"/media/test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/allo.mp3", alt1.url
         )
         self.assertEqual("audio/mp3", alt1.content_type)
-        self.assertEqual(
-            f"test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/allo.mp3", alt1.path
-        )
+        self.assertEqual(f"test_orgs/{self.org.id}/media/14f6/14f6ea01-456b-4417-b0b8-35e942f549f1/allo.mp3", alt1.path)
         self.assertAlmostEqual(5517, alt1.size, delta=1000)
         self.assertEqual(5110, alt1.duration)
         self.assertEqual(0, alt1.width)
@@ -158,9 +156,7 @@ class MediaTest(TembaTest):
             f"/media/test_orgs/{self.org.id}/media/d1ee/d1ee73f0-bdb5-47ce-99dd-0c95d4ebf008/allo.m4a", alt2.url
         )
         self.assertEqual("audio/mp4", alt2.content_type)
-        self.assertEqual(
-            f"test_orgs/{self.org.id}/media/d1ee/d1ee73f0-bdb5-47ce-99dd-0c95d4ebf008/allo.m4a", alt2.path
-        )
+        self.assertEqual(f"test_orgs/{self.org.id}/media/d1ee/d1ee73f0-bdb5-47ce-99dd-0c95d4ebf008/allo.m4a", alt2.path)
         self.assertAlmostEqual(20552, alt2.size, delta=7500)
         self.assertEqual(5110, alt2.duration)
         self.assertEqual(0, alt2.width)
@@ -1507,9 +1503,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         with self.assertNumQueries(13):
             self.client.get(flows_url)
 
-        response = self.assertListFetch(
-            flows_url, allow_viewers=True, allow_editors=True, context_objects=[msg2, msg1]
-        )
+        response = self.assertListFetch(flows_url, allow_viewers=True, allow_editors=True, context_objects=[msg2, msg1])
 
         self.assertEqual(("archive", "label"), response.context["actions"])
 
@@ -1588,9 +1582,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         msg4, msg3, msg2 = broadcast2.msgs.order_by("-id")
 
         broadcast3 = Broadcast.create(self.channel.org, self.admin, {"eng": "Pending broadcast"}, contacts=[contact4])
-        broadcast4 = Broadcast.create(
-            self.channel.org, self.admin, {"eng": "Scheduled broadcast"}, contacts=[contact4]
-        )
+        broadcast4 = Broadcast.create(self.channel.org, self.admin, {"eng": "Scheduled broadcast"}, contacts=[contact4])
 
         broadcast4.schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
         broadcast4.save(update_fields=("schedule",))
@@ -2163,9 +2155,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.channel.release(self.admin)
 
         response = self.requestView(send_url, self.admin)
-        self.assertContains(
-            response, 'To get started you need to <a href="/channels/channel/claim/">add a channel</a>'
-        )
+        self.assertContains(response, 'To get started you need to <a href="/channels/channel/claim/">add a channel</a>')
         self.assertNotContains(response, "Send")
 
     @patch("temba.mailroom.queue_broadcast")
@@ -2205,9 +2195,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         mock_queue_broadcast.assert_called_once_with(broadcast)
 
         # if there are no contacts at the given node, we don't actually create a broadcast
-        response = self.client.post(
-            send_url, {"text": "Hurry up", "step_node": "36b2c697-a1d9-47a9-9553-d07d6a725877"}
-        )
+        response = self.client.post(send_url, {"text": "Hurry up", "step_node": "36b2c697-a1d9-47a9-9553-d07d6a725877"})
         self.assertEqual("hide", response["Temba-Success"])
 
         self.assertEqual(1, Broadcast.objects.count())
@@ -2452,9 +2440,7 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=("name", "messages"))
 
         # try to create label with invalid name
-        self.assertCreateSubmit(
-            create_url, {"name": '"Spam"'}, form_errors={"name": 'Cannot contain the character: "'}
-        )
+        self.assertCreateSubmit(create_url, {"name": '"Spam"'}, form_errors={"name": 'Cannot contain the character: "'})
 
         # try again with valid name
         self.assertCreateSubmit(

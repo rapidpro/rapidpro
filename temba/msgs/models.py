@@ -727,9 +727,7 @@ class Msg(models.Model):
             models.Index(
                 name="msgs_inbox",
                 fields=["org", "-created_on", "-id"],
-                condition=Q(
-                    direction="I", visibility="V", status="H", flow__isnull=True, msg_type__in=("I", "F", "T")
-                ),
+                condition=Q(direction="I", visibility="V", status="H", flow__isnull=True, msg_type__in=("I", "F", "T")),
             ),
             # used for Flows view and API folder
             models.Index(

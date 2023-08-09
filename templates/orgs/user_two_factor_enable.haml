@@ -24,8 +24,8 @@
 -block extra-script
   {{ block.super }}
 
-  :javascript
-    (function() {
+  %script
+    onSpload(function(){
       var secretUrl = "{{ secret_url }}";
       if (secretUrl) {
         var element = document.getElementById('qr');
@@ -34,4 +34,5 @@
           new QRious({element: element, value: secretUrl, background: "#fff", size: 150});
         }
       }
-    })();
+    });
+  

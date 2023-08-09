@@ -1,7 +1,5 @@
 -extends "frame.html"
-
 -load smartmin i18n
--block header
 
 -block styles
   {{block.super}}
@@ -33,11 +31,6 @@
               <img class="no-nav-logo" style="max-height:4em;margin: 1em 0;" src="{{STATIC_URL}}{{ brand.logo }}">
           .top-right
             -block top-right
-        .page-title
-          -block title
-            #title-text.hidden
-              -block title-text
-                {{title}}
         -block content
       .flex-grow
           

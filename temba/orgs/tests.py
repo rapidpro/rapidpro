@@ -485,7 +485,7 @@ class UserTest(TembaTest):
 
         # submit with valid password
         response = self.client.post(disable_url, {"password": "Qwerty123"})
-        self.assertRedirect(response, reverse("orgs.org_workspace"))
+        self.assertRedirect(response, reverse("orgs.user_two_factor_enable"))
 
         del self.admin.settings  # clear cached_property
         self.assertFalse(self.admin.settings.two_factor_enabled)
@@ -611,11 +611,7 @@ class UserTest(TembaTest):
         # one of our users should belong to a bunch of orgs
         for i in range(5):
             org = Org.objects.create(
-                name=f"Org {i}",
-                timezone=pytz.timezone("Africa/Kigali"),
-                brand=settings.BRAND["slug"],
-                created_by=self.user,
-                modified_by=self.user,
+                name=f"Org {i}", timezone=pytz.timezone("Africa/Kigali"), created_by=self.user, modified_by=self.user
             )
             org.add_user(self.admin, OrgRole.ADMINISTRATOR)
 
@@ -653,7 +649,7 @@ class UserTest(TembaTest):
 
 class OrgTest(TembaTest):
     def test_create(self):
-        new_org = Org.create(self.admin, settings.BRAND, "Cool Stuff", pytz.timezone("Africa/Kigali"))
+        new_org = Org.create(self.admin, "Cool Stuff", pytz.timezone("Africa/Kigali"))
         self.assertEqual("Cool Stuff", new_org.name)
         self.assertEqual(self.admin, new_org.created_by)
         self.assertEqual("en-us", new_org.language)
@@ -664,7 +660,7 @@ class OrgTest(TembaTest):
         self.assertEqual('<Org: name="Cool Stuff">', repr(new_org))
 
         # if timezone is US, should get MMDDYYYY dates
-        new_org = Org.create(self.admin, settings.BRAND, "Cool Stuff", pytz.timezone("America/Los_Angeles"))
+        new_org = Org.create(self.admin, "Cool Stuff", pytz.timezone("America/Los_Angeles"))
         self.assertEqual("M", new_org.date_format)
         self.assertEqual(str(new_org.timezone), "America/Los_Angeles")
 
@@ -1605,9 +1601,7 @@ class OrgTest(TembaTest):
         # try creating a surveyor account with a bogus password
         post_data = dict(surveyor_password="badpassword")
         response = self.client.post(url, post_data)
-        self.assertContains(
-            response, "Invalid surveyor password, please check with your project leader and try again."
-        )
+        self.assertContains(response, "Invalid surveyor password, please check with your project leader and try again.")
 
         # put a space in the org name to test URL encoding and set a surveyor password
         self.org.name = "Temba Org"
@@ -2601,7 +2595,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.child = Org.objects.create(
             name="Child Workspace",
             timezone=pytz.timezone("US/Pacific"),
-            brand="rapidpro",
             flow_languages=["eng"],
             created_by=self.admin,
             modified_by=self.admin,
@@ -2622,7 +2615,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.child = Org.objects.create(
             name="Child Workspace",
             timezone=pytz.timezone("US/Pacific"),
-            brand="rapidpro",
             flow_languages=["eng"],
             created_by=self.admin,
             modified_by=self.admin,
@@ -3373,19 +3365,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create an inactive org which should never appear as an option
         org3 = Org.objects.create(
-            name="Deactivated",
-            timezone=pytz.UTC,
-            brand=settings.BRAND["slug"],
-            created_by=self.user,
-            modified_by=self.user,
-            is_active=False,
+            name="Deactivated", timezone=pytz.UTC, created_by=self.user, modified_by=self.user, is_active=False
         )
         org3.add_user(self.editor, OrgRole.EDITOR)
 
         # and another org that none of our users belong to
-        org4 = Org.objects.create(
-            name="Other", timezone=pytz.UTC, brand=settings.BRAND["slug"], created_by=self.user, modified_by=self.user
-        )
+        org4 = Org.objects.create(name="Other", timezone=pytz.UTC, created_by=self.user, modified_by=self.user)
 
         self.assertLoginRedirect(self.client.get(choose_url))
 

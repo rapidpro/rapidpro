@@ -162,7 +162,6 @@ class Command(BaseCommand):
             name=spec["name"],
             timezone=pytz.timezone("America/Los_Angeles"),
             flow_languages=spec["languages"],
-            brand="rapidpro",
             country=country,
             created_on=timezone.now(),
             created_by=superuser,

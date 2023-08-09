@@ -17,9 +17,7 @@ from django.utils import timezone
 from temba.utils import json, s3, sizeof_fmt
 from temba.utils.s3 import EventStreamReader
 
-KEY_PATTERN = re.compile(
-    r"^(?P<org>\d+)/(?P<type>run|message)_(?P<period>(D|M)\d+)_(?P<hash>[0-9a-f]{32})\.jsonl\.gz$"
-)
+KEY_PATTERN = re.compile(r"^(?P<org>\d+)/(?P<type>run|message)_(?P<period>(D|M)\d+)_(?P<hash>[0-9a-f]{32})\.jsonl\.gz$")
 
 
 class Archive(models.Model):

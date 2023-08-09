@@ -1,6 +1,9 @@
 {% extends "no_nav.html" %}
 {% load rest_framework static smartmin %}
 
+{% block head-title %}
+  {{ brand.name }} API v2
+{% endblock head-title %}
 {% block page-top %}
 {% endblock page-top %}
 {% block extra-style %}
@@ -8,6 +11,10 @@
   <link rel="stylesheet" type="text/css" href='{% static "rest_framework/css/prettify.css" %}' />
   <link rel="stylesheet" type="text/css" href='{% static "codemirror/lib/codemirror.css" %}' />
   <style>
+    .main-logo {
+      margin: 1.5em;
+    }
+
     .content-card {
       width: 80%;
     }

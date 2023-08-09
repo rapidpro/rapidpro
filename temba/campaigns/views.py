@@ -379,9 +379,7 @@ class CampaignEventForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         relative_to = self.fields["relative_to"]
-        relative_to.queryset = org.fields.filter(is_active=True, value_type=ContactField.TYPE_DATETIME).order_by(
-            "name"
-        )
+        relative_to.queryset = org.fields.filter(is_active=True, value_type=ContactField.TYPE_DATETIME).order_by("name")
 
         flow = self.fields["flow_to_start"]
         flow.queryset = org.flows.filter(

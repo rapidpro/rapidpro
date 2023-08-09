@@ -1,3 +1,40 @@
+v8.2.0 (2023-08-07)
+-------------------------
+ * Update stable versions
+
+v8.1.245 (2023-08-05)
+-------------------------
+ * Truncate query lables on flow start
+ * Fix line length formatting
+ * Fixes for login and API titles
+
+v8.1.244 (2023-08-04)
+-------------------------
+ * Fix error handling for temba-contact-search
+
+v8.1.243 (2023-08-03)
+-------------------------
+ * Fix DELETE endpoints in API explorer
+ * Bump cryptography from 41.0.2 to 41.0.3
+
+v8.1.242 (2023-08-02)
+-------------------------
+ * Update to components with modax serialize fix
+
+v8.1.241 (2023-08-02)
+-------------------------
+ * Fix two factor disable and initial QR code rendering
+
+v8.1.240 (2023-08-01)
+-------------------------
+ * Update components with checkbox value update
+ * Stop writing no longer used Org.brand
+
+v8.1.239 (2023-08-01)
+-------------------------
+ * Temp fix for org export page by replacing temba-checkbox with regular inputs
+ * Cleanup msg_console
+
 v8.1.238 (2023-07-28)
 -------------------------
  * Fix flow start log when starts don't have exclusions

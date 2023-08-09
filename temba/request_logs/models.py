@@ -73,9 +73,7 @@ class HTTPLog(models.Model):
     ticketer = models.ForeignKey(
         Ticketer, related_name="http_logs", on_delete=models.PROTECT, db_index=False, null=True
     )
-    airtime_transfer = models.ForeignKey(
-        AirtimeTransfer, related_name="http_logs", on_delete=models.PROTECT, null=True
-    )
+    airtime_transfer = models.ForeignKey(AirtimeTransfer, related_name="http_logs", on_delete=models.PROTECT, null=True)
     channel = models.ForeignKey(Channel, related_name="http_logs", on_delete=models.PROTECT, null=True)
 
     @classmethod

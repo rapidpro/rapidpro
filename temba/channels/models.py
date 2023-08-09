@@ -1218,8 +1218,7 @@ class Alert(SmartModel):
     @classmethod
     def check_power_alert(cls, sync):
         if (
-            sync.power_status
-            in (SyncEvent.STATUS_DISCHARGING, SyncEvent.STATUS_UNKNOWN, SyncEvent.STATUS_NOT_CHARGING)
+            sync.power_status in (SyncEvent.STATUS_DISCHARGING, SyncEvent.STATUS_UNKNOWN, SyncEvent.STATUS_NOT_CHARGING)
             and int(sync.power_level) < 25
         ):
             alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)

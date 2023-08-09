@@ -52,13 +52,7 @@ from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address, send_template_email
-from temba.utils.fields import (
-    ArbitraryJsonChoiceField,
-    CheckboxWidget,
-    InputWidget,
-    SelectMultipleWidget,
-    SelectWidget,
-)
+from temba.utils.fields import ArbitraryJsonChoiceField, CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import (
     ComponentFormMixin,
@@ -408,9 +402,7 @@ class OrgGrantForm(forms.ModelForm):
         help_text=_("Your last name of the workspace administrator"),
         max_length=User._meta.get_field("last_name").max_length,
     )
-    email = forms.EmailField(
-        help_text=_("Their email address"), max_length=User._meta.get_field("username").max_length
-    )
+    email = forms.EmailField(help_text=_("Their email address"), max_length=User._meta.get_field("username").max_length)
     timezone = TimeZoneFormField(help_text=_("The timezone for the workspace"))
     password = forms.CharField(
         widget=forms.PasswordInput,
@@ -973,7 +965,7 @@ class UserCRUDL(SmartCRUDL):
                 return data
 
         form_class = Form
-        success_url = "@orgs.org_workspace"
+        success_url = "@orgs.user_two_factor_enable"
         success_message = _("Two-factor authentication disabled")
         submit_button_name = _("Disable")
         permission = "orgs.org_two_factor"
@@ -1311,9 +1303,7 @@ class OrgCRUDL(SmartCRUDL):
 
             menu = []
             if self.org:
-                other_orgs = (
-                    User.get_orgs_for_request(self.request).exclude(id=self.org.id).order_by("-parent", "name")
-                )
+                other_orgs = User.get_orgs_for_request(self.request).exclude(id=self.org.id).order_by("-parent", "name")
                 other_org_items = [
                     self.create_menu_item(menu_id=other_org.id, name=other_org.name, avatar=other_org.name, event=True)
                     for other_org in other_orgs
@@ -2688,10 +2678,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def save(self, obj):
             self.object = Org.create(
-                self.request.user,
-                self.request.branding,
-                self.form.cleaned_data["name"],
-                self.form.cleaned_data["timezone"],
+                self.request.user, self.form.cleaned_data["name"], self.form.cleaned_data["timezone"]
             )
 
             user = User.get_or_create(
@@ -2736,12 +2723,7 @@ class OrgCRUDL(SmartCRUDL):
                 language=settings.DEFAULT_LANGUAGE,
             )
 
-            self.object = Org.create(
-                new_user,
-                self.request.branding,
-                self.form.cleaned_data["name"],
-                self.form.cleaned_data["timezone"],
-            )
+            self.object = Org.create(new_user, self.form.cleaned_data["name"], self.form.cleaned_data["timezone"])
 
             analytics.identify(new_user, brand=self.request.branding, org=obj)
             analytics.track(new_user, "temba.org_signup", properties=dict(org=self.object.name))
@@ -3089,9 +3071,7 @@ class OrgImportCRUDL(SmartCRUDL):
                     raise ValidationError(_("This file is not a valid flow definition file."))
 
                 if Version(str(json_data.get("version", 0))) < Version(Org.EARLIEST_IMPORT_VERSION):
-                    raise ValidationError(
-                        _("This file is no longer valid. Please export a new version and try again.")
-                    )
+                    raise ValidationError(_("This file is no longer valid. Please export a new version and try again."))
 
                 return self.cleaned_data["file"]
 

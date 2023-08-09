@@ -84,9 +84,7 @@ class ZenviaSMSTypeTest(TembaTest):
             channel.release(self.admin)
 
             self.assertEqual(2, mock_delete.call_count)
-            self.assertEqual(
-                "https://api.zenvia.com/v2/subscriptions/message_123", mock_delete.call_args_list[0][0][0]
-            )
+            self.assertEqual("https://api.zenvia.com/v2/subscriptions/message_123", mock_delete.call_args_list[0][0][0])
             self.assertEqual("12345", mock_delete.call_args_list[0][1]["headers"]["X-API-TOKEN"])
             self.assertEqual("https://api.zenvia.com/v2/subscriptions/status_123", mock_delete.call_args_list[1][0][0])
 
@@ -121,9 +119,7 @@ class ZenviaSMSTypeTest(TembaTest):
             channel.release(self.admin)
 
             self.assertEqual(2, mock_delete.call_count)
-            self.assertEqual(
-                "https://api.zenvia.com/v2/subscriptions/message_123", mock_delete.call_args_list[0][0][0]
-            )
+            self.assertEqual("https://api.zenvia.com/v2/subscriptions/message_123", mock_delete.call_args_list[0][0][0])
             self.assertEqual("12345", mock_delete.call_args_list[0][1]["headers"]["X-API-TOKEN"])
             self.assertEqual("https://api.zenvia.com/v2/subscriptions/status_123", mock_delete.call_args_list[1][0][0])
             self.assertEqual("12345", mock_delete.call_args_list[1][1]["headers"]["X-API-TOKEN"])

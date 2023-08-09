@@ -385,9 +385,7 @@ class WhatsAppCloudTypeTest(TembaTest):
                 self.assertEqual(200, response.status_code)
 
                 self.assertEqual("https://graph.facebook.com/v13.0/123123123/register", wa_cloud_post.call_args[0][0])
-                self.assertEqual(
-                    {"messaging_product": "whatsapp", "pin": "111111"}, wa_cloud_post.call_args[1]["data"]
-                )
+                self.assertEqual({"messaging_product": "whatsapp", "pin": "111111"}, wa_cloud_post.call_args[1]["data"])
 
                 response = self.client.get(reverse("channels.types.whatsapp_cloud.verify_code", args=(channel.uuid,)))
                 self.assertEqual(f"/settings/channels/{channel.uuid}", response.context[TEMBA_MENU_SELECTION])
