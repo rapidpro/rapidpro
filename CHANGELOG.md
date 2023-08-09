@@ -1,3 +1,9 @@
+v8.3.1 (2023-08-09)
+-------------------------
+ * Merge pull request #4779 from nyaruka/less_haml
+ * Some tweaks to templates based on linter
+ * Convert all haml templates in channel types
+
 v8.3.0 (2023-08-09)
 -------------------------
  * Drop no longer used Org.brand field
