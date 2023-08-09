@@ -1,0 +1,25 @@
+{% load i18n %}
+
+<div class="card flex-shrink-0">
+  {% blocktrans trimmed %}
+    To complete the configuration you will need to enter a few things on your VK account.
+  {% endblocktrans %}
+  {% blocktrans trimmed with option='<div class="code inline-block py-1">Message received</div>' %}
+  <div class="code mt-4">Manage > API Usage > Callback API > Server Settings</div>
+  <div class="mt-2">
+    Enter the Webhook URL below for the
+    <div class="code inline py-1">URL</div>
+    field and the Verify Token in the
+    <div class="code inline py-1">Secret Key</div>
+    field.
+  </div>
+  <div class="code mt-6">Manage > API Usage > Callback API > Event Types</div>
+  <div class="mt-2">Check the option {{ option }}</div>
+{% endblocktrans %}
+</div>
+<div class="card flex-shrink-0">
+  <div class="subtitle">{% trans "Webhook URL" %}</div>
+  <div class="code">https://{{ channel.callback_domain }}{% url 'courier.vk' channel.uuid %}</div>
+  <div class="subtitle mt-4">{% trans "Verify Token" %}</div>
+  <div class="code">{{ channel.config.secret }}</div>
+</div>

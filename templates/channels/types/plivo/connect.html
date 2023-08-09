@@ -1,0 +1,21 @@
+{% extends "smartmin/form.html" %}
+{% load compress temba i18n %}
+
+{% block title-text %}
+  {% trans "Connect Plivo" %}
+{% endblock title-text %}
+{% block pre-form %}
+  {% trans "To connect your Plivo Account you will need to provide us your Plivo AUTH ID and AUTH TOKEN." %}
+  <div class="mt-1 mb-4">
+    {% trans "Both values can be found on your" %}
+    <a target="plivo" href="https://manage.plivo.com/dashboard/">{% trans "Plivo Dashboard" %}</a>
+  </div>
+{% endblock pre-form %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    $(document).ready(function() {
+      $("form.smartmin-form").attr('autocomplete', 'off');
+    });
+  </script>
+{% endblock extra-script %}
