@@ -30,7 +30,7 @@
     <div class="flex mt-4" id="fb-app-connect">
       <div class="button-primary connect-facebook">{% trans "Add Instagram Business Account" %}</div>
     </div>
-    <form style="display:none;" method="POST" action="{{ claim_url }}" id="claim-form">
+    <form style="display:none;" method="post" action="{{ claim_url }}" id="claim-form">
       {% csrf_token %}
       <input type="text" name="user_access_token" id="user-access-token">
       <input type="text" name="page_id" id="page-id">
