@@ -1,0 +1,38 @@
+{% extends "smartmin/list.html" %}
+{% load i18n smartmin humanize temba %}
+
+{% block title-text %}
+  {% trans "Channel Logs" %}
+{% endblock title-text %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    .log-error {
+      color: rgb(var(--error-rgb));
+    }
+  </style>
+{% endblock extra-style %}
+{% block content %}
+  <div class="mt-4">
+    {% blocktrans trimmed %}
+      These are the logs which have no associated message or call. To access logs for a specific message or call, use the
+      link from the message or call itself. Logs are kept for 14 days.
+    {% endblocktrans %}
+  </div>
+  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+  <div class="flex-grow overflow-y-auto shadow bg-white shadow">
+    {% for obj in object_list %}
+      <div class="{% if obj.is_error %}log-error{% endif %} flex mx-4 my-2">
+        <div class="description">
+          <div onclick="goto(event)"
+               href="{% url "channels.channellog_read" obj.id %}"
+               class="hover-linked truncate w-64">{{ obj.get_log_type_display }}</div>
+        </div>
+        <div class="elapsed mx-2 text-right mr-4 flex-grow">
+          <span>{{ obj.elapsed_ms|intcomma }}ms</span>
+        </div>
+        <div style="text-align: right" nowrap="true" class="created_on whitespace-nowrap">{{ obj.created_on|datetime }}</div>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock content %}

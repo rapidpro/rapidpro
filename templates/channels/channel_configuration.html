@@ -1,0 +1,41 @@
+{% extends "smartmin/read.html" %}
+{% load i18n channels %}
+
+{% block title-text %}
+  {{ object.get_channel_type_display }} Configuration
+{% endblock title-text %}
+{% block subtitle %}
+  {{ object.get_address_display }}
+  {% if object.get_country_display %}<div class="text-base">{{ object.get_country_display }}</div>{% endif %}
+{% endblock subtitle %}
+{% block content %}
+  {% if configuration_template %}
+    {{ configuration_template }}
+  {% elif configuration_blurb %}
+    {{ configuration_blurb }}
+  {% endif %}
+  {% for url in configuration_urls %}
+    <div class="card mt-6 flex-shrink-0">
+      <div class="title">{{ url.label }}</div>
+      <div class="code inline-block mt-3 whitespace-normal">{{ url.url }}</div>
+      <div class="my-4">{{ url.description }}</div>
+    </div>
+  {% endfor %}
+  {% if show_public_addresses %}
+    <div class="mt-6 card flex-shrink-0">
+      <div class="title">{% trans "IP Addresses" %}</div>
+      <div class="mt-2">{% trans "Additionally you will need to make sure the following IP addresses are whitelisted" %}</div>
+      <div class="mt-2">
+        {% for ip_address in ip_addresses %}<div class="code inline mr-1">{{ ip_address }}</div>{% endfor %}
+      </div>
+    </div>
+  {% endif %}
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    onSpload(function() {
+      prettyPrint();
+    });
+  </script>
+{% endblock extra-script %}
