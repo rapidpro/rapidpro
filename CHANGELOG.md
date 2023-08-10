@@ -1,3 +1,7 @@
+v8.3.2 (2023-08-10)
+-------------------------
+ * Add data migration to convert old I/F msg types
+
 v8.3.1 (2023-08-09)
 -------------------------
  * Merge pull request #4779 from nyaruka/less_haml
