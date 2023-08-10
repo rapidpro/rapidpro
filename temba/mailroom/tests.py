@@ -4,7 +4,6 @@ from unittest.mock import patch
 
 from django_redis import get_redis_connection
 
-from django.conf import settings
 from django.test import override_settings
 from django.utils import timezone
 
@@ -515,13 +514,13 @@ class MailroomQueueTest(TembaTest):
     def setUp(self):
         super().setUp()
         r = get_redis_connection()
-        r.execute_command("select", "9")
+        r.execute_command("select", 10)
         r.execute_command("flushdb")
 
     def tearDown(self):
         super().tearDown()
         r = get_redis_connection()
-        r.execute_command("select", settings.REDIS_DB)
+        r.execute_command("select", 10)
 
     @mock_mailroom(queue=False)
     def test_queue_msg_handling(self, mr_mocks):

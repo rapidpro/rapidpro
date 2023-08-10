@@ -1,0 +1,22 @@
+{% extends "smartmin/form.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% trans "Connect Twilio" %}
+{% endblock title %}
+{% block pre-form %}
+  <div class="mb-4">
+    {% blocktrans trimmed with settings_url='https://www.twilio.com/user/account/settings' %}
+      To connect your Twilio Account you will need to provide us your Twilio account SID and auth token. Both values can
+      be found on your <a target="twilio" href="{{ settings_url }}">Twilio account page</a>.
+    {% endblocktrans %}
+  </div>
+{% endblock pre-form %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    $(document).ready(function() {
+      $("form.smartmin-form").attr('autocomplete', 'off');
+    });
+  </script>
+{% endblock extra-script %}

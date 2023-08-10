@@ -219,6 +219,18 @@ class ContactSearchWidget(forms.Widget):
     template_name = "utils/forms/contact_search.html"
     is_annotated = True
 
+    def render(self, name, value, attrs=None, renderer=None):
+        if value:
+            value = json.loads(value)
+            attrs = attrs or {}
+            if value:
+                attrs["advanced"] = value["advanced"]
+                attrs["query"] = value.get("query", None)
+                attrs["recipients"] = json.dumps(value.get("recipients", []))
+                attrs["exclusions"] = json.dumps(value.get("exclusions", []))
+
+        return super().render(name, value, attrs)
+
 
 class CompletionTextarea(forms.Widget):
     template_name = "utils/forms/completion_textarea.html"

@@ -1,9 +1,6 @@
 {% extends "smartmin/list.html" %}
 {% load smartmin sms temba compress i18n humanize %}
 
-{% block title %}
-  {{ title }}
-{% endblock title %}
 {% block page-title %}
   {{ title }}
 {% endblock page-title %}
@@ -57,15 +54,6 @@
     .page-content {
       align-self: auto;
       max-width: 1024px;
-    }
-
-    .title-icon {
-      margin-bottom: -5px;
-    }
-
-    .icon-session:before {
-      content: "\e03e";
-      color: #999
     }
 
     .cell {

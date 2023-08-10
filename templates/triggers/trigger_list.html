@@ -1,0 +1,195 @@
+{% extends "smartmin/list.html" %}
+{% load smartmin sms temba compress humanize i18n %}
+
+{% block content %}
+  <div id="pjax"></div>
+  {% block pjax %}
+    <temba-dialog header="{{ _("Delete All Triggers") |escapejs }}"
+                  primaryButtonName="{{ _("Delete") |escapejs }}"
+                  destructive="true"
+                  class="hide"
+                  id="delete-all-confirmation">
+      <div class="p-6">
+        {% blocktrans trimmed with count=paginator.count %}
+          Are you sure you want to delete all {{ count }} archived triggers? This cannot be undone.
+        {% endblocktrans %}
+        {% if paginator.count > 50 %}
+          <br>
+          <br>
+          {% blocktrans trimmed %}
+            This operation can take a while to complete. Triggers may remain in this view during the process.
+          {% endblocktrans %}
+        {% endif %}
+      </div>
+    </temba-dialog>
+    <temba-dialog header="{{ _("Delete Selected Triggers") |escapejs }}"
+                  primaryButtonName="{{ _("Delete") |escapejs }}"
+                  destructive="true"
+                  class="hide"
+                  id="delete-confirmation">
+      <div class="p-6">{% trans "Are you sure you want to delete the selected triggers? This cannot be undone." %}</div>
+    </temba-dialog>
+  {% endblock pjax %}
+  <form method="get" action="{{ request.path }}" class="mb-4" id="search-form">
+    <temba-textinput type="text" placeholder="{% trans "Search" %}" name="search" value="{{ search }}">
+    </temba-textinput>
+    {% if request.REQUEST.status %}<input type="hidden" name="status" value="{{ request.REQUEST.status }}">{% endif %}
+    <input type="submit" class="hidden">
+  </form>
+  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">
+    {% include "includes/short_pagination.html" %}
+    {% if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000 %}
+      <div class="text-gray-400 text-sm self-end mt-2">{% trans "To view more than 10,000 search results, save it as a group." %}</div>
+    {% endif %}
+  </div>
+  <div class="flex-grow overflow-y-auto shadow">
+    <table class="{% if org_perms.flows.flow_update %}selectable{% endif %} list scrolled lined selectable">
+      <tbody>
+        {% for obj in object_list %}
+          <tr data-object-id="{{ obj.id }}"
+              onclick="updateTrigger(event, {{ obj.id }})"
+              class="trigger object-row">
+            {% if org_perms.triggers.trigger_update %}
+              <td onclick="checkInner(event);" class="trigger checkbox object-row-checkbox">
+                <temba-checkbox onclick="handleRowSelection(this)">
+                </temba-checkbox>
+              </td>
+            {% endif %}
+            <td class="w-full">
+              {% if obj.trigger_type == 'K' %}
+                {% trans "The keyword" %}
+                <b>
+                  {{ obj.keyword }}
+                </b>
+              {% elif obj.trigger_type == 'M' %}
+                {% trans "A missed call" %}
+              {% elif obj.trigger_type == 'C' %}
+                {% trans "An uncaught message" %}
+              {% elif obj.trigger_type == 'V' %}
+                {% trans "An inbound call" %}
+              {% elif obj.trigger_type == 'N' %}
+                {% trans "A new conversation" %}
+                {% if obj.channel %}
+                  {% trans "on" %}
+                  <b>
+                    <a href="{% url "channels.channel_read" obj.channel.uuid %}">{{ obj.channel }}</a>
+                  </b>
+                {% endif %}
+              {% elif obj.trigger_type == 'R' %}
+                {% trans "The referrer id" %}
+                <b>
+                  {{ obj.referrer_id }}
+                </b>
+                {% if obj.channel %}
+                  {% trans "on the channel" %}
+                  <div onclick="goto(event)"
+                       href="{% url "channels.channel_read" obj.channel.uuid %}"
+                       class="linked inline">{{ obj.channel }}</div>
+                {% endif %}
+              {% elif obj.trigger_type == 'T' %}
+                {% trans "A closed ticket" %}
+              {% endif %}
+              {% if obj.schedule %}
+                {% trans "Start" %}
+              {% else %}
+                {% trans "starts" %}
+              {% endif %}
+              <div onclick="goto(event)" href="{% url "flows.flow_editor" obj.flow.uuid %}" class="linked inline">{{ obj.flow }}</div>
+              {% if obj.schedule %}
+                {% if obj.schedule.next_fire and not obj.is_archived %}
+                  {{ obj.schedule.get_display }}
+                {% else %}
+                  {% trans "is not scheduled" %}
+                {% endif %}
+              {% endif %}
+            </td>
+            <td onclick="handleRowSelection(this)" width="250px">{% include "includes/recipients.html" with groups=obj.groups.all contacts=obj.contacts.all %}</td>
+          </tr>
+        {% empty %}
+          <tr class="empty_list">
+            <td colspan="3">{% trans "No matching triggers." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      {% block extra-rows %}
+      {% endblock extra-rows %}
+    </table>
+  </div>
+  <temba-modax id="update-trigger">
+  </temba-modax>
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    onSpload(function() {
+      var menu = document.querySelector("temba-content-menu");
+      if (menu) {
+        menu.addEventListener("temba-selection", function(event) {
+          var item = event.detail.item;
+          if (item.id == "triggers_delete_all") {
+            confirmDeleteAllArchivedTriggers();
+          }
+        });
+      }
+    });
+
+    function updateTrigger(event, id) {
+      if (event.target.tagName == "TEMBA-CHECKBOX") {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      var modal = document.querySelector("#update-trigger");
+      modal.endpoint = '/trigger/update/' + id + '/';
+      modal.header = '{{ _("Update Trigger")|escapejs }}';
+      modal.open = true;
+    }
+
+    function confirmDeleteAllArchivedTriggers() {
+      var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
+
+      deleteAllConfirmation.classList.remove("hide");
+      deleteAllConfirmation.open = true;
+
+      deleteAllConfirmation.removeEventListener("temba-button-clicked", deleteAllArchivedTriggers);
+      deleteAllConfirmation.addEventListener("temba-button-clicked", deleteAllArchivedTriggers);
+    }
+
+    function deleteAllArchivedTriggers(event) {
+      var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
+
+      if (event.detail.button.attributes.destructive) {
+        jQuery.ajaxSettings.traditional = true;
+        var url = "{% url 'triggers.trigger_archived' %}";
+
+        var store = document.querySelector("temba-store");
+        store.postForm(url, {
+          action: "delete",
+          all: 'true',
+          pjax: true
+        }).then(function(response) {
+          gotoURL(url);
+        }).catch(function(error) {
+          console.log(error);
+        });
+
+      }
+      deleteAllConfirmation.classList.add("hide");
+      deleteAllConfirmation.open = false;
+    }
+
+    function onDeleteClicked() {
+      var deleteConfirmation = document.querySelector("#delete-confirmation");
+      deleteConfirmation.classList.remove("hide");
+      deleteConfirmation.open = true;
+
+      deleteConfirmation.addEventListener("temba-button-clicked", function(event) {
+        if (!event.detail.button.secondary) {
+          runActionOnObjectRows("delete", wireTableListeners);
+        }
+        deleteConfirmation.open = false;
+      });
+    }
+  </script>
+{% endblock extra-script %}

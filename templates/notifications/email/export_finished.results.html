@@ -2,15 +2,9 @@
 {% load i18n %}
 
 {% block notification-body %}
-<p>
-    {% trans "Your export of results for the following flows is ready." %}
-</p>
-<ul>
-{% for flow in flows %}
-    <li>{{ flow.name }}</li>
-{% endfor %}
-</ul>
-<p>
-    {% blocktrans with url=branding.link|add:target_url %}Download the Excel file here: {{ url }}{% endblocktrans %}
-</p>
+  <p>{% trans "Your export of results for the following flows is ready." %}</p>
+  <ul>
+    {% for flow in flows %}<li>{{ flow.name }}</li>{% endfor %}
+  </ul>
+  <p>{% blocktrans with url=branding.link|add:target_url %}Download the Excel file here: {{ url }}{% endblocktrans %}</p>
 {% endblock notification-body %}

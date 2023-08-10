@@ -6,7 +6,6 @@ from unittest.mock import patch
 from urllib.parse import urlencode
 
 import pytz
-from bs4 import BeautifulSoup
 from smartmin.users.models import FailedLogin, RecoveryToken
 
 from django.conf import settings
@@ -44,6 +43,7 @@ from temba.request_logs.models import HTTPLog
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
+from temba.tests.base import get_contact_search
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import ExportTicketsTask, Ticketer
 from temba.tickets.types.mailgun import MailgunType
@@ -485,7 +485,7 @@ class UserTest(TembaTest):
 
         # submit with valid password
         response = self.client.post(disable_url, {"password": "Qwerty123"})
-        self.assertRedirect(response, reverse("orgs.org_workspace"))
+        self.assertRedirect(response, reverse("orgs.user_two_factor_enable"))
 
         del self.admin.settings  # clear cached_property
         self.assertFalse(self.admin.settings.two_factor_enabled)
@@ -611,11 +611,7 @@ class UserTest(TembaTest):
         # one of our users should belong to a bunch of orgs
         for i in range(5):
             org = Org.objects.create(
-                name=f"Org {i}",
-                timezone=pytz.timezone("Africa/Kigali"),
-                brand=settings.BRAND["slug"],
-                created_by=self.user,
-                modified_by=self.user,
+                name=f"Org {i}", timezone=pytz.timezone("Africa/Kigali"), created_by=self.user, modified_by=self.user
             )
             org.add_user(self.admin, OrgRole.ADMINISTRATOR)
 
@@ -653,7 +649,7 @@ class UserTest(TembaTest):
 
 class OrgTest(TembaTest):
     def test_create(self):
-        new_org = Org.create(self.admin, settings.BRAND, "Cool Stuff", pytz.timezone("Africa/Kigali"))
+        new_org = Org.create(self.admin, "Cool Stuff", pytz.timezone("Africa/Kigali"))
         self.assertEqual("Cool Stuff", new_org.name)
         self.assertEqual(self.admin, new_org.created_by)
         self.assertEqual("en-us", new_org.language)
@@ -664,7 +660,7 @@ class OrgTest(TembaTest):
         self.assertEqual('<Org: name="Cool Stuff">', repr(new_org))
 
         # if timezone is US, should get MMDDYYYY dates
-        new_org = Org.create(self.admin, settings.BRAND, "Cool Stuff", pytz.timezone("America/Los_Angeles"))
+        new_org = Org.create(self.admin, "Cool Stuff", pytz.timezone("America/Los_Angeles"))
         self.assertEqual("M", new_org.date_format)
         self.assertEqual(str(new_org.timezone), "America/Los_Angeles")
 
@@ -968,12 +964,13 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse("msgs.broadcast_send"))
         self.assertContains(response, expected_message)
 
+        start_url = f"{reverse('flows.flow_start', args=[])}?flow={flow.id}"
         # we also can't start flows
         self.assertRaises(
             AssertionError,
             self.client.post,
-            reverse("flows.flow_broadcast", args=[]),
-            {"flow": flow.id, "query": f'uuid="{mark.uuid}"', "type": "contact"},
+            start_url,
+            {"flow": flow.id, "contact_search": get_contact_search(query='uuid="{mark.uuid}"')},
         )
 
         response = send_broadcast_via_api()
@@ -996,8 +993,8 @@ class OrgTest(TembaTest):
         self.assertRaises(
             AssertionError,
             self.client.post,
-            reverse("flows.flow_broadcast", args=[]),
-            {"flow": flow.id, "query": f'uuid="{mark.uuid}"', "type": "contact"},
+            start_url,
+            {"flow": flow.id, "contact_search": get_contact_search(query='uuid="{mark.uuid}"')},
         )
 
         response = send_broadcast_via_api()
@@ -1019,8 +1016,8 @@ class OrgTest(TembaTest):
         self.org.save(update_fields=("is_suspended",))
 
         self.client.post(
-            reverse("flows.flow_broadcast", args=[]),
-            {"flow": flow.id, "query": f'uuid="{mark.uuid}"', "type": "contact"},
+            start_url,
+            {"flow": flow.id, "contact_search": get_contact_search(query='uuid="{mark.uuid}"')},
         )
 
         mock_async_start.assert_called_once()
@@ -1604,9 +1601,7 @@ class OrgTest(TembaTest):
         # try creating a surveyor account with a bogus password
         post_data = dict(surveyor_password="badpassword")
         response = self.client.post(url, post_data)
-        self.assertContains(
-            response, "Invalid surveyor password, please check with your project leader and try again."
-        )
+        self.assertContains(response, "Invalid surveyor password, please check with your project leader and try again.")
 
         # put a space in the org name to test URL encoding and set a surveyor password
         self.org.name = "Temba Org"
@@ -2392,7 +2387,7 @@ class OrgDeleteTest(TembaTest):
             body, md5, size = jsonlgz_encode([{"id": 1}])
             archive = Archive.objects.create(
                 org=org,
-                url=f"http://{settings.STORAGE_BUCKETS['archives']}.aws.com/{file}",
+                url=f"http://temba-archives.aws.com/{file}",
                 start_date=timezone.now(),
                 build_time=100,
                 archive_type=Archive.TYPE_MSG,
@@ -2401,14 +2396,14 @@ class OrgDeleteTest(TembaTest):
                 size=size,
                 hash=md5,
             )
-            self.mock_s3.put_object(settings.STORAGE_BUCKETS["archives"], file, body)
+            self.mock_s3.put_object("temba-archives", file, body)
             return archive
 
         daily = add(create_archive(org, Archive.PERIOD_DAILY))
         add(create_archive(org, Archive.PERIOD_MONTHLY, daily))
 
-        # extra S3 file in child archive dir
-        self.mock_s3.put_object(settings.STORAGE_BUCKETS["archives"], f"{org.id}/extra_file.json", io.StringIO("[]"))
+        # extra S3 file in archive dir
+        self.mock_s3.put_object("temba-archives", f"{org.id}/extra_file.json", io.StringIO("[]"))
 
     def _exists(self, obj) -> bool:
         return obj._meta.model.objects.filter(id=obj.id).exists()
@@ -2510,9 +2505,9 @@ class OrgDeleteTest(TembaTest):
         # only org 2 files left in S3
         self.assertEqual(
             [
-                ("dl-temba-archives", f"{self.org2.id}/archive2.jsonl.gz"),
-                ("dl-temba-archives", f"{self.org2.id}/archive3.jsonl.gz"),
-                ("dl-temba-archives", f"{self.org2.id}/extra_file.json"),
+                ("temba-archives", f"{self.org2.id}/archive2.jsonl.gz"),
+                ("temba-archives", f"{self.org2.id}/archive3.jsonl.gz"),
+                ("temba-archives", f"{self.org2.id}/extra_file.json"),
             ],
             list(self.mock_s3.objects.keys()),
         )
@@ -2600,7 +2595,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.child = Org.objects.create(
             name="Child Workspace",
             timezone=pytz.timezone("US/Pacific"),
-            brand="rapidpro",
             flow_languages=["eng"],
             created_by=self.admin,
             modified_by=self.admin,
@@ -2621,7 +2615,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.child = Org.objects.create(
             name="Child Workspace",
             timezone=pytz.timezone("US/Pacific"),
-            brand="rapidpro",
             flow_languages=["eng"],
             created_by=self.admin,
             modified_by=self.admin,
@@ -3372,19 +3365,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create an inactive org which should never appear as an option
         org3 = Org.objects.create(
-            name="Deactivated",
-            timezone=pytz.UTC,
-            brand=settings.BRAND["slug"],
-            created_by=self.user,
-            modified_by=self.user,
-            is_active=False,
+            name="Deactivated", timezone=pytz.UTC, created_by=self.user, modified_by=self.user, is_active=False
         )
         org3.add_user(self.editor, OrgRole.EDITOR)
 
         # and another org that none of our users belong to
-        org4 = Org.objects.create(
-            name="Other", timezone=pytz.UTC, brand=settings.BRAND["slug"], created_by=self.user, modified_by=self.user
-        )
+        org4 = Org.objects.create(name="Other", timezone=pytz.UTC, created_by=self.user, modified_by=self.user)
 
         self.assertLoginRedirect(self.client.get(choose_url))
 
@@ -3935,11 +3921,8 @@ class BulkExportTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_export"))
 
-        soup = BeautifulSoup(response.content, "html.parser")
-        group = str(soup.findAll("div", {"class": "exportables-grp"})[0])
-
-        self.assertIn("Parent Flow", group)
-        self.assertIn("Child Flow", group)
+        self.assertEqual(1, len(response.context["buckets"]))
+        self.assertEqual([child, parent], response.context["buckets"][0])
 
     def test_import_voice_flows_expiration_time(self):
         # import file has invalid expires for an IVR flow so it should get the default (5)

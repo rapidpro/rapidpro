@@ -831,9 +831,9 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
         ticket_events = ticket_events[:limit]
 
-        transfers = self.airtime_transfers.filter(created_on__gte=after, created_on__lt=before).order_by(
-            "-created_on"
-        )[:limit]
+        transfers = self.airtime_transfers.filter(created_on__gte=after, created_on__lt=before).order_by("-created_on")[
+            :limit
+        ]
 
         session_events = self.get_session_events(after, before, include_event_types)
 
@@ -1414,9 +1414,7 @@ class ContactURN(models.Model):
         # is this a TWITTER scheme? check TWITTERID scheme by looking up by display
         if scheme == URN.TWITTER_SCHEME:
             twitterid_urn = (
-                cls.objects.filter(org=org, scheme=URN.TWITTERID_SCHEME, display=path)
-                .select_related("contact")
-                .first()
+                cls.objects.filter(org=org, scheme=URN.TWITTERID_SCHEME, display=path).select_related("contact").first()
             )
             if twitterid_urn:
                 return twitterid_urn

@@ -1,0 +1,114 @@
+{% load i18n %}
+
+{% blocktrans trimmed %}
+  To finish configuring your connection you'll need to set the following callback URLs on your service or aggregator.
+{% endblocktrans %}
+<div class="card mt-6 flex-shrink-0">
+  <div class="title">{% trans "Send URL" %}</div>
+  <div class="code inline-block m-0">{{ channel.config.send_url }}</div>
+  <div class="my-4">
+    {% blocktrans trimmed %}
+      When we need to send an outgoing message it will make a
+    {% endblocktrans %}
+    {{ channel.config.method|default:"POST" }}
+    {% blocktrans trimmed %}
+      to this URL with the parameters 'text', 'to', 'from', 'channel' and 'id'
+    {% endblocktrans %}
+  </div>
+  <div class="bleed-x bleed-b text-white bg-black p-6">
+    <div class="cap-label mb-2 text-gray-600">{% trans "Example" %}</div>
+    <div class="code break-all text-white bg-black p-0 m-0 whitespace-normal">
+      {{ channel.config.method }}
+      {{ example_url }}
+      {% if channel.config.method == "POST" %}<div class="mt-2 text-gray-400">{{ example_body }}</div>{% endif %}
+    </div>
+  </div>
+</div>
+{% if object.role != 'S' %}
+  <div class="card mt-6 flex-shrink-0">
+    <div class="title">{% trans "Received URL" %}</div>
+    <div class="code inline-block m-0">https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'receive' %}</div>
+    <div class="my-4">
+      {% blocktrans trimmed %}
+        When a new message is received by your service, it should notify us with a POST to the following URL, passing
+        the following parameters: 'from' and 'text'. Callers can optionally also send a 'date' parameter in ISO-8601
+        (ex: 2012-04-23T18:25:43.511Z) format to specify the time the message was received.
+      {% endblocktrans %}
+    </div>
+    <div class="bleed-x bleed-b text-white bg-black p-6">
+      <div class="cap-label mb-2 text-gray-600">{% trans "Example" %}</div>
+      <div class="code break-all bg-black text-white p-0 m-0 whitespace-normal">
+        POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'receive' %}
+        <div class="mt-2 text-gray-400 break-all">from=%2B250788123123&text=Love+is+patient.+Love+is+kind.&date=2012-04-23T18:25:43.511Z</div>
+      </div>
+    </div>
+  </div>
+  <div class="card mt-6 flex-shrink-0">
+    <div class="title">{% trans "Sent URL" %}</div>
+    <div class="code inline-block m-0">https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'sent' %}</div>
+    <div class="my-4">
+      {% blocktrans trimmed %}
+        When your service successfully sends a message, it should notify us with a POST to the following URL, passing
+        the id of the message as the parameter 'id' (reporting sent messages is optional)
+      {% endblocktrans %}
+    </div>
+    <div class="bleed-x bleed-b text-white bg-black p-6">
+      <div class="cap-label mb-2 text-gray-600">{% trans "Example" %}</div>
+      <div class="code break-all bg-black text-white p-0 m-0 whitespace-normal">
+        POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'sent' %}
+        <div class="mt-2 text-gray-400">id=2599235</div>
+      </div>
+    </div>
+  </div>
+  <div class="card mt-6 flex-shrink-0">
+    <div class="title">{% trans "Delivered URL" %}</div>
+    <div class="code inline-block m-0">https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'delivered' %}</div>
+    <div class="my-4">
+      {% blocktrans trimmed %}
+        When your service successfully delivers a message, it should notify us with a POST to the following URL, passing
+        the id of the message as the parameter 'id' (reporting deliveries is optional)
+      {% endblocktrans %}
+    </div>
+    <div class="bleed-x bleed-b text-white bg-black p-6">
+      <div class="cap-label mb-2 text-gray-600">{% trans "Example" %}</div>
+      <div class="code break-all bg-black text-white p-0 m-0 whitespace-normal">
+        POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'delivered' %}
+        <div class="mt-2 text-gray-400">id=2599235</div>
+      </div>
+    </div>
+  </div>
+  <div class="card mt-6 flex-shrink-0">
+    <div class="title">{% trans "Failed URL" %}</div>
+    <div class="code inline-block m-0">https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'failed' %}</div>
+    <div class="my-4">
+      {% blocktrans trimmed %}
+        If your service fails to send an outgoing message, it should notify us with a POST to the following URL, passing
+        the id of the message as the parameter 'id' (reporting failed sends is optional)
+      {% endblocktrans %}
+    </div>
+    <div class="bleed-x bleed-b text-white bg-black p-6">
+      <div class="cap-label mb-2 text-gray-600">{% trans "Example" %}</div>
+      <div class="code break-all bg-black text-white p-0 m-0 whitespace-normal">
+        POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'failed' %}
+        <div class="mt-2 text-gray-400">id=2599235</div>
+      </div>
+    </div>
+  </div>
+  <div class="card mt-6 flex-shrink-0">
+    <div class="title">{% trans "Contact Opt out/Stopped URL" %}</div>
+    <div class="code inline-block m-0">https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'stopped' %}</div>
+    <div class="my-4">
+      {% blocktrans trimmed %}
+        If this channel provides a way for contacts to opt out and stop receiving messages,
+        the service should notify us with a POST to the following URL, passing the phone number as the parameter "from"
+      {% endblocktrans %}
+    </div>
+    <div class="bleed-x bleed-b text-white bg-black p-6">
+      <div class="cap-label mb-2 text-gray-600">{% trans "Example" %}</div>
+      <div class="code break-all bg-black text-white p-0 m-0 whitespace-normal">
+        POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'stopped' %}
+        <div class="mt-2 text-gray-400">from=%2B250788123123</div>
+      </div>
+    </div>
+  </div>
+{% endif %}

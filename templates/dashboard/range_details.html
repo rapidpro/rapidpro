@@ -1,0 +1,66 @@
+{% load humanize %}
+
+<div class="span6">
+  <table class="table">
+    {% for org in orgs %}
+      <tr>
+        <td>
+          <a href="?org={{ org.channel__org }}&begin={{ begin|date:'Y-m-d' }}&end={{ end|date:'Y-m-d' }}&direction={{ direction }}">{{ org.channel__org__name }}</a>
+        </td>
+        <td>{{ org.day }}</td>
+        <td>
+          <div class="pull-right">{{ org.count_sum|intcomma }}</div>
+        </td>
+      </tr>
+    {% endfor %}
+    <tr>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+  </table>
+</div>
+<div class="span6">
+  <div id="channel-chart"></div>
+</div>
+<table class="hide" id="data">
+  <thead>
+    <tr>
+      <th></th>
+      <th>Messages</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for type in channel_types %}
+      <tr>
+        <th>{{ type.channel__name }}</th>
+        <td>{{ type.count_sum }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<script type="text/javascript">
+  $(document).ready(function() {
+
+    var chart = Highcharts.chart('channel-chart', {
+      data: {
+        table: 'data'
+      },
+      chart: {
+        type: 'pie'
+      },
+      title: {
+        text: null
+      },
+      credits: {
+        enabled: false
+      },
+      tooltip: {
+        formatters: function() {
+          return '<b>' + this.series.name + '</b><br />' +
+            this.point.y + ' ' + this.point.name.toLowerCase();
+        }
+      }
+    });
+  });
+</script>

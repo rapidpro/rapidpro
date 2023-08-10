@@ -2,27 +2,9 @@
 <temba-contact-search 
   name="{{widget.name}}"
   placeholder="{% trans 'Enter a query'%}"
-  query="{% if widget.value %}{{widget.value}}{%endif%}"
   error="{{widget.error}}"
   matches-text="{% trans 'Found ${count} for ${query}'%}"
   {% include "django/forms/widgets/attrs.html" %}
 >
-  <temba-checkbox 
-    name="not_seen_since_days" 
-    label='{{_("Skip inactive contacts")|escapejs}}'
-    help_text='{{_("Only include contacts who have sent a message in the last 90 days.")|escapejs}}'
-  ></temba-checkbox>
-
-  <temba-checkbox 
-    name="in_a_flow" 
-    label='{{_("Skip contacts currently in a flow")|escapejs}}'
-    help_text='{{_("Avoid interrupting a contact who is already in a flow.")|escapejs}}'
-  ></temba-checkbox>
-
-  <temba-checkbox 
-    name="started_previously"
-    label='{{_("Skip repeat contacts")|escapejs}}'
-    help_text='{{_("Avoid restarting a contact who has been in this flow in the last 90 days.")|escapejs}}'
-  ></temba-checkbox>
 
 </temba-contact-search>

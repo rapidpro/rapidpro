@@ -25,6 +25,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
         consumer_key = forms.CharField(required=True, help_text=_("The Consumer key"))
         consumer_secret = forms.CharField(required=True, help_text=_("The Consumer secret"))
+        cp_address = forms.CharField(required=False, help_text=_("The CP Address (if provided by MTN)"))
 
     form_class = Form
 
@@ -37,6 +38,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_API_KEY: cleaned_data.get("consumer_key"),
             Channel.CONFIG_AUTH_TOKEN: cleaned_data.get("consumer_secret"),
         }
+
+        if cleaned_data.get("cp_address"):
+            config[self.channel_type.CP_ADDRESS] = cleaned_data.get("cp_address")
 
         self.object = Channel.create(
             self.request.org,

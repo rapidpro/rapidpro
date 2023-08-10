@@ -1,6 +1,5 @@
 import json
 import subprocess
-import sys
 
 import pytz
 from django_redis import get_redis_connection
@@ -22,13 +21,13 @@ from temba.orgs.models import Org, OrgRole, User
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Team, Ticketer, Topic
 
-ORGS_SPEC_FILE = "temba/utils/management/commands/data/mailroom_db.json"
+SPECS_FILE = "temba/utils/management/commands/data/mailroom_db.json"
 
 # by default every user will have this password including the superuser
 USER_PASSWORD = "Qwerty123"
 
 # database dump containing admin boundary records
-LOCATIONS_DUMP = "test-data/nigeria.bin"
+LOCATIONS_FILE = "test-data/nigeria.bin"
 
 # database id sequences to be reset to make ids predictable
 RESET_SEQUENCES = (
@@ -46,47 +45,34 @@ RESET_SEQUENCES = (
     "triggers_trigger_id_seq",
 )
 
-PG_DUMP_VERSION = "14"
-PG_DUMP = "pg_dump"  # or specific e.g. f"/Applications/Postgres.app/Contents/Versions/{PG_DUMP_VERSION}/bin/pg_dump"
-PSQL_ARGS = "-h 127.0.0.1 -U postgres"
+PG_CONTAINER_NAME = "textit-postgres-1"
+MAILROOM_DB_NAME = "mailroom_test"
+MAILROOM_DB_USER = "mailroom_test"
+DUMP_FILE = "mailroom_test.dump"
 
 
 class Command(BaseCommand):
     help = "Generates a database suitable for mailroom testing"
 
     def handle(self, *args, **kwargs):
-        with open(ORGS_SPEC_FILE, "r") as orgs_file:
+        self.generate_and_dump(SPECS_FILE, LOCATIONS_FILE, MAILROOM_DB_NAME, MAILROOM_DB_USER, DUMP_FILE)
+
+    def generate_and_dump(self, specs_file, locs_file, db_name, db_user, dump_file):
+        with open(specs_file, "r") as orgs_file:
             orgs_spec = json.load(orgs_file)
 
-        self._log("Checking Postgres database version... ")
+        self._log(f"Initializing {db_name} database...\n")
 
-        result = subprocess.run([PG_DUMP, "--version"], stdout=subprocess.PIPE)
-        version = result.stdout.decode("utf8")
-        if version.split(" ")[-1].find(f"{PG_DUMP_VERSION}.") == 0:
-            self._log(self.style.SUCCESS("OK") + "\n")
-        else:
-            self._log(
-                "\n"
-                + self.style.ERROR(f"Incorrect pg_dump version, needs version {PG_DUMP_VERSION}.*, found: " + version)
-                + "\n"
-            )
-            sys.exit(1)
+        # drop and recreate the test db and user
+        self._sql(f"DROP DATABASE IF EXISTS {db_name}")
+        self._sql(f"CREATE DATABASE {db_name}")
+        self._sql(f"DROP USER IF EXISTS {db_user}")
+        self._sql(f"CREATE USER {db_user} PASSWORD 'temba'")
+        self._sql(f"ALTER ROLE {db_user} WITH SUPERUSER")
 
-        self._log("Initializing mailroom_test database...\n")
-
-        # drop and recreate the mailroom_test db and user
-        def psql(stmt: str):
-            subprocess.check_call(f'psql {PSQL_ARGS} -c "{stmt}"', shell=True)
-
-        psql("DROP DATABASE IF EXISTS mailroom_test")
-        psql("CREATE DATABASE mailroom_test")
-        psql("DROP USER IF EXISTS mailroom_test")
-        psql("CREATE USER mailroom_test PASSWORD 'temba'")
-        psql("ALTER ROLE mailroom_test WITH SUPERUSER")
-
-        # always use mailroom_test as our db
-        settings.DATABASES["default"]["NAME"] = "mailroom_test"
-        settings.DATABASES["default"]["USER"] = "mailroom_test"
+        # always use test db as our db
+        settings.DATABASES["default"]["NAME"] = db_name
+        settings.DATABASES["default"]["USER"] = db_user
 
         self._log("Running migrations...\n")
 
@@ -103,10 +89,10 @@ class Command(BaseCommand):
         superuser = User.objects.create_superuser("root", "root@nyaruka.com", USER_PASSWORD)
         self._log(self.style.SUCCESS("OK") + "\n")
 
-        mr_cmd = 'mailroom -db="postgres://mailroom_test:temba@localhost/mailroom_test?sslmode=disable" -uuid-seed=123'
+        mr_cmd = f'mailroom -db="postgres://{db_user}:temba@localhost/{db_name}?sslmode=disable" -uuid-seed=123'
         input(f"\nPlease start mailroom:\n   % ./{mr_cmd}\n\nPress enter when ready.\n")
 
-        country = self.load_locations(LOCATIONS_DUMP)
+        country = self.load_locations(locs_file)
 
         # patch UUID generation so it's deterministic
         from temba.utils import uuid
@@ -121,9 +107,16 @@ class Command(BaseCommand):
         self.reset_id_sequences(30000)
 
         # dump our file
-        subprocess.check_call(f"{PG_DUMP} {PSQL_ARGS} -Fc mailroom_test > mailroom_test.dump", shell=True)
+        result = subprocess.run(
+            ["docker", "exec", "-i", PG_CONTAINER_NAME, "pg_dump", "-U", "postgres", "-Fc", db_name],
+            stdout=subprocess.PIPE,
+            check=True,
+        )
 
-        self._log("\n" + self.style.SUCCESS("Success!") + " Dump file: mailroom_test.dump\n\n")
+        with open(dump_file, "wb") as f:
+            f.write(result.stdout)
+
+        self._log("\n" + self.style.SUCCESS("Success!") + f" Dump file: {dump_file}\n\n")
 
     def load_locations(self, path):
         """
@@ -131,16 +124,26 @@ class Command(BaseCommand):
         """
         self._log("Loading locations from %s... " % path)
 
-        # load dump into current db with pg_restore
-        db_config = settings.DATABASES["default"]
-        try:
-            subprocess.check_call(
-                f"export PGPASSWORD={db_config['PASSWORD']} && pg_restore -h {db_config['HOST']} "
-                f"-p {db_config['PORT']} -U {db_config['USER']} -w -d {db_config['NAME']} {path}",
-                shell=True,
-            )
-        except subprocess.CalledProcessError:  # pragma: no cover
-            raise CommandError("Error occurred whilst calling pg_restore to load locations dump")
+        with open(path, "rb") as f:
+            try:
+                subprocess.run(
+                    [
+                        "docker",
+                        "exec",
+                        "-i",
+                        PG_CONTAINER_NAME,
+                        "pg_restore",
+                        "-d",
+                        MAILROOM_DB_NAME,
+                        "-U",
+                        MAILROOM_DB_USER,
+                    ],
+                    input=f.read(),
+                    stdout=subprocess.PIPE,
+                    check=True,
+                )
+            except subprocess.CalledProcessError:
+                raise CommandError("Error occurred whilst calling pg_restore to load locations dump")
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
@@ -159,7 +162,6 @@ class Command(BaseCommand):
             name=spec["name"],
             timezone=pytz.timezone("America/Los_Angeles"),
             flow_languages=spec["languages"],
-            brand="rapidpro",
             country=country,
             created_on=timezone.now(),
             created_by=superuser,
@@ -455,6 +457,19 @@ class Command(BaseCommand):
                 Contact.bulk_change_group(user, contacts, group, add=True)
 
         self._log(self.style.SUCCESS("OK") + "\n")
+
+    def _sql(self, sql: str):
+        try:
+            result = subprocess.run(
+                ["docker", "exec", "-i", PG_CONTAINER_NAME, "psql", "-U", "postgres"],
+                input=sql.encode(),
+                stdout=subprocess.PIPE,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            raise CommandError(str(e))
+
+        self._log(result.stdout.decode())
 
     def _log(self, text):
         self.stdout.write(text, ending="")

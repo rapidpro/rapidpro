@@ -1,20 +1,11 @@
 {% extends "smartmin/read.html" %}
 {% load i18n humanize smartmin sms contacts compress temba channels %}
 
-{% block buttons %}
-{% endblock buttons %}
-{% block page-title %}
-  {{ contact|name_or_urn:user_org|default:"Contact Details" }}
-{% endblock page-title %}
-{% block spa-title %}
-  <div class="hidden" id="title-text">{{ title }}</div>
+{% block title %}
+  <div class="hidden" id="title-text">{{ title|default:"Contact Details" }}</div>
   <temba-contact-name-fetch contact="{{ object.uuid }}" -temba-refreshed="handleContactRefreshed" showLoading>
   </temba-contact-name-fetch>
-{% endblock spa-title %}
-{% block subtitle %}
-{% endblock subtitle %}
-{% block read-buttons %}
-{% endblock read-buttons %}
+{% endblock title %}
 {% block content %}
   <temba-tabs -temba-context-changed="handleTabChanged"
               index="{{ request.GET.tab }}"

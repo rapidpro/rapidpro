@@ -204,9 +204,7 @@ class Campaign(TembaModel):
                 "event_type": event.event_type,
                 "delivery_hour": event.delivery_hour,
                 "message": event.message,
-                "relative_to": dict(
-                    label=event.relative_to.name, key=event.relative_to.key
-                ),  # TODO should be key/name
+                "relative_to": dict(label=event.relative_to.name, key=event.relative_to.key),  # TODO should be key/name
                 "start_mode": event.start_mode,
             }
 

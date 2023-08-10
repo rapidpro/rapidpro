@@ -62,9 +62,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 ).exclude(pk=channel.pk)
 
                 if conflicts.exists():
-                    raise forms.ValidationError(
-                        _("Another channel has this number. Please remove that channel first.")
-                    )
+                    raise forms.ValidationError(_("Another channel has this number. Please remove that channel first."))
 
             return number
 

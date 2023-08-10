@@ -23,9 +23,9 @@ class TwilioWhatsappType(ChannelType):
 
     name = "Twilio WhatsApp"
 
-    claim_blurb = _(
-        "If you have a %(link)s number, you can connect it to communicate with your WhatsApp contacts."
-    ) % {"link": '<a target="_blank" href="https://www.twilio.com/whatsapp/">Twilio WhatsApp</a>'}
+    claim_blurb = _("If you have a %(link)s number, you can connect it to communicate with your WhatsApp contacts.") % {
+        "link": '<a target="_blank" href="https://www.twilio.com/whatsapp/">Twilio WhatsApp</a>'
+    }
 
     claim_view = ClaimView
     update_form = UpdateForm

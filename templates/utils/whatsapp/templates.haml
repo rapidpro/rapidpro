@@ -5,15 +5,9 @@
 
 -block fields
 
--block title
-  {{ object.name }}
-  -trans "Templates"
-
 -block subtitle
-  .text-lg
-    {{ object.get_channel_type_display }}
-
-    -trans "Templates are synced from your account every 15 minutes."
+  {{ object.get_channel_type_display }}
+  -trans "Templates are synced from your account every 15 minutes."
 
 -block content
   .card.p-0.overflow-y-scroll#templates

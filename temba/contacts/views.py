@@ -697,11 +697,11 @@ class ContactCRUDL(SmartCRUDL):
             obj = self.get_object()
 
             if obj.status == Contact.STATUS_ACTIVE:
-                if self.has_org_perm("flows.flow_broadcast"):
+                if self.has_org_perm("flows.flow_start"):
                     menu.add_modax(
                         _("Start Flow"),
                         "start-flow",
-                        f"{reverse('flows.flow_broadcast')}?c={obj.uuid}",
+                        f"{reverse('flows.flow_start')}?c={obj.uuid}",
                         on_submit="contactUpdated()",
                         disabled=True,
                     )
@@ -982,9 +982,7 @@ class ContactCRUDL(SmartCRUDL):
             if self.has_org_perm("contacts.contact_export"):
                 menu.add_modax(_("Export"), "export-contacts", self.derive_export_url(), title=_("Export Contacts"))
 
-            menu.add_modax(
-                _("Usages"), "group-usages", reverse("contacts.contactgroup_usages", args=[self.group.uuid])
-            )
+            menu.add_modax(_("Usages"), "group-usages", reverse("contacts.contactgroup_usages", args=[self.group.uuid]))
 
             if not self.group.is_system and self.has_org_perm("contacts.contactgroup_delete"):
                 menu.add_modax(
@@ -1654,9 +1652,7 @@ class ContactImportCRUDL(SmartCRUDL):
                     if mapping["type"] == "new_field" and data["include"]:
                         field_name = data["name"]
                         if not field_name:
-                            raise ValidationError(
-                                _("Field name for '%(header)s' can't be empty.") % {"header": header}
-                            )
+                            raise ValidationError(_("Field name for '%(header)s' can't be empty.") % {"header": header})
                         else:
                             field_key = ContactField.make_key(field_name)
                             if field_key in existing_field_keys:

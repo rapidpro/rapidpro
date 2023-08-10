@@ -35,16 +35,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         username = forms.CharField(
             max_length=64,
             required=False,
-            help_text=_(
-                "The username to use to authenticate to Kannel, if left blank we " "will generate one for you"
-            ),
+            help_text=_("The username to use to authenticate to Kannel, if left blank we " "will generate one for you"),
         )
         password = forms.CharField(
             max_length=64,
             required=False,
-            help_text=_(
-                "The password to use to authenticate to Kannel, if left blank we " "will generate one for you"
-            ),
+            help_text=_("The password to use to authenticate to Kannel, if left blank we " "will generate one for you"),
         )
         encoding = forms.ChoiceField(
             choices=Channel.ENCODING_CHOICES,

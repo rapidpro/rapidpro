@@ -254,9 +254,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "spec_version",
-                    models.CharField(
-                        default="11.12", help_text="The flow version this definition is in", max_length=8
-                    ),
+                    models.CharField(default="11.12", help_text="The flow version this definition is in", max_length=8),
                 ),
                 ("revision", models.IntegerField(help_text="Revision number for this definition", null=True)),
             ],

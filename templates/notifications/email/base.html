@@ -2,20 +2,15 @@
 {% load i18n %}
 
 {% block body %}
-
-<p>
-  {% trans "Hi" %} {{ user.first_name }}
-</p>
-
-{% block notification-body %}{% endblock notification-body %}
-
-<p>
-  {% trans "If you have any questions we are always here to help." %}
-</p>
-
-<p>
-  {% trans "Thanks" %}<br/>
-  {% blocktrans trimmed with brand=branding.name %}The {{ brand }} Team{% endblocktrans %}
-</p>
-
+  <p>{% trans "Hi" %} {{ user.first_name }}</p>
+  {% block notification-body %}
+  {% endblock notification-body %}
+  <p>{% trans "If you have any questions we are always here to help." %}</p>
+  <p>
+    {% trans "Thanks" %}
+    <br />
+    {% blocktrans trimmed with brand=branding.name %}
+      The {{ brand }} Team
+    {% endblocktrans %}
+  </p>
 {% endblock body %}

@@ -7,13 +7,22 @@ from celery.schedules import crontab
 
 from django.utils.translation import gettext_lazy as _
 
-# -----------------------------------------------------------------------------------
-# Default to debugging
-# -----------------------------------------------------------------------------------
-DEBUG = True
+INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24", "0.0.0.0")  # network block
+HOSTNAME = "localhost"
+
+ADMINS = (("RapidPro", "code@yourdomain.io"),)
+MANAGERS = ADMINS
+
+# HTTP Headers using for outgoing requests to other services
+OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
+
+# Make this unique, and don't share it with anybody.
+SECRET_KEY = "your own secret key"
+
+HELP_URL = None
 
 # -----------------------------------------------------------------------------------
-# Sets TESTING to True if this configuration is read during a unit test
+# Tests
 # -----------------------------------------------------------------------------------
 TESTING = sys.argv[1:2] == ["test"]
 
@@ -21,15 +30,15 @@ if TESTING:
     PASSWORD_HASHERS = ("django.contrib.auth.hashers.MD5PasswordHasher",)
     DEBUG = False
 
-ADMINS = (("RapidPro", "code@yourdomain.io"),)
-MANAGERS = ADMINS
-
-USE_DEPRECATED_PYTZ = True
+TEST_RUNNER = "temba.tests.runner.TembaTestRunner"
+TEST_EXCLUDE = ("smartmin",)
 
 # -----------------------------------------------------------------------------------
-# set the mail settings, override these in your settings.py
-# if your site was at http://temba.io, it might look like this:
+# Email
 # -----------------------------------------------------------------------------------
+
+SEND_EMAILS = False
+
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_HOST_USER = "server@temba.io"
 DEFAULT_FROM_EMAIL = "server@temba.io"
@@ -41,25 +50,24 @@ EMAIL_TIMEOUT = 10
 # their own SMTP server.
 FLOW_FROM_EMAIL = "Temba <no-reply@temba.io>"
 
-# HTTP Headers using for outgoing requests to other services
-OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
-
 # -----------------------------------------------------------------------------------
 # Storage
 # -----------------------------------------------------------------------------------
 
 STORAGES = {
+    # default storage for things like exports, imports
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    # wherever rp-archiver writes archive files (must be S3 compatible)
+    "archives": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "OPTIONS": {"bucket_name": "temba-archives"},
+    },
+    # wherever courier and mailroom are writing logs
+    "logs": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
+    # media file uploads that need to be publicly accessible
     "public": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    # standard Django static files storage
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
-}
-
-# S3 bucket names for different things
-STORAGE_BUCKETS = {
-    "default": "dl-temba-io",
-    "archives": "dl-temba-archives",
-    "logs": "dl-temba-logs",
-    "sessions": "dl-temba-sessions",
 }
 
 STORAGE_URL = None  # may be an absolute URL to /media (like http://localhost:8000/media) or AWS S3
@@ -68,28 +76,18 @@ STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
 # settings used by django-storages
 AWS_ACCESS_KEY_ID = "aws_access_key_id"
 AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
-AWS_DEFAULT_ACL = "private"
-AWS_STORAGE_BUCKET_NAME = STORAGE_BUCKETS["default"]
-AWS_BUCKET_DOMAIN = AWS_STORAGE_BUCKET_NAME + ".s3.amazonaws.com"
 
 # -----------------------------------------------------------------------------------
-# On Unix systems, a value of None will cause Django to use the same
-# timezone as the operating system.
-# If running in a Windows environment this must be set to the same as your
-# system time zone
+# Localization
 # -----------------------------------------------------------------------------------
+
 USE_TZ = True
 TIME_ZONE = "GMT"
 USER_TIME_ZONE = "Africa/Kigali"
+USE_DEPRECATED_PYTZ = True
 
-# -----------------------------------------------------------------------------------
-# Default language used for this installation
-# -----------------------------------------------------------------------------------
 LANGUAGE_CODE = "en-us"
 
-# -----------------------------------------------------------------------------------
-# Available languages for translation
-# -----------------------------------------------------------------------------------
 LANGUAGES = (
     ("en-us", _("English")),
     ("cs", _("Czech")),
@@ -103,13 +101,12 @@ DEFAULT_LANGUAGE = "en-us"
 
 SITE_ID = 1
 
-# If you set this to False, Django will make some optimizations so as not
-# to load the internationalization machinery.
 USE_I18N = True
-
-# If you set this to False, Django will not format dates, numbers and
-# calendars according to the current locale
 USE_L10N = True
+
+# -----------------------------------------------------------------------------------
+# Static Files
+# -----------------------------------------------------------------------------------
 
 # List of finder classes that know how to find static files in
 # various locations.
@@ -119,12 +116,7 @@ STATICFILES_FINDERS = (
     "compressor.finders.CompressorFinder",
 )
 
-# Make this unique, and don't share it with anybody.
-SECRET_KEY = "your own secret key"
 
-# -----------------------------------------------------------------------------------
-# Directory Configuration
-# -----------------------------------------------------------------------------------
 PROJECT_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)))
 LOCALE_PATHS = (os.path.join(PROJECT_DIR, "../locale"),)
 RESOURCES_DIR = os.path.join(PROJECT_DIR, "../resources")
@@ -145,12 +137,10 @@ COMPRESS_ROOT = os.path.join(PROJECT_DIR, "../sitestatic")
 MEDIA_ROOT = os.path.join(PROJECT_DIR, "../media")
 MEDIA_URL = "/media/"
 
-HELP_URL = None
-
-
 # -----------------------------------------------------------------------------------
-# Templates Configuration
+# Templates
 # -----------------------------------------------------------------------------------
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -178,7 +168,6 @@ TEMPLATES = [
                 "django.template.loaders.filesystem.Loader",
                 "django.template.loaders.app_directories.Loader",
             ],
-            "debug": False if TESTING else DEBUG,
         },
     }
 ]
@@ -187,6 +176,10 @@ if TESTING:
     TEMPLATES[0]["OPTIONS"]["context_processors"] += ("temba.tests.add_testing_flag_to_context",)
 
 FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
+
+# -----------------------------------------------------------------------------------
+# Middleware
+# -----------------------------------------------------------------------------------
 
 MIDDLEWARE = (
     "django.middleware.security.SecurityMiddleware",
@@ -201,6 +194,10 @@ MIDDLEWARE = (
     "temba.middleware.LanguageMiddleware",
     "temba.middleware.TimezoneMiddleware",
 )
+
+# -----------------------------------------------------------------------------------
+# Apps
+# -----------------------------------------------------------------------------------
 
 ROOT_URLCONF = "temba.urls"
 
@@ -269,6 +266,10 @@ INSTALLED_APPS = (
 # the last installed app that uses smartmin permissions
 PERMISSIONS_APP = "temba.airtime"
 
+# -----------------------------------------------------------------------------------
+# Logging
+# -----------------------------------------------------------------------------------
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": True,
@@ -280,8 +281,9 @@ LOGGING = {
 }
 
 # -----------------------------------------------------------------------------------
-# Branding Configuration
+# Branding
 # -----------------------------------------------------------------------------------
+
 BRAND = {
     "slug": "rapidpro",
     "name": "RapidPro",
@@ -305,10 +307,9 @@ FEATURES = {"locations", "surveyor", "ticketers"}
 
 
 # -----------------------------------------------------------------------------------
-# Permission Management
+# Permissions
 # -----------------------------------------------------------------------------------
 
-# this lets us easily create new permissions across our objects
 PERMISSIONS = {
     "*": (
         "create",  # can create an object
@@ -351,7 +352,6 @@ PERMISSIONS = {
         "api",
         "archived",
         "assets",
-        "broadcast",
         "category_counts",
         "change_language",
         "copy",
@@ -367,6 +367,7 @@ PERMISSIONS = {
         "results",
         "revisions",
         "simulate",
+        "start",
     ),
     "flows.flowsession": ("json",),
     "globals.global": ("api", "unused"),
@@ -673,6 +674,7 @@ GROUP_PERMISSIONS = {
         "flows.flow_activity_chart",
         "flows.flow_activity_data",
         "flows.flow_activity",
+        "flows.flow_api",
         "flows.flow_archived",
         "flows.flow_assets",
         "flows.flow_category_counts",
@@ -746,6 +748,7 @@ GROUP_PERMISSIONS = {
 # -----------------------------------------------------------------------------------
 # Login / Logout
 # -----------------------------------------------------------------------------------
+
 LOGIN_URL = "/users/login/"
 LOGOUT_URL = "/users/logout/"
 LOGIN_REDIRECT_URL = "/org/choose/"
@@ -760,14 +763,9 @@ AUTH_PASSWORD_VALIDATORS = [
 ANONYMOUS_USER_NAME = "AnonymousUser"
 
 # -----------------------------------------------------------------------------------
-# Our test runner includes the ability to exclude apps
+# Database
 # -----------------------------------------------------------------------------------
-TEST_RUNNER = "temba.tests.runner.TembaTestRunner"
-TEST_EXCLUDE = ("smartmin",)
 
-# -----------------------------------------------------------------------------------
-# Need a PostgreSQL database on localhost with postgis extension installed.
-# -----------------------------------------------------------------------------------
 _default_database_config = {
     "ENGINE": "django.contrib.gis.db.backends.postgis",
     "NAME": "temba",
@@ -787,34 +785,30 @@ DATABASES = {"default": _default_database_config, "readonly": _default_database_
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
-INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24", "0.0.0.0")  # network block
-
-HOSTNAME = "localhost"
-
-# The URL and port of the proxy server to use when needed (if any, in requests format)
-OUTGOING_PROXIES = {}
-
 # -----------------------------------------------------------------------------------
-# Caching using Redis
+# Cache
 # -----------------------------------------------------------------------------------
-REDIS_HOST = "localhost"
-REDIS_PORT = 6379
-REDIS_DB = 10 if TESTING else 15  # we use a redis db of 10 for testing so that we maintain caches for dev
+
+_redis_url = f"redis://localhost:6379/{10 if TESTING else 15}"
 
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://%s:%s/%s" % (REDIS_HOST, REDIS_PORT, REDIS_DB),
+        "LOCATION": _redis_url,
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
     }
 }
 
+SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
+SESSION_CACHE_ALIAS = "default"
+
 # -----------------------------------------------------------------------------------
-# Async tasks using Celery
+# Celery
 # -----------------------------------------------------------------------------------
+
+CELERY_BROKER_URL = _redis_url
 CELERY_RESULT_BACKEND = None
 CELERY_TASK_TRACK_STARTED = True
-CELERY_BROKER_URL = "redis://%s:%d/%d" % (REDIS_HOST, REDIS_PORT, REDIS_DB)
 
 # by default, celery doesn't have any timeout on our redis connections, this fixes that
 CELERY_BROKER_TRANSPORT_OPTIONS = {"socket_timeout": 5}
@@ -848,8 +842,9 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 # -----------------------------------------------------------------------------------
-# Django-rest-framework configuration
+# API
 # -----------------------------------------------------------------------------------
+
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_AUTHENTICATION_CLASSES": ("temba.api.support.APISessionAuthentication",),
@@ -868,7 +863,7 @@ REST_FRAMEWORK = {
 REST_HANDLE_EXCEPTIONS = not TESTING
 
 # -----------------------------------------------------------------------------------
-# Django Compressor configuration
+# Compression
 # -----------------------------------------------------------------------------------
 
 if TESTING:
@@ -883,13 +878,8 @@ COMPRESS_ENABLED = False
 COMPRESS_OFFLINE = False
 
 # -----------------------------------------------------------------------------------
-# RapidPro configuration settings
+# Pluggable Types
 # -----------------------------------------------------------------------------------
-
-######
-# DANGER: only turn this on if you know what you are doing!
-#         could cause emails to be sent in test environment
-SEND_EMAILS = False
 
 INTEGRATION_TYPES = [
     "temba.orgs.integrations.dtone.DTOneType",
@@ -946,6 +936,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.m3tech.M3TechType",
     "temba.channels.types.macrokiosk.MacrokioskType",
     "temba.channels.types.mblox.MbloxType",
+    "temba.channels.types.messagebird.MessageBirdType",
     "temba.channels.types.messangi.MessangiType",
     "temba.channels.types.mtn.MtnType",
     "temba.channels.types.mtarget.MtargetType",
@@ -991,61 +982,22 @@ ANALYTICS_TYPES = [
 NON_ISO6391_LANGUAGES = {"mul", "und"}
 
 # -----------------------------------------------------------------------------------
-# Store sessions in our cache
+# Mailroom
 # -----------------------------------------------------------------------------------
-SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
-SESSION_CACHE_ALIAS = "default"
+
+MAILROOM_URL = None
+MAILROOM_AUTH_TOKEN = None
 
 # -----------------------------------------------------------------------------------
-# 3rd Party Integration Keys
+# ElasticSearch
 # -----------------------------------------------------------------------------------
-TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY", "MISSING_TWITTER_API_KEY")
-TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET", "MISSING_TWITTER_API_SECRET")
 
-MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY", "")
-
-ZENDESK_CLIENT_ID = os.environ.get("ZENDESK_CLIENT_ID", "")
-ZENDESK_CLIENT_SECRET = os.environ.get("ZENDESK_CLIENT_SECRET", "")
+ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 
 # -----------------------------------------------------------------------------------
-#
-#    1. Create an Facebook app on https://developers.facebook.com/apps/
-#
-#    2. Copy the Facebook Application ID
-#
-#    3. From Settings > Basic, show and copy the Facebook Application Secret
-#
-#    4. Generate a Random Secret to use as Facebook Webhook Secret as described
-#       on https://developers.facebook.com/docs/messenger-platform/webhook#setup
-#
+# Data Model
 # -----------------------------------------------------------------------------------
-FACEBOOK_APPLICATION_ID = os.environ.get("FACEBOOK_APPLICATION_ID", "MISSING_FACEBOOK_APPLICATION_ID")
-FACEBOOK_APPLICATION_SECRET = os.environ.get("FACEBOOK_APPLICATION_SECRET", "MISSING_FACEBOOK_APPLICATION_SECRET")
-FACEBOOK_WEBHOOK_SECRET = os.environ.get("FACEBOOK_WEBHOOK_SECRET", "MISSING_FACEBOOK_WEBHOOK_SECRET")
 
-WHATSAPP_ADMIN_SYSTEM_USER_ID = os.environ.get(
-    "WHATSAPP_ADMIN_SYSTEM_USER_ID", "MISSING_WHATSAPP_ADMIN_SYSTEM_USER_ID"
-)
-WHATSAPP_ADMIN_SYSTEM_USER_TOKEN = os.environ.get(
-    "WHATSAPP_ADMIN_SYSTEM_USER_TOKEN", "MISSING_WHATSAPP_ADMIN_SYSTEM_USER_TOKEN"
-)
-WHATSAPP_FACEBOOK_BUSINESS_ID = os.environ.get(
-    "WHATSAPP_FACEBOOK_BUSINESS_ID", "MISSING_WHATSAPP_FACEBOOK_BUSINESS_ID"
-)
-
-
-# -----------------------------------------------------------------------------------
-# IP Addresses
-# These are the externally accessible IP addresses of the servers running RapidPro.
-# Needed for channel types that authenticate by whitelisting public IPs.
-#
-# You need to change these to real addresses to work with these.
-# -----------------------------------------------------------------------------------
-IP_ADDRESSES = ("172.16.10.10", "162.16.10.20")
-
-# -----------------------------------------------------------------------------------
-# Data model limits
-# -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640  # used for broadcast text, message text, and message campaign events
 FLOW_START_PARAMS_SIZE = 256  # used for params passed to flow start API endpoint
 GLOBAL_VALUE_SIZE = 10_000  # max length of global values
@@ -1060,9 +1012,6 @@ ORG_LIMIT_DEFAULTS = {
     "topics": 250,
 }
 
-# -----------------------------------------------------------------------------------
-# Data retention periods - tasks trim away data older than these settings
-# -----------------------------------------------------------------------------------
 RETENTION_PERIODS = {
     "channellog": timedelta(days=14),
     "eventfire": timedelta(days=90),  # matches default rp-archiver behavior
@@ -1073,12 +1022,40 @@ RETENTION_PERIODS = {
 }
 
 # -----------------------------------------------------------------------------------
-# Mailroom
+# 3rd Party Integrations
 # -----------------------------------------------------------------------------------
-MAILROOM_URL = None
-MAILROOM_AUTH_TOKEN = None
 
-# -----------------------------------------------------------------------------------
-# ElasticSearch
-# -----------------------------------------------------------------------------------
-ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
+TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY", "MISSING_TWITTER_API_KEY")
+TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET", "MISSING_TWITTER_API_SECRET")
+
+MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY", "")
+
+ZENDESK_CLIENT_ID = os.environ.get("ZENDESK_CLIENT_ID", "")
+ZENDESK_CLIENT_SECRET = os.environ.get("ZENDESK_CLIENT_SECRET", "")
+
+
+#    1. Create an Facebook app on https://developers.facebook.com/apps/
+#
+#    2. Copy the Facebook Application ID
+#
+#    3. From Settings > Basic, show and copy the Facebook Application Secret
+#
+#    4. Generate a Random Secret to use as Facebook Webhook Secret as described
+#       on https://developers.facebook.com/docs/messenger-platform/webhook#setup
+#
+FACEBOOK_APPLICATION_ID = os.environ.get("FACEBOOK_APPLICATION_ID", "MISSING_FACEBOOK_APPLICATION_ID")
+FACEBOOK_APPLICATION_SECRET = os.environ.get("FACEBOOK_APPLICATION_SECRET", "MISSING_FACEBOOK_APPLICATION_SECRET")
+FACEBOOK_WEBHOOK_SECRET = os.environ.get("FACEBOOK_WEBHOOK_SECRET", "MISSING_FACEBOOK_WEBHOOK_SECRET")
+
+WHATSAPP_ADMIN_SYSTEM_USER_ID = os.environ.get("WHATSAPP_ADMIN_SYSTEM_USER_ID", "MISSING_WHATSAPP_ADMIN_SYSTEM_USER_ID")
+WHATSAPP_ADMIN_SYSTEM_USER_TOKEN = os.environ.get(
+    "WHATSAPP_ADMIN_SYSTEM_USER_TOKEN", "MISSING_WHATSAPP_ADMIN_SYSTEM_USER_TOKEN"
+)
+WHATSAPP_FACEBOOK_BUSINESS_ID = os.environ.get("WHATSAPP_FACEBOOK_BUSINESS_ID", "MISSING_WHATSAPP_FACEBOOK_BUSINESS_ID")
+
+# IP Addresses
+# These are the externally accessible IP addresses of the servers running RapidPro.
+# Needed for channel types that authenticate by whitelisting public IPs.
+#
+# You need to change these to real addresses to work with these.
+IP_ADDRESSES = ("172.16.10.10", "162.16.10.20")

@@ -1,0 +1,113 @@
+{% extends "includes/modax.html" %}
+{% load smartmin i18n %}
+
+{% block modal-extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    .warnings {
+      opacity: 1;
+    }
+
+    .warnings temba-alert,
+    .blockers temba-alert {
+      margin-bottom: 1em;
+    }
+
+    .warnings,
+    .blockers {
+      max-height: 0;
+      transition: max-height 1000ms ease-in-out;
+      overflow: hidden;
+    }
+
+    .warnings.opened,
+    .blockers.opened {
+      max-height: 1000px;
+    }
+
+    .card-option {
+      border-radius: var(--curvature);
+      padding: 14px;
+      background: #fafafa;
+      border: 2px solid transparent;
+    }
+
+    .selected {
+      border-color: var(--color-primary-dark);
+    }
+
+    .card-option:hover {
+      cursor: pointer;
+      background: var(--color-selection);
+    }
+
+    .field_query.control-group,
+    .start-options .control-group {
+      margin-bottom: 3px;
+    }
+
+    .start-form {
+      --contact-search-query-display: none;
+    }
+
+    .start-form.query-mode {
+      --contact-search-query-display: block;
+    }
+
+    .start-form.query-mode temba-omnibox {
+      display: none;
+    }
+  </style>
+{% endblock modal-extra-style %}
+{% block modal-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    {
+      const modax = getModax("#start-flow");
+      const modalBody = modax.shadowRoot;
+      const queryWidget = modalBody.querySelector("temba-contact-search");
+      const flowSelect = modalBody.querySelector("temba-select[name='flow']");
+
+      queryWidget.addEventListener("temba-content-changed", function(e) {
+        if (e.detail.reset || (e.detail.blockers && e.detail.blockers.length > 0)) {
+          modax.disabled = true;
+        } else if (e.detail.query) {
+          modax.disabled = e.detail.total == 0;
+        }
+      });
+
+      if (flowSelect) {
+        flowSelect.addEventListener("change", function(evt) {
+          if (this.selection) {
+            var flowType = this.selection.type;
+            modax.disabled = true;
+            queryWidget.in_a_flow = flowType !== 'B';
+            queryWidget.started_previously = true;
+            queryWidget.not_seen_since_days = true;
+            queryWidget.endpoint = "/flow/preview_start/" + this.value + "/";
+            queryWidget.refresh();
+          }
+        });
+      }
+
+      const handleDialogButton = function(event) {
+        const modax = getModax("#start-flow");
+        const modalBody = modax.shadowRoot;
+        if (modax.suspendSubmit) {
+          event.stopPropagation();
+          event.preventDefault();
+          modax.suspendSubmit = false;
+        }
+      }
+
+      const dialog = modalBody.querySelector("temba-dialog");
+      if (!dialog.registered) {
+        dialog.addEventListener("temba-button-clicked", handleDialogButton);
+        dialog.registered = true;
+      }
+    }
+  </script>
+{% endblock modal-script %}
+{% block form-buttons %}
+  <input type="submit" value="{{ submit_button_name }}" class="btn btn-primary">
+{% endblock form-buttons %}

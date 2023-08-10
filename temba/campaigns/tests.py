@@ -210,9 +210,7 @@ class CampaignTest(TembaTest):
             relative_to=self.planting_date,
             offset=1,
             unit="D",
-            message={
-                "eng": "Hi @(upper(contact.name)) don't forget to plant on @(format_date(contact.planting_date))"
-            },
+            message={"eng": "Hi @(upper(contact.name)) don't forget to plant on @(format_date(contact.planting_date))"},
             base_language="eng",
         )
 
@@ -260,9 +258,7 @@ class CampaignTest(TembaTest):
 
         # manually create two event fires
         EventFire.objects.create(event=event, contact=self.farmer1, scheduled=trim_date, fired=trim_date)
-        e2 = EventFire.objects.create(
-            event=event, contact=self.farmer1, scheduled=timezone.now(), fired=timezone.now()
-        )
+        e2 = EventFire.objects.create(event=event, contact=self.farmer1, scheduled=timezone.now(), fired=timezone.now())
 
         # create an unfired fire and release its event
         EventFire.objects.create(event=second_event, contact=self.farmer1, scheduled=trim_date)
@@ -374,9 +370,7 @@ class CampaignTest(TembaTest):
             flow_to_start=self.reminder_flow.pk,
             flow_start_mode="I",
         )
-        response = self.client.post(
-            reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
-        )
+        response = self.client.post(reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data)
 
         self.assertTrue(response.context["form"].errors)
         self.assertIn("A message is required", str(response.context["form"].errors["__all__"]))
@@ -393,9 +387,7 @@ class CampaignTest(TembaTest):
             flow_start_mode="I",
         )
 
-        response = self.client.post(
-            reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
-        )
+        response = self.client.post(reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data)
 
         self.assertFormError(
             response, "form", None, f"Translation for 'English' exceeds the {Msg.MAX_TEXT_LEN} character limit."
@@ -411,9 +403,7 @@ class CampaignTest(TembaTest):
             event_type="F",
             flow_start_mode="I",
         )
-        response = self.client.post(
-            reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
-        )
+        response = self.client.post(reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data)
 
         self.assertFormError(response, "form", "flow_to_start", "This field is required.")
 
@@ -428,9 +418,7 @@ class CampaignTest(TembaTest):
             flow_to_start=self.reminder_flow.pk,
             flow_start_mode="I",
         )
-        response = self.client.post(
-            reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
-        )
+        response = self.client.post(reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data)
 
         event = CampaignEvent.objects.filter(is_active=True).get()
         # should be redirected back to our campaign read page
@@ -617,9 +605,7 @@ class CampaignTest(TembaTest):
             flow_start_mode="I",
             flow_to_start=self.background_flow.pk,
         )
-        response = self.client.post(
-            reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
-        )
+        response = self.client.post(reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data)
 
         # events created with background flows are always passive start mode
         event = CampaignEvent.objects.filter(is_active=True).get()
@@ -757,9 +743,7 @@ class CampaignTest(TembaTest):
             message_start_mode="I",
         )
 
-        response = self.client.post(
-            reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
-        )
+        response = self.client.post(reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data)
 
         self.assertRedirect(response, reverse("campaigns.campaign_read", args=[campaign.uuid]))
 
@@ -767,9 +751,7 @@ class CampaignTest(TembaTest):
         campaign.is_archived = True
         campaign.save()
 
-        response = self.client.post(
-            reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
-        )
+        response = self.client.post(reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data)
 
         # we should get 404 for the archived campaign
         self.assertEqual(response.status_code, 404)
@@ -779,9 +761,7 @@ class CampaignTest(TembaTest):
         campaign.is_active = False
         campaign.save()
 
-        response = self.client.post(
-            reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data
-        )
+        response = self.client.post(reverse("campaigns.campaignevent_create") + "?campaign=%d" % campaign.pk, post_data)
 
         # we should get 404 for the inactive campaign
         self.assertEqual(response.status_code, 404)
@@ -1041,11 +1021,7 @@ class CampaignTest(TembaTest):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         new_org = Org.objects.create(
-            name="Temba New",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand=settings.BRAND["slug"],
-            created_by=self.user,
-            modified_by=self.user,
+            name="Temba New", timezone=pytz.timezone("Africa/Kigali"), created_by=self.user, modified_by=self.user
         )
 
         self.assertRaises(
@@ -1104,11 +1080,7 @@ class CampaignTest(TembaTest):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         new_org = Org.objects.create(
-            name="Temba New",
-            timezone=pytz.timezone("Africa/Kigali"),
-            brand=settings.BRAND["slug"],
-            created_by=self.user,
-            modified_by=self.user,
+            name="Temba New", timezone=pytz.timezone("Africa/Kigali"), created_by=self.user, modified_by=self.user
         )
 
         with self.assertRaises(AssertionError):
