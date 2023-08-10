@@ -1,3 +1,7 @@
+v8.3.3 (2023-08-10)
+-------------------------
+ * Simplify message indexes and system label queries
+
 v8.3.2 (2023-08-10)
 -------------------------
  * Add data migration to convert old I/F msg types
