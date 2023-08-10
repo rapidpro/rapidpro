@@ -1,0 +1,26 @@
+{% load i18n %}
+
+{% for http_log in log.http_logs %}
+  <div class="mb-4">{% include "includes/http_log.html" with log=http_log %}</div>
+{% endfor %}
+{% if log.errors %}
+  {% for err in log.errors %}
+    <div class="p-4 shadow bg-white rounded-lg my-4">
+      <div class="entry flex">
+        <temba-icon name="error" style="--icon-color:rgb(var(--error-rgb))" size="1.5" class="ml-2 mr-4">
+        </temba-icon>
+        <div class="msg flex-grow">
+          {{ err.message }}
+          {% if err.ref_url %}
+            <div class="inline-block align-middle ml-1">
+              <a href="{{ err.ref_url }}">
+                <temba-icon name="link" size="1">
+                </temba-icon>
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+{% endif %}
