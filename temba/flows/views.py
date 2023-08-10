@@ -20,6 +20,7 @@ from django.contrib import messages
 from django.contrib.humanize.templatetags import humanize
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Max, Min, Sum
+from django.db.models.functions import Lower
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.encoding import force_str
@@ -52,8 +53,6 @@ from temba.utils.fields import (
     CheckboxWidget,
     ContactSearchWidget,
     InputWidget,
-    OmniboxChoice,
-    OmniboxField,
     SelectMultipleWidget,
     SelectWidget,
     TembaChoiceField,
@@ -198,7 +197,7 @@ class FlowCRUDL(SmartCRUDL):
         "results",
         "category_counts",
         "preview_start",
-        "broadcast",
+        "start",
         "activity",
         "activity_chart",
         "activity_data",
@@ -259,9 +258,7 @@ class FlowCRUDL(SmartCRUDL):
 
             if self.has_org_perm("flows.flowstart_list"):
                 history_items.append(
-                    self.create_menu_item(
-                        menu_id="starts", name=_("Flow Starts"), href=reverse("flows.flowstart_list")
-                    )
+                    self.create_menu_item(menu_id="starts", name=_("Flow Starts"), href=reverse("flows.flowstart_list"))
                 )
 
             if history_items:
@@ -850,7 +847,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class Filter(BaseList, OrgObjPermsMixin):
         add_button = True
-        bulk_actions = ("label",)
+        bulk_actions = ("label", "download-results")
         slug_url_kwarg = "uuid"
 
         def derive_menu_path(self):
@@ -953,11 +950,11 @@ class FlowCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             obj = self.get_object()
 
-            if obj.flow_type != Flow.TYPE_SURVEY and self.has_org_perm("flows.flow_broadcast") and not obj.is_archived:
+            if obj.flow_type != Flow.TYPE_SURVEY and self.has_org_perm("flows.flow_start") and not obj.is_archived:
                 menu.add_modax(
                     _("Start Flow"),
                     "start-flow",
-                    f"{reverse('flows.flow_broadcast', args=[])}?flow={obj.id}",
+                    f"{reverse('flows.flow_start', args=[])}?flow={obj.id}",
                     primary=True,
                     as_button=True,
                     disabled=True,
@@ -1457,7 +1454,7 @@ class FlowCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             obj = self.get_object()
 
-            if self.has_org_perm("flows.flow_update"):
+            if self.has_org_perm("flows.flow_export_results"):
                 menu.add_modax(
                     _("Download"),
                     "download-results",
@@ -1571,7 +1568,7 @@ class FlowCRUDL(SmartCRUDL):
                     return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
     class PreviewStart(OrgObjPermsMixin, SmartReadView):
-        permission = "flows.flow_broadcast"
+        permission = "flows.flow_start"
 
         blockers = {
             "already_starting": _(
@@ -1653,9 +1650,7 @@ class FlowCRUDL(SmartCRUDL):
                             _(f"The message template {ref['name']} does not exist on your account and cannot be sent.")
                         )
                     elif not template.is_approved():
-                        warnings.append(
-                            _(f"Your message template {template.name} is not approved and cannot be sent.")
-                        )
+                        warnings.append(_(f"Your message template {template.name} is not approved and cannot be sent."))
             return warnings
 
         def has_facebook_topic(self, flow):
@@ -1683,13 +1678,10 @@ class FlowCRUDL(SmartCRUDL):
                     "total": total,
                     "warnings": self.get_warnings(flow, query, total),
                     "blockers": self.get_blockers(flow),
-                    # TODO remove when contact search component fixed
-                    "sample": [],
-                    "fields": [],
                 }
             )
 
-    class Broadcast(OrgPermsMixin, ModalMixin):
+    class Start(OrgPermsMixin, ModalMixin):
         class Form(forms.ModelForm):
             flow = TembaChoiceField(
                 queryset=Flow.objects.none(),
@@ -1699,26 +1691,12 @@ class FlowCRUDL(SmartCRUDL):
                 ),
             )
 
-            recipients = OmniboxField(
-                label=_("Recipients"),
-                required=False,
-                help_text=_("The contacts to send the message to."),
-                widget=OmniboxChoice(
-                    attrs={
-                        "placeholder": _("Search for contacts or groups"),
-                        "widget_only": True,
-                        "groups": True,
-                        "contacts": True,
-                    }
-                ),
-            )
-
-            query = forms.CharField(
-                required=False,
+            contact_search = forms.JSONField(
+                required=True,
                 widget=ContactSearchWidget(attrs={"widget_only": True, "placeholder": _("Enter contact query")}),
             )
 
-            def __init__(self, org, **kwargs):
+            def __init__(self, org, flow, **kwargs):
                 super().__init__(**kwargs)
                 self.org = org
 
@@ -1727,33 +1705,43 @@ class FlowCRUDL(SmartCRUDL):
                     is_archived=False,
                     is_system=False,
                     is_active=True,
-                ).order_by("name")
+                ).order_by(Lower("name"))
 
-            def clean_query(self):
-                query = self.cleaned_data.get("query")
-                if query:
+                if flow:
+                    self.fields["flow"].widget = forms.HiddenInput(
+                        attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
+                    )
+
+                    search_attrs = self.fields["contact_search"].widget.attrs
+                    search_attrs["endpoint"] = reverse("flows.flow_preview_start", args=[flow.id])
+                    search_attrs["started_previously"] = True
+                    search_attrs["not_seen_since_days"] = True
+                    if flow.flow_type != Flow.TYPE_BACKGROUND:
+                        search_attrs["in_a_flow"] = True
+
+            def clean_contact_search(self):
+                contact_search = self.cleaned_data.get("contact_search")
+                recipients = contact_search.get("recipients", [])
+
+                if contact_search["advanced"] and ("query" not in contact_search or not contact_search["query"]):
+                    raise ValidationError(_("A contact query is required."))
+
+                if not contact_search["advanced"] and len(recipients) == 0:
+                    raise ValidationError(_("Contacts or groups are required."))
+
+                if contact_search["advanced"]:
                     try:
-                        parsed = parse_query(self.org, query)
-                        query = parsed.query
+                        contact_search["parsed_query"] = parse_query(
+                            self.org, contact_search["query"], parse_only=True
+                        ).query
                     except SearchException as e:
                         raise ValidationError(str(e))
 
-                return query
-
-            def clean(self):
-                cleaned_data = super().clean()
-
-                if self.is_valid():
-                    query = cleaned_data.get("query")
-
-                    if not query:
-                        self.add_error("query", _("This field is required."))
-
-                return cleaned_data
+                return contact_search
 
             class Meta:
                 model = Flow
-                fields = ("query",)
+                fields = ("flow", "contact_search")
 
         form_class = Form
         submit_button_name = _("Start Flow")
@@ -1771,35 +1759,38 @@ class FlowCRUDL(SmartCRUDL):
                     urn = urn.get_display(org=org, international=True)
                 recipients.append({"id": contact.uuid, "name": contact.name, "urn": urn, "type": "contact"})
 
-            initial = {"recipients": recipients}
-            flow_id = self.request.GET.get("flow", None)
-            if flow_id:
-                initial["flow"] = flow_id
+            return {
+                "contact_search": {"recipients": recipients, "advanced": False, "query": "", "exclusions": {}},
+                "flow": self.flow.id if self.flow else None,
+            }
 
-            return initial
+        @cached_property
+        def flow(self) -> Flow:
+            flow_id = self.request.GET.get("flow", None)
+            return self.request.org.flows.filter(id=flow_id, is_active=True).first() if flow_id else None
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.request.org
+            kwargs["flow"] = self.flow
             return kwargs
 
-        def get_context_data(self, *args, **kwargs):
-            context = super().get_context_data(*args, **kwargs)
-            context["flow"] = self.request.GET.get("flow", None)
-            return context
-
         def form_valid(self, form):
-            query = form.cleaned_data["query"]
+            contact_search = form.cleaned_data["contact_search"]
             flow = form.cleaned_data["flow"]
-            analytics.track(self.request.user, "temba.flow_broadcast", dict(query=query))
+            analytics.track(self.request.user, "temba.flow_start", contact_search)
+
+            recipients = contact_search.get("recipients", [])
+            contact_uuids = [_.get("id") for _ in recipients if _.get("type") == "contact"]
+            group_uuids = [_.get("id") for _ in recipients if _.get("type") == "group"]
 
             # queue the flow start to be started by mailroom
             flow.async_start(
                 self.request.user,
-                groups=(),
-                contacts=(),
-                query=query,
-                exclusions={},
+                groups=(self.org.groups.filter(uuid__in=group_uuids)),
+                contacts=(self.org.contacts.filter(uuid__in=contact_uuids)),
+                query=contact_search["parsed_query"] if "parsed_query" in contact_search else None,
+                exclusions=contact_search.get("exclusions", {}),
             )
             return super().form_valid(form)
 

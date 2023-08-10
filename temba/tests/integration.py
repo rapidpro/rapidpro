@@ -11,18 +11,20 @@ from temba.channels.types.external.type import ExternalType
 from temba.msgs.models import Msg
 
 
-class TestChannel:
+class Messenger:
     """
     This test utility installs a EX channel which points to a local server. For message sending and flows to function
     correctly you need to be running both mailroom and courier against the same database and redis instance, e.g.
 
     mailroom -db="postgres://temba:temba@localhost:5432/temba?sslmode=disable" -redis=redis://localhost:6379/15
     courier -db="postgres://temba:temba@localhost:5432/temba?sslmode=disable" -redis=redis://localhost:6379/15 -spool-dir="."
-
     """
 
-    def __init__(self, db_channel, server, courier_url, callback):
-        self.db_channel = db_channel
+    CHANNEL_NAME = "Testing"
+    CHANNEL_ROLE = "SR"
+
+    def __init__(self, channel, server, courier_url, callback):
+        self.channel = channel
         self.server = server
         self.server.channel = self
         self.courier_url = courier_url
@@ -39,14 +41,31 @@ class TestChannel:
             ExternalType.CONFIG_SEND_BODY: '{"text": "{{text}}"}',
         }
 
-        db_channel = Channel.add_config_external_channel(
-            org, user, country, address, "EX", config, "SR", [scheme], name="Test Channel"
-        )
+        channel = org.channels.filter(channel_type=ExternalType.code, name=cls.CHANNEL_NAME, is_active=True).first()
+        if channel:
+            channel.address = address
+            channel.config = config
+            channel.role = cls.CHANNEL_ROLE
+            channel.country = country
+            channel.schemes = [scheme]
+            channel.save(update_fields=("address", "config", "role", "country", "schemes"))
+        else:
+            channel = Channel.add_config_external_channel(
+                org,
+                user,
+                country,
+                address,
+                ExternalType.code,
+                config,
+                cls.CHANNEL_ROLE,
+                [scheme],
+                name=cls.CHANNEL_NAME,
+            )
 
-        return cls(db_channel, server, courier_url, callback)
+        return cls(channel, server, courier_url, callback)
 
     def incoming(self, sender, text):
-        webhook = f"{self.courier_url}/c/ex/{str(self.db_channel.uuid)}/receive"
+        webhook = f"{self.courier_url}/c/ex/{str(self.channel.uuid)}/receive"
         response = requests.post(webhook, data={"from": sender, "text": text, "date": timezone.now().isoformat()})
 
         if response.status_code != 200:
@@ -58,13 +77,15 @@ class TestChannel:
     def handle_outgoing(self, data):
         return self.callback(data) or "OK"
 
-    def release(self):
-        self.db_channel.release()
+    def release(self, release_channel=False):
         self.server.shutdown()
+
+        if release_channel:
+            self.channel.release(user=self.channel.created_by)
 
     class Server(HTTPServer):
         def __init__(self, port):
-            HTTPServer.__init__(self, ("localhost", port), TestChannel.Handler)
+            HTTPServer.__init__(self, ("localhost", port), Messenger.Handler)
             self.base_url = f"http://localhost:{port}"
             self.thread = Thread(target=self.serve_forever)
             self.thread.setDaemon(True)

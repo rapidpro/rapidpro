@@ -1,0 +1,165 @@
+{% extends "smartmin/read.html" %}
+{% load temba i18n humanize %}
+
+{% block title-text %}
+  {% trans "Create Export" %}
+{% endblock title-text %}
+{% block content %}
+  <div class="flex w-full mb-4 flex-wrap">
+    {% blocktrans trimmed %}
+      Select all of the items below that you would like to include in your export. We've grouped them
+      together based on which flows and campaigns work with each other. Any related triggers will automatically
+      be included in the export.
+    {% endblocktrans %}
+  </div>
+  <div style="min-height:41px" class="flex w-full mb-4 items-end flex-wrap justify-end">
+    <form method="post" action="{{ request.get_full_path }}" class="export w-full">
+      {% csrf_token %}
+      <div class="flex flex-col">
+        {% for bucket in buckets %}
+          {% with bucket_idx=forloop.counter0 %}
+            <div class="bucket card">
+              <div class="mb-6 justify-between bleed-x bleed-t bg-gray-100">
+                <div class="flex items-center py-4 px-6">
+                  <div class="flex-grow text-xl">
+                    {% trans "Group" %}
+                    {{ forloop.counter|apnumber|capfirst }}
+                  </div>
+                  <div data-bucket="bucket{{ bucket_idx }}"
+                       class="bucket-select button-light px-3 py-2 text-base bg-white">{% trans "Select" %}</div>
+                </div>
+              </div>
+              <div>
+                {% for exportable in bucket %}
+                  {% with exportable_type=exportable|object_class_name|lower %}
+                    {% ifchanged exportable_type %}
+                      <div class="flex">
+                        <temba-checkbox data-bucket="bucket{{ bucket_idx }}"
+                                        data-type="{{ exportable_type }}"
+                                        label="{{ exportable|verbose_name_plural|capfirst }}"
+                                        class="bucket-toggle-type">
+                        </temba-checkbox>
+                      </div>
+                    {% endifchanged %}
+                    <div class="w-2/5 inline-flex pl-8">
+                      <temba-checkbox name="{{ exportable_type }}s"
+                                      value="{{ exportable.id }}"
+                                      data-bucket="bucket{{ bucket_idx }}"
+                                      data-type="{{ exportable_type }}"
+                                      label="{{ exportable.name }}">
+                      </temba-checkbox>
+                    </div>
+                  {% endwith %}
+                {% endfor %}
+              </div>
+            </div>
+          {% endwith %}
+        {% endfor %}
+        {% if singles %}
+          <div class="bucket card">
+            <div class="mb-6 justify-between bleed-x bleed-t bg-gray-100">
+              <div class="flex items-center py-4 px-6">
+                <div class="flex-grow text-xl">
+                  {% if buckets %}
+                    {% trans "Everything Else" %}
+                  {% else %}
+                    {% trans "Flows and Campaigns" %}
+                  {% endif %}
+                </div>
+                {% if buckets %}
+                  <div data-bucket="singles" class="bucket-select button-light px-3 py-2 text-base bg-white">{% trans "Select" %}</div>
+                {% endif %}
+              </div>
+            </div>
+            <div>
+              {% for exportable in singles %}
+                {% with exportable_type=exportable|object_class_name|lower %}
+                  {% ifchanged exportable_type %}
+                    <div class="flex">
+                      <temba-checkbox data-bucket="singles"
+                                      data-type="{{ exportable_type }}"
+                                      label="{{ exportable|verbose_name_plural|capfirst }}"
+                                      class="bucket-toggle-type">
+                      </temba-checkbox>
+                    </div>
+                  {% endifchanged %}
+                  <div class="w-2/5 inline-flex pl-8">
+                    <temba-checkbox name="{{ exportable_type }}s"
+                                    value="{{ exportable.id }}"
+                                    data-bucket="singles"
+                                    data-type="{{ exportable_type }}"
+                                    label="{{ exportable.name }}">
+                    </temba-checkbox>
+                  </div>
+                {% endwith %}
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+      <div class="flex mt-4 justify-end">
+        <div class="button-light select-all">{% trans "Select All" %}</div>
+        <div style="height: 100%;" class="button-primary submit">{% trans "Export" %}</div>
+      </div>
+    </form>
+  </div>
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    onSpload(function() {
+      function selectExportables(bucket, type = "", checked = true) {
+        var selector = 'temba-checkbox[data-bucket]';
+        if (bucket) {
+          selector = 'temba-checkbox[data-bucket="' + bucket + '"]';
+        }
+        if (type) {
+          selector += '[data-type="' + type + '"]';
+        }
+
+        document.querySelectorAll(selector).forEach(function(checkbox) {
+          checkbox.checked = checked;
+        });
+      }
+
+      const preSelectFlow = document.querySelector('temba-checkbox[name="flows"][value="{{ initial_flow_id }}"]');
+      const preSelectCampaign = document.querySelector('temba-checkbox[name="campaigns"][value="{{ initial_campaign_id }}"]');
+
+      if (preSelectFlow) {
+        preSelectFlow.checked = true;
+        if (preSelectFlow.dataset.bucket != "singles") {
+          selectExportables(preSelectFlow.dataset.bucket);
+        }
+      }
+      if (preSelectCampaign) {
+        preSelectCampaign.checked = true;
+        if (preSelectCampaign.dataset.bucket != "singles") {
+          selectExportables(preSelectCampaign.dataset.bucket);
+        }
+      }
+
+      // handles clicking a type within a bucket
+      document.querySelectorAll('.bucket-toggle-type').forEach(function(el) {
+        el.addEventListener("click", function(event) {
+          selectExportables(event.target.dataset.bucket, event.target.dataset.type, event.target.checked);
+        });
+      });
+
+      // handles clicking the select button for a bucket
+      document.querySelectorAll('.bucket-select').forEach(function(el) {
+        el.addEventListener("click", function(event) {
+          selectExportables(event.target.dataset.bucket);
+        });
+      });
+
+      // handles clicking select all button
+      document.querySelector(".select-all").addEventListener("click", function(event) {
+        selectExportables();
+      });
+
+      document.querySelector(".export .submit").addEventListener("click", function(event) {
+        document.querySelector('form.export').submit();
+      });
+    });
+  </script>
+{% endblock extra-script %}

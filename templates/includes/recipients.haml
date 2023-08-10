@@ -29,7 +29,6 @@
     {{ urn|format_urn:user_org }}
 
 -if query
-  .flex.item.query.lbl.linked.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_list' %}?search={{ query|urlencode }}")
-    %temba-icon.inline-block.text-dark-alpha-300.mr-1(name="filter")
-    .text
+  %a(href="{% url 'contacts.contact_list' %}?search={{ query|urlencode }}" onclick="goto(event, this)")<
+    %temba-label(icon="search" clickable)
       {{ query }}

@@ -1,3 +1,115 @@
+v8.3.1 (2023-08-09)
+-------------------------
+ * Merge pull request #4779 from nyaruka/less_haml
+ * Some tweaks to templates based on linter
+ * Convert all haml templates in channel types
+
+v8.3.0 (2023-08-09)
+-------------------------
+ * Drop no longer used Org.brand field
+ * Add messagebird channel type
+
+v8.2.0 (2023-08-07)
+-------------------------
+ * Update stable versions
+
+v8.1.245 (2023-08-05)
+-------------------------
+ * Truncate query lables on flow start
+ * Fix line length formatting
+ * Fixes for login and API titles
+
+v8.1.244 (2023-08-04)
+-------------------------
+ * Fix error handling for temba-contact-search
+
+v8.1.243 (2023-08-03)
+-------------------------
+ * Fix DELETE endpoints in API explorer
+ * Bump cryptography from 41.0.2 to 41.0.3
+
+v8.1.242 (2023-08-02)
+-------------------------
+ * Update to components with modax serialize fix
+
+v8.1.241 (2023-08-02)
+-------------------------
+ * Fix two factor disable and initial QR code rendering
+
+v8.1.240 (2023-08-01)
+-------------------------
+ * Update components with checkbox value update
+ * Stop writing no longer used Org.brand
+
+v8.1.239 (2023-08-01)
+-------------------------
+ * Temp fix for org export page by replacing temba-checkbox with regular inputs
+ * Cleanup msg_console
+
+v8.1.238 (2023-07-28)
+-------------------------
+ * Fix flow start log when starts don't have exclusions
+ * Remove unnecessary CSS class to hover
+
+v8.1.237 (2023-07-28)
+-------------------------
+ * Only consider the parsed query string in contact_search clean
+ * Add show CSS class to icon for contact list sorting
+
+v8.1.236 (2023-07-27)
+-------------------------
+ * Rename flow_broadcast to flow_start
+ * Update editor to fix cases on result split
+ * Add new channel log types used by courier
+ * Update contact search widget for flow starts
+
+v8.1.235 (2023-07-26)
+-------------------------
+ * Convert templates in dashboard, docs, globals, ivr, locations and notifications apps
+ * Use title-text for just overriding the text
+ * Restore missing msg box templates
+
+v8.1.234 (2023-07-25)
+-------------------------
+ * Fix org export page
+ * Fix permissions for viewer for flow results
+
+v8.1.233 (2023-07-25)
+-------------------------
+ * Simpliy convert_templates script
+ * Consistent title for initial page load
+ * Remove spa-title and spa-style
+ * Add archives to STORAGES
+
+v8.1.232 (2023-07-24)
+-------------------------
+ * Do not set the max for y axis chart to allow that to be calculated
+ * Convert templates in the triggers app from haml
+
+v8.1.231 (2023-07-21)
+-------------------------
+ * Simplify redis settings and organize settings better in sections
+
+v8.1.230 (2023-07-20)
+-------------------------
+ * Tweak system check for storage settings to check different storages are configured
+ * Convert S3 log access to be via django storages
+ * Use pg_dump/restore from docker container in mailroom_db command so it's always correct version
+
+v8.1.229 (2023-07-19)
+-------------------------
+ * Fix tickets list, to show compose properly on Firefox
+ * Add cpAddress parameter as optional for MTN channel type
+
+v8.1.228 (2023-07-18)
+-------------------------
+ * Update Instagram docs broken link
+ * Allow initiating flow results download form the the flow labels filter view
+
+v8.1.227 (2023-07-17)
+-------------------------
+ * Bump cryptography from 41.0.0 to 41.0.2
+
 v8.1.226 (2023-07-13)
 -------------------------
  * Rework trimming cron tasks to use delete_in_batches

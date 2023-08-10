@@ -15,6 +15,7 @@ from twilio.base.exceptions import TwilioRestException
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
+from django.core.files.storage import storages
 from django.db import models
 from django.db.models import Sum
 from django.db.models.signals import pre_save
@@ -26,7 +27,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import DependencyMixin, Org
-from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact, s3
+from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
 from temba.utils.models import (
     JSONAsTextField,
@@ -942,6 +943,7 @@ class ChannelLog(models.Model):
     LOG_TYPE_MSG_STATUS = "msg_status"
     LOG_TYPE_MSG_RECEIVE = "msg_receive"
     LOG_TYPE_EVENT_RECEIVE = "event_receive"
+    LOG_TYPE_MULTI_RECEIVE = "multi_receive"
     LOG_TYPE_IVR_START = "ivr_start"
     LOG_TYPE_IVR_INCOMING = "ivr_incoming"
     LOG_TYPE_IVR_CALLBACK = "ivr_callback"
@@ -950,12 +952,14 @@ class ChannelLog(models.Model):
     LOG_TYPE_ATTACHMENT_FETCH = "attachment_fetch"
     LOG_TYPE_TOKEN_REFRESH = "token_refresh"
     LOG_TYPE_PAGE_SUBSCRIBE = "page_subscribe"
+    LOG_TYPE_WEBHOOK_VERIFY = "webhook_verify"
     LOG_TYPE_CHOICES = (
         (LOG_TYPE_UNKNOWN, _("Other Event")),
         (LOG_TYPE_MSG_SEND, _("Message Send")),
         (LOG_TYPE_MSG_STATUS, _("Message Status")),
         (LOG_TYPE_MSG_RECEIVE, _("Message Receive")),
         (LOG_TYPE_EVENT_RECEIVE, _("Event Receive")),
+        (LOG_TYPE_MULTI_RECEIVE, _("Events Receive")),
         (LOG_TYPE_IVR_START, _("IVR Start")),
         (LOG_TYPE_IVR_INCOMING, _("IVR Incoming")),
         (LOG_TYPE_IVR_CALLBACK, _("IVR Callback")),
@@ -964,6 +968,7 @@ class ChannelLog(models.Model):
         (LOG_TYPE_ATTACHMENT_FETCH, _("Attachment Fetch")),
         (LOG_TYPE_TOKEN_REFRESH, _("Token Refresh")),
         (LOG_TYPE_PAGE_SUBSCRIBE, _("Page Subscribe")),
+        (LOG_TYPE_WEBHOOK_VERIFY, _("Webhook Verify")),
     )
 
     id = models.BigAutoField(primary_key=True)
@@ -1032,18 +1037,18 @@ class ChannelLog(models.Model):
         # look for logs in the database
         logs = {l.uuid: l._get_json() for l in cls.objects.filter(channel=channel, uuid__in=uuids)}
 
-        # and in S3
-        s3_client = s3.client()
+        # and in storage
         for log_uuid in uuids:
             assert is_uuid(log_uuid), f"{log_uuid} is not a valid log UUID"
 
             if log_uuid not in logs:
-                s3_key = f"channels/{channel.uuid}/{str(log_uuid)[0:4]}/{log_uuid}.json"
+                key = f"channels/{channel.uuid}/{str(log_uuid)[0:4]}/{log_uuid}.json"
                 try:
-                    s3_obj = s3_client.get_object(Bucket=settings.STORAGE_BUCKETS["logs"], Key=s3_key)
-                    logs[log_uuid] = json.loads(s3_obj["Body"].read())
+                    log_file = storages["logs"].open(key)
+                    logs[log_uuid] = json.loads(log_file.read())
+                    log_file.close()
                 except Exception:
-                    logger.exception("unable to read log from S3", extra={"key": s3_key})
+                    logger.exception("unable to read log from storage", extra={"key": key})
 
         return sorted(logs.values(), key=lambda l: l["created_on"])
 
@@ -1213,8 +1218,7 @@ class Alert(SmartModel):
     @classmethod
     def check_power_alert(cls, sync):
         if (
-            sync.power_status
-            in (SyncEvent.STATUS_DISCHARGING, SyncEvent.STATUS_UNKNOWN, SyncEvent.STATUS_NOT_CHARGING)
+            sync.power_status in (SyncEvent.STATUS_DISCHARGING, SyncEvent.STATUS_UNKNOWN, SyncEvent.STATUS_NOT_CHARGING)
             and int(sync.power_level) < 25
         ):
             alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)

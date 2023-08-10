@@ -82,9 +82,7 @@ def migrate_to_version_11_12(json_flow, flow=None):
 
     for actionset_index, action_set in enumerate(action_sets):
         if action_set.get("destination") in reroute_uuid_remap:
-            new_flow_json["action_sets"][actionset_index]["destination"] = reroute_uuid_remap[
-                action_set["destination"]
-            ]
+            new_flow_json["action_sets"][actionset_index]["destination"] = reroute_uuid_remap[action_set["destination"]]
 
         if needs_move_entry and action_set["uuid"] == entry:
             action_set["y"] = 0

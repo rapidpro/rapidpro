@@ -1,17 +1,13 @@
 -extends "smartmin/read.html"
 -load i18n compress humanize
 
--block page-title
-  HTTP Log - {{ object.get_log_type_display }}
-
--block title
-  -block spa-title
-    -if object.flow
-      -trans "Flow Event"
-    -elif object.classifier
-      -trans "Classifier Event"
-    -elif object.channel
-      -trans "Channel Event"
+-block title-text
+  -if object.flow
+    -trans "Flow Event"
+  -elif object.classifier
+    -trans "Classifier Event"
+  -elif object.channel
+    -trans "Channel Event"
 
 -block content
   .card.flex.mt-0.flex-shrink-0.flex-wrap

@@ -3,7 +3,9 @@
 
 {% block title %}
   <div style="float:left;" class="medium-help icon-cloud-upload"></div>
-  <h2 class="header-margin">{% trans "Airtime Transfer Details" %}</h2>
+  <h2 class="header-margin">
+    <div id="title-text">{% trans "Airtime Transfer Details" %}</div>
+  </h2>
 {% endblock title %}
 {% block above-bar %}
   <a href="{% url "airtime.airtimetransfer_list" %}" class="btn btn-primary">Back</a>

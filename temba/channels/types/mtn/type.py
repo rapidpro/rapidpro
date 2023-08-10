@@ -15,6 +15,8 @@ class MtnType(ChannelType):
     An MTN Developer Portal channel (https://developers.mtn.com/)
     """
 
+    CP_ADDRESS = "cp_address"
+
     code = "MTN"
     category = ChannelType.Category.PHONE
 

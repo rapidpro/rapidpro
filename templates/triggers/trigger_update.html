@@ -1,0 +1,59 @@
+{% extends "includes/modax.html" %}
+{% load i18n smartmin %}
+
+{% block fields %}
+  {% if object.trigger_type == 'V' %}
+    {% render_field "action" %}
+    <div class="{% if form.action.value == 'hangup' %}hidden{% endif %} voice-flow-container">{% render_field "voice_flow" %}</div>
+    <div class="{% if form.action.value == 'answer' %}hidden{% endif %} msg-flow-container">{% render_field "msg_flow" %}</div>
+    {% render_field "groups" %}
+    {% render_field "exclude_groups" %}
+  {% elif object.trigger_type == 'S' %}
+    {% include "includes/schedule_fields.html" with form=form %}
+    {% render_field 'flow' %}
+    {% render_field 'groups' %}
+    {% render_field 'exclude_groups' %}
+    {% render_field 'contacts' %}
+  {% else %}
+    {{ block.super }}
+  {% endif %}
+{% endblock fields %}
+{% block modal-script %}
+  {{ block.super }}
+  {% if object.trigger_type == 'V' %}
+    <script type="text/javascript">
+      var body = document.querySelector("#update-trigger").getBody();
+      var actionSelect = body.querySelector("temba-select[name='action']");
+      var voiceFlow = body.querySelector(".voice-flow-container");
+      var voiceFlowSelect = voiceFlow.querySelector("temba-select[name='voice_flow']");
+      var msgFlow = body.querySelector(".msg-flow-container");
+      var msgFlowSelect = msgFlow.querySelector("temba-select[name='msg_flow']");
+      actionSelect.addEventListener("change", function(evt) {
+        var selected = evt.target.values[0];
+        if (selected.value === "answer") {
+          msgFlow.classList.add("hidden");
+          msgFlowSelect.clear();
+          voiceFlow.classList.remove("hidden");
+        } else {
+          voiceFlow.classList.add("hidden");
+          voiceFlowSelect.clear();
+          msgFlow.classList.remove("hidden");
+        }
+      });
+    </script>
+  {% elif object.trigger_type == 'S' %}
+    <script type="text/javascript">
+      var body = document.querySelector("#update-trigger").getBody();
+      var repeatPeriod = body.querySelector("#id_repeat_period");
+      var repeatDays = body.querySelector(".repeat-days-container");
+      repeatPeriod.addEventListener("change", function(event) {
+        var currentRepeat = event.currentTarget.values[0].value;
+        if (currentRepeat === 'W') {
+          repeatDays.classList.remove("hidden");
+        } else {
+          repeatDays.classList.add("hidden");
+        }
+      });
+    </script>
+  {% endif %}
+{% endblock modal-script %}

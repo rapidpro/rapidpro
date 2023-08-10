@@ -9,6 +9,7 @@
 .vscode/
 .venv
 *.sublime*
+manage.sh
 
 .coverage
 coverage.xml

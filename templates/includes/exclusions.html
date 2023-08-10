@@ -1,0 +1,21 @@
+{% load i18n %}
+
+{% for exclusion in exclusions %}
+  {% if exclusion == 'in_a_flow' %}
+    <temba-label icon="filter" backgroundcolor="#fff" textcolor="#999" style="--widget-shadow:none">
+      {% trans "Skip contacts currently in a flow" %}
+    </temba-label>
+  {% elif exclusion == 'started_previously' %}
+    <temba-label icon="filter" backgroundcolor="#fff" textcolor="#999" style="--widget-shadow:none">
+      {% trans "Skip repeat contacts" %}
+    </temba-label>
+  {% elif exclusion == 'not_seen_since_days' %}
+    <temba-label icon="filter" backgroundcolor="#fff" textcolor="#999" style="--widget-shadow:none">
+      {% trans "Skip inactive contacts" %}
+    </temba-label>
+  {% else %}
+    <temba-label icon="filter" backgroundcolor="#fff" textcolor="#999" style="--widget-shadow:none">
+      {{ exclusion }}
+    </temba-label>
+  {% endif %}
+{% endfor %}

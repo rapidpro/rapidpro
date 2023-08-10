@@ -198,9 +198,7 @@ class TwilioTypeTest(TembaTest):
 
         # voice only number
         with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
-            mock_numbers.return_value = iter(
-                [MockTwilioClient.MockPhoneNumber("+554139087835", sms=False, voice=True)]
-            )
+            mock_numbers.return_value = iter([MockTwilioClient.MockPhoneNumber("+554139087835", sms=False, voice=True)])
 
             with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.stream") as mock_short_codes:
                 mock_short_codes.return_value = iter([])
@@ -307,9 +305,7 @@ class TwilioTypeTest(TembaTest):
             mock_numbers.side_effect = None
             self.client.post(reverse("channels.channel_delete", args=[twilio_channel.uuid]))
             self.assertIsNone(self.org.channels.filter(is_active=True).first())
-            self.assertEqual(
-                mock_numbers.call_args_list[-1][1], dict(voice_application_sid="", sms_application_sid="")
-            )
+            self.assertEqual(mock_numbers.call_args_list[-1][1], dict(voice_application_sid="", sms_application_sid=""))
 
     @patch("temba.channels.types.twilio.views.TwilioClient", MockTwilioClient)
     @patch("temba.channels.types.twilio.type.TwilioClient", MockTwilioClient)

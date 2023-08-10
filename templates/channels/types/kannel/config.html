@@ -1,0 +1,39 @@
+{% load i18n %}
+
+<div class="card">
+  {% blocktrans trimmed %}
+    As a last step you'll need to configure Kannel to send and receive messages. Here is a stanza you
+    can add to your Kannel configuration to enable sending and receiving.
+  {% endblocktrans %}
+  <temba-alert level="warning" class="my-6">
+    {% trans "Make sure to change the forced-smsc and default-smsc values to the appropriate values for your configuration." %}
+  </temba-alert>
+  <div class="bleed-x bleed-b text-white bg-black">
+    <div class="code p-0 break-all bg-black text-white">
+      <div class="whitespace-pre-wrap p-0 -ml-12">
+        ######################################################################
+        # {{ channel.address }} - {{ channel.org.name }}
+        ######################################################################
+        group = sendsms-user
+        username = &quot;{{ channel.config.username }}&quot;
+        password = &quot;{{ channel.config.password }}&quot;
+        concatenation = true
+        max-messages = 10
+        user-allow-ip = &quot;*.*.*.*&quot;
+        faked-sender = {{ channel.address }}
+        forced-smsc = YOUR-SMSC
+        default-smsc = YOUR-SMSC
+        group = sms-service
+        keyword = default
+        allowed-receiver-prefix = {{ channel.address }}
+        max-messages = 0
+        post-url = &quot;https://{{ channel.callback_domain }}{% url 'courier.kn' channel.uuid 'receive' %}?backend=%i&amp;sender=%p&amp;message=%b&amp;ts=%T&amp;id=%I&amp;to=%P&quot;
+        concatenation = true
+        assume-plain-text = true
+        accept-x-kannel-headers = true
+        omit-empty = true
+        accepted-smsc = YOUR-SMSC
+      </div>
+    </div>
+  </div>
+</div>

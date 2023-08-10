@@ -251,11 +251,11 @@ class TicketCRUDL(SmartCRUDL):
                             )
                             interrupt_added = True
 
-                        if not interrupt_added and self.has_org_perm("flows.flow_broadcast"):
+                        if not interrupt_added and self.has_org_perm("flows.flow_start"):
                             menu.add_modax(
                                 _("Start Flow"),
                                 "start-flow",
-                                f"{reverse('flows.flow_broadcast')}?c={ticket.contact.uuid}",
+                                f"{reverse('flows.flow_start')}?c={ticket.contact.uuid}",
                                 disabled=True,
                                 on_submit="handleFlowStarted()",
                             )
@@ -395,9 +395,7 @@ class TicketCRUDL(SmartCRUDL):
 
             # get the last message for each contact that these tickets belong to
             contact_ids = {t.contact_id for t in tickets}
-            last_msg_ids = (
-                Msg.objects.filter(contact_id__in=contact_ids).values("contact").annotate(last_msg=Max("id"))
-            )
+            last_msg_ids = Msg.objects.filter(contact_id__in=contact_ids).values("contact").annotate(last_msg=Max("id"))
             last_msgs = Msg.objects.filter(id__in=[m["last_msg"] for m in last_msg_ids]).select_related(
                 "created_by", "broadcast__created_by"  # TODO remove broadcast__created_by once msgs have created_by
             )

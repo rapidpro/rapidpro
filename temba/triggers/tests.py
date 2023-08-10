@@ -825,9 +825,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual([flow3, flow4], list(response.context["form"].fields["msg_flow"].queryset))
 
         # which flow field is required depends on the action selected
-        self.assertCreateSubmit(
-            create_url, {"action": "answer"}, form_errors={"voice_flow": "This field is required."}
-        )
+        self.assertCreateSubmit(create_url, {"action": "answer"}, form_errors={"voice_flow": "This field is required."})
         self.assertCreateSubmit(create_url, {"action": "hangup"}, form_errors={"msg_flow": "This field is required."})
 
         self.assertCreateSubmit(
@@ -1647,9 +1645,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             keyword_url + "?search=TES", allow_viewers=True, allow_editors=True, context_objects=[trigger1]
         )
 
-        self.assertListFetch(
-            referral_url, allow_viewers=True, allow_editors=True, context_objects=[trigger3, trigger4]
-        )
+        self.assertListFetch(referral_url, allow_viewers=True, allow_editors=True, context_objects=[trigger3, trigger4])
         self.assertListFetch(catchall_url, allow_viewers=True, allow_editors=True, context_objects=[trigger5])
 
 

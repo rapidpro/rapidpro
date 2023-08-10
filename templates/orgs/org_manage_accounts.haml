@@ -1,8 +1,12 @@
 -extends 'smartmin/form.html'
 -load smartmin temba compress i18n
 
--block title
+-block title-text
   -trans "Manage Logins"
+
+-block subtitle
+  {{org.name|capfirst}}
+
 
 -block extra-style
   {{block.super}}

@@ -6,7 +6,7 @@
 {% endblock html-tag %}
   %head
     %title
-      -block page-title
+      -block head-title
         {{title}}
 
     %meta{charset:"utf-8"}
@@ -48,6 +48,14 @@
           menu.setFocusedItem(menuSelection);          
         }
       }
+
+      // set our initial title
+      document.addEventListener("DOMContentLoaded", function(event) {
+        const titleText = document.querySelector("#title-text");
+        if (titleText){ 
+          document.title = titleText.innerText;
+        }
+      });
 
     -block scripts
       -compress js
@@ -144,29 +152,29 @@
             .spa-loader.hide.absolute
               .wrapper(style="display:flex;z-index:100000;margin-top:0.1em;margin-left:1em")
                 %temba-loading(size=16 units=6)
-    
+
             .spa-content.p-5
-              -block spa-style  
               -block extra-style
               -block extra-script
     
               -block page-header
-                -if title or has_content_menu
-                  .mb-4
-                    .spa-title.no-menu.flex.items-center
-                      .text-container.text-2xl.text-gray-700
-                        .flex.flex-row
-                          -block spa-title
-                            #title-text
+                .mb-4
+                  .no-menu.flex.items-center
+                    .text-container.text-2xl.text-gray-700
+                      .flex.flex-row
+                        -block title
+                          #title-text
+                            -block title-text
                               {{title}}
-                      .line.flex-grow.mr-2.ml-6
-                        .h-0.border.border-gray-200
-                      
-                      -if has_content_menu
-                        -include "spa_page_menu.html"
-                
-                    .text-lg.text-gray-600
-                        -block subtitle
+                    .line.flex-grow.mr-2.ml-6
+                      .h-0.border.border-gray-200
+                    
+                    -if has_content_menu
+                      -include "spa_page_menu.html"
+              
+                  .text-lg.text-gray-600
+                    -block subtitle
+
                       
               -block alert-messages
                 -if user_org.is_suspended

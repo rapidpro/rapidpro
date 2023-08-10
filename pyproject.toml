@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temba"
-version = "8.1.226"
+version = "8.3.1"
 description = "Hosted service for visually building interactive messaging applications"
 authors = ["Nyaruka <code@nyaruka.com>"]
 
@@ -24,8 +24,8 @@ celery = "^5.1.0"
 redis = "^4.5.4"
 elasticsearch = "^7.11.0"
 elasticsearch-dsl = "^7.3.0"
-boto3 = "^1.17.21"
-cryptography = "^41.0.0"
+boto3 = "^1.28.3"
+cryptography = "^41.0.3"
 vonage = "2.5.2"
 pyfcm = "^1.5.1"
 pyotp = "2.4.1"
@@ -45,7 +45,7 @@ gunicorn = "^20.0.4"
 iptools = "^0.7.0"
 iso-639 = "^0.4.5"
 iso8601 = "^0.1.14"
-phonenumbers = "^8.13.8"
+phonenumbers = "^8.13.16"
 pycountry = "^22.3.5"
 python-dateutil = "^2.8.2"
 packaging = "^22.0"
@@ -58,18 +58,17 @@ django-formtools = "^2.4.1"
 psycopg = "^3.1.9"
 
 [tool.poetry.group.dev.dependencies]
-black = "^23.1.0"
-coverage = {extras = ["toml"], version = "^7.2.2"}
+black = "^23.7.0"
+coverage = {extras = ["toml"], version = "^7.2.7"}
 isort = "^5.12.0"
 responses = "^0.12.1"
-beautifulsoup4 = "^4.9.3"
-ruff = "^0.0.263"
-djlint = "^1.30.2"
+ruff = "^0.0.278"
+djlint = "^1.31.1"
 
 [tool.poetry_bumpversion.file."temba/__init__.py"]
 
 [tool.black]
-line-length = 119
+line-length = 120
 
 [tool.ruff]
 line-length = 120
@@ -80,7 +79,7 @@ fix = true
 [tool.isort]
 multi_line_output = 3
 force_grid_wrap = 0
-line_length = 119
+line_length = 120
 include_trailing_comma = true
 combine_as_imports = true
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "DJANGO", "FIRSTPARTY", "LOCALFOLDER"]

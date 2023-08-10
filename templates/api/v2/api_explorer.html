@@ -175,9 +175,17 @@
         }).then(function(response) {
           results.innerText = "HTTP/1.0 " + response.status + " " + "\n" + response.body;
         });
-      } else {
+      } else if (method == "POST") {
         store.postUrl(url + query, body, headers).then(function(response) {
           results.innerText = "HTTP/1.0 " + response.status + " " + "\n" + response.body;
+        });
+      } else if (method == "DELETE") {
+        $.ajax({
+          url: url + query,
+          type: 'DELETE',
+          complete: function(xhr) {
+            results.innerText = "HTTP/1.0 " + xhr.status + " " + "\n" + xhr.responseText;
+          }
         });
       }
     }
@@ -186,6 +194,10 @@
 {% block extra-style %}
   {{ block.super }}
   <style type="text/css">
+    .main-logo {
+      margin: 1.5em;
+    }
+
     .content-card {
       width: 80%;
     }

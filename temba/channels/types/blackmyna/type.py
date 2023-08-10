@@ -34,9 +34,7 @@ class BlackmynaType(ChannelType):
         dict(
             label=_("Inbound URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.bm' channel.uuid 'receive' %}",
-            description=_(
-                "This endpoint should be called by Blackmyna when new messages are received to your number."
-            ),
+            description=_("This endpoint should be called by Blackmyna when new messages are received to your number."),
         ),
         dict(
             label=_("DLR URL"),

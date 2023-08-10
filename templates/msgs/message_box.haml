@@ -8,13 +8,6 @@
       display: block;
     }
 
--block page-title
-  {{title}}
-
--block title-icon
-  %span.title-icon
-    .glyph.icon-inbox
-
 -block content
 
   %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", "-temba-loaded": "handleCreateLabelModalLoaded", "-temba-submitted": "handleCreateLabelModalSubmitted"}

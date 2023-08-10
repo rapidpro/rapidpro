@@ -161,9 +161,7 @@ class FieldsTest(APITest):
                 with self.assertRaises(expected, msg=f"expected exception for '{submitted}'"):
                     f.run_validation(submitted)
             else:
-                self.assertEqual(
-                    f.run_validation(submitted), expected, f"to_internal_value mismatch for '{submitted}'"
-                )
+                self.assertEqual(f.run_validation(submitted), expected, f"to_internal_value mismatch for '{submitted}'")
 
         for value, expected in representations.items():
             self.assertEqual(f.to_representation(value), expected, f"to_representation mismatch for '{value}'")
@@ -2801,9 +2799,7 @@ class EndpointsTest(APITest):
         self.assertEqual(set(group.contacts.all()), {contact1, contact2})
 
         # try to add to a non-existent group
-        response = self.postJSON(
-            actions_url, None, {"contacts": [contact1.uuid], "action": "add", "group": "Spammers"}
-        )
+        response = self.postJSON(actions_url, None, {"contacts": [contact1.uuid], "action": "add", "group": "Spammers"})
         self.assertResponseError(response, "group", "No such object: Spammers")
 
         # try to add to a dynamic group
@@ -2813,9 +2809,7 @@ class EndpointsTest(APITest):
         self.assertResponseError(response, "group", "Contact group must not be query based: Developers")
 
         # add contact 3 to a group by its UUID
-        response = self.postJSON(
-            actions_url, None, {"contacts": [contact3.uuid], "action": "add", "group": group.uuid}
-        )
+        response = self.postJSON(actions_url, None, {"contacts": [contact3.uuid], "action": "add", "group": group.uuid})
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(group.contacts.all()), {contact1, contact2, contact3})
 
@@ -3149,7 +3143,7 @@ class EndpointsTest(APITest):
     def test_flows(self):
         flows_url = reverse("api.v2.flows")
 
-        self.assertEndpointAccess(flows_url, viewer_get=403, admin_get=200, agent_get=403)
+        self.assertEndpointAccess(flows_url, viewer_get=200, admin_get=200, agent_get=403)
 
         survey = self.get_flow("media_survey")
         color = self.get_flow("color")
@@ -4464,7 +4458,7 @@ class EndpointsTest(APITest):
     def test_runs(self):
         runs_url = reverse("api.v2.runs")
 
-        self.assertEndpointAccess(runs_url, viewer_get=403, admin_get=200, agent_get=403)
+        self.assertEndpointAccess(runs_url, viewer_get=200, admin_get=200, agent_get=403)
 
         flow1 = self.get_flow("color_v13")
         flow2 = flow1.clone(self.user)

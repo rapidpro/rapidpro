@@ -3,7 +3,6 @@
 -load i18n
 
 -block extra-style
-  Testing
   {{block.super}}
   :css
     .content-card {
@@ -14,13 +13,10 @@
       display: none;
     }
 
--block title
-  .mb-4
-    {{title}}
-
 -block fields
+  arst
   .control-group
-    %temba-textinput#id_username(type="text" name="username" maxlenght="150" label="{% trans 'Email Address' %}" value="{{email}}" disabled)
+    %temba-textinput#id_username(type="text" name="username" maxlength="150" label="{% trans 'Email Address' %}" value="{{email}}" disabled)
 
   -render_field 'password'
 

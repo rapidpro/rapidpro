@@ -10,7 +10,7 @@ from temba.orgs.models import OrgRole
 from temba.tests import TembaTest
 from temba.tickets.models import ExportTicketsTask
 
-from .checks import storage_url
+from .checks import storage
 
 
 class AssetTest(TembaTest):
@@ -147,11 +147,16 @@ class AssetTest(TembaTest):
 
 
 class SystemChecksTest(TembaTest):
-    def test_storage_url(self):
-        self.assertEqual(len(storage_url(None)), 0)
+    def test_storage(self):
+        self.assertEqual(len(storage(None)), 0)
+
+        with override_settings(STORAGES={"default": "x", "staticfiles": "x"}):
+            self.assertEqual(storage(None)[0].msg, "Missing 'archives' storage config.")
+            self.assertEqual(storage(None)[1].msg, "Missing 'logs' storage config.")
+            self.assertEqual(storage(None)[2].msg, "Missing 'public' storage config.")
 
         with override_settings(STORAGE_URL=None):
-            self.assertEqual(storage_url(None)[0].msg, "No storage URL set")
+            self.assertEqual(storage(None)[0].msg, "No storage URL set.")
 
         with override_settings(STORAGE_URL="http://example.com/uploads/"):
-            self.assertEqual(storage_url(None)[0].msg, "Storage URL shouldn't end with trailing slash")
+            self.assertEqual(storage(None)[0].msg, "Storage URL shouldn't end with trailing slash.")

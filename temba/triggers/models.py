@@ -121,9 +121,7 @@ class Trigger(SmartModel):
         assert flow.flow_type != Flow.TYPE_SURVEY, "can't create triggers for surveyor flows"
         assert trigger_type != cls.TYPE_KEYWORD or (keyword and match_type), "keyword required for keyword triggers"
         assert trigger_type != cls.TYPE_SCHEDULE or schedule, "schedule must be provided for scheduled triggers"
-        assert (
-            trigger_type == cls.TYPE_SCHEDULE or not contacts
-        ), "contacts can only be provided for scheduled triggers"
+        assert trigger_type == cls.TYPE_SCHEDULE or not contacts, "contacts can only be provided for scheduled triggers"
 
         trigger = cls.objects.create(
             org=org,
@@ -158,9 +156,7 @@ class Trigger(SmartModel):
         Returns keys that represents the scopes that this trigger can operate against (and might conflict with other triggers with)
         """
         groups = ["**"] if not self.groups else [str(g.id) for g in self.groups.all().order_by("id")]
-        return [
-            "%s_%s_%s_%s" % (self.trigger_type, str(self.channel_id), group, str(self.keyword)) for group in groups
-        ]
+        return ["%s_%s_%s_%s" % (self.trigger_type, str(self.channel_id), group, str(self.keyword)) for group in groups]
 
     def archive(self, user):
         self.modified_by = user

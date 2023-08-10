@@ -1,0 +1,22 @@
+{% extends "smartmin/read.html" %}
+{% load smartmin i18n %}
+
+{% block pjax %}
+  {% blocktrans trimmed with type_name=object.type.name name=object.name %}
+    {{ type_name }} ticketing service over <b>{{ name }}</b>. Contacts who have open tickets with this service will have their
+    messages forwarded to the service, and replies made using the service will be sent back to the contact.
+  {% endblocktrans %}
+  <div class="buttons mt-5">
+    {% if org_perms.request_logs.httplog_list %}
+      <div onclick="goto(event)"
+           href="{% url "request_logs.httplog_ticketer" object.uuid %}"
+           class="button-light mr-3">{% trans "HTTP Log" %}</div>
+    {% endif %}
+    {% if org_perms.tickets.ticketer_delete %}
+      <temba-modax endpoint="{% url 'tickets.ticketer_delete' object.uuid %}"
+                   header="{% trans "Delete Ticket Service" %}">
+        <div class="button-light">{% trans "Remove" %}</div>
+      </temba-modax>
+    {% endif %}
+  </div>
+{% endblock pjax %}

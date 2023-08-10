@@ -66,7 +66,6 @@ class TembaTestMixin:
         self.org = Org.objects.create(
             name="Nyaruka",
             timezone=pytz.timezone("Africa/Kigali"),
-            brand="rapidpro",
             flow_languages=["eng", "kin"],
             created_by=self.user,
             modified_by=self.user,
@@ -83,7 +82,6 @@ class TembaTestMixin:
         self.org2 = Org.objects.create(
             name="Trileet Inc.",
             timezone=pytz.timezone("US/Pacific"),
-            brand="rapidpro",
             flow_languages=["eng"],
             created_by=self.admin2,
             modified_by=self.admin2,
@@ -139,13 +137,11 @@ class TembaTestMixin:
 
     def clear_cache(self):
         """
-        Clears the redis cache. We are extra paranoid here and check that redis host is 'localhost'
-        Redis 10 is our testing redis db
+        Clears the redis cache. Out of paranoia we don't even use the configured cache settings but instead hardcode
+        to the local test instance.
         """
-        if settings.REDIS_HOST != "localhost":
-            raise ValueError(f"Expected redis test server host to be: 'localhost', got '{settings.REDIS_HOST}'")
 
-        r = redis.StrictRedis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=10)
+        r = redis.StrictRedis(host="localhost", port=6379, db=10)
         r.flushdb()
 
     def clear_storage(self):
@@ -941,3 +937,15 @@ def mock_uuids(method=None, *, seed=1234):
         return wrapper
 
     return actual_decorator(method) if method else actual_decorator
+
+
+def get_contact_search(*, query=None, contacts=None, groups=None):
+    if query is not None:
+        contact_search = dict(query=query, advanced=True, recipients=[])
+        return json.dumps(contact_search)
+
+    if contacts is not None or groups is not None:
+        recipients = [{"id": c.uuid, "name": c.name, "type": "contact"} for c in contacts or []]
+        recipients += [{"id": g.uuid, "name": g.name, "type": "group"} for g in groups or []]
+        contact_search = dict(recipients=recipients, advanced=False)
+        return json.dumps(contact_search)
