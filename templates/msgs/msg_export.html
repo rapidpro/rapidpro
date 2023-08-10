@@ -1,0 +1,7 @@
+{% extends "utils/exports/modax.html" %}
+{% load i18n smartmin %}
+
+{% block fields %}
+  <div class="mb-0">{% render_field 'export_all' %}</div>
+  {{ block.super }}
+{% endblock fields %}

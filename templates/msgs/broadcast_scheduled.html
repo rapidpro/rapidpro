@@ -1,0 +1,21 @@
+{% extends "msgs/message_box.html" %}
+{% load smartmin sms temba compress i18n humanize %}
+
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    .broadcast-item .broadcast:hover {
+      cursor: pointer;
+      box-shadow: 0 0 0 2px var(--color-focus);
+    }
+  </style>
+{% endblock extra-style %}
+{% block action-buttons %}
+{% endblock action-buttons %}
+{% block content %}
+  {% for object in object_list %}
+    <div href="{% url 'msgs.broadcast_scheduled_read' object.id %}"
+         onclick="goto(event, this)"
+         class="broadcast-item">{% include "msgs/broadcast.html" with broadcast=object %}</div>
+  {% endfor %}
+{% endblock content %}
