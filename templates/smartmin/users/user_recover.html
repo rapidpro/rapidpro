@@ -1,0 +1,30 @@
+{% extends 'smartmin/users/user_recover.html' %}
+{% load i18n %}
+
+{% block title-text %}
+  {% trans "Reset Password" %}
+{% endblock title-text %}
+{% block fields %}
+  {% trans "Pick a new password and enter it below. A good password will be at least eight characters long and have a mixture of upper and lower case letters." %}
+  {% for field, errors in form.errors.items %}
+    {% if field == '__all__' %}<div class="alert-error mt-4">{{ errors }}</div>{% endif %}
+  {% endfor %}
+  <div class="w-128 mt-6 mb-6">
+    <temba-textinput label="New Password"
+                     password="true"
+                     name="new_password"
+                     required=""
+                     placeholder="{{ _("New password") |escapejs }}">
+    </temba-textinput>
+    {% if form.new_password.errors %}<div class="alert-error mt-2 mb-4">{{ form.new_password.errors }}</div>{% endif %}
+    <div class="mt-4">
+      <temba-textinput label="Confirmation"
+                       password="true"
+                       name="confirm_new_password"
+                       required=""
+                       placeholder="{{ _("Confirm new password") |escapejs }}">
+      </temba-textinput>
+    </div>
+    {% if form.confirm_new_password.errors %}<div class="alert-error mt-2 mb-4">{{ form.confirm_new_password.errors }}</div>{% endif %}
+  </div>
+{% endblock fields %}

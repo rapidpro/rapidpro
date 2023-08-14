@@ -1,0 +1,33 @@
+{% extends "orgs/login/login_base.html" %}
+{% load smartmin i18n %}
+
+{% block login-title %}
+  {% trans "Login Failure" %}
+{% endblock login-title %}
+{% block login-content %}
+  {% blocktrans %}
+    Sorry, you cannot log in at this time because we received {{failed_login_limit}} incorrect login attempts.
+
+  {% endblocktrans %}
+  {% if lockout_timeout >= 0 %}
+    {% blocktrans %}
+      Please wait {{lockout_timeout}} minutes before to try log in again.
+
+    {% endblocktrans %}
+  {% endif %}
+  {% if allow_email_recovery %}
+    {% trans "Alternatively, you can fill out the form below to have your password reset via e-mail." %}
+  {% else %}
+    {% trans "Please contact the website administrator to have your password reset." %}
+  {% endif %}
+  {% if allow_email_recovery %}
+    <form method="post" action="{% url 'users.user_forget' %}" class="mt-8">
+      {% csrf_token %}
+      <temba-textinput name="email" placeholder="{{ _("Email Address") }}">
+      </temba-textinput>
+      <div class="mt-4">
+        <input type="submit" value="{{ _("Reset") }}" class="button-primary">
+      </div>
+    </form>
+  {% endif %}
+{% endblock login-content %}

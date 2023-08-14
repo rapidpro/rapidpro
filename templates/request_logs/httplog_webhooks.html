@@ -1,0 +1,39 @@
+{% extends "smartmin/list.html" %}
+{% load i18n temba humanize %}
+
+{% block table %}
+  <table class="list lined header">
+    <thead>
+      <tr>
+        <th>{% trans "Flow" %}</th>
+        <th>{% trans "URL" %}</th>
+        <th style="width:100px;">{% trans "Status" %}</th>
+        <th style="width:100px;">{% trans "Elapsed" %}</th>
+        <th style="width:100px;" class="text-right">{% trans "Time" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for obj in object_list %}
+        <tr class="{% if obj.is_error %}warning{% endif %}">
+          <td class="clickable">
+            <div onclick="goto(event, this)" href="{% url "flows.flow_editor" obj.flow.uuid %}" class="linked">{{ obj.flow.name }}</div>
+          </td>
+          <td class="clickable">
+            <div onclick="goto(event, this)" href="{% url "request_logs.httplog_read" obj.id %}" class="linked">{{ obj.url|truncatechars:128 }}</div>
+          </td>
+          <td class="clickable">
+            <div onclick="goto(event, this)" href="{% url "request_logs.httplog_read" obj.id %}" class="linked">{{ obj.status_code|default:"--" }}</div>
+          </td>
+          <td class="whitespace-nowrap">
+            {% if obj.request_time %}
+              {{ obj.request_time|intcomma }}ms
+            {% else %}
+              {{ "--" }}
+            {% endif %}
+          </td>
+          <td class="text-right whitespace-nowrap">{% format_datetime obj.created_on seconds=True %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock table %}
