@@ -1,0 +1,23 @@
+{% if success_url and success_url != 'hide' %}
+  <div class="success-script">
+    {% block success-script %}
+      {% if success_script %}
+        {% include success_script %}
+      {% else %}
+        <script type="text/javascript">
+          document.location.href = '{{ success_url }}';
+        </script>
+      {% endif %}
+    {% endblock success-script %}
+  </div>
+{% else %}
+  <div style="--transition-speed: 150ms" class="animate">
+    {% block modal %}
+    {% endblock modal %}
+  </div>
+  {% block modal-script %}
+  {% endblock modal-script %}
+  {% block modal-extra-style %}
+  {% endblock modal-extra-style %}
+  {% if form %}{{ form.media }}{% endif %}
+{% endif %}
