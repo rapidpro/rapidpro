@@ -1,0 +1,33 @@
+{% extends "public/public_frame.html" %}
+{% block content %}
+  Congrats, you are now running RapidPro {{ version }}!
+  <div class="text-xl font-normal mb-2 mt-6">Getting Started</div>
+  <div class="mb-2">
+    To get started, visit the  <a href="http://rapidpro.github.io/rapidpro/docs/development/">developer documentation</a>.
+    Once you've created an account in your development database, you can login <a href="/users/login">here</a>.
+  </div>
+  <div class="mb-2">
+    If you still have questions, please search the history on the <a href="https://groups.google.com/g/rapidpro-dev">developer list</a> to see if your question has been asked before.
+  </div>
+  <div class="mb-2">
+    If you're interested in a hosted solution by the developers of RapidPro, check out <a href="https://textit.com">TextIt</a>,
+    which supports the ongoing development and maintenance of this project.
+  </div>
+  <div class="mb-8"></div>
+  <div class="text-xl font-normal mb-2 mt-6">Licensing and Attribution</div>
+  <div class="mt-2">
+    By distributing this software, you are agreeing to terms of the license. Please be sure
+    to review and understand all of the terms therein. If you have any questions, please direct
+    them to <a href="mailto:legal@textit.com">legal@textit.com</a>.
+  </div>
+  <div class="mt-6">
+    <temba-alert>
+      The below copyright and attribution must be presented prominently on your site.
+      <div style="margin-top:0.5em" class="copyright">
+        <b>
+          Copyright © 2012-2023 TextIt, UNICEF. All rights reserved.
+        </b>
+      </div>
+    </temba-alert>
+  </div>
+{% endblock content %}

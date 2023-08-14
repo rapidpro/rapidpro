@@ -1,0 +1,389 @@
+{% extends "frame.html" %}
+{% block title-text %}
+  Style Guide
+{% endblock title-text %}
+{% block subtitle %}
+  Canonical record for how things should look
+{% endblock subtitle %}
+{% block content %}
+  <table class="list lined">
+    <thead>
+      <tr>
+        <th colspan="2">Titles / Headers</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="text-base">
+          <div class="code">.page-title</div>
+        </td>
+        <td class="w-full">
+          <div class="page-title">Page Title</div>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div class="code">.page-subtitle</div>
+        </td>
+        <td>
+          <div class="page-subtitle">Page Subtitle</div>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div class="code">.title</div>
+        </td>
+        <td>
+          <div class="title">Internal Title</div>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div class="code">.cap-label</div>
+        </td>
+        <td>
+          <div class="cap-label">Column Header</div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <table class="list lined mt-8">
+    <thead>
+      <tr>
+        <th colspan="2">Buttons</th>
+        <th>Usage</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <div class="code">.button-primary</div>
+        </td>
+        <td>
+          <div class="button-primary">Primary Button</div>
+        </td>
+        <td>Primary action to be taken on a given page. There should only be one primary button on a page at a time.</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="code">.button-light</div>
+        </td>
+        <td>
+          <div class="button-light">Light Button</div>
+        </td>
+        <td>Most buttons are light buttons, non-primary actions to take on all pages</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="code">.button-secondary</div>
+        </td>
+        <td>
+          <div class="button-secondary">Secondary Button</div>
+        </td>
+        <td>Button with the secondary color. Contrasting option, extra call to action, only one per page.</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="code">.button-tertiary</div>
+        </td>
+        <td>
+          <div class="button-tertiary">Tertiary Button</div>
+        </td>
+        <td>Button with the tertiary color. Contrasting option, extra call to action, only one per page.</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="title mt-8">Alerts</div>
+  <div class="card bg-white mt-3">
+    <div class="code mb-2">.alert-warning</div>
+    <div class="alert-warning">This is your last warning</div>
+    <div class="code mb-2 mt-6">.alert-info</div>
+    <div class="alert-info">Just wanted to share some info with you</div>
+    <div class="mb-2 mt-6">
+      <div class="code">.alert-danger</div>
+      <div class="code">.alert-error</div>
+    </div>
+    <div class="alert-danger">Thar be dragons, danger!</div>
+  </div>
+  <div class="title mt-8">Tables</div>
+  <table class="list lined mt-3">
+    <thead>
+      <tr>
+        <th colspan="2">Table Options</th>
+      </tr>
+    </thead>
+    <tr>
+      <td>
+        <div class="code">.lined</div>
+      </td>
+      <td class="w-full">Add lines between rows</td>
+    </tr>
+    <tr>
+      <td>
+        <div class="code">.toggle</div>
+      </td>
+      <td class="w-full">Adds hide/show functionality.</td>
+    </tr>
+    <tr>
+      <td>
+        <div class="code">.stateful</div>
+      </td>
+      <td class="w-full">Remember toggle state on page reload.</td>
+    </tr>
+  </table>
+  <table class="list toggle stateful lined mt-3">
+    <thead>
+      <tr>
+        <th colspan="2">Expandable Table</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <div class="name">Joe Exotic</div>
+        </td>
+        <td>
+          <div class="number">+1 (206) 555-1212</div>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div class="name">Carol Baskin</div>
+        </td>
+        <td>
+          <div class="number">+1 (360) 555-1010</div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="title mt-8">Forms</div>
+  <table class="list lined mt-3">
+    <thead>
+      <tr>
+        <th>Form Elements</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <div class="p-4">
+            <temba-textinput name="Example"
+                             placeholder="Placeholder Text"
+                             label="My Text Input"
+                             help_text="This is here to help, I hope you can read it okay.">
+            </temba-textinput>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div class="p-4">
+            <temba-textinput textarea="true"
+                             name="Example"
+                             placeholder="Placeholder Text"
+                             label="My Textarea"
+                             help_text="This is here to help, I hope you can read it okay.">
+            </temba-textinput>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <div class="p-4">
+            <temba-select name="select" label="My Favorite Things" placeholder="Select something alerady">
+              <temba-option name="Phish" value="phish">
+              </temba-option>
+              <temba-option name="Prismatic" value="prismatic">
+              </temba-option>
+              <temba-option name="Bicycles" value="bicycles">
+              </temba-option>
+            </temba-select>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="p-4">
+    <div class="mb-2">Checkboxes are treated differently inside tables, so this example is outside</div>
+    <temba-checkbox label="Check Me Out" help_text="This is here to help, I hope you can read it okay.">
+    </temba-checkbox>
+  </div>
+  <div class="mt-8">
+    <div class="title">Cards</div>
+    <div class="card mt-3">
+      Use
+      <div class="code">.card</div>
+      to create a card. Optionally, use a combination of bleeds to garner different layouts.
+    </div>
+    <table class="list lined">
+      <tr>
+        <td>
+          <div class="code whitespace-nowrap">.bleed-t</div>
+        </td>
+        <td class="w-full">Bleed Top</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="code whitespace-nowrap">.bleed-b</div>
+        </td>
+        <td class="w-full">Bleed Bottom</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="code whitespace-nowrap">.bleed-r</div>
+        </td>
+        <td class="w-full">Bleed Right</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="code whitespace-nowrap">.bleed-l</div>
+        </td>
+        <td class="w-full">Bleed Left</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="code whitespace-nowrap">.bleed-x</div>
+        </td>
+        <td class="w-full">Bleed Horizontal</td>
+      </tr>
+      <tr>
+        <td>
+          <div class="code whitespace-nowrap">.bleed-y</div>
+        </td>
+        <td class="w-full">Bleed Vertical</td>
+      </tr>
+    </table>
+    <div class="card">
+      <div class="bleed-t bleed-x bg-primary">
+        <div class="title text-white px-6 py-3">Top Bleed</div>
+      </div>
+      <div class="p-2">
+        This card uses
+        <div class="code">.bleed-t</div>
+        and
+        <div class="code">.bleed-x</div>
+        to create a title bar
+      </div>
+    </div>
+    <div class="card">
+      <div class="p-2">
+        This card uses
+        <div class="code">.bleed-b</div>
+        and
+        <div class="code">.bleed-x</div>
+        to create a gutter
+      </div>
+      <div class="bleed-b bleed-x bg-gray-200">
+        <div class="text-gray-500 text-center p-3">This card brought to you by the team at Nyaruka.</div>
+      </div>
+    </div>
+    <div class="card flex items-stretch">
+      <div class="bleed-l bleed-y bg-secondary">
+        <div class="flex items-center h-full">
+          <div class="title text-white whitespace-nowrap p-4">Left Bleed</div>
+        </div>
+      </div>
+      <div class="flex-grow">
+        <div class="flex items-center h-full">
+          <div class="p-4">
+            This card uses
+            <div class="code">.bleed-l</div>
+            and
+            <div class="code">.bleed-y</div>
+            to create a left pane.
+            This card also shows a technique for vertically centering using nested flexboxes.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card flex items-stretch">
+      <div class="flex-grow">
+        <div class="flex items-center h-full">
+          <div class="p-4">
+            This card uses
+            <div class="code">.bleed-r</div>
+            and
+            <div class="code">.bleed-y</div>
+            to create a right pane, an inverted example from the one above.
+          </div>
+        </div>
+      </div>
+      <div class="bleed-r bleed-y bg-secondary">
+        <div class="flex items-center h-full">
+          <div class="title text-white whitespace-nowrap p-4">Right Bleed</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mt-8">
+    <div class="title">Lift</div>
+    Any component can be lifted on hover using
+    <div class="code">.lift</div>
+    , but looks best when applied to things with a shadow.
+    <div class="mt-2">
+      <div class="button-primary lift inline-block">Lifted Button</div>
+    </div>
+    <div class="mt-2">
+      <div class="card w-128 lift cursor-pointer">
+        <div class="bleed-t bleed-x bg-primary">
+          <div class="px-6 py-2 title text-white">Lifted Card</div>
+        </div>
+        Even complex things like cards with titles and gutters can be lifted.
+        <div class="bleed-b bleed-x bg-gray-100 text-gray-500">
+          <div class="py-2 text-xs text-center">Brought to you by your pals at Nyaruka.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mt-8">
+    <div class="title">Layout</div>
+    Where possible use flexbox for layouts. We have classes for laying things out quickly. The most common pattern
+    is a flex box with a left and right column but with te right side growing to fill avaliable space. To accomplish this,
+    use the
+    <div class="code">.flex-grow</div>
+    class.
+    <div class="flex items-center border mt-4 bg-white card">
+      <div class="p-4 border-r">This is the left side</div>
+      <div class="p-4 flex-grow">This is the right side, but it is greedy.</div>
+    </div>
+    <div class="mt-8 mb-4">
+      <div class="title">List Pages</div>
+      There are helper classes for laying out a general list page
+    </div>
+    <div class="p-8 rounded-lg shadow bg-white">
+      <div class="lp-frame mt-0">
+        <div class="left">
+          <div class="button-primary">Primary Action</div>
+          <div class="lp-nav upper">
+            <div class="lp-nav-item">
+              <div class="name">Some item</div>
+              <div class="count">123</div>
+            </div>
+          </div>
+          <div class="lp-nav lower">
+            <div class="lp-nav-item">
+              <div class="name">Another item</div>
+              <div class="count">123</div>
+            </div>
+          </div>
+        </div>
+        <div class="right">Main content view</div>
+      </div>
+    </div>
+  </div>
+  <div class="mt-8">
+    <div class="title">Language</div>
+    Baseline rules for how we talk about things with users.
+    <div class="card">
+      Do not capitalize (except with title case) or hyphenate email.
+      <div class="mt-3">Users "Sign In" and "Sign Out".</div>
+      <div class="mt-3">Account passwords are reset, not recovered.</div>
+      <div class="mt-3">For contacts, we have Groups and Smart Groups.</div>
+      <div class="mt-3">Capitalize Flows, Contacts, Campaigns, Groups, Smart Groups, Triggers</div>
+      <div class="mt-3">
+        Users "Select" instead of "Choose", <i>Select the Flow to start</i>
+      </div>
+      <div class="mt-3">Users "Connect" numbers to their account when adding a channel.</div>
+    </div>
+  </div>
+{% endblock content %}
