@@ -1,3 +1,7 @@
+v8.3.5 (2023-08-14)
+-------------------------
+ * Convert haml templates in public and orgs apps
+
 v8.3.4 (2023-08-14)
 -------------------------
  * Convert templates in assets, channels, msgs, request_logs and schedules apps as well as overridden smartmin templates
