@@ -1,0 +1,10 @@
+{% extends "smartmin/read.html" %}
+{% load temba compress smartmin i18n %}
+
+{% block page-title %}
+  {{ user_org.name|capfirst }}
+{% endblock page-title %}
+{% block content %}
+  {% for channel in channels %}<div class="mt-2">{{ channel.name }}</div>{% endfor %}
+  {% include "formax.html" %}
+{% endblock content %}

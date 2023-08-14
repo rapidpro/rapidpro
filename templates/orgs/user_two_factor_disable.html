@@ -1,0 +1,21 @@
+{% extends "smartmin/form.html" %}
+{% load smartmin i18n %}
+
+{% block content %}
+  <div class="w-128">{{ block.super }}</div>
+{% endblock content %}
+{% block pre-form %}
+  <div class="mb-6">
+    {% blocktrans trimmed %}
+      To disable two-factor authentication for your login, enter your current password.
+    {% endblocktrans %}
+  </div>
+{% endblock pre-form %}
+{% block form-buttons %}
+  <div class="mt-6">
+    <form action="{% url 'orgs.user_two_factor_disable' %}" method="post">
+      {% csrf_token %}
+      <input type="submit" value="{{ _("Disable") |escapejs }}" class="button-primary">
+    </form>
+  </div>
+{% endblock form-buttons %}

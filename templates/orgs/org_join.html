@@ -1,0 +1,41 @@
+{% extends "smartmin/base.html" %}
+{% load i18n smartmin %}
+
+{% block styles %}
+  {{ block.super }}
+  <style type="text/css">
+    .content-card {
+      width: 28rem;
+    }
+  </style>
+{% endblock styles %}
+{% block content %}
+  <form method="post"
+        action="{% url 'users.user_login' %}?next={% url 'orgs.org_join_accept' secret %}"
+        class="mt-6"
+        id="login-form">
+    <fieldset>
+      <div class="control-group">
+        <temba-textinput type="text"
+                         name="username"
+                         maxlenght="150"
+                         label="{% trans 'Email Address' %}"
+                         value="{{ email }}"
+                         disabled
+                         id="id_username">
+        </temba-textinput>
+      </div>
+      <div class="control-group">
+        <temba-textinput type="password"
+                         name="password"
+                         label="{% trans 'Password' %}"
+                         placeholder="{% trans 'Your password, at least eight letters please' %}"
+                         password
+                         id="id_password">
+        </temba-textinput>
+      </div>
+    </fieldset>
+    {% csrf_token %}
+    <input type="submit" value="Login" class="button-primary">
+  </form>
+{% endblock content %}

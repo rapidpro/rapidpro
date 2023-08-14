@@ -1,0 +1,34 @@
+{% extends "orgs/login/login_base.html" %}
+{% load smartmin %}
+
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    function handleSubmit() {
+      document.querySelector("form").submit();
+    }
+  </script>
+{% endblock extra-script %}
+{% block content %}
+  {% if other_org %}
+    <div class="mt-12">
+      <div class="text-xl">Different Workspace</div>
+      <div class="mt-4 mb-12">
+        {% if next %}
+          The page you are requesting belongs to a different workspace, <b>{{ other_org.name }}</b>. To see it, you will need to service their account.
+        {% else %}
+          You are about to service the workspace, <b>{{ other_org.name }}</b>.
+        {% endif %}
+      </div>
+      <form method="post" action="{% url 'orgs.org_service' %}">
+        {% for field in form.fields %}
+          {% render_field field %}
+        {% endfor %}
+        {% csrf_token %}
+        <input type="submit" value="Service Account" class="button button-primary">
+      </form>
+    </div>
+  {% else %}
+    Invalid org, servicing not available.
+  {% endif %}
+{% endblock content %}

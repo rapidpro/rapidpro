@@ -1,0 +1,56 @@
+{% extends "smartmin/read.html" %}
+{% load i18n smartmin %}
+
+{% block styles %}
+  {{ block.super }}
+  <style type="text/css">
+    .content-card {
+      width: 28rem;
+    }
+
+    .import-result temba-icon {
+      display: inline-block;
+    }
+  </style>
+{% endblock styles %}
+{% block extra-script %}
+  {{ block.super }}
+  {% if not is_finished %}
+    <script type="text/javascript">
+      if (gotoURL) {
+        setTimeout(function() {
+          gotoURL(document.location.href);
+        }, 3000);
+      }
+    </script>
+  {% endif %}
+{% endblock extra-script %}
+{% block content %}
+  {% block pjax %}
+    <div id="pjax">
+      <div class="card">
+        <div class="import-result text-lg mt-2">
+          {% if object.status == "C" %}
+            <temba-icon name="check" class="text-success mr-2">
+            </temba-icon>
+          {% else %}
+            <temba-icon name="progress_spinner" class="spin mr-2">
+            </temba-icon>
+          {% endif %}
+          {% if object.status == "P" %}
+            {% trans "About to start..." %}
+          {% elif object.status == "O" %}
+            {% trans "In progress..." %}
+          {% elif object.status == "F" %}
+            {% trans "An error happened, please try again." %}
+          {% elif object.status == "C" %}
+            {% trans "Finished successfully" %}
+            <div class="import-result text-lg mt-2">
+              <a href="{% url 'flows.flow_list' %}">{% trans "View flows" %}</a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endblock pjax %}
+{% endblock content %}

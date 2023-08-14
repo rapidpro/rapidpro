@@ -1,0 +1,21 @@
+{% extends "smartmin/base.html" %}
+{% load i18n %}
+
+{% block content %}
+  <div style="margin:30px 0;">
+    {% blocktrans trimmed %}
+      Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.
+    {% endblocktrans %}
+  </div>
+  <a href="?download=1" class="btn btn-primary">
+    <div style="margin-right:5px;" class="glyph icon-download"></div>
+    {% trans "Download Now" %}
+  </a>
+{% endblock content %}
+{% block extra-script %}
+  <script type="text/javascript">
+    onSpload(function() {
+      window.location.href += "?download=1";
+    });
+  </script>
+{% endblock extra-script %}
