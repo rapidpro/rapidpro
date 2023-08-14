@@ -1,0 +1,32 @@
+{% extends "orgs/login/login_base.html" %}
+{% load smartmin i18n %}
+
+{% block login-title %}
+  {% trans "Two-factor Authentication" %}
+{% endblock login-title %}
+{% block login-content %}
+  <div class="mt-4">
+    {% blocktrans trimmed %}
+      If you no longer have access to the device with which you setup two-factor authentication on your login, you can
+      enter one of your backup tokens below.
+    {% endblocktrans %}
+  </div>
+  <form method="POST">
+    {% csrf_token %}
+    <div class="mt-4">
+      <temba-textinput name="token" maxlength="8" placeholder="{{ _("8-character token") |escape }}">
+      </temba-textinput>
+    </div>
+    {% if form.token.errors %}
+      <temba-alert level="error" class="mt-4">
+        {{ form.token.errors }}
+      </temba-alert>
+    {% endif %}
+    <div class="mt-2 text-right">
+      <a href="{% url 'users.two_factor_verify' %}">{% trans "Use Device" %}</a>
+    </div>
+    <div class="mt-6">
+      <input type="submit" value="{{ _("Verify") |escape }}" class="button-primary">
+    </div>
+  </form>
+{% endblock login-content %}

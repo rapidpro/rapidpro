@@ -1,0 +1,61 @@
+{% extends "smartmin/form.html" %}
+{% load smartmin i18n %}
+
+{% block fields %}
+  <div class="mb-4">
+    {% blocktrans trimmed with prometheus='<a href="https://prometheus.io/">Prometheus</a>' grafana='<a href="https://grafana.com/">Grafana</a>' %}
+    You can monitor contact group counts and channel message counts on your workspace using your {{ prometheus }} endpoint. This will let you monitor usage over time using graphs and alerts in a dashboard such as {{ grafana }}.
+  {% endblocktrans %}
+</div>
+{% if prometheus_url %}
+  <table style="margin-bottom:15px;">
+    <tr class="bottom-pad">
+      <td align="right">{% trans "Endpoint" %}</td>
+      <td>
+        <div class="code whitespace-normal">{{ prometheus_url }}</div>
+      </td>
+    </tr>
+    <tr class="bottom-pad">
+      <td align="right">{% trans "Username" %}</td>
+      <td>
+        <div class="code whitespace-normal">metrics</div>
+      </td>
+    </tr>
+    <tr class="bottom-pad">
+      <td align="right">{% trans "Password" %}</td>
+      <td>
+        <div class="code whitespace-normal">{{ prometheus_token }}</div>
+      </td>
+    </tr>
+  </table>
+{% endif %}
+{% endblock fields %}
+{% block form-buttons %}
+  <div class="form-actions">
+    {% if prometheus_url %}
+      <input type="submit" value="{% trans "Disable Prometheus" %}" class="button-primary">
+    {% else %}
+      <input type="submit" value="{% trans "Enable Prometheus" %}" class="button-primary">
+    {% endif %}
+  </div>
+{% endblock form-buttons %}
+{% block summary %}
+  {% if prometheus_url %}
+    {% blocktrans trimmed with prometheus='<b>Prometheus</b>' %}
+    You are monitoring your workspace using {{ prometheus }}.
+  {% endblocktrans %}
+{% else %}
+  {% blocktrans trimmed with prometheus='<b>Prometheus</b>' %}
+  You have not enabled {{ prometheus }} monitoring on your workspace.
+{% endblocktrans %}
+{% endif %}
+{% endblock summary %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    tr.bottom-pad {
+      border-top: 0px;
+      border-bottom: 12px solid transparent;
+    }
+  </style>
+{% endblock extra-style %}

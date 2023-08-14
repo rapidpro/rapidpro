@@ -1,0 +1,17 @@
+{% extends "smartmin/list.html" %}
+{% load i18n %}
+
+{% block page-header %}
+  <div class="hidden" id="title-text">{{ title }}</div>
+{% endblock page-header %}
+{% block pre-table %}
+  <form method="get" id="search-form">
+    <div class="flex mb-4 items-center">
+      <div class="search-box flex-grow">
+        <temba-textinput name="search" value="{{ search }}" placeholder="Search Users">
+        </temba-textinput>
+        <input type="submit" value="Submit" class="hidden">
+      </div>
+    </div>
+  </form>
+{% endblock pre-table %}

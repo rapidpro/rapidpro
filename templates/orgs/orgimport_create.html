@@ -1,0 +1,95 @@
+{% extends "smartmin/form.html" %}
+{% load smartmin i18n humanize %}
+
+{% block title-text %}
+  {% trans "Import Flows and Campaigns" %}
+{% endblock title-text %}
+{% block content %}
+  <div class="mb-2">{% trans "If you have an export file with flows and or campaigns, select it below to import it into your workspace." %}</div>
+  {% block import-status %}
+    <div style="min-height:41px" class="flex w-full mb-4 items-end flex-wrap">
+      <form method="post"
+            action="{% url 'orgs.orgimport_create' %}"
+            enctype="multipart/form-data"
+            id="import-form">
+        {% if form.non_field_errors %}<div class="text-error">{{ form.non_field_errors }}</div>{% endif %}
+        {% csrf_token %}
+        {% if form.non_field_errors %}<div class="text-error">{{ form.non_field_errors }}</div>{% endif %}
+        {% block fields %}
+          <div class="mt-4 mb-4 text-error">{{ form.file.errors }}</div>
+          <div id="file-upload">
+            <input type="file" name="file" onchange="updateFlowImportFile()" id="file">
+          </div>
+          <div class="flex" id="real_button">
+            <input type="text" id="file-field">
+            <div style="margin-top:-1px" class="block button-primary ml-4">{% trans "Choose File" %}</div>
+          </div>
+        {% endblock fields %}
+        <temba-alert level="warning" class="my-6">
+          <div class="font-normal text-2xl">{% trans "Warning!" %}</div>
+          <div class="mt-2">{% trans "If you have flows or campaigns with the same names or UUIDs as the ones you are importing they will be replaced and all history for them will be lost." %}</div>
+          <div class="mt-4 font-normal">{% trans "Do not proceed unless you are willing to replace your existing flows and campaigns." %}</div>
+        </temba-alert>
+        <div class="flex">
+          <input type="submit" value="{% trans "Import" %}" class="button-primary">
+          <div onclick="javascript:history.go(-1)" class="ml-4 button-light">{% trans "Cancel" %}</div>
+        </div>
+      </form>
+    </div>
+  {% endblock import-status %}
+{% endblock content %}
+{% block extra-style %}
+  <style type="text/css">
+    input {
+      padding: 9px;
+      cursor: pointer;
+      box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 1px, rgba(0, 0, 0, 0.04) 0px 3px 20px 0px, rgba(0, 0, 0, 0.02) 0px 1px 2px 0px;
+    }
+
+    #file-upload {
+      position: relative;
+    }
+
+    #real-button {
+      position: absolute;
+      top: 0px;
+      left: 0px;
+      z-index: 1;
+      height: 35px;
+      width: 450px;
+    }
+
+    #file-field {
+      width: 300px;
+      height: 35px;
+      font-size: 16px;
+      margin-bottom: 0px;
+      border-radius: 5px;
+    }
+
+    #file {
+      position: absolute;
+      width: 450px;
+      height: 35px;
+      top: 0px;
+      left: 0px;
+      text-align: right;
+      -moz-opacity: 0;
+      filter: alpha(opacity: 0);
+      opacity: 0;
+      z-index: 2;
+    }
+  </style>
+{% endblock extra-style %}
+{% block extra-script %}
+  {{ block.super }}
+  <script type="text/javascript">
+    function updateFlowImportFile() {
+      var file = $("#file").val();
+      while (file.indexOf("\\") >= 0) {
+        file = file.substring(file.indexOf("\\") + 1, file.length);
+      }
+      $("#file-field").val(file);
+    }
+  </script>
+{% endblock extra-script %}

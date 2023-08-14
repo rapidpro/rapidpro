@@ -1,0 +1,47 @@
+{% extends "smartmin/read.html" %}
+{% load i18n %}
+
+{% block content %}
+  <div class="flex">
+    {% if org.is_active %}
+      {% if org.is_anon %}
+        <temba-label icon="help-circle" backgroundcolor="#eee" textcolor="#999" class="mr-2">
+          {% trans "Anonymous" %}
+        </temba-label>
+      {% endif %}
+      {% if org.is_suspended %}
+        <temba-label icon="slash" backgroundcolor="#eee" textcolor="#999" class="mr-2">
+          {% trans "Suspended" %}
+        </temba-label>
+      {% endif %}
+      {% if org.is_flagged %}
+        <temba-label icon="flag" backgroundcolor="#eee" textcolor="#999" class="mr-2">
+          {% trans "Flagged" %}
+        </temba-label>
+      {% endif %}
+      {% if org.is_verified %}
+        <temba-label icon="check" backgroundcolor="rgb(136 193 122)" textcolor="white" class="mr-2">
+          {% trans "Verified" %}
+        </temba-label>
+      {% endif %}
+    {% else %}
+      <temba-label icon="trash" backgroundcolor="#eee" textcolor="#999" class="mr-2">
+        {% trans "Deleted" %}
+      </temba-label>
+    {% endif %}
+  </div>
+  <div class="card">
+    {% for user_role in users_roles %}
+      <div class="my-1">
+        <div class="cap-label">{{ user_role.role_display }}</div>
+        <div class="flex flex-col">
+          {% for user in user_role.users %}
+            <div class="user">
+              <a href="{% url "orgs.user_update" user.id %}">{{ user.email }}</a>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock content %}

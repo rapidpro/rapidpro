@@ -1,0 +1,19 @@
+{% extends "orgs/login/login_base.html" %}
+{% load smartmin i18n %}
+
+{% block login-title %}
+  {% trans "Reset Password" %}
+{% endblock login-title %}
+{% block login-content %}
+  {% blocktrans %}
+    Enter the email address you used to sign up. We will
+    send you an email with details on how to reset your password.
+
+  {% endblocktrans %}
+  <form method="post" action="{% url 'orgs.user_forget' %}" class="mt-8">
+    {% csrf_token %}
+    <temba-textinput type="email" name="email" required="" placeholder="{{ _("Email Address") |escapejs }}">
+    </temba-textinput>
+    <input type="submit" value="{{ _("Reset Password") }}" class="mt-4 button-primary">
+  </form>
+{% endblock login-content %}

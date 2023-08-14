@@ -1,0 +1,26 @@
+{% extends "orgs/login/login_base.html" %}
+{% load smartmin i18n %}
+
+{% block login-title %}
+  {% trans "Confirm Access" %}
+{% endblock login-title %}
+{% block login-content %}
+  {% blocktrans trimmed %}
+    To access this page please confirm your current password.
+  {% endblocktrans %}
+  <form method="POST">
+    {% csrf_token %}
+    <div class="mt-4">
+      <temba-textinput name="password" placeholder="{{ _("Password") |escape }}" password="true">
+      </temba-textinput>
+    </div>
+    {% if form.password.errors %}
+      <temba-alert level="error" class="mt-4">
+        {{ form.password.errors }}
+      </temba-alert>
+    {% endif %}
+    <div class="mt-6">
+      <input type="submit" value="{{ _("Confirm") |escape }}" class="button-primary">
+    </div>
+  </form>
+{% endblock login-content %}
