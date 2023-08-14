@@ -1,3 +1,7 @@
+v8.3.4 (2023-08-14)
+-------------------------
+ * Convert templates in assets, channels, msgs, request_logs and schedules apps as well as overridden smartmin templates
+
 v8.3.3 (2023-08-10)
 -------------------------
  * Simplify message indexes and system label queries
