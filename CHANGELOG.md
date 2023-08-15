@@ -1,3 +1,8 @@
+v8.3.6 (2023-08-15)
+-------------------------
+ * Convert haml templates in includes folder and utils app
+ * Cleanup page titles in settings section
+
 v8.3.5 (2023-08-14)
 -------------------------
  * Convert haml templates in public and orgs apps
