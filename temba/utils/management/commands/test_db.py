@@ -8,12 +8,10 @@ import time
 import uuid
 from collections import defaultdict
 from datetime import timedelta
-from subprocess import CalledProcessError, check_call
 
 import pytz
 from django_redis import get_redis_connection
 
-from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.management import BaseCommand, CommandError
 from django.db import connection
@@ -253,7 +251,7 @@ class Command(BaseCommand):
                 )
             except subprocess.CalledProcessError:
                 raise CommandError("Error occurred whilst calling pg_restore to load locations dump")
-        
+
         time.sleep(1)
         self._log(self.style.SUCCESS("OK") + "\n")
 
