@@ -1,0 +1,4 @@
+<temba-compose name="{{ widget.name }}"
+               {% include "django/forms/widgets/attrs.html" %}
+               value="{% if widget.value %}{{ widget.value }}{% endif %}">
+</temba-compose>

@@ -1,0 +1,33 @@
+{% load temba i18n %}
+
+<div class="dependencies-of-type mb-2">
+  <span class="font-normal">{{ dependents|first|verbose_name_plural }}</span>
+  {% if warning %}
+    -
+    <i>{{ warning }}</i>
+  {% endif %}
+  <div class="mt-1 ml-8">
+    <ul class="list-disc">
+      {% for obj in dependents|slice:":5" %}
+        <li>
+          <a href="{{ obj|object_url }}">{{ obj.name }}</a>
+        </li>
+      {% endfor %}
+      {% with dependents_count=dependents|length %}
+        {% if dependents_count > 5 %}
+          <li>
+            <i>
+              {% with num_more=dependents_count|add:"-5" %}
+                {% if num_more > 0 %}
+                  {% blocktrans trimmed with count=num_more %}
+                    and {{ count }} more
+                  {% endblocktrans %}
+                {% endif %}
+              {% endwith %}
+            </i>
+          </li>
+        {% endif %}
+      {% endwith %}
+    </ul>
+  </div>
+</div>
