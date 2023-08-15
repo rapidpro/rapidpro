@@ -3,6 +3,7 @@
 .idea
 *~
 .envrc
+.devcontainer
 .direnv
 .commit
 .ruff_cache
