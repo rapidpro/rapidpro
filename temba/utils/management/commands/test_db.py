@@ -2,6 +2,7 @@ import json
 import math
 import random
 import resource
+import subprocess
 import sys
 import time
 import uuid
@@ -38,6 +39,10 @@ USER_PASSWORD = "Qwerty123"
 
 # database dump containing admin boundary records
 LOCATIONS_DUMP = "test-data/nigeria.bin"
+
+PG_CONTAINER_NAME = "textit-postgres-1"
+TEMBA_DB_NAME = "temba"
+TEMBA_DB_USER = "temba"
 
 # number of each type of archive to create
 ARCHIVES = 50
@@ -228,24 +233,34 @@ class Command(BaseCommand):
         """
         self._log("Loading locations from %s... " % path)
 
-        # load dump into current db with pg_restore
-        db_config = settings.DATABASES["default"]
-        try:
-            check_call(
-                f"export PGPASSWORD={db_config['PASSWORD']} && pg_restore -h {db_config['HOST']} "
-                f"-p {db_config['PORT']} -U {db_config['USER']} -w -d {db_config['NAME']} {path}",
-                shell=True,
-            )
-        except CalledProcessError:  # pragma: no cover
-            raise CommandError("Error occurred whilst calling pg_restore to load locations dump")
+        with open(path, "rb") as f:
+            try:
+                subprocess.run(
+                    [
+                        "docker",
+                        "exec",
+                        "-i",
+                        PG_CONTAINER_NAME,
+                        "pg_restore",
+                        "-d",
+                        TEMBA_DB_NAME,
+                        "-U",
+                        TEMBA_DB_USER,
+                    ],
+                    input=f.read(),
+                    stdout=subprocess.PIPE,
+                    check=True,
+                )
+            except subprocess.CalledProcessError:
+                raise CommandError("Error occurred whilst calling pg_restore to load locations dump")
+        
+        time.sleep(1)
+        self._log(self.style.SUCCESS("OK") + "\n")
 
         # fetch as tuples of (WARD, DISTRICT, STATE)
         wards = AdminBoundary.objects.filter(level=3).prefetch_related("parent", "parent__parent")
         locations = [(w, w.parent, w.parent.parent) for w in wards]
-
         country = AdminBoundary.objects.filter(level=0).get()
-
-        self._log(self.style.SUCCESS("OK") + "\n")
         return country, locations
 
     def create_orgs(self, superuser, country, num_total):
