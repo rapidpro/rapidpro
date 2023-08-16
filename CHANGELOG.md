@@ -1,3 +1,16 @@
+v8.3.9 (2023-08-16)
+-------------------------
+ * Fix onSpload fire when initial page doesn't call it
+
+v8.3.8 (2023-08-16)
+-------------------------
+ * Use $ instead of onSpload
+
+v8.3.7 (2023-08-16)
+-------------------------
+ * Fix Javascript on claim number view
+ * Switch test_db to assume a docker container
+
 v8.3.6 (2023-08-15)
 -------------------------
  * Convert haml templates in includes folder and utils app
