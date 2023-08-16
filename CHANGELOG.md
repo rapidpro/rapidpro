@@ -1,3 +1,7 @@
+v8.3.9 (2023-08-16)
+-------------------------
+ * Fix onSpload fire when initial page doesn't call it
+
 v8.3.8 (2023-08-16)
 -------------------------
  * Use $ instead of onSpload
