@@ -236,10 +236,10 @@
                 </td>
               {% endif %}
               <td>
-                <div class="whitespace-nowrap">{{ object|name:user_org }}</div>
+                <div class="whitespace-nowrap">{{ object.name|default:"--" }}</div>
               </td>
               <td class="w-full">
-                <div class="whitespace-nowrap">{{ object|urn:user_org }}</div>
+                <div class="whitespace-nowrap">{{ object|urn_or_anon:user_org }}</div>
               </td>
               {% for field in contact_fields %}
                 {% if field.show_in_table %}

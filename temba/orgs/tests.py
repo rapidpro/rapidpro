@@ -31,7 +31,6 @@ from temba.contacts.models import (
     ContactGroup,
     ContactImport,
     ContactImportBatch,
-    ContactURN,
     ExportContactsTask,
 )
 from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowSession, FlowStart, FlowStartCount
@@ -2540,7 +2539,7 @@ class AnonOrgTest(TembaTest):
         contact = self.create_contact(None, phone="+250788123123")
         self.login(self.admin)
 
-        masked = "%010d" % contact.pk
+        anon_id = f"{contact.id:010}"
 
         response = self.client.get(reverse("contacts.contact_list"))
 
@@ -2548,8 +2547,7 @@ class AnonOrgTest(TembaTest):
         self.assertNotContains(response, "788 123 123")
 
         # but the id is
-        self.assertContains(response, masked)
-        self.assertContains(response, ContactURN.ANON_MASK_HTML)
+        self.assertContains(response, anon_id)
 
         # create an outgoing message, check number doesn't appear in outbox
         msg1 = self.create_outgoing_msg(contact, "hello", status="Q")
@@ -2558,7 +2556,7 @@ class AnonOrgTest(TembaTest):
 
         self.assertEqual(set(response.context["object_list"]), {msg1})
         self.assertNotContains(response, "788 123 123")
-        self.assertContains(response, masked)
+        self.assertContains(response, anon_id)
 
         # create an incoming message, check number doesn't appear in inbox
         msg2 = self.create_incoming_msg(contact, "ok")
@@ -2567,7 +2565,7 @@ class AnonOrgTest(TembaTest):
 
         self.assertEqual(set(response.context["object_list"]), {msg2})
         self.assertNotContains(response, "788 123 123")
-        self.assertContains(response, masked)
+        self.assertContains(response, anon_id)
 
         # create an incoming flow message, check number doesn't appear in inbox
         flow = self.create_flow("Test")
@@ -2577,12 +2575,12 @@ class AnonOrgTest(TembaTest):
 
         self.assertEqual(set(response.context["object_list"]), {msg3})
         self.assertNotContains(response, "788 123 123")
-        self.assertContains(response, masked)
+        self.assertContains(response, anon_id)
 
         # check contact detail page
         response = self.client.get(reverse("contacts.contact_read", args=[contact.uuid]))
         self.assertNotContains(response, "788 123 123")
-        self.assertContains(response, masked)
+        self.assertContains(response, anon_id)
 
 
 class OrgCRUDLTest(TembaTest, CRUDLTestMixin):

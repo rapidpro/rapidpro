@@ -154,6 +154,7 @@ class DatesTest(TembaTest):
         self.assertIsNone(datetime_to_str(None, "%Y-%m-%d %H:%M", tz=tz))
         self.assertEqual(datetime_to_str(d2, "%Y-%m-%d %H:%M", tz=tz), "2014-01-02 03:04")
         self.assertEqual(datetime_to_str(d2, "%Y/%m/%d %H:%M", tz=pytz.UTC), "2014/01/02 01:04")
+        self.assertEqual(datetime_to_str(date(2023, 8, 16), "%Y/%m/%d %H:%M", tz=pytz.UTC), "2023/08/16 00:00")
 
     def test_date_range(self):
         self.assertEqual(
