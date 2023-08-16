@@ -7,7 +7,6 @@ jobs:
     env:
       python-version: "3.10.x"
       node-version: "12"
-      rpindexer-version: "8.2.0"
       mailroom-version: "8.2.0"
       DJANGO_SETTINGS_MODULE: temba.settings_ci
 
@@ -64,9 +63,6 @@ jobs:
           sudo yarn global add less
           ln -s ${{ github.workspace }}/temba/settings.py.dev ${{ github.workspace }}/temba/settings.py
           poetry run python manage.py migrate
-          # fetch and extract rp-indexer
-          wget https://github.com/nyaruka/rp-indexer/releases/download/v${{ env.rpindexer-version }}/rp-indexer_${{ env.rpindexer-version }}_linux_amd64.tar.gz
-          tar -xvf rp-indexer_${{ env.rpindexer-version }}_linux_amd64.tar.gz rp-indexer
           # fetch, extract and start mailroom
           wget https://github.com/${{ github.repository_owner }}/mailroom/releases/download/v${{ env.mailroom-version }}/mailroom_${{ env.mailroom-version }}_linux_amd64.tar.gz
           tar -xvf mailroom_${{ env.mailroom-version }}_linux_amd64.tar.gz mailroom
