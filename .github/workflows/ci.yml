@@ -78,7 +78,7 @@ jobs:
           poetry run python code_check.py --debug
           # check we can collect and compress all static files
           poetry run python manage.py collectstatic --noinput --verbosity=0
-          poetry run python manage.py compress --extension=".haml" --settings=temba.settings_compress
+          poetry run python manage.py compress --extension=".html" --settings=temba.settings_compress
 
       - name: Run tests
         run: |

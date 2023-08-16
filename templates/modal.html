@@ -1,0 +1,24 @@
+<div data-dismiss="modal" class="modal hide" id="modal-template">
+  <div class="hide" id="onConfirm"></div>
+  <div class="modal-header">
+    <button type="button" aria-hidden="true" class="pull-right close">&times;</button>
+    <h3>
+      <div class="icon"></div>
+      <span id="modal-title">Uh oh!</span>
+    </h3>
+  </div>
+  <div class="modal-body">
+    <div class="fetched-content">
+      <div id="modal-message"></div>
+      <div class="form"></div>
+    </div>
+    <div class="loader">
+      <img src="{{ STATIC_URL }}images/loader-circles.gif">
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn tertiary pull-left hide">Tertiary</button>
+    <button class="btn btn-primary primary">Ok</button>
+    <button class="btn secondary hide">Cancel</button>
+  </div>
+</div>

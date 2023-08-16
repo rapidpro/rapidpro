@@ -731,21 +731,6 @@ files = [
 Django = ">=3.2"
 
 [[package]]
-name = "django-hamlpy"
-version = "1.7.0"
-description = "HAML like syntax for Django templates"
-optional = false
-python-versions = ">=3.9,<4.0"
-files = [
-    {file = "django_hamlpy-1.7.0-py3-none-any.whl", hash = "sha256:e11f611ae9d39bfcfa1d349fb532a7c2a318d9ff99ac1482d6219ffbdcb4b661"},
-    {file = "django_hamlpy-1.7.0.tar.gz", hash = "sha256:cbb003f0888ad8adb2615192916c3f7ff0ed8e5a0c2a15d02a7f273ffca92d5c"},
-]
-
-[package.dependencies]
-django = ">=3.2,<5.0"
-regex = ">=2020.1.1"
-
-[[package]]
 name = "django-js-asset"
 version = "2.0.0"
 description = "script tag with additional attributes for django.forms.Media"
@@ -2271,4 +2256,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "f21c7b9c734073d6a56f558c990b96d93a96250189ebc24d91742ee56f5d8cce"
+content-hash = "8776f6bad24e368975cf5282209c31ad380e71cc1ffacdfa272e1415cfd8e3b4"

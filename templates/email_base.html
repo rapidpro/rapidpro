@@ -1,53 +1,84 @@
 {% load temba %}
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-  <meta property="og:title" content="{{ subject }}"/>
-  <title>{{ subject }}</title>
-</head>
-<body leftmargin="0" marginwidth="0" topmargin="0" marginheight="0" offset="0"
-      style="margin: 0; -webkit-text-size-adjust: none; background-color: #FFFFFF; padding: 0; width: 100% !important;"
-      bgcolor="#FFFFFF">
-  <table width="100%">
-    <tr style="background-color: {{ branding.colors.primary }}" bgcolor="{{ branding.colors.primary }}">
-      <td valign="top" align="left" style="border-collapse: collapse;padding-top: 10px; padding-left: 20px; color: #fff; font-size: 34px;" width="600">
-          {{ branding.name }}
-      </td>
-    </tr>
-    <tr>
-      <td align="center" valign="top" style="border-collapse: collapse;">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta property="og:title" content="{{ subject }}" />
+    <title>{{ subject }}</title>
+  </head>
+  <body leftmargin="0"
+        marginwidth="0"
+        topmargin="0"
+        marginheight="0"
+        offset="0"
+        style="margin: 0;
+               -webkit-text-size-adjust: none;
+               background-color: #FFFFFF;
+               padding: 0;
+               width: 100% !important"
+        bgcolor="#FFFFFF">
+    <table width="100%">
+      <tr style="background-color: {{ branding.colors.primary }}" bgcolor="{{ branding.colors.primary }}">
+        <td valign="top"
+            align="left"
+            style="border-collapse: collapse;
+                   padding-top: 10px;
+                   padding-left: 20px;
+                   color: #fff;
+                   font-size: 34px"
+            width="600">{{ branding.name }}</td>
+      </tr>
+      <tr>
+        <td align="center" valign="top" style="border-collapse: collapse;">
           <table border="0" cellpadding="0" cellspacing="0" width="100%" id="templateBody">
-              <tr>
-                  <td valign="top" class="bodyContent" style="border-collapse: collapse; background-color: #FFFFFF;"
-                      bgcolor="#FFFFFF">
-                      <table border="0" cellpadding="20" cellspacing="0" width="100%">
-                          <tr>
-                              <td valign="top" style="border-collapse: collapse;">
-                                  <div style="color: #505050; font-family: Arial; font-size: 14px; line-height: 150%; text-align: left;"
-                                       align="left">
-                                      <h1 class="h1"
-                                          style="margin: 0 0 10px; font-weight: 200; font-size: 20px; line-height: 100%; font-family: Arial; color: #202020; display: block; text-align: left;"
-                                          align="left">{{ subject }}</h1>
-                                      {% block body %}{% endblock %}
-                                      <br/><br/>
-                                  </div>
-                              </td>
-                          </tr>
-                      </table>
-                  </td>
-              </tr>
+            <tr>
+              <td valign="top"
+                  class="bodyContent"
+                  style="border-collapse: collapse;
+                         background-color: #FFFFFF"
+                  bgcolor="#FFFFFF">
+                <table border="0" cellpadding="20" cellspacing="0" width="100%">
+                  <tr>
+                    <td valign="top" style="border-collapse: collapse;">
+                      <div style="color: #505050;
+                                  font-family: Arial;
+                                  font-size: 14px;
+                                  line-height: 150%;
+                                  text-align: left"
+                           align="left">
+                        <h1 class="h1"
+                            style="margin: 0 0 10px;
+                                   font-weight: 200;
+                                   font-size: 20px;
+                                   line-height: 100%;
+                                   font-family: Arial;
+                                   color: #202020;
+                                   display: block;
+                                   text-align: left"
+                            align="left">{{ subject }}</h1>
+                        {% block body %}{% endblock %}
+                        <br />
+                        <br />
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
           </table>
-      </td>
-    </tr>
-    <tr>
-      <td align="center" valign="top" style="border-collapse: collapse;">
-	{% block alert-settings %}{% endblock alert-settings %}
-
-        <div style="color: #FFFFFF">This email was generated at {% format_datetime now %}</div>
-      </td>
-
-    </tr>
-  </table>
-</body>
+        </td>
+      </tr>
+      <tr>
+        <td align="center" valign="top" style="border-collapse: collapse;">
+          {% block alert-settings %}
+          {% endblock alert-settings %}
+          <div style="color: #FFFFFF">
+            This email was generated at
+            {% format_datetime now %}
+          </div>
+        </td>
+      </tr>
+    </table>
+  </body>
 </html>
