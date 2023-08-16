@@ -513,14 +513,13 @@ class MailroomClientTest(TembaTest):
 class MailroomQueueTest(TembaTest):
     def setUp(self):
         super().setUp()
-        r = get_redis_connection()
-        r.execute_command("select", 10)
-        r.execute_command("flushdb")
+
+        self.clear_cache()
 
     def tearDown(self):
         super().tearDown()
-        r = get_redis_connection()
-        r.execute_command("select", 10)
+
+        self.clear_cache()
 
     @mock_mailroom(queue=False)
     def test_queue_msg_handling(self, mr_mocks):
@@ -554,7 +553,6 @@ class MailroomQueueTest(TembaTest):
 
     @mock_mailroom(queue=False)
     def test_queue_mo_miss_event(self, mr_mocks):
-        get_redis_connection("default").flushall()
         event = sync.create_event(self.channel, "tel:12065551212", ChannelEvent.TYPE_CALL_OUT, timezone.now())
 
         r = get_redis_connection()
