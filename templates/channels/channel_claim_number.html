@@ -132,8 +132,7 @@
       return false;
     }
 
-    // TODO figure out why onSpload not being called when navigating here
-    $(function() {
+    onSpload(function() {
       // the user has clicked a number from search results
       $("#results").on('click', ".phone-number", function(e) {
         var country = document.querySelector("#country").values[0].value;
@@ -145,8 +144,6 @@
 
       // the user has clicked an existing number in their account
       $("#account-numbers").on('click', ".phone-number", function(e) {
-        console.log("clicked")
-
         $("#phone-number").val($(this).data("number"));
         $("#claim-country").val($(this).data("country"));
         $("#claim-form").submit();
