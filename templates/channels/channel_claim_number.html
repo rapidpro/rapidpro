@@ -1,6 +1,5 @@
 {% extends "smartmin/form.html" %}
-{% load compress temba %}
-{% load i18n %}
+{% load compress temba i18n %}
 
 {% block title-text %}
   {% trans "Connect a Phone Number" %}
@@ -82,7 +81,7 @@
       {% endfor %}
     </div>
   {% endif %}
-  <form style="display:none;" method="POST" action="{{ claim_url }}" id="claim-form">
+  <form style="display:none;" method="post" action="{{ claim_url }}" id="claim-form">
     {% csrf_token %}
     <input type="text" name="country" id="claim-country">
     <input type="text" name="phone_number" id="phone-number">
@@ -91,20 +90,6 @@
 {% block extra-script %}
   {{ block.super }}
   <script type="text/javascript">
-    $("#results").on('click', ".phone-number", function(e) {
-      var country = document.querySelector("#country").values[0].value;
-
-      $("#phone-number").val($(this).data("number"));
-      $("#claim-country").val(country);
-      $("#claim-form").submit();
-    });
-
-    $("#account-numbers").on('click', ".phone-number", function(e) {
-      $("#phone-number").val($(this).data("number"));
-      $("#claim-country").val($(this).data("country"));
-      $("#claim-form").submit();
-    });
-
     function searchNumbers(e) {
       var pattern = document.querySelector('#pattern').value;
       var country = document.querySelector("#country").values[0].value;
@@ -147,7 +132,23 @@
       return false;
     }
 
-    $(function() {
+    onSpload(function() {
+      // the user has clicked a number from search results
+      $("#results").on('click', ".phone-number", function(e) {
+        var country = document.querySelector("#country").values[0].value;
+
+        $("#phone-number").val($(this).data("number"));
+        $("#claim-country").val(country);
+        $("#claim-form").submit();
+      });
+
+      // the user has clicked an existing number in their account
+      $("#account-numbers").on('click', ".phone-number", function(e) {
+        $("#phone-number").val($(this).data("number"));
+        $("#claim-country").val($(this).data("country"));
+        $("#claim-form").submit();
+      });
+
       $("#search-form").on('submit', searchNumbers);
     });
   </script>
