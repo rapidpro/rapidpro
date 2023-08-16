@@ -1,3 +1,7 @@
+v8.3.8 (2023-08-16)
+-------------------------
+ * Use $ instead of onSpload
+
 v8.3.7 (2023-08-16)
 -------------------------
  * Fix Javascript on claim number view
