@@ -44,13 +44,18 @@ def name_or_urn(contact, org):
 
 
 @register.filter
-def name(contact, org):
-    if contact.name:
-        return contact.name
-    elif org.is_anon:
-        return contact.anon_display
+def urn_or_anon(contact, org):
+    """
+    Renders the contact has their primary URN or anon id if org is anon
+    """
+    if not org.is_anon:
+        contact_urn = contact.get_urn()
+        if contact_urn:
+            return format_urn(contact_urn, org)
+        else:
+            return MISSING_VALUE
     else:
-        return MISSING_VALUE
+        return contact.anon_display
 
 
 @register.filter
@@ -59,15 +64,6 @@ def format_urn(urn, org):
         return ContactURN.ANON_MASK_HTML
 
     return urn.get_display(org=org, international=True)
-
-
-@register.filter
-def urn(contact, org):
-    contact_urn = contact.get_urn()
-    if contact_urn:
-        return format_urn(contact_urn, org)
-    else:
-        return MISSING_VALUE
 
 
 @register.filter
