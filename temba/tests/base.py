@@ -812,6 +812,13 @@ class TembaTest(SmartminTest):
         self.assertEqual(redirect, response.get("Temba-Success"))
         self.assertEqual(redirect, response.get("REDIRECT"))
 
+    def anonymous(self, org: Org):
+        """
+        Makes the given org temporarily anonymous
+        """
+
+        return AnonymousOrg(org)
+
 
 class AnonymousOrg:
     """

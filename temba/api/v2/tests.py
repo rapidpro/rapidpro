@@ -35,7 +35,7 @@ from temba.msgs.models import Broadcast, Label, Media, Msg
 from temba.orgs.models import Org, OrgRole, User
 from temba.schedules.models import Schedule
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom, mock_uuids
+from temba.tests import TembaTest, matchers, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import Ticket, Ticketer, Topic
 from temba.tickets.types.mailgun import MailgunType
@@ -228,7 +228,7 @@ class FieldsTest(APITest):
             },
         )
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             # load contacts again without cached org on them or their urns
             joe = Contact.objects.get(id=joe.id)
             frank = Contact.objects.get(id=frank.id)
@@ -473,7 +473,7 @@ class FieldsTest(APITest):
         self.assertEqual("tel:+250788383383", fields.serialize_urn(self.org, urn_obj))
         self.assertEqual(urn_dict, fields.serialize_urn(self.org, urn_dict))
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             self.assertEqual("tel:********", fields.serialize_urn(self.org, urn_obj))
             self.assertEqual(
                 {
@@ -1141,7 +1141,7 @@ class EndpointsTest(APITest):
         response = self.getJSON(broadcasts_url, "before=%s" % format_datetime(bcast2.created_on))
         self.assertResultsById(response, [bcast2, bcast1])
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             # URNs shouldn't be included
             response = self.getJSON(broadcasts_url, "id=%d" % bcast1.id)
             self.assertIsNone(response.json()["results"][0]["urns"])
@@ -2090,7 +2090,7 @@ class EndpointsTest(APITest):
         self.assertEqual(resp_json["next"], None)
         self.assertResultsByUUID(response, [self.frank, contact1, contact2, self.joe, contact4])
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
                 response = self.getJSON(contacts_url)
 
@@ -2665,7 +2665,7 @@ class EndpointsTest(APITest):
 
         jean = Contact.objects.filter(name="Jean", language="fra").get()
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             # can't update via URN
             response = self.postJSON(contacts_url, "urn=%s" % "tel:+250785555555", {})
             self.assertEqual(response.status_code, 400)
@@ -4255,7 +4255,7 @@ class EndpointsTest(APITest):
                 response, None, "You may only specify one of the contact, folder, label, broadcast parameters"
             )
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             # for anon orgs, don't return URN values
             response = self.getJSON(msgs_url, "id=%d" % joe_msg3.pk)
             self.assertIsNone(response.json()["results"][0]["urn"])
@@ -4640,7 +4640,7 @@ class EndpointsTest(APITest):
         self.assertResultsById(response, [frank_run2])
 
         # anon orgs should not have a URN field
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             response = self.getJSON(runs_url, "id=%d" % frank_run2.pk)
             self.assertResultsById(response, [frank_run2])
             self.assertEqual(

@@ -30,7 +30,7 @@ from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modi
 from temba.msgs.models import Broadcast, Msg, SystemLabel
 from temba.orgs.models import Org, OrgRole
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticket, TicketCount, Ticketer
@@ -139,7 +139,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(response.context["save_dynamic_search"], True)
         self.assertIsNone(response.context["search_error"])
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             mr_mocks.contact_search(f"{joe.id}", cleaned=f"id = {joe.id}", contacts=[joe])
 
             response = self.client.get(list_url + f"?search={joe.id}")
@@ -2016,7 +2016,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("0768 383 383", str(self.voldemort))
         self.assertEqual("Billy Nophone", str(self.billy))
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, formatted=False))
             self.assertEqual("Joe Blow", self.joe.get_display())
             self.assertEqual("%010d" % self.voldemort.pk, self.voldemort.get_display())
@@ -2192,7 +2192,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             omnibox_request(f"g={joe_and_frank.uuid}"),
         )
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             mock_search_contacts.side_effect = [
                 SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=QueryMetadata()),
                 SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=QueryMetadata()),
@@ -2637,7 +2637,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Add Connection")
 
         # no field to add new urns for anon org
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             response = self.fetch_protected(update_url, self.admin)
             self.assertEqual(self.joe, response.context["object"])
             self.assertNotContains(response, "Add Connection")
@@ -3765,7 +3765,7 @@ class ContactFieldTest(TembaTest):
             assertImportExportedFile("?g=%s&s=Hagg" % group.uuid)
 
         # now try with an anonymous org
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             self.assertExcelSheet(
                 request_export()[0],
                 [
