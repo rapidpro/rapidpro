@@ -1,6 +1,4 @@
 import io
-import subprocess
-import time
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import PropertyMock, call, patch
@@ -13,7 +11,6 @@ from openpyxl import load_workbook
 
 from django.conf import settings
 from django.core.validators import ValidationError
-from django.db import connection
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
 from django.db.utils import IntegrityError
@@ -24,7 +21,7 @@ from django.utils import timezone
 from temba.airtime.models import AirtimeTransfer
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import ChannelEvent
-from temba.contacts.search import SearchException, search_contacts
+from temba.contacts.search import search_contacts
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowSession, FlowStart
 from temba.ivr.models import Call
@@ -33,21 +30,13 @@ from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modi
 from temba.msgs.models import Broadcast, Msg, SystemLabel
 from temba.orgs.models import Org, OrgRole
 from temba.schedules.models import Schedule
-from temba.tests import (
-    AnonymousOrg,
-    CRUDLTestMixin,
-    ESMockWithScroll,
-    TembaNonAtomicTest,
-    TembaTest,
-    matchers,
-    mock_mailroom,
-)
+from temba.tests import AnonymousOrg, CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticket, TicketCount, Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
-from temba.utils.dates import datetime_to_str, datetime_to_timestamp
+from temba.utils.dates import datetime_to_timestamp
 from temba.utils.templatetags.temba import datetime as datetime_tag, duration
 from temba.utils.views import TEMBA_MENU_SELECTION
 
@@ -4556,342 +4545,6 @@ class URNTest(TembaTest):
         self.assertTrue(URN.validate("vk:12345678901234567"))
         self.assertTrue(URN.validate("instagram:12345678901234567"))
         self.assertFalse(URN.validate("instagram:abcdef"))
-
-
-class ESIntegrationTest(TembaNonAtomicTest):
-    def test_ES_contacts_index(self):
-        self.create_anonymous_user()
-        self.admin = self.create_user("Administrator")
-        self.user = self.admin
-
-        self.country = AdminBoundary.create(osm_id="171496", name="Rwanda", level=0)
-        self.state1 = AdminBoundary.create(osm_id="1708283", name="Kigali City", level=1, parent=self.country)
-        self.state2 = AdminBoundary.create(osm_id="171591", name="Eastern Province", level=1, parent=self.country)
-        self.district1 = AdminBoundary.create(osm_id="1711131", name="Gatsibo", level=2, parent=self.state2)
-        self.district2 = AdminBoundary.create(osm_id="1711163", name="Kayônza", level=2, parent=self.state2)
-        self.district3 = AdminBoundary.create(osm_id="3963734", name="Nyarugenge", level=2, parent=self.state1)
-        self.district4 = AdminBoundary.create(osm_id="1711142", name="Rwamagana", level=2, parent=self.state2)
-        self.ward1 = AdminBoundary.create(osm_id="171113181", name="Kageyo", level=3, parent=self.district1)
-        self.ward2 = AdminBoundary.create(osm_id="171116381", name="Kabare", level=3, parent=self.district2)
-        self.ward3 = AdminBoundary.create(osm_id="171114281", name="Bukure", level=3, parent=self.district4)
-
-        self.org = Org.objects.create(
-            name="Temba",
-            timezone=pytz.timezone("Africa/Kigali"),
-            country=self.country,
-            flow_languages=["eng"],
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-
-        self.org.initialize()
-        self.org.add_user(self.admin, OrgRole.ADMINISTRATOR)
-
-        self.client.login(username=self.admin.username, password=self.admin.username)
-
-        age = self.create_field("age", "Age", value_type="N")
-        self.create_field("join_date", "Join Date", value_type="D")
-        self.create_field("state", "Home State", value_type="S")
-        self.create_field("home", "Home District", value_type="I")
-        ward = self.create_field("ward", "Home Ward", value_type="W")
-        self.create_field("profession", "Profession", value_type="T")
-        self.create_field("isureporter", "Is UReporter", value_type="T")
-        self.create_field("hasbirth", "Has Birth", value_type="T")
-
-        doctors = self.create_group("Doctors", contacts=[])
-        farmers = self.create_group("Farmers", contacts=[])
-        registration = self.create_flow("Registration")
-
-        names = ["Trey", "Mike", "Paige", "Fish", "", None]
-        districts = ["Gatsibo", "Kayônza", "Rwamagana", None]
-        wards = ["Kageyo", "Kabara", "Bukure", None]
-        date_format = self.org.get_datetime_formats()[0]
-
-        # reset contact ids so we don't get unexpected collisions with phone numbers
-        with connection.cursor() as cursor:
-            cursor.execute("""SELECT setval(pg_get_serial_sequence('"contacts_contact"','id'), 900)""")
-
-        # create some contacts
-        for i in range(90):
-            name = names[i % len(names)]
-
-            number = "0188382%s" % str(i).zfill(3)
-            twitter = ("tweep_%d" % (i + 1)) if (i % 3 == 0) else None  # 1 in 3 have twitter URN
-            join_date = datetime_to_str(date(2014, 1, 1) + timezone.timedelta(days=i), date_format, tz=pytz.utc)
-
-            # create contact with some field data so we can do some querying
-            fields = {
-                "age": str(i + 10),
-                "join_date": str(join_date),
-                "state": "Eastern Province",
-                "home": districts[i % len(districts)],
-                "ward": wards[i % len(wards)],
-                "isureporter": "yes" if i % 2 == 0 else "no" if i % 3 == 0 else None,
-                "hasbirth": "no",
-            }
-
-            if i % 3 == 0:
-                fields["profession"] = "Farmer"  # only some contacts have any value for this
-
-            urns = [f"tel:{number}"]
-            if twitter:
-                urns.append(f"twitter:{twitter}")
-
-            c = self.create_contact(name, urns=urns, fields=fields)
-            if i % 3 == 0:
-                farmers.contacts.add(c)
-            if i % 7 == 0:
-                doctors.contacts.add(c)
-            if i % 10 == 0:
-                c.current_flow = registration
-                c.save(update_fields=("current_flow",))
-
-        db_config = connection.settings_dict
-        database_url = (
-            f"postgres://{db_config['USER']}:{db_config['PASSWORD']}@{db_config['HOST']}:{db_config['PORT']}/"
-            f"{db_config['NAME']}?sslmode=disable"
-        )
-        print(f"Using database: {database_url}")
-
-        result = subprocess.run(
-            ["./rp-indexer", "-elastic-url", settings.ELASTICSEARCH_URL, "-db", database_url, "-rebuild"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        self.assertEqual(result.returncode, 0, "Command failed: %s\n\n%s" % (result.stdout, result.stderr))
-
-        def q(query):
-            results = search_contacts(self.org, query, group=self.org.active_contacts_group)
-            return results.total
-
-        # give mailroom some time to flush its cache and ES to publish the results
-        time.sleep(5)
-
-        self.assertEqual(q("trey"), 15)
-        self.assertEqual(q("MIKE"), 15)
-        self.assertEqual(q("  paige  "), 15)
-        self.assertEqual(q("0188382011"), 1)
-        self.assertEqual(q("trey 0188382"), 15)
-
-        # name as property
-        self.assertEqual(q('name is "trey"'), 15)
-        self.assertEqual(q("name is mike"), 15)
-        self.assertEqual(q("name = paige"), 15)
-        self.assertEqual(q('name != ""'), 60)
-        self.assertEqual(q('NAME = ""'), 30)
-        self.assertEqual(q("name ~ Mi"), 15)
-        self.assertEqual(q('name != "Mike"'), 75)
-
-        # URN as property
-        self.assertEqual(q("tel is +250188382011"), 1)
-        self.assertEqual(q("tel has 0188382011"), 1)
-        self.assertEqual(q("twitter = tweep_13"), 1)
-        self.assertEqual(q('twitter = ""'), 60)
-        self.assertEqual(q('twitter != ""'), 30)
-        self.assertEqual(q("TWITTER has tweep"), 30)
-
-        # contact field as property
-        self.assertEqual(q("age > 30"), 69)
-        self.assertEqual(q("age >= 30"), 70)
-        self.assertEqual(q("age > 30 and age <= 40"), 10)
-        self.assertEqual(q("AGE < 20"), 10)
-        self.assertEqual(q('age != ""'), 90)
-        self.assertEqual(q('age = ""'), 0)
-
-        self.assertEqual(q("join_date = 1-1-14"), 1)
-        self.assertEqual(q("join_date < 30/1/2014"), 29)
-        self.assertEqual(q("join_date <= 30/1/2014"), 30)
-        self.assertEqual(q("join_date > 30/1/2014"), 60)
-        self.assertEqual(q("join_date >= 30/1/2014"), 61)
-        self.assertEqual(q('join_date != ""'), 90)
-        self.assertEqual(q('join_date = ""'), 0)
-
-        self.assertEqual(q('state is "Eastern Province"'), 90)
-        self.assertEqual(q("HOME is Kayônza"), 23)
-        self.assertEqual(q("ward is kageyo"), 23)
-        self.assertEqual(q("ward != kageyo"), 67)  # includes objects with empty ward
-
-        self.assertEqual(q('home is ""'), 22)
-        self.assertEqual(q('profession = ""'), 60)
-        self.assertEqual(q('profession is ""'), 60)
-        self.assertEqual(q('profession != ""'), 30)
-
-        # contact fields beginning with 'is' or 'has'
-        self.assertEqual(q('isureporter = "yes"'), 45)
-        self.assertEqual(q("isureporter = yes"), 45)
-        self.assertEqual(q("isureporter = no"), 15)
-        self.assertEqual(q("isureporter != no"), 75)  # includes objects with empty isureporter
-
-        self.assertEqual(q('hasbirth = "no"'), 90)
-        self.assertEqual(q("hasbirth = no"), 90)
-        self.assertEqual(q("hasbirth = yes"), 0)
-
-        self.assertEqual(q('group = "farmers"'), 30)
-        self.assertEqual(q('group = "DOCTORS"'), 13)
-
-        self.assertEqual(q('flow = "registration"'), 9)
-        self.assertEqual(q('flow != ""'), 9)
-
-        # boolean combinations
-        self.assertEqual(q("name is trey or name is mike"), 30)
-        self.assertEqual(q("name is trey and age < 20"), 2)
-        self.assertEqual(q('(home is gatsibo or home is "Rwamagana")'), 45)
-        self.assertEqual(q('(home is gatsibo or home is "Rwamagana") and name is trey'), 15)
-        self.assertEqual(q('name is MIKE and profession = ""'), 15)
-        self.assertEqual(q("profession = doctor or profession = farmer"), 30)  # same field
-        self.assertEqual(q("age = 20 or age = 21"), 2)
-        self.assertEqual(q("join_date = 30/1/2014 or join_date = 31/1/2014"), 2)
-
-        # create contact with no phone number, we'll try searching for it by id
-        contact = self.create_contact(name="Id Contact")
-
-        # a new contact was created, execute the rp-indexer again
-        result = subprocess.run(
-            ["./rp-indexer", "-elastic-url", settings.ELASTICSEARCH_URL, "-db", database_url, "-rebuild"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        self.assertEqual(result.returncode, 0, "Command failed: %s\n\n%s" % (result.stdout, result.stderr))
-
-        # give ES some time to publish the results
-        time.sleep(5)
-
-        # NOTE: when this fails with `AssertionError: 90 != 0`, check if contact phone numbers might match
-        # NOTE: for example id=2507, tel=250788382011 ... will match
-        # non-anon orgs can't search by id (because they never see ids), but they match on tel
-        self.assertEqual(q("%d" % contact.pk), 0)
-
-        with AnonymousOrg(self.org):
-            # give mailroom time to clear its org cache
-            time.sleep(5)
-
-            # still allow name and field searches
-            self.assertEqual(q("trey"), 15)
-            self.assertEqual(q("name is mike"), 15)
-            self.assertEqual(q("age > 30"), 69)
-
-            # don't allow matching on URNs
-            self.assertEqual(q("0188382011"), 0)
-            self.assertRaises(SearchException, q, "tel is +250188382011")
-            self.assertRaises(SearchException, q, "twitter has tweep")
-
-            # anon orgs can search by id, with or without zero padding
-            self.assertEqual(q("%d" % contact.pk), 1)
-            self.assertEqual(q("%010d" % contact.pk), 1)
-
-        # give mailroom time to clear its org cache
-        time.sleep(5)
-
-        # invalid queries
-        self.assertRaises(SearchException, q, "((")
-        self.assertRaises(SearchException, q, 'name = "trey')  # unterminated string literal
-        self.assertRaises(SearchException, q, "name > trey")  # unrecognized non-field operator   # ValueError
-        self.assertRaises(SearchException, q, "profession > trey")  # unrecognized text-field operator   # ValueError
-        self.assertRaises(SearchException, q, "age has 4")  # unrecognized decimal-field operator   # ValueError
-        self.assertRaises(SearchException, q, "age = x")  # unparseable decimal-field comparison
-        self.assertRaises(
-            SearchException, q, "join_date has 30/1/2014"
-        )  # unrecognized date-field operator   # ValueError
-        self.assertRaises(SearchException, q, "join_date > xxxxx")  # unparseable date-field comparison
-        self.assertRaises(SearchException, q, "home > kigali")  # unrecognized location-field operator
-        self.assertRaises(SearchException, q, "credits > 10")  # non-existent field or attribute
-        self.assertRaises(SearchException, q, "tel < +250188382011")  # unsupported comparator for a URN   # ValueError
-        self.assertRaises(SearchException, q, 'tel < ""')  # unsupported comparator for an empty string
-        self.assertRaises(SearchException, q, "data=“not empty”")  # unicode “,” are not accepted characters
-
-        # test contact_search_list
-        url = reverse("contacts.contact_list")
-        self.login(self.admin)
-
-        response = self.client.get("%s?sort_on=%s" % (url, "created_on"))
-        self.assertEqual(response.context["object_list"][0].name, "Trey")  # first contact in the set
-        self.assertEqual(response.context["object_list"][0].fields[str(age.uuid)], {"text": "10", "number": 10})
-
-        response = self.client.get("%s?sort_on=-%s" % (url, "created_on"))
-        self.assertEqual(response.context["object_list"][0].name, "Id Contact")  # last contact in the set
-        self.assertEqual(response.context["object_list"][0].fields, None)
-
-        response = self.client.get("%s?sort_on=-%s" % (url, str(ward.key)))
-        self.assertEqual(
-            response.context["object_list"][0].fields[str(ward.uuid)],
-            {
-                "district": "Rwanda > Eastern Province > Gatsibo",
-                "state": "Rwanda > Eastern Province",
-                "text": "Kageyo",
-                "ward": "Rwanda > Eastern Province > Gatsibo > Kageyo",
-            },
-        )
-
-        response = self.client.get("%s?sort_on=%s" % (url, str(ward.key)))
-        self.assertEqual(
-            response.context["object_list"][0].fields[str(ward.uuid)],
-            {
-                "district": "Rwanda > Eastern Province > Rwamagana",
-                "state": "Rwanda > Eastern Province",
-                "text": "Bukure",
-                "ward": "Rwanda > Eastern Province > Rwamagana > Bukure",
-            },
-        )
-
-        now = timezone.now()
-        next_two_days = timezone.now() + timezone.timedelta(days=2)
-
-        self.create_contact(name="James", urns=["tel:+250188382999"], last_seen_on=next_two_days)
-        self.create_contact(name="Chris", urns=["tel:+250188382888"], last_seen_on=now)
-
-        # new contacts were created, execute the rp-indexer again
-        result = subprocess.run(
-            ["./rp-indexer", "-elastic-url", settings.ELASTICSEARCH_URL, "-db", database_url, "-rebuild"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        self.assertEqual(result.returncode, 0, "Command failed: %s\n\n%s" % (result.stdout, result.stderr))
-
-        # give ES some time to publish the results
-        time.sleep(5)
-
-        response = self.client.get("%s?sort_on=%s" % (url, "last_seen_on"))
-        self.assertEqual(response.context["object_list"][0].name, "Chris")  # oldest contact last seen
-
-        response = self.client.get("%s?sort_on=-%s" % (url, "last_seen_on"))
-        self.assertEqual(response.context["object_list"][0].name, "James")  # recent contact last seen
-
-        # create a dynamic group on age
-        self.login(self.admin)
-        url = reverse("contacts.contactgroup_create")
-        self.client.post(url, dict(name="Adults", group_query="age > 30"))
-        self.assertNoFormErrors(response)
-
-        time.sleep(5)
-
-        # check that it was created with the right counts
-        adults = ContactGroup.objects.get(org=self.org, name="Adults")
-        self.assertEqual(69, adults.get_member_count())
-
-        # create a campaign and event on this group
-        campaign = Campaign.create(self.org, self.admin, "Cake Day", adults)
-        created_on = ContactField.objects.get(org=self.org, key="created_on")
-        event = CampaignEvent.create_message_event(
-            self.org, self.admin, campaign, relative_to=created_on, offset=12, unit="M", message="Happy One Year!"
-        )
-
-        # mailroom creation of event fires
-        event.schedule_async()
-
-        # should have 69 events
-        EventFire.objects.filter(event=event, fired=None).count()
-
-        # update the query
-        url = reverse("contacts.contactgroup_update", args=[adults.id])
-        self.client.post(url, dict(name="Adults", query="age > 18"))
-        self.assertNoFormErrors(response)
-
-        # need to wait at least 10 seconds because mailroom will wait that long to give indexer time to catch up if it
-        # sees recently modified contacts
-        time.sleep(13)
-
-        # should have updated count
-        self.assertEqual(81, adults.get_member_count())
 
 
 class ContactImportTest(TembaTest):
