@@ -1,3 +1,10 @@
+v8.3.10 (2023-08-17)
+-------------------------
+ * Add Org.input_cleaners
+ * Always show name / anon id for anon orgs in contact lists
+ * Don't let mailroom handle tasks during tests
+ * Fix title on welcome page
+
 v8.3.9 (2023-08-16)
 -------------------------
  * Fix onSpload fire when initial page doesn't call it
