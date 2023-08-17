@@ -76,6 +76,7 @@ class Android(SmartTemplateView):
 class Welcome(SpaMixin, SmartTemplateView):
     template_name = "public/public_welcome.html"
     menu_path = "/settings"
+    title = _("Getting Started")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

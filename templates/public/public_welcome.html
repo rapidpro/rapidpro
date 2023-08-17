@@ -2,12 +2,6 @@
 {% load i18n %}
 {% load smartmin temba compress %}
 
-{% block page-title %}
-  {% blocktrans with name=brand.name %}
-    {{name}} - Welcome
-
-  {% endblocktrans %}
-{% endblock page-title %}
 {% block extra-style %}
   <style type="text/css">
     .workflow-btn {
@@ -49,15 +43,12 @@
 {% endblock messages %}
 {% block content %}
   {% if 'success' in request.GET.keys %}
-    <div class="page-title">{% trans "Your channel is now connected." %}</div>
     {% blocktrans with name=brand.name %}
-      You can now start flows through {{name}}.
+    Your channel is now connected. You can now start flows through {{name}}.
     {% endblocktrans %}
   {% else %}
-    <div class="page-title">{% trans "Getting Started" %}</div>
     {% blocktrans %}
       Here's a short introduction to help you get started.
-
     {% endblocktrans %}
   {% endif %}
   <div class="mt-6">
