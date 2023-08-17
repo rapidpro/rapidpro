@@ -163,8 +163,6 @@ TEMPLATES = [
                 "temba.orgs.context_processors.user_orgs",
             ],
             "loaders": [
-                "temba.utils.haml.HamlFilesystemLoader",
-                "temba.utils.haml.HamlAppDirectoriesLoader",
                 "django.template.loaders.filesystem.Loader",
                 "django.template.loaders.app_directories.Loader",
             ],
@@ -219,22 +217,14 @@ INSTALLED_APPS = (
     "django.contrib.postgres",
     "django.forms",
     "formtools",
-    # Haml-like templates
-    "hamlpy",
-    # Redis cache
     "redis",
-    # rest framework for api access
     "rest_framework",
     "rest_framework.authtoken",
-    # compress our CSS and js
     "compressor",
-    # smartmin
     "smartmin",
     "smartmin.csv_imports",
     "smartmin.users",
-    # django-timezone-field
     "timezone_field",
-    # temba apps
     "temba.apks",
     "temba.archives",
     "temba.assets",
