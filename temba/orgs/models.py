@@ -456,6 +456,7 @@ class Org(SmartModel):
     )
     country = models.ForeignKey("locations.AdminBoundary", null=True, on_delete=models.PROTECT)
     flow_languages = ArrayField(models.CharField(max_length=3), default=list, validators=[ArrayMinLengthValidator(1)])
+    input_cleaners = ArrayField(models.CharField(max_length=32), default=list)
 
     config = models.JSONField(default=dict)
     slug = models.SlugField(
