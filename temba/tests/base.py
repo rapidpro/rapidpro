@@ -47,6 +47,8 @@ class TembaTest(SmartminTest):
     default_password = "Qwerty123"
 
     def setUp(self):
+        super().setUp()
+
         self.create_anonymous_user()
 
         self.superuser = User.objects.create_superuser(
@@ -140,28 +142,14 @@ class TembaTest(SmartminTest):
         self.org.save(update_fields=("country",))
 
     def tearDown(self):
-        self.clear_cache()
+        super().tearDown()
 
-        clear_flow_users()
-
-    def mockReadOnly(self, assert_models: set = None):
-        return MockReadOnly(self, assert_models=assert_models)
-
-    def upload(self, path: str, content_type="text/plain", name=None):
-        with open(path, "rb") as f:
-            return SimpleUploadedFile(name or path, content=f.read(), content_type=content_type)
-
-    def make_beta(self, user):
-        user.groups.add(Group.objects.get(name="Beta"))
-
-    def clear_cache(self):
-        """
-        Clears the redis cache. Out of paranoia we don't even use the configured cache settings but instead hardcode
-        to the local test instance.
-        """
-
+        # Clear the redis cache. Out of paranoia we don't even use the configured cache settings but instead hardcode
+        # to the local test instance.
         r = redis.StrictRedis(host="localhost", port=6379, db=10)
         r.flushdb()
+
+        clear_flow_users()
 
     def clear_storage(self):
         """
@@ -812,12 +800,22 @@ class TembaTest(SmartminTest):
         self.assertEqual(redirect, response.get("Temba-Success"))
         self.assertEqual(redirect, response.get("REDIRECT"))
 
+    def upload(self, path: str, content_type="text/plain", name=None):
+        with open(path, "rb") as f:
+            return SimpleUploadedFile(name or path, content=f.read(), content_type=content_type)
+
+    def make_beta(self, user):
+        user.groups.add(Group.objects.get(name="Beta"))
+
     def anonymous(self, org: Org):
         """
         Makes the given org temporarily anonymous
         """
 
         return AnonymousOrg(org)
+
+    def mockReadOnly(self, assert_models: set = None):
+        return MockReadOnly(self, assert_models=assert_models)
 
 
 class AnonymousOrg:

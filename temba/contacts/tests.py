@@ -1830,8 +1830,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         label.toggle_label([msg1, msg2, msg3], add=True)
         static_group = self.create_group("Just Joe", [self.joe])
 
-        self.clear_cache()
-
         msg_counts = SystemLabel.get_counts(self.org)
         self.assertEqual(1, msg_counts[SystemLabel.TYPE_INBOX])
         self.assertEqual(1, msg_counts[SystemLabel.TYPE_FLOWS])

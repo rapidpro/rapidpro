@@ -511,16 +511,6 @@ class MailroomClientTest(TembaTest):
 
 
 class MailroomQueueTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        self.clear_cache()
-
-    def tearDown(self):
-        super().tearDown()
-
-        self.clear_cache()
-
     @mock_mailroom(queue=False)
     def test_queue_msg_handling(self, mr_mocks):
         with override_settings(TESTING=False):
