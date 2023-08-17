@@ -29,7 +29,7 @@ from temba.msgs.models import (
     SystemLabelCount,
 )
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest, mock_mailroom, mock_uuids
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticket
@@ -1190,7 +1190,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response, "form", None, "End date can't be before start date.")
 
         # test as anon org to check that URNs don't end up in exports
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             self.assertExcelSheet(
                 request_export("?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"}),
                 [

@@ -24,7 +24,7 @@ from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
+from temba.tests import CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
 from temba.tests.base import get_contact_search
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
@@ -4397,7 +4397,7 @@ class ExportFlowResultsTest(TembaTest):
         export_url = reverse("flows.flow_export_results")
         today = timezone.now().astimezone(self.org.timezone).date()
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             flow = self.get_flow("color_v13")
             flow_nodes = flow.get_definition()["nodes"]
             color_prompt = flow_nodes[0]

@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactURN
-from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
 
@@ -659,7 +659,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             tz=self.org.timezone,
         )
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             # anon org doesn't see URN value column
             export = self._request_export(start_date=date.today() - timedelta(days=7), end_date=date.today())
             self.assertExcelSheet(
@@ -917,7 +917,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             tz=self.org.timezone,
         )
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             with self.mockReadOnly(assert_models={Ticket, ContactURN}):
                 export = self._request_export(start_date=today - timedelta(days=90), end_date=today)
             self.assertExcelSheet(

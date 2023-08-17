@@ -1,4 +1,4 @@
-from temba.tests import AnonymousOrg, TembaTest
+from temba.tests import TembaTest
 
 from .contacts import format_urn, name_or_urn, urn_icon, urn_or_anon
 
@@ -15,7 +15,7 @@ class ContactsTest(TembaTest):
         self.assertEqual("Bob", name_or_urn(contact3, self.org))
         self.assertEqual("(202) 456-2222", name_or_urn(contact4, self.org))
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             self.assertEqual(f"{contact1.id:010}", name_or_urn(contact1, self.org))
             self.assertEqual("Ann", name_or_urn(contact2, self.org))
             self.assertEqual("Bob", name_or_urn(contact3, self.org))
@@ -28,7 +28,7 @@ class ContactsTest(TembaTest):
         self.assertEqual("--", urn_or_anon(contact1, self.org))
         self.assertEqual("+1 202-456-1414", urn_or_anon(contact2, self.org))
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             self.assertEqual(f"{contact1.id:010}", urn_or_anon(contact1, self.org))
             self.assertEqual(f"{contact2.id:010}", urn_or_anon(contact2, self.org))
 
@@ -45,5 +45,5 @@ class ContactsTest(TembaTest):
 
         self.assertEqual("+1 202-456-1414", format_urn(contact.get_urn(), self.org))
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             self.assertEqual("••••••••", format_urn(contact.get_urn(), self.org))

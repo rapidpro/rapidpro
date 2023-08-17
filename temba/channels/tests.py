@@ -24,7 +24,7 @@ from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.request_logs.models import HTTPLog
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
+from temba.tests import CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
 from temba.tests.crudl import StaffRedirect
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -2026,7 +2026,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertNotRedacted(response, ("3527065", "Nic", "Pottier"))
 
         # but for anon org we see redaction...
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             response = self.client.get(read_url)
             self.assertRedacted(response, ("3527065", "Nic", "Pottier"))
 
@@ -2071,7 +2071,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertNotRedacted(response, ("3527065", "Nic"))
 
         # but for anon org we see redaction...
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             response = self.client.get(read_url)
             self.assertRedacted(response, ("3527065", "Nic"))
 
@@ -2106,7 +2106,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertNotRedacted(response, ("3527065",))
 
         # but for anon org we see complete redaction
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             response = self.client.get(read_url)
             self.assertRedacted(response, ("3527065", "api.telegram.org", "/65474/sendMessage"))
 
@@ -2141,7 +2141,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertNotRedacted(response, ("767659860", "Aaron Tumukunde", "tumaaron"))
 
         # but for anon org we see redaction...
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             response = self.client.get(read_url)
             self.assertRedacted(response, ("767659860", "Aaron Tumukunde", "tumaaron"))
 
@@ -2176,7 +2176,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertNotRedacted(response, ("767659860",))
 
         # but for anon org we see complete redaction...
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             response = self.client.get(read_url)
             self.assertRedacted(response, ("767659860", "twitter.com", "/65474/sendMessage"))
 
@@ -2213,7 +2213,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertNotRedacted(response, ("2150393045080607",))
 
         # but for anon org we see redaction...
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             response = self.client.get(read_url)
             self.assertRedacted(response, ("2150393045080607",))
 
@@ -2249,7 +2249,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertNotRedacted(response, ("2150393045080607",))
 
         # but for anon org we see complete redaction...
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             response = self.client.get(read_url)
             self.assertRedacted(response, ("2150393045080607", "facebook.com", "/65474/sendMessage"))
 
@@ -2283,7 +2283,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertNotRedacted(response, ("097 909 9111", "979099111", "Quito"))
 
         # but for anon org we see redaction...
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             response = self.client.get(read_url)
             self.assertRedacted(response, ("097 909 9111", "979099111", "Quito"))
 
@@ -2370,7 +2370,7 @@ Content-Type: application/json
         # non anon user can see contact identifying data (in the request)
         self.assertContains(response, tw_urn, count=1)
 
-        with AnonymousOrg(self.org):
+        with self.anonymous(self.org):
             response = self.client.get(read_url)
 
             self.assertContains(response, tw_urn, count=0)

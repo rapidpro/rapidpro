@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytz
 import redis
-from smartmin.tests import SmartminTest, SmartminTestMixin
+from smartmin.tests import SmartminTest
 
 from django.conf import settings
 from django.contrib.auth.models import Group
@@ -15,7 +15,7 @@ from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TransactionTestCase, override_settings
+from django.test import override_settings
 from django.utils import timezone
 
 from temba.archives.models import Archive
@@ -38,16 +38,15 @@ def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
 
 
-class TembaTestMixin:
+class TembaTest(SmartminTest):
+    """
+    Base class for our unit tests
+    """
+
     databases = ("default", "readonly")
     default_password = "Qwerty123"
 
-    def setUpOrgs(self):
-        # make sure we start off without any service users
-        Group.objects.get(name="Service Users").user_set.clear()
-
-        self.clear_cache()
-
+    def setUp(self):
         self.create_anonymous_user()
 
         self.superuser = User.objects.create_superuser(
@@ -110,6 +109,14 @@ class TembaTestMixin:
 
         clear_flow_users()
 
+        # OrgRole.group and OrgRole.permissions are cached properties so get those cached before test starts to avoid
+        # query count differences when a test is first to request it and when it's not.
+        for role in OrgRole:
+            role.group  # noqa
+            role.permissions  # noqa
+
+        self.maxDiff = None
+
     def setUpLocations(self):
         """
         Installs some basic test location data for Rwanda
@@ -131,6 +138,18 @@ class TembaTestMixin:
 
         self.org.country = self.country
         self.org.save(update_fields=("country",))
+
+    def tearDown(self):
+        self.clear_cache()
+
+        clear_flow_users()
+
+    def mockReadOnly(self, assert_models: set = None):
+        return MockReadOnly(self, assert_models=assert_models)
+
+    def upload(self, path: str, content_type="text/plain", name=None):
+        with open(path, "rb") as f:
+            return SimpleUploadedFile(name or path, content=f.read(), content_type=content_type)
 
     def make_beta(self, user):
         user.groups.add(Group.objects.get(name="Beta"))
@@ -793,40 +812,12 @@ class TembaTestMixin:
         self.assertEqual(redirect, response.get("Temba-Success"))
         self.assertEqual(redirect, response.get("REDIRECT"))
 
+    def anonymous(self, org: Org):
+        """
+        Makes the given org temporarily anonymous
+        """
 
-class TembaTest(TembaTestMixin, SmartminTest):
-    """
-    Base class for tests where each test executes in a DB transaction
-    """
-
-    def setUp(self):
-        self.setUpOrgs()
-
-        # OrgRole.group and OrgRole.permissions are cached properties so get those cached before test starts to avoid
-        # query count differences when a test is first to request it and when it's not.
-        for role in OrgRole:
-            role.group  # noqa
-            role.permissions  # noqa
-
-        self.maxDiff = None
-
-    def tearDown(self):
-        clear_flow_users()
-
-    def mockReadOnly(self, assert_models: set = None):
-        return MockReadOnly(self, assert_models=assert_models)
-
-    def upload(self, path: str, content_type="text/plain", name=None):
-        with open(path, "rb") as f:
-            return SimpleUploadedFile(name or path, content=f.read(), content_type=content_type)
-
-
-class TembaNonAtomicTest(TembaTestMixin, SmartminTestMixin, TransactionTestCase):
-    """
-    Base class for tests that can't be wrapped in DB transactions
-    """
-
-    pass
+        return AnonymousOrg(org)
 
 
 class AnonymousOrg:
