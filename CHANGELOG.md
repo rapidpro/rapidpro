@@ -1,3 +1,7 @@
+v8.3.11 (2023-08-17)
+-------------------------
+ * Convert final haml templates in root directory
+
 v8.3.10 (2023-08-17)
 -------------------------
  * Add Org.input_cleaners
