@@ -67,7 +67,7 @@ class DashboardTest(TembaTest):
         self.login(self.admin)
         self.create_activity()
 
-        types = ["T", "TT", "FB", "NX", "AT", "KN", "CK"]
+        types = ["T", "TWT", "FB", "NX", "AT", "KN"]
         michael = self.create_contact("Michael", urns=["twitter:mjackson"])
         for t in types:
             channel = self.create_channel(t, f"Test Channel {t}", f"{t}:1234")
@@ -75,7 +75,7 @@ class DashboardTest(TembaTest):
         response = self.client.get(url)
 
         # org message activity
-        self.assertEqual(12, response.context["orgs"][0]["count_sum"])
+        self.assertEqual(11, response.context["orgs"][0]["count_sum"])
         self.assertEqual("Nyaruka", response.context["orgs"][0]["channel__org__name"])
 
         # our pie chart

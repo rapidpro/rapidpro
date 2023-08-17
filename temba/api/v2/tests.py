@@ -493,7 +493,7 @@ class EndpointsTest(APITest):
         self.joe = self.create_contact("Joe Blow", phone="0788123123")
         self.frank = self.create_contact("Frank", urns=["twitter:franky"])
 
-        self.twitter = self.create_channel("TT", "Twitter Channel", "billy_bob")
+        self.twitter = self.create_channel("TWT", "Twitter Channel", "billy_bob")
 
         self.hans = self.create_contact("Hans Gruber", phone="+4921551511", org=self.org2)
 
@@ -1840,7 +1840,7 @@ class EndpointsTest(APITest):
         deleted.release(self.admin)
 
         # create channel for other org
-        self.create_channel("TT", "Twitter Channel", "nyaruka", org=self.org2)
+        self.create_channel("TWT", "Twitter Channel", "nyaruka", org=self.org2)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):

@@ -1736,7 +1736,7 @@ class BroadcastTest(TembaTest):
         self.lucy = self.create_contact(name="Lucy M", urns=["twitter:lucy"])
 
         # a Twitter channel
-        self.twitter = self.create_channel("TT", "Twitter", "nyaruka")
+        self.twitter = self.create_channel("TWT", "Twitter", "nyaruka")
 
     def test_delete(self):
         flow = self.create_flow("Test")
