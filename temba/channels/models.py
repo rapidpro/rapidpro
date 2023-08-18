@@ -128,10 +128,7 @@ class ChannelType(metaclass=ABCMeta):
         """
         Returns all the URLs this channel exposes to Django, the URL should be relative.
         """
-        if self.claim_view:
-            return [self.get_claim_url()]
-        else:
-            return []
+        return [self.get_claim_url()]
 
     def get_claim_url(self):
         """
