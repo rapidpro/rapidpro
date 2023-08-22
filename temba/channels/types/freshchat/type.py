@@ -30,11 +30,10 @@ class FreshChatType(ChannelType):
         "To use your FreshChat channel you'll have to configure the FreshChat server to direct "
         "messages to the url below."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Receive URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.fc' channel.uuid %}",
-            description=_("POST FreshChat trigger to this address."),
+            help=_("POST FreshChat trigger to this address."),
         ),
     )

@@ -30,13 +30,10 @@ class PlayMobileType(ChannelType):
     configuration_blurb = _(
         "To finish configuring your Play Mobile connection you'll need to notify Play Mobile of the following URL."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Receive URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.pm' channel.uuid 'receive' %}",
-            description=_(
-                "To receive incoming messages, you need to set the receive URL for your Play Mobile account."
-            ),
+            help=_("To receive incoming messages, you need to set the receive URL for your Play Mobile account."),
         ),
     )

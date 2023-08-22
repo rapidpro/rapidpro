@@ -30,20 +30,19 @@ class InfobipType(ChannelType):
         "To finish configuring your Infobip connection you'll need to set the following callback URLs on the Infobip "
         "website under your account."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Received URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.ib' channel.uuid 'receive' %}",
-            description=_(
+            help=_(
                 "This endpoint should be called with a POST by Infobip when new messages are received to your number. "
                 "You can set the receive URL on your Infobip account by contacting your sales agent."
             ),
         ),
-        dict(
+        ChannelType.Endpoint(
+            courier="delivered",
             label=_("Delivered URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.ib' channel.uuid 'delivered' %}",
-            description=_(
+            help=_(
                 "This endpoint should be called with a POST by Infobip when a message has been to the final recipient. "
                 "(delivery reports) You can set the delivery callback URL on your Infobip account by contacting your "
                 "sales agent."

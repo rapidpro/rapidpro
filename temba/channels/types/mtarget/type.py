@@ -32,14 +32,7 @@ class MtargetType(ChannelType):
     configuration_blurb = _(
         "To finish connecting your channel, you need to have Mtarget configure the URLs below for your Service ID."
     )
-
     configuration_urls = (
-        dict(
-            label=_("Receive URL"),
-            url="https://{{channel.callback_domain}}{% url 'courier.mt' channel.uuid 'receive' %}",
-        ),
-        dict(
-            label=_("Status URL"),
-            url="https://{{channel.callback_domain}}{% url 'courier.mt' channel.uuid 'status' %}",
-        ),
+        ChannelType.Endpoint(courier="receive", label=_("Receive URL")),
+        ChannelType.Endpoint(courier="status", label=_("Status URL")),
     )

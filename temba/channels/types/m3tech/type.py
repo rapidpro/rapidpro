@@ -29,23 +29,11 @@ class M3TechType(ChannelType):
     configuration_blurb = _(
         "To finish configuring your connection you'll need to notify M3Tech of the following callback URLs."
     )
-
     configuration_urls = (
-        dict(
-            label=_("Received URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.m3' channel.uuid 'receive' %}",
-        ),
-        dict(
-            label=_("Sent URL"), url="https://{{ channel.callback_domain }}{% url 'courier.m3' channel.uuid 'sent' %}"
-        ),
-        dict(
-            label=_("Delivered URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.m3' channel.uuid 'delivered' %}",
-        ),
-        dict(
-            label=_("Failed URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.m3' channel.uuid 'failed' %}",
-        ),
+        ChannelType.Endpoint(courier="receive", label=_("Received URL")),
+        ChannelType.Endpoint(courier="sent", label=_("Sent URL")),
+        ChannelType.Endpoint(courier="delivered", label=_("Delivered URL")),
+        ChannelType.Endpoint(courier="failed", label=_("Failed URL")),
     )
 
     available_timezones = ["Asia/Karachi"]

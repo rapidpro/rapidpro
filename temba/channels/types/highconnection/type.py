@@ -31,12 +31,6 @@ class HighConnectionType(ChannelType):
         "To finish configuring your connection you'll need to notify HighConnection of the following URL for incoming "
         "(MO) messages."
     )
-
-    configuration_urls = (
-        dict(
-            label=_("Receive URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.hx' channel.uuid 'receive' %}",
-        ),
-    )
+    configuration_urls = (ChannelType.Endpoint(courier="receive", label=_("Receive URL")),)
 
     available_timezones = ["Europe/Paris"]

@@ -32,12 +32,11 @@ class YoType(ChannelType):
     configuration_blurb = _(
         "To finish configuring your Yo! connection you'll need to notify Yo! of the following inbound SMS URL."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Inbound SMS URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.yo' channel.uuid 'receive' %}",
-            description=_(
+            help=_(
                 "This URL should be called with a GET by Yo! when new incoming "
                 "messages are received on your short code."
             ),

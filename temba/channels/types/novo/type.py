@@ -30,10 +30,10 @@ class NovoType(ChannelType):
     max_length = 160
 
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Receive URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.nv' channel.uuid 'receive' %}",
-            description=_("To receive incoming messages, you need to set the receive URL for your Novo account."),
+            help=_("To receive incoming messages, you need to set the receive URL for your Novo account."),
         ),
     )
 

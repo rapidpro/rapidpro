@@ -36,10 +36,7 @@ class ViberPublicType(ChannelType):
     ) % {"link": '<a target="_blank" href="http://viber.com/en/">Viber</a>'}
 
     configuration_blurb = _("Your Viber channel is connected. If needed the webhook endpoints are listed below.")
-
-    configuration_urls = (
-        dict(label=_("Webhook URL"), url="https://{{ channel.callback_domain }}{% url 'courier.vp' channel.uuid %}"),
-    )
+    configuration_urls = (ChannelType.Endpoint(courier="receive", label=_("Webhook URL")),)
 
     def activate(self, channel):
         auth_token = channel.config["auth_token"]

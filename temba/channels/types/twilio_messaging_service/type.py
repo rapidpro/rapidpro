@@ -38,12 +38,11 @@ class TwilioMessagingServiceType(ChannelType):
         "To finish configuring your Twilio Messaging Service connection you'll need to add the following URL in your "
         "Messaging Service Inbound Settings."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Request URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.tms' channel.uuid 'receive' %}",
-            description=_(
+            help=_(
                 "This endpoint should be called by Twilio when new messages are received by your Messaging Service."
             ),
         ),

@@ -78,24 +78,21 @@ class VonageType(ChannelType):
         "Your Vonage configuration URLs are as follows. These should have been set up automatically when claiming your "
         "number, but if not you can set them from your Vonage dashboard."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Callback URL for Inbound Messages"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.nx' channel.uuid 'receive' %}",
-            description=_("The callback URL is called by Vonage when you receive new incoming messages."),
+            help=_("The callback URL is called by Vonage when you receive new incoming messages."),
         ),
-        dict(
+        ChannelType.Endpoint(
+            courier="status",
             label=_("Callback URL for Delivery Receipt"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.nx' channel.uuid 'status' %}",
-            description=_(
-                "The delivery URL is called by Vonage when a message is successfully delivered to a recipient."
-            ),
+            help=_("The delivery URL is called by Vonage when a message is successfully delivered to a recipient."),
         ),
-        dict(
+        ChannelType.Endpoint(
+            mailroom="incoming",
             label=_("Callback URL for Incoming Call"),
-            url="https://{{ channel.callback_domain }}{% url 'mailroom.ivr_handler' channel.uuid 'incoming' %}",
-            description=_("The callback URL is called by Vonage when you receive an incoming call."),
+            help=_("The callback URL is called by Vonage when you receive an incoming call."),
         ),
     )
 

@@ -40,7 +40,6 @@ class SomlengType(ChannelType):
     configuration_blurb = _(
         "To finish configuring your Somleng channel you'll need to add the following URL to your Somleng instance."
     )
-
     configuration_urls = (
         ChannelType.Endpoint(
             courier="receive",

@@ -27,13 +27,9 @@ class ShaqodoonType(ChannelType):
     max_length = 1600
 
     configuration_blurb = _(
-        "To finish configuring your Shaqodoon connection you'll need to provide Shaqodoon with the following delivery "
-        "URL for incoming messages to {{ channel.address }}."
+        "To finish configuring your Shaqodoon connection you'll need to provide Shaqodoon with the following delivery URL."
     )
-
-    configuration_urls = (
-        dict(label="", url="https://{{ channel.callback_domain }}{% url 'courier.sq' channel.uuid 'receive' %}"),
-    )
+    configuration_urls = (ChannelType.Endpoint(courier="receive", label=_("Receive URL")),)
 
     available_timezones = ["Africa/Mogadishu"]
 

@@ -30,14 +30,11 @@ class SMSCentralType(ChannelType):
     configuration_blurb = _(
         "To finish configuring your SMSCentral connection you'll need to notify SMSCentral of the following URL."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Inbound URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.sc' channel.uuid 'receive' %}",
-            description=_(
-                "This endpoint should be called by SMSCentral when new messages are received to your number."
-            ),
+            help=_("This endpoint should be called by SMSCentral when new messages are received to your number."),
         ),
     )
 

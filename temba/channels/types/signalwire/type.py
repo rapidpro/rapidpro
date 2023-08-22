@@ -79,12 +79,11 @@ class SignalWireType(ChannelType):
     async_activation = False
 
     configuration_blurb = _("Your SignalWire channel is now connected.")
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Inbound URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.sw' channel.uuid 'receive' %}",
-            description=_("This endpoint will be called by SignalWire when new messages are received to your number."),
+            help=_("This endpoint will be called by SignalWire when new messages are received to your number."),
         ),
     )
 

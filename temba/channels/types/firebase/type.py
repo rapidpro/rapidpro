@@ -34,20 +34,19 @@ class FirebaseCloudMessagingType(ChannelType):
         "To use your Firebase Cloud Messaging channel you'll have to POST to the following URLs with the "
         "parameters below."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="register",
             label=_("Contact Register"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.fcm' channel.uuid 'register' %}",
-            description=_(
+            help=_(
                 "To register contacts, POST to the following URL with the parameters urn, "
                 "fcm_token and optionally name."
             ),
         ),
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Receive URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.fcm' channel.uuid 'receive' %}",
-            description=_(
+            help=_(
                 "To handle incoming messages, POST to the following URL with the parameters from, msg and fcm_token."
             ),
         ),

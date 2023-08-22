@@ -30,12 +30,11 @@ class I2SMSType(ChannelType):
         "To finish configuring your I2SMS channel you'll need to set the message URL for the `DEFAULT` keyword as "
         "below."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Message URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.i2' channel.uuid 'receive' %}",
-            description=_(
+            help=_(
                 """You can set your message URL by visiting the <a href="https://mx.i2sms.net/">I2SMS Dashboard</a>, """
                 """creating a DEFAULT keyword and using this URL as your message URL. """
                 """Select POST HTTP Variables and check the box for "No URL Output"."""

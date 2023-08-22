@@ -28,12 +28,9 @@ class TelesomType(ChannelType):
 
     configuration_blurb = _(
         "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL "
-        "for incoming messages to {{ channel.address }}."
+        "for incoming messages."
     )
-
-    configuration_urls = (
-        dict(label="", url="https://{{ channel.callback_domain }}{% url 'courier.ts' channel.uuid 'receive' %}"),
-    )
+    configuration_urls = (ChannelType.Endpoint(courier="receive", label=_("Delivery URL")),)
 
     available_timezones = ["Africa/Mogadishu"]
 

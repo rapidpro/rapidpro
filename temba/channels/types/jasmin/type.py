@@ -29,12 +29,11 @@ class JasminType(ChannelType):
     configuration_blurb = _(
         "As a last step you'll need to configure Jasmin to call the following URL for MO (incoming) messages."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Push Message URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.js' channel.uuid 'receive' %}",
-            description=_(
+            help=_(
                 "This endpoint will be called by Jasmin when new messages are received to your number, "
                 "it must be configured to be called as a POST."
             ),

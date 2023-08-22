@@ -29,27 +29,26 @@ class ThinQType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 160
 
-    configuration_blurb = _(
-        "To finish configuring your ThinQ connection you'll need to set the following callback URLs on the ThinQ "
-        "website on the SMS -> SMS Configuration page."
-    )
-
     CONFIG_ACCOUNT_ID = "account_id"
     CONFIG_API_TOKEN_USER = "api_token_user"
     CONFIG_API_TOKEN = "api_token"
 
+    configuration_blurb = _(
+        "To finish configuring your ThinQ connection you'll need to set the following callback URLs on the ThinQ "
+        "website on the SMS -> SMS Configuration page."
+    )
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Inbound SMS Configuration"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.tq' channel.uuid 'receive' %}",
-            description=_(
+            help=_(
                 """Set your Inbound SMS Configuration URL to the above, making sure you select "URL" for Attachment Type."""
             ),
         ),
-        dict(
+        ChannelType.Endpoint(
+            courier="status",
             label=_("Outbound SMS Configuration"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.tq' channel.uuid 'status' %}",
-            description=_(
+            help=_(
                 """Set your Delivery Confirmation URL to the above, making sure you select "Form-Data" as the Delivery Notification Format."""
             ),
         ),

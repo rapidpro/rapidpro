@@ -31,13 +31,7 @@ class GlobeType(ChannelType):
         "To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your "
         "application configuration page."
     )
-
-    configuration_urls = (
-        dict(
-            label=_("Notify URI"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.gl' channel.uuid 'receive' %}",
-        ),
-    )
+    configuration_urls = (ChannelType.Endpoint(courier="receive", label=_("Notify URI")),)
 
     available_timezones = ["Asia/Manila"]
 

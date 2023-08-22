@@ -32,21 +32,16 @@ class MacrokioskType(ChannelType):
     configuration_blurb = _(
         "To finish configuring your MACROKIOSK connection you'll need to notify MACROKIOSK of the following URLs."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Inbound URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.mk' channel.uuid 'receive' %}",
-            description=_(
-                "This endpoint should be called by MACROKIOSK when new messages are received to your number."
-            ),
+            help=_("This endpoint should be called by MACROKIOSK when new messages are received to your number."),
         ),
-        dict(
+        ChannelType.Endpoint(
+            courier="status",
             label=_("DLR URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.mk' channel.uuid 'status' %}",
-            description=_(
-                "This endpoint should be called by MACROKIOSK when the message status changes. (delivery reports)"
-            ),
+            help=_("This endpoint should be called by MACROKIOSK when the message status changes. (delivery reports)"),
         ),
     )
 

@@ -25,13 +25,7 @@ class VerboiceType(ChannelType):
         "To finish configuring your connection you'll need to set the following status callback URL for your Verboice "
         "project"
     )
-
-    configuration_urls = (
-        dict(
-            label=_("Status Callback URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.vb' channel.uuid 'status' %}",
-        ),
-    )
+    configuration_urls = (ChannelType.Endpoint(courier="status", label=_("Status Callback URL")),)
 
     def is_available_to(self, org, user):
         return False, False

@@ -37,15 +37,11 @@ class TwilioWhatsappType(ChannelType):
         "To finish configuring your Twilio WhatsApp connection you'll need to add the following URL in your Twilio "
         "Inbound Settings. Check the Twilio WhatsApp documentation for more information."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Request URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.twa' channel.uuid 'receive' %}",
-            description=_(
-                "This endpoint should be called by Twilio when new messages are received by your Twilio WhatsApp "
-                "number."
-            ),
+            help=_("This endpoint should be called by Twilio when new messages are received by your number."),
         ),
     )
 

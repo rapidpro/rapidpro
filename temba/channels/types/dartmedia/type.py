@@ -31,20 +31,19 @@ class DartMediaType(ChannelType):
     configuration_blurb = _(
         "To finish configuring your Dart Media connection you'll need to provide them with the following details."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Received URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.da' channel.uuid 'receive' %}",
-            description=_(
+            help=_(
                 "This endpoint should be called by Dart Media when new messages are received to your number. "
                 "You can set the receive URL on your Dart Media account by contacting your sales agent."
             ),
         ),
-        dict(
+        ChannelType.Endpoint(
+            courier="delivered",
             label=_("Delivered URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.da' channel.uuid 'delivered' %}",
-            description=_(
+            help=_(
                 "This endpoint should be called by Dart Media when a message has been to the final recipient. "
                 "(delivery reports) You can set the delivery callback URL on your Dart Media account by "
                 "contacting your sales agent."

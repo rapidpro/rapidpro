@@ -27,14 +27,13 @@ class StartType(ChannelType):
     max_length = 1600
 
     configuration_blurb = _(
-        "To finish configuring your Start connection you'll need to notify Start of the following receiving URL."
+        "To finish configuring this channel you'll need to notify Start of the following receiving URL."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Inbound URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.st' channel.uuid 'receive' %}",
-            description=_("This endpoint should be called by Start when new messages are received to your number."),
+            help=_("This endpoint should be called by when new messages are received to your number."),
         ),
     )
 

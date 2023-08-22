@@ -25,7 +25,6 @@ from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
-from django.template import Context, Engine
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -41,7 +40,7 @@ from temba.utils.json import EpochEncoder
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
-from .models import Channel, ChannelCount, ChannelLog, ChannelType
+from .models import Channel, ChannelCount, ChannelLog
 
 logger = logging.getLogger(__name__)
 

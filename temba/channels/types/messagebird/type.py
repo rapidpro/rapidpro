@@ -29,21 +29,19 @@ class MessageBirdType(ChannelType):
 
     available_timezones = SUPPORTED_TIMEZONES
     configuration_blurb = _(
-        "To use your Messagebirld channel you'll have to configure the Messagebird to send raw  "
-        "receivedSMS messages to the url below either with a flow or by registering the webhook with them"
-        "Shortcodes don't work with flows and require a webhook."
-        "Configure the status url under Developer Settings to receive status updates for your messages."
+        "To use your Messagebird channel you'll have to configure the Messagebird to send raw received SMS messages to "
+        "the URL below either with a flow or by registering the webhook with them. Configure the status URL under "
+        "Developer Settings to receive status updates for your messages."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Receive URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.mbd' channel.uuid 'receive'%}",
-            description=_("Webhook address for inbmound messages to this address."),
+            help=_("Webhook address for inbound messages to this address."),
         ),
-        dict(
+        ChannelType.Endpoint(
+            courier="status",
             label=_("Status URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.mbd' channel.uuid 'status'%}",
-            description=_("Webhook address for message status calls to this address."),
+            help=_("Webhook address for message status calls to this address."),
         ),
     )

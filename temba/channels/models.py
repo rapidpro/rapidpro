@@ -22,7 +22,7 @@ from django.db.models import Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template import Context, Engine, TemplateDoesNotExist
-from django.urls import re_path, reverse
+from django.urls import re_path
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
