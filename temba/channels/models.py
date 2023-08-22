@@ -64,10 +64,11 @@ class ChannelType(metaclass=ABCMeta):
         A courier (messages) or mailroom (IVR) endpoint that the user needs to configure on the other side
         """
 
-        courier: str
         label: str
         help: str = ""
-        role: str = None
+        courier: str = None
+        mailroom: str = None
+        roles: tuple[str] = ()
 
     code = None
     slug = None
@@ -108,9 +109,6 @@ class ChannelType(metaclass=ABCMeta):
     redact_request_keys = ()
     redact_response_keys = ()
     redact_values = ()
-
-    def _endpoint(self, action):
-        return lambda c: reverse(f"courier.{self.code.lower()}", args=[c.uuid, action])
 
     def is_available_to(self, org, user):
         """
@@ -226,14 +224,15 @@ class ChannelType(metaclass=ABCMeta):
         urls = []
         for cfg_url in channel.type.configuration_urls:
             if isinstance(cfg_url, ChannelType.Endpoint):
-                if cfg_url.role and cfg_url.role not in channel.role:
+                if cfg_url.roles and not set(channel.role) & set(cfg_url.roles):
                     continue
 
-                abs_url = (
-                    f"https://{channel.callback_domain}/c/{channel.type.code.lower()}/{channel.uuid}/{cfg_url.courier}"
-                )
+                if cfg_url.courier:
+                    url = f"/c/{channel.type.code.lower()}/{channel.uuid}/{cfg_url.courier}"
+                elif cfg_url.mailroom:
+                    url = f"/mr/ivr/c/{channel.uuid}/{cfg_url.mailroom}"
 
-                urls.append(dict(url=abs_url, label=cfg_url, help=cfg_url.help))
+                urls.append(dict(url=f"https://{channel.callback_domain}{url}", label=cfg_url.label, help=cfg_url.help))
             else:
                 urls.append(
                     dict(

@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.types.somleng.views import ClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import Channel, ChannelType
 
 
 class SomlengType(ChannelType):
@@ -42,20 +42,29 @@ class SomlengType(ChannelType):
     )
 
     configuration_urls = (
-        dict(
-            label=_("Somleng Host"),
-            url="{{ channel.config.send_url }}",
-            description=_("The endpoint which will receive requests from this channel."),
+        ChannelType.Endpoint(
+            courier="receive",
+            label="Incoming Messages",
+            help=_("New incoming messages should be sent to this endpoint."),
+            roles=(Channel.ROLE_RECEIVE,),
         ),
-        dict(
+        ChannelType.Endpoint(
+            courier="status",
+            label="Message Status Updates",
+            help=_("Message status updates should be sent to this endpoint."),
+            roles=(Channel.ROLE_SEND,),
+        ),
+        ChannelType.Endpoint(
+            mailroom="incoming",
             label="Incoming Calls",
-            url="https://{{ channel.callback_domain }}{% url 'courier.tw' channel.uuid 'receive' %}",
-            description=_("Incoming messages should be sent to this endpoint."),
+            help=_("New incoming calls should be sent to this endpoint."),
+            roles=(Channel.ROLE_ANSWER,),
         ),
-        dict(
-            label="Status Updates",
-            url="https://{{ channel.callback_domain }}{% url 'courier.tw' channel.uuid 'status' %}",
-            description=_("Call status updates should be sent to this endpoint."),
+        ChannelType.Endpoint(
+            mailroom="status",
+            label="Call Status Updates",
+            help=_("Call status updates should be sent to this endpoint."),
+            roles=(Channel.ROLE_CALL, Channel.ROLE_ANSWER),
         ),
     )
 

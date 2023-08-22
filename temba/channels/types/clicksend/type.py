@@ -77,8 +77,8 @@ class ClickSendType(ChannelType):
     )
     configuration_urls = (
         ChannelType.Endpoint(
-            label=_("Receive URL"),
             courier="receive",
+            label=_("Receive URL"),
             help=_(
                 "This URL should be called by ClickSend when new messages are received. "
                 "On your ClickSend dashboard, you can set this URL by going to SMS, then Settings, "

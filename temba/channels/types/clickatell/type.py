@@ -33,8 +33,8 @@ class ClickatellType(ChannelType):
     )
     configuration_urls = (
         ChannelType.Endpoint(
-            label=_("Reply Callback"),
             courier="receive",
+            label=_("Reply Callback"),
             help=_(
                 "You can set the callback URL on your Clickatell account by managing your integration, "
                 """then setting your reply callback under "Two Way Settings" to HTTP POST and your target address """
@@ -42,8 +42,8 @@ class ClickatellType(ChannelType):
             ),
         ),
         ChannelType.Endpoint(
-            label=_("Delivery Notifications"),
             courier="status",
+            label=_("Delivery Notifications"),
             help=_(
                 "You can set the delivery notification URL on your Clickatell account by managing your "
                 """integration, then setting your delivery notification URL under "Settings" to HTTP POST and your """

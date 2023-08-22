@@ -15,10 +15,12 @@
     {{ configuration_blurb }}
   {% endif %}
   {% for url in configuration_urls %}
-    <div class="card mt-6 flex-shrink-0">
-      <div class="title">{{ url.label }}</div>
+    <div class="card mt-3 p-4 flex-shrink-0">
+      <div class="text-xl">{{ url.label }}</div>
+      {% if url.help %}
+      <div class="mt-2">{{ url.help }}</div>
+      {% endif %}
       <div class="code inline-block mt-3 whitespace-normal">{{ url.url }}</div>
-      <div class="my-4">{{ url.help }}</div>
     </div>
   {% endfor %}
   {% if show_public_addresses %}
