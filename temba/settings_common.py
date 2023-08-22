@@ -756,12 +756,13 @@ ANONYMOUS_USER_NAME = "AnonymousUser"
 # Database
 # -----------------------------------------------------------------------------------
 
+_services_host = "host.docker.internal" if os.getenv("REMOTE_CONTAINERS") == "true" else "localhost"
 _default_database_config = {
     "ENGINE": "django.contrib.gis.db.backends.postgis",
     "NAME": "temba",
     "USER": "temba",
     "PASSWORD": "temba",
-    "HOST": "localhost",
+    "HOST": _services_host,
     "PORT": "5432",
     "ATOMIC_REQUESTS": True,
     "CONN_MAX_AGE": 60,
@@ -779,7 +780,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 # Cache
 # -----------------------------------------------------------------------------------
 
-_redis_url = f"redis://localhost:6379/{10 if TESTING else 15}"
+_redis_url = f"redis://{_services_host}:6379/{10 if TESTING else 15}"
 
 CACHES = {
     "default": {
