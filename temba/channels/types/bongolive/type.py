@@ -29,13 +29,10 @@ class BongoLiveType(ChannelType):
     configuration_blurb = _(
         "To finish connecting your channel, you need to have Bongo Live configure the URLs below for your short code."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Receive URL"),
-            url="https://{{channel.callback_domain}}/c/bl/{{channel.uuid}}/receive",
-            description=_(
-                "This URL should be called by Bongo Live when new messages are received or to report DLR status."
-            ),
+            help=_("This URL should be called by Bongo Live when new messages are received or to report DLR status."),
         ),
     )

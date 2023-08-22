@@ -75,12 +75,11 @@ class ClickSendType(ChannelType):
     configuration_blurb = _(
         "To finish connecting your channel, you need to set your inbound SMS URL below for your number."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
             label=_("Receive URL"),
-            url="https://{{channel.callback_domain}}/c/cs/{{channel.uuid}}/receive",
-            description=_(
+            courier="receive",
+            help=_(
                 "This URL should be called by ClickSend when new messages are received. "
                 "On your ClickSend dashboard, you can set this URL by going to SMS, then Settings, "
                 "then the Inbound SMS Settings menu. "

@@ -31,12 +31,6 @@ class ClickMobileType(ChannelType):
     configuration_blurb = _(
         "To finish configuring your channel you need to configure Click Mobile to send new messages to the URL below."
     )
-
-    configuration_urls = (
-        dict(
-            label=_("Receive URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.cm' channel.uuid 'receive' %}",
-        ),
-    )
+    configuration_urls = (ChannelType.Endpoint(label=_("Receive URL"), courier="receive"),)
 
     available_timezones = ["Africa/Accra", "Africa/Blantyre"]

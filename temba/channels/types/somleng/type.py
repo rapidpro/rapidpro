@@ -45,12 +45,17 @@ class SomlengType(ChannelType):
         dict(
             label=_("Somleng Host"),
             url="{{ channel.config.send_url }}",
-            description=_("The endpoint which will receive Somleng requests for this channel."),
+            description=_("The endpoint which will receive requests from this channel."),
         ),
         dict(
-            label="",
+            label="Incoming Calls",
             url="https://{{ channel.callback_domain }}{% url 'courier.tw' channel.uuid 'receive' %}",
-            description=_("Incoming messages for this channel will be sent to this endpoint."),
+            description=_("Incoming messages should be sent to this endpoint."),
+        ),
+        dict(
+            label="Status Updates",
+            url="https://{{ channel.callback_domain }}{% url 'courier.tw' channel.uuid 'status' %}",
+            description=_("Call status updates should be sent to this endpoint."),
         ),
     )
 

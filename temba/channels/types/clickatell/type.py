@@ -31,21 +31,20 @@ class ClickatellType(ChannelType):
         "To finish configuring your Clickatell connection you'll need to set the following callback URLs on the "
         "Clickatell website for your integration."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
             label=_("Reply Callback"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.ct' channel.uuid 'receive' %}",
-            description=_(
+            courier="receive",
+            help=_(
                 "You can set the callback URL on your Clickatell account by managing your integration, "
                 """then setting your reply callback under "Two Way Settings" to HTTP POST and your target address """
                 "to the URL below. (leave username and password blank)"
             ),
         ),
-        dict(
+        ChannelType.Endpoint(
             label=_("Delivery Notifications"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.ct' channel.uuid 'status' %}",
-            description=_(
+            courier="status",
+            help=_(
                 "You can set the delivery notification URL on your Clickatell account by managing your "
                 """integration, then setting your delivery notification URL under "Settings" to HTTP POST and your """
                 "target address to the URL below. (leave username and password blank)"

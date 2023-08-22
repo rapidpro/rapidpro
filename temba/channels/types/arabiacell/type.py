@@ -29,9 +29,9 @@ class ArabiaCellType(ChannelType):
     )
 
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Receive URL"),
-            url="https://{{channel.callback_domain}}/c/ac/{{channel.uuid}}/receive",
-            description=_("This URL should be called by ArabiaCell when new messages are received."),
+            help=_("This URL should be called by ArabiaCell when new messages are received."),
         ),
     )

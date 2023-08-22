@@ -52,27 +52,27 @@ class BurstSMSType(ChannelType):
     )
 
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Receive URL"),
-            url="https://{{channel.callback_domain}}/c/bs/{{channel.uuid}}/receive",
-            description=_(
+            help=_(
                 "This URL should be called by BurstSMS when new messages are received."
                 "You must set this for your number under the 'Inbound Settings' options."
                 "Select 'Yes' to the 'Forward to URL' option and enter this URL."
             ),
         ),
-        dict(
-            label=_("DLR callback URL"),
-            url="https://{{channel.callback_domain}}/c/bs/{{channel.uuid}}/status",
-            description=_(
+        ChannelType.Endpoint(
+            courier="status",
+            label=_("Delivery URL"),
+            help=_(
                 "This URL should be called by BurstSMS when the status of an outgoing message is updated."
                 "You can set it on your settings page."
             ),
         ),
-        dict(
-            label=_("Reply callback URL"),
-            url="https://{{channel.callback_domain}}/c/bs/{{channel.uuid}}/receive",
-            description=_(
+        ChannelType.Endpoint(
+            courier="receive",
+            label=_("Reply URL"),
+            help=_(
                 "This URL should be called by BurstSMS when messages are replied to."
                 "You can set it on your settings page."
             ),

@@ -33,19 +33,7 @@ class BandwidthType(ChannelType):
         "link": '<a target="_blank" href="https://www.bandwidth.com/">Bandwidth</a>'
     }
 
-    show_config_page = True
-
-    configuration_blurb = _(
-        "To finish configuring your Bandwidth connection you need to associate the locaiton of the phone number to "
-        "the Bandwidth application on the following URLs in your Bandwidth account dashboard."
-    )
-
-    configuration_urls = (
-        dict(
-            label=_("Bandwidth application URL"),
-            url="https://dashboard.bandwidth.com/portal/r/a/{{channel.config.account_id}}/applications/{{channel.config.application_id}}",
-        ),
-    )
+    show_config_page = False
 
     def activate(self, channel):
         domain = channel.org.get_brand_domain()

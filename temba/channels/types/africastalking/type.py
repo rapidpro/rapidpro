@@ -30,20 +30,19 @@ class AfricasTalkingType(ChannelType):
         "To finish configuring your Africa's Talking connection you'll need to set the following callback URLs on the "
         "Africa's Talking website under your account."
     )
-
     configuration_urls = (
-        dict(
+        ChannelType.Endpoint(
+            courier="receive",
             label=_("Callback URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.at' channel.uuid 'receive' %}",
-            description=_(
+            help=_(
                 "You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, "
                 "then clicking on Callback URL."
             ),
         ),
-        dict(
+        ChannelType.Endpoint(
+            courier="status",
             label=_("Delivery URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.at' channel.uuid 'status' %}",
-            description=_(
+            help=_(
                 "You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page, "
                 "then clicking on Delivery Reports."
             ),

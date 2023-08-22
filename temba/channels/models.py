@@ -1,5 +1,6 @@
 import logging
 from abc import ABCMeta
+from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
 from urllib.parse import quote_plus
@@ -21,7 +22,7 @@ from django.db.models import Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template import Context, Engine, TemplateDoesNotExist
-from django.urls import re_path
+from django.urls import re_path, reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -57,6 +58,17 @@ class ChannelType(metaclass=ABCMeta):
         IVR_PROTOCOL_TWIML = 1
         IVR_PROTOCOL_NCCO = 2
 
+    @dataclass
+    class Endpoint:
+        """
+        A courier (messages) or mailroom (IVR) endpoint that the user needs to configure on the other side
+        """
+
+        courier: str
+        label: str
+        help: str = ""
+        role: str = None
+
     code = None
     slug = None
     category = None
@@ -77,7 +89,7 @@ class ChannelType(metaclass=ABCMeta):
     claim_view_kwargs = None
 
     configuration_blurb = None
-    configuration_urls = None
+    configuration_urls = ()
     show_public_addresses = False
 
     update_form = None
@@ -96,6 +108,9 @@ class ChannelType(metaclass=ABCMeta):
     redact_request_keys = ()
     redact_response_keys = ()
     redact_values = ()
+
+    def _endpoint(self, action):
+        return lambda c: reverse(f"courier.{self.code.lower()}", args=[c.uuid, action])
 
     def is_available_to(self, org, user):
         """
@@ -199,29 +214,36 @@ class ChannelType(metaclass=ABCMeta):
         else:
             return ""
 
-    def get_configuration_urls(self, channel):
+    def get_configuration_urls(self, channel) -> list:
         """
         Allows ChannelTypes to specify a list of URLs to show with a label and description on the
         configuration page.
         """
-        if self.__class__.configuration_urls is not None:
-            context = Context(dict(channel=channel))
-            engine = Engine.get_default()
 
-            urls = []
-            for url_config in self.__class__.configuration_urls:
+        context = Context(dict(channel=channel))
+        engine = Engine.get_default()
+
+        urls = []
+        for cfg_url in channel.type.configuration_urls:
+            if isinstance(cfg_url, ChannelType.Endpoint):
+                if cfg_url.role and cfg_url.role not in channel.role:
+                    continue
+
+                abs_url = (
+                    f"https://{channel.callback_domain}/c/{channel.type.code.lower()}/{channel.uuid}/{cfg_url.courier}"
+                )
+
+                urls.append(dict(url=abs_url, label=cfg_url, help=cfg_url.help))
+            else:
                 urls.append(
                     dict(
-                        label=engine.from_string(url_config.get("label", "")).render(context=context),
-                        url=engine.from_string(url_config.get("url", "")).render(context=context),
-                        description=engine.from_string(url_config.get("description", "")).render(context=context),
+                        url=engine.from_string(cfg_url.get("url", "")).render(context=context),
+                        label=engine.from_string(cfg_url.get("label", "")).render(context=context),
+                        help=engine.from_string(cfg_url.get("description", "")).render(context=context),
                     )
                 )
 
-            return urls
-
-        else:
-            return ""
+        return urls
 
     def get_error_ref_url(self, channel, code: str) -> str:
         """
