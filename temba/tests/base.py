@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytz
-import redis
+from django_redis import get_redis_connection
 from smartmin.tests import SmartminTest
 
 from django.conf import settings
@@ -144,9 +144,7 @@ class TembaTest(SmartminTest):
     def tearDown(self):
         super().tearDown()
 
-        # Clear the redis cache. Out of paranoia we don't even use the configured cache settings but instead hardcode
-        # to the local test instance.
-        r = redis.StrictRedis(host="localhost", port=6379, db=10)
+        r = get_redis_connection()
         r.flushdb()
 
         clear_flow_users()
