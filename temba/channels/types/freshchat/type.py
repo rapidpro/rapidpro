@@ -12,19 +12,16 @@ class FreshChatType(ChannelType):
     """
 
     code = "FC"
+    name = "FreshChat"
     category = ChannelType.Category.API
 
     courier_url = r"^fc/(?P<uuid>[a-z0-9\-]+)/receive$"
-
-    name = "FreshChat"
+    schemes = [URN.FRESHCHAT_SCHEME]
 
     claim_blurb = _("Connect your approved %(link)s channel") % {
         "link": '<a target="_blank" href="https://www.freshworks.com/live-chat-software/">FreshChat</a>'
     }
     claim_view = ClaimView
-
-    schemes = [URN.FRESHCHAT_SCHEME]
-    free_sending = True
 
     config_ui = ConfigUI(
         blurb=_(

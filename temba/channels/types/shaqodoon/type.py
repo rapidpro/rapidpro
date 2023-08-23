@@ -12,19 +12,18 @@ class ShaqodoonType(ChannelType):
     """
 
     code = "SQ"
+    name = "Shaqodoon"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^sq/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$"
-
-    name = "Shaqodoon"
+    schemes = [URN.TEL_SCHEME]
+    max_length = 1600
+    available_timezones = ["Africa/Mogadishu"]
 
     claim_blurb = _(
         "If you are based in Somalia, you can integrate with Shaqodoon to send and receive messages on your short code."
     )
     claim_view = ClaimView
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 1600
 
     config_ui = ConfigUI(
         blurb=_(
@@ -34,8 +33,6 @@ class ShaqodoonType(ChannelType):
             ConfigUI.Endpoint(courier="receive", label=_("Receive URL")),
         ],
     )
-
-    available_timezones = ["Africa/Mogadishu"]
 
     def is_recommended_to(self, org, user):
         return self.is_available_to(org, user)[0]

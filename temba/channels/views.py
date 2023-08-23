@@ -942,7 +942,7 @@ class ChannelCRUDL(SmartCRUDL):
                 return (
                     Engine.get_default()
                     .get_template("channels/types/%s/config.html" % channel.type.slug)
-                    .render(context=Context(channel.type.get_configuration_context_dict(channel)))
+                    .render(context=Context(channel.type.get_config_ui_context(channel)))
                 )
             except TemplateDoesNotExist:
                 return None

@@ -13,6 +13,9 @@ class BurstSMSType(ChannelType):
 
     code = "BS"
     name = "BurstSMS"
+    category = ChannelType.Category.PHONE
+
+    schemes = [URN.TEL_SCHEME]
     available_timezones = [
         "Australia/Perth",
         "Australia/Eucla",
@@ -30,8 +33,6 @@ class BurstSMSType(ChannelType):
         "Pacific/Auckland",
     ]
     recommended_timezones = available_timezones
-    category = ChannelType.Category.PHONE
-    schemes = [URN.TEL_SCHEME]
     max_length = 613
 
     claim_view = AuthenticatedExternalClaimView

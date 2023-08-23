@@ -12,21 +12,18 @@ class WeChatType(ChannelType):
     """
 
     code = "WC"
+    name = "WeChat"
     category = ChannelType.Category.SOCIAL_MEDIA
 
     courier_url = r"^wc/(?P<uuid>[a-z0-9\-]+)/?$"
-
-    name = "WeChat"
+    schemes = [URN.WECHAT_SCHEME]
+    max_length = 1600
 
     claim_blurb = _(
         "Add a %(link)s bot to send and receive messages to WeChat users for free. Your users will need an Android, "
         "Windows or iOS device and a WeChat account to send and receive messages."
     ) % {"link": '<a target="_blank" href="https://wechat.com">WeChat</a>'}
     claim_view = ClaimView
-
-    schemes = [URN.WECHAT_SCHEME]
-    max_length = 1600
-    free_sending = True
 
     config_ui = ConfigUI(
         blurb=_(

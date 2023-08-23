@@ -12,17 +12,14 @@ class MtargetType(ChannelType):
     """
 
     code = "MT"
+    name = "Mtarget"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^mt/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
-
-    name = "Mtarget"
-
-    available_timezones = ["Africa/Kigali", "Africa/Yaoundé", "Africa/Porto-Novo", "Africa/Kinshasa", "Europe/Paris"]
-    recommended_timezones = ["Africa/Kigali", "Africa/Yaoundé", "Africa/Porto-Novo", "Africa/Kinshasa", "Europe/Paris"]
-
     schemes = [URN.TEL_SCHEME]
     max_length = 765
+    available_timezones = ["Africa/Kigali", "Africa/Yaoundé", "Africa/Porto-Novo", "Africa/Kinshasa", "Europe/Paris"]
+    recommended_timezones = ["Africa/Kigali", "Africa/Yaoundé", "Africa/Porto-Novo", "Africa/Kinshasa", "Europe/Paris"]
 
     claim_view = ClaimView
     claim_blurb = _("If you have an %(link)s account, you can quickly connect it using their APIs.") % {

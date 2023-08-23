@@ -12,20 +12,19 @@ class GlobeType(ChannelType):
     """
 
     code = "GL"
+    name = "Globe Labs"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^gl/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
-
-    name = "Globe Labs"
+    schemes = [URN.TEL_SCHEME]
+    max_length = 160
+    available_timezones = ["Asia/Manila"]
 
     claim_blurb = _(
         "If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send and "
         "receive messages on your short code."
     )
     claim_view = ClaimView
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 160
 
     config_ui = ConfigUI(
         blurb=_(
@@ -36,8 +35,6 @@ class GlobeType(ChannelType):
             ConfigUI.Endpoint(courier="receive", label=_("Notify URI")),
         ],
     )
-
-    available_timezones = ["Asia/Manila"]
 
     def is_recommended_to(self, org, user):
         return self.is_available_to(org, user)[0]

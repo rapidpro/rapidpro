@@ -16,19 +16,18 @@ class TwilioMessagingServiceType(ChannelType):
 
     SESSION_ACCOUNT_SID = TwilioType.SESSION_ACCOUNT_SID
     SESSION_AUTH_TOKEN = TwilioType.SESSION_AUTH_TOKEN
-
     CONFIG_MESSAGING_SERVICE_SID = "messaging_service_sid"
 
     code = "TMS"
+    slug = "twilio_messaging_service"
+    name = "Twilio Messaging Service"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^tms/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
-
-    name = "Twilio Messaging Service"
-    slug = "twilio_messaging_service"
+    schemes = [URN.TEL_SCHEME]
+    max_length = 1600
 
     claim_view = ClaimView
-    update_form = UpdateForm
 
     claim_blurb = _(
         "You can connect a messaging service from your Twilio account to benefit from %(link)s features."
@@ -50,8 +49,7 @@ class TwilioMessagingServiceType(ChannelType):
         ],
     )
 
-    schemes = [URN.TEL_SCHEME]
-    max_length = 1600
+    update_form = UpdateForm
 
     def is_recommended_to(self, org, user):
         return timezone_to_country_code(org.timezone) in SUPPORTED_COUNTRIES

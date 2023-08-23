@@ -12,17 +12,16 @@ class Hub9Type(ChannelType):
     """
 
     code = "H9"
+    name = "Hub9"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^h9/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|receive|received)$"
-
-    name = "Hub9"
+    schemes = [URN.TEL_SCHEME, URN.EXTERNAL_SCHEME]
+    max_length = 1600
+    available_timezones = ["Asia/Jakarta"]
 
     claim_blurb = _("Easily add a two way number you have configured with Hub9 in Indonesia.")
     claim_view = ClaimView
-
-    schemes = [URN.TEL_SCHEME, URN.EXTERNAL_SCHEME]
-    max_length = 1600
 
     config_ui = ConfigUI(
         blurb=_("To finish configuring your Hub9 connection you'll need to provide them with the following details."),
@@ -47,8 +46,6 @@ class Hub9Type(ChannelType):
         ],
         show_public_ips=True,
     )
-
-    available_timezones = ["Asia/Jakarta"]
 
     def is_recommended_to(self, org, user):
         return self.is_available_to(org, user)[0]

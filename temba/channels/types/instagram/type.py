@@ -15,6 +15,14 @@ class InstagramType(ChannelType):
     A Instagram channel
     """
 
+    code = "IG"
+    name = "Instagram"
+    category = ChannelType.Category.SOCIAL_MEDIA
+
+    courier_url = r"^ig/receive"
+    schemes = [URN.INSTAGRAM_SCHEME]
+    max_length = 2000
+    redact_values = (settings.FACEBOOK_APPLICATION_SECRET, settings.FACEBOOK_WEBHOOK_SECRET)
     extra_links = [
         dict(
             label=_("Reconnect Instagram Business Account"),
@@ -22,23 +30,10 @@ class InstagramType(ChannelType):
         )
     ]
 
-    code = "IG"
-    category = ChannelType.Category.SOCIAL_MEDIA
-
-    courier_url = r"^ig/receive"
-
-    name = "Instagram"
-
     claim_blurb = _("Add an %(link)s bot to send and receive messages on behalf of a business Instagram account.") % {
         "link": '<a target="_blank" href="http://instagram.com">Instagram</a>',
     }
     claim_view = ClaimView
-
-    schemes = [URN.INSTAGRAM_SCHEME]
-    max_length = 2000
-    free_sending = True
-
-    redact_values = (settings.FACEBOOK_APPLICATION_SECRET, settings.FACEBOOK_WEBHOOK_SECRET)
 
     def get_urls(self):
         return [

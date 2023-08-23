@@ -15,11 +15,12 @@ class FacebookType(ChannelType):
     """
 
     code = "FB"
+    name = "Facebook"
     category = ChannelType.Category.SOCIAL_MEDIA
 
     courier_url = r"^fb/(?P<uuid>[a-z0-9\-]+)/receive"
-
-    name = "Facebook"
+    schemes = [URN.FACEBOOK_SCHEME]
+    max_length = 320
 
     claim_blurb = _(
         """Add a <a target="_blank" href="http://facebook.com">Facebook</a> bot to send and receive messages on behalf """
@@ -29,10 +30,6 @@ class FacebookType(ChannelType):
     claim_view = ClaimView
 
     config_ui = ConfigUI()  # has own template
-
-    schemes = [URN.FACEBOOK_SCHEME]
-    max_length = 320
-    free_sending = True
 
     def deactivate(self, channel):
         config = channel.config

@@ -24,13 +24,10 @@ class SomlengType(ChannelType):
     """
 
     code = "TW"
+    name = "Somleng"
     category = ChannelType.Category.PHONE
 
-    name = "Somleng"
-    slug = "somleng"
-
     courier_url = r"^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
-
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
 

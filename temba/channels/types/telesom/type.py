@@ -12,19 +12,18 @@ class TelesomType(ChannelType):
     """
 
     code = "TS"
+    name = "Telesom"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^ts/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
-
-    name = "Telesom"
+    schemes = [URN.TEL_SCHEME]
+    max_length = 160
+    available_timezones = ["Africa/Mogadishu"]
 
     claim_blurb = _(
         "If you are based in Somalia, you can integrate with Telesom to send and receive messages on your short code."
     )
     claim_view = ClaimView
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 160
 
     config_ui = ConfigUI(
         blurb=_(
@@ -35,8 +34,6 @@ class TelesomType(ChannelType):
             ConfigUI.Endpoint(courier="receive", label=_("Delivery URL")),
         ],
     )
-
-    available_timezones = ["Africa/Mogadishu"]
 
     def is_recommended_to(self, org, user):
         return self.is_available_to(org, user)[0]

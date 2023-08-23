@@ -12,11 +12,13 @@ class FirebaseCloudMessagingType(ChannelType):
     """
 
     code = "FCM"
+    name = "Firebase Cloud Messaging"
     category = ChannelType.Category.API
 
     courier_url = r"^fcm/(?P<uuid>[a-z0-9\-]+)/(?P<action>register|receive)$"
-
-    name = "Firebase Cloud Messaging"
+    schemes = [URN.FCM_SCHEME]
+    max_length = 10000
+    quick_reply_text_size = 36
 
     claim_blurb = _(
         "Add a %(link)s channel to send and receive messages. Your users will need an App to send and receive messages."
@@ -24,11 +26,6 @@ class FirebaseCloudMessagingType(ChannelType):
         "link": '<a target="_blank" href="https://firebase.google.com/docs/cloud-messaging/">Firebase Cloud Messaging</a>'
     }
     claim_view = ClaimView
-
-    schemes = [URN.FCM_SCHEME]
-    max_length = 10000
-    free_sending = True
-    quick_reply_text_size = 36
 
     config_ui = ConfigUI(
         blurb=_(

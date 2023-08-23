@@ -7,19 +7,17 @@ from temba.contacts.models import URN
 
 class VerboiceType(ChannelType):
     code = "VB"
+    name = "Verboice"
     category = ChannelType.Category.PHONE
 
-    name = "Verboice"
-
     courier_url = r"^vb/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
+    max_length = 1600
+    schemes = [URN.TEL_SCHEME]
 
     claim_blurb = _(
         "Use a %(link)s connection to leverage in-country SIP connections for building voice (IVR) flows."
     ) % {"link": '<a target="_blank" href="http://verboice.instedd.org">Verboice</a>'}
     claim_view = ClaimView
-
-    max_length = 1600
-    schemes = [URN.TEL_SCHEME]
 
     config_ui = ConfigUI(
         blurb=_(

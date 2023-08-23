@@ -12,22 +12,18 @@ class MessageBirdType(ChannelType):
     """
 
     code = "MBD"
+    name = "Messagebird"
     category = ChannelType.Category.PHONE
+    beta_only = True
 
     courier_url = r"^mbd/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
-
-    name = "Messagebird"
+    schemes = [URN.TEL_SCHEME]
+    available_timezones = SUPPORTED_TIMEZONES
 
     claim_blurb = _("Connect your approved %(link)s channel") % {
         "link": '<a target="_blank" href="https://www.messagebird.com/">Messagebird</a>'
     }
     claim_view = ClaimView
-
-    beta_only = True
-
-    schemes = [URN.TEL_SCHEME]
-
-    available_timezones = SUPPORTED_TIMEZONES
 
     config_ui = ConfigUI(
         blurb=_(

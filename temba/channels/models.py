@@ -96,16 +96,16 @@ class ChannelType(metaclass=ABCMeta):
         IVR_PROTOCOL_TWIML = 1
         IVR_PROTOCOL_NCCO = 2
 
-    code = None
-    slug = None
+    code = None  # DB code and lowercased to create courier URLs
+    slug = None  # set automatically
+    name = None  # display name
     category = None
     beta_only = False
 
+    schemes = None
+
     # the courier handling URL, will be wired automatically for use in templates, but wired to a null handler
     courier_url = None
-
-    name = None
-    schemes = None
 
     available_timezones = None
     recommended_timezones = None
@@ -121,7 +121,6 @@ class ChannelType(metaclass=ABCMeta):
 
     max_length = -1
     max_tps = None
-    free_sending = False
     quick_reply_text_size = 20
 
     extra_links = None
@@ -210,8 +209,11 @@ class ChannelType(metaclass=ABCMeta):
         Called when a trigger that is bound to a channel of this type is being released.
         """
 
-    def get_configuration_context_dict(self, channel):
-        return dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)
+    def get_config_ui_context(self, channel) -> dict:
+        """
+        Context for the config UI if a custom template is provided
+        """
+        return {"channel": channel}
 
     def get_error_ref_url(self, channel, code: str) -> str:
         """

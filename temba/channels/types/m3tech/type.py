@@ -12,19 +12,17 @@ class M3TechType(ChannelType):
     """
 
     code = "M3"
+    name = "M3 Tech"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^m3/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$"
-
-    name = "M3 Tech"
+    schemes = [URN.TEL_SCHEME]
+    max_length = 160
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
         "link": '<a target="_blank" href="http://m3techservice.com">M3 Tech</a>'
     }
     claim_view = AuthenticatedExternalClaimView
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 160
 
     config_ui = ConfigUI(
         blurb=_("To finish configuring your connection you'll need to notify M3Tech of the following callback URLs."),

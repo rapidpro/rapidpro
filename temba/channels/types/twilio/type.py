@@ -20,21 +20,12 @@ class TwilioType(ChannelType):
     SESSION_AUTH_TOKEN = "TWILIO_AUTH_TOKEN"
 
     code = "T"
+    name = "Twilio"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^t/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
-
-    name = "Twilio"
-
-    claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
-        "link": '<a target="_blank" href="https://www.twilio.com/">Twilio</a>'
-    }
-    claim_view = ClaimView
-    update_form = UpdateForm
-
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
-
     redact_request_keys = (
         "FromCity",
         "FromState",
@@ -46,6 +37,12 @@ class TwilioType(ChannelType):
         "CalledState",
         "CalledZip",
     )
+
+    claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
+        "link": '<a target="_blank" href="https://www.twilio.com/">Twilio</a>'
+    }
+    claim_view = ClaimView
+    update_form = UpdateForm
 
     def is_recommended_to(self, org, user):
         return timezone_to_country_code(org.timezone) in SUPPORTED_COUNTRIES

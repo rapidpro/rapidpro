@@ -14,14 +14,15 @@ class VKType(ChannelType):
     A VK channel
     """
 
-    code = "VK"
-    category = ChannelType.Category.SOCIAL_MEDIA
-
     CONFIG_COMMUNITY_NAME = "community_name"
 
-    courier_url = r"^vk/(?P<uuid>[a-z0-9\-]+)/receive"
-
+    code = "VK"
     name = "VK"
+    category = ChannelType.Category.SOCIAL_MEDIA
+
+    courier_url = r"^vk/(?P<uuid>[a-z0-9\-]+)/receive"
+    schemes = [URN.VK_SCHEME]
+    max_length = 320
 
     claim_blurb = _(
         "Add a %(link)s bot to send and receive messages on behalf of a VK community for free. You will need to create "
@@ -30,7 +31,3 @@ class VKType(ChannelType):
     claim_view = ClaimView
 
     config_ui = ConfigUI()  # has own template
-
-    schemes = [URN.VK_SCHEME]
-    max_length = 320
-    free_sending = True
