@@ -937,11 +937,11 @@ class ChannelCRUDL(SmartCRUDL):
         def derive_menu_path(self):
             return f"/settings/channels/{self.object.uuid}"
 
-        def get_type_template(self, channel):
+        def get_blurb_from_template(self, channel) -> str:
             try:
                 return (
                     Engine.get_default()
-                    .get_template("channels/types/%s/config.html" % self.slug)
+                    .get_template("channels/types/%s/config.html" % channel.type.slug)
                     .render(context=Context(channel.type.get_configuration_context_dict(channel)))
                 )
             except TemplateDoesNotExist:
@@ -959,12 +959,10 @@ class ChannelCRUDL(SmartCRUDL):
             else:
                 secret = None
 
-            context["type_template"] = self.get_type_template(self.object)
-            context["blurb"] = self.object.type.config_ui.blurb
+            context["blurb"] = self.get_blurb_from_template(self.object) or self.object.type.config_ui.blurb
             context["endpoints"] = endpoints
             context["secret"] = secret
-            context["show_public_addresses"] = self.object.type.show_public_addresses
-            context["ip_addresses"] = settings.IP_ADDRESSES
+            context["ip_addresses"] = settings.IP_ADDRESSES if self.object.type.config_ui.show_public_ips else None
 
             return context
 

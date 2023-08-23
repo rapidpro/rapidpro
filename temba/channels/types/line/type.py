@@ -24,13 +24,11 @@ class LineType(ChannelType):
     ) % {"link": '<a target="_blank" href="https://line.me">LINE</a>'}
     claim_view = ClaimView
 
-    config_ui = ConfigUI()  # has own template
+    config_ui = ConfigUI(show_public_ips=True)
 
     schemes = [URN.LINE_SCHEME]
     max_length = 1600
     free_sending = True
-
-    show_public_addresses = True
 
     def get_error_ref_url(self, channel, code: str) -> str:
         return "https://developers.line.biz/en/reference/messaging-api/#error-responses"

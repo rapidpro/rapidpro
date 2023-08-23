@@ -24,8 +24,6 @@ class Hub9Type(ChannelType):
     schemes = [URN.TEL_SCHEME, URN.EXTERNAL_SCHEME]
     max_length = 1600
 
-    show_public_addresses = True
-
     config_ui = ConfigUI(
         blurb=_("To finish configuring your Hub9 connection you'll need to provide them with the following details."),
         endpoints=[
@@ -47,6 +45,7 @@ class Hub9Type(ChannelType):
                 ),
             ),
         ],
+        show_public_ips=True,
     )
 
     available_timezones = ["Asia/Jakarta"]

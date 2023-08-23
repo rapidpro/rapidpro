@@ -73,6 +73,7 @@ class ConfigUI:
     blurb: str = None
     endpoints: tuple[Endpoint] = ()
     show_secret: bool = False
+    show_public_ips: bool = False
 
     def get_used_endpoints(self, channel) -> list:
         """
@@ -115,9 +116,6 @@ class ChannelType(metaclass=ABCMeta):
 
     # the configuration UI - only channel types that aren't configured automatically need this
     config_ui = None
-
-    # TODO replace via config_ui
-    show_public_addresses = False
 
     update_form = None
 

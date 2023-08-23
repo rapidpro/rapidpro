@@ -26,8 +26,6 @@ class DartMediaType(ChannelType):
     schemes = [URN.TEL_SCHEME, URN.EXTERNAL_SCHEME]
     max_length = 160
 
-    show_public_addresses = True
-
     config_ui = ConfigUI(
         blurb=_(
             "To finish configuring your Dart Media connection you'll need to provide them with the following details."
@@ -51,6 +49,7 @@ class DartMediaType(ChannelType):
                 ),
             ),
         ],
+        show_public_ips=True,
     )
 
     available_timezones = ["Asia/Jakarta"]

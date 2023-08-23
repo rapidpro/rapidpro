@@ -28,8 +28,6 @@ class WeChatType(ChannelType):
     max_length = 1600
     free_sending = True
 
-    show_public_addresses = True
-
     config_ui = ConfigUI(
         blurb=_(
             "To finish configuring your WeChat connection, you'll need to enter the following webhook URL and token on "
@@ -39,4 +37,5 @@ class WeChatType(ChannelType):
             ConfigUI.Endpoint(courier="", label=_("Webhook URL")),
         ],
         show_secret=True,
+        show_public_ips=True,
     )

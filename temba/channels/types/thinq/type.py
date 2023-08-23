@@ -24,8 +24,6 @@ class ThinQType(ChannelType):
     ) % {"link": '<a target="_blank" href="https://thinq.com">ThinQ</a>'}
     claim_view = ClaimView
 
-    show_public_addresses = True
-
     schemes = [URN.TEL_SCHEME]
     max_length = 160
 
@@ -54,6 +52,7 @@ class ThinQType(ChannelType):
                 ),
             ),
         ],
+        show_public_ips=True,
     )
 
     def is_available_to(self, org, user):

@@ -9,11 +9,7 @@
   {% if object.get_country_display %}<div class="text-base">{{ object.get_country_display }}</div>{% endif %}
 {% endblock subtitle %}
 {% block content %}
-  {% if type_template %}
-    {{ type_template }}
-  {% elif blurb %}
-    {{ blurb }}
-  {% endif %}
+  {{ blurb }}
   {% for endpoint in endpoints %}
     <div class="card mt-3 p-4 flex-shrink-0">
       <div class="text-xl">{{ endpoint.label }}</div>
@@ -29,12 +25,12 @@
       <div class="code block mt-3 mx-0 whitespace-normal">{{ secret }}</div>
     </div>
   {% endif %}
-  {% if show_public_addresses %}
-    <div class="mt-6 card flex-shrink-0">
-      <div class="title">{% trans "IP Addresses" %}</div>
-      <div class="mt-2">{% trans "Additionally you will need to make sure the following IP addresses are whitelisted" %}</div>
+  {% if ip_addresses %}
+  <div class="card mt-3 p-4 flex-shrink-0">
+      <div class="text-xl">{% trans "IP Addresses" %}</div>
+      <div class="mt-2">{% trans "Ensure the following IP addresses are whitelisted." %}</div>
       <div class="mt-2">
-        {% for ip_address in ip_addresses %}<div class="code inline mr-1">{{ ip_address }}</div>{% endfor %}
+        {% for addr in ip_addresses %}<div class="code inline mr-1">{{ addr }}</div>{% endfor %}
       </div>
     </div>
   {% endif %}
