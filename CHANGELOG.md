@@ -1,3 +1,10 @@
+v8.3.12 (2023-08-23)
+-------------------------
+ * Add ChannelType.config_ui to replace configuration_urls, configuration_blurb etc
+ * Show Somleng config URLs based on channel role
+ * Add Org.input_collation
+ * Remove Blackmnyna, Chikka, Junebug, Twitter legacy, old Zenvia channel types
+
 v8.3.11 (2023-08-17)
 -------------------------
  * Convert final haml templates in root directory
