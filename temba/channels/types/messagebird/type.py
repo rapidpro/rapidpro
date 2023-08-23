@@ -28,12 +28,13 @@ class MessageBirdType(ChannelType):
     schemes = [URN.TEL_SCHEME]
 
     available_timezones = SUPPORTED_TIMEZONES
-    configuration_blurb = _(
-        "To use your Messagebird channel you'll have to configure the Messagebird to send raw received SMS messages to "
-        "the URL below either with a flow or by registering the webhook with them. Configure the status URL under "
-        "Developer Settings to receive status updates for your messages."
-    )
+
     config_ui = ConfigUI(
+        blurb=_(
+            "To use your Messagebird channel you'll have to configure the Messagebird to send raw received SMS messages to "
+            "the URL below either with a flow or by registering the webhook with them. Configure the status URL under "
+            "Developer Settings to receive status updates for your messages."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
@@ -45,5 +46,5 @@ class MessageBirdType(ChannelType):
                 label=_("Status URL"),
                 help=_("Webhook address for message status calls to this address."),
             ),
-        ]
+        ],
     )

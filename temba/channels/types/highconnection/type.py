@@ -27,14 +27,14 @@ class HighConnectionType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 1500
 
-    configuration_blurb = _(
-        "To finish configuring your connection you'll need to notify HighConnection of the following URL for incoming "
-        "(MO) messages."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your connection you'll need to notify HighConnection of the following URL for incoming "
+            "(MO) messages."
+        ),
         endpoints=[
             ConfigUI.Endpoint(courier="receive", label=_("Receive URL")),
-        ]
+        ],
     )
 
     available_timezones = ["Europe/Paris"]

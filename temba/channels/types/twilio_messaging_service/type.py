@@ -34,11 +34,11 @@ class TwilioMessagingServiceType(ChannelType):
         "You can connect a messaging service from your Twilio account to benefit from %(link)s features."
     ) % {"link": '<a target="_blank" href="https://www.twilio.com/copilot">Twilio Copilot</a>'}
 
-    configuration_blurb = _(
-        "To finish configuring your Twilio Messaging Service connection you'll need to add the following URL in your "
-        "Messaging Service Inbound Settings."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your Twilio Messaging Service connection you'll need to add the following URL in your "
+            "Messaging Service Inbound Settings."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
@@ -47,7 +47,7 @@ class TwilioMessagingServiceType(ChannelType):
                     "This endpoint should be called by Twilio when new messages are received by your Messaging Service."
                 ),
             ),
-        ]
+        ],
     )
 
     schemes = [URN.TEL_SCHEME]

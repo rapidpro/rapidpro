@@ -33,18 +33,18 @@ class MessangiType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 150
 
-    configuration_blurb = _(
-        "To finish configuring your Messangi connection you'll need to set the following callback URLs on your Messangi"
-        " account."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your Messangi connection you'll need to set the following callback URLs on your Messangi"
+            " account."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
                 label=_("Receive URL"),
                 help=_("To receive incoming messages, you need to set the receive URL for your Messangi account."),
             ),
-        ]
+        ],
     )
 
     available_timezones = ["America/Jamaica"]

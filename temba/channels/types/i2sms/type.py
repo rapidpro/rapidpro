@@ -26,11 +26,11 @@ class I2SMSType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 160
 
-    configuration_blurb = _(
-        "To finish configuring your I2SMS channel you'll need to set the message URL for the `DEFAULT` keyword as "
-        "below."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your I2SMS channel you'll need to set the message URL for the `DEFAULT` keyword as "
+            "below."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
@@ -41,5 +41,5 @@ class I2SMSType(ChannelType):
                     """Select POST HTTP Variables and check the box for "No URL Output"."""
                 ),
             ),
-        ]
+        ],
     )

@@ -70,6 +70,7 @@ class ConfigUI:
 
             return f"https://{channel.callback_domain}{path}"
 
+    blurb: str
     endpoints: Endpoint
     show_secret: bool = False
 
@@ -115,7 +116,6 @@ class ChannelType(metaclass=ABCMeta):
     config_ui = None
 
     # TODO replace via config_ui
-    configuration_blurb = None
     show_public_addresses = False
     show_config_page = True
 
@@ -223,19 +223,6 @@ class ChannelType(metaclass=ABCMeta):
                 .render(context=Context(self.get_configuration_context_dict(channel)))
             )
         except TemplateDoesNotExist:
-            return ""
-
-    def get_configuration_blurb(self, channel):
-        """
-        Allows ChannelTypes to define the blurb to show on the channel configuration page.
-        """
-        if self.__class__.configuration_blurb is not None:
-            return (
-                Engine.get_default()
-                .from_string(str(self.configuration_blurb))
-                .render(context=Context(dict(channel=channel)))
-            )
-        else:
             return ""
 
     def get_error_ref_url(self, channel, code: str) -> str:

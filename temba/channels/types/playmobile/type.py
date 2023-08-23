@@ -27,15 +27,15 @@ class PlayMobileType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 160
 
-    configuration_blurb = _(
-        "To finish configuring your Play Mobile connection you'll need to notify Play Mobile of the following URL."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your Play Mobile connection you'll need to notify Play Mobile of the following URL."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
                 label=_("Receive URL"),
                 help=_("To receive incoming messages, you need to set the receive URL for your Play Mobile account."),
             ),
-        ]
+        ],
     )

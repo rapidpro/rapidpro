@@ -25,7 +25,6 @@ from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
-from django.template import Context, Engine
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -935,7 +934,10 @@ class ChannelCRUDL(SmartCRUDL):
                 return channel.secret or channel.config.get("secret")
             return None
 
-        def get_configuration_urls(self, channel) -> list:
+        def get_blurb(self, channel):
+            return channel.type.config_ui.blurb if channel.type.config_ui else ""
+
+        def get_endpoints(self, channel) -> list:
             urls = []
 
             if channel.type.config_ui:
@@ -952,8 +954,8 @@ class ChannelCRUDL(SmartCRUDL):
             # populate with our channel type
             channel_type = Channel.get_type_from_code(self.object.channel_type)
             context["configuration_template"] = channel_type.get_configuration_template(self.object)
-            context["configuration_blurb"] = channel_type.get_configuration_blurb(self.object)
-            context["configuration_urls"] = self.get_configuration_urls(self.object)
+            context["configuration_blurb"] = self.get_blurb(self.object)
+            context["configuration_urls"] = self.get_endpoints(self.object)
             context["configuration_secret"] = self.get_secret(self.object)
             context["show_public_addresses"] = channel_type.show_public_addresses
 

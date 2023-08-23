@@ -33,11 +33,11 @@ class ThinQType(ChannelType):
     CONFIG_API_TOKEN_USER = "api_token_user"
     CONFIG_API_TOKEN = "api_token"
 
-    configuration_blurb = _(
-        "To finish configuring your ThinQ connection you'll need to set the following callback URLs on the ThinQ "
-        "website on the SMS -> SMS Configuration page."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your ThinQ connection you'll need to set the following callback URLs on the ThinQ "
+            "website on the SMS -> SMS Configuration page."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
@@ -53,7 +53,7 @@ class ThinQType(ChannelType):
                     """Set your Delivery Confirmation URL to the above, making sure you select "Form-Data" as the Delivery Notification Format."""
                 ),
             ),
-        ]
+        ],
     )
 
     def is_available_to(self, org, user):

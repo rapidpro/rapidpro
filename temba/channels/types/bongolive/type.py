@@ -26,10 +26,10 @@ class BongoLiveType(ChannelType):
         "link": '<a target="_blank" href="https://www.bongolive.co.tz/">Bongo Live</a>'
     }
 
-    configuration_blurb = _(
-        "To finish connecting your channel, you need to have Bongo Live configure the URLs below for your short code."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish connecting your channel, you need to have Bongo Live configure the URLs below for your short code."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
@@ -38,5 +38,5 @@ class BongoLiveType(ChannelType):
                     "This URL should be called by Bongo Live when new messages are received or to report DLR status."
                 ),
             ),
-        ]
+        ],
     )

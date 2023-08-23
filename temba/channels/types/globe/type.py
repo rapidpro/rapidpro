@@ -27,14 +27,14 @@ class GlobeType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 160
 
-    configuration_blurb = _(
-        "To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your "
-        "application configuration page."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your "
+            "application configuration page."
+        ),
         endpoints=[
             ConfigUI.Endpoint(courier="receive", label=_("Notify URI")),
-        ]
+        ],
     )
 
     available_timezones = ["Asia/Manila"]

@@ -28,16 +28,16 @@ class KaleyraType(ChannelType):
     schemes = [URN.WHATSAPP_SCHEME]
     max_length = 4096
 
-    configuration_blurb = _(
-        "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra "
-        "account."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra "
+            "account."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
                 label=_("Receive URL"),
                 help=_("To receive incoming messages, you need to set the receive URL for your Kaleyra account."),
             ),
-        ]
+        ],
     )

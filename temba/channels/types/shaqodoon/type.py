@@ -26,13 +26,13 @@ class ShaqodoonType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
 
-    configuration_blurb = _(
-        "To finish configuring your Shaqodoon connection you'll need to provide Shaqodoon with the following delivery URL."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your Shaqodoon connection you'll need to provide Shaqodoon with the following delivery URL."
+        ),
         endpoints=[
             ConfigUI.Endpoint(courier="receive", label=_("Receive URL")),
-        ]
+        ],
     )
 
     available_timezones = ["Africa/Mogadishu"]

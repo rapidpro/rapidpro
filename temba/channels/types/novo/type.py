@@ -30,13 +30,14 @@ class NovoType(ChannelType):
     max_length = 160
 
     config_ui = ConfigUI(
+        blurb="",
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
                 label=_("Receive URL"),
                 help=_("To receive incoming messages, you need to set the receive URL for your Novo account."),
             ),
-        ]
+        ],
     )
 
     available_timezones = ["America/Port_of_Spain"]

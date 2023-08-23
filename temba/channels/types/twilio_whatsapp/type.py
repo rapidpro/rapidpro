@@ -33,18 +33,18 @@ class TwilioWhatsappType(ChannelType):
     schemes = [URN.WHATSAPP_SCHEME]
     max_length = 1600
 
-    configuration_blurb = _(
-        "To finish configuring your Twilio WhatsApp connection you'll need to add the following URL in your Twilio "
-        "Inbound Settings. Check the Twilio WhatsApp documentation for more information."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your Twilio WhatsApp connection you'll need to add the following URL in your Twilio "
+            "Inbound Settings. Check the Twilio WhatsApp documentation for more information."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
                 label=_("Request URL"),
                 help=_("This endpoint should be called by Twilio when new messages are received by your number."),
             ),
-        ]
+        ],
     )
 
     redact_request_keys = (

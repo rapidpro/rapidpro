@@ -27,13 +27,11 @@ class DMarkType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 459
 
-    configuration_blurb = _(
-        "To finish configuring your DMark channel you need to set DMark to send MO messages to the URL below."
-    )
     config_ui = ConfigUI(
+        blurb=_("To finish configuring your DMark channel you need to set DMark to send MO messages to the URL below."),
         endpoints=[
             ConfigUI.Endpoint(courier="receive", label=_("Receive URL")),
-        ]
+        ],
     )
 
     available_timezones = ["Africa/Kampala", "Africa/Kinshasa"]

@@ -26,11 +26,11 @@ class AfricasTalkingType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 160
 
-    configuration_blurb = _(
-        "To finish configuring your Africa's Talking connection you'll need to set the following callback URLs on the "
-        "Africa's Talking website under your account."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your Africa's Talking connection you'll need to set the following callback URLs on the "
+            "Africa's Talking website under your account."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
@@ -48,7 +48,7 @@ class AfricasTalkingType(ChannelType):
                     "then clicking on Delivery Reports."
                 ),
             ),
-        ]
+        ],
     )
 
     available_timezones = [

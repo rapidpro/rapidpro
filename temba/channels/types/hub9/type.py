@@ -26,10 +26,8 @@ class Hub9Type(ChannelType):
 
     show_public_addresses = True
 
-    configuration_blurb = _(
-        "To finish configuring your Hub9 connection you'll need to provide them with the following details."
-    )
     config_ui = ConfigUI(
+        blurb=_("To finish configuring your Hub9 connection you'll need to provide them with the following details."),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
@@ -48,7 +46,7 @@ class Hub9Type(ChannelType):
                     "sales agent."
                 ),
             ),
-        ]
+        ],
     )
 
     available_timezones = ["Asia/Jakarta"]

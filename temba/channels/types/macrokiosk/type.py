@@ -29,10 +29,10 @@ class MacrokioskType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
 
-    configuration_blurb = _(
-        "To finish configuring your MACROKIOSK connection you'll need to notify MACROKIOSK of the following URLs."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your MACROKIOSK connection you'll need to notify MACROKIOSK of the following URLs."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
@@ -46,7 +46,7 @@ class MacrokioskType(ChannelType):
                     "This endpoint should be called by MACROKIOSK when the message status changes. (delivery reports)"
                 ),
             ),
-        ]
+        ],
     )
 
     available_timezones = ["Asia/Kuala_Lumpur"]

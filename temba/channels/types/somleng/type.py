@@ -37,10 +37,10 @@ class SomlengType(ChannelType):
     claim_view = ClaimView
     claim_blurb = _("Connect to a Somleng instance.")
 
-    configuration_blurb = _(
-        "To finish configuring your Somleng channel you'll need to add the following URL to your Somleng instance."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your Somleng channel you'll need to add the following URL to your Somleng instance."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
@@ -66,7 +66,7 @@ class SomlengType(ChannelType):
                 help=_("Call status updates should be sent to this endpoint."),
                 roles=(Channel.ROLE_CALL, Channel.ROLE_ANSWER),
             ),
-        ]
+        ],
     )
 
     def get_error_ref_url(self, channel, code: str) -> str:

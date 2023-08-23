@@ -26,16 +26,16 @@ class FreshChatType(ChannelType):
     schemes = [URN.FRESHCHAT_SCHEME]
     free_sending = True
 
-    configuration_blurb = _(
-        "To use your FreshChat channel you'll have to configure the FreshChat server to direct "
-        "messages to the url below."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To use your FreshChat channel you'll have to configure the FreshChat server to direct "
+            "messages to the url below."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
                 label=_("Receive URL"),
                 help=_("POST FreshChat trigger to this address."),
             ),
-        ]
+        ],
     )
