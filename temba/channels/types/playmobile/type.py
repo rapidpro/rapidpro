@@ -10,12 +10,13 @@ class PlayMobileType(ChannelType):
     A Play Mobile channel (http://playmobile.uz/)
     """
 
-    courier_url = r"^pm/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
-
     code = "PM"
+    name = "Play Mobile"
     category = ChannelType.Category.PHONE
 
-    name = "Play Mobile"
+    courier_url = r"^pm/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
+    schemes = [URN.TEL_SCHEME]
+    max_length = 160
     available_timezones = ["Asia/Tashkent", "Asia/Samarkand"]
 
     claim_blurb = _(
@@ -23,9 +24,6 @@ class PlayMobileType(ChannelType):
         "steps."
     ) % {"link": '<a href="http://playmobile.uz/">Play Mobile</a>'}
     claim_view = ClaimView
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 160
 
     config_ui = ConfigUI(
         blurb=_(

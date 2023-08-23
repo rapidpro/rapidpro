@@ -12,11 +12,12 @@ class KannelType(ChannelType):
     """
 
     code = "KN"
+    name = "Kannel"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^kn/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
-
-    name = "Kannel"
+    schemes = [URN.TEL_SCHEME]
+    max_length = 1600
 
     claim_blurb = _(
         "Connect your %(link)s instance, we'll walk you through the steps necessary to get your SMSC connection "
@@ -25,6 +26,3 @@ class KannelType(ChannelType):
     claim_view = ClaimView
 
     config_ui = ConfigUI()  # has own template
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 1600

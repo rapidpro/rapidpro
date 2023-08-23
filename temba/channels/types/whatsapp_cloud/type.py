@@ -21,26 +21,22 @@ class WhatsAppCloudType(ChannelType):
 
     SESSION_USER_TOKEN = "WHATSAPP_CLOUD_USER_TOKEN"
 
+    code = "WAC"
+    name = "WhatsApp Cloud"
+    category = ChannelType.Category.SOCIAL_MEDIA
+    beta_only = True
+
+    courier_url = r"^wac/receive"
+    schemes = [URN.WHATSAPP_SCHEME]
+    max_length = 4096
+    redact_values = (settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN,)
     extra_links = [
         dict(label=_("Message Templates"), view_name="channels.types.whatsapp_cloud.templates"),
         dict(label=_("Verify Number"), view_name="channels.types.whatsapp_cloud.request_code"),
     ]
 
-    code = "WAC"
-    category = ChannelType.Category.SOCIAL_MEDIA
-    beta_only = True
-
-    courier_url = r"^wac/receive"
-
-    name = "WhatsApp Cloud"
-
     claim_blurb = _("If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts")
     claim_view = ClaimView
-
-    schemes = [URN.WHATSAPP_SCHEME]
-    max_length = 4096
-
-    redact_values = (settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN,)
 
     def get_urls(self):
         return [

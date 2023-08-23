@@ -17,11 +17,23 @@ class TwilioWhatsappType(ChannelType):
     SESSION_AUTH_TOKEN = TwilioType.SESSION_AUTH_TOKEN
 
     code = "TWA"
+    name = "Twilio WhatsApp"
     category = ChannelType.Category.SOCIAL_MEDIA
 
     courier_url = r"^twa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
-
-    name = "Twilio WhatsApp"
+    schemes = [URN.WHATSAPP_SCHEME]
+    max_length = 1600
+    redact_request_keys = (
+        "FromCity",
+        "FromState",
+        "FromZip",
+        "ToCity",
+        "ToState",
+        "ToZip",
+        "CalledCity",
+        "CalledState",
+        "CalledZip",
+    )
 
     claim_blurb = _("If you have a %(link)s number, you can connect it to communicate with your WhatsApp contacts.") % {
         "link": '<a target="_blank" href="https://www.twilio.com/whatsapp/">Twilio WhatsApp</a>'
@@ -29,9 +41,6 @@ class TwilioWhatsappType(ChannelType):
 
     claim_view = ClaimView
     update_form = UpdateForm
-
-    schemes = [URN.WHATSAPP_SCHEME]
-    max_length = 1600
 
     config_ui = ConfigUI(
         blurb=_(
@@ -45,18 +54,6 @@ class TwilioWhatsappType(ChannelType):
                 help=_("This endpoint should be called by Twilio when new messages are received by your number."),
             ),
         ],
-    )
-
-    redact_request_keys = (
-        "FromCity",
-        "FromState",
-        "FromZip",
-        "ToCity",
-        "ToState",
-        "ToZip",
-        "CalledCity",
-        "CalledState",
-        "CalledZip",
     )
 
     def get_error_ref_url(self, channel, code: str) -> str:

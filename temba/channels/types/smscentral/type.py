@@ -12,20 +12,19 @@ class SMSCentralType(ChannelType):
     """
 
     code = "SC"
+    name = "SMSCentral"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^sc/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
-
-    name = "SMSCentral"
+    schemes = [URN.TEL_SCHEME]
+    max_length = 1600
+    max_tps = 1
+    available_timezones = ["Asia/Kathmandu"]
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
         "link": '<a target="_blank" href="http://smscentral.com.np/">SMSCentral</a>'
     }
     claim_view = AuthenticatedExternalClaimView
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 1600
-    max_tps = 1
 
     config_ui = ConfigUI(
         blurb=_(
@@ -39,5 +38,3 @@ class SMSCentralType(ChannelType):
             ),
         ],
     )
-
-    available_timezones = ["Asia/Kathmandu"]

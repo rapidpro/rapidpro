@@ -13,12 +13,11 @@ class BongoLiveType(ChannelType):
 
     code = "BL"
     name = "Bongo Live"
-    available_timezones = ["Africa/Dar_es_Salaam"]
     category = ChannelType.Category.PHONE
 
     courier_url = r"^bl/(?P<uuid>[a-z0-9\-]+)/receive$"
-
     schemes = [URN.TEL_SCHEME]
+    available_timezones = ["Africa/Dar_es_Salaam"]
     max_length = 160
 
     claim_view = ClaimView

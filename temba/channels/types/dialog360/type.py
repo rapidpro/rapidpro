@@ -20,14 +20,14 @@ class Dialog360Type(ChannelType):
     A 360 Dialog Channel Type
     """
 
-    extra_links = [dict(label=_("Message Templates"), view_name="channels.types.dialog360.templates")]
-
     code = "D3"
+    name = "360Dialog WhatsApp"
     category = ChannelType.Category.SOCIAL_MEDIA
 
     courier_url = r"^d3/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
-
-    name = "360Dialog WhatsApp"
+    schemes = [URN.WHATSAPP_SCHEME]
+    max_length = 4096
+    extra_links = [dict(label=_("Message Templates"), view_name="channels.types.dialog360.templates")]
 
     claim_blurb = _("Activate your own enterprise WhatsApp account in %(link)s to communicate with your contacts. ") % {
         "link": '<a target="_blank" href="https://www.360dialog.com/">360Dialog</a>'
@@ -35,9 +35,6 @@ class Dialog360Type(ChannelType):
     claim_view = ClaimView
 
     config_ui = ConfigUI()  # has own template
-
-    schemes = [URN.WHATSAPP_SCHEME]
-    max_length = 4096
 
     def get_urls(self):
         return [

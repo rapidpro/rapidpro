@@ -12,20 +12,18 @@ class AndroidType(ChannelType):
     """
 
     code = "A"
+    name = "Android"
     category = ChannelType.Category.PHONE
 
-    name = "Android"
+    schemes = [URN.TEL_SCHEME]
+    max_length = -1
 
     claim_blurb = _(
         "Works in any country and uses the cell phone plan you already have. You just need an Android phone to get started."
     )
-
     claim_view = ClaimView
-    update_form = UpdateForm
 
-    schemes = [URN.TEL_SCHEME]
-    max_length = -1
-    free_sending = False
+    update_form = UpdateForm
 
     def is_recommended_to(self, org, user):
         return False

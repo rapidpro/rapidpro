@@ -12,19 +12,17 @@ class JasminType(ChannelType):
     """
 
     code = "JS"
+    name = "Jasmin"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^js/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
-
-    name = "Jasmin"
+    schemes = [URN.TEL_SCHEME]
+    max_length = 1600
 
     claim_blurb = _("Connect your %(link)s instance that you have already connected to an SMSC.") % {
         "link": '<a target="_blank" href="http://www.jasminsms.com/">Jasmin</a>'
     }
     claim_view = ClaimView
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 1600
 
     config_ui = ConfigUI(
         blurb=_("As a last step you'll need to configure Jasmin to call the following URL for MO (incoming) messages."),

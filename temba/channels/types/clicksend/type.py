@@ -13,6 +13,8 @@ class ClickSendType(ChannelType):
 
     code = "CS"
     name = "ClickSend"
+    category = ChannelType.Category.PHONE
+
     available_timezones = [
         "America/New_York",
         "America/Detroit",
@@ -55,7 +57,6 @@ class ClickSendType(ChannelType):
         "US/Mountain",
         "US/Pacific",
     ]
-    category = ChannelType.Category.PHONE
     schemes = [URN.TEL_SCHEME]
     max_length = 1224
 
@@ -67,7 +68,6 @@ class ClickSendType(ChannelType):
         "password_help": _("Your API Password"),
         "form_blurb": _("You can connect your ClickSend number by entering the settings below."),
     }
-
     claim_blurb = _("If you have a %(link)s number, you can quickly connect it using their APIs.") % {
         "link": '<a target="_blank" href="https://www.clicksend.com/">ClickSend</a>'
     }

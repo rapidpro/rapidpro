@@ -58,21 +58,19 @@ class VonageType(ChannelType):
     CONFIG_APP_PRIVATE_KEY = "nexmo_app_private_key"
 
     code = "NX"
+    name = "Vonage"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^nx/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
-
-    name = "Vonage"
+    schemes = [URN.TEL_SCHEME]
+    max_length = 1600
+    max_tps = 1
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
         "link": '<a target="_blank" href="https://www.vonage.com/">Vonage</a>'
     }
     claim_view = ClaimView
     update_form = UpdateForm
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 1600
-    max_tps = 1
 
     config_ui = ConfigUI(
         blurb=_(

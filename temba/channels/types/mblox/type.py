@@ -12,20 +12,17 @@ class MbloxType(ChannelType):
     """
 
     code = "MB"
+    name = "Mblox"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^mb/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
-
-    name = "Mblox"
+    schemes = [URN.TEL_SCHEME]
+    max_length = 459
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
         "link": '<a target="_blank" href="https://www.mblox.com/">Mblox</a>'
     }
-
     claim_view = AuthenticatedExternalClaimView
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 459
 
     config_ui = ConfigUI(
         blurb=_("As a last step you'll need to set the following callback URL on your Mblox account."),

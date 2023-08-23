@@ -19,22 +19,19 @@ class Dialog360CloudType(ChannelType):
     A 360 Dialog Channel Type
     """
 
-    extra_links = [dict(label=_("Message Templates"), view_name="channels.types.dialog360_cloud.templates")]
-
     code = "D3C"
+    name = "360Dialog WhatsApp"
     category = ChannelType.Category.SOCIAL_MEDIA
 
     courier_url = r"^d3c/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
-
-    name = "360Dialog WhatsApp"
+    schemes = [URN.WHATSAPP_SCHEME]
+    max_length = 4096
+    extra_links = [dict(label=_("Message Templates"), view_name="channels.types.dialog360_cloud.templates")]
 
     claim_blurb = _(
         "Activate your own enterprise WhatsApp account in %(link)s (Cloud) to communicate with your contacts. "
     ) % {"link": '<a target="_blank" href="https://www.360dialog.com/">360Dialog</a>'}
     claim_view = ClaimView
-
-    schemes = [URN.WHATSAPP_SCHEME]
-    max_length = 4096
 
     config_ui = ConfigUI()  # has own template
 

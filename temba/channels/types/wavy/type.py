@@ -13,6 +13,11 @@ class WavyType(ChannelType):
 
     code = "WV"
     name = "Movile/Wavy"
+    category = ChannelType.Category.PHONE
+
+    courier_url = r"^wv/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|receive)$"
+    schemes = [URN.TEL_SCHEME]
+    max_length = 160
     available_timezones = [
         "America/Noronha",
         "America/Belem",
@@ -31,12 +36,6 @@ class WavyType(ChannelType):
         "America/Eirunepe",
         "America/Rio_Branco",
     ]
-    category = ChannelType.Category.PHONE
-
-    courier_url = r"^wv/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|receive)$"
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 160
 
     claim_view = ClaimView
     claim_blurb = _("If you have an %(link)s number, you can quickly connect it using their APIs.") % {

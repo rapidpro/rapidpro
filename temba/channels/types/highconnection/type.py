@@ -12,20 +12,19 @@ class HighConnectionType(ChannelType):
     """
 
     code = "HX"
+    slug = "high_connection"
+    name = "High Connection"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^hx/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
-
-    name = "High Connection"
-    slug = "high_connection"
+    schemes = [URN.TEL_SCHEME]
+    max_length = 1500
+    available_timezones = ["Europe/Paris"]
 
     claim_blurb = _(
         "If you are based in France, you can purchase a number from %(link)s and connect it in a few simple steps."
     ) % {"link": '<a target="_blank" href="http://www.highconnexion.com/en/">High Connection</a>'}
     claim_view = AuthenticatedExternalCallbackClaimView
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 1500
 
     config_ui = ConfigUI(
         blurb=_(
@@ -36,5 +35,3 @@ class HighConnectionType(ChannelType):
             ConfigUI.Endpoint(courier="receive", label=_("Receive URL")),
         ],
     )
-
-    available_timezones = ["Europe/Paris"]

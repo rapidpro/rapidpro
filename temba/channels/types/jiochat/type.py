@@ -12,21 +12,18 @@ class JioChatType(ChannelType):
     """
 
     code = "JC"
+    name = "JioChat"
     category = ChannelType.Category.SOCIAL_MEDIA
 
     courier_url = r"^jc/(?P<uuid>[a-z0-9\-]+)(/rcv/msg/message|/rcv/event/menu|/rcv/event/follow)?/?$"
-
-    name = "JioChat"
+    schemes = [URN.JIOCHAT_SCHEME]
+    max_length = 1600
 
     claim_blurb = _(
         "Add a %(link)s bot to send and receive messages to JioChat users for free. Your users will need an Android, "
         "Windows or iOS device and a JioChat account to send and receive messages."
     ) % {"link": '<a href="https://jiochat.me">JioChat</a>'}
     claim_view = ClaimView
-
-    schemes = [URN.JIOCHAT_SCHEME]
-    max_length = 1600
-    free_sending = True
 
     config_ui = ConfigUI(
         blurb=_(

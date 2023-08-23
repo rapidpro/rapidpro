@@ -13,10 +13,11 @@ class ArabiaCellType(ChannelType):
 
     code = "AC"
     name = "ArabiaCell"
+    category = ChannelType.Category.PHONE
+
+    schemes = [URN.TEL_SCHEME]
     available_timezones = ["Asia/Amman"]
     recommended_timezones = ["Asia/Amman"]
-    category = ChannelType.Category.PHONE
-    schemes = [URN.TEL_SCHEME]
     max_length = 1530
 
     claim_view = ClaimView

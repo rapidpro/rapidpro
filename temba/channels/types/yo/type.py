@@ -12,16 +12,12 @@ class YoType(ChannelType):
     """
 
     code = "YO"
+    name = "YO!"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^yo/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
-
-    name = "YO!"
-    slug = "yo"
-
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
-
     available_timezones = ["Africa/Kampala"]
 
     claim_view = ClaimView

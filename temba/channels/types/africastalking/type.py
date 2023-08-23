@@ -12,19 +12,17 @@ class AfricasTalkingType(ChannelType):
     """
 
     code = "AT"
+    name = "Africa's Talking"
     category = ChannelType.Category.PHONE
 
+    schemes = [URN.TEL_SCHEME]
+    max_length = 160
     courier_url = r"^at/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|delivery|callback|status)$"
-
-    name = "Africa's Talking"
 
     claim_blurb = _("You can purchase a short code from %(link)s and connect it in a few simple steps.") % {
         "link": """<a target="_blank" href="http://africastalking.com">Africa's Talking</a>"""
     }
     claim_view = ClaimView
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 160
 
     config_ui = ConfigUI(
         blurb=_(

@@ -12,24 +12,22 @@ class ThinQType(ChannelType):
     A ThinQ channel (https://thinq.com/)
     """
 
+    CONFIG_ACCOUNT_ID = "account_id"
+    CONFIG_API_TOKEN_USER = "api_token_user"
+    CONFIG_API_TOKEN = "api_token"
+
     code = "TQ"
+    name = "ThinQ"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^tq/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
-
-    name = "ThinQ"
+    schemes = [URN.TEL_SCHEME]
+    max_length = 160
 
     claim_blurb = _(
         "If you have a number with %(link)s you can connect it in a few easy steps to automate your SMS numbers."
     ) % {"link": '<a target="_blank" href="https://thinq.com">ThinQ</a>'}
     claim_view = ClaimView
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 160
-
-    CONFIG_ACCOUNT_ID = "account_id"
-    CONFIG_API_TOKEN_USER = "api_token_user"
-    CONFIG_API_TOKEN = "api_token"
 
     config_ui = ConfigUI(
         blurb=_(

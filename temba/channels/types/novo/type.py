@@ -13,21 +13,20 @@ class NovoType(ChannelType):
     CONFIG_MERCHANT_ID = "merchant_id"
     CONFIG_MERCHANT_SECRET = "merchant_secret"
 
-    courier_url = r"^nv/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
-
     code = "NV"
+    name = "Novo"
     category = ChannelType.Category.PHONE
 
-    name = "Novo"
+    courier_url = r"^nv/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
+    schemes = [URN.TEL_SCHEME]
+    max_length = 160
+    available_timezones = ["America/Port_of_Spain"]
 
     claim_blurb = _(
         "If you are based in Trinidad & Tobago, you can purchase a short code from %(link)s and connect it in a few "
         "simple steps."
     ) % {"link": '<a target="_blank" href="http://www.novotechnologyinc.com/">Novo</a>'}
     claim_view = ClaimView
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 160
 
     config_ui = ConfigUI(
         endpoints=[
@@ -38,5 +37,3 @@ class NovoType(ChannelType):
             ),
         ],
     )
-
-    available_timezones = ["America/Port_of_Spain"]

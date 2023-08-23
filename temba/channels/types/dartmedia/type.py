@@ -12,19 +12,18 @@ class DartMediaType(ChannelType):
     """
 
     code = "DA"
+    name = "DartMedia"
     category = ChannelType.Category.PHONE
 
     courier_url = r"^da/(?P<uuid>[a-z0-9\-]+)/(?P<action>delivered|received|receive)$"
-
-    name = "DartMedia"
+    schemes = [URN.TEL_SCHEME, URN.EXTERNAL_SCHEME]
+    max_length = 160
+    available_timezones = ["Asia/Jakarta"]
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s in Indonesia.") % {
         "link": '<a target="_blank" href="http://dartmedia.biz/">Dart Media</a>'
     }
     claim_view = ClaimView
-
-    schemes = [URN.TEL_SCHEME, URN.EXTERNAL_SCHEME]
-    max_length = 160
 
     config_ui = ConfigUI(
         blurb=_(
@@ -51,8 +50,6 @@ class DartMediaType(ChannelType):
         ],
         show_public_ips=True,
     )
-
-    available_timezones = ["Asia/Jakarta"]
 
     def is_recommended_to(self, org, user):
         return self.is_available_to(org, user)[0]

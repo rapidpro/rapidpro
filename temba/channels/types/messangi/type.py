@@ -18,20 +18,19 @@ class MessangiType(ChannelType):
     CONFIG_CARRIER_ID = "carrier_id"
     CONFIG_INSTANCE_ID = "instance_id"
 
-    courier_url = r"^mg/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
-
     code = "MG"
+    name = "Messangi"
     category = ChannelType.Category.PHONE
 
-    name = "Messangi"
+    courier_url = r"^mg/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
+    schemes = [URN.TEL_SCHEME]
+    max_length = 150
+    available_timezones = ["America/Jamaica"]
 
     claim_blurb = _(
         "If you are based in Jamaica, you can purchase a short code from %(link)s and connect it in a few simple steps."
     ) % {"link": '<a target="_blank" href="http://www.messangi.com/">Messangi</a>'}
     claim_view = ClaimView
-
-    schemes = [URN.TEL_SCHEME]
-    max_length = 150
 
     config_ui = ConfigUI(
         blurb=_(
@@ -46,5 +45,3 @@ class MessangiType(ChannelType):
             ),
         ],
     )
-
-    available_timezones = ["America/Jamaica"]
