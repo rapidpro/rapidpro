@@ -1,6 +1,6 @@
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.models import ChannelType
+from temba.channels.models import ChannelType, ConfigUI
 from temba.channels.types.kaleyra.views import ClaimView
 from temba.contacts.models import URN
 
@@ -32,11 +32,12 @@ class KaleyraType(ChannelType):
         "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra "
         "account."
     )
-
-    configuration_urls = (
-        dict(
-            label=_("Receive URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.kwa' channel.uuid 'receive' %}",
-            description=_("To receive incoming messages, you need to set the receive URL for your Kaleyra account."),
-        ),
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Receive URL"),
+                help=_("To receive incoming messages, you need to set the receive URL for your Kaleyra account."),
+            ),
+        ]
     )

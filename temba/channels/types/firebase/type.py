@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import ClaimView
 
 
@@ -34,21 +34,22 @@ class FirebaseCloudMessagingType(ChannelType):
         "To use your Firebase Cloud Messaging channel you'll have to POST to the following URLs with the "
         "parameters below."
     )
-
-    configuration_urls = (
-        dict(
-            label=_("Contact Register"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.fcm' channel.uuid 'register' %}",
-            description=_(
-                "To register contacts, POST to the following URL with the parameters urn, "
-                "fcm_token and optionally name."
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="register",
+                label=_("Contact Register"),
+                help=_(
+                    "To register contacts, POST to the following URL with the parameters urn, "
+                    "fcm_token and optionally name."
+                ),
             ),
-        ),
-        dict(
-            label=_("Receive URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.fcm' channel.uuid 'receive' %}",
-            description=_(
-                "To handle incoming messages, POST to the following URL with the parameters from, msg and fcm_token."
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Receive URL"),
+                help=_(
+                    "To handle incoming messages, POST to the following URL with the parameters from, msg and fcm_token."
+                ),
             ),
-        ),
+        ]
     )

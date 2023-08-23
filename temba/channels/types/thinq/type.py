@@ -4,7 +4,7 @@ from temba.channels.types.thinq.views import ClaimView
 from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class ThinQType(ChannelType):
@@ -29,30 +29,31 @@ class ThinQType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 160
 
-    configuration_blurb = _(
-        "To finish configuring your ThinQ connection you'll need to set the following callback URLs on the ThinQ "
-        "website on the SMS -> SMS Configuration page."
-    )
-
     CONFIG_ACCOUNT_ID = "account_id"
     CONFIG_API_TOKEN_USER = "api_token_user"
     CONFIG_API_TOKEN = "api_token"
 
-    configuration_urls = (
-        dict(
-            label=_("Inbound SMS Configuration"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.tq' channel.uuid 'receive' %}",
-            description=_(
-                """Set your Inbound SMS Configuration URL to the above, making sure you select "URL" for Attachment Type."""
+    configuration_blurb = _(
+        "To finish configuring your ThinQ connection you'll need to set the following callback URLs on the ThinQ "
+        "website on the SMS -> SMS Configuration page."
+    )
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Inbound SMS Configuration"),
+                help=_(
+                    """Set your Inbound SMS Configuration URL to the above, making sure you select "URL" for Attachment Type."""
+                ),
             ),
-        ),
-        dict(
-            label=_("Outbound SMS Configuration"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.tq' channel.uuid 'status' %}",
-            description=_(
-                """Set your Delivery Confirmation URL to the above, making sure you select "Form-Data" as the Delivery Notification Format."""
+            ConfigUI.Endpoint(
+                courier="status",
+                label=_("Outbound SMS Configuration"),
+                help=_(
+                    """Set your Delivery Confirmation URL to the above, making sure you select "Form-Data" as the Delivery Notification Format."""
+                ),
             ),
-        ),
+        ]
     )
 
     def is_available_to(self, org, user):

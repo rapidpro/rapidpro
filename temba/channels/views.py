@@ -488,7 +488,7 @@ class ChannelCRUDL(SmartCRUDL):
                 menu.add_link(_("Android Channel"), reverse("channels.channel_read", args=[obj.parent.uuid]))
 
             if obj.type.show_config_page:
-                menu.add_link(_("Settings"), reverse("channels.channel_configuration", args=[obj.uuid]))
+                menu.add_link(_("Configuration"), reverse("channels.channel_configuration", args=[obj.uuid]))
 
             menu.add_link(_("Logs"), reverse("channels.channellog_list", args=[obj.uuid]))
 

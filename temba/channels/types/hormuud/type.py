@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.views import AuthenticatedExternalCallbackClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class HormuudType(ChannelType):
@@ -31,12 +31,10 @@ class HormuudType(ChannelType):
         "To finish configuring your connection you'll need to notify Hormuud of the following URL for incoming "
         "(MO) messages."
     )
-
-    configuration_urls = (
-        dict(
-            label=_("Receive URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.hm' channel.uuid 'receive' %}",
-        ),
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(courier="receive", label=_("Receive URL")),
+        ]
     )
 
     available_timezones = ["Africa/Mogadishu"]

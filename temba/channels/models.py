@@ -1,5 +1,6 @@
 import logging
 from abc import ABCMeta
+from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
 from urllib.parse import quote_plus
@@ -43,6 +44,23 @@ from temba.utils.uuid import is_uuid
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class ConfigUI:
+    @dataclass
+    class Endpoint:
+        """
+        A courier (messages) or mailroom (IVR) endpoint that the user needs to configure on the other side
+        """
+
+        label: str
+        help: str = ""
+        courier: str = None
+        mailroom: str = None
+        roles: tuple[str] = ()
+
+    endpoints: Endpoint
+
+
 class ChannelType(metaclass=ABCMeta):
     """
     Base class for all dynamic channel types
@@ -76,8 +94,11 @@ class ChannelType(metaclass=ABCMeta):
     claim_view = None
     claim_view_kwargs = None
 
+    config_ui = None
+
+    # TODO replace via config_ui
     configuration_blurb = None
-    configuration_urls = None
+    configuration_urls = ()
     show_public_addresses = False
 
     update_form = None
@@ -199,29 +220,42 @@ class ChannelType(metaclass=ABCMeta):
         else:
             return ""
 
-    def get_configuration_urls(self, channel):
+    def get_configuration_urls(self, channel) -> list:
         """
         Allows ChannelTypes to specify a list of URLs to show with a label and description on the
         configuration page.
         """
-        if self.__class__.configuration_urls is not None:
-            context = Context(dict(channel=channel))
-            engine = Engine.get_default()
 
-            urls = []
-            for url_config in self.__class__.configuration_urls:
+        context = Context(dict(channel=channel))
+        engine = Engine.get_default()
+
+        urls = []
+
+        # deprecated
+        for cfg_url in channel.type.configuration_urls:
+            urls.append(
+                dict(
+                    url=engine.from_string(cfg_url.get("url", "")).render(context=context),
+                    label=engine.from_string(cfg_url.get("label", "")).render(context=context),
+                    help=engine.from_string(cfg_url.get("description", "")).render(context=context),
+                )
+            )
+
+        if channel.type.config_ui:
+            for endpoint in channel.type.config_ui.endpoints:
+                if endpoint.roles and not set(channel.role) & set(endpoint.roles):
+                    continue
+
+                if endpoint.courier:
+                    url = f"/c/{channel.type.code.lower()}/{channel.uuid}/{endpoint.courier}"
+                elif endpoint.mailroom:
+                    url = f"/mr/ivr/c/{channel.uuid}/{endpoint.mailroom}"
+
                 urls.append(
-                    dict(
-                        label=engine.from_string(url_config.get("label", "")).render(context=context),
-                        url=engine.from_string(url_config.get("url", "")).render(context=context),
-                        description=engine.from_string(url_config.get("description", "")).render(context=context),
-                    )
+                    dict(url=f"https://{channel.callback_domain}{url}", label=endpoint.label, help=endpoint.help)
                 )
 
-            return urls
-
-        else:
-            return ""
+        return urls
 
     def get_error_ref_url(self, channel, code: str) -> str:
         """

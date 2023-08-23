@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.types.telesom.views import ClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class TelesomType(ChannelType):
@@ -28,11 +28,12 @@ class TelesomType(ChannelType):
 
     configuration_blurb = _(
         "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL "
-        "for incoming messages to {{ channel.address }}."
+        "for incoming messages."
     )
-
-    configuration_urls = (
-        dict(label="", url="https://{{ channel.callback_domain }}{% url 'courier.ts' channel.uuid 'receive' %}"),
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(courier="receive", label=_("Delivery URL")),
+        ]
     )
 
     available_timezones = ["Africa/Mogadishu"]

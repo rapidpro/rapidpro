@@ -1,6 +1,6 @@
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.models import ChannelType
+from temba.channels.models import ChannelType, ConfigUI
 from temba.channels.types.playmobile.views import ClaimView
 from temba.contacts.models import URN
 
@@ -30,13 +30,12 @@ class PlayMobileType(ChannelType):
     configuration_blurb = _(
         "To finish configuring your Play Mobile connection you'll need to notify Play Mobile of the following URL."
     )
-
-    configuration_urls = (
-        dict(
-            label=_("Receive URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.pm' channel.uuid 'receive' %}",
-            description=_(
-                "To receive incoming messages, you need to set the receive URL for your Play Mobile account."
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Receive URL"),
+                help=_("To receive incoming messages, you need to set the receive URL for your Play Mobile account."),
             ),
-        ),
+        ]
     )

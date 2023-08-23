@@ -104,7 +104,7 @@ class ViberPublicTypeTest(TembaTest, CRUDLTestMixin):
         )
 
         # read page has link to update page
-        self.assertContentMenu(read_url, self.admin, ["Settings", "Logs", "Edit", "Delete"])
+        self.assertContentMenu(read_url, self.admin, ["Configuration", "Logs", "Edit", "Delete"])
 
     def test_get_error_ref_url(self):
         self.assertEqual(

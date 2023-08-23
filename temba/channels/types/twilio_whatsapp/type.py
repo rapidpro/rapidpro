@@ -4,7 +4,7 @@ from temba.channels.types.twilio.type import TwilioType
 from temba.channels.types.twilio.views import UpdateForm
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import ClaimView
 
 
@@ -37,16 +37,14 @@ class TwilioWhatsappType(ChannelType):
         "To finish configuring your Twilio WhatsApp connection you'll need to add the following URL in your Twilio "
         "Inbound Settings. Check the Twilio WhatsApp documentation for more information."
     )
-
-    configuration_urls = (
-        dict(
-            label=_("Request URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.twa' channel.uuid 'receive' %}",
-            description=_(
-                "This endpoint should be called by Twilio when new messages are received by your Twilio WhatsApp "
-                "number."
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Request URL"),
+                help=_("This endpoint should be called by Twilio when new messages are received by your number."),
             ),
-        ),
+        ]
     )
 
     redact_request_keys = (

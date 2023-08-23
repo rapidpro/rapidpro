@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import ClaimView
 
 
@@ -30,11 +30,12 @@ class FreshChatType(ChannelType):
         "To use your FreshChat channel you'll have to configure the FreshChat server to direct "
         "messages to the url below."
     )
-
-    configuration_urls = (
-        dict(
-            label=_("Receive URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.fc' channel.uuid %}",
-            description=_("POST FreshChat trigger to this address."),
-        ),
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Receive URL"),
+                help=_("POST FreshChat trigger to this address."),
+            ),
+        ]
     )

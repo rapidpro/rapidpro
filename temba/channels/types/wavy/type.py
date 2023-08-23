@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import ClaimView
 
 
@@ -46,27 +46,28 @@ class WavyType(ChannelType):
     configuration_blurb = _(
         "To finish connecting your channel, you need to have Movile/Wavy configure the URL below for your number."
     )
-
-    configuration_urls = (
-        dict(
-            label=_("Receive URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.wv' channel.uuid 'receive' %}",
-            description=_("This URL should be called by Movile/Wavy when new messages are received."),
-        ),
-        dict(
-            label=_("Sent URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.wv' channel.uuid 'sent' %}",
-            description=_(
-                "To receive the acknowledgement of sent messages, you need to set the Sent URL for your Movile/Wavy "
-                "account."
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Receive URL"),
+                help=_("This URL should be called by Movile/Wavy when new messages are received."),
             ),
-        ),
-        dict(
-            label=_("Delivered URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.wv' channel.uuid 'delivered' %}",
-            description=_(
-                "To receive delivery of delivered messages, you need to set the Delivered URL for your Movile/Wavy "
-                "account."
+            ConfigUI.Endpoint(
+                courier="sent",
+                label=_("Sent URL"),
+                help=_(
+                    "To receive the acknowledgement of sent messages, you need to set the Sent URL for your Movile/Wavy "
+                    "account."
+                ),
             ),
-        ),
+            ConfigUI.Endpoint(
+                courier="delivered",
+                label=_("Delivered URL"),
+                help=_(
+                    "To receive delivery of delivered messages, you need to set the Delivered URL for your Movile/Wavy "
+                    "account."
+                ),
+            ),
+        ]
     )

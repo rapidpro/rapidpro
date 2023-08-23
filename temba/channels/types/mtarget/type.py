@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import ClaimView
 
 
@@ -32,14 +32,9 @@ class MtargetType(ChannelType):
     configuration_blurb = _(
         "To finish connecting your channel, you need to have Mtarget configure the URLs below for your Service ID."
     )
-
-    configuration_urls = (
-        dict(
-            label=_("Receive URL"),
-            url="https://{{channel.callback_domain}}{% url 'courier.mt' channel.uuid 'receive' %}",
-        ),
-        dict(
-            label=_("Status URL"),
-            url="https://{{channel.callback_domain}}{% url 'courier.mt' channel.uuid 'status' %}",
-        ),
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(courier="receive", label=_("Receive URL")),
+            ConfigUI.Endpoint(courier="status", label=_("Status URL")),
+        ]
     )

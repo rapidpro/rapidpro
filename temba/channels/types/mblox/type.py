@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.views import AuthenticatedExternalClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class MbloxType(ChannelType):
@@ -28,14 +28,15 @@ class MbloxType(ChannelType):
     max_length = 459
 
     configuration_blurb = _("As a last step you'll need to set the following callback URL on your Mblox account.")
-
-    configuration_urls = (
-        dict(
-            label=_("Callback URL"),
-            url="https://{{ channel.callback_domain }}{% url 'courier.mb' channel.uuid 'receive' %}",
-            description=_(
-                "This endpoint will be called by Mblox when new messages are received to your number and for delivery "
-                "reports."
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Callback URL"),
+                help=_(
+                    "This endpoint will be called by Mblox when new messages are received to your number and for delivery "
+                    "reports."
+                ),
             ),
-        ),
+        ]
     )
