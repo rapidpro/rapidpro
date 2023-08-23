@@ -25,6 +25,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
+from django.template import Context, Engine
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -929,6 +930,20 @@ class ChannelCRUDL(SmartCRUDL):
         def derive_menu_path(self):
             return f"/settings/channels/{self.object.uuid}"
 
+        def get_secret(self, channel) -> str:
+            if channel.type.config_ui and channel.type.config_ui.show_secret:
+                return channel.secret or channel.config.get("secret")
+            return None
+
+        def get_configuration_urls(self, channel) -> list:
+            urls = []
+
+            if channel.type.config_ui:
+                for endpoint in channel.type.config_ui.get_used_endpoints(channel):
+                    urls.append(dict(url=endpoint.get_url(channel), label=endpoint.label, help=endpoint.help))
+
+            return urls
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["domain"] = self.object.callback_domain
@@ -938,7 +953,8 @@ class ChannelCRUDL(SmartCRUDL):
             channel_type = Channel.get_type_from_code(self.object.channel_type)
             context["configuration_template"] = channel_type.get_configuration_template(self.object)
             context["configuration_blurb"] = channel_type.get_configuration_blurb(self.object)
-            context["configuration_urls"] = channel_type.get_configuration_urls(self.object)
+            context["configuration_urls"] = self.get_configuration_urls(self.object)
+            context["configuration_secret"] = self.get_secret(self.object)
             context["show_public_addresses"] = channel_type.show_public_addresses
 
             return context

@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import ClaimView
 
 
@@ -35,7 +35,9 @@ class WeChatType(ChannelType):
         "WeChat Official Accounts Platform."
     )
 
-    configuration_urls = (
-        dict(label=_("Webhook URL"), url="https://{{ channel.callback_domain }}{% url 'courier.wc' channel.uuid %}"),
-        dict(label=_("Token"), url="{{ channel.config.secret }}"),
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(courier="", label=_("Webhook URL")),
+        ],
+        show_secret=True,
     )

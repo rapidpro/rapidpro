@@ -23,6 +23,12 @@
       <div class="code block mt-3 mx-0 whitespace-normal">{{ url.url }}</div>
     </div>
   {% endfor %}
+  {% if configuration_secret %}
+    <div class="card mt-3 p-4 flex-shrink-0">
+      <div class="text-xl">{% trans "Webhook Secret" %}</div>
+      <div class="code block mt-3 mx-0 whitespace-normal">{{ configuration_secret }}</div>
+    </div>
+  {% endif %}
   {% if show_public_addresses %}
     <div class="mt-6 card flex-shrink-0">
       <div class="title">{% trans "IP Addresses" %}</div>
