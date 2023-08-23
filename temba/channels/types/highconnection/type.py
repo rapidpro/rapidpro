@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.views import AuthenticatedExternalCallbackClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class HighConnectionType(ChannelType):
@@ -31,6 +31,10 @@ class HighConnectionType(ChannelType):
         "To finish configuring your connection you'll need to notify HighConnection of the following URL for incoming "
         "(MO) messages."
     )
-    configuration_urls = (ChannelType.Endpoint(courier="receive", label=_("Receive URL")),)
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(courier="receive", label=_("Receive URL")),
+        ]
+    )
 
     available_timezones = ["Europe/Paris"]

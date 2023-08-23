@@ -5,7 +5,7 @@ from temba.channels.types.twilio.views import SUPPORTED_COUNTRIES, UpdateForm
 from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import ClaimView
 
 
@@ -38,14 +38,16 @@ class TwilioMessagingServiceType(ChannelType):
         "To finish configuring your Twilio Messaging Service connection you'll need to add the following URL in your "
         "Messaging Service Inbound Settings."
     )
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Request URL"),
-            help=_(
-                "This endpoint should be called by Twilio when new messages are received by your Messaging Service."
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Request URL"),
+                help=_(
+                    "This endpoint should be called by Twilio when new messages are received by your Messaging Service."
+                ),
             ),
-        ),
+        ]
     )
 
     schemes = [URN.TEL_SCHEME]

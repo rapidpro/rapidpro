@@ -1,6 +1,6 @@
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.models import ChannelType
+from temba.channels.models import ChannelType, ConfigUI
 from temba.channels.types.novo.views import ClaimView
 from temba.contacts.models import URN
 
@@ -29,12 +29,14 @@ class NovoType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 160
 
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Receive URL"),
-            help=_("To receive incoming messages, you need to set the receive URL for your Novo account."),
-        ),
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Receive URL"),
+                help=_("To receive incoming messages, you need to set the receive URL for your Novo account."),
+            ),
+        ]
     )
 
     available_timezones = ["America/Port_of_Spain"]

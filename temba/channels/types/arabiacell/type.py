@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import ClaimView
 
 
@@ -28,10 +28,12 @@ class ArabiaCellType(ChannelType):
         "To finish connecting your channel, you need to have ArabiaCell configure the URL below for your short code."
     )
 
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Receive URL"),
-            help=_("This URL should be called by ArabiaCell when new messages are received."),
-        ),
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Receive URL"),
+                help=_("This URL should be called by ArabiaCell when new messages are received."),
+            ),
+        ]
     )

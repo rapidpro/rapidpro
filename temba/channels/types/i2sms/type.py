@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.types.i2sms.views import ClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class I2SMSType(ChannelType):
@@ -30,14 +30,16 @@ class I2SMSType(ChannelType):
         "To finish configuring your I2SMS channel you'll need to set the message URL for the `DEFAULT` keyword as "
         "below."
     )
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Message URL"),
-            help=_(
-                """You can set your message URL by visiting the <a href="https://mx.i2sms.net/">I2SMS Dashboard</a>, """
-                """creating a DEFAULT keyword and using this URL as your message URL. """
-                """Select POST HTTP Variables and check the box for "No URL Output"."""
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Message URL"),
+                help=_(
+                    """You can set your message URL by visiting the <a href="https://mx.i2sms.net/">I2SMS Dashboard</a>, """
+                    """creating a DEFAULT keyword and using this URL as your message URL. """
+                    """Select POST HTTP Variables and check the box for "No URL Output"."""
+                ),
             ),
-        ),
+        ]
     )

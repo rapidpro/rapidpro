@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import ClaimView
 
 
@@ -29,10 +29,14 @@ class BongoLiveType(ChannelType):
     configuration_blurb = _(
         "To finish connecting your channel, you need to have Bongo Live configure the URLs below for your short code."
     )
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Receive URL"),
-            help=_("This URL should be called by Bongo Live when new messages are received or to report DLR status."),
-        ),
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Receive URL"),
+                help=_(
+                    "This URL should be called by Bongo Live when new messages are received or to report DLR status."
+                ),
+            ),
+        ]
     )

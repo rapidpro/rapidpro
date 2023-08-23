@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.views import AuthenticatedExternalClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class ClickSendType(ChannelType):
@@ -75,15 +75,17 @@ class ClickSendType(ChannelType):
     configuration_blurb = _(
         "To finish connecting your channel, you need to set your inbound SMS URL below for your number."
     )
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Receive URL"),
-            help=_(
-                "This URL should be called by ClickSend when new messages are received. "
-                "On your ClickSend dashboard, you can set this URL by going to SMS, then Settings, "
-                "then the Inbound SMS Settings menu. "
-                "Add a new rule, select action URL, and use the URL above, then click save."
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Receive URL"),
+                help=_(
+                    "This URL should be called by ClickSend when new messages are received. "
+                    "On your ClickSend dashboard, you can set this URL by going to SMS, then Settings, "
+                    "then the Inbound SMS Settings menu. "
+                    "Add a new rule, select action URL, and use the URL above, then click save."
+                ),
             ),
-        ),
+        ]
     )

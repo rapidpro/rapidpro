@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.views import AuthenticatedExternalClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class BurstSMSType(ChannelType):
@@ -50,31 +50,32 @@ class BurstSMSType(ChannelType):
     configuration_blurb = _(
         "To finish connecting your channel, you need to set your callback URLs below for your number."
     )
-
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Receive URL"),
-            help=_(
-                "This URL should be called by BurstSMS when new messages are received."
-                "You must set this for your number under the 'Inbound Settings' options."
-                "Select 'Yes' to the 'Forward to URL' option and enter this URL."
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Receive URL"),
+                help=_(
+                    "This URL should be called by BurstSMS when new messages are received."
+                    "You must set this for your number under the 'Inbound Settings' options."
+                    "Select 'Yes' to the 'Forward to URL' option and enter this URL."
+                ),
             ),
-        ),
-        ChannelType.Endpoint(
-            courier="status",
-            label=_("Delivery URL"),
-            help=_(
-                "This URL should be called by BurstSMS when the status of an outgoing message is updated."
-                "You can set it on your settings page."
+            ConfigUI.Endpoint(
+                courier="status",
+                label=_("Delivery URL"),
+                help=_(
+                    "This URL should be called by BurstSMS when the status of an outgoing message is updated."
+                    "You can set it on your settings page."
+                ),
             ),
-        ),
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Reply URL"),
-            help=_(
-                "This URL should be called by BurstSMS when messages are replied to."
-                "You can set it on your settings page."
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Reply URL"),
+                help=_(
+                    "This URL should be called by BurstSMS when messages are replied to."
+                    "You can set it on your settings page."
+                ),
             ),
-        ),
+        ]
     )

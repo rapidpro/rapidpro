@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.types.yo.views import ClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class YoType(ChannelType):
@@ -32,15 +32,17 @@ class YoType(ChannelType):
     configuration_blurb = _(
         "To finish configuring your Yo! connection you'll need to notify Yo! of the following inbound SMS URL."
     )
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Inbound SMS URL"),
-            help=_(
-                "This URL should be called with a GET by Yo! when new incoming "
-                "messages are received on your short code."
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Inbound SMS URL"),
+                help=_(
+                    "This URL should be called with a GET by Yo! when new incoming "
+                    "messages are received on your short code."
+                ),
             ),
-        ),
+        ]
     )
 
     def is_recommended_to(self, org, user):

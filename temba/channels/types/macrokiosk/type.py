@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.types.macrokiosk.views import ClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class MacrokioskType(ChannelType):
@@ -32,17 +32,21 @@ class MacrokioskType(ChannelType):
     configuration_blurb = _(
         "To finish configuring your MACROKIOSK connection you'll need to notify MACROKIOSK of the following URLs."
     )
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Inbound URL"),
-            help=_("This endpoint should be called by MACROKIOSK when new messages are received to your number."),
-        ),
-        ChannelType.Endpoint(
-            courier="status",
-            label=_("DLR URL"),
-            help=_("This endpoint should be called by MACROKIOSK when the message status changes. (delivery reports)"),
-        ),
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Inbound URL"),
+                help=_("This endpoint should be called by MACROKIOSK when new messages are received to your number."),
+            ),
+            ConfigUI.Endpoint(
+                courier="status",
+                label=_("DLR URL"),
+                help=_(
+                    "This endpoint should be called by MACROKIOSK when the message status changes. (delivery reports)"
+                ),
+            ),
+        ]
     )
 
     available_timezones = ["Asia/Kuala_Lumpur"]

@@ -8,7 +8,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.models import Channel
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import SignalWireClaimView
 
 
@@ -79,12 +79,14 @@ class SignalWireType(ChannelType):
     async_activation = False
 
     configuration_blurb = _("Your SignalWire channel is now connected.")
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Inbound URL"),
-            help=_("This endpoint will be called by SignalWire when new messages are received to your number."),
-        ),
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Inbound URL"),
+                help=_("This endpoint will be called by SignalWire when new messages are received to your number."),
+            ),
+        ]
     )
 
     def deactivate(self, channel):

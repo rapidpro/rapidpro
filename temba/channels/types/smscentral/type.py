@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.views import AuthenticatedExternalClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class SMSCentralType(ChannelType):
@@ -30,12 +30,14 @@ class SMSCentralType(ChannelType):
     configuration_blurb = _(
         "To finish configuring your SMSCentral connection you'll need to notify SMSCentral of the following URL."
     )
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Inbound URL"),
-            help=_("This endpoint should be called by SMSCentral when new messages are received to your number."),
-        ),
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Inbound URL"),
+                help=_("This endpoint should be called by SMSCentral when new messages are received to your number."),
+            ),
+        ]
     )
 
     available_timezones = ["Asia/Kathmandu"]

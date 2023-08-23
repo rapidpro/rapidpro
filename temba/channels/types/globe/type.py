@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.types.globe.views import ClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class GlobeType(ChannelType):
@@ -31,7 +31,11 @@ class GlobeType(ChannelType):
         "To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your "
         "application configuration page."
     )
-    configuration_urls = (ChannelType.Endpoint(courier="receive", label=_("Notify URI")),)
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(courier="receive", label=_("Notify URI")),
+        ]
+    )
 
     available_timezones = ["Asia/Manila"]
 

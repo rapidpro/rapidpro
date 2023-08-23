@@ -1,6 +1,6 @@
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.models import ChannelType
+from temba.channels.models import ChannelType, ConfigUI
 from temba.channels.types.verboice.views import ClaimView
 from temba.contacts.models import URN
 
@@ -25,7 +25,11 @@ class VerboiceType(ChannelType):
         "To finish configuring your connection you'll need to set the following status callback URL for your Verboice "
         "project"
     )
-    configuration_urls = (ChannelType.Endpoint(courier="status", label=_("Status Callback URL")),)
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(courier="status", label=_("Status Callback URL")),
+        ]
+    )
 
     def is_available_to(self, org, user):
         return False, False

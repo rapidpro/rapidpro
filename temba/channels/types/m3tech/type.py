@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.views import AuthenticatedExternalClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class M3TechType(ChannelType):
@@ -29,11 +29,13 @@ class M3TechType(ChannelType):
     configuration_blurb = _(
         "To finish configuring your connection you'll need to notify M3Tech of the following callback URLs."
     )
-    configuration_urls = (
-        ChannelType.Endpoint(courier="receive", label=_("Received URL")),
-        ChannelType.Endpoint(courier="sent", label=_("Sent URL")),
-        ChannelType.Endpoint(courier="delivered", label=_("Delivered URL")),
-        ChannelType.Endpoint(courier="failed", label=_("Failed URL")),
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(courier="receive", label=_("Received URL")),
+            ConfigUI.Endpoint(courier="sent", label=_("Sent URL")),
+            ConfigUI.Endpoint(courier="delivered", label=_("Delivered URL")),
+            ConfigUI.Endpoint(courier="failed", label=_("Failed URL")),
+        ]
     )
 
     available_timezones = ["Asia/Karachi"]

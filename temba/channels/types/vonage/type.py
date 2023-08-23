@@ -1,7 +1,7 @@
 from django.urls import re_path
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.models import ChannelType
+from temba.channels.models import ChannelType, ConfigUI
 from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
@@ -78,22 +78,24 @@ class VonageType(ChannelType):
         "Your Vonage configuration URLs are as follows. These should have been set up automatically when claiming your "
         "number, but if not you can set them from your Vonage dashboard."
     )
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Callback URL for Inbound Messages"),
-            help=_("The callback URL is called by Vonage when you receive new incoming messages."),
-        ),
-        ChannelType.Endpoint(
-            courier="status",
-            label=_("Callback URL for Delivery Receipt"),
-            help=_("The delivery URL is called by Vonage when a message is successfully delivered to a recipient."),
-        ),
-        ChannelType.Endpoint(
-            mailroom="incoming",
-            label=_("Callback URL for Incoming Call"),
-            help=_("The callback URL is called by Vonage when you receive an incoming call."),
-        ),
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Callback URL for Inbound Messages"),
+                help=_("The callback URL is called by Vonage when you receive new incoming messages."),
+            ),
+            ConfigUI.Endpoint(
+                courier="status",
+                label=_("Callback URL for Delivery Receipt"),
+                help=_("The delivery URL is called by Vonage when a message is successfully delivered to a recipient."),
+            ),
+            ConfigUI.Endpoint(
+                mailroom="incoming",
+                label=_("Callback URL for Incoming Call"),
+                help=_("The callback URL is called by Vonage when you receive an incoming call."),
+            ),
+        ]
     )
 
     def is_recommended_to(self, org, user):

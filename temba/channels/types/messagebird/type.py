@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import SUPPORTED_TIMEZONES, ClaimView
 
 
@@ -33,15 +33,17 @@ class MessageBirdType(ChannelType):
         "the URL below either with a flow or by registering the webhook with them. Configure the status URL under "
         "Developer Settings to receive status updates for your messages."
     )
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Receive URL"),
-            help=_("Webhook address for inbound messages to this address."),
-        ),
-        ChannelType.Endpoint(
-            courier="status",
-            label=_("Status URL"),
-            help=_("Webhook address for message status calls to this address."),
-        ),
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Receive URL"),
+                help=_("Webhook address for inbound messages to this address."),
+            ),
+            ConfigUI.Endpoint(
+                courier="status",
+                label=_("Status URL"),
+                help=_("Webhook address for message status calls to this address."),
+            ),
+        ]
     )

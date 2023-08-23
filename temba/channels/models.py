@@ -44,6 +44,23 @@ from temba.utils.uuid import is_uuid
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class ConfigUI:
+    @dataclass
+    class Endpoint:
+        """
+        A courier (messages) or mailroom (IVR) endpoint that the user needs to configure on the other side
+        """
+
+        label: str
+        help: str = ""
+        courier: str = None
+        mailroom: str = None
+        roles: tuple[str] = ()
+
+    endpoints: Endpoint
+
+
 class ChannelType(metaclass=ABCMeta):
     """
     Base class for all dynamic channel types
@@ -57,18 +74,6 @@ class ChannelType(metaclass=ABCMeta):
     class IVRProtocol(Enum):
         IVR_PROTOCOL_TWIML = 1
         IVR_PROTOCOL_NCCO = 2
-
-    @dataclass
-    class Endpoint:
-        """
-        A courier (messages) or mailroom (IVR) endpoint that the user needs to configure on the other side
-        """
-
-        label: str
-        help: str = ""
-        courier: str = None
-        mailroom: str = None
-        roles: tuple[str] = ()
 
     code = None
     slug = None
@@ -89,6 +94,9 @@ class ChannelType(metaclass=ABCMeta):
     claim_view = None
     claim_view_kwargs = None
 
+    config_ui = None
+
+    # TODO replace via config_ui
     configuration_blurb = None
     configuration_urls = ()
     show_public_addresses = False
@@ -222,24 +230,29 @@ class ChannelType(metaclass=ABCMeta):
         engine = Engine.get_default()
 
         urls = []
+
+        # deprecated
         for cfg_url in channel.type.configuration_urls:
-            if isinstance(cfg_url, ChannelType.Endpoint):
-                if cfg_url.roles and not set(channel.role) & set(cfg_url.roles):
+            urls.append(
+                dict(
+                    url=engine.from_string(cfg_url.get("url", "")).render(context=context),
+                    label=engine.from_string(cfg_url.get("label", "")).render(context=context),
+                    help=engine.from_string(cfg_url.get("description", "")).render(context=context),
+                )
+            )
+
+        if channel.type.config_ui:
+            for endpoint in channel.type.config_ui.endpoints:
+                if endpoint.roles and not set(channel.role) & set(endpoint.roles):
                     continue
 
-                if cfg_url.courier:
-                    url = f"/c/{channel.type.code.lower()}/{channel.uuid}/{cfg_url.courier}"
-                elif cfg_url.mailroom:
-                    url = f"/mr/ivr/c/{channel.uuid}/{cfg_url.mailroom}"
+                if endpoint.courier:
+                    url = f"/c/{channel.type.code.lower()}/{channel.uuid}/{endpoint.courier}"
+                elif endpoint.mailroom:
+                    url = f"/mr/ivr/c/{channel.uuid}/{endpoint.mailroom}"
 
-                urls.append(dict(url=f"https://{channel.callback_domain}{url}", label=cfg_url.label, help=cfg_url.help))
-            else:
                 urls.append(
-                    dict(
-                        url=engine.from_string(cfg_url.get("url", "")).render(context=context),
-                        label=engine.from_string(cfg_url.get("label", "")).render(context=context),
-                        help=engine.from_string(cfg_url.get("description", "")).render(context=context),
-                    )
+                    dict(url=f"https://{channel.callback_domain}{url}", label=endpoint.label, help=endpoint.help)
                 )
 
         return urls

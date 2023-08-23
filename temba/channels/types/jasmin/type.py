@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.types.jasmin.views import ClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class JasminType(ChannelType):
@@ -29,13 +29,15 @@ class JasminType(ChannelType):
     configuration_blurb = _(
         "As a last step you'll need to configure Jasmin to call the following URL for MO (incoming) messages."
     )
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Push Message URL"),
-            help=_(
-                "This endpoint will be called by Jasmin when new messages are received to your number, "
-                "it must be configured to be called as a POST."
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Push Message URL"),
+                help=_(
+                    "This endpoint will be called by Jasmin when new messages are received to your number, "
+                    "it must be configured to be called as a POST."
+                ),
             ),
-        ),
+        ]
     )

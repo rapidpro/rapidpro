@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import ClaimView
 
 
@@ -30,23 +30,25 @@ class AfricasTalkingType(ChannelType):
         "To finish configuring your Africa's Talking connection you'll need to set the following callback URLs on the "
         "Africa's Talking website under your account."
     )
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Callback URL"),
-            help=_(
-                "You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, "
-                "then clicking on Callback URL."
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Callback URL"),
+                help=_(
+                    "You can set the callback URL on your Africa's Talking account by visiting the SMS Dashboard page, "
+                    "then clicking on Callback URL."
+                ),
             ),
-        ),
-        ChannelType.Endpoint(
-            courier="status",
-            label=_("Delivery URL"),
-            help=_(
-                "You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page, "
-                "then clicking on Delivery Reports."
+            ConfigUI.Endpoint(
+                courier="status",
+                label=_("Delivery URL"),
+                help=_(
+                    "You can set the delivery URL on your Africa's Talking account by visiting the SMS Dashboard page, "
+                    "then clicking on Delivery Reports."
+                ),
             ),
-        ),
+        ]
     )
 
     available_timezones = [

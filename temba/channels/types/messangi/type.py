@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.models import ChannelType
+from temba.channels.models import ChannelType, ConfigUI
 from temba.channels.types.messangi.views import ClaimView
 from temba.contacts.models import URN
 
@@ -37,12 +37,14 @@ class MessangiType(ChannelType):
         "To finish configuring your Messangi connection you'll need to set the following callback URLs on your Messangi"
         " account."
     )
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Receive URL"),
-            help=_("To receive incoming messages, you need to set the receive URL for your Messangi account."),
-        ),
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Receive URL"),
+                help=_("To receive incoming messages, you need to set the receive URL for your Messangi account."),
+            ),
+        ]
     )
 
     available_timezones = ["America/Jamaica"]

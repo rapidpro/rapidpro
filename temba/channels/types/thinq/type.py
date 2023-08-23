@@ -4,7 +4,7 @@ from temba.channels.types.thinq.views import ClaimView
 from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class ThinQType(ChannelType):
@@ -37,21 +37,23 @@ class ThinQType(ChannelType):
         "To finish configuring your ThinQ connection you'll need to set the following callback URLs on the ThinQ "
         "website on the SMS -> SMS Configuration page."
     )
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Inbound SMS Configuration"),
-            help=_(
-                """Set your Inbound SMS Configuration URL to the above, making sure you select "URL" for Attachment Type."""
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Inbound SMS Configuration"),
+                help=_(
+                    """Set your Inbound SMS Configuration URL to the above, making sure you select "URL" for Attachment Type."""
+                ),
             ),
-        ),
-        ChannelType.Endpoint(
-            courier="status",
-            label=_("Outbound SMS Configuration"),
-            help=_(
-                """Set your Delivery Confirmation URL to the above, making sure you select "Form-Data" as the Delivery Notification Format."""
+            ConfigUI.Endpoint(
+                courier="status",
+                label=_("Outbound SMS Configuration"),
+                help=_(
+                    """Set your Delivery Confirmation URL to the above, making sure you select "Form-Data" as the Delivery Notification Format."""
+                ),
             ),
-        ),
+        ]
     )
 
     def is_available_to(self, org, user):

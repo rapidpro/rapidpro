@@ -5,7 +5,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import ClaimView, UpdateForm
 
 
@@ -36,7 +36,11 @@ class ViberPublicType(ChannelType):
     ) % {"link": '<a target="_blank" href="http://viber.com/en/">Viber</a>'}
 
     configuration_blurb = _("Your Viber channel is connected. If needed the webhook endpoints are listed below.")
-    configuration_urls = (ChannelType.Endpoint(courier="receive", label=_("Webhook URL")),)
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(courier="receive", label=_("Webhook URL")),
+        ]
+    )
 
     def activate(self, channel):
         auth_token = channel.config["auth_token"]

@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.types.dmark.views import ClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class DMarkType(ChannelType):
@@ -30,6 +30,10 @@ class DMarkType(ChannelType):
     configuration_blurb = _(
         "To finish configuring your DMark channel you need to set DMark to send MO messages to the URL below."
     )
-    configuration_urls = (ChannelType.Endpoint(courier="receive", label=_("Receive URL")),)
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(courier="receive", label=_("Receive URL")),
+        ]
+    )
 
     available_timezones = ["Africa/Kampala", "Africa/Kinshasa"]

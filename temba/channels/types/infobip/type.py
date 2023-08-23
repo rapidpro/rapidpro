@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.views import AuthenticatedExternalCallbackClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class InfobipType(ChannelType):
@@ -30,22 +30,24 @@ class InfobipType(ChannelType):
         "To finish configuring your Infobip connection you'll need to set the following callback URLs on the Infobip "
         "website under your account."
     )
-    configuration_urls = (
-        ChannelType.Endpoint(
-            courier="receive",
-            label=_("Received URL"),
-            help=_(
-                "This endpoint should be called with a POST by Infobip when new messages are received to your number. "
-                "You can set the receive URL on your Infobip account by contacting your sales agent."
+    config_ui = ConfigUI(
+        endpoints=[
+            ConfigUI.Endpoint(
+                courier="receive",
+                label=_("Received URL"),
+                help=_(
+                    "This endpoint should be called with a POST by Infobip when new messages are received to your number. "
+                    "You can set the receive URL on your Infobip account by contacting your sales agent."
+                ),
             ),
-        ),
-        ChannelType.Endpoint(
-            courier="delivered",
-            label=_("Delivered URL"),
-            help=_(
-                "This endpoint should be called with a POST by Infobip when a message has been to the final recipient. "
-                "(delivery reports) You can set the delivery callback URL on your Infobip account by contacting your "
-                "sales agent."
+            ConfigUI.Endpoint(
+                courier="delivered",
+                label=_("Delivered URL"),
+                help=_(
+                    "This endpoint should be called with a POST by Infobip when a message has been to the final recipient. "
+                    "(delivery reports) You can set the delivery callback URL on your Infobip account by contacting your "
+                    "sales agent."
+                ),
             ),
-        ),
+        ]
     )
