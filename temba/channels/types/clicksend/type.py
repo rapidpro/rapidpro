@@ -72,10 +72,8 @@ class ClickSendType(ChannelType):
         "link": '<a target="_blank" href="https://www.clicksend.com/">ClickSend</a>'
     }
 
-    configuration_blurb = _(
-        "To finish connecting your channel, you need to set your inbound SMS URL below for your number."
-    )
     config_ui = ConfigUI(
+        blurb=_("To finish connecting your channel, you need to set your inbound SMS URL below for your number."),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
@@ -87,5 +85,5 @@ class ClickSendType(ChannelType):
                     "Add a new rule, select action URL, and use the URL above, then click save."
                 ),
             ),
-        ]
+        ],
     )

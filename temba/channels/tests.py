@@ -1143,6 +1143,10 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "To finish configuring your connection")
         self.assertEqual(f"/settings/channels/{self.ex_channel.uuid}", response.context[TEMBA_MENU_SELECTION])
 
+        # can't view configuration of channel whose type doesn't support it
+        response = self.client.get(reverse("channels.channel_configuration", args=[self.channel.uuid]))
+        self.assertRedirect(response, reverse("channels.channel_read", args=[self.channel.uuid]))
+
         # can't view configuration of channel in other org
         response = self.client.get(reverse("channels.channel_configuration", args=[self.other_org_channel.uuid]))
         self.assertLoginRedirect(response)

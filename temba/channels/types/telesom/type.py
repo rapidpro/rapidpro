@@ -26,14 +26,14 @@ class TelesomType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 160
 
-    configuration_blurb = _(
-        "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL "
-        "for incoming messages."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL "
+            "for incoming messages."
+        ),
         endpoints=[
             ConfigUI.Endpoint(courier="receive", label=_("Delivery URL")),
-        ]
+        ],
     )
 
     available_timezones = ["Africa/Mogadishu"]

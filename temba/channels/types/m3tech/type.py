@@ -26,16 +26,14 @@ class M3TechType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 160
 
-    configuration_blurb = _(
-        "To finish configuring your connection you'll need to notify M3Tech of the following callback URLs."
-    )
     config_ui = ConfigUI(
+        blurb=_("To finish configuring your connection you'll need to notify M3Tech of the following callback URLs."),
         endpoints=[
             ConfigUI.Endpoint(courier="receive", label=_("Received URL")),
             ConfigUI.Endpoint(courier="sent", label=_("Sent URL")),
             ConfigUI.Endpoint(courier="delivered", label=_("Delivered URL")),
             ConfigUI.Endpoint(courier="failed", label=_("Failed URL")),
-        ]
+        ],
     )
 
     available_timezones = ["Asia/Karachi"]

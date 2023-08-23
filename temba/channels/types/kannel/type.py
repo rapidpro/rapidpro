@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.types.kannel.views import ClaimView
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class KannelType(ChannelType):
@@ -23,6 +23,8 @@ class KannelType(ChannelType):
         "working in a few minutes."
     ) % {"link": '<a target="_blank" href="http://www.kannel.org/">Kannel</a>'}
     claim_view = ClaimView
+
+    config_ui = ConfigUI()  # has own template
 
     schemes = [URN.TEL_SCHEME]
     max_length = 1600

@@ -11,7 +11,7 @@ from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
 from temba.utils.whatsapp.views import SyncLogsView, TemplatesView
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class Dialog360CloudType(ChannelType):
@@ -35,6 +35,8 @@ class Dialog360CloudType(ChannelType):
 
     schemes = [URN.WHATSAPP_SCHEME]
     max_length = 4096
+
+    config_ui = ConfigUI()  # has own template
 
     def get_urls(self):
         return [

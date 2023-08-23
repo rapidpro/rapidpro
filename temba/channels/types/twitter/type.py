@@ -35,7 +35,6 @@ class TwitterType(ChannelType):
     update_form = UpdateForm
 
     schemes = [URN.TWITTER_SCHEME, URN.TWITTERID_SCHEME]
-    show_config_page = False
     free_sending = True
     async_activation = False
 

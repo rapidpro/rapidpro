@@ -35,11 +35,11 @@ class ViberPublicType(ChannelType):
         "an Android, Windows or iOS device and a Viber account to send and receive messages."
     ) % {"link": '<a target="_blank" href="http://viber.com/en/">Viber</a>'}
 
-    configuration_blurb = _("Your Viber channel is connected. If needed the webhook endpoints are listed below.")
     config_ui = ConfigUI(
+        blurb=_("Your Viber channel is connected. If needed the webhook endpoints are listed below."),
         endpoints=[
             ConfigUI.Endpoint(courier="receive", label=_("Webhook URL")),
-        ]
+        ],
     )
 
     def activate(self, channel):

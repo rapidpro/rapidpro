@@ -36,11 +36,8 @@ class RedRabbitTypeTest(TembaTest):
         self.assertEqual("+250788123123", channel.address)
         self.assertEqual("RR", channel.channel_type)
 
-        config_url = reverse("channels.channel_configuration", args=[channel.uuid])
-        self.assertRedirect(response, config_url)
-
-        response = self.client.get(config_url)
-        self.assertEqual(200, response.status_code)
+        read_url = reverse("channels.channel_read", args=[channel.uuid])
+        self.assertRedirect(response, read_url)
 
         Channel.objects.all().delete()
 

@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import ClaimView
 
 CONFIG_COMMUNITY_NAME = "community_name"
@@ -28,6 +28,8 @@ class VKType(ChannelType):
         "an access token for your community first."
     ) % {"link": '<a target="_blank" href="https://vk.com/">VK</a>'}
     claim_view = ClaimView
+
+    config_ui = ConfigUI()  # has own template
 
     schemes = [URN.VK_SCHEME]
     max_length = 320

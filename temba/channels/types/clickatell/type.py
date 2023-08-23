@@ -27,11 +27,11 @@ class ClickatellType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 420
 
-    configuration_blurb = _(
-        "To finish configuring your Clickatell connection you'll need to set the following callback URLs on the "
-        "Clickatell website for your integration."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your Clickatell connection you'll need to set the following callback URLs on the "
+            "Clickatell website for your integration."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
@@ -51,5 +51,5 @@ class ClickatellType(ChannelType):
                     "target address to the URL below. (leave username and password blank)"
                 ),
             ),
-        ]
+        ],
     )

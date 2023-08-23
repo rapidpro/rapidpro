@@ -27,17 +27,17 @@ class SMSCentralType(ChannelType):
     max_length = 1600
     max_tps = 1
 
-    configuration_blurb = _(
-        "To finish configuring your SMSCentral connection you'll need to notify SMSCentral of the following URL."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your SMSCentral connection you'll need to notify SMSCentral of the following URL."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
                 label=_("Inbound URL"),
                 help=_("This endpoint should be called by SMSCentral when new messages are received to your number."),
             ),
-        ]
+        ],
     )
 
     available_timezones = ["Asia/Kathmandu"]

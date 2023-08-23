@@ -74,11 +74,11 @@ class VonageType(ChannelType):
     max_length = 1600
     max_tps = 1
 
-    configuration_blurb = _(
-        "Your Vonage configuration URLs are as follows. These should have been set up automatically when claiming your "
-        "number, but if not you can set them from your Vonage dashboard."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "Your Vonage configuration URLs are as follows. These should have been set up automatically when claiming your "
+            "number, but if not you can set them from your Vonage dashboard."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
@@ -95,7 +95,7 @@ class VonageType(ChannelType):
                 label=_("Callback URL for Incoming Call"),
                 help=_("The callback URL is called by Vonage when you receive an incoming call."),
             ),
-        ]
+        ],
     )
 
     def is_recommended_to(self, org, user):

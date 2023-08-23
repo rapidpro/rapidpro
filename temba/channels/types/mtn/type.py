@@ -34,7 +34,6 @@ class MtnType(ChannelType):
 
     schemes = [URN.TEL_SCHEME]
     max_length = 160
-    show_config_page = False
     async_activation = False
 
     def get_token(self, channel):

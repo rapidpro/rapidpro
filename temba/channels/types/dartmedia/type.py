@@ -26,12 +26,10 @@ class DartMediaType(ChannelType):
     schemes = [URN.TEL_SCHEME, URN.EXTERNAL_SCHEME]
     max_length = 160
 
-    show_public_addresses = True
-
-    configuration_blurb = _(
-        "To finish configuring your Dart Media connection you'll need to provide them with the following details."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your Dart Media connection you'll need to provide them with the following details."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
@@ -50,7 +48,8 @@ class DartMediaType(ChannelType):
                     "contacting your sales agent."
                 ),
             ),
-        ]
+        ],
+        show_public_ips=True,
     )
 
     available_timezones = ["Asia/Jakarta"]

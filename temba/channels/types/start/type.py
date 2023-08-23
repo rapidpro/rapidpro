@@ -26,17 +26,15 @@ class StartType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
 
-    configuration_blurb = _(
-        "To finish configuring this channel you'll need to notify Start of the following receiving URL."
-    )
     config_ui = ConfigUI(
+        blurb=_("To finish configuring this channel you'll need to notify Start of the following receiving URL."),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
                 label=_("Inbound URL"),
                 help=_("This endpoint should be called by when new messages are received to your number."),
             ),
-        ]
+        ],
     )
 
     available_timezones = ["Europe/Kiev"]

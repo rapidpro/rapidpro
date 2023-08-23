@@ -30,11 +30,11 @@ class FirebaseCloudMessagingType(ChannelType):
     free_sending = True
     quick_reply_text_size = 36
 
-    configuration_blurb = _(
-        "To use your Firebase Cloud Messaging channel you'll have to POST to the following URLs with the "
-        "parameters below."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To use your Firebase Cloud Messaging channel you'll have to POST to the following URLs with the "
+            "parameters below."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="register",
@@ -51,5 +51,5 @@ class FirebaseCloudMessagingType(ChannelType):
                     "To handle incoming messages, POST to the following URL with the parameters from, msg and fcm_token."
                 ),
             ),
-        ]
+        ],
     )

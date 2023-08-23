@@ -21,7 +21,7 @@ from django.db import models
 from django.db.models import Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
-from django.template import Context, Engine, TemplateDoesNotExist
+from django.template import Engine
 from django.urls import re_path
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -46,10 +46,14 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ConfigUI:
+    """
+    Parameterized configuration view for a channel type.
+    """
+
     @dataclass
     class Endpoint:
         """
-        A courier (messages) or mailroom (IVR) endpoint that the user needs to configure on the other side
+        Courier (messages) or mailroom (IVR) endpoint that the user needs to configure on the other side.
         """
 
         label: str
@@ -58,7 +62,24 @@ class ConfigUI:
         mailroom: str = None
         roles: tuple[str] = ()
 
-    endpoints: Endpoint
+        def get_url(self, channel) -> str:
+            if self.courier is not None:
+                path = f"/c/{channel.type.code.lower()}/{channel.uuid}/{self.courier}"
+            elif self.mailroom is not None:
+                path = f"/mr/ivr/c/{channel.uuid}/{self.mailroom}"
+
+            return f"https://{channel.callback_domain}{path}"
+
+    blurb: str = None
+    endpoints: tuple[Endpoint] = ()
+    show_secret: bool = False
+    show_public_ips: bool = False
+
+    def get_used_endpoints(self, channel) -> list:
+        """
+        Gets the endpoints used by the given channel based on its roles.
+        """
+        return [e for e in self.endpoints if not e.roles or set(channel.role) & set(e.roles)]
 
 
 class ChannelType(metaclass=ABCMeta):
@@ -85,7 +106,6 @@ class ChannelType(metaclass=ABCMeta):
 
     name = None
     schemes = None
-    show_config_page = True
 
     available_timezones = None
     recommended_timezones = None
@@ -94,12 +114,8 @@ class ChannelType(metaclass=ABCMeta):
     claim_view = None
     claim_view_kwargs = None
 
+    # the configuration UI - only channel types that aren't configured automatically need this
     config_ui = None
-
-    # TODO replace via config_ui
-    configuration_blurb = None
-    configuration_urls = ()
-    show_public_addresses = False
 
     update_form = None
 
@@ -196,66 +212,6 @@ class ChannelType(metaclass=ABCMeta):
 
     def get_configuration_context_dict(self, channel):
         return dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)
-
-    def get_configuration_template(self, channel):
-        try:
-            return (
-                Engine.get_default()
-                .get_template("channels/types/%s/config.html" % self.slug)
-                .render(context=Context(self.get_configuration_context_dict(channel)))
-            )
-        except TemplateDoesNotExist:
-            return ""
-
-    def get_configuration_blurb(self, channel):
-        """
-        Allows ChannelTypes to define the blurb to show on the channel configuration page.
-        """
-        if self.__class__.configuration_blurb is not None:
-            return (
-                Engine.get_default()
-                .from_string(str(self.configuration_blurb))
-                .render(context=Context(dict(channel=channel)))
-            )
-        else:
-            return ""
-
-    def get_configuration_urls(self, channel) -> list:
-        """
-        Allows ChannelTypes to specify a list of URLs to show with a label and description on the
-        configuration page.
-        """
-
-        context = Context(dict(channel=channel))
-        engine = Engine.get_default()
-
-        urls = []
-
-        # deprecated
-        for cfg_url in channel.type.configuration_urls:
-            urls.append(
-                dict(
-                    url=engine.from_string(cfg_url.get("url", "")).render(context=context),
-                    label=engine.from_string(cfg_url.get("label", "")).render(context=context),
-                    help=engine.from_string(cfg_url.get("description", "")).render(context=context),
-                )
-            )
-
-        if channel.type.config_ui:
-            for endpoint in channel.type.config_ui.endpoints:
-                if endpoint.roles and not set(channel.role) & set(endpoint.roles):
-                    continue
-
-                if endpoint.courier:
-                    url = f"/c/{channel.type.code.lower()}/{channel.uuid}/{endpoint.courier}"
-                elif endpoint.mailroom:
-                    url = f"/mr/ivr/c/{channel.uuid}/{endpoint.mailroom}"
-
-                urls.append(
-                    dict(url=f"https://{channel.callback_domain}{url}", label=endpoint.label, help=endpoint.help)
-                )
-
-        return urls
 
     def get_error_ref_url(self, channel, code: str) -> str:
         """

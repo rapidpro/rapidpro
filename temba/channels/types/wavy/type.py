@@ -43,10 +43,10 @@ class WavyType(ChannelType):
         "link": '<a target="_blank" href="https://wavy.global/en/">Movile/Wavy</a>'
     }
 
-    configuration_blurb = _(
-        "To finish connecting your channel, you need to have Movile/Wavy configure the URL below for your number."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish connecting your channel, you need to have Movile/Wavy configure the URL below for your number."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
@@ -69,5 +69,5 @@ class WavyType(ChannelType):
                     "account."
                 ),
             ),
-        ]
+        ],
     )

@@ -30,8 +30,6 @@ class JustCallType(ChannelType):
         "link": '<a target="_blank" href="https://justcall.io/">JustCall</a>'
     }
 
-    show_config_page = False
-
     def activate(self, channel):
         api_key = channel.config[Channel.CONFIG_API_KEY]
         api_secret = channel.config[Channel.CONFIG_SECRET]

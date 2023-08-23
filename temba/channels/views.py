@@ -25,6 +25,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
+from django.template import Context, Engine, TemplateDoesNotExist
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -103,7 +104,7 @@ class ClaimViewMixin(ChannelTypeMixin, OrgPermsMixin, ComponentFormMixin):
         return kwargs
 
     def get_success_url(self):
-        if self.channel_type.show_config_page:
+        if self.channel_type.config_ui:
             return reverse("channels.channel_configuration", args=[self.object.uuid])
         else:
             return reverse("channels.channel_read", args=[self.object.uuid])
@@ -487,7 +488,7 @@ class ChannelCRUDL(SmartCRUDL):
             if obj.parent:  # pragma: no cover
                 menu.add_link(_("Android Channel"), reverse("channels.channel_read", args=[obj.parent.uuid]))
 
-            if obj.type.show_config_page:
+            if obj.type.config_ui:
                 menu.add_link(_("Configuration"), reverse("channels.channel_configuration", args=[obj.uuid]))
 
             menu.add_link(_("Logs"), reverse("channels.channellog_list", args=[obj.uuid]))
@@ -926,20 +927,42 @@ class ChannelCRUDL(SmartCRUDL):
     class Configuration(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
+        def pre_process(self, *args, **kwargs):
+            channel = self.get_object()
+            if not channel.type.config_ui:
+                return HttpResponseRedirect(reverse("channels.channel_read", args=[channel.uuid]))
+
+            return super().pre_process(*args, **kwargs)
+
         def derive_menu_path(self):
             return f"/settings/channels/{self.object.uuid}"
 
+        def get_blurb_from_template(self, channel) -> str:
+            try:
+                return (
+                    Engine.get_default()
+                    .get_template("channels/types/%s/config.html" % channel.type.slug)
+                    .render(context=Context(channel.type.get_configuration_context_dict(channel)))
+                )
+            except TemplateDoesNotExist:
+                return None
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["domain"] = self.object.callback_domain
-            context["ip_addresses"] = settings.IP_ADDRESSES
 
-            # populate with our channel type
-            channel_type = Channel.get_type_from_code(self.object.channel_type)
-            context["configuration_template"] = channel_type.get_configuration_template(self.object)
-            context["configuration_blurb"] = channel_type.get_configuration_blurb(self.object)
-            context["configuration_urls"] = channel_type.get_configuration_urls(self.object)
-            context["show_public_addresses"] = channel_type.show_public_addresses
+            endpoints = []
+            for endpoint in self.object.type.config_ui.get_used_endpoints(self.object):
+                endpoints.append(dict(url=endpoint.get_url(self.object), label=endpoint.label, help=endpoint.help))
+
+            if self.object.type.config_ui.show_secret:
+                secret = self.object.secret or self.object.config.get("secret")
+            else:
+                secret = None
+
+            context["blurb"] = self.get_blurb_from_template(self.object) or self.object.type.config_ui.blurb
+            context["endpoints"] = endpoints
+            context["secret"] = secret
+            context["ip_addresses"] = settings.IP_ADDRESSES if self.object.type.config_ui.show_public_ips else None
 
             return context
 

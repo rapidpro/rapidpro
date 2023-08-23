@@ -12,7 +12,7 @@ from temba.request_logs.models import HTTPLog
 from temba.utils.whatsapp import update_api_version
 from temba.utils.whatsapp.views import SyncLogsView, TemplatesView
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 
 class Dialog360Type(ChannelType):
@@ -33,6 +33,8 @@ class Dialog360Type(ChannelType):
         "link": '<a target="_blank" href="https://www.360dialog.com/">360Dialog</a>'
     }
     claim_view = ClaimView
+
+    config_ui = ConfigUI()  # has own template
 
     schemes = [URN.WHATSAPP_SCHEME]
     max_length = 4096

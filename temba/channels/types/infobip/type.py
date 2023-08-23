@@ -26,11 +26,11 @@ class InfobipType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
 
-    configuration_blurb = _(
-        "To finish configuring your Infobip connection you'll need to set the following callback URLs on the Infobip "
-        "website under your account."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your Infobip connection you'll need to set the following callback URLs on the Infobip "
+            "website under your account."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
@@ -49,5 +49,5 @@ class InfobipType(ChannelType):
                     "sales agent."
                 ),
             ),
-        ]
+        ],
     )

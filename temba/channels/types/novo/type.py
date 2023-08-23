@@ -36,7 +36,7 @@ class NovoType(ChannelType):
                 label=_("Receive URL"),
                 help=_("To receive incoming messages, you need to set the receive URL for your Novo account."),
             ),
-        ]
+        ],
     )
 
     available_timezones = ["America/Port_of_Spain"]

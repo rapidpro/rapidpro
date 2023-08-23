@@ -27,8 +27,8 @@ class MbloxType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 459
 
-    configuration_blurb = _("As a last step you'll need to set the following callback URL on your Mblox account.")
     config_ui = ConfigUI(
+        blurb=_("As a last step you'll need to set the following callback URL on your Mblox account."),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
@@ -38,5 +38,5 @@ class MbloxType(ChannelType):
                     "reports."
                 ),
             ),
-        ]
+        ],
     )

@@ -26,7 +26,6 @@ class AndroidType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = -1
     free_sending = False
-    show_config_page = False
 
     def is_recommended_to(self, org, user):
         return False

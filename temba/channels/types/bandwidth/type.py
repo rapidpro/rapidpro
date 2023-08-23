@@ -33,8 +33,6 @@ class BandwidthType(ChannelType):
         "link": '<a target="_blank" href="https://www.bandwidth.com/">Bandwidth</a>'
     }
 
-    show_config_page = False
-
     def activate(self, channel):
         domain = channel.org.get_brand_domain()
         receive_url = "https://" + domain + reverse("courier.bw", args=[channel.uuid, "receive"])

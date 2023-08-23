@@ -21,7 +21,6 @@ class TwilioType(ChannelType):
 
     code = "T"
     category = ChannelType.Category.PHONE
-    show_config_page = False
 
     courier_url = r"^t/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
 

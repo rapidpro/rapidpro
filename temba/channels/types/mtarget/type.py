@@ -29,12 +29,12 @@ class MtargetType(ChannelType):
         "link": '<a target="_blank" href="https://www.mtarget.fr/">Mtarget</a>'
     }
 
-    configuration_blurb = _(
-        "To finish connecting your channel, you need to have Mtarget configure the URLs below for your Service ID."
-    )
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish connecting your channel, you need to have Mtarget configure the URLs below for your Service ID."
+        ),
         endpoints=[
             ConfigUI.Endpoint(courier="receive", label=_("Receive URL")),
             ConfigUI.Endpoint(courier="status", label=_("Status URL")),
-        ]
+        ],
     )

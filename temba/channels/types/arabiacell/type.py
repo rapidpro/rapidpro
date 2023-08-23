@@ -24,16 +24,15 @@ class ArabiaCellType(ChannelType):
         "link": '<a target="_blank" href="https://www.arabiacell.com/">ArabiaCell</a>'
     }
 
-    configuration_blurb = _(
-        "To finish connecting your channel, you need to have ArabiaCell configure the URL below for your short code."
-    )
-
     config_ui = ConfigUI(
+        blurb=_(
+            "To finish connecting your channel, you need to have ArabiaCell configure the URL below for your short code."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
                 label=_("Receive URL"),
                 help=_("This URL should be called by ArabiaCell when new messages are received."),
             ),
-        ]
+        ],
     )

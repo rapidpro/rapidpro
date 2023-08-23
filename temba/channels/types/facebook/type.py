@@ -5,7 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.contacts.models import URN
 from temba.triggers.models import Trigger
 
-from ...models import Channel, ChannelType
+from ...models import Channel, ChannelType, ConfigUI
 from .views import ClaimView
 
 
@@ -27,6 +27,8 @@ class FacebookType(ChannelType):
         """<a target="_blank" href="http://developers.facebook.com">developers</a> site first."""
     )
     claim_view = ClaimView
+
+    config_ui = ConfigUI()  # has own template
 
     schemes = [URN.FACEBOOK_SCHEME]
     max_length = 320

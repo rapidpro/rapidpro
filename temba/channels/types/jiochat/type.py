@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import ClaimView
 
 
@@ -28,12 +28,13 @@ class JioChatType(ChannelType):
     max_length = 1600
     free_sending = True
 
-    configuration_blurb = _(
-        "To finish configuring your JioChat connection, you'll need to enter the following webhook URL and token on "
-        "JioChat Developer Center configuration."
-    )
-
-    configuration_urls = (
-        dict(label=_("Webhook URL"), url="https://{{ channel.callback_domain }}{% url 'courier.jc' channel.uuid %}"),
-        dict(label=_("Token"), url="{{ channel.config.secret }}"),
+    config_ui = ConfigUI(
+        blurb=_(
+            "To finish configuring your JioChat connection, you'll need to enter the following webhook URL and token on "
+            "JioChat Developer Center configuration."
+        ),
+        endpoints=[
+            ConfigUI.Endpoint(courier="", label=_("Webhook URL")),
+        ],
+        show_secret=True,
     )
