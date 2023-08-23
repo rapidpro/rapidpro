@@ -1,5 +1,6 @@
 import json
 import subprocess
+import time
 
 import pytz
 from django_redis import get_redis_connection
@@ -139,13 +140,15 @@ class Command(BaseCommand):
                         MAILROOM_DB_USER,
                     ],
                     input=f.read(),
-                    stdout=subprocess.PIPE,
                     check=True,
                 )
             except subprocess.CalledProcessError:
                 raise CommandError("Error occurred whilst calling pg_restore to load locations dump")
 
         self._log(self.style.SUCCESS("OK") + "\n")
+
+        # TODO figure out why this is needed
+        time.sleep(1)
 
         return AdminBoundary.objects.filter(level=0).get()
 
