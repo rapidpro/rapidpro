@@ -456,7 +456,7 @@ class Org(SmartModel):
     )
     country = models.ForeignKey("locations.AdminBoundary", null=True, on_delete=models.PROTECT)
     flow_languages = ArrayField(models.CharField(max_length=3), default=list, validators=[ArrayMinLengthValidator(1)])
-    input_cleaners = ArrayField(models.CharField(max_length=32), default=list)
+    input_collation = models.CharField(max_length=32, default="default")
 
     config = models.JSONField(default=dict)
     slug = models.SlugField(
@@ -485,6 +485,9 @@ class Org(SmartModel):
     # when this org was released and when it was actually deleted
     released_on = models.DateTimeField(null=True)
     deleted_on = models.DateTimeField(null=True)
+
+    # TODO remove
+    input_cleaners = ArrayField(models.CharField(max_length=32), null=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
