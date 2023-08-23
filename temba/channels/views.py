@@ -482,11 +482,8 @@ class ChannelCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             obj = self.get_object()
 
-            for extra in obj.type.extra_links or ():
-                menu.add_link(extra["label"], reverse(extra["view_name"], args=[obj.uuid]))
-
-            if obj.parent:  # pragma: no cover
-                menu.add_link(_("Android Channel"), reverse("channels.channel_read", args=[obj.parent.uuid]))
+            for item in obj.type.menu_items:
+                menu.add_link(item["label"], reverse(item["view_name"], args=[obj.uuid]))
 
             if obj.type.config_ui:
                 menu.add_link(_("Configuration"), reverse("channels.channel_configuration", args=[obj.uuid]))

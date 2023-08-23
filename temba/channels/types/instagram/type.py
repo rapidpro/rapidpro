@@ -23,17 +23,13 @@ class InstagramType(ChannelType):
     schemes = [URN.INSTAGRAM_SCHEME]
     max_length = 2000
     redact_values = (settings.FACEBOOK_APPLICATION_SECRET, settings.FACEBOOK_WEBHOOK_SECRET)
-    extra_links = [
-        dict(
-            label=_("Reconnect Instagram Business Account"),
-            view_name="channels.types.instagram.refresh_token",
-        )
-    ]
 
     claim_blurb = _("Add an %(link)s bot to send and receive messages on behalf of a business Instagram account.") % {
         "link": '<a target="_blank" href="http://instagram.com">Instagram</a>',
     }
     claim_view = ClaimView
+
+    menu_items = [dict(label=_("Reconnect Business Account"), view_name="channels.types.instagram.refresh_token")]
 
     def get_urls(self):
         return [

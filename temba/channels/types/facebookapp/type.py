@@ -23,7 +23,6 @@ class FacebookAppType(ChannelType):
     courier_url = r"^fba/receive"
     schemes = [URN.FACEBOOK_SCHEME]
     max_length = 2000
-    extra_links = [dict(label=_("Reconnect Facebook Page"), view_name="channels.types.facebookapp.refresh_token")]
     redact_values = (settings.FACEBOOK_APPLICATION_SECRET, settings.FACEBOOK_WEBHOOK_SECRET)
 
     claim_blurb = _(
@@ -32,6 +31,8 @@ class FacebookAppType(ChannelType):
         "On the Facebook page, navigate Settings > Page roles and verify you have an admin page role on the page."
     ) % {"link": '<a target="_blank" href="http://facebook.com">Facebook</a>'}
     claim_view = ClaimView
+
+    menu_items = [dict(label=_("Reconnect Facebook Page"), view_name="channels.types.facebookapp.refresh_token")]
 
     def get_urls(self):
         return [
