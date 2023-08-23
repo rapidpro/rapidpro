@@ -9,24 +9,24 @@
   {% if object.get_country_display %}<div class="text-base">{{ object.get_country_display }}</div>{% endif %}
 {% endblock subtitle %}
 {% block content %}
-  {% if configuration_template %}
-    {{ configuration_template }}
-  {% elif configuration_blurb %}
-    {{ configuration_blurb }}
+  {% if type_template %}
+    {{ type_template }}
+  {% elif blurb %}
+    {{ blurb }}
   {% endif %}
-  {% for url in configuration_urls %}
+  {% for endpoint in endpoints %}
     <div class="card mt-3 p-4 flex-shrink-0">
-      <div class="text-xl">{{ url.label }}</div>
+      <div class="text-xl">{{ endpoint.label }}</div>
       {% if url.help %}
-      <div class="mt-2">{{ url.help }}</div>
+      <div class="mt-2">{{ endpoint.help }}</div>
       {% endif %}
-      <div class="code block mt-3 mx-0 whitespace-normal">{{ url.url }}</div>
+      <div class="code block mt-3 mx-0 whitespace-normal">{{ endpoint.url }}</div>
     </div>
   {% endfor %}
-  {% if configuration_secret %}
+  {% if secret %}
     <div class="card mt-3 p-4 flex-shrink-0">
       <div class="text-xl">{% trans "Webhook Secret" %}</div>
-      <div class="code block mt-3 mx-0 whitespace-normal">{{ configuration_secret }}</div>
+      <div class="code block mt-3 mx-0 whitespace-normal">{{ secret }}</div>
     </div>
   {% endif %}
   {% if show_public_addresses %}

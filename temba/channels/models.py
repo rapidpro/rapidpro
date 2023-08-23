@@ -21,7 +21,7 @@ from django.db import models
 from django.db.models import Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
-from django.template import Context, Engine, TemplateDoesNotExist
+from django.template import Engine
 from django.urls import re_path
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -70,8 +70,8 @@ class ConfigUI:
 
             return f"https://{channel.callback_domain}{path}"
 
-    blurb: str
-    endpoints: Endpoint
+    blurb: str = None
+    endpoints: tuple[Endpoint] = ()
     show_secret: bool = False
 
     def get_used_endpoints(self, channel) -> list:
@@ -113,11 +113,11 @@ class ChannelType(metaclass=ABCMeta):
     claim_view = None
     claim_view_kwargs = None
 
+    # the configuration UI - only channel types that aren't configured automatically need this
     config_ui = None
 
     # TODO replace via config_ui
     show_public_addresses = False
-    show_config_page = True
 
     update_form = None
 
@@ -214,16 +214,6 @@ class ChannelType(metaclass=ABCMeta):
 
     def get_configuration_context_dict(self, channel):
         return dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)
-
-    def get_configuration_template(self, channel):
-        try:
-            return (
-                Engine.get_default()
-                .get_template("channels/types/%s/config.html" % self.slug)
-                .render(context=Context(self.get_configuration_context_dict(channel)))
-            )
-        except TemplateDoesNotExist:
-            return ""
 
     def get_error_ref_url(self, channel, code: str) -> str:
         """

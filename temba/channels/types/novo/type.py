@@ -30,7 +30,6 @@ class NovoType(ChannelType):
     max_length = 160
 
     config_ui = ConfigUI(
-        blurb="",
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",

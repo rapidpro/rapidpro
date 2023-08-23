@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
-from ...models import Channel, ChannelType
+from ...models import Channel, ChannelType, ConfigUI
 from .views import ClaimView, UpdateForm
 
 
@@ -19,6 +19,8 @@ class ExternalType(ChannelType):
 
     claim_blurb = _("Use our pluggable API to connect an external service you already have.")
     claim_view = ClaimView
+
+    config_ui = ConfigUI()  # has own template
 
     update_form = UpdateForm
 

@@ -2,7 +2,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 from .views import ClaimView
 
 
@@ -23,6 +23,8 @@ class LineType(ChannelType):
         "Windows or iOS device and a LINE account to send and receive messages."
     ) % {"link": '<a target="_blank" href="https://line.me">LINE</a>'}
     claim_view = ClaimView
+
+    config_ui = ConfigUI()  # has own template
 
     schemes = [URN.LINE_SCHEME]
     max_length = 1600

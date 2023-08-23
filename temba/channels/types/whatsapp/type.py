@@ -13,7 +13,7 @@ from temba.templates.models import TemplateTranslation
 from temba.utils.whatsapp import update_api_version
 from temba.utils.whatsapp.views import RefreshView, SyncLogsView, TemplatesView
 
-from ...models import ChannelType
+from ...models import ChannelType, ConfigUI
 
 CONFIG_FB_BUSINESS_ID = "fb_business_id"
 CONFIG_FB_ACCESS_TOKEN = "fb_access_token"
@@ -41,6 +41,8 @@ class WhatsAppType(ChannelType):
 
     claim_blurb = _("If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts")
     claim_view = ClaimView
+
+    config_ui = ConfigUI()  # has own template
 
     schemes = [URN.WHATSAPP_SCHEME]
     max_length = 4096

@@ -17,7 +17,6 @@ class DiscordType(ChannelType):
     courier_url = r"^ds/(?P<uuid>[a-z0-9\-]+)/receive$"
 
     name = "Discord"
-    show_config_page = False
 
     claim_blurb = _(
         "Add a %(link)s bot to send messages to Discord users for free. "

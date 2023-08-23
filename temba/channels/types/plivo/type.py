@@ -31,8 +31,6 @@ class PlivoType(ChannelType):
     }
     claim_view = ClaimView
 
-    show_config_page = False
-
     schemes = [URN.TEL_SCHEME]
     max_length = 1600
 

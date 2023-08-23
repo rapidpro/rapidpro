@@ -34,8 +34,6 @@ class WhatsAppCloudType(ChannelType):
 
     name = "WhatsApp Cloud"
 
-    show_config_page = False
-
     claim_blurb = _("If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts")
     claim_view = ClaimView
 
