@@ -1487,12 +1487,7 @@ class Invitation(SmartModel):
 
     def save(self, *args, **kwargs):
         if not self.secret:
-            secret = random_string(64)
-
-            while Invitation.objects.filter(secret=secret):  # pragma: needs cover
-                secret = random_string(64)
-
-            self.secret = secret
+            self.secret = random_string(64)
 
         return super().save(*args, **kwargs)
 
