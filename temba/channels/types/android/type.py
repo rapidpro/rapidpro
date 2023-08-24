@@ -16,7 +16,6 @@ class AndroidType(ChannelType):
     category = ChannelType.Category.PHONE
 
     schemes = [URN.TEL_SCHEME]
-    max_length = -1
 
     claim_blurb = _(
         "Works in any country and uses the cell phone plan you already have. You just need an Android phone to get started."

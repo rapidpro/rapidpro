@@ -17,7 +17,6 @@ class KannelType(ChannelType):
 
     courier_url = r"^kn/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 1600
 
     claim_blurb = _(
         "Connect your %(link)s instance, we'll walk you through the steps necessary to get your SMSC connection "

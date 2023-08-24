@@ -24,7 +24,6 @@ class MessangiType(ChannelType):
 
     courier_url = r"^mg/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 150
     available_timezones = ["America/Jamaica"]
 
     claim_blurb = _(

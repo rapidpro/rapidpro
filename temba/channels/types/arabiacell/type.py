@@ -18,7 +18,6 @@ class ArabiaCellType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     available_timezones = ["Asia/Amman"]
     recommended_timezones = ["Asia/Amman"]
-    max_length = 1530
 
     claim_view = ClaimView
     claim_blurb = _("If you have an %(link)s number, you can quickly connect it using their APIs.") % {

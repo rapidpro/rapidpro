@@ -18,7 +18,6 @@ class BongoLiveType(ChannelType):
     courier_url = r"^bl/(?P<uuid>[a-z0-9\-]+)/receive$"
     schemes = [URN.TEL_SCHEME]
     available_timezones = ["Africa/Dar_es_Salaam"]
-    max_length = 160
 
     claim_view = ClaimView
     claim_blurb = _("If you have an %(link)s number, you can quickly connect it using their APIs.") % {

@@ -29,7 +29,6 @@ class SomlengType(ChannelType):
 
     courier_url = r"^tw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 1600
 
     claim_view = ClaimView
     claim_blurb = _("Connect to a Somleng instance.")

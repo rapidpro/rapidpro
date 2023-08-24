@@ -58,7 +58,6 @@ class ClickSendType(ChannelType):
         "US/Pacific",
     ]
     schemes = [URN.TEL_SCHEME]
-    max_length = 1224
 
     claim_view = AuthenticatedExternalClaimView
     claim_view_kwargs = {

@@ -17,7 +17,6 @@ class DMarkType(ChannelType):
 
     courier_url = r"^dk/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 459
     available_timezones = ["Africa/Kampala", "Africa/Kinshasa"]
 
     claim_blurb = _(

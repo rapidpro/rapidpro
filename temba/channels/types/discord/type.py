@@ -17,7 +17,6 @@ class DiscordType(ChannelType):
 
     courier_url = r"^ds/(?P<uuid>[a-z0-9\-]+)/receive$"
     schemes = [URN.DISCORD_SCHEME]
-    max_length = 1600
     redact_response_keys = {"first_name", "last_name", "username"}
 
     claim_blurb = _(

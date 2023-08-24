@@ -24,7 +24,6 @@ class MtnType(ChannelType):
 
     courier_url = r"^mtn/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 160
     async_activation = False
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {

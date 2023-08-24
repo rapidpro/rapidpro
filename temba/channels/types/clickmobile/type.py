@@ -17,7 +17,6 @@ class ClickMobileType(ChannelType):
 
     courier_url = r"^cm/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 459
     available_timezones = ["Africa/Accra", "Africa/Blantyre"]
 
     claim_blurb = _(

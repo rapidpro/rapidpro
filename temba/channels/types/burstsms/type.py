@@ -33,7 +33,6 @@ class BurstSMSType(ChannelType):
         "Pacific/Auckland",
     ]
     recommended_timezones = available_timezones
-    max_length = 613
 
     claim_view = AuthenticatedExternalClaimView
     claim_view_kwargs = {

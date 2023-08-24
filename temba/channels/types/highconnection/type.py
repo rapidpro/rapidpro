@@ -18,7 +18,6 @@ class HighConnectionType(ChannelType):
 
     courier_url = r"^hx/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 1500
     available_timezones = ["Europe/Paris"]
 
     claim_blurb = _(

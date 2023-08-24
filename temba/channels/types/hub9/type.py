@@ -17,7 +17,6 @@ class Hub9Type(ChannelType):
 
     courier_url = r"^h9/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|receive|received)$"
     schemes = [URN.TEL_SCHEME, URN.EXTERNAL_SCHEME]
-    max_length = 1600
     available_timezones = ["Asia/Jakarta"]
 
     claim_blurb = _("Easily add a two way number you have configured with Hub9 in Indonesia.")

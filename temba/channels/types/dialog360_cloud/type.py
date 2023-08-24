@@ -25,8 +25,6 @@ class Dialog360CloudType(ChannelType):
 
     courier_url = r"^d3c/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
     schemes = [URN.WHATSAPP_SCHEME]
-    max_length = 4096
-    extra_links = [dict(label=_("Message Templates"), view_name="channels.types.dialog360_cloud.templates")]
 
     claim_blurb = _(
         "Activate your own enterprise WhatsApp account in %(link)s (Cloud) to communicate with your contacts. "
@@ -34,6 +32,8 @@ class Dialog360CloudType(ChannelType):
     claim_view = ClaimView
 
     config_ui = ConfigUI()  # has own template
+
+    menu_items = [dict(label=_("Message Templates"), view_name="channels.types.dialog360_cloud.templates")]
 
     def get_urls(self):
         return [

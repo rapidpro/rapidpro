@@ -19,7 +19,6 @@ class NovoType(ChannelType):
 
     courier_url = r"^nv/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 160
     available_timezones = ["America/Port_of_Spain"]
 
     claim_blurb = _(

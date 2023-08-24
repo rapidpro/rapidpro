@@ -17,7 +17,6 @@ class WavyType(ChannelType):
 
     courier_url = r"^wv/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 160
     available_timezones = [
         "America/Noronha",
         "America/Belem",

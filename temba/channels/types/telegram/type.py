@@ -20,7 +20,6 @@ class TelegramType(ChannelType):
 
     courier_url = r"^tg/(?P<uuid>[a-z0-9\-]+)/receive$"
     schemes = [URN.TELEGRAM_SCHEME]
-    max_length = 1600
     redact_response_keys = {"first_name", "last_name", "username"}
 
     claim_blurb = _(

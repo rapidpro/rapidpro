@@ -24,7 +24,6 @@ class ZenviaSMSType(ChannelType):
 
     courier_url = r"^zvs/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 1600
 
     claim_blurb = _("If you have a %(link)s number, you can connect it to communicate with your contacts.") % {
         "link": '<a target="_blank" href="https://www.zenvia.com/">Zenvia SMS</a>'

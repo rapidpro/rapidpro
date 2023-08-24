@@ -36,13 +36,13 @@ class WhatsAppType(ChannelType):
 
     courier_url = r"^wa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
     schemes = [URN.WHATSAPP_SCHEME]
-    max_length = 4096
-    extra_links = [dict(label=_("Message Templates"), view_name="channels.types.whatsapp.templates")]
 
     claim_blurb = _("If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts")
     claim_view = ClaimView
 
     config_ui = ConfigUI()  # has own template
+
+    menu_items = [dict(label=_("Message Templates"), view_name="channels.types.whatsapp.templates")]
 
     def get_urls(self):
         return [

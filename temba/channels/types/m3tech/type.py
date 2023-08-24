@@ -17,7 +17,6 @@ class M3TechType(ChannelType):
 
     courier_url = r"^m3/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 160
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
         "link": '<a target="_blank" href="http://m3techservice.com">M3 Tech</a>'

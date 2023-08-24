@@ -24,7 +24,6 @@ class ZenviaWhatsAppType(ChannelType):
 
     courier_url = r"^zvw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
     schemes = [URN.WHATSAPP_SCHEME]
-    max_length = 1600
 
     claim_blurb = _("If you have a %(link)s number, you can connect it to communicate with your WhatsApp contacts.") % {
         "link": '<a target="_blank" href="https://www.zenvia.com/">Zenvia WhatsApp</a>'

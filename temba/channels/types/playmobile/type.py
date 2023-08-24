@@ -16,7 +16,6 @@ class PlayMobileType(ChannelType):
 
     courier_url = r"^pm/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 160
     available_timezones = ["Asia/Tashkent", "Asia/Samarkand"]
 
     claim_blurb = _(

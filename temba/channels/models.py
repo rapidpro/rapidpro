@@ -92,21 +92,16 @@ class ChannelType(metaclass=ABCMeta):
         SOCIAL_MEDIA = 2
         API = 4
 
-    class IVRProtocol(Enum):
-        IVR_PROTOCOL_TWIML = 1
-        IVR_PROTOCOL_NCCO = 2
-
     code = None  # DB code and lowercased to create courier URLs
     slug = None  # set automatically
     name = None  # display name
     category = None
     beta_only = False
 
-    schemes = None
-
     # the courier handling URL, will be wired automatically for use in templates, but wired to a null handler
     courier_url = None
 
+    schemes = None
     available_timezones = None
     recommended_timezones = None
 
@@ -119,11 +114,8 @@ class ChannelType(metaclass=ABCMeta):
 
     update_form = None
 
-    max_length = -1
-    max_tps = None
-    quick_reply_text_size = 20
-
-    extra_links = None
+    # additional read page content menu items
+    menu_items = ()
 
     # Whether this channel should be activated in the a celery task, useful to turn off if there's a chance for errors
     # during activation. Channels should make sure their claim view is non-atomic if a callback will be involved
