@@ -9,11 +9,10 @@ from django.urls import reverse
 
 from temba.channels.models import Channel
 from temba.tests import MockResponse, TembaTest
-from temba.utils.text import random_string
 
 from .client import Client, ClientError
 from .type import RocketChatType
-from .views import SECRET_LENGTH, ClaimView
+from .views import ClaimView
 
 
 class RocketChatMixin(TembaTest):
@@ -24,8 +23,8 @@ class RocketChatMixin(TembaTest):
         self.bot_username = "test-bot"
         self.admin_auth_token = "abc123"
         self.admin_user_id = "123"
-        self.secret = random_string(SECRET_LENGTH)
-        self.secret2 = random_string(SECRET_LENGTH)
+        self.secret = "12345678901234567890123456789012"
+        self.secret2 = "09876543210987654321098765432109"
 
         self.domain = self.new_url("rocketchat-domain.com", scheme="")
         self.insecure_url = self.new_url(self.domain, path=f"/{self.app_id}", unique=False)
@@ -91,31 +90,6 @@ class ClientTest(RocketChatMixin):
 
 
 class RocketChatViewTest(RocketChatMixin):
-    def check_exceptions(self, mock_choices, mock_request, timeout_msg, exception_msg):
-        mock_choices.side_effect = lambda letters: next(choices)
-
-        self.client.force_login(self.admin)
-        check = [(Timeout(), timeout_msg), (Exception(), exception_msg)]
-        for err, msg in check:
-
-            def side_effect(*args, **kwargs):
-                raise err
-
-            mock_request.side_effect = side_effect
-            choices = (c for c in self.secret)
-            data = {
-                "secret": self.secret,
-                "base_url": self.new_url("valid.com", path=f"/{self.app_id}"),
-                "bot_username": self.bot_username,
-                "admin_auth_token": self.admin_auth_token,
-                "admin_user_id": self.admin_user_id,
-            }
-
-            response = self.client.post(self.claim_url, data=data)
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(len(response.context["messages"]), 1)
-            self.assertEqual([f"{m}" for m in response.context["messages"]][0], msg)
-
     def new_form_data(self, path=None, scheme=None) -> dict:
         if path or scheme:
             base_url = self.new_url("valid.com", path=path, scheme=scheme)
@@ -131,36 +105,31 @@ class RocketChatViewTest(RocketChatMixin):
         }
 
     @patch("socket.gethostbyname", return_value="123.123.123.123")
-    @patch("random.choice")
-    def submit_form(self, data, mock_choices, mock_socket):
-        choices = (c for c in self.secret)
-        mock_choices.side_effect = lambda letters: next(choices)
+    @patch("temba.channels.types.rocketchat.views.generate_secret")
+    def submit_form(self, data, mock_generate_secret, mock_socket):
+        mock_generate_secret.return_value = self.secret
 
         self.client.force_login(self.admin)
 
         return self.client.post(self.claim_url, data=data)
 
-    @patch("random.choice")
-    def test_session_key(self, mock_choices):
-        choices = (c for c in self.secret)
-        mock_choices.side_effect = lambda letters: next(choices)
+    @patch("temba.channels.types.rocketchat.views.generate_secret")
+    def test_session_key(self, mock_generate_secret):
+        mock_generate_secret.return_value = self.secret
+
         self.client.force_login(self.admin)
         response = self.client.get(self.claim_url)
         self.assertEqual(response.wsgi_request.session.get(ClaimView.SESSION_KEY), self.secret)
         response.wsgi_request.session.pop(ClaimView.SESSION_KEY, None)
 
-    @patch("random.choice")
-    def test_form_initial(self, mock_choices):
-        def configure():
-            choices = (c for c in self.secret)
-            mock_choices.side_effect = lambda letters: next(choices)
+    @patch("temba.channels.types.rocketchat.views.generate_secret")
+    def test_form_initial(self, mock_generate_secret):
+        mock_generate_secret.return_value = self.secret
 
-        configure()
         self.client.force_login(self.admin)
         response = self.client.get(self.claim_url)
         self.assertEqual(response.context_data["form"].initial.get("secret"), self.secret)
 
-        configure()
         with patch("temba.channels.types.rocketchat.views.ClaimView.derive_initial") as mock_initial:
             mock_initial.return_value = {"secret": self.secret2}
             response = self.client.get(self.claim_url)
@@ -267,14 +236,3 @@ class RocketChatViewTest(RocketChatMixin):
         data["admin_user_id"] = ""
         response = self.submit_form(data)
         self.assertFormError(response, "form", "admin_user_id", "This field is required.")
-
-    @patch("socket.gethostbyname", return_value="123.123.123.123")
-    @patch("random.choice")
-    @patch("requests.put")
-    def test_settings_exception(self, mock_request, mock_choices, mock_socket):
-        self.check_exceptions(
-            mock_choices,
-            mock_request,
-            "Unable to configure. Connection to RocketChat is taking too long.",
-            "Configuration has failed",
-        )

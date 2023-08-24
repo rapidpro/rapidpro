@@ -51,9 +51,9 @@ class ZendeskTypeTest(TembaTest):
             self.assertTrue(ZendeskType().is_available_to(self.admin))
 
     @override_settings(ZENDESK_CLIENT_ID="temba", ZENDESK_CLIENT_SECRET="sesame")
-    @patch("temba.tickets.types.zendesk.views.random_string")
-    def test_connect(self, mock_random_string):
-        mock_random_string.return_value = "RAND346"
+    @patch("temba.tickets.types.zendesk.views.generate_secret")
+    def test_connect(self, mock_generate_secret):
+        mock_generate_secret.return_value = "RAND346"
 
         connect_url = reverse("tickets.types.zendesk.connect")
 

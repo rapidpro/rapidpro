@@ -38,7 +38,7 @@ from temba.utils.models import (
     delete_in_batches,
     generate_uuid,
 )
-from temba.utils.text import random_string
+from temba.utils.text import generate_secret
 from temba.utils.uuid import is_uuid
 
 logger = logging.getLogger(__name__)
@@ -500,9 +500,9 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         """
         Generates a secret value used for command signing
         """
-        code = random_string(length)
+        code = generate_secret(length)
         while cls.objects.filter(secret=code):  # pragma: no cover
-            code = random_string(length)
+            code = generate_secret(length)
         return code
 
     def is_android(self) -> bool:

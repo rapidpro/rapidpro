@@ -19,7 +19,7 @@ from django.views.generic import View
 from temba.orgs.views import OrgPermsMixin
 from temba.utils import json
 from temba.utils.s3 import public_file_storage
-from temba.utils.text import random_string
+from temba.utils.text import generate_secret
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin
 
 from ...models import Ticketer
@@ -101,7 +101,7 @@ class ConnectView(BaseConnectView):
         config = {
             ZendeskType.CONFIG_SUBDOMAIN: subdomain,
             ZendeskType.CONFIG_OAUTH_TOKEN: access_token,
-            ZendeskType.CONFIG_SECRET: random_string(32),
+            ZendeskType.CONFIG_SECRET: generate_secret(32),
         }
 
         self.object = Ticketer.create(
