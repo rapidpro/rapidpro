@@ -4213,11 +4213,11 @@ class EndpointsTest(APITest):
 
         # filter by label name
         response = self.getJSON(msgs_url, "label=Spam")
-        self.assertResultsById(response, [joe_msg3, frank_msg1])
+        self.assertResultsById(response, [frank_msg3, joe_msg3, frank_msg1])
 
         # filter by label UUID
         response = self.getJSON(msgs_url, "label=%s" % label.uuid)
-        self.assertResultsById(response, [joe_msg3, frank_msg1])
+        self.assertResultsById(response, [frank_msg3, joe_msg3, frank_msg1])
 
         # filter by invalid label
         response = self.getJSON(msgs_url, "label=invalid")
