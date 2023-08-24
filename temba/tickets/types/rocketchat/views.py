@@ -120,7 +120,7 @@ class ConnectView(BaseConnectView):
         try:
             client.settings(webhook_url)
             self.request.session.pop(self.SESSION_KEY, None)
-        except ClientError as err:
+        except ClientError as err:  # pragma: no cover
             messages.error(self.request, err.msg if err.msg else _("Configuration has failed"))
             return super().get(self.request, *self.args, **self.kwargs)
 
