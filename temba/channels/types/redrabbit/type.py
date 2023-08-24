@@ -16,7 +16,6 @@ class RedRabbitType(ChannelType):
     category = ChannelType.Category.PHONE
 
     schemes = [URN.TEL_SCHEME]
-    max_length = 1600
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
         "link": '<a target="_blank" href="http://www.redrabbitsms.com/">Red Rabbit</a>'

@@ -17,7 +17,6 @@ class JasminType(ChannelType):
 
     courier_url = r"^js/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 1600
 
     claim_blurb = _("Connect your %(link)s instance that you have already connected to an SMSC.") % {
         "link": '<a target="_blank" href="http://www.jasminsms.com/">Jasmin</a>'

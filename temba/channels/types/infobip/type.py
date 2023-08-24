@@ -17,7 +17,6 @@ class InfobipType(ChannelType):
 
     courier_url = r"^ib/(?P<uuid>[a-z0-9\-]+)/(?P<action>delivered|receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 1600
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
         "link": '<a target="_blank" href="http://infobip.com">Infobip</a>'

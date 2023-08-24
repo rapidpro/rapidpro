@@ -20,7 +20,6 @@ class ViberPublicType(ChannelType):
 
     courier_url = r"^vp/(?P<uuid>[a-z0-9\-]+)/receive$"
     schemes = [URN.VIBER_SCHEME]
-    max_length = 7000
 
     update_form = UpdateForm
 

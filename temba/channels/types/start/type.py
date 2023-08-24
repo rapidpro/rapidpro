@@ -17,7 +17,6 @@ class StartType(ChannelType):
 
     courier_url = r"^st/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 1600
     available_timezones = ["Europe/Kiev"]
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {

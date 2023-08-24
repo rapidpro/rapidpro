@@ -17,7 +17,6 @@ class ShaqodoonType(ChannelType):
 
     courier_url = r"^sq/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 1600
     available_timezones = ["Africa/Mogadishu"]
 
     claim_blurb = _(

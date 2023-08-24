@@ -25,7 +25,6 @@ class TwilioType(ChannelType):
 
     courier_url = r"^t/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 1600
     redact_request_keys = (
         "FromCity",
         "FromState",

@@ -17,7 +17,6 @@ class DartMediaType(ChannelType):
 
     courier_url = r"^da/(?P<uuid>[a-z0-9\-]+)/(?P<action>delivered|received|receive)$"
     schemes = [URN.TEL_SCHEME, URN.EXTERNAL_SCHEME]
-    max_length = 160
     available_timezones = ["Asia/Jakarta"]
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s in Indonesia.") % {

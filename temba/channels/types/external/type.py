@@ -15,7 +15,6 @@ class ExternalType(ChannelType):
 
     courier_url = r"^ex/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|failed|received|receive|stopped)$"
     schemes = None  # can be any scheme
-    max_length = 160
 
     claim_blurb = _("Use our pluggable API to connect an external service you already have.")
     claim_view = ClaimView

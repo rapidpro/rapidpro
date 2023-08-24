@@ -23,7 +23,6 @@ class SignalWireType(ChannelType):
 
     courier_url = r"^sw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 1600
     async_activation = False
     available_timezones = [
         "America/New_York",

@@ -11,7 +11,6 @@ class VerboiceType(ChannelType):
     category = ChannelType.Category.PHONE
 
     courier_url = r"^vb/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
-    max_length = 1600
     schemes = [URN.TEL_SCHEME]
 
     claim_blurb = _(

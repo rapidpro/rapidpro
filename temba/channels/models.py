@@ -108,7 +108,6 @@ class ChannelType(metaclass=ABCMeta):
     schemes = None
     available_timezones = None
     recommended_timezones = None
-    max_length = -1
     max_tps = None
 
     claim_blurb = None

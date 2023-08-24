@@ -17,7 +17,6 @@ class MbloxType(ChannelType):
 
     courier_url = r"^mb/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 459
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
         "link": '<a target="_blank" href="https://www.mblox.com/">Mblox</a>'

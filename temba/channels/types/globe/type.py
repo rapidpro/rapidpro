@@ -17,7 +17,6 @@ class GlobeType(ChannelType):
 
     courier_url = r"^gl/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 160
     available_timezones = ["Asia/Manila"]
 
     claim_blurb = _(

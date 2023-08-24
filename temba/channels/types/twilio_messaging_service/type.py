@@ -25,7 +25,6 @@ class TwilioMessagingServiceType(ChannelType):
 
     courier_url = r"^tms/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 1600
 
     claim_view = ClaimView
 

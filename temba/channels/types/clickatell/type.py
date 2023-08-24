@@ -17,7 +17,6 @@ class ClickatellType(ChannelType):
 
     courier_url = r"^ct/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 420
 
     claim_blurb = _(
         "Connect your %(link)s number, we'll walk you through the steps necessary to get your Clickatell connection "

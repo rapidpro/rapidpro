@@ -16,7 +16,6 @@ class AfricasTalkingType(ChannelType):
     category = ChannelType.Category.PHONE
 
     schemes = [URN.TEL_SCHEME]
-    max_length = 160
     courier_url = r"^at/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|delivery|callback|status)$"
 
     claim_blurb = _("You can purchase a short code from %(link)s and connect it in a few simple steps.") % {

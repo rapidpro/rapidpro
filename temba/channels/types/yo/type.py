@@ -17,7 +17,6 @@ class YoType(ChannelType):
 
     courier_url = r"^yo/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 1600
     available_timezones = ["Africa/Kampala"]
 
     claim_view = ClaimView

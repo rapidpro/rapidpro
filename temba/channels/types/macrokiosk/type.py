@@ -20,7 +20,6 @@ class MacrokioskType(ChannelType):
 
     courier_url = r"^mk/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 1600
     available_timezones = ["Asia/Kuala_Lumpur"]
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {

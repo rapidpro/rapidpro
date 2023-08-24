@@ -22,7 +22,6 @@ class FacebookAppType(ChannelType):
 
     courier_url = r"^fba/receive"
     schemes = [URN.FACEBOOK_SCHEME]
-    max_length = 2000
     redact_values = (settings.FACEBOOK_APPLICATION_SECRET, settings.FACEBOOK_WEBHOOK_SECRET)
 
     claim_blurb = _(

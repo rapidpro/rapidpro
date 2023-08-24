@@ -17,7 +17,6 @@ class HormuudType(ChannelType):
 
     courier_url = r"^hm/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 160
     available_timezones = ["Africa/Mogadishu"]
 
     claim_blurb = _(

@@ -22,7 +22,6 @@ class ThinQType(ChannelType):
 
     courier_url = r"^tq/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
     schemes = [URN.TEL_SCHEME]
-    max_length = 160
 
     claim_blurb = _(
         "If you have a number with %(link)s you can connect it in a few easy steps to automate your SMS numbers."

@@ -28,7 +28,6 @@ class WhatsAppCloudType(ChannelType):
 
     courier_url = r"^wac/receive"
     schemes = [URN.WHATSAPP_SCHEME]
-    max_length = 4096
     redact_values = (settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN,)
 
     claim_blurb = _("If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts")
