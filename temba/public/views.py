@@ -13,7 +13,7 @@ from temba import __version__ as temba_version
 from temba.apks.models import Apk
 from temba.public.models import Lead, Video
 from temba.utils import analytics, get_anonymous_user, json
-from temba.utils.text import random_string
+from temba.utils.text import generate_secret
 from temba.utils.views import NoNavMixin, SpaMixin
 
 
@@ -171,7 +171,7 @@ class DemoGenerateCoupon(View):
     """
 
     def post(self, *args, **kwargs):
-        return JsonResponse({"coupon": random_string(6)})
+        return JsonResponse({"coupon": generate_secret(6)})
 
     def get(self, *args, **kwargs):
         return self.post(*args, **kwargs)

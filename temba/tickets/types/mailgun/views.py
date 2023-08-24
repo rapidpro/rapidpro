@@ -6,7 +6,7 @@ from django.utils.html import escape
 from django.utils.translation import gettext_lazy as _
 
 from temba.utils.email import send_template_email
-from temba.utils.text import random_string
+from temba.utils.text import generate_secret
 
 from ...models import Ticketer
 from ...views import BaseConnectView
@@ -38,7 +38,7 @@ class ConnectView(BaseConnectView):
 
     def get(self, request, *args, **kwargs):
         if not self.is_verify_step():
-            request.session["verification_code"] = random_string(6)
+            request.session["verification_code"] = generate_secret(6)
 
         return super().get(request, *args, **kwargs)
 

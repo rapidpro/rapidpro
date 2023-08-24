@@ -35,7 +35,7 @@ from temba.utils import json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONField, delete_in_batches
-from temba.utils.text import generate_token, random_string
+from temba.utils.text import generate_secret, generate_token
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
 
@@ -1487,7 +1487,7 @@ class Invitation(SmartModel):
 
     def save(self, *args, **kwargs):
         if not self.secret:
-            self.secret = random_string(64)
+            self.secret = generate_secret(64)
 
         return super().save(*args, **kwargs)
 

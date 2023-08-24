@@ -8,7 +8,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.tickets.models import Ticketer
 from temba.tickets.views import BaseConnectView
 from temba.utils.fields import ExternalURLField
-from temba.utils.text import random_string
+from temba.utils.text import generate_secret
 from temba.utils.uuid import uuid4
 
 from .client import Client, ClientError
@@ -83,7 +83,7 @@ class ConnectView(BaseConnectView):
 
         self._secret = self.request.session.get(self.SESSION_KEY)
         if not self._secret or self.request.method.lower() != "post":
-            self.request.session[self.SESSION_KEY] = self._secret = random_string(SECRET_LENGTH)
+            self.request.session[self.SESSION_KEY] = self._secret = generate_secret(SECRET_LENGTH)
         return self._secret
 
     def derive_initial(self):

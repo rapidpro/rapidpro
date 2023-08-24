@@ -9,7 +9,7 @@ from django.urls import reverse
 
 from temba.tests import MockResponse, TembaTest
 from temba.tickets.models import Ticketer
-from temba.utils.text import random_string
+from temba.utils.text import generate_secret
 
 from .client import Client, ClientError
 from .type import RocketChatType
@@ -26,8 +26,8 @@ class RocketChatMixin(TembaTest):
         super().setUp()
         self.connect_url = reverse("tickets.types.rocketchat.connect")
         self.app_id = f"{uuid.uuid4()}"
-        self.secret = random_string(SECRET_LENGTH)
-        self.secret2 = random_string(SECRET_LENGTH)
+        self.secret = generate_secret(SECRET_LENGTH)
+        self.secret2 = generate_secret(SECRET_LENGTH)
 
         self.domain = self.new_url("rocketchat-domain.com", scheme="")
         self.insecure_url = self.new_url(self.domain, path=f"/{self.app_id}", unique=False)

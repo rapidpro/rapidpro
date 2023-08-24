@@ -2,7 +2,7 @@ from django.utils import timezone
 
 from temba.utils import countries, get_anonymous_user
 from temba.utils.models import generate_uuid
-from temba.utils.text import random_string
+from temba.utils.text import generate_secret
 
 from ..models import Channel
 
@@ -16,9 +16,9 @@ def generate_claim_code() -> str:
     """
     Generates a random and guaranteed unique claim code
     """
-    code = random_string(9)
+    code = generate_secret(9)
     while Channel.objects.filter(claim_code=code):  # pragma: no cover
-        code = random_string(9)
+        code = generate_secret(9)
     return code
 
 

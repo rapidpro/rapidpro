@@ -30,7 +30,7 @@ from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp
 from .email import is_valid_address, send_simple_email
 from .fields import ExternalURLField, NameValidator
 from .templatetags.temba import oxford, short_datetime
-from .text import clean_string, decode_stream, generate_token, random_string, slugify_with, truncate, unsnakify
+from .text import clean_string, decode_stream, generate_secret, generate_token, slugify_with, truncate, unsnakify
 from .timezones import TimeZoneFormField, timezone_to_country_code
 
 
@@ -88,8 +88,8 @@ class InitTest(TembaTest):
         self.assertEqual("", unsnakify(""))
         self.assertEqual("Org Name", unsnakify("org_name"))
 
-    def test_random_string(self):
-        rs = random_string(1000)
+    def test_generate_secret(self):
+        rs = generate_secret(1000)
         self.assertEqual(1000, len(rs))
         self.assertFalse("1" in rs or "I" in rs or "0" in rs or "O" in rs)
 

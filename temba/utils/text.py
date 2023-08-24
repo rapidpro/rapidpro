@@ -107,7 +107,7 @@ def unsnakify(value):
     return " ".join([word.capitalize() for word in value.split("_")])
 
 
-def random_string(length: int) -> str:
+def generate_secret(length: int) -> str:
     """
     Generates a random alphanumeric string. The digits 0 and 1 aren't used, nor the letters I or O to avoid visual
     confusion. Thus there are are 32 possible characters. 26 such chars have a similar collision probability to UUIDs.
