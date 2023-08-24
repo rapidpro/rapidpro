@@ -2640,7 +2640,7 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             if contact:
                 queryset = queryset.filter(contact=contact)
             else:
-                queryset = queryset.filter(pk=-1)
+                queryset = queryset.none()
 
         # filter by label name/uuid (optional)
         label_ref = params.get("label")
@@ -2651,16 +2651,16 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
 
             label = Label.get_active_for_org(org).filter(label_filter).first()
             if label:
-                queryset = queryset.filter(labels=label, visibility=Msg.VISIBILITY_VISIBLE)
+                queryset = queryset.filter(labels=label)
             else:
-                queryset = queryset.filter(pk=-1)
+                queryset = queryset.none()
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
             Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
             Prefetch("contact_urn", queryset=ContactURN.objects.only("scheme", "path", "display")),
             Prefetch("channel", queryset=Channel.objects.only("uuid", "name")),
-            Prefetch("labels", queryset=Label.objects.only("uuid", "name").order_by("pk")),
+            Prefetch("labels", queryset=Label.objects.only("uuid", "name").order_by("id")),
             Prefetch("flow", queryset=Flow.objects.only("uuid", "name")),
         )
 
