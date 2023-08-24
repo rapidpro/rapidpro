@@ -92,10 +92,6 @@ class ChannelType(metaclass=ABCMeta):
         SOCIAL_MEDIA = 2
         API = 4
 
-    class IVRProtocol(Enum):
-        IVR_PROTOCOL_TWIML = 1
-        IVR_PROTOCOL_NCCO = 2
-
     code = None  # DB code and lowercased to create courier URLs
     slug = None  # set automatically
     name = None  # display name
@@ -108,7 +104,6 @@ class ChannelType(metaclass=ABCMeta):
     schemes = None
     available_timezones = None
     recommended_timezones = None
-    max_tps = None
 
     claim_blurb = None
     claim_view = None
