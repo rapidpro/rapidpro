@@ -27,7 +27,7 @@ class GlobeType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your "
+            "To finish configuring this channel, you'll need to set the following notify URI for SMS on your "
             "application configuration page."
         ),
         endpoints=[

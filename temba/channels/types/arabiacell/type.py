@@ -25,9 +25,7 @@ class ArabiaCellType(ChannelType):
     }
 
     config_ui = ConfigUI(
-        blurb=_(
-            "To finish connecting your channel, you need to have ArabiaCell configure the URL below for your short code."
-        ),
+        blurb=_("To finish configuring this channel, you'll need ArabiaCell to use the following callback URL."),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",

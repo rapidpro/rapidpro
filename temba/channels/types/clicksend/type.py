@@ -72,7 +72,7 @@ class ClickSendType(ChannelType):
     }
 
     config_ui = ConfigUI(
-        blurb=_("To finish connecting your channel, you need to set your inbound SMS URL below for your number."),
+        blurb=_("To finish configuring this channel, you need to set your inbound SMS URL below for your number."),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",

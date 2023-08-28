@@ -25,9 +25,7 @@ class BongoLiveType(ChannelType):
     }
 
     config_ui = ConfigUI(
-        blurb=_(
-            "To finish connecting your channel, you need to have Bongo Live configure the URLs below for your short code."
-        ),
+        blurb=_("To finish configuring this channel, you'll need Bongo Live to use the following callback URL."),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",

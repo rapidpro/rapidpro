@@ -26,7 +26,7 @@ class HormuudType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish configuring your connection you'll need to notify Hormuud of the following URL for incoming "
+            "To finish configuring this channel, you'll need to notify Hormuud of the following URL for incoming "
             "(MO) messages."
         ),
         endpoints=[

@@ -25,9 +25,7 @@ class SMSCentralType(ChannelType):
     claim_view = AuthenticatedExternalClaimView
 
     config_ui = ConfigUI(
-        blurb=_(
-            "To finish configuring your SMSCentral connection you'll need to notify SMSCentral of the following URL."
-        ),
+        blurb=_("To finish configuring this channel, you'll need to notify SMSCentral of the following URL."),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",

@@ -25,8 +25,8 @@ class AfricasTalkingType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish configuring your Africa's Talking connection you'll need to set the following callback URLs on the "
-            "Africa's Talking website under your account."
+            "To finish configuring this channel, you'll need to add the following callback URLs to your account on the "
+            "Africa's Talking website."
         ),
         endpoints=[
             ConfigUI.Endpoint(

@@ -25,7 +25,7 @@ class InfobipType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish configuring your Infobip connection you'll need to set the following callback URLs on the Infobip "
+            "To finish configuring this channel, you'll need to set the following callback URLs on the Infobip "
             "website under your account."
         ),
         endpoints=[

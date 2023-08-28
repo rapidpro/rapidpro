@@ -25,7 +25,7 @@ class I2SMSType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish configuring your I2SMS channel you'll need to set the message URL for the `DEFAULT` keyword as "
+            "To finish configuring this channel, you'll need to set the message URL for the `DEFAULT` keyword as "
             "below."
         ),
         endpoints=[

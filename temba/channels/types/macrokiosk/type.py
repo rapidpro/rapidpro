@@ -28,9 +28,7 @@ class MacrokioskType(ChannelType):
     claim_view = ClaimView
 
     config_ui = ConfigUI(
-        blurb=_(
-            "To finish configuring your MACROKIOSK connection you'll need to notify MACROKIOSK of the following URLs."
-        ),
+        blurb=_("To finish configuring this channel, you'll need to notify MACROKIOSK of the following URLs."),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",

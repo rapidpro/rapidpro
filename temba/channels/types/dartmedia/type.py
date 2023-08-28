@@ -25,9 +25,7 @@ class DartMediaType(ChannelType):
     claim_view = ClaimView
 
     config_ui = ConfigUI(
-        blurb=_(
-            "To finish configuring your Dart Media connection you'll need to provide them with the following details."
-        ),
+        blurb=_("To finish configuring this channel, you'll need to provide them with the following details."),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",

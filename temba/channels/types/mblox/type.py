@@ -24,7 +24,9 @@ class MbloxType(ChannelType):
     claim_view = AuthenticatedExternalClaimView
 
     config_ui = ConfigUI(
-        blurb=_("As a last step you'll need to set the following callback URL on your Mblox account."),
+        blurb=_(
+            "To finish configuring this channel, you'll need to set the following callback URL on your Mblox account."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",

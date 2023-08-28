@@ -25,7 +25,7 @@ class StartType(ChannelType):
     claim_view = AuthenticatedExternalClaimView
 
     config_ui = ConfigUI(
-        blurb=_("To finish configuring this channel you'll need to notify Start of the following receiving URL."),
+        blurb=_("To finish configuring this channel, you'll need to notify Start of the following receiving URL."),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
