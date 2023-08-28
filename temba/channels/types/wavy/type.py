@@ -43,7 +43,7 @@ class WavyType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish connecting your channel, you need to have Movile/Wavy configure the URL below for your number."
+            "To finish configuring this channel, you need to have Movile/Wavy configure the URL below for your number."
         ),
         endpoints=[
             ConfigUI.Endpoint(

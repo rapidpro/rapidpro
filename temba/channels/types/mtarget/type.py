@@ -27,7 +27,7 @@ class MtargetType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish connecting your channel, you need to have Mtarget configure the URLs below for your Service ID."
+            "To finish configuring this channel, you need to have Mtarget configure the URLs below for your Service ID."
         ),
         endpoints=[
             ConfigUI.Endpoint(courier="receive", label=_("Receive URL")),

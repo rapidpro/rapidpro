@@ -26,7 +26,7 @@ class DMarkType(ChannelType):
     claim_view = ClaimView
 
     config_ui = ConfigUI(
-        blurb=_("To finish configuring your DMark channel you need to set DMark to send MO messages to the URL below."),
+        blurb=_("To finish configuring this channel, you need to set DMark to send MO messages to the URL below."),
         endpoints=[
             ConfigUI.Endpoint(courier="receive", label=_("Receive URL")),
         ],

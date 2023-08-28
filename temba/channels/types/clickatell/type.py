@@ -26,7 +26,7 @@ class ClickatellType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish configuring your Clickatell connection you'll need to set the following callback URLs on the "
+            "To finish configuring this channel, you'll need to set the following callback URLs on the "
             "Clickatell website for your integration."
         ),
         endpoints=[

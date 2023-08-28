@@ -26,7 +26,7 @@ class ShaqodoonType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish configuring your Shaqodoon connection you'll need to provide Shaqodoon with the following delivery URL."
+            "To finish configuring this channel, you'll need to provide Shaqodoon with the following delivery URL."
         ),
         endpoints=[
             ConfigUI.Endpoint(courier="receive", label=_("Receive URL")),

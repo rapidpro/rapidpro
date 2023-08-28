@@ -27,7 +27,7 @@ class KaleyraType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra "
+            "To finish configuring this channel, you'll need to set the following callback URL on your Kaleyra "
             "account."
         ),
         endpoints=[

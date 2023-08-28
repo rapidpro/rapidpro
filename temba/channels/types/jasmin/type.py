@@ -24,7 +24,9 @@ class JasminType(ChannelType):
     claim_view = ClaimView
 
     config_ui = ConfigUI(
-        blurb=_("As a last step you'll need to configure Jasmin to call the following URL for MO (incoming) messages."),
+        blurb=_(
+            "To finish configuring this channel, you'll need to configure Jasmin to call the following URL for MO (incoming) messages."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",

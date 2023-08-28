@@ -26,7 +26,7 @@ class TelesomType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL "
+            "TTo finish configuring this channel, you'll need to provide Telesom with the following delivery URL "
             "for incoming messages."
         ),
         endpoints=[

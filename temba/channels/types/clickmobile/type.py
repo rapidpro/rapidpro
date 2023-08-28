@@ -28,7 +28,7 @@ class ClickMobileType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish configuring your channel you need to configure Click Mobile to send new messages to the URL below."
+            "To finish configuring this channel, you need to configure Click Mobile to send new messages to the URL below."
         ),
         endpoints=[
             ConfigUI.Endpoint(courier="receive", label=_("Receive URL")),

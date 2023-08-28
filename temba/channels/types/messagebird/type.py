@@ -27,7 +27,7 @@ class MessageBirdType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To use your Messagebird channel you'll have to configure the Messagebird to send raw received SMS messages to "
+            "To finish configuring this channel, you'll have to configure the Messagebird to send raw received SMS messages to "
             "the URL below either with a flow or by registering the webhook with them. Configure the status URL under "
             "Developer Settings to receive status updates for your messages."
         ),

@@ -33,8 +33,7 @@ class MessangiType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish configuring your Messangi connection you'll need to set the following callback URLs on your Messangi"
-            " account."
+            "To finish configuring this channel, you'll need to set the following callback URLs on your Messangi account."
         ),
         endpoints=[
             ConfigUI.Endpoint(

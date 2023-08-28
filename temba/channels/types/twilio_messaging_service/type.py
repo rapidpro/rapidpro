@@ -34,7 +34,7 @@ class TwilioMessagingServiceType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish configuring your Twilio Messaging Service connection you'll need to add the following URL in your "
+            "To finish configuring this channel, you'll need to add the following URL in your "
             "Messaging Service Inbound Settings."
         ),
         endpoints=[

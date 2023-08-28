@@ -74,7 +74,9 @@ class SignalWireType(ChannelType):
     claim_view = SignalWireClaimView
 
     config_ui = ConfigUI(
-        blurb=_("Your SignalWire channel is now connected."),
+        blurb=_(
+            "To finish configuring this channel, you may need to set this callback URL in your Signalwire account."
+        ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",

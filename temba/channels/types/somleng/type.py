@@ -35,7 +35,7 @@ class SomlengType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish configuring your Somleng channel you'll need to add the following URL to your Somleng instance."
+            "To finish configuring this channel, you'll need to set the following callback URLs on your Somleng instance."
         ),
         endpoints=[
             ConfigUI.Endpoint(

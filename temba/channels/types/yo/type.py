@@ -25,9 +25,7 @@ class YoType(ChannelType):
     ) % {"link": '<a target="_blank" href="http://www.yo.co.ug/">Yo!</a>'}
 
     config_ui = ConfigUI(
-        blurb=_(
-            "To finish configuring your Yo! connection you'll need to notify Yo! of the following inbound SMS URL."
-        ),
+        blurb=_("To finish configuring this channel, you'll need to notify Yo! of the following inbound SMS URL."),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",

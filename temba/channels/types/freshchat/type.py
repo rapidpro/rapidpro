@@ -25,7 +25,7 @@ class FreshChatType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To use your FreshChat channel you'll have to configure the FreshChat server to direct "
+            "To finish configuring this channel, you'll have to configure the FreshChat server to direct "
             "messages to the url below."
         ),
         endpoints=[

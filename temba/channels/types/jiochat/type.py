@@ -26,7 +26,7 @@ class JioChatType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish configuring your JioChat connection, you'll need to enter the following webhook URL and token on "
+            "To finish configuring this channel, you'll need to enter the following webhook URL and token on "
             "JioChat Developer Center configuration."
         ),
         endpoints=[

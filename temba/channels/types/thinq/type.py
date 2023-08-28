@@ -30,7 +30,7 @@ class ThinQType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish configuring your ThinQ connection you'll need to set the following callback URLs on the ThinQ "
+            "To finish configuring this channel, you'll need to set the following callback URLs on the ThinQ "
             "website on the SMS -> SMS Configuration page."
         ),
         endpoints=[

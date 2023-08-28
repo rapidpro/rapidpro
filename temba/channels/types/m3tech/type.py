@@ -24,7 +24,7 @@ class M3TechType(ChannelType):
     claim_view = AuthenticatedExternalClaimView
 
     config_ui = ConfigUI(
-        blurb=_("To finish configuring your connection you'll need to notify M3Tech of the following callback URLs."),
+        blurb=_("To finish configuring this channel, you'll need to notify M3Tech of the following callback URLs."),
         endpoints=[
             ConfigUI.Endpoint(courier="receive", label=_("Received URL")),
             ConfigUI.Endpoint(courier="sent", label=_("Sent URL")),
