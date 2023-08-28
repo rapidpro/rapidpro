@@ -21,8 +21,11 @@
     {{ block.super }}
   {% endblock extra-script %}
   <div class="background"></div>
-  <div class="flex flex-col h-full">
-    <div class="top flex-shrink flex-grow"></div>
+  <div class="flex flex-col h-full z-10">
+    <div class="top flex-shrink flex-grow">
+      {% block top %}
+      {% endblock top %}
+    </div>
     <div class="middle flex flex-row mb-10">
       <div class="flex-grow"></div>
       <div class="card content-card">
