@@ -1,3 +1,10 @@
+v8.3.13 (2023-08-28)
+-------------------------
+ * Tweaks to the channel config blurbs for consistency
+ * Fetching messages by label should include arched messages
+ * Use secrets module instead of random for random_string
+ * Little bit of cleanup in channel types like removing unused fields
+
 v8.3.12 (2023-08-23)
 -------------------------
  * Add ChannelType.config_ui to replace configuration_urls, configuration_blurb etc
