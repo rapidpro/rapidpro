@@ -53,7 +53,7 @@ from temba.utils.fields import (
     SelectWidget,
 )
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
+from temba.utils.views import BulkActionMixin, ContentMenuMixin, PostOnlyMixin, SpaMixin, StaffOnlyMixin
 from temba.utils.wizard import SmartWizardUpdateView, SmartWizardView
 
 from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, SystemLabel
@@ -1017,7 +1017,7 @@ class MediaCRUDL(SmartCRUDL):
     path = "msgmedia"  # so we don't conflict with the /media directory
     actions = ("upload", "list")
 
-    class Upload(OrgPermsMixin, SmartCreateView):
+    class Upload(PostOnlyMixin, OrgPermsMixin, SmartCreateView):
         """
         TODO deprecated, migrate usages to /api/v2/media.json
         """

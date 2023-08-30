@@ -2801,6 +2801,9 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
         def assert_upload(user, filename, expected_json):
             self.login(user)
 
+            response = self.client.get(upload_url)
+            self.assertEqual(response.status_code, 405)
+
             with open(filename, "rb") as data:
                 response = self.client.post(upload_url, {"file": data}, HTTP_X_FORWARDED_HTTPS="https")
 
