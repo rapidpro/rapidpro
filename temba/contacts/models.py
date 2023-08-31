@@ -857,9 +857,11 @@ class Contact(LegacyUUIDMixin, SmartModel):
         """
         Extracts events from this contacts sessions that overlap with the given time window
         """
+
+        # limit to 100 sessions at a time to prevent melting when a contact has a lot of sessions
         sessions = self.sessions.filter(
             Q(created_on__gte=after, created_on__lt=before) | Q(ended_on__gte=after, ended_on__lt=before)
-        )
+        ).order_by("-created_on")[:100]
         events = []
         for session in sessions:
             for run in session.output_json.get("runs", []):
