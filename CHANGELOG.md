@@ -1,3 +1,8 @@
+v8.3.14 (2023-08-31)
+-------------------------
+ * Limit to load the recent 100 sessions
+ * Disallow GET request for media upload view
+
 v8.3.13 (2023-08-28)
 -------------------------
  * Tweaks to the channel config blurbs for consistency
