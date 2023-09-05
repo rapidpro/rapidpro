@@ -3285,7 +3285,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
      * **urns** - the URNs you want to start in this flow (array of up to 100 strings, optional)
      * **restart_participants** - whether to restart participants already in this flow (optional, defaults to true)
      * **exclude_active** - whether to exclude contacts currently in other flow (optional, defaults to false)
-     * **params** - a dictionary of extra parameters to pass to the flow start (accessible via @trigger.params in your flow)
+     * **params** - extra parameters to pass to the flow start (object, accessible via `@trigger.params` in the flow)
 
     Example:
 
@@ -3389,7 +3389,11 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
                     required=False,
                     help="Whether to restart any participants already in the flow",
                 ),
-                dict(name="extra", required=False, help="Any extra parameters to pass to the flow start"),
+                dict(
+                    name="params",
+                    required=False,
+                    help=_("Extra parameters that will be accessible in the flow"),
+                ),
             ],
             example=dict(body='{"flow":"f5901b62-ba76-4003-9c62-72fdacc1b7b7","urns":["twitter:sirmixalot"]}'),
         )
