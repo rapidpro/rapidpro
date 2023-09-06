@@ -27,7 +27,7 @@
     "sortablejs": "1.8.4"
   },
   "scripts": {
-    "tw-build": "postcss static/scss/tailwind.scss -o static/css/tailwind.css",
+    "tw-build": "yarn postcss static/scss/tailwind.scss -o static/css/tailwind.css",
     "tw-watch": "watch 'yarn run tw-build' ./static/scss"
   },
   "devDependencies": {
