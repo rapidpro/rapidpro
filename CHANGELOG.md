@@ -1,3 +1,7 @@
+v8.3.17 (2023-09-06)
+-------------------------
+ * Add ContactURN.auth_tokens to replace .auth
+
 v8.3.16 (2023-09-06)
 -------------------------
  * Tweak documentation for flow_starts endpoint
