@@ -84,6 +84,14 @@ a {
   }
 }
 
+.hover-darker {
+  &:hover {
+    cursor: pointer;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06),
+      inset 0 0 20px 20px rgba(55, 55, 55, 0.1) !important;
+  }
+}
+
 .text-title {
   @apply text-3xl text-gray-700;
 }
