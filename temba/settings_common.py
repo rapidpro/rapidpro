@@ -730,6 +730,7 @@ GROUP_PERMISSIONS = {
         "tickets.ticket_list",
         "tickets.ticket_menu",
         "tickets.ticket_note",
+        "tickets.ticket_update",
         "tickets.topic_api",
     ),
     "Prometheus": (),
