@@ -1366,7 +1366,10 @@ class ContactURN(models.Model):
     # the channel affinity of this URN
     channel = models.ForeignKey(Channel, related_name="urns", on_delete=models.PROTECT, null=True)
 
-    # optional authentication information stored on this URN
+    # auth tokens - usage is channel specific, e.g. every FCM URN has its own token, FB channels have per opt-in tokens
+    auth_tokens = models.JSONField(null=True)
+
+    # deprecated
     auth = models.TextField(null=True)
 
     @classmethod
