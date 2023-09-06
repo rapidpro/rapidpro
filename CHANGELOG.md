@@ -1,3 +1,8 @@
+v8.3.16 (2023-09-06)
+-------------------------
+ * Tweak documentation for flow_starts endpoint
+ * Allow agents to update tickets topics
+
 v8.3.15 (2023-09-06)
 -------------------------
  * Add hover-darker button option
