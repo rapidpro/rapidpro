@@ -1,3 +1,8 @@
+v8.3.15 (2023-09-06)
+-------------------------
+ * Add hover-darker button option
+ * Update icons
+
 v8.3.14 (2023-08-31)
 -------------------------
  * Limit to load the recent 100 sessions
