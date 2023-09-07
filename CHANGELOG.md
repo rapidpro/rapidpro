@@ -1,3 +1,7 @@
+v8.3.18 (2023-09-07)
+-------------------------
+ * Add data migration to populate ContactURN.auth_tokens
+
 v8.3.17 (2023-09-06)
 -------------------------
  * Add ContactURN.auth_tokens to replace .auth
