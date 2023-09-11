@@ -805,19 +805,13 @@ class Org(SmartModel):
         """
         Gets a channel for this org which supports the given role and scheme
         """
-        from temba.channels.models import Channel
 
         channels = self.channels.filter(is_active=True, role__contains=role).order_by("-id")
 
         if scheme is not None:
             channels = channels.filter(schemes__contains=[scheme])
 
-        channel = channels.first()
-
-        if channel and (role == Channel.ROLE_SEND or role == Channel.ROLE_CALL):
-            return channel.get_delegate(role)
-        else:
-            return channel
+        return channels.first()
 
     def get_send_channel(self, scheme=None):
         from temba.channels.models import Channel

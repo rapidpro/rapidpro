@@ -19,7 +19,6 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes
 
-from temba.channels.types.vonage import VonageType
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
@@ -273,29 +272,9 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         android = self.claim_new_android()
         self.assertEqual("FCM111", android.config.get(Channel.CONFIG_FCM_ID))
 
-        # add bulk sender
-        vonage = Channel.create(
-            self.org,
-            self.admin,
-            android.country,
-            "NX",
-            name="Vonage Sender",
-            config={
-                VonageType.CONFIG_API_KEY: "key",
-                VonageType.CONFIG_API_SECRET: "secret",
-                Channel.CONFIG_CALLBACK_DOMAIN: self.org.get_brand_domain(),
-            },
-            tps=1,
-            address=android.address,
-            role=Channel.ROLE_SEND,
-            parent=android,
-        )
-
         # release it
         android.release(self.admin)
-
         android.refresh_from_db()
-        vonage.refresh_from_db()
 
         response = self.sync(android, cmds=[])
         self.assertEqual(200, response.status_code)
@@ -305,9 +284,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # and FCM ID now cleared
         self.assertIsNone(android.config.get(Channel.CONFIG_FCM_ID))
-
-        # bulk sender was also released
-        self.assertFalse(vonage.is_active)
 
     def test_list(self):
         # de-activate existing channels
@@ -1262,51 +1238,6 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.refresh_from_db()
         self.assertTrue(flow.has_issues)
         self.assertNotIn(self.ex_channel, flow.channel_dependencies.all())
-
-    def test_delete_delegate(self):
-        android = Channel.create(
-            self.org, self.admin, "RW", "A", name="Android", address="+250785551313", role="SR", schemes=("tel",)
-        )
-        vonage = Channel.create(
-            self.org,
-            self.admin,
-            android.country,
-            "NX",
-            name="Vonage Sender",
-            config={
-                VonageType.CONFIG_API_KEY: "key",
-                VonageType.CONFIG_API_SECRET: "secret",
-                Channel.CONFIG_CALLBACK_DOMAIN: self.org.get_brand_domain(),
-            },
-            tps=1,
-            address=android.address,
-            role=Channel.ROLE_SEND,
-            parent=android,
-        )
-
-        response = self.assertReadFetch(
-            reverse("channels.channel_read", args=[android.uuid]), allow_editors=True, allow_viewers=True
-        )
-        self.assertContains(response, "Bulk sending")
-        self.assertContains(response, "channel_nx")
-
-        delete_url = reverse("channels.channel_delete", args=[vonage.uuid])
-
-        # fetch delete modal
-        response = self.assertDeleteFetch(delete_url, allow_editors=True)
-        self.assertContains(response, "Disable Bulk Sending")
-
-        # try when delegate is a caller instead
-        vonage.role = "C"
-        vonage.save(update_fields=("role",))
-
-        # fetch delete modal
-        response = self.assertDeleteFetch(delete_url, allow_editors=True)
-        self.assertContains(response, "Disable Voice Calling")
-
-        # submit to delete it - should be redirected to the Android channel page
-        response = self.assertDeleteSubmit(delete_url, object_deactivated=vonage, success_status=200)
-        self.assertEqual(f"/channels/channel/read/{android.uuid}/", response["Temba-Success"])
 
 
 class SyncEventTest(SmartminTest):

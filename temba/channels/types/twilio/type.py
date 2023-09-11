@@ -49,10 +49,7 @@ class TwilioType(ChannelType):
     def deactivate(self, channel):
         config = channel.config
         client = TwilioClient(config[Channel.CONFIG_ACCOUNT_SID], config[Channel.CONFIG_AUTH_TOKEN])
-        number_update_args = dict()
-
-        if not channel.is_delegate_sender():
-            number_update_args["sms_application_sid"] = ""
+        number_update_args = {"sms_application_sid": ""}
 
         if channel.supports_ivr():
             number_update_args["voice_application_sid"] = ""
