@@ -117,8 +117,8 @@ class IVRTest(TembaTest):
 
 class BackfillCallCountsTest(MigrationTest):
     app = "ivr"
-    migrate_from = "0025_alter_call_org"
-    migrate_to = "0026_backfill_call_counts"
+    migrate_from = "0026_backfill_call_counts"
+    migrate_to = "0027_fix_call_counts"
 
     def setUpBeforeMigration(self, apps):
         contact = self.create_contact("Bob", phone="+123456789")
