@@ -513,35 +513,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         return self.channel_type == AndroidType.code
 
-    def get_delegate_channels(self):
-        # detached channels can't have delegates
-        if not self.org:  # pragma: no cover
-            return Channel.objects.none()
-
-        return self.org.channels.filter(parent=self, is_active=True, org=self.org).order_by("-role")
-
-    def get_delegate(self, role):
-        """
-        Get the channel that should perform a given action. Could just be us
-        (the same channel), but may be a delegate channel working on our behalf.
-        """
-        if self.role == role:  # pragma: no cover
-            delegate = self
-        else:
-            # if we have a delegate channel for this role, use that
-            delegate = self.get_delegate_channels().filter(role=role).first()
-
-        if not delegate and role in self.role:
-            delegate = self
-
-        return delegate
-
-    def get_sender(self):
-        return self.get_delegate(Channel.ROLE_SEND)
-
-    def get_caller(self):
-        return self.get_delegate(Channel.ROLE_CALL)
-
     @property
     def callback_domain(self):
         """
@@ -553,12 +524,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
             return callback_domain
         else:
             return self.org.get_brand_domain()
-
-    def is_delegate_sender(self):
-        return self.parent and Channel.ROLE_SEND in self.role
-
-    def is_delegate_caller(self):
-        return self.parent and Channel.ROLE_CALL in self.role
 
     def supports_ivr(self):
         return Channel.ROLE_CALL in self.role or Channel.ROLE_ANSWER in self.role
@@ -679,13 +644,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         except Exception as e:
             # proceed with removing this channel but log the problem
             logger.error(f"Unable to deactivate a channel: {str(e)}", exc_info=True)
-
-        # release any channels working on our behalf
-        for delegate_channel in self.org.channels.filter(parent=self):
-            delegate_channel.release(user)
-
-        # disassociate them
-        Channel.objects.filter(parent=self).update(parent=None)
 
         # delay mailroom task for 5 seconds, so mailroom assets cache expires
         interrupt_channel_task.apply_async((self.id,), countdown=5)

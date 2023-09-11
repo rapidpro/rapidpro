@@ -212,7 +212,6 @@ class AndroidTypeTest(TembaTest, CRUDLTestMixin):
         default_sender = self.org.get_send_channel(URN.TEL_SCHEME)
         self.assertEqual(default_sender, android2)
         self.assertEqual(default_sender, self.org.get_receive_channel(URN.TEL_SCHEME))
-        self.assertFalse(default_sender.is_delegate_sender())
 
         # re-register device with country as US
         reg_data = dict(

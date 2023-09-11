@@ -26,79 +26,55 @@
   {% endif %}
   {% if object.name %}<div class="text-gray-500 text-xl">{{ object.get_address_display }}</div>{% endif %}
   {% if object.get_country_display %}<div class="text-gray-500 text-base">{{ object.get_country_display }}</div>{% endif %}
-  {% with object.get_delegate_channels as delegates %}
-    {% if delegates %}
-      <div class="channel-roles mt-3">
-        {% for channel in delegates %}
-          <div onclick="goto(event, this)"
-               href="{% url 'channels.channel_read' channel.uuid %}"
-               class="lbl linked">
-            <div class="flex items-center">
-              <temba-icon name="{{ channel.type.get_icon }}">
-              </temba-icon>
-              <div class="name mx-1">
-                {% if channel.is_delegate_sender %}
-                  {% trans "Bulk sending" %}
-                {% endif %}
-                {% if channel.is_delegate_caller %}
-                  {% trans "Voice calls" %}
-                {% endif %}
-              </div>
-            </div>
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
-    <div class="mb-4 text-base">
-      {% if delayed_sync_event or unsent_msgs_count %}
-        <div class="flex items-center text-error">
-          <div class="mr-1">
-            <div class="icon-warning text-error text-lg mt-1"></div>
-          </div>
-          <div class="message">
-            {% if delayed_sync_event %}
-              <div class="inline-block ml-2">
-                {% if last_sync %}
-                  {% trans "Last synced" %}
-                  {% blocktrans trimmed with last_sync.created_on|timesince as last_sync %}
-                    {{ last_sync }} ago
-                  {% endblocktrans %}
-                {% else %}
-                  {% trans "Not synced yet" %}
-                {% endif %}
-              </div>
-            {% endif %}
-            {% if unsent_msgs_count %}
-              <div onclick="goto(event)"
-                   href="{% url 'msgs.msg_failed' %}"
-                   class="text-error text-base inline-block ml-2">
-                {{ unsent_msgs_count|intcomma }}
-                {% blocktrans trimmed count unsent_msgs_count=unsent_msgs_count %}
-                  unsent message
-                {% plural %}
-                  unsent messages
-                {% endblocktrans %}
-              </div>
-            {% endif %}
-          </div>
+  <div class="mb-4 text-base">
+    {% if delayed_sync_event or unsent_msgs_count %}
+      <div class="flex items-center text-error">
+        <div class="mr-1">
+          <div class="icon-warning text-error text-lg mt-1"></div>
         </div>
-      {% else %}
-        {% if object.is_android %}
-          {% if last_sync %}
-            {% trans "Last synced" %}
-            {% blocktrans trimmed with last_sync.created_on|timesince as last_sync %}
-              {{ last_sync }} ago
-            {% endblocktrans %}
-          {% else %}
-            {% trans "Not synced yet" %}
+        <div class="message">
+          {% if delayed_sync_event %}
+            <div class="inline-block ml-2">
+              {% if last_sync %}
+                {% trans "Last synced" %}
+                {% blocktrans trimmed with last_sync.created_on|timesince as last_sync %}
+                  {{ last_sync }} ago
+                {% endblocktrans %}
+              {% else %}
+                {% trans "Not synced yet" %}
+              {% endif %}
+            </div>
           {% endif %}
+          {% if unsent_msgs_count %}
+            <div onclick="goto(event)"
+                  href="{% url 'msgs.msg_failed' %}"
+                  class="text-error text-base inline-block ml-2">
+              {{ unsent_msgs_count|intcomma }}
+              {% blocktrans trimmed count unsent_msgs_count=unsent_msgs_count %}
+                unsent message
+              {% plural %}
+                unsent messages
+              {% endblocktrans %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    {% else %}
+      {% if object.is_android %}
+        {% if last_sync %}
+          {% trans "Last synced" %}
+          {% blocktrans trimmed with last_sync.created_on|timesince as last_sync %}
+            {{ last_sync }} ago
+          {% endblocktrans %}
         {% else %}
-          {% trans "Activated" %}
-          {{ object.created_on }}
+          {% trans "Not synced yet" %}
         {% endif %}
+      {% else %}
+        {% trans "Activated" %}
+        {{ object.created_on }}
       {% endif %}
-    </div>
-  {% endwith %}
+    {% endif %}
+  </div>
 {% endblock subtitle %}
 {% block top-form %}
 {% endblock top-form %}
