@@ -476,7 +476,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         config,
         role=DEFAULT_ROLE,
         schemes=("tel",),
-        parent=None,
         name=None,
         tps=None,
     ):
@@ -490,7 +489,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
             config=config,
             role=role,
             schemes=schemes,
-            parent=parent,
             tps=tps,
         )
 

@@ -1235,7 +1235,7 @@ class OrgCRUDL(SmartCRUDL):
                     from temba.channels.views import get_channel_read_url
 
                     items = []
-                    channels = self.org.channels.filter(is_active=True, parent=None).order_by(Lower("name"))
+                    channels = self.org.channels.filter(is_active=True).order_by(Lower("name"))
                     for channel in channels:
                         items.append(
                             self.create_menu_item(
