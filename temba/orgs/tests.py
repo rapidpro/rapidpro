@@ -2163,7 +2163,6 @@ class OrgDeleteTest(TembaTest):
     def _create_channel_content(self, org, add) -> tuple:
         channel1 = add(self.create_channel("TG", "Telegram", "+250785551212", org=org))
         channel2 = add(self.create_channel("A", "Android", "+1234567890", org=org))
-        channel3 = add(self.create_channel("T", "Twilio", "+1098765432", parent=channel2, org=org))
         add(
             SyncEvent.create(
                 channel2,
@@ -2183,7 +2182,7 @@ class OrgDeleteTest(TembaTest):
             )
         )
 
-        return (channel1, channel2, channel3)
+        return (channel1, channel2)
 
     def _create_flow_content(self, org, user, channels, contacts, groups, add) -> tuple:
         flow1 = add(self.create_flow("Registration", org=org))
