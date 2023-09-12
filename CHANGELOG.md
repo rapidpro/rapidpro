@@ -1,3 +1,9 @@
+v8.3.19 (2023-09-12)
+-------------------------
+ * Add new data migration to fix IVR call counts
+ * Drop Channel.parent, ContactURN.auth and Org.input_cleaners
+ * Remove support for delegate channels
+
 v8.3.18 (2023-09-07)
 -------------------------
  * Add data migration to populate ContactURN.auth_tokens
