@@ -336,7 +336,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     schemes = ArrayField(models.CharField(max_length=16), default=_get_default_channel_scheme)
     role = models.CharField(max_length=4, default=DEFAULT_ROLE)
     log_policy = models.CharField(max_length=1, default=LOG_POLICY_ALL, choices=LOG_POLICY_CHOICES)
-    parent = models.ForeignKey("self", on_delete=models.PROTECT, null=True)
     tps = models.IntegerField(null=True)
 
     # Android relayer specific fields
@@ -477,7 +476,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         config,
         role=DEFAULT_ROLE,
         schemes=("tel",),
-        parent=None,
         name=None,
         tps=None,
     ):
@@ -491,7 +489,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
             config=config,
             role=role,
             schemes=schemes,
-            parent=parent,
             tps=tps,
         )
 

@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def populate_urn_auth_tokens(apps, schema_editor):
+def populate_urn_auth_tokens(apps, schema_editor):  # pragma: no cover
     ContactURN = apps.get_model("contacts", "ContactURN")
 
     num_updated = 0
@@ -16,7 +16,7 @@ def populate_urn_auth_tokens(apps, schema_editor):
         print(f"Updated {num_updated} urns with auth values")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

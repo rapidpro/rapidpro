@@ -486,9 +486,6 @@ class Org(SmartModel):
     released_on = models.DateTimeField(null=True)
     deleted_on = models.DateTimeField(null=True)
 
-    # TODO remove
-    input_cleaners = ArrayField(models.CharField(max_length=32), null=True)
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
