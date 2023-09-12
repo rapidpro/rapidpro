@@ -30,7 +30,7 @@ from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modi
 from temba.msgs.models import Broadcast, Msg, SystemLabel
 from temba.orgs.models import Org, OrgRole
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, ESMockWithScroll, MigrationTest, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticket, TicketCount, Ticketer
@@ -5400,20 +5400,3 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
-
-
-class PopulateURNAuthTokensTest(MigrationTest):
-    app = "contacts"
-    migrate_from = "0177_contacturn_auth_tokens"
-    migrate_to = "0178_populate_urn_auth_tokens"
-
-    def setUpBeforeMigration(self, apps):
-        self.urn1 = ContactURN.objects.create(org=self.org, scheme="fcm", path="2345", identity="fcm:2345", auth="3456")
-        self.urn2 = ContactURN.objects.create(org=self.org, scheme="tel", path="5678", identity="tel:5678")
-
-    def test_migration(self):
-        self.urn1.refresh_from_db()
-        self.urn2.refresh_from_db()
-
-        self.assertEqual({"default": "3456"}, self.urn1.auth_tokens)
-        self.assertEqual(None, self.urn2.auth_tokens)

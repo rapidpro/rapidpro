@@ -1369,18 +1369,15 @@ class ContactURN(models.Model):
     # auth tokens - usage is channel specific, e.g. every FCM URN has its own token, FB channels have per opt-in tokens
     auth_tokens = models.JSONField(null=True)
 
-    # deprecated
-    auth = models.TextField(null=True)
-
     @classmethod
-    def get_or_create(cls, org, contact, urn_as_string, channel=None, auth=None, priority=PRIORITY_HIGHEST):
+    def get_or_create(cls, org, contact, urn_as_string, channel=None, priority=PRIORITY_HIGHEST):
         urn = cls.lookup(org, urn_as_string)
 
         # not found? create it
         if not urn:
             try:
                 with transaction.atomic():
-                    urn = cls.create(org, contact, urn_as_string, channel=channel, priority=priority, auth=auth)
+                    urn = cls.create(org, contact, urn_as_string, channel=channel, priority=priority)
             except IntegrityError:
                 urn = cls.lookup(org, urn_as_string)
 
@@ -1396,7 +1393,6 @@ class ContactURN(models.Model):
             contact=contact,
             priority=priority,
             channel=channel,
-            auth=auth,
             scheme=scheme,
             path=path,
             identity=urn_as_string,
