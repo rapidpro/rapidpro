@@ -3,7 +3,7 @@
 from django.db import migrations, transaction
 
 
-def backfill_call_counts(apps, schema_editor):
+def backfill_call_counts(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
     Call = apps.get_model("ivr", "Call")
     SystemLabelCount = apps.get_model("msgs", "SystemLabelCount")
@@ -21,14 +21,8 @@ def backfill_call_counts(apps, schema_editor):
         print(f"Backfilled call count for org '{org.name}' (calls={call_count})")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
-
-
-def apply_manual():  # pragma: no cover
-    from django.apps import apps
-
-    backfill_call_counts(apps, None)
 
 
 class Migration(migrations.Migration):
