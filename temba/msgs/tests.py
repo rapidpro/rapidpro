@@ -1928,9 +1928,17 @@ class BroadcastTest(TembaTest):
 
 
 def get_broadcast_form_data(
-    org, message, attachments=[], contacts=[], start_datetime="", repeat_period="", repeat_days_of_week=""
+    org,
+    message,
+    *,
+    attachments=[],
+    contacts=[],
+    send_when=ScheduleForm.SEND_LATER,
+    start_datetime="",
+    repeat_period="",
+    repeat_days_of_week="",
 ):
-    return OrderedDict(
+    payload = OrderedDict(
         [
             ("target", {"omnibox": omnibox_serialize(org, groups=[], contacts=contacts, json_encode=True)}),
             (
@@ -1940,7 +1948,7 @@ def get_broadcast_form_data(
             (
                 "schedule",
                 {
-                    "send_when": ScheduleForm.SEND_LATER,
+                    "send_when": send_when,
                     "start_datetime": start_datetime,
                     "repeat_period": repeat_period,
                     "repeat_days_of_week": repeat_days_of_week,
@@ -1948,6 +1956,10 @@ def get_broadcast_form_data(
             ),
         ]
     )
+
+    if send_when == ScheduleForm.SEND_NOW:
+        payload["schedule"] = {"send_when": send_when, "repeat_period": Schedule.REPEAT_NEVER}
+    return payload
 
 
 class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -1971,38 +1983,73 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=("omnibox",))
         self.login(self.admin)
 
+        # initialize form based on a contact
+        response = self.client.get(f"{create_url}?c={self.joe.uuid}")
+        omnibox = response.context["form"]["omnibox"]
+        self.assertEqual(
+            [{"id": str(self.joe.uuid), "name": "Joe Blow", "type": "contact", "urn": "(202) 555-0149"}],
+            omnibox.value(),
+        )
+
         # missing text
-        response = self.process_wizard("create", create_url, get_broadcast_form_data(self.org, "", [], [self.joe]))
+        response = self.process_wizard("create", create_url, get_broadcast_form_data(self.org, "", contacts=[self.joe]))
         self.assertFormError(response.context["form"], "compose", ["Text or attachments are required."])
 
         # text too long
         response = self.process_wizard(
-            "create", create_url, get_broadcast_form_data(self.org, "." * 641, [], [self.joe])
+            "create", create_url, get_broadcast_form_data(self.org, "." * 641, contacts=[self.joe])
         )
         self.assertFormError(response.context["form"], "compose", ["Maximum allowed text is 640 characters."])
 
         # too many attachments
         attachments = compose_deserialize_attachments([{"content_type": media.content_type, "url": media.url}])
         response = self.process_wizard(
-            "create", create_url, get_broadcast_form_data(self.org, text, attachments * 11, [self.joe])
+            "create",
+            create_url,
+            get_broadcast_form_data(self.org, text, attachments=attachments * 11, contacts=[self.joe]),
         )
         self.assertFormError(response.context["form"], "compose", ["Maximum allowed attachments is 10 files."])
 
         # empty recipients
-        response = self.process_wizard("create", create_url, get_broadcast_form_data(self.org, text, []))
+        response = self.process_wizard("create", create_url, get_broadcast_form_data(self.org, text))
         self.assertFormError(response.context["form"], "omnibox", ["At least one recipient is required."])
 
-        # successful broadcast creation
+        # missing start time
         response = self.process_wizard(
             "create",
             create_url,
-            get_broadcast_form_data(self.org, text, [], [self.joe], "2021-06-24 12:00", "W", ["M", "F"]),
+            get_broadcast_form_data(self.org, text, contacts=[self.joe]),
+        )
+        self.assertFormError(response.context["form"], None, ["Select when you would like the broadcast to be sent"])
+
+        # successful broadcast schedule
+        response = self.process_wizard(
+            "create",
+            create_url,
+            get_broadcast_form_data(
+                self.org,
+                text,
+                contacts=[self.joe],
+                start_datetime="2021-06-24 12:00",
+                repeat_period="W",
+                repeat_days_of_week=["M", "F"],
+            ),
         )
         self.assertEqual(302, response.status_code)
-
         self.assertEqual(1, Broadcast.objects.count())
         broadcast = Broadcast.objects.filter(translations__icontains=text).first()
         self.assertEqual("W", broadcast.schedule.repeat_period)
+
+        # send a broadcast right away
+        response = self.process_wizard(
+            "create",
+            create_url,
+            get_broadcast_form_data(self.org, text, contacts=[self.joe], send_when=ScheduleForm.SEND_NOW),
+        )
+        self.assertEqual(302, response.status_code)
+
+        # we should have a sent broadcast, so no schedule attached
+        self.assertEqual(1, Broadcast.objects.filter(schedule=None).count())
 
     def test_update(self):
         updated_text = "Updated broadcast"
@@ -2125,14 +2172,6 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.get(send_url)
         self.assertEqual(["omnibox", "text", "step_node", "loc"], list(response.context["form"].fields.keys()))
-
-        # initialize form based on a contact
-        response = self.client.get(f"{send_url}?c={self.joe.uuid}")
-        omnibox = response.context["form"]["omnibox"]
-        self.assertEqual(
-            [{"id": str(self.joe.uuid), "name": "Joe Blow", "type": "contact", "urn": "(202) 555-0149"}],
-            omnibox.value(),
-        )
 
         # submit with a send to a group and a contact
         response = self.client.post(

@@ -531,18 +531,6 @@ class BroadcastCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             initial = super().derive_initial()
-
-            org = self.request.org
-            contact_uuids = [_ for _ in self.request.GET.get("c", "").split(",") if _]
-
-            if contact_uuids:
-                params = {}
-                if len(contact_uuids) > 0:
-                    params["c"] = ",".join(contact_uuids)
-
-                results = omnibox_query(org, **params)
-                initial["omnibox"] = omnibox_results_to_dict(org, results)
-
             initial["step_node"] = self.request.GET.get("step_node", None)
             return initial
 
