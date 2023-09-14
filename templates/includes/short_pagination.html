@@ -61,16 +61,12 @@
         {% endif %}
         {% if 'send' in actions %}
           {% if org_perms.msgs.broadcast_send and not reply_disabled %}
-            <temba-modax header="{{ _("Send Message") |escapejs }}"
-                         endpoint="{% url 'msgs.broadcast_send' %}"
-                         id="send-message-modal">
-              <div onclick="handleSendMessageClicked()" class="linked ml-4">
-                <temba-tip position="top" text="{{ _("Send Message") |escapejs }}">
-                  <temba-icon name="message" clickable="true">
-                  </temba-icon>
-                </temba-tip>
-              </div>
-            </temba-modax>
+            <div onclick="handleSendMessageClicked()" class="linked ml-4">
+              <temba-tip position="top" text="{{ _("New Broadcast") |escapejs }}">
+                <temba-icon name="message" clickable="true">
+                </temba-icon>
+              </temba-tip>
+            </div>
           {% endif %}
         {% endif %}
         {% if 'delete' in actions %}

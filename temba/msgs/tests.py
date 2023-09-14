@@ -28,6 +28,7 @@ from temba.msgs.models import (
     SystemLabel,
     SystemLabelCount,
 )
+from temba.msgs.views import ScheduleForm
 from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
@@ -1486,7 +1487,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({label1, label3}, set(msg1.labels.all()))
 
         self.assertContentMenu(inbox_url, self.user, ["Download"])
-        self.assertContentMenu(inbox_url, self.admin, ["Send Message", "New Label", "Download"])
+        self.assertContentMenu(inbox_url, self.admin, ["New Broadcast", "New Label", "Download"])
 
     def test_flows(self):
         flow = self.create_flow("Test")
@@ -1931,14 +1932,15 @@ def get_broadcast_form_data(
 ):
     return OrderedDict(
         [
+            ("target", {"omnibox": omnibox_serialize(org, groups=[], contacts=contacts, json_encode=True)}),
             (
                 "compose",
                 {"compose": compose_serialize({"text": message, "attachments": attachments}, json_encode=True)},
             ),
-            ("target", {"omnibox": omnibox_serialize(org, groups=[], contacts=contacts, json_encode=True)}),
             (
                 "schedule",
                 {
+                    "send_when": ScheduleForm.SEND_LATER,
                     "start_datetime": start_datetime,
                     "repeat_period": repeat_period,
                     "repeat_days_of_week": repeat_days_of_week,
@@ -1966,20 +1968,24 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         create_url = reverse("msgs.broadcast_create")
-        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=("compose",))
+        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=("omnibox",))
         self.login(self.admin)
 
         # missing text
-        response = self.process_wizard("create", create_url, get_broadcast_form_data(self.org, ""))
+        response = self.process_wizard("create", create_url, get_broadcast_form_data(self.org, "", [], [self.joe]))
         self.assertFormError(response.context["form"], "compose", ["Text or attachments are required."])
 
         # text too long
-        response = self.process_wizard("create", create_url, get_broadcast_form_data(self.org, "." * 641))
+        response = self.process_wizard(
+            "create", create_url, get_broadcast_form_data(self.org, "." * 641, [], [self.joe])
+        )
         self.assertFormError(response.context["form"], "compose", ["Maximum allowed text is 640 characters."])
 
         # too many attachments
         attachments = compose_deserialize_attachments([{"content_type": media.content_type, "url": media.url}])
-        response = self.process_wizard("create", create_url, get_broadcast_form_data(self.org, text, attachments * 11))
+        response = self.process_wizard(
+            "create", create_url, get_broadcast_form_data(self.org, text, attachments * 11, [self.joe])
+        )
         self.assertFormError(response.context["form"], "compose", ["Maximum allowed attachments is 10 files."])
 
         # empty recipients
@@ -2010,7 +2016,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         update_url = reverse("msgs.broadcast_update", args=[broadcast.id])
 
-        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=("compose",))
+        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=("omnibox",))
         self.login(self.admin)
 
         response = self.process_wizard(
