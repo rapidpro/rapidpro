@@ -13,7 +13,7 @@
     }
 
     #schedule_fields {
-      margin-left: 1.5rem;
+      margin: 0 1.5em;
     }
 
     #id_schedule-send_when_1 {
@@ -35,8 +35,6 @@
     var sendWhen = modalBody.querySelector("#id_schedule-send_when");
     var scheduleFields = modalBody.querySelector("#schedule_fields");
     var sendNow = modalBody.querySelector("#id_schedule-send_when_0");
-
-    console.log(modalBody);
 
     if (sendWhen) {
       sendWhen.addEventListener("change", function(event) {
