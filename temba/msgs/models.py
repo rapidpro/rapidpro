@@ -1054,6 +1054,17 @@ class LabelCount(SquashableModel):
         return {lb: counts_by_label_id.get(lb.id, 0) for lb in labels}
 
 
+class OptIn(TembaModel):
+    """
+    Contact optin for a particular messaging topic.
+    """
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="optins")
+
+    class Meta:
+        constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_optin_names")]
+
+
 class MsgIterator:
     """
     Queryset wrapper to chunk queries and reduce in-memory footprint
