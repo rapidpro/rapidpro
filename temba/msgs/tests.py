@@ -2069,7 +2069,14 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.process_wizard(
             "update",
             update_url,
-            get_broadcast_form_data(self.org, updated_text, [], [self.joe], "2021-06-24 12:00", "W", ["M", "F"]),
+            get_broadcast_form_data(
+                self.org,
+                updated_text,
+                contacts=[self.joe],
+                start_datetime="2021-06-24 12:00",
+                repeat_period="W",
+                repeat_days_of_week=["M", "F"],
+            ),
         )
         self.assertEqual(302, response.status_code)
 
