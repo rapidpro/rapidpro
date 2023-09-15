@@ -103,6 +103,7 @@ class MessageHistory(OrgPermsMixin, SmartTemplateView):
             [
                 dict(name="Incoming", type="column", data=msgs_in, showInNavigator=False),
                 dict(name="Outgoing", type="column", data=msgs_out, showInNavigator=False),
+                dict(name="Total", type="line", data=msgs_total, showInNavigator=True, visible=False, showInLegend=False),
             ],
             safe=False,
         )
