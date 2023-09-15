@@ -15,6 +15,12 @@
     </div>
     <div id="message-chart"></div>
   </div>
+  <div class="card scrollable flex-shrink-0" id="range-group-1">
+    <div id="workspace-chart"></div>
+  </div>
+  <div class="card scrollable flex-shrink-0" id="range-group-2">
+    <div id="channel-types-chart"></div>
+  </div>
 {% endblock content %}
 {% block extra-script %}
   {{ block.super }}
@@ -50,6 +56,75 @@
       redrawMarker = window.setTimeout(selectionChanged.bind(null, chart), 200);
     }
 
+    function createChart(container, data) {
+      return Highcharts.stockChart(container, {
+        chart: {
+          zoomType: 'x',
+          events: {
+            // mark dirty out the gate
+            load: function(e) {
+              markDirty(this);
+            },
+            redraw: function(e) {
+              markDirty(this);
+            }
+          }
+        },
+        plotOptions: {
+          series: {
+            showInLegend: true,
+            showInNavigator: true
+          },
+          column: {
+            stacking: 'normal',
+          },
+          line: {
+            cumulative: true,
+            tooltip: {
+              pointFormat: '{series.name}: <b>{point.cumulativeSum:.0f}</b>'
+            }
+          }
+
+        },
+        legend: {
+          enabled: true
+        },
+        rangeSelector: {
+          buttons: [{
+            type: 'week',
+            count: 1,
+            text: 'W'
+          }, {
+            type: 'month',
+            count: 1,
+            text: 'M'
+          }, {
+            type: 'year',
+            count: 1,
+            text: 'Y'
+          }, {
+            type: 'all',
+            count: 1,
+            text: 'all'
+          }],
+          inputEnabled: false,
+          selected: 1
+        },
+        xAxis: {
+          minRange: 3600000 * 24
+        },
+        credits: {
+          enabled: false
+        },
+        navigator: {
+          series: {
+            type: 'line'
+          }
+        },
+        series: data
+      });
+    }
+
     function loadCharts() {
       Highcharts.setOptions({
         lang: {
@@ -61,63 +136,21 @@
       store.getUrl('/dashboard/message_history').then(function(response) {
         var data = response.json;
         // Create the chart
-        Highcharts.stockChart('message-chart', {
-          chart: {
-            zoomType: 'x',
-            events: {
-              // mark dirty out the gate
-              load: function(e) {
-                markDirty(this);
-              },
-              redraw: function(e) {
-                markDirty(this);
-              }
-            }
-          },
-          plotOptions: {
-            series: {
-              showInLegend: true,
-              stacking: 'normal'
-            }
-          },
-          legend: {
-            enabled: true
-          },
-          rangeSelector: {
-            buttons: [{
-              type: 'week',
-              count: 1,
-              text: 'W'
-            }, {
-              type: 'month',
-              count: 1,
-              text: 'M'
-            }, {
-              type: 'year',
-              count: 1,
-              text: 'Y'
-            }, {
-              type: 'all',
-              count: 1,
-              text: 'all'
-            }],
-            inputEnabled: false,
-            selected: 1
-          },
-          xAxis: {
-            minRange: 3600000 * 24
-          },
-          credits: {
-            enabled: false
-          },
-          navigator: {
-            series: {
+        createChart('message-chart', data);
 
-              type: 'line'
-            }
-          },
-          series: data
-        });
+      });
+
+      store.getUrl('/dashboard/workspace_stats').then(function(response) {
+        var data = response.json;
+        // Create the chart
+        createChart('workspace-chart', data);
+
+      });
+
+      store.getUrl('/dashboard/channel_types_stats').then(function(response) {
+        var data = response.json;
+        // Create the chart
+        createChart('channel-types-chart', data);
 
       });
     }

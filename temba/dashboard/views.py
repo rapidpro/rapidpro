@@ -103,8 +103,229 @@ class MessageHistory(OrgPermsMixin, SmartTemplateView):
             [
                 dict(name="Incoming", type="column", data=msgs_in, showInNavigator=False),
                 dict(name="Outgoing", type="column", data=msgs_out, showInNavigator=False),
-                dict(name="Total", type="line", data=msgs_total, showInNavigator=True, visible=False, showInLegend=False),
+                ## dict(name="Total", type="line", cumulative=True, data=msgs_total, showInNavigator=True, visible=False, showInLegend=False),
             ],
+            safe=False,
+        )
+
+
+class WorkspaceStats(OrgPermsMixin, SmartTemplateView):
+    permission = "orgs.org_dashboard"
+
+    def render_to_response(self, context, **response_kwargs):
+        orgs = []
+        org = self.derive_org()
+        if org:
+            orgs = Org.objects.filter(Q(id=org.id) | Q(parent=org))
+
+        # get all our counts for that period
+        daily_counts = ChannelCount.objects.filter(
+            count_type__in=[
+                ChannelCount.INCOMING_MSG_TYPE,
+                ChannelCount.OUTGOING_MSG_TYPE,
+                ChannelCount.INCOMING_IVR_TYPE,
+                ChannelCount.OUTGOING_IVR_TYPE,
+            ]
+        )
+
+        daily_counts = daily_counts.filter(day__gt="2013-02-01").filter(day__lte=timezone.now())
+
+        if orgs or not self.request.user.is_support:
+            daily_counts = daily_counts.filter(channel__org__in=orgs)
+
+        output = []
+        epoch = datetime(1970, 1, 1)
+
+        def get_timestamp(count_dict):
+            """
+            Gets a unix time that is highcharts friendly for a given day
+            """
+            count_date = datetime.fromtimestamp(time.mktime(count_dict["day"].timetuple()))
+            return int((count_date - epoch).total_seconds() * 1000)
+
+        def record_count(counts, day, count):
+            """
+            Records a count in counts list which is an ordered list of day, count tuples
+            """
+            is_new = True
+
+            # if we have seen this one before, increment it
+            if len(counts):
+                last = counts[-1]
+                if last and last[0] == day:
+                    last[1] += count["count_sum"]
+                    is_new = False
+
+            # otherwise add it as a new count
+            if is_new:
+                counts.append([day, count["count_sum"]])
+
+        for org in orgs:
+            org_daily_counts = list(
+                daily_counts.filter(channel__org_id=org.id)
+                .values("day", "count_type")
+                .order_by("day", "count_type")
+                .annotate(count_sum=Sum("count"))
+            )
+
+            org_msgs_total = []
+            org_msgs_in = []
+            org_msgs_out = []
+            for count in org_daily_counts:
+                direction = count["count_type"][0]
+                day = get_timestamp(count)
+
+                if direction == "I":
+                    record_count(org_msgs_in, day, count)
+                elif direction == "O":
+                    record_count(org_msgs_out, day, count)
+
+                record_count(org_msgs_total, day, count)
+
+            output.extend(
+                [
+                    dict(
+                        name=f"{org.name} Incoming",
+                        stack=org.id,
+                        cumulative=True,
+                        type="column",
+                        data=org_msgs_in,
+                        showInNavigator=False,
+                    ),
+                    dict(
+                        name=f"{org.name} Outgoing",
+                        stack=org.id,
+                        cumulative=True,
+                        type="column",
+                        data=org_msgs_out,
+                        showInNavigator=False,
+                    ),
+                    dict(
+                        name=f"{org.name} Total",
+                        cumulative=True,
+                        type="line",
+                        data=org_msgs_total,
+                        showInNavigator=False,
+                        dataLabels=dict(format="point.cumulativeSum"),
+                    ),
+                ]
+            )
+
+        return JsonResponse(
+            output,
+            safe=False,
+        )
+
+
+class ChannelTypesStats(OrgPermsMixin, SmartTemplateView):
+    permission = "orgs.org_dashboard"
+
+    def render_to_response(self, context, **response_kwargs):
+        orgs = []
+        org = self.derive_org()
+        if org:
+            orgs = Org.objects.filter(Q(id=org.id) | Q(parent=org))
+
+        # get all our counts for that period
+        daily_counts = ChannelCount.objects.filter(
+            count_type__in=[
+                ChannelCount.INCOMING_MSG_TYPE,
+                ChannelCount.OUTGOING_MSG_TYPE,
+                ChannelCount.INCOMING_IVR_TYPE,
+                ChannelCount.OUTGOING_IVR_TYPE,
+            ]
+        ).exclude(channel__org=None)
+
+        if orgs or not self.request.user.is_support:
+            daily_counts = daily_counts.filter(channel__org__in=orgs)
+
+        daily_counts = daily_counts.filter(day__gt="2013-02-01").filter(day__lte=timezone.now())
+
+        output = []
+        epoch = datetime(1970, 1, 1)
+
+        def get_timestamp(count_dict):
+            """
+            Gets a unix time that is highcharts friendly for a given day
+            """
+            count_date = datetime.fromtimestamp(time.mktime(count_dict["day"].timetuple()))
+            return int((count_date - epoch).total_seconds() * 1000)
+
+        def record_count(counts, day, count):
+            """
+            Records a count in counts list which is an ordered list of day, count tuples
+            """
+            is_new = True
+
+            # if we have seen this one before, increment it
+            if len(counts):
+                last = counts[-1]
+                if last and last[0] == day:
+                    last[1] += count["count_sum"]
+                    is_new = False
+
+            # otherwise add it as a new count
+            if is_new:
+                counts.append([day, count["count_sum"]])
+
+        channel_types = list(
+            daily_counts.values("channel__channel_type").annotate(count_sum=Sum("count")).order_by("-count_sum")
+        )
+
+        for ch_type in channel_types:
+            channel_type_name = Channel.get_type_from_code(ch_type["channel__channel_type"]).name
+
+            ch_type_daily_counts = list(
+                daily_counts.filter(channel__channel_type=ch_type["channel__channel_type"])
+                .values("day", "count_type")
+                .order_by("day", "count_type")
+                .annotate(count_sum=Sum("count"))
+            )
+
+            ch_type_msgs_total = []
+            ch_type_msgs_in = []
+            ch_type_msgs_out = []
+            for count in ch_type_daily_counts:
+                direction = count["count_type"][0]
+                day = get_timestamp(count)
+
+                if direction == "I":
+                    record_count(ch_type_msgs_in, day, count)
+                elif direction == "O":
+                    record_count(ch_type_msgs_out, day, count)
+
+                record_count(ch_type_msgs_total, day, count)
+
+            output.extend(
+                [
+                    dict(
+                        name=f"{channel_type_name} Incoming",
+                        cumulative=True,
+                        stack=ch_type["channel__channel_type"],
+                        type="column",
+                        data=ch_type_msgs_in,
+                        showInNavigator=False,
+                    ),
+                    dict(
+                        name=f"{channel_type_name} Outgoing",
+                        cumulative=True,
+                        stack=ch_type["channel__channel_type"],
+                        type="column",
+                        data=ch_type_msgs_out,
+                        showInNavigator=False,
+                    ),
+                    dict(
+                        name=f"{channel_type_name} Total",
+                        cumulative=True,
+                        type="line",
+                        data=ch_type_msgs_total,
+                        showInNavigator=False,
+                    ),
+                ]
+            )
+
+        return JsonResponse(
+            output,
             safe=False,
         )
 
