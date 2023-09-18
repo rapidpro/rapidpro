@@ -1,3 +1,8 @@
+v8.3.21 (2023-09-18)
+-------------------------
+ * Add basic OptIn model
+ * Use env variable for dev mode host
+
 v8.3.20 (2023-09-12)
 -------------------------
  * Update editor for localized attachment fix
