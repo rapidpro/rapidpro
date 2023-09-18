@@ -187,26 +187,43 @@ class WorkspaceStats(OrgPermsMixin, SmartTemplateView):
                     dict(
                         name=f"{org.name} Incoming",
                         stack=org.id,
-                        cumulative=True,
                         type="column",
                         data=org_msgs_in,
                         showInNavigator=False,
                     ),
                     dict(
+                        name=f"{org.name} Cumulative Incoming",
+                        stack=f"{org.id}.cumulative.in",
+                        cumulative=True,
+                        type="line",
+                        data=org_msgs_in,
+                        showInNavigator=False,
+                        visible=False,
+                    ),
+                    dict(
                         name=f"{org.name} Outgoing",
                         stack=org.id,
-                        cumulative=True,
                         type="column",
                         data=org_msgs_out,
                         showInNavigator=False,
                     ),
                     dict(
+                        name=f"{org.name} Cumulative Outgoing",
+                        stack=f"{org.id}.cumulative.out",
+                        cumulative=True,
+                        type="line",
+                        data=org_msgs_out,
+                        showInNavigator=False,
+                        visible=False,
+                    ),
+                    dict(
                         name=f"{org.name} Total",
+                        stack=f"{org.id}.total",
                         cumulative=True,
                         type="line",
                         data=org_msgs_total,
                         showInNavigator=False,
-                        dataLabels=dict(format="point.cumulativeSum"),
+                        tooltip=dict(pointFormat="{series.name}: <b>{point.cumulativeSum:.0f}</b>"),
                     ),
                 ]
             )
@@ -242,32 +259,6 @@ class ChannelTypesStats(OrgPermsMixin, SmartTemplateView):
         daily_counts = daily_counts.filter(day__gt="2013-02-01").filter(day__lte=timezone.now())
 
         output = []
-        epoch = datetime(1970, 1, 1)
-
-        def get_timestamp(count_dict):
-            """
-            Gets a unix time that is highcharts friendly for a given day
-            """
-            count_date = datetime.fromtimestamp(time.mktime(count_dict["day"].timetuple()))
-            return int((count_date - epoch).total_seconds() * 1000)
-
-        def record_count(counts, day, count):
-            """
-            Records a count in counts list which is an ordered list of day, count tuples
-            """
-            is_new = True
-
-            # if we have seen this one before, increment it
-            if len(counts):
-                last = counts[-1]
-                if last and last[0] == day:
-                    last[1] += count["count_sum"]
-                    is_new = False
-
-            # otherwise add it as a new count
-            if is_new:
-                counts.append([day, count["count_sum"]])
-
         channel_types = list(
             daily_counts.values("channel__channel_type").annotate(count_sum=Sum("count")).order_by("-count_sum")
         )
@@ -277,49 +268,45 @@ class ChannelTypesStats(OrgPermsMixin, SmartTemplateView):
 
             ch_type_daily_counts = list(
                 daily_counts.filter(channel__channel_type=ch_type["channel__channel_type"])
-                .values("day", "count_type")
-                .order_by("day", "count_type")
+                .values("count_type")
+                .order_by("count_type")
                 .annotate(count_sum=Sum("count"))
             )
 
-            ch_type_msgs_total = []
             ch_type_msgs_in = []
             ch_type_msgs_out = []
             for count in ch_type_daily_counts:
                 direction = count["count_type"][0]
-                day = get_timestamp(count)
 
                 if direction == "I":
-                    record_count(ch_type_msgs_in, day, count)
-                elif direction == "O":
-                    record_count(ch_type_msgs_out, day, count)
+                    ch_type_msgs_in.append(count.get("count_sum", 0))
 
-                record_count(ch_type_msgs_total, day, count)
+                elif direction == "O":
+                    ch_type_msgs_out.append(count.get("count_sum", 0))
 
             output.extend(
                 [
                     dict(
                         name=f"{channel_type_name} Incoming",
-                        cumulative=True,
                         stack=ch_type["channel__channel_type"],
                         type="column",
                         data=ch_type_msgs_in,
                         showInNavigator=False,
+                        label=False,
+                        tooltip=dict(
+                            pointFormat="{series.name}: <b>{point.y:.0f}</b>", nullFormat="{series.name}: <b>0</b>"
+                        ),
                     ),
                     dict(
                         name=f"{channel_type_name} Outgoing",
-                        cumulative=True,
                         stack=ch_type["channel__channel_type"],
                         type="column",
                         data=ch_type_msgs_out,
                         showInNavigator=False,
-                    ),
-                    dict(
-                        name=f"{channel_type_name} Total",
-                        cumulative=True,
-                        type="line",
-                        data=ch_type_msgs_total,
-                        showInNavigator=False,
+                        label=False,
+                        tooltip=dict(
+                            pointFormat="{series.name}: <b>{point.y:.0f}</b>", nullFormat="{series.name}: <b>0</b>"
+                        ),
                     ),
                 ]
             )

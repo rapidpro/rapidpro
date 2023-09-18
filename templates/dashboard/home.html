@@ -6,16 +6,24 @@
 {% block content %}
   <div class="card scrollable flex-shrink-0" id="range-group">
     <div style="min-height:2.55em"
-         class="bg-gray-700 text-gray-400 -mx-6 -mt-6 px-4 py-2 border-b"
+         class="bg-gray-700 text-gray-400 -mx-6 -mt-6 px-4 py-2 border-b range-header"
          id="range-header">
-      <div class="flex opacity-0 transition-opacity" id="dates">
-        <div class="flex-grow" id="range-from"></div>
-        <div id="range-to"></div>
+      <div class="flex opacity-0 transition-opacity" id="message-chart-dates">
+        <div class="flex-grow" id="message-chart-range-from"></div>
+        <div id="message-chart-range-to"></div>
       </div>
     </div>
     <div id="message-chart"></div>
   </div>
   <div class="card scrollable flex-shrink-0" id="range-group-1">
+    <div style="min-height:2.55em"
+         class="bg-gray-700 text-gray-400 -mx-6 -mt-6 px-4 py-2 border-b range-header"
+         id="range-header">
+      <div class="flex opacity-0 transition-opacity chart-dates" id="workspace-chart-dates">
+        <div class="flex-grow" id="workspace-chart-range-from"></div>
+        <div id="workspace-chart-range-to"></div>
+      </div>
+    </div>
     <div id="workspace-chart"></div>
   </div>
   <div class="card scrollable flex-shrink-0" id="range-group-2">
@@ -27,12 +35,13 @@
   <script type="text/javascript">
     var redrawMarker = null;
 
-    function setChartOptions(begin, end, direction) {
+    function setChartOptions(chart, begin, end, direction) {
+      var chartID = chart.renderTo.id;
       var from = Highcharts.dateFormat('%A, %B %e, %Y', begin);
       var to = Highcharts.dateFormat('%A, %B %e, %Y', end)
-      document.querySelector("#dates").classList.add("opacity-100");
-      document.querySelector("#range-from").innerText = from;
-      document.querySelector("#range-to").innerText = to;
+      document.querySelector("#" + chartID + "-dates").classList.add("opacity-100");
+      document.querySelector("#" + chartID + "-range-from").innerText = from;
+      document.querySelector("#" + chartID + "-range-to").innerText = to;
     }
 
     function selectionChanged(chart) {
@@ -46,7 +55,7 @@
       }
 
       var axis = chart.xAxis[0];
-      setChartOptions(axis.min, axis.max, direction);
+      setChartOptions(chart, axis.min, axis.max, direction);
     }
 
     function markDirty(chart) {
@@ -56,7 +65,33 @@
       redrawMarker = window.setTimeout(selectionChanged.bind(null, chart), 200);
     }
 
-    function createChart(container, data) {
+    function createChart (container, data) {
+      return Highcharts.chart(container, {
+        title: {
+          text: "Channel types"
+
+        },
+        xAxis: {
+          tickLength: 0,
+          labels: {
+              enabled: false
+          }
+        },
+        plotOptions: {
+          column: {
+              stacking: 'normal'
+          }
+        },
+        tooltip: {
+          formatter: function () {
+            return this.series.name + ": <b>" + this.y + "</b>";
+          }
+        },
+        series: data,
+      })
+    }
+
+    function createStockChart(container, data) {
       return Highcharts.stockChart(container, {
         chart: {
           zoomType: 'x',
@@ -73,7 +108,7 @@
         plotOptions: {
           series: {
             showInLegend: true,
-            showInNavigator: true
+            showInNavigator: true,
           },
           column: {
             stacking: 'normal',
@@ -136,14 +171,14 @@
       store.getUrl('/dashboard/message_history').then(function(response) {
         var data = response.json;
         // Create the chart
-        createChart('message-chart', data);
+        createStockChart('message-chart', data);
 
       });
 
       store.getUrl('/dashboard/workspace_stats').then(function(response) {
         var data = response.json;
         // Create the chart
-        createChart('workspace-chart', data);
+        createStockChart('workspace-chart', data);
 
       });
 
