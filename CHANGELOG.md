@@ -1,3 +1,7 @@
+v8.3.20 (2023-09-12)
+-------------------------
+ * Update editor for localized attachment fix
+
 v8.3.19 (2023-09-12)
 -------------------------
  * Add new data migration to fix IVR call counts
