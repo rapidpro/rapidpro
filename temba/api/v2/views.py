@@ -121,7 +121,6 @@ class RootView(views.APIView):
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
      * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
      * [/api/v2/templates](/api/v2/templates) - to list current WhatsApp templates on your account
-     * [/api/v2/ticketers](/api/v2/ticketers) - to list ticketing services
      * [/api/v2/tickets](/api/v2/tickets) - to list tickets
      * [/api/v2/ticket_actions](/api/v2/ticket_actions) - to perform bulk ticket actions
      * [/api/v2/topics](/api/v2/topics) - to list and create topics
@@ -232,7 +231,6 @@ class RootView(views.APIView):
                 "resthook_subscribers": reverse("api.v2.resthook_subscribers", request=request),
                 "runs": reverse("api.v2.runs", request=request),
                 "templates": reverse("api.v2.templates", request=request),
-                "ticketers": reverse("api.v2.ticketers", request=request),
                 "tickets": reverse("api.v2.tickets", request=request),
                 "ticket_actions": reverse("api.v2.ticket_actions", request=request),
                 "topics": reverse("api.v2.topics", request=request),
@@ -297,7 +295,6 @@ class ExplorerView(SmartTemplateView):
             ResthookSubscribersEndpoint.get_delete_explorer(),
             RunsEndpoint.get_read_explorer(),
             TemplatesEndpoint.get_read_explorer(),
-            TicketersEndpoint.get_read_explorer(),
             TicketsEndpoint.get_read_explorer(),
             TicketActionsEndpoint.get_write_explorer(),
             TopicsEndpoint.get_read_explorer(),
@@ -3481,34 +3478,7 @@ class TemplatesEndpoint(ListAPIMixin, BaseEndpoint):
 
 class TicketersEndpoint(ListAPIMixin, BaseEndpoint):
     """
-    This endpoint allows you to list the active ticketing services on your account.
-
-    ## Listing Ticketers
-
-    A **GET** returns the ticketers for your organization, most recent first.
-
-     * **uuid** - the UUID of the ticketer, filterable as `uuid`.
-     * **name** - the name of the ticketer.
-     * **type** - the type of the ticketer, e.g. 'mailgun' or 'zendesk'.
-     * **created_on** - when this ticketer was created.
-
-    Example:
-
-        GET /api/v2/ticketers.json
-
-    Response:
-
-        {
-            "next": null,
-            "previous": null,
-            "results": [
-            {
-                "uuid": "9a8b001e-a913-486c-80f4-1356e23f582e",
-                "name": "Email (bob@acme.com)",
-                "type": "mailgun",
-                "created_on": "2013-02-27T09:06:15.456"
-            },
-            ...
+    Deprecated... ticketers won't be a thing
     """
 
     permission = "tickets.ticketer_api"
@@ -3528,32 +3498,6 @@ class TicketersEndpoint(ListAPIMixin, BaseEndpoint):
             queryset = queryset.filter(uuid=uuid)
 
         return self.filter_before_after(queryset, "created_on")
-
-    @classmethod
-    def get_read_explorer(cls):
-        return {
-            "method": "GET",
-            "title": "List Ticketers",
-            "url": reverse("api.v2.ticketers"),
-            "slug": "ticketer-list",
-            "params": [
-                {
-                    "name": "uuid",
-                    "required": False,
-                    "help": "A ticketer UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
-                },
-                {
-                    "name": "before",
-                    "required": False,
-                    "help": "Only return ticketers created before this date, ex: 2015-01-28T18:00:00.000",
-                },
-                {
-                    "name": "after",
-                    "required": False,
-                    "help": "Only return ticketers created after this date, ex: 2015-01-28T18:00:00.000",
-                },
-            ],
-        }
 
 
 class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
