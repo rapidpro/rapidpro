@@ -1242,6 +1242,11 @@ class MediaWriteSerializer(WriteSerializer):
 
 
 class MsgReadSerializer(ReadSerializer):
+    TYPES = {
+        Msg.TYPE_TEXT: "text",
+        Msg.TYPE_OPTIN: "optin",
+        Msg.TYPE_VOICE: "voice",
+    }
     STATUSES = {
         Msg.STATUS_PENDING: "queued",  # same as far as users are concerned
         Msg.STATUS_HANDLED: "handled",
@@ -1282,7 +1287,7 @@ class MsgReadSerializer(ReadSerializer):
         return "in" if obj.direction == Msg.DIRECTION_IN else "out"
 
     def get_type(self, obj):
-        return "voice" if obj.msg_type == Msg.TYPE_VOICE else "text"
+        return self.TYPES.get(obj.msg_type)
 
     def get_status(self, obj):
         return self.STATUSES.get(obj.status)
