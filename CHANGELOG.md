@@ -1,3 +1,8 @@
+v8.3.22 (2023-09-19)
+-------------------------
+ * Make ticketers API endpoint unpublicized
+ * Add 'Send Now' to broadcast creation
+
 v8.3.21 (2023-09-18)
 -------------------------
  * Add basic OptIn model
