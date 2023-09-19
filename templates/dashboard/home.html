@@ -65,7 +65,7 @@
       redrawMarker = window.setTimeout(selectionChanged.bind(null, chart), 200);
     }
 
-    function createChart (container, data) {
+    function createChart(container, data) {
       return Highcharts.chart(container, {
         title: {
           text: "Channel types"
@@ -74,16 +74,31 @@
         xAxis: {
           tickLength: 0,
           labels: {
-              enabled: false
+            enabled: false
           }
         },
+        colors: [
+          "#335c81",
+          "#65afff",
+          "#50ffb1",
+          "#3c896d",
+          "#ddb892",
+          "#7f5539",
+          "#b5c99a",
+          "#87986a",
+          "#ff5858",
+          "#ff9090",
+          "#cc9c00",
+          "#ffcb1f",
+        ],
+
         plotOptions: {
           column: {
-              stacking: 'normal'
+            stacking: 'normal'
           }
         },
         tooltip: {
-          formatter: function () {
+          formatter: function() {
             return this.series.name + ": <b>" + this.y + "</b>";
           }
         },

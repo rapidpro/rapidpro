@@ -13,6 +13,27 @@ from temba.orgs.models import Org
 from temba.orgs.views import OrgPermsMixin
 from temba.utils.views import SpaMixin
 
+flattened_colors = [
+    "#335c81",
+    "#65afff",
+    "#1b2845",
+    "#50ffb1",
+    "#3c896d",
+    "#546d64",
+    "#ddb892",
+    "#7f5539",
+    "#9c6644",
+    "#b5c99a",
+    "#87986a",
+    "#718355",
+    "#ff5858",
+    "#ff9090",
+    "#ffb5b5",
+    "#cc9c00",
+    "#ffcb1f",
+    "#ffe285",
+]
+
 
 class Home(SpaMixin, OrgPermsMixin, SmartTemplateView):
     """
@@ -160,13 +181,15 @@ class WorkspaceStats(OrgPermsMixin, SmartTemplateView):
             if is_new:
                 counts.append([day, count["count_sum"]])
 
-        for org in orgs:
+        for idx, org in enumerate(orgs):
             org_daily_counts = list(
                 daily_counts.filter(channel__org_id=org.id)
                 .values("day", "count_type")
                 .order_by("day", "count_type")
                 .annotate(count_sum=Sum("count"))
             )
+
+            org_colors = flattened_colors[((idx % 6) * 3) : ((idx % 6) * 3) + 3]
 
             org_msgs_total = []
             org_msgs_in = []
@@ -186,44 +209,49 @@ class WorkspaceStats(OrgPermsMixin, SmartTemplateView):
                 [
                     dict(
                         name=f"{org.name} Incoming",
-                        stack=org.id,
+                        stack=f"{org.id}.{idx}",
                         type="column",
                         data=org_msgs_in,
                         showInNavigator=False,
+                        color=org_colors[0],
                     ),
                     dict(
                         name=f"{org.name} Cumulative Incoming",
-                        stack=f"{org.id}.cumulative.in",
+                        stack=f"{org.id}.{idx}.cumulative.in",
                         cumulative=True,
                         type="line",
                         data=org_msgs_in,
                         showInNavigator=False,
                         visible=False,
+                        color=org_colors[0],
                     ),
                     dict(
                         name=f"{org.name} Outgoing",
-                        stack=org.id,
+                        stack=f"{org.id}.{idx}",
                         type="column",
                         data=org_msgs_out,
                         showInNavigator=False,
+                        color=org_colors[1],
                     ),
                     dict(
                         name=f"{org.name} Cumulative Outgoing",
-                        stack=f"{org.id}.cumulative.out",
+                        stack=f"{org.id}.{idx}.cumulative.out",
                         cumulative=True,
                         type="line",
                         data=org_msgs_out,
                         showInNavigator=False,
                         visible=False,
+                        color=org_colors[1],
                     ),
                     dict(
                         name=f"{org.name} Total",
-                        stack=f"{org.id}.total",
+                        stack=f"{org.id}.{idx}.total",
                         cumulative=True,
                         type="line",
                         data=org_msgs_total,
                         showInNavigator=False,
                         tooltip=dict(pointFormat="{series.name}: <b>{point.cumulativeSum:.0f}</b>"),
+                        color=org_colors[2],
                     ),
                 ]
             )
