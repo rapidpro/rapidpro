@@ -185,8 +185,8 @@
           {% endblocktrans %}
         </div>
         <div class="mt-6">
-          <temba-modax endpoint="{% url 'msgs.broadcast_send' %}"
-                       header="{{ _("Send Message") |escapejs }}"
+          <temba-modax endpoint="{% url 'msgs.broadcast_create' %}"
+                       header="{{ _("New Broadcast") |escapejs }}"
                        class="inline-block mb-1">
             <div class="button-primary lift">{% trans "Send Message" %}</div>
           </temba-modax>

@@ -1,11 +1,29 @@
 {% extends "utils/forms/wizard.html" %}
-{% load i18n %}
+{% load i18n smartmin %}
 
 {% block extra-style %}
   {{ block.super }}
   <style>
     .hidden {
       display: none;
+    }
+
+    .field_send_when .control-label {
+      display: none;
+    }
+
+    #schedule_fields {
+      margin: 0 1.5em;
+    }
+
+    #id_schedule-send_when_1 {
+      margin-top: 0.5em;
+    }
+
+    .disabled {
+      pointer-events: none;
+      opacity: 0.5;
+      user-select: none;
     }
   </style>
 {% endblock extra-style %}
@@ -14,6 +32,25 @@
     var modalBody = getModax("#shared-modax").shadowRoot;
     var repeatPeriod = modalBody.querySelector("#id_schedule-repeat_period");
     var repeatDays = modalBody.querySelector(".repeat-days-container");
+    var sendWhen = modalBody.querySelector("#id_schedule-send_when");
+    var scheduleFields = modalBody.querySelector("#schedule_fields");
+    var sendNow = modalBody.querySelector("#id_schedule-send_when_0");
+
+    if (sendWhen) {
+      sendWhen.addEventListener("change", function(event) {
+        var sendType = event.target.value;
+        if (sendType == "now") {
+          scheduleFields.classList.add("disabled");
+        } else {
+          scheduleFields.classList.remove("disabled");
+        }
+      });
+    }
+
+    {% if form.send_when.value != "later" %}
+    sendNow.click();
+    scheduleFields.classList.add("disabled");
+    {% endif %}
 
     if (repeatPeriod) {
       repeatPeriod.addEventListener("change", function(event) {
@@ -28,5 +65,6 @@
   </script>
 {% endblock extra-script %}
 {% block fields %}
-  {% include "includes/schedule_fields.html" with form=form %}
+  {% render_field 'send_when' %}
+  <div id="schedule_fields">{% include "includes/schedule_fields.html" with form=form %}</div>
 {% endblock fields %}
