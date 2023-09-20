@@ -348,6 +348,14 @@ class TwilioTypeTest(TembaTest):
             response = self.client.post(update_url, post_data)
             self.assertFormError(response, "form", None, "Credentials don't appear to be valid.")
 
+        # staff users see extra log policy field
+        self.login(self.customer_support, choose_org=self.org)
+        response = self.client.get(update_url)
+        self.assertEqual(
+            ["name", "log_policy", "allow_international", "account_sid", "auth_token", "loc"],
+            list(response.context["form"].fields.keys()),
+        )
+
     @patch("temba.channels.types.twilio.type.TwilioClient", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)
     def test_deactivate(self):
