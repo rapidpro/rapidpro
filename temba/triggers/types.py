@@ -53,7 +53,6 @@ class KeywordTriggerType(TriggerType):
     code = Trigger.TYPE_KEYWORD
     slug = "keyword"
     name = _("Keyword")
-    title = _("Keyword Triggers")
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE)
     export_fields = TriggerType.export_fields + ("keyword", "match_type")
     required_fields = TriggerType.required_fields + ("keyword",)
@@ -85,7 +84,6 @@ class CatchallTriggerType(TriggerType):
     code = Trigger.TYPE_CATCH_ALL
     slug = "catch_all"
     name = _("Catch All")
-    title = _("Catch All Triggers")
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE)
     form = Form
 
@@ -132,7 +130,6 @@ class ScheduledTriggerType(TriggerType):
     code = Trigger.TYPE_SCHEDULE
     slug = "schedule"
     name = _("Schedule")
-    title = _("Schedule Triggers")
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND)
     exportable = False
     form = Form
@@ -198,7 +195,6 @@ class InboundCallTriggerType(TriggerType):
     code = Trigger.TYPE_INBOUND_CALL
     slug = "inbound_call"
     name = _("Inbound Call")
-    title = _("Inbound Call Triggers")
     allowed_flow_types = (Flow.TYPE_VOICE, Flow.TYPE_MESSAGE, Flow.TYPE_BACKGROUND)
     form = Form
 
@@ -215,7 +211,6 @@ class MissedCallTriggerType(TriggerType):
     code = Trigger.TYPE_MISSED_CALL
     slug = "missed_call"
     name = _("Missed Call")
-    title = _("Missed Call Triggers")
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_BACKGROUND)
     form = Form
 
@@ -246,7 +241,6 @@ class NewConversationTriggerType(TriggerType):
     code = Trigger.TYPE_NEW_CONVERSATION
     slug = "new_conversation"
     name = _("New Conversation")
-    title = _("New Conversation Triggers")
     allowed_flow_types = (Flow.TYPE_MESSAGE,)
     export_fields = TriggerType.export_fields + ("channel",)
     required_fields = TriggerType.required_fields + ("channel",)
@@ -286,7 +280,6 @@ class ReferralTriggerType(TriggerType):
     code = Trigger.TYPE_REFERRAL
     slug = "referral"
     name = _("Referral")
-    title = _("Referral Triggers")
     allowed_flow_types = (Flow.TYPE_MESSAGE,)
     export_fields = TriggerType.export_fields + ("channel",)
     form = Form
@@ -304,7 +297,6 @@ class ClosedTicketTriggerType(TriggerType):
     code = Trigger.TYPE_CLOSED_TICKET
     slug = "closed_ticket"
     name = _("Closed Ticket")
-    title = _("Closed Ticket Triggers")
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND)
     form = Form
 
