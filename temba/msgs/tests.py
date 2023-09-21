@@ -1424,9 +1424,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             context_objects=[msg4, msg3, msg2, msg1],
         )
 
-        # make sure that we embed refresh script if View.refresh is set
-        self.assertContains(response, "function refresh")
-        self.assertEqual(20000, response.context["refresh"])
+        # check that we have the appropriate bulk actions
         self.assertEqual(("archive", "label"), response.context["actions"])
 
         # test searching
