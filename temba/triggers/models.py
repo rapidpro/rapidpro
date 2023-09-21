@@ -384,7 +384,10 @@ class Trigger(SmartModel):
         """
         Creates an order by expression based on order of type declarations.
         """
-        whens = [When(trigger_type=t.code, then=i) for i, t in enumerate(TriggerType.__subclasses__())]
+
+        from .types import TYPES_BY_CODE
+
+        whens = [When(trigger_type=t.code, then=i) for i, t in enumerate(TYPES_BY_CODE.values())]
         return Case(*whens, default=100).asc()
 
     def release(self, user):
