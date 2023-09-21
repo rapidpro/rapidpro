@@ -480,13 +480,8 @@ class Msg(models.Model):
     DIRECTION_CHOICES = ((DIRECTION_IN, "Incoming"), (DIRECTION_OUT, "Outgoing"))
 
     TYPE_TEXT = "T"
-    TYPE_OPTIN = "O"
     TYPE_VOICE = "V"
-    TYPE_CHOICES = (
-        (TYPE_TEXT, "Text Message"),
-        (TYPE_OPTIN, "Opt-In Message"),
-        (TYPE_VOICE, "Voice Message"),
-    )
+    TYPE_CHOICES = ((TYPE_TEXT, "Text Message"), (TYPE_VOICE, "Voice Message"))
 
     FAILED_SUSPENDED = "S"
     FAILED_CONTACT = "C"
@@ -535,6 +530,7 @@ class Msg(models.Model):
     text = models.TextField()
     attachments = ArrayField(models.URLField(max_length=Attachment.MAX_LEN), null=True)
     quick_replies = ArrayField(models.CharField(max_length=64), null=True)
+    optin = models.ForeignKey("msgs.OptIn", on_delete=models.DO_NOTHING, null=True, db_index=False, db_constraint=False)
     locale = models.CharField(max_length=6, null=True)  # eng, eng-US, por-BR, und etc
 
     created_on = models.DateTimeField(db_index=True)
