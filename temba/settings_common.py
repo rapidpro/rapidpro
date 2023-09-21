@@ -365,6 +365,7 @@ PERMISSIONS = {
     "locations.adminboundary": ("alias", "api", "boundaries", "geometry"),
     "msgs.broadcast": (
         "api",
+        "list",
         "scheduled",
         "scheduled_read",
         "scheduled_delete",

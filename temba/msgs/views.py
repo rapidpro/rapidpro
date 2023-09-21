@@ -101,7 +101,6 @@ class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
     """
 
     permission = "msgs.msg_list"
-    refresh = 10000
     search_fields = ("text__icontains", "contact__name__icontains", "contact__urns__path__icontains")
     default_order = ("-created_on", "-id")
     allow_export = False
@@ -234,6 +233,7 @@ class TargetForm(Form):
 
 class BroadcastCRUDL(SmartCRUDL):
     actions = (
+        "list",
         "create",
         "update",
         "scheduled",
@@ -243,6 +243,61 @@ class BroadcastCRUDL(SmartCRUDL):
         "send",
     )
     model = Broadcast
+
+    class List(MsgListView):
+        title = _("Broadcasts")
+        menu_path = "/msg/broadcasts"
+        paginate_by = 25
+
+        def get_queryset(self, **kwargs):
+            return (
+                super()
+                .get_queryset(**kwargs)
+                .filter(is_active=True, schedule=None, org=self.request.org)
+                .select_related("org", "schedule")
+                .prefetch_related("groups", "contacts")
+            )
+
+        def build_content_menu(self, menu):
+            if self.has_org_perm("msgs.broadcast_create"):
+                menu.add_modax(
+                    _("New Broadcast"),
+                    "new-scheduled",
+                    reverse("msgs.broadcast_create"),
+                    title=_("New Broadcast"),
+                    as_button=True,
+                )
+
+    class Scheduled(MsgListView):
+        title = _("Scheduled Broadcasts")
+        menu_path = "/msg/scheduled"
+        fields = ("contacts", "msgs", "sent", "status")
+        search_fields = ("translations__und__icontains", "contacts__urns__path__icontains")
+        system_label = SystemLabel.TYPE_SCHEDULED
+        paginate_by = 25
+        default_order = (
+            "schedule__next_fire",
+            "-created_on",
+        )
+
+        def build_content_menu(self, menu):
+            if self.has_org_perm("msgs.broadcast_create"):
+                menu.add_modax(
+                    _("New Broadcast"),
+                    "new-scheduled",
+                    reverse("msgs.broadcast_create"),
+                    title=_("New Broadcast"),
+                    as_button=True,
+                )
+
+        def get_queryset(self, **kwargs):
+            return (
+                super()
+                .get_queryset(**kwargs)
+                .filter(is_active=True)
+                .select_related("org", "schedule")
+                .prefetch_related("groups", "contacts")
+            )
 
     class Create(OrgPermsMixin, SmartWizardView):
         form_list = [("target", TargetForm), ("compose", ComposeForm), ("schedule", ScheduleForm)]
@@ -299,12 +354,13 @@ class BroadcastCRUDL(SmartCRUDL):
             # if we are sending now, just kick it off now
             if send_when == ScheduleForm.SEND_NOW:
                 self.object.send_async()
+                return HttpResponseRedirect(reverse("msgs.broadcast_list"))
 
             return HttpResponseRedirect(self.get_success_url())
 
     class Update(OrgObjPermsMixin, SmartWizardUpdateView):
         form_list = [("target", TargetForm), ("compose", ComposeForm), ("schedule", ScheduleForm)]
-        success_url = "id@msgs.broadcast_scheduled_read"
+        success_url = "@msgs.broadcast_scheduled"
         template_name = "msgs/broadcast_create.html"
         submit_button_name = _("Save Broadcast")
 
@@ -358,37 +414,6 @@ class BroadcastCRUDL(SmartCRUDL):
             broadcast.save()
 
             return HttpResponseRedirect(self.get_success_url())
-
-    class Scheduled(MsgListView):
-        title = _("Broadcasts")
-        refresh = 30000
-        fields = ("contacts", "msgs", "sent", "status")
-        search_fields = ("translations__und__icontains", "contacts__urns__path__icontains")
-        system_label = SystemLabel.TYPE_SCHEDULED
-        default_order = (
-            "schedule__next_fire",
-            "-created_on",
-        )
-        menu_path = "/msg/broadcasts"
-
-        def build_content_menu(self, menu):
-            if self.has_org_perm("msgs.broadcast_create"):
-                menu.add_modax(
-                    _("New Broadcast"),
-                    "new-scheduled",
-                    reverse("msgs.broadcast_create"),
-                    title=_("New Broadcast"),
-                    as_button=True,
-                )
-
-        def get_queryset(self, **kwargs):
-            return (
-                super()
-                .get_queryset(**kwargs)
-                .filter(is_active=True)
-                .select_related("org", "schedule")
-                .prefetch_related("groups", "contacts")
-            )
 
     class ScheduledRead(SpaMixin, ContentMenuMixin, OrgObjPermsMixin, SmartReadView):
         title = _("Broadcast")
@@ -670,10 +695,15 @@ class MsgCRUDL(SmartCRUDL):
                     ),
                     self.create_divider(),
                     self.create_menu_item(
-                        menu_id="broadcasts",
-                        name="Broadcasts",
+                        menu_id="scheduled",
+                        name="Scheduled",
                         href=reverse("msgs.broadcast_scheduled"),
                         count=counts[SystemLabel.TYPE_SCHEDULED],
+                    ),
+                    self.create_menu_item(
+                        menu_id="broadcasts",
+                        name="Broadcasts",
+                        href=reverse("msgs.broadcast_list"),
                     ),
                     self.create_divider(),
                     self.create_menu_item(
