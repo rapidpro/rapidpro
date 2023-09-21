@@ -1,7 +1,7 @@
 from smartmin.models import SmartModel
 
 from django.db import models
-from django.db.models import Q
+from django.db.models import Case, Q, When
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -376,6 +376,14 @@ class Trigger(SmartModel):
     @property
     def name(self):
         return self.type.get_instance_name(self)
+
+    @classmethod
+    def type_order(cls):
+        """
+        Creates an order by expression based on order of type declarations.
+        """
+        whens = [When(trigger_type=t.code, then=i) for i, t in enumerate(TriggerType.__subclasses__())]
+        return Case(*whens, default=100).asc()
 
     def release(self, user):
         """

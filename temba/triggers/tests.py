@@ -1634,23 +1634,23 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             self.org2, self.admin, Trigger.TYPE_KEYWORD, flow3, keyword="other", match_type=Trigger.MATCH_ONLY_WORD
         )
 
-        keyword_url = reverse("triggers.trigger_folder", kwargs={"folder": "keyword"})
+        messages_url = reverse("triggers.trigger_folder", kwargs={"folder": "messages"})
         referral_url = reverse("triggers.trigger_folder", kwargs={"folder": "referral"})
-        catchall_url = reverse("triggers.trigger_folder", kwargs={"folder": "catch_all"})
+        tickets_url = reverse("triggers.trigger_folder", kwargs={"folder": "tickets"})
 
         response = self.assertListFetch(
-            keyword_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1]
+            messages_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1, trigger5]
         )
-        self.assertEqual("/trigger/keyword", response.headers[TEMBA_MENU_SELECTION])
+        self.assertEqual("/trigger/messages", response.headers[TEMBA_MENU_SELECTION])
         self.assertEqual(("archive",), response.context["actions"])
 
         # can search by keyword
         self.assertListFetch(
-            keyword_url + "?search=TES", allow_viewers=True, allow_editors=True, context_objects=[trigger1]
+            messages_url + "?search=TES", allow_viewers=True, allow_editors=True, context_objects=[trigger1]
         )
 
         self.assertListFetch(referral_url, allow_viewers=True, allow_editors=True, context_objects=[trigger3, trigger4])
-        self.assertListFetch(catchall_url, allow_viewers=True, allow_editors=True, context_objects=[trigger5])
+        self.assertListFetch(tickets_url, allow_viewers=True, allow_editors=True, context_objects=[])
 
 
 class FixKeywordTriggers(MigrationTest):
