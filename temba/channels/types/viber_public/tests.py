@@ -106,6 +106,14 @@ class ViberPublicTypeTest(TembaTest, CRUDLTestMixin):
         # read page has link to update page
         self.assertContentMenu(read_url, self.admin, ["Configuration", "Logs", "Edit", "Delete"])
 
+        # staff users see extra log policy field
+        self.login(self.customer_support, choose_org=self.org)
+        response = self.client.get(update_url)
+        self.assertEqual(
+            ["name", "alert_email", "log_policy", "welcome_message", "loc"],
+            list(response.context["form"].fields.keys()),
+        )
+
     def test_get_error_ref_url(self):
         self.assertEqual(
             "https://developers.viber.com/docs/api/rest-bot-api/#error-codes",
