@@ -1,3 +1,5 @@
+from enum import Enum
+
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
@@ -27,6 +29,35 @@ from temba.utils.fields import (
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin
 
 from .models import Trigger
+
+
+class Folder(Enum):
+    KEYWORD = (_("Keyword"), _("Keyword Triggers"), (Trigger.TYPE_KEYWORD,))
+    CATCH_ALL = (_("Catch All"), _("Catch All Triggers"), (Trigger.TYPE_CATCH_ALL,))
+    SCHEDULE = (_("Scheduled"), _("Scheduled Triggers"), (Trigger.TYPE_SCHEDULE,))
+    CALLS = (_("Calls"), _("Call Triggers"), (Trigger.TYPE_INBOUND_CALL, Trigger.TYPE_MISSED_CALL))
+    NEW_CONVERSATION = (_("New Conversation"), _("New Conversation Triggers"), (Trigger.TYPE_NEW_CONVERSATION,))
+    REFERRAL = (_("Referral"), _("Referral Triggers"), (Trigger.TYPE_REFERRAL,))
+    TICKETS = (_("Tickets"), _("Ticket Triggers"), (Trigger.TYPE_CLOSED_TICKET,))
+
+    def __init__(self, display, title, types):
+        self.display = display
+        self.title = title
+        self.types = types
+
+    @property
+    def slug(self) -> str:
+        return self.name.lower()
+
+    def get_count(self, org) -> int:
+        return org.triggers.filter(trigger_type__in=self.types, is_active=True, is_archived=False).count()
+
+    @classmethod
+    def from_slug(cls, slug: str):
+        for folder in cls:
+            if folder.slug == slug:
+                return folder
+        return None
 
 
 class BaseTriggerForm(forms.ModelForm):
@@ -202,7 +233,7 @@ class TriggerCRUDL(SmartCRUDL):
         "list",
         "menu",
         "archived",
-        "type",
+        "folder",
     )
 
     class Menu(MenuMixin, SmartTemplateView):
@@ -213,8 +244,6 @@ class TriggerCRUDL(SmartCRUDL):
         def derive_menu(self):
             org = self.request.org
             menu = []
-
-            from .types import TYPES_BY_SLUG
 
             org_triggers = org.triggers.filter(is_active=True)
             menu.append(
@@ -241,14 +270,14 @@ class TriggerCRUDL(SmartCRUDL):
 
             menu.append(self.create_divider())
 
-            for slug, trigger_type in TYPES_BY_SLUG.items():
-                count = org_triggers.filter(trigger_type=trigger_type.code, is_archived=False).count()
+            for folder in Folder:
+                count = folder.get_count(org)
                 if count:
                     menu.append(
                         self.create_menu_item(
-                            name=trigger_type.name,
+                            name=folder.display,
                             count=count,
-                            href=reverse("triggers.trigger_type", kwargs={"type": slug}),
+                            href=reverse("triggers.trigger_folder", kwargs={"folder": folder.slug}),
                         )
                     )
 
@@ -452,18 +481,10 @@ class TriggerCRUDL(SmartCRUDL):
         Base class for list views
         """
 
+        permission = "triggers.trigger_list"
         fields = ("name",)
         default_template = "triggers/trigger_list.html"
         search_fields = ("keyword__icontains", "flow__name__icontains", "channel__name__icontains")
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            org = self.request.org
-            context["main_folders"] = self.get_main_folders(org)
-            context["type_folders"] = self.get_type_folders(org)
-            context["request_url"] = self.request.path
-            return context
 
         def get_queryset(self, *args, **kwargs):
             qs = super().get_queryset(*args, **kwargs)
@@ -475,35 +496,6 @@ class TriggerCRUDL(SmartCRUDL):
                 .prefetch_related("contacts", "groups")
             )
             return qs
-
-        def get_main_folders(self, org):
-            return [
-                dict(
-                    label=_("All"),
-                    url=reverse("triggers.trigger_list"),
-                    count=org.triggers.filter(is_active=True, is_archived=False).count(),
-                ),
-                dict(
-                    label=_("Archived"),
-                    url=reverse("triggers.trigger_archived"),
-                    count=org.triggers.filter(is_active=True, is_archived=True).count(),
-                ),
-            ]
-
-        def get_type_folders(self, org):
-            from .types import TYPES_BY_SLUG
-
-            org_triggers = org.triggers.filter(is_active=True, is_archived=False)
-            folders = []
-            for slug, trigger_type in TYPES_BY_SLUG.items():
-                folders.append(
-                    dict(
-                        label=trigger_type.name,
-                        url=reverse("triggers.trigger_type", kwargs={"type": slug}),
-                        count=org_triggers.filter(trigger_type=trigger_type.code).count(),
-                    )
-                )
-            return folders
 
     class List(BaseList):
         """
@@ -539,7 +531,7 @@ class TriggerCRUDL(SmartCRUDL):
         def get_queryset(self, *args, **kwargs):
             return super().get_queryset(*args, **kwargs).filter(is_archived=True)
 
-    class Type(BaseList):
+    class Folder(BaseList):
         """
         Type filtered list view
         """
@@ -548,19 +540,17 @@ class TriggerCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            from .types import TYPES_BY_SLUG
-
-            return rf"^%s/%s/(?P<type>{'|'.join(TYPES_BY_SLUG.keys())}+)/$" % (path, action)
+            return rf"^%s/%s/(?P<folder>{'|'.join([f.slug for f in Folder])}+)/$" % (path, action)
 
         @property
-        def trigger_type(self):
-            return Trigger.get_type(slug=self.kwargs["type"])
+        def folder(self):
+            return Folder.from_slug(slug=self.kwargs["folder"])
 
         def derive_menu_path(self):
-            return f"/trigger/{self.trigger_type.slug}"
+            return f"/trigger/{self.folder.slug}"
 
         def derive_title(self):
-            return self.trigger_type.title
+            return self.folder.title
 
         def get_queryset(self, *args, **kwargs):
-            return super().get_queryset(*args, **kwargs).filter(is_archived=False, trigger_type=self.trigger_type.code)
+            return super().get_queryset(*args, **kwargs).filter(is_archived=False, trigger_type__in=self.folder.types)

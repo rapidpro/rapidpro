@@ -19,7 +19,6 @@ class TriggerType:
     code = None  # single char code used for database model
     slug = None  # used for URLs
     name = None
-    title = None  # used for list page title
 
     # flow types allowed for this type
     allowed_flow_types = ()

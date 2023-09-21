@@ -16,6 +16,7 @@ from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import Trigger
 from .types import KeywordTriggerType
+from .views import Folder
 
 
 class TriggerTest(TembaTest):
@@ -31,6 +32,9 @@ class TriggerTest(TembaTest):
 
         self.assertEqual("Catch All → Test Flow", catchall.name)
         self.assertEqual('Trigger[type=C, flow="Test Flow"]', str(catchall))
+
+        self.assertEqual(Folder.TICKETS, Folder.from_slug("tickets"))
+        self.assertIsNone(Folder.from_slug("xx"))
 
     def test_archive_conflicts(self):
         flow = self.create_flow("Test")
@@ -1612,7 +1616,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(list_url)
         self.assertContains(response, trigger7.keyword)
 
-    def test_type_lists(self):
+    def test_folder(self):
         flow1 = self.create_flow("Flow 1")
         flow2 = self.create_flow("Flow 2")
         flow3 = self.create_flow("Flow 3", org=self.org2)
@@ -1630,9 +1634,9 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             self.org2, self.admin, Trigger.TYPE_KEYWORD, flow3, keyword="other", match_type=Trigger.MATCH_ONLY_WORD
         )
 
-        keyword_url = reverse("triggers.trigger_type", kwargs={"type": "keyword"})
-        referral_url = reverse("triggers.trigger_type", kwargs={"type": "referral"})
-        catchall_url = reverse("triggers.trigger_type", kwargs={"type": "catch_all"})
+        keyword_url = reverse("triggers.trigger_folder", kwargs={"folder": "keyword"})
+        referral_url = reverse("triggers.trigger_folder", kwargs={"folder": "referral"})
+        catchall_url = reverse("triggers.trigger_folder", kwargs={"folder": "catch_all"})
 
         response = self.assertListFetch(
             keyword_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1]
