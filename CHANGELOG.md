@@ -1,3 +1,9 @@
+v8.3.24 (2023-09-21)
+-------------------------
+ * Add opt-in and opt-out trigger types (staff only for now)
+ * Group keyword triggers and catch all triggers under a Messages folder
+ * Move broadcasts and scheduled to their own pages
+
 v8.3.23 (2023-09-21)
 -------------------------
  * Replace Msg.type=optin with optin reference on msg
