@@ -1,3 +1,9 @@
+v8.3.23 (2023-09-21)
+-------------------------
+ * Replace Msg.type=optin with optin reference on msg
+ * Group trigger types into folders
+ * Make sure staff can update the log policy on all channel types
+
 v8.3.22 (2023-09-19)
 -------------------------
  * Make ticketers API endpoint unpublicized
