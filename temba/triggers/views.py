@@ -38,6 +38,7 @@ class Folder(Enum):
     NEW_CONVERSATION = (_("New Conversation"), _("New Conversation Triggers"), (Trigger.TYPE_NEW_CONVERSATION,))
     REFERRAL = (_("Referral"), _("Referral Triggers"), (Trigger.TYPE_REFERRAL,))
     TICKETS = (_("Tickets"), _("Ticket Triggers"), (Trigger.TYPE_CLOSED_TICKET,))
+    OPTINS = (_("Opt-Ins"), _("Opt-In Triggers"), (Trigger.TYPE_OPT_IN, Trigger.TYPE_OPT_OUT))
 
     def __init__(self, display, title, types):
         self.display = display
@@ -228,6 +229,8 @@ class TriggerCRUDL(SmartCRUDL):
         "create_new_conversation",
         "create_referral",
         "create_closed_ticket",
+        "create_opt_in",
+        "create_opt_out",
         "update",
         "list",
         "menu",
@@ -308,6 +311,10 @@ class TriggerCRUDL(SmartCRUDL):
                 add_section("trigger-referral", "triggers.trigger_create_referral", "referral")
 
             add_section("trigger-closed-ticket", "triggers.trigger_create_closed_ticket", "agent")
+
+            if self.request.user.is_staff:
+                add_section("trigger-opt-in", "triggers.trigger_create_opt_in", "restore")
+                add_section("trigger-opt-out", "triggers.trigger_create_opt_out", "error")
 
     class BaseCreate(OrgPermsMixin, ComponentFormMixin, SmartCreateView):
         trigger_type = None
@@ -423,6 +430,12 @@ class TriggerCRUDL(SmartCRUDL):
 
     class CreateClosedTicket(BaseCreate):
         trigger_type = Trigger.TYPE_CLOSED_TICKET
+
+    class CreateOptIn(BaseCreate):
+        trigger_type = Trigger.TYPE_OPT_IN
+
+    class CreateOptOut(BaseCreate):
+        trigger_type = Trigger.TYPE_OPT_OUT
 
     class Update(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
         success_message = ""
