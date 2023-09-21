@@ -1,3 +1,7 @@
+v8.3.25 (2023-09-21)
+-------------------------
+ * Fix trigger ordering
+
 v8.3.24 (2023-09-21)
 -------------------------
  * Add opt-in and opt-out trigger types (staff only for now)
