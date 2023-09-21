@@ -2250,12 +2250,27 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual(1, Broadcast.objects.count())
 
-    def test_scheduled(self):
-        list_url = reverse("msgs.broadcast_scheduled")
+    def test_list(self):
+        list_url = reverse("msgs.broadcast_list")
 
         self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[])
         self.assertContentMenu(list_url, self.user, [])
         self.assertContentMenu(list_url, self.admin, ["New Broadcast"])
+
+        broadcast = self.create_broadcast(
+            self.admin,
+            "Broadcast sent to one contact",
+            contacts=[self.joe],
+        )
+
+        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[broadcast])
+
+    def test_scheduled(self):
+        scheduled_url = reverse("msgs.broadcast_scheduled")
+
+        self.assertListFetch(scheduled_url, allow_viewers=True, allow_editors=True, context_objects=[])
+        self.assertContentMenu(scheduled_url, self.user, [])
+        self.assertContentMenu(scheduled_url, self.admin, ["New Broadcast"])
 
         bc1 = self.create_broadcast(
             self.admin,
@@ -2278,16 +2293,20 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
         )
 
-        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[bc3, bc2, bc1])
+        self.assertListFetch(scheduled_url, allow_viewers=True, allow_editors=True, context_objects=[bc3, bc2, bc1])
 
         bc3.is_active = False
         bc3.save(update_fields=("is_active",))
 
-        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[bc2, bc1])
+        self.assertListFetch(scheduled_url, allow_viewers=True, allow_editors=True, context_objects=[bc2, bc1])
 
         # can search on text or URN path
-        self.assertListFetch(list_url + "?search=MORN", allow_viewers=True, allow_editors=True, context_objects=[bc1])
-        self.assertListFetch(list_url + "?search=50195", allow_viewers=True, allow_editors=True, context_objects=[bc2])
+        self.assertListFetch(
+            scheduled_url + "?search=MORN", allow_viewers=True, allow_editors=True, context_objects=[bc1]
+        )
+        self.assertListFetch(
+            scheduled_url + "?search=50195", allow_viewers=True, allow_editors=True, context_objects=[bc2]
+        )
 
     def test_scheduled_read(self):
         schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), "D", repeat_days_of_week="MWF")
