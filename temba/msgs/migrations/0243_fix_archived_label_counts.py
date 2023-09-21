@@ -4,7 +4,7 @@ from django.db import migrations, transaction
 from django.db.models import Sum
 
 
-def fix_archived_label_counts(apps, schema_editor):
+def fix_archived_label_counts(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
     Label = apps.get_model("msgs", "Label")
 
@@ -27,7 +27,7 @@ def fix_archived_label_counts(apps, schema_editor):
                 print(f"Fixed archived message count for label #{label.id} {archived_count} => {actual_count}")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
