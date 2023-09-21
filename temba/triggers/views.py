@@ -32,8 +32,7 @@ from .models import Trigger
 
 
 class Folder(Enum):
-    KEYWORD = (_("Keyword"), _("Keyword Triggers"), (Trigger.TYPE_KEYWORD,))
-    CATCH_ALL = (_("Catch All"), _("Catch All Triggers"), (Trigger.TYPE_CATCH_ALL,))
+    MESSAGES = (_("Messages"), _("Message Triggers"), (Trigger.TYPE_KEYWORD, Trigger.TYPE_CATCH_ALL))
     SCHEDULE = (_("Scheduled"), _("Scheduled Triggers"), (Trigger.TYPE_SCHEDULE,))
     CALLS = (_("Calls"), _("Call Triggers"), (Trigger.TYPE_INBOUND_CALL, Trigger.TYPE_MISSED_CALL))
     NEW_CONVERSATION = (_("New Conversation"), _("New Conversation Triggers"), (Trigger.TYPE_NEW_CONVERSATION,))
