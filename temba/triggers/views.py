@@ -552,4 +552,9 @@ class TriggerCRUDL(SmartCRUDL):
             return self.folder.title
 
         def get_queryset(self, *args, **kwargs):
-            return super().get_queryset(*args, **kwargs).filter(is_archived=False, trigger_type__in=self.folder.types)
+            return (
+                super()
+                .get_queryset(*args, **kwargs)
+                .filter(is_archived=False, trigger_type__in=self.folder.types)
+                .order_by(Trigger.type_order(), "keyword", "earliest_group", "id")
+            )
