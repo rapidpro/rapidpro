@@ -3,7 +3,7 @@ html input {
 }
 
 html.dragging * {
-  user-select: none;  
+  user-select: none;
   pointer-events: none;
 }
 
@@ -56,6 +56,7 @@ html {
   /* dark colors, nav bar, buttons, etc */
   --color-primary-dark: rgb(var(--primary-rgb));
   --color-secondary-dark: rgb(var(--secondary-rgb));
+  --color-secondary-light: rgba(var(--secondary-rgb), .3);
 
   --color-available: #00f100;
 
@@ -115,7 +116,7 @@ html {
   --icon-color: var(--text-color);
   --icon-color-circle: rgb(240, 240, 240);
   --icon-color-circle-hover: rgba(245, 245, 245, .8);
-  
+
   --transition-speed: 250ms;
   --event-padding: 0.5em 1em;
   --temba-select-selected-padding: 9px;
@@ -125,12 +126,12 @@ html {
   --help-text-margin-top: 0px;
   --help-text-margin-left: 0.3em;
   --help-text-size: 0.85em;
-  --color-text-help: rgb(120,120,120);
+  --color-text-help: rgb(120, 120, 120);
   --label-size: 14px;
-  
+
   --header-bg: var(--color-primary-dark);
   --header-text: var(--color-text-light);
-  
+
   --temba-textinput-padding: 9px;
   --temba-textinput-font-size: 13px;
 
@@ -142,7 +143,7 @@ html {
   font-weight: 300;
   font-family: var(--font-family);
 
-  --button-y: 6px;  
+  --button-y: 6px;
   --button-x: 14px;
 
   --control-margin-bottom: 15px;
@@ -156,7 +157,7 @@ html {
   --temba-charcount-summary-right: 0px;
   --temba-charcount-summary-bottom: 0px;
 
-  --color-automated: rgb(78,205,106);
+  --color-automated: rgb(78, 205, 106);
 
 }
 
@@ -168,11 +169,11 @@ temba-button {
 }
 
 temba-button:hover {
-  --button-bg-img: linear-gradient(to bottom, rgba(var(--primary-rgb),.1), transparent, transparent);
+  --button-bg-img: linear-gradient(to bottom, rgba(var(--primary-rgb), .1), transparent, transparent);
 }
 
 temba-button.active {
-  --button-bg-img: linear-gradient(to bottom, transparent, rgba(0,0,0,.05));
+  --button-bg-img: linear-gradient(to bottom, transparent, rgba(0, 0, 0, .05));
 }
 
 temba-button.light {
@@ -184,11 +185,11 @@ temba-button.light {
 }
 
 temba-button.light:hover {
-  --button-bg-img: linear-gradient(to bottom, transparent, rgba(0,0,0,.001));
+  --button-bg-img: linear-gradient(to bottom, transparent, rgba(0, 0, 0, .001));
 }
 
 temba-button.light.active {
-  --button-bg-img: linear-gradient(to bottom, transparent, rgba(0,0,0,.02));
+  --button-bg-img: linear-gradient(to bottom, transparent, rgba(0, 0, 0, .02));
 }
 
 
@@ -236,6 +237,6 @@ temba-menu {
   display: none;
 }
 
-temba-menu:defined{
+temba-menu:defined {
   display: block;
 }
