@@ -497,20 +497,6 @@ class TriggerCRUDL(SmartCRUDL):
             )
             return qs
 
-        def get_main_folders(self, org):
-            return [
-                dict(
-                    label=_("All"),
-                    url=reverse("triggers.trigger_list"),
-                    count=org.triggers.filter(is_active=True, is_archived=False).count(),
-                ),
-                dict(
-                    label=_("Archived"),
-                    url=reverse("triggers.trigger_archived"),
-                    count=org.triggers.filter(is_active=True, is_archived=True).count(),
-                ),
-            ]
-
     class List(BaseList):
         """
         Non-archived triggers of all types

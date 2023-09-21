@@ -16,6 +16,7 @@ from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import Trigger
 from .types import KeywordTriggerType
+from .views import Folder
 
 
 class TriggerTest(TembaTest):
@@ -31,6 +32,9 @@ class TriggerTest(TembaTest):
 
         self.assertEqual("Catch All → Test Flow", catchall.name)
         self.assertEqual('Trigger[type=C, flow="Test Flow"]', str(catchall))
+
+        self.assertEqual(Folder.TICKETS, Folder.from_slug("tickets"))
+        self.assertIsNone(Folder.from_slug("xx"))
 
     def test_archive_conflicts(self):
         flow = self.create_flow("Test")
