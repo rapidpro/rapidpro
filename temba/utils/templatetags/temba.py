@@ -35,7 +35,7 @@ OBJECT_URLS = {
     Campaign: lambda o: reverse("campaigns.campaign_read", args=[o.uuid]),
     CampaignEvent: lambda o: reverse("campaigns.campaign_read", args=[o.uuid]),
     ContactGroup: lambda o: reverse("contacts.contact_filter", args=[o.uuid]),
-    Trigger: lambda o: reverse("triggers.trigger_type", args=[o.type.slug]),
+    Trigger: lambda o: reverse("triggers.trigger_list"),
 }
 
 

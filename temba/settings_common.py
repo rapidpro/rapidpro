@@ -704,10 +704,8 @@ GROUP_PERMISSIONS = {
         "tickets.ticketer_api",
         "tickets.topic_api",
         "tickets.ticket_export",
-        "triggers.trigger_archived",
         "triggers.trigger_list",
         "triggers.trigger_menu",
-        "triggers.trigger_type",
     ),
     "Agents": (
         "contacts.contact_api",
