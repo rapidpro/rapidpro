@@ -605,6 +605,7 @@ class MailroomQueueTest(TembaTest):
                     },
                     "template_state": "unevaluated",
                     "base_language": "eng",
+                    "optin_id": None,
                     "urns": ["tel:+12065556666"],
                     "contact_ids": [jim.id],
                     "group_ids": [bobs.id],
