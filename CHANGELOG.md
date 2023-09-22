@@ -1,3 +1,8 @@
+v8.3.26 (2023-09-22)
+-------------------------
+ * Bump cryptography from 41.0.3 to 41.0.4
+ * Add optin field to Broadcast
+
 v8.3.25 (2023-09-21)
 -------------------------
  * Fix trigger ordering
