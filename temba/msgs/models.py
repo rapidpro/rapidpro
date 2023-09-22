@@ -194,6 +194,7 @@ class Broadcast(models.Model):
     # message content in different languages, e.g. {"eng": {"text": "Hello", "attachments": [...]}, "spa": ...}
     translations = models.JSONField()
     base_language = models.CharField(max_length=3)  # ISO-639-3
+    optin = models.ForeignKey("msgs.OptIn", null=True, on_delete=models.PROTECT)
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_QUEUED)
     created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_creations")
