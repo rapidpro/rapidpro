@@ -56,7 +56,7 @@ class ScopedCountModel(SquashableModel):
     Base for scoped count squashable models
     """
 
-    SQUASH_OVER = ("count_type", "scope")
+    squash_over = ("count_type", "scope")
 
     count_type = models.CharField(max_length=1)
     scope = models.CharField(max_length=32)
@@ -112,7 +112,7 @@ class DailyCountModel(ScopedCountModel):
     Base for daily scoped count squashable models
     """
 
-    SQUASH_OVER = ("count_type", "scope", "day")
+    squash_over = ("count_type", "scope", "day")
 
     day = models.DateField()
 
