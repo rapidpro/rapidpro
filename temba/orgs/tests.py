@@ -1,7 +1,6 @@
 import io
 import smtplib
 from datetime import date, datetime, timedelta
-from decimal import Decimal
 from unittest.mock import patch
 from urllib.parse import urlencode
 
@@ -17,7 +16,6 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba import mailroom
-from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
@@ -1662,22 +1660,6 @@ class OrgTest(TembaTest):
 
         # and that we have the surveyor role
         self.assertEqual(OrgRole.SURVEYOR, self.org.get_user_role(User.objects.get(username="beastmode@seahawks.com")))
-
-    def test_has_airtime_transfers(self):
-        AirtimeTransfer.objects.filter(org=self.org).delete()
-        self.assertFalse(self.org.has_airtime_transfers())
-        contact = self.create_contact("Bob", phone="+250788123123")
-
-        AirtimeTransfer.objects.create(
-            org=self.org,
-            contact=contact,
-            status=AirtimeTransfer.STATUS_SUCCESS,
-            recipient="+250788123123",
-            desired_amount=Decimal("100"),
-            actual_amount=Decimal("0"),
-        )
-
-        self.assertTrue(self.org.has_airtime_transfers())
 
     def test_prometheus(self):
         # visit as viewer, no prometheus section

@@ -786,15 +786,6 @@ class Org(SmartModel):
             "groups": [g.as_export_def() for g in sorted(groups, key=lambda g: g.name)],
         }
 
-    def can_add_sender(self):  # pragma: needs cover
-        """
-        If an org's telephone send channel is an Android device, let them add a bulk sender
-        """
-        from temba.contacts.models import URN
-
-        send_channel = self.get_send_channel(URN.TEL_SCHEME)
-        return send_channel and send_channel.is_android()
-
     def supports_ivr(self):
         return self.get_call_channel() or self.get_answer_channel()
 
@@ -900,11 +891,6 @@ class Org(SmartModel):
         if self.config:
             return bool(self.config.get(Org.CONFIG_SMTP_SERVER))
         return False
-
-    def has_airtime_transfers(self):
-        from temba.airtime.models import AirtimeTransfer
-
-        return AirtimeTransfer.objects.filter(org=self).exists()
 
     @property
     def default_country_code(self) -> str:
