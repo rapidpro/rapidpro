@@ -1,4 +1,5 @@
 from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 
 from ..models import Notification, NotificationType
 
@@ -29,7 +30,7 @@ class ExportFinishedNotificationType(NotificationType):
         return notification.export.get_download_url()
 
     def get_email_subject(self, notification) -> str:
-        return f"Your {notification.export.notification_export_type} export is ready"
+        return _("Your %s export is ready") % notification.export.notification_export_type
 
     def get_email_template(self, notification) -> str:
         return f"notifications/email/export_finished.{notification.export.notification_export_type}"
@@ -80,12 +81,18 @@ class IncidentStartedNotificationType(NotificationType):
             cls.slug,
             scope=str(incident.id),
             users=incident.org.get_admins(),
-            email_status=Notification.EMAIL_STATUS_NONE,  # TODO add email support
+            email_status=Notification.EMAIL_STATUS_PENDING,
             incident=incident,
         )
 
     def get_target_url(self, notification) -> str:
         return reverse("notifications.incident_list")
+
+    def get_email_subject(self, notification) -> str:
+        return _("Incident") + ": " + notification.incident.type.title
+
+    def get_email_template(self, notification) -> str:
+        return notification.incident.email_template
 
     def as_json(self, notification) -> dict:
         json = super().as_json(notification)
