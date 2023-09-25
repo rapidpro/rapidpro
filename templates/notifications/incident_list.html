@@ -2,47 +2,50 @@
 {% load smartmin i18n %}
 
 {% block content %}
-  <div id="pjax">
-    {% block pjax %}
-      <table class="list lined mb-6">
-        <thead>
+  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+  <div class="shadow">
+    <table class="relative list object-list lined selectable scrolled">
+      <thead>
+        <tr>
+          <th colspan="3">{% trans "Ongoing" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for obj in ongoing %}
           <tr>
-            <th colspan="2">{% trans "Ongoing" %}</th>
+            <td>{{ obj.type.title }}</td>
+            <td>{% include obj.template with incident=obj %}</td>
+            <td class="text-right whitespace-nowrap">{% format_datetime obj.started_on %}</td>
           </tr>
-        </thead>
-        <tbody>
-          {% for obj in ongoing %}
-            <tr>
-              <td>{% include obj.template with incident=obj %}</td>
-              <td class="text-right whitespace-nowrap">{% format_datetime obj.started_on %}</td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="2">{% trans "None" %}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      <table class="list lined">
-        <thead>
+        {% empty %}
           <tr>
-            <th colspan="2">{% trans "Previous" %}</th>
+            <td colspan="2">{% trans "None" %}</td>
           </tr>
-        </thead>
-        <tbody>
-          {% for obj in object_list %}
-            <tr>
-              <td>{% include obj.template with incident=obj %}</td>
-              <td class="text-right whitespace-nowrap">{% format_datetime obj.started_on %}</td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="2">{% trans "None" %}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% include "includes/pagination.html" %}
-    {% endblock pjax %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+  <div class="flex-grow shadow">
+    <table class="relative list object-list lined selectable scrolled">
+      <thead>
+        <tr>
+          <th colspan="3">{% trans "Previous" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for obj in object_list %}
+          <tr>
+            <td>{{ obj.type.title }}</td>
+            <td>{% include obj.template with incident=obj %}</td>
+            <td class="text-right whitespace-nowrap">{% format_datetime obj.started_on %}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="2">{% trans "None" %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 {% endblock content %}

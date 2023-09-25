@@ -35,7 +35,7 @@ class IncidentCRUDL(SmartCRUDL):
     class List(OrgPermsMixin, NotificationTargetMixin, SmartListView):
         default_order = "-started_on"
         title = _("Incidents")
-        select_related = ("channel",)
+        menu_path = "/settings/workspace"
         notification_type = "incident:started"
         notification_scope = None  # clear all incident started notifications
 
@@ -46,7 +46,7 @@ class IncidentCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["ongoing"] = (
                 Incident.objects.filter(org=self.request.org, ended_on=None)
-                .select_related(*self.select_related)
+                .select_related("org", "channel")
                 .order_by("-started_on")
             )
             return context
