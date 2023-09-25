@@ -351,7 +351,7 @@ class NotificationTest(TembaTest):
                 },
             },
             expected_users={self.editor, self.admin},
-            email=False,
+            email=True,
         )
 
         # if a user visits the incident page, all incident notifications are now read
