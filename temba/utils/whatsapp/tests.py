@@ -3,7 +3,7 @@ from unittest.mock import patch
 import requests
 
 from temba.channels.models import Channel
-from temba.channels.types.whatsapp.type import (
+from temba.channels.types.whatsapp_legacy.type import (
     CONFIG_FB_ACCESS_TOKEN,
     CONFIG_FB_BUSINESS_ID,
     CONFIG_FB_NAMESPACE,
