@@ -1,3 +1,10 @@
+v8.3.27 (2023-09-25)
+-------------------------
+ * Tweak mailroom_db to create an FBA channel instead of a TWT channel
+ * Remove ticketers as a feature and the views for connecting external ticketers
+ * Re-add optin as distinct message type
+ * Add undocumented API endpoint for opt-ins
+
 v8.3.26 (2023-09-22)
 -------------------------
  * Bump cryptography from 41.0.3 to 41.0.4
