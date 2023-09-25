@@ -293,7 +293,7 @@ BRAND = {
     "title": _("Visually build nationally scalable mobile applications"),
 }
 
-FEATURES = {"locations", "surveyor", "ticketers"}
+FEATURES = {"locations", "surveyor"}
 
 
 # -----------------------------------------------------------------------------------
