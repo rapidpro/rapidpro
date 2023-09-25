@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
-from temba.channels.types.whatsapp.views import ClaimView
+from temba.channels.types.whatsapp_legacy.views import ClaimView
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
@@ -24,7 +24,7 @@ CONFIG_FB_TEMPLATE_API_VERSION = "fb_template_list_domain_api_version"
 TEMPLATE_LIST_URL = "https://%s/%s/%s/message_templates"
 
 
-class WhatsAppType(ChannelType):
+class WhatsAppLegacyType(ChannelType):
     """
     A WhatsApp Channel Type
     """
@@ -42,7 +42,7 @@ class WhatsAppType(ChannelType):
 
     config_ui = ConfigUI()  # has own template
 
-    menu_items = [dict(label=_("Message Templates"), view_name="channels.types.whatsapp.templates")]
+    menu_items = [dict(label=_("Message Templates"), view_name="channels.types.whatsapp_legacy.templates")]
 
     def get_urls(self):
         return [

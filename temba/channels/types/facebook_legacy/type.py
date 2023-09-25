@@ -9,7 +9,7 @@ from ...models import Channel, ChannelType, ConfigUI
 from .views import ClaimView
 
 
-class FacebookType(ChannelType):
+class FacebookLegacyType(ChannelType):
     """
     A Facebook channel
     """
