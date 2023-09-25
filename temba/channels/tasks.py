@@ -16,6 +16,7 @@ from temba.utils.models import delete_in_batches
 
 from .android import sync
 from .models import Alert, Channel, ChannelCount, ChannelLog, SyncEvent
+from .types.android import AndroidType
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +28,30 @@ def sync_channel_fcm_task(cloud_registration_id, channel_id=None):  # pragma: no
 
 
 @cron_task()
-def check_channel_alerts():
-    """
-    Run every 30 minutes.  Checks if any channels who are active have not been seen in that
-    time.  Triggers alert in that case
-    """
-    Alert.check_alerts()
+def check_android_channels():
+    from temba.notifications.models import Incident
+    from temba.notifications.incidents.builtin import ChannelDisconnectedIncidentType
+
+    last_half_hour = timezone.now() - timedelta(minutes=30)
+
+    ongoing = Incident.objects.filter(incident_type=ChannelDisconnectedIncidentType.slug, ended_on=None).select_related(
+        "channel"
+    )
+
+    for incident in ongoing:
+        # if we've seen the channel since this incident started went out, then end it
+        if incident.channel.last_seen > incident.started_on:
+            incident.end()
+
+    not_recently_seen = (
+        Channel.objects.filter(channel_type=AndroidType.code, is_active=True, last_seen__lt=last_half_hour)
+        .exclude(org=None)
+        .exclude(last_seen=None)
+        .select_related("org")
+    )
+
+    for channel in not_recently_seen:
+        ChannelDisconnectedIncidentType.get_or_create(channel)
 
 
 @cron_task()
