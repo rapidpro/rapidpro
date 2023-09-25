@@ -413,7 +413,7 @@ class TicketCount(SquashableModel):
     Counts of tickets by assignment/topic and status
     """
 
-    SQUASH_OVER = ("org_id", "scope", "status")
+    squash_over = ("org_id", "scope", "status")
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticket_counts")
     scope = models.CharField(max_length=32)
