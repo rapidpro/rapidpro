@@ -31,7 +31,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactUR
 from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, Media, Msg
+from temba.msgs.models import Broadcast, Label, Media, Msg, OptIn
 from temba.orgs.models import Org, OrgRole, User
 from temba.schedules.models import Schedule
 from temba.templates.models import Template, TemplateTranslation
@@ -4783,6 +4783,73 @@ class EndpointsTest(APITest):
                 }
             },
         )
+
+    def test_optins(self):
+        optins_url = reverse("api.v2.optins")
+
+        self.assertEndpointAccess(optins_url, viewer_get=200, admin_get=200, agent_get=403)
+
+        # create some optins
+        polls = OptIn.create(self.org, self.admin, "Polls")
+        offers = OptIn.create(self.org, self.admin, "Offers")
+        OptIn.create(self.org2, self.admin, "Promos")
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+            response = self.getJSON(optins_url, readonly_models={OptIn})
+
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "uuid": str(offers.uuid),
+                    "name": "Offers",
+                    "created_on": format_datetime(offers.created_on),
+                },
+                {
+                    "uuid": str(polls.uuid),
+                    "name": "Polls",
+                    "created_on": format_datetime(polls.created_on),
+                },
+            ],
+        )
+
+        # try to create empty optin
+        response = self.postJSON(optins_url, None, {})
+        self.assertResponseError(response, "name", "This field is required.")
+
+        # create new optin
+        response = self.postJSON(optins_url, None, {"name": "Alerts"})
+        self.assertEqual(response.status_code, 201)
+
+        alerts = OptIn.objects.get(name="Alerts")
+        self.assertEqual(
+            response.json(),
+            {
+                "uuid": str(alerts.uuid),
+                "name": "Alerts",
+                "created_on": matchers.ISODate(),
+            },
+        )
+
+        # try to create another optin with same name
+        response = self.postJSON(optins_url, None, {"name": "alerts"})
+        self.assertResponseError(response, "name", "This field must be unique.")
+
+        # it's fine if a optin in another org has that name
+        response = self.postJSON(optins_url, None, {"name": "Promos"})
+        self.assertEqual(response.status_code, 201)
+
+        # try to create a optin with invalid name
+        response = self.postJSON(optins_url, None, {"name": '"Hi"'})
+        self.assertResponseError(response, "name", 'Cannot contain the character: "')
+
+        # try to create a optin with name that's too long
+        response = self.postJSON(optins_url, None, {"name": "x" * 65})
+        self.assertResponseError(response, "name", "Ensure this field has no more than 64 characters.")
 
     def test_resthooks(self):
         hooks_url = reverse("api.v2.resthooks")
