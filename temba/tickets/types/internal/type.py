@@ -9,8 +9,5 @@ class InternalType(TicketerType):
     name = "Internal"
     slug = "internal"
 
-    def is_available_to(self, user):
-        return False  # all orgs automatically have one and they can't connect another
-
     def get_urls(self):
         return []

@@ -407,7 +407,7 @@ PERMISSIONS = {
     "request_logs.httplog": ("webhooks", "classifier", "ticketer"),
     "templates.template": ("api",),
     "tickets.ticket": ("api", "assign", "assignee", "menu", "note", "export_stats", "export"),
-    "tickets.ticketer": ("api", "connect", "configure"),
+    "tickets.ticketer": ("api", "configure"),
     "tickets.topic": ("api",),
     "triggers.trigger": ("archived", "type", "menu"),
 }
@@ -875,7 +875,6 @@ TICKETER_TYPES = [
     "temba.tickets.types.internal.InternalType",
     "temba.tickets.types.mailgun.MailgunType",
     "temba.tickets.types.zendesk.ZendeskType",
-    "temba.tickets.types.rocketchat.RocketChatType",
 ]
 
 CHANNEL_TYPES = [

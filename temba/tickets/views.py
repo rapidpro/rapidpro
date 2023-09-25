@@ -531,13 +531,7 @@ class TicketCRUDL(SmartCRUDL):
 
 class TicketerCRUDL(SmartCRUDL):
     model = Ticketer
-    actions = ("connect", "read", "delete")
-
-    class Connect(ContentMenuMixin, OrgPermsMixin, SmartTemplateView):
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["ticketer_types"] = [tt for tt in Ticketer.get_types() if tt.is_available_to(self.request.user)]
-            return context
+    actions = ("read", "delete")
 
     class Read(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"

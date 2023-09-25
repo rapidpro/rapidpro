@@ -1,8 +1,4 @@
-from django.conf import settings
-from django.utils.translation import gettext_lazy as _
-
 from ...models import TicketerType
-from .views import ConnectView
 
 
 class MailgunType(TicketerType):
@@ -19,12 +15,3 @@ class MailgunType(TicketerType):
     name = "Email"
     slug = "mailgun"
     icon = "icon-email-tickets"
-
-    connect_view = ConnectView
-    connect_blurb = _(
-        "Connecting an email address will forward all new tickets and their responses to that email address. "
-        "You will be able to respond to them directly and your replies will be sent to the contact."
-    )
-
-    def is_available_to(self, user):
-        return bool(settings.MAILGUN_API_KEY)
