@@ -2853,8 +2853,6 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("classifiers.classifier_connect"):
                 menu.add_link(_("New Classifier"), reverse("classifiers.classifier_connect"))
-            if self.has_org_perm("tickets.ticketer_connect") and "ticketers" in settings.FEATURES:
-                menu.add_link(_("New Ticketing Service"), reverse("tickets.ticketer_connect"))
 
             menu.new_group()
 

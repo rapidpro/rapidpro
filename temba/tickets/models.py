@@ -8,8 +8,6 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q, Sum
 from django.db.models.functions import Lower
-from django.template import Engine
-from django.urls import re_path
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -37,35 +35,11 @@ class TicketerType(metaclass=ABCMeta):
     # the short code for this ticketer type (< 16 chars, lowercase)
     slug = None
 
-    # the blurb to show on the main connect page
-    connect_blurb = None
-
-    # the view that handles connection of a new service
-    connect_view = None
-
-    def is_available_to(self, user):
-        """
-        Determines whether this ticketer type is available to the given user
-        """
-        return True  # pragma: no cover
-
-    def get_connect_blurb(self):
-        """
-        Gets the blurb for use on the connect page
-        """
-        return Engine.get_default().from_string(str(self.connect_blurb))
-
     def get_urls(self):
         """
         Returns all the URLs this ticketer exposes to Django, the URL should be relative.
         """
-        return [self.get_connect_url()]
-
-    def get_connect_url(self):
-        """
-        Gets the URL/view configuration for this ticketer's connect page
-        """
-        return re_path(r"^connect", self.connect_view.as_view(ticketer_type=self), name="connect")
+        return []
 
 
 class Ticketer(TembaModel, DependencyMixin):
