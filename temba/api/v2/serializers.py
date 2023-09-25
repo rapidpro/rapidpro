@@ -1242,7 +1242,7 @@ class MediaWriteSerializer(WriteSerializer):
 
 
 class MsgReadSerializer(ReadSerializer):
-    TYPES = {Msg.TYPE_TEXT: "text", Msg.TYPE_VOICE: "voice"}
+    TYPES = {Msg.TYPE_TEXT: "text", Msg.TYPE_OPTIN: "optin", Msg.TYPE_VOICE: "voice"}
     STATUSES = {
         Msg.STATUS_PENDING: "queued",  # same as far as users are concerned
         Msg.STATUS_HANDLED: "handled",

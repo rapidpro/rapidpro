@@ -481,8 +481,9 @@ class Msg(models.Model):
     DIRECTION_CHOICES = ((DIRECTION_IN, "Incoming"), (DIRECTION_OUT, "Outgoing"))
 
     TYPE_TEXT = "T"
+    TYPE_OPTIN = "O"
     TYPE_VOICE = "V"
-    TYPE_CHOICES = ((TYPE_TEXT, "Text Message"), (TYPE_VOICE, "Voice Message"))
+    TYPE_CHOICES = ((TYPE_TEXT, "Text"), (TYPE_OPTIN, "Opt-In Request"), (TYPE_VOICE, "Interactive Voice Response"))
 
     FAILED_SUSPENDED = "S"
     FAILED_CONTACT = "C"
