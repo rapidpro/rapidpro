@@ -12,16 +12,16 @@ from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
 from temba.utils.whatsapp.tasks import refresh_whatsapp_templates
 
 from ...models import Channel
-from .type import Dialog360Type
+from .type import Dialog360LegacyType
 
 
-class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
-    @patch("temba.channels.types.dialog360.Dialog360Type.check_health")
+class Dialog360LegacyTypeTest(CRUDLTestMixin, TembaTest):
+    @patch("temba.channels.types.dialog360_legacy.Dialog360LegacyType.check_health")
     def test_claim(self, mock_health):
         mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "2.35.4"}}')
         Channel.objects.all().delete()
 
-        url = reverse("channels.types.dialog360.claim")
+        url = reverse("channels.types.dialog360_legacy.claim")
         self.login(self.admin)
 
         # make sure  360dialog is NOT on the claim page
@@ -64,7 +64,7 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
         with patch("requests.post") as mock_post:
             mock_post.side_effect = [MockResponse(200, '{ "url": "https://waba.360dialog.io" }')]
 
-            Dialog360Type().activate(channel)
+            Dialog360LegacyType().activate(channel)
             self.assertEqual(
                 mock_post.call_args_list[0][1]["json"]["url"],
                 "https://%s%s"
@@ -75,7 +75,7 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
             mock_post.side_effect = [MockResponse(400, '{ "meta": { "success": false } }')]
 
             try:
-                Dialog360Type().activate(channel)
+                Dialog360LegacyType().activate(channel)
                 self.fail("Should have thrown error activating channel")
             except ValidationError:
                 pass
@@ -105,18 +105,18 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
         ]
 
         # RequestException check HTTPLog
-        templates_data, no_error = Dialog360Type().get_api_templates(channel)
+        templates_data, no_error = Dialog360LegacyType().get_api_templates(channel)
         self.assertEqual(1, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).count())
         self.assertFalse(no_error)
         self.assertEqual([], templates_data)
 
         # should be empty list with an error flag if fail with API
-        templates_data, no_error = Dialog360Type().get_api_templates(channel)
+        templates_data, no_error = Dialog360LegacyType().get_api_templates(channel)
         self.assertFalse(no_error)
         self.assertEqual([], templates_data)
 
         # success no error and list
-        templates_data, no_error = Dialog360Type().get_api_templates(channel)
+        templates_data, no_error = Dialog360LegacyType().get_api_templates(channel)
         self.assertTrue(no_error)
         self.assertEqual(["foo", "bar"], templates_data)
 
@@ -128,9 +128,9 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
             },
         )
 
-    @patch("temba.channels.types.dialog360.Dialog360Type.check_health")
+    @patch("temba.channels.types.dialog360_legacy.Dialog360LegacyType.check_health")
     @patch("temba.utils.whatsapp.tasks.update_local_templates")
-    @patch("temba.channels.types.dialog360.Dialog360Type.get_api_templates")
+    @patch("temba.channels.types.dialog360_legacy.Dialog360LegacyType.get_api_templates")
     def test_refresh_templates_task(self, mock_get_api_templates, update_local_templates_mock, mock_health):
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
@@ -205,8 +205,8 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
             "foo_namespace",
         )
 
-        sync_url = reverse("channels.types.dialog360.sync_logs", args=[channel.uuid])
-        templates_url = reverse("channels.types.dialog360.templates", args=[channel.uuid])
+        sync_url = reverse("channels.types.dialog360_legacy.sync_logs", args=[channel.uuid])
+        templates_url = reverse("channels.types.dialog360_legacy.templates", args=[channel.uuid])
 
         self.login(self.admin)
         response = self.client.get(templates_url)

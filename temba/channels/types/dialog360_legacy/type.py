@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
-from temba.channels.types.dialog360.views import ClaimView
+from temba.channels.types.dialog360_legacy.views import ClaimView
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
 from temba.utils.whatsapp import update_api_version
@@ -15,7 +15,7 @@ from temba.utils.whatsapp.views import SyncLogsView, TemplatesView
 from ...models import ChannelType, ConfigUI
 
 
-class Dialog360Type(ChannelType):
+class Dialog360LegacyType(ChannelType):
     """
     A 360 Dialog Channel Type
     """
@@ -34,7 +34,7 @@ class Dialog360Type(ChannelType):
 
     config_ui = ConfigUI()  # has own template
 
-    menu_items = [dict(label=_("Message Templates"), view_name="channels.types.dialog360.templates")]
+    menu_items = [dict(label=_("Message Templates"), view_name="channels.types.dialog360_legacy.templates")]
 
     def get_urls(self):
         return [

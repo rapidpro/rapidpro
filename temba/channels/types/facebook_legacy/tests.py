@@ -9,7 +9,7 @@ from temba.utils import json
 from ...models import Channel
 
 
-class FacebookTypeTest(TembaTest):
+class FacebookLegacyTypeTest(TembaTest):
     def setUp(self):
         super().setUp()
 
@@ -26,7 +26,7 @@ class FacebookTypeTest(TembaTest):
         )
 
     def test_claim(self):
-        url = reverse("channels.types.facebook.claim")
+        url = reverse("channels.types.facebook_legacy.claim")
 
         self.login(self.admin)
 

@@ -20,19 +20,19 @@ from .type import (
     CONFIG_FB_NAMESPACE,
     CONFIG_FB_TEMPLATE_API_VERSION,
     CONFIG_FB_TEMPLATE_LIST_DOMAIN,
-    WhatsAppType,
+    WhatsAppLegacyType,
 )
 
 
-class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
+class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
     @patch("socket.gethostbyname", return_value="123.123.123.123")
-    @patch("temba.channels.types.whatsapp.WhatsAppType.check_health")
+    @patch("temba.channels.types.whatsapp_legacy.WhatsAppLegacyType.check_health")
     def test_claim(self, mock_health, mock_socket_hostname):
         mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "v2.35.2"}}')
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
 
-        url = reverse("channels.types.whatsapp.claim")
+        url = reverse("channels.types.whatsapp_legacy.claim")
         self.login(self.admin)
 
         response = self.client.get(reverse("channels.channel_claim"))
@@ -113,7 +113,7 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
         # test activating the channel
         with patch("requests.patch") as mock_patch:
             mock_patch.side_effect = [MockResponse(200, '{ "error": false }'), MockResponse(200, '{ "error": false }')]
-            WhatsAppType().activate(channel)
+            WhatsAppLegacyType().activate(channel)
             self.assertEqual(
                 mock_patch.call_args_list[0][1]["json"]["webhooks"]["url"],
                 "https://%s%s"
@@ -127,7 +127,7 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
             mock_patch.side_effect = [MockResponse(400, '{ "error": true }')]
 
             try:
-                WhatsAppType().activate(channel)
+                WhatsAppLegacyType().activate(channel)
                 self.fail("Should have thrown error activating channel")
             except ValidationError:
                 pass
@@ -139,13 +139,13 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
             ]
 
             try:
-                WhatsAppType().activate(channel)
+                WhatsAppLegacyType().activate(channel)
                 self.fail("Should have thrown error activating channel")
             except ValidationError:
                 pass
 
         # ok, test our refreshing
-        refresh_url = reverse("channels.types.whatsapp.refresh", args=[channel.uuid])
+        refresh_url = reverse("channels.types.whatsapp_legacy.refresh", args=[channel.uuid])
         resp = self.client.get(refresh_url)
         self.assertEqual(405, resp.status_code)
 
@@ -173,13 +173,13 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
         channel.release(self.admin)
 
     @patch("socket.gethostbyname", return_value="123.123.123.123")
-    @patch("temba.channels.types.whatsapp.WhatsAppType.check_health")
+    @patch("temba.channels.types.whatsapp_legacy.WhatsAppLegacyType.check_health")
     def test_duplicate_number_channels(self, mock_health, mock_socket_hostname):
         mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "v2.35.2"}}')
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
 
-        url = reverse("channels.types.whatsapp.claim")
+        url = reverse("channels.types.whatsapp_legacy.claim")
         self.login(self.admin)
 
         response = self.client.get(reverse("channels.channel_claim"))
@@ -308,12 +308,12 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
             self.assertEqual("abc098", channel2.config[Channel.CONFIG_AUTH_TOKEN])
 
     @patch("socket.gethostbyname", return_value="123.123.123.123")
-    @patch("temba.channels.types.whatsapp.WhatsAppType.check_health")
+    @patch("temba.channels.types.whatsapp_legacy.WhatsAppLegacyType.check_health")
     def test_claim_self_hosted_templates(self, mock_health, mock_socket_hostname):
         mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "v2.35.2"}}')
         Channel.objects.all().delete()
 
-        url = reverse("channels.types.whatsapp.claim")
+        url = reverse("channels.types.whatsapp_legacy.claim")
         self.login(self.admin)
 
         response = self.client.get(reverse("channels.channel_claim"))
@@ -408,18 +408,18 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
         ]
 
         # RequestException check HTTPLog
-        templates_data, no_error = WhatsAppType().get_api_templates(channel)
+        templates_data, no_error = WhatsAppLegacyType().get_api_templates(channel)
         self.assertEqual(1, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).count())
         self.assertFalse(no_error)
         self.assertEqual([], templates_data)
 
         # should be empty list with an error flag if fail with API
-        templates_data, no_error = WhatsAppType().get_api_templates(channel)
+        templates_data, no_error = WhatsAppLegacyType().get_api_templates(channel)
         self.assertFalse(no_error)
         self.assertEqual([], templates_data)
 
         # success no error and list
-        templates_data, no_error = WhatsAppType().get_api_templates(channel)
+        templates_data, no_error = WhatsAppLegacyType().get_api_templates(channel)
         self.assertTrue(no_error)
         self.assertEqual(["foo", "bar"], templates_data)
 
@@ -429,7 +429,7 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
         )
 
         # success no error and pagination
-        templates_data, no_error = WhatsAppType().get_api_templates(channel)
+        templates_data, no_error = WhatsAppLegacyType().get_api_templates(channel)
         self.assertTrue(no_error)
         self.assertEqual(["foo", "bar"], templates_data)
 
@@ -446,9 +446,9 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
             ]
         )
 
-    @patch("temba.channels.types.whatsapp.WhatsAppType.check_health")
+    @patch("temba.channels.types.whatsapp_legacy.WhatsAppLegacyType.check_health")
     @patch("temba.utils.whatsapp.tasks.update_local_templates")
-    @patch("temba.channels.types.whatsapp.WhatsAppType.get_api_templates")
+    @patch("temba.channels.types.whatsapp_legacy.WhatsAppLegacyType.get_api_templates")
     def test_refresh_templates_task(self, mock_get_api_templates, update_local_templates_mock, mock_health):
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
@@ -548,8 +548,8 @@ class WhatsAppTypeTest(CRUDLTestMixin, TembaTest):
             "foo_namespace",
         )
 
-        sync_url = reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid])
-        templates_url = reverse("channels.types.whatsapp.templates", args=[channel.uuid])
+        sync_url = reverse("channels.types.whatsapp_legacy.sync_logs", args=[channel.uuid])
+        templates_url = reverse("channels.types.whatsapp_legacy.templates", args=[channel.uuid])
 
         self.login(self.admin)
         response = self.client.get(templates_url)

@@ -3,7 +3,7 @@ from unittest.mock import patch
 import requests
 
 from temba.channels.models import Channel
-from temba.channels.types.whatsapp.type import (
+from temba.channels.types.whatsapp_legacy.type import (
     CONFIG_FB_ACCESS_TOKEN,
     CONFIG_FB_BUSINESS_ID,
     CONFIG_FB_NAMESPACE,
@@ -288,7 +288,7 @@ class WhatsAppUtilsTest(TembaTest):
         tt = TemplateTranslation.objects.filter(channel=channel, external_id="en/hello").first()
         self.assertEqual("xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx", tt.namespace)
 
-    @patch("temba.channels.types.whatsapp.WhatsAppType.check_health")
+    @patch("temba.channels.types.whatsapp_legacy.WhatsAppLegacyType.check_health")
     def test_update_api_version_whatsapp(self, mock_health):
         mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "v2.35.2"}}')
 
@@ -320,7 +320,7 @@ class WhatsAppUtilsTest(TembaTest):
         update_api_version(channel)
         self.assertEqual(1, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_CHECK_HEALTH).count())
 
-    @patch("temba.channels.types.dialog360.Dialog360Type.check_health")
+    @patch("temba.channels.types.dialog360_legacy.Dialog360LegacyType.check_health")
     def test_update_api_version_dialog360(self, mock_health):
         mock_health.return_value = MockResponse(200, '{"meta": {"api_status": "stable", "version": "2.35.4"}}')
 
