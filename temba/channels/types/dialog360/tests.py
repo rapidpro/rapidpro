@@ -19,7 +19,7 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse("channels.types.dialog360_cloud.claim")
+        url = reverse("channels.types.dialog360.claim")
         self.login(self.admin)
 
         # make sure 360dialog Cloud is on the claim page
@@ -131,7 +131,7 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
         )
 
     @patch("temba.utils.whatsapp.tasks.update_local_templates")
-    @patch("temba.channels.types.dialog360_cloud.Dialog360Type.get_api_templates")
+    @patch("temba.channels.types.dialog360.Dialog360Type.get_api_templates")
     def test_refresh_templates_task(self, mock_get_api_templates, update_local_templates_mock):
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
@@ -204,8 +204,8 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
             "foo_namespace",
         )
 
-        sync_url = reverse("channels.types.dialog360_cloud.sync_logs", args=[channel.uuid])
-        templates_url = reverse("channels.types.dialog360_cloud.templates", args=[channel.uuid])
+        sync_url = reverse("channels.types.dialog360.sync_logs", args=[channel.uuid])
+        templates_url = reverse("channels.types.dialog360.templates", args=[channel.uuid])
 
         self.login(self.admin)
         response = self.client.get(templates_url)

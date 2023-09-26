@@ -35,7 +35,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         oauth_user_token = self.request.session.get(self.channel_type.SESSION_USER_TOKEN, None)
         if not oauth_user_token:
             self.remove_token_credentials_from_session()
-            return HttpResponseRedirect(reverse("channels.types.whatsapp_cloud.connect"))
+            return HttpResponseRedirect(reverse("channels.types.whatsapp.connect"))
 
         app_id = settings.FACEBOOK_APPLICATION_ID
         app_secret = settings.FACEBOOK_APPLICATION_SECRET
@@ -46,13 +46,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         response = requests.get(url, params=params)
         if response.status_code != 200:  # pragma: no cover
             self.remove_token_credentials_from_session()
-            return HttpResponseRedirect(reverse("channels.types.whatsapp_cloud.connect"))
+            return HttpResponseRedirect(reverse("channels.types.whatsapp.connect"))
 
         response_json = response.json()
         for perm in ["business_management", "whatsapp_business_management", "whatsapp_business_messaging"]:
             if perm not in response_json["data"]["scopes"]:
                 self.remove_token_credentials_from_session()
-                return HttpResponseRedirect(reverse("channels.types.whatsapp_cloud.connect"))
+                return HttpResponseRedirect(reverse("channels.types.whatsapp.connect"))
 
         return super().pre_process(request, *args, **kwargs)
 
@@ -125,9 +125,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
             context["phone_numbers"] = phone_numbers
 
-        context["claim_url"] = reverse("channels.types.whatsapp_cloud.claim")
-        context["clear_session_token_url"] = reverse("channels.types.whatsapp_cloud.clear_session_token")
-        context["connect_whatsapp_url"] = reverse("channels.types.whatsapp_cloud.connect")
+        context["claim_url"] = reverse("channels.types.whatsapp.claim")
+        context["clear_session_token_url"] = reverse("channels.types.whatsapp.clear_session_token")
+        context["connect_whatsapp_url"] = reverse("channels.types.whatsapp.connect")
         context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
 
         claim_error = None
@@ -234,7 +234,7 @@ class RequestCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMix
     form_class = Form
     permission = "channels.channel_claim"
     fields = ()
-    template_name = "channels/types/whatsapp_cloud/request_code.html"
+    template_name = "channels/types/whatsapp/request_code.html"
     title = _("Verification Code")
     submit_button_name = _("Request Code")
 
@@ -242,7 +242,7 @@ class RequestCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMix
         return Channel.objects.filter(is_active=True, org=self.request.org, channel_type=self.channel_type.code)
 
     def get_success_url(self):
-        return reverse("channels.types.whatsapp_cloud.verify_code", args=[self.object.uuid])
+        return reverse("channels.types.whatsapp.verify_code", args=[self.object.uuid])
 
     def derive_menu_path(self):
         return f"/settings/channels/{self.get_object().uuid}"
@@ -301,7 +301,7 @@ class VerifyCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMixi
     form_class = Form
     permission = "channels.channel_claim"
     fields = ("code",)
-    template_name = "channels/types/whatsapp_cloud/verify_code.html"
+    template_name = "channels/types/whatsapp/verify_code.html"
     title = _("Verify Number")
     submit_button_name = _("Verify Number")
 
@@ -378,13 +378,13 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
 
             return self.cleaned_data
 
-    permission = "channels.types.whatsapp_cloud.connect"
+    permission = "channels.types.whatsapp.connect"
     form_class = WhatsappCloudConnectForm
-    success_url = "@channels.types.whatsapp_cloud.claim"
+    success_url = "@channels.types.whatsapp.claim"
     field_config = dict(api_key=dict(label=""), api_secret=dict(label=""))
     submit_button_name = "Save"
     success_message = "WhatsApp Account successfully connected."
-    template_name = "channels/types/whatsapp_cloud/connect.html"
+    template_name = "channels/types/whatsapp/connect.html"
     menu_path = "/settings/workspace"
     title = "Connect WhatsApp"
 
@@ -409,7 +409,7 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["connect_url"] = reverse("channels.types.whatsapp_cloud.connect")
+        context["connect_url"] = reverse("channels.types.whatsapp.connect")
         context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
 
         claim_error = None

@@ -33,7 +33,7 @@ class Dialog360Type(ChannelType):
 
     config_ui = ConfigUI()  # has own template
 
-    menu_items = [dict(label=_("Message Templates"), view_name="channels.types.dialog360_cloud.templates")]
+    menu_items = [dict(label=_("Message Templates"), view_name="channels.types.dialog360.templates")]
 
     def get_urls(self):
         return [

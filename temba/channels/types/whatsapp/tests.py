@@ -22,7 +22,7 @@ class WhatsAppTypeTest(TembaTest):
         WHATSAPP_FACEBOOK_BUSINESS_ID="FB_BUSINESS_ID",
         WHATSAPP_ADMIN_SYSTEM_USER_TOKEN="WA_ADMIN_TOKEN",
     )
-    @patch("temba.channels.types.whatsapp_cloud.views.randint")
+    @patch("temba.channels.types.whatsapp.views.randint")
     def test_claim(self, mock_randint):
         mock_randint.return_value = 111111
 
@@ -32,8 +32,8 @@ class WhatsAppTypeTest(TembaTest):
         # remove any existing channels
         self.org.channels.update(is_active=False)
 
-        connect_whatsapp_cloud_url = reverse("channels.types.whatsapp_cloud.connect")
-        claim_whatsapp_cloud_url = reverse("channels.types.whatsapp_cloud.claim")
+        connect_whatsapp_cloud_url = reverse("channels.types.whatsapp.connect")
+        claim_whatsapp_cloud_url = reverse("channels.types.whatsapp.claim")
 
         # make sure plivo is on the claim page
         response = self.client.get(reverse("channels.channel_claim"))
@@ -359,16 +359,16 @@ class WhatsAppTypeTest(TembaTest):
                 self.assertEqual("111111", channel.config["wa_pin"])
                 self.assertEqual("namespace-uuid", channel.config["wa_message_template_namespace"])
 
-                response = self.client.get(reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)))
+                response = self.client.get(reverse("channels.types.whatsapp.request_code", args=(channel.uuid,)))
                 self.assertEqual(200, response.status_code)
 
-                response = self.client.get(reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)))
+                response = self.client.get(reverse("channels.types.whatsapp.request_code", args=(channel.uuid,)))
                 self.assertEqual(200, response.status_code)
                 self.assertEqual(f"/settings/channels/{channel.uuid}", response.context[TEMBA_MENU_SELECTION])
 
                 # request verification code
                 response = self.client.post(
-                    reverse("channels.types.whatsapp_cloud.request_code", args=(channel.uuid,)), dict(), follow=True
+                    reverse("channels.types.whatsapp.request_code", args=(channel.uuid,)), dict(), follow=True
                 )
                 self.assertEqual(200, response.status_code)
 
@@ -378,7 +378,7 @@ class WhatsAppTypeTest(TembaTest):
 
                 # submit verification code
                 response = self.client.post(
-                    reverse("channels.types.whatsapp_cloud.verify_code", args=(channel.uuid,)),
+                    reverse("channels.types.whatsapp.verify_code", args=(channel.uuid,)),
                     dict(code="000000"),
                     follow=True,
                 )
@@ -387,7 +387,7 @@ class WhatsAppTypeTest(TembaTest):
                 self.assertEqual("https://graph.facebook.com/v13.0/123123123/register", wa_cloud_post.call_args[0][0])
                 self.assertEqual({"messaging_product": "whatsapp", "pin": "111111"}, wa_cloud_post.call_args[1]["data"])
 
-                response = self.client.get(reverse("channels.types.whatsapp_cloud.verify_code", args=(channel.uuid,)))
+                response = self.client.get(reverse("channels.types.whatsapp.verify_code", args=(channel.uuid,)))
                 self.assertEqual(f"/settings/channels/{channel.uuid}", response.context[TEMBA_MENU_SELECTION])
 
         # make sure the token is set on the session
@@ -557,7 +557,7 @@ class WhatsAppTypeTest(TembaTest):
         Channel.objects.all().delete()
         self.login(self.admin)
 
-        clear_session_token_url = reverse("channels.types.whatsapp_cloud.clear_session_token")
+        clear_session_token_url = reverse("channels.types.whatsapp.clear_session_token")
         response = self.client.get(clear_session_token_url)
         self.assertEqual(200, response.status_code)
 

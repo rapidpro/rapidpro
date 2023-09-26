@@ -34,8 +34,8 @@ class WhatsAppType(ChannelType):
     claim_view = ClaimView
 
     menu_items = [
-        dict(label=_("Message Templates"), view_name="channels.types.whatsapp_cloud.templates"),
-        dict(label=_("Verify Number"), view_name="channels.types.whatsapp_cloud.request_code"),
+        dict(label=_("Message Templates"), view_name="channels.types.whatsapp.templates"),
+        dict(label=_("Verify Number"), view_name="channels.types.whatsapp.request_code"),
     ]
 
     def get_urls(self):
