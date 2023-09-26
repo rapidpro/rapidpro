@@ -20,6 +20,7 @@ from django.utils.encoding import force_bytes
 
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.msgs.models import Msg
+from temba.notifications.incidents.builtin import ChannelDisconnectedIncidentType
 from temba.notifications.tasks import send_notification_emails
 from temba.orgs.models import Org
 from temba.request_logs.models import HTTPLog
@@ -213,9 +214,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         Alert.objects.create(
             channel=channel1, alert_type=Alert.TYPE_POWER, created_by=self.admin, modified_by=self.admin
         )
-        Alert.objects.create(
-            channel=channel1, alert_type=Alert.TYPE_DISCONNECTED, created_by=self.admin, modified_by=self.admin
-        )
+        ChannelDisconnectedIncidentType.get_or_create(channel1)
         SyncEvent.create(
             channel1,
             dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc="RW"),
@@ -263,6 +262,8 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # now do actual delete of channel
         channel1.msgs.all().delete()
+        channel1.org.notifications.all().delete()
+        channel1.incidents.all().delete()
         channel1.delete()
 
         self.assertFalse(Channel.objects.filter(id=channel1.id).exists())

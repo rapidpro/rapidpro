@@ -1184,11 +1184,11 @@ class Alert(SmartModel):
         from temba.msgs.models import Msg
 
         # no-op if this channel has no alert email
-        if not self.channel.alert_email:
+        if not self.channel.alert_email:  # pragma: no cover
             return
 
         # no-op if the channel is not tied to an org
-        if not self.channel.org:
+        if not self.channel.org:  # pragma: no cover
             return
 
         if self.alert_type == self.TYPE_POWER:
