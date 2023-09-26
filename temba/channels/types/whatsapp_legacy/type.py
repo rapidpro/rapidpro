@@ -30,7 +30,7 @@ class WhatsAppLegacyType(ChannelType):
     """
 
     code = "WA"
-    name = "WhatsApp"
+    name = "WhatsApp Legacy"
     category = ChannelType.Category.SOCIAL_MEDIA
     beta_only = True
 

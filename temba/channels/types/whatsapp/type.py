@@ -14,7 +14,7 @@ from ...models import ChannelType
 from .views import ClaimView, ClearSessionToken, Connect, RequestCode, VerifyCode
 
 
-class WhatsAppCloudType(ChannelType):
+class WhatsAppType(ChannelType):
     """
     A WhatsApp Cloud Channel Type
     """
@@ -22,7 +22,7 @@ class WhatsAppCloudType(ChannelType):
     SESSION_USER_TOKEN = "WHATSAPP_CLOUD_USER_TOKEN"
 
     code = "WAC"
-    name = "WhatsApp Cloud"
+    name = "WhatsApp"
     category = ChannelType.Category.SOCIAL_MEDIA
     beta_only = True
 
@@ -34,8 +34,8 @@ class WhatsAppCloudType(ChannelType):
     claim_view = ClaimView
 
     menu_items = [
-        dict(label=_("Message Templates"), view_name="channels.types.whatsapp_cloud.templates"),
-        dict(label=_("Verify Number"), view_name="channels.types.whatsapp_cloud.request_code"),
+        dict(label=_("Message Templates"), view_name="channels.types.whatsapp.templates"),
+        dict(label=_("Verify Number"), view_name="channels.types.whatsapp.request_code"),
     ]
 
     def get_urls(self):

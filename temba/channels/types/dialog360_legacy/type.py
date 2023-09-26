@@ -21,7 +21,7 @@ class Dialog360LegacyType(ChannelType):
     """
 
     code = "D3"
-    name = "360Dialog WhatsApp"
+    name = "360Dialog Legacy WhatsApp"
     category = ChannelType.Category.SOCIAL_MEDIA
 
     courier_url = r"^d3/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
