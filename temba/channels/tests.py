@@ -13,7 +13,6 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core import mail
 from django.core.files.storage import storages
-from django.template import loader
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -21,6 +20,7 @@ from django.utils.encoding import force_bytes
 
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.msgs.models import Msg
+from temba.notifications.tasks import send_notification_emails
 from temba.orgs.models import Org
 from temba.request_logs.models import HTTPLog
 from temba.tests import CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
@@ -32,7 +32,7 @@ from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
 from .tasks import (
-    check_channel_alerts,
+    check_android_channels,
     squash_channel_counts,
     sync_old_seen_channels,
     track_org_channel_counts,
@@ -1281,25 +1281,6 @@ class SyncEventTest(SmartminTest):
         self.assertEqual("RW", self.tel_channel.country)
 
 
-class ChannelAlertTest(TembaTest):
-    def test_no_alert_email(self):
-        # set our last seen to a while ago
-        self.channel.last_seen = timezone.now() - timedelta(minutes=40)
-        self.channel.save()
-
-        check_channel_alerts()
-        self.assertTrue(len(mail.outbox) == 0)
-
-        # add alert email, remove org and set last seen to now to force an resolve email to try to send
-        self.channel.alert_email = "fred@unicef.org"
-        self.channel.org = None
-        self.channel.last_seen = timezone.now()
-        self.channel.save()
-        check_channel_alerts()
-
-        self.assertTrue(len(mail.outbox) == 0)
-
-
 class ChannelSyncTest(TembaTest):
     @patch("temba.channels.models.Channel.trigger_sync")
     def test_sync_old_seen_chaanels(self, mock_trigger_sync):
@@ -1322,71 +1303,46 @@ class ChannelSyncTest(TembaTest):
         self.assertTrue(mock_trigger_sync.called)
 
 
-class ChannelClaimTest(TembaTest):
+class ChannelIncidentsTest(TembaTest):
     @override_settings(SEND_EMAILS=True)
-    def test_disconnected_alert(self):
+    def test_disconnected(self):
         # set our last seen to a while ago
-        self.channel.alert_email = "fred@unicef.org"
         self.channel.last_seen = timezone.now() - timedelta(minutes=40)
-        self.channel.save()
+        self.channel.save(update_fields=("last_seen",))
 
         with override_brand(from_email="support@mybrand.com"):
-            check_channel_alerts()
+            check_android_channels()
 
-            # should have created one alert
-            alert = Alert.objects.get()
-            self.assertEqual(self.channel, alert.channel)
-            self.assertEqual(Alert.TYPE_DISCONNECTED, alert.alert_type)
-            self.assertFalse(alert.ended_on)
+            # should have created an incident
+            incident = self.org.incidents.get()
+            self.assertEqual(self.channel, incident.channel)
+            self.assertEqual("channel:disconnected", incident.incident_type)
+            self.assertIsNone(incident.ended_on)
 
-            self.assertTrue(len(mail.outbox) == 1)
-            template = "channels/email/disconnected_alert.txt"
-            context = dict(
-                org=self.channel.org,
-                channel=self.channel,
-                now=timezone.now(),
-                branding=self.channel.org.branding,
-                last_seen=self.channel.last_seen,
-                sync=alert.sync_event,
-            )
+            self.assertEqual(1, self.admin.notifications.count())
 
-            text_template = loader.get_template(template)
-            text = text_template.render(context)
+            send_notification_emails()
 
-            self.assertEqual(mail.outbox[0].body, text)
-            self.assertEqual(mail.outbox[0].from_email, "support@mybrand.com")
+            self.assertEqual(1, len(mail.outbox))
+            self.assertEqual("[Nyaruka] Incident: Channel Disconnected", mail.outbox[0].subject)
+            self.assertEqual("support@mybrand.com", mail.outbox[0].from_email)
 
         # call it again
-        check_channel_alerts()
+        check_android_channels()
 
-        # still only one alert
-        self.assertEqual(1, Alert.objects.all().count())
-        self.assertTrue(len(mail.outbox) == 1)
+        # still only one incident
+        incident = self.org.incidents.get()
+        self.assertEqual(1, len(mail.outbox))
 
         # ok, let's have the channel show up again
         self.channel.last_seen = timezone.now() + timedelta(minutes=5)
-        self.channel.save()
+        self.channel.save(update_fields=("last_seen",))
 
-        check_channel_alerts()
+        check_android_channels()
 
-        # still only one alert, but it is now ended
-        alert = Alert.objects.get()
-        self.assertTrue(alert.ended_on)
-        self.assertTrue(len(mail.outbox) == 2)
-        template = "channels/email/connected_alert.txt"
-        context = dict(
-            org=self.channel.org,
-            channel=self.channel,
-            now=timezone.now(),
-            branding=self.channel.org.branding,
-            last_seen=self.channel.last_seen,
-            sync=alert.sync_event,
-        )
-
-        text_template = loader.get_template(template)
-        text = text_template.render(context)
-
-        self.assertEqual(mail.outbox[1].body, text)
+        # still only one incident, but it is now ended
+        incident = self.org.incidents.get()
+        self.assertIsNotNone(incident.ended_on)
 
 
 class ChannelCountTest(TembaTest):

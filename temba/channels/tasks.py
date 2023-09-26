@@ -29,8 +29,8 @@ def sync_channel_fcm_task(cloud_registration_id, channel_id=None):  # pragma: no
 
 @cron_task()
 def check_android_channels():
-    from temba.notifications.models import Incident
     from temba.notifications.incidents.builtin import ChannelDisconnectedIncidentType
+    from temba.notifications.models import Incident
 
     last_half_hour = timezone.now() - timedelta(minutes=30)
 
