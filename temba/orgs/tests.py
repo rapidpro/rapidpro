@@ -755,6 +755,7 @@ class OrgTest(TembaTest):
         assert_org(self.org2, is_suspended=False)
 
         self.assertEqual(1, self.org.incidents.filter(incident_type="org:suspended", ended_on=None).count())
+        self.assertEqual(1, self.admin.notifications.filter(notification_type="incident:started").count())
 
         self.org.suspend()  # noop
 

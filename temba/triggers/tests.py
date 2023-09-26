@@ -347,7 +347,7 @@ class TriggerTest(TembaTest):
             },
         )
 
-    @patch("temba.channels.types.facebook.FacebookType.activate_trigger")
+    @patch("temba.channels.types.facebook_legacy.FacebookLegacyType.activate_trigger")
     def test_export_import_new_conversation(self, mock_activate_trigger):
         flow = self.create_flow("Test")
         channel = self.create_channel("FB", "Facebook", "1234")
@@ -398,7 +398,7 @@ class TriggerTest(TembaTest):
         self.assertTrue(KeywordTriggerType.is_valid_keyword("मिलाए"))
         self.assertTrue(KeywordTriggerType.is_valid_keyword("👋"))
 
-    @patch("temba.channels.types.facebook.FacebookType.deactivate_trigger")
+    @patch("temba.channels.types.facebook_legacy.FacebookLegacyType.deactivate_trigger")
     def test_release(self, mock_deactivate_trigger):
         channel = self.create_channel("FB", "Facebook", "234567")
         flow = self.create_flow("Test")
@@ -906,7 +906,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
-    @patch("temba.channels.types.facebook.FacebookType.activate_trigger")
+    @patch("temba.channels.types.facebook_legacy.FacebookLegacyType.activate_trigger")
     @patch("temba.channels.types.viber_public.ViberPublicType.activate_trigger")
     def test_create_new_conversation(self, mock_vp_activate, mock_fb_activate):
         create_url = reverse("triggers.trigger_create_new_conversation")
@@ -964,7 +964,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertEqual(mock_vp_activate.call_count, 1)
 
-    @patch("temba.channels.types.facebook.FacebookType.activate_trigger")
+    @patch("temba.channels.types.facebook_legacy.FacebookLegacyType.activate_trigger")
     def test_create_referral(self, mock_fb_activate):
         create_url = reverse("triggers.trigger_create_referral")
         flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
@@ -1395,8 +1395,8 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         next_fire = trigger.schedule.calculate_next_fire(datetime(2021, 6, 23, 12, 0, 0, 0, pytz.UTC))  # Wed 23rd
         self.assertEqual(tz.localize(datetime(2021, 6, 24, 12, 0, 0, 0)), next_fire)  # Thu 24th
 
-    @patch("temba.channels.types.facebook.FacebookType.deactivate_trigger")
-    @patch("temba.channels.types.facebook.FacebookType.activate_trigger")
+    @patch("temba.channels.types.facebook_legacy.FacebookLegacyType.deactivate_trigger")
+    @patch("temba.channels.types.facebook_legacy.FacebookLegacyType.activate_trigger")
     def test_list(self, mock_activate_trigger, mock_deactivate_trigger):
         flow1 = self.create_flow("Report")
         flow2 = self.create_flow("Survey")

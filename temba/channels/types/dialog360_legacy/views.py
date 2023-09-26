@@ -35,7 +35,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         data = form.cleaned_data
         config = {
-            Channel.CONFIG_BASE_URL: "https://waba-v2.360dialog.io",
+            Channel.CONFIG_BASE_URL: "https://waba.360dialog.io",
             Channel.CONFIG_AUTH_TOKEN: data["api_key"],
         }
 

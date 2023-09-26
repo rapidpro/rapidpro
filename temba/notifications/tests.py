@@ -351,8 +351,16 @@ class NotificationTest(TembaTest):
                 },
             },
             expected_users={self.editor, self.admin},
-            email=False,
+            email=True,
         )
+
+        send_notification_emails()
+
+        self.assertEqual(2, len(mail.outbox))
+        self.assertEqual("[Nyaruka] Incident: Workspace Flagged", mail.outbox[0].subject)
+        self.assertEqual(["admin@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertEqual("[Nyaruka] Incident: Workspace Flagged", mail.outbox[1].subject)
+        self.assertEqual(["editor@nyaruka.com"], mail.outbox[1].recipients())
 
         # if a user visits the incident page, all incident notifications are now read
         self.login(self.editor)
