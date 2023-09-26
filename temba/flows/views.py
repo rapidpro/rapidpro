@@ -946,7 +946,7 @@ class FlowCRUDL(SmartCRUDL):
                 features.append("locations")
 
             # only staff have optins so far
-            if self.request.user.is_staff:
+            if self.request.user.is_staff:  # pragma: no cover
                 features.append("optins")
 
             return features
