@@ -1,3 +1,15 @@
+v8.3.29 (2023-09-26)
+-------------------------
+ * Update editor to include opt-ins
+
+v8.3.28 (2023-09-26)
+-------------------------
+ * Fix Contact Importss
+ * Rename old legacy channel types
+ * Add title to incident list page and tweak styling
+ * Implement email notifications for incidents
+ * Fix ticket squashable count models
+
 v8.3.27 (2023-09-25)
 -------------------------
  * Tweak mailroom_db to create an FBA channel instead of a TWT channel
