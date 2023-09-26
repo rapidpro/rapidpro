@@ -1,3 +1,7 @@
+v8.3.29 (2023-09-26)
+-------------------------
+ * Update editor to include opt-ins
+
 v8.3.28 (2023-09-26)
 -------------------------
  * Fix Contact Importss
