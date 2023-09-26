@@ -12,10 +12,10 @@ from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
 from temba.utils.whatsapp.tasks import refresh_whatsapp_templates
 
 from ...models import Channel
-from .type import Dialog360CloudType
+from .type import Dialog360Type
 
 
-class Dialog360CloudTypeTest(CRUDLTestMixin, TembaTest):
+class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
@@ -66,7 +66,7 @@ class Dialog360CloudTypeTest(CRUDLTestMixin, TembaTest):
         with patch("requests.post") as mock_post:
             mock_post.side_effect = [MockResponse(200, '{ "url": "https://waba-v2.360dialog.io" }')]
 
-            Dialog360CloudType().activate(channel)
+            Dialog360Type().activate(channel)
             self.assertEqual(
                 mock_post.call_args_list[0][1]["json"]["url"],
                 "https://%s%s"
@@ -77,7 +77,7 @@ class Dialog360CloudTypeTest(CRUDLTestMixin, TembaTest):
             mock_post.side_effect = [MockResponse(400, '{ "meta": { "success": false } }')]
 
             try:
-                Dialog360CloudType().activate(channel)
+                Dialog360Type().activate(channel)
                 self.fail("Should have thrown error activating channel")
             except ValidationError:
                 pass
@@ -107,18 +107,18 @@ class Dialog360CloudTypeTest(CRUDLTestMixin, TembaTest):
         ]
 
         # RequestException check HTTPLog
-        templates_data, no_error = Dialog360CloudType().get_api_templates(channel)
+        templates_data, no_error = Dialog360Type().get_api_templates(channel)
         self.assertEqual(1, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).count())
         self.assertFalse(no_error)
         self.assertEqual([], templates_data)
 
         # should be empty list with an error flag if fail with API
-        templates_data, no_error = Dialog360CloudType().get_api_templates(channel)
+        templates_data, no_error = Dialog360Type().get_api_templates(channel)
         self.assertFalse(no_error)
         self.assertEqual([], templates_data)
 
         # success no error and list
-        templates_data, no_error = Dialog360CloudType().get_api_templates(channel)
+        templates_data, no_error = Dialog360Type().get_api_templates(channel)
         self.assertTrue(no_error)
         self.assertEqual(["foo", "bar"], templates_data)
 
@@ -131,7 +131,7 @@ class Dialog360CloudTypeTest(CRUDLTestMixin, TembaTest):
         )
 
     @patch("temba.utils.whatsapp.tasks.update_local_templates")
-    @patch("temba.channels.types.dialog360_cloud.Dialog360CloudType.get_api_templates")
+    @patch("temba.channels.types.dialog360_cloud.Dialog360Type.get_api_templates")
     def test_refresh_templates_task(self, mock_get_api_templates, update_local_templates_mock):
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()

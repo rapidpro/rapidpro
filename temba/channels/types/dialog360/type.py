@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
-from temba.channels.types.dialog360_cloud.views import ClaimView
+from temba.channels.types.dialog360.views import ClaimView
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
 from temba.utils.whatsapp.views import SyncLogsView, TemplatesView
@@ -14,7 +14,7 @@ from temba.utils.whatsapp.views import SyncLogsView, TemplatesView
 from ...models import ChannelType, ConfigUI
 
 
-class Dialog360CloudType(ChannelType):
+class Dialog360Type(ChannelType):
     """
     A 360 Dialog Channel Type
     """

@@ -14,7 +14,7 @@ from ...models import ChannelType
 from .views import ClaimView, ClearSessionToken, Connect, RequestCode, VerifyCode
 
 
-class WhatsAppCloudType(ChannelType):
+class WhatsAppType(ChannelType):
     """
     A WhatsApp Cloud Channel Type
     """
@@ -22,7 +22,7 @@ class WhatsAppCloudType(ChannelType):
     SESSION_USER_TOKEN = "WHATSAPP_CLOUD_USER_TOKEN"
 
     code = "WAC"
-    name = "WhatsApp Cloud"
+    name = "WhatsApp"
     category = ChannelType.Category.SOCIAL_MEDIA
     beta_only = True
 
