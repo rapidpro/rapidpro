@@ -1,7 +1,5 @@
 import itertools
-import random
 import smtplib
-import string
 from collections import OrderedDict
 from datetime import timedelta
 from email.utils import parseaddr
@@ -10,7 +8,7 @@ from urllib.parse import parse_qs, quote, quote_plus, unquote, urlparse
 import iso8601
 import pyotp
 from packaging.version import Version
-from smartmin.users.models import FailedLogin, PasswordHistory, RecoveryToken
+from smartmin.users.models import FailedLogin, PasswordHistory
 from smartmin.users.views import Login, UserUpdateForm
 from smartmin.views import (
     SmartCreateView,
@@ -51,7 +49,7 @@ from temba.campaigns.models import Campaign
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages
-from temba.utils.email import is_valid_address, send_template_email
+from temba.utils.email import is_valid_address
 from temba.utils.fields import ArbitraryJsonChoiceField, CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import (
@@ -768,16 +766,7 @@ class UserCRUDL(SmartCRUDL):
             user = User.objects.filter(email__iexact=email).first()
 
             if user:
-                subject = _("Password Recovery Request")
-                template = "orgs/email/user_forget"
-
-                token = "".join(random.choice(string.ascii_uppercase + string.digits) for x in range(32))
-                RecoveryToken.objects.create(token=token, user=user)
-                FailedLogin.objects.filter(username__iexact=user.username).delete()
-
-                context = dict(user=user, path=f'{reverse("users.user_recover", args=[token])}')
-                send_template_email(email, subject, template, context, self.request.branding)
-
+                user.recover_password(self.request.branding)
             else:
                 # No user, check if we have an invite for the email and resend that
                 existing_invite = Invitation.objects.filter(is_active=True, email__iexact=email).first()
