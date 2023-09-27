@@ -35,6 +35,7 @@ from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, 
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import ExportMessagesTask, Label, Msg
+from temba.notifications.incidents.builtin import ChannelDisconnectedIncidentType
 from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
 from temba.schedules.models import Schedule
@@ -2153,11 +2154,8 @@ class OrgDeleteTest(TembaTest):
                 [],
             )
         )
-        add(
-            Alert.objects.create(
-                channel=channel2, alert_type=Alert.TYPE_POWER, created_by=self.admin, modified_by=self.admin
-            )
-        )
+        add(Alert.objects.create(channel=channel2, alert_type="P", created_by=self.admin, modified_by=self.admin))
+        add(ChannelDisconnectedIncidentType.get_or_create(channel2))
         add(ChannelLog.objects.create(channel=channel1, log_type=ChannelLog.LOG_TYPE_MSG_SEND))
         add(
             HTTPLog.objects.create(

@@ -69,12 +69,6 @@ def sync_old_seen_channels():
 
 
 @shared_task
-def send_alert_task(alert_id, resolved):
-    alert = Alert.objects.get(pk=alert_id)
-    alert.send_email(resolved)
-
-
-@shared_task
 def interrupt_channel_task(channel_id):
     channel = Channel.objects.get(pk=channel_id)
     # interrupt the channel, any sessions using this channel for calls,

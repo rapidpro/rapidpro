@@ -211,9 +211,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.create_outgoing_msg(contact, "Hi", channel=channel1, status="P")
         self.create_outgoing_msg(contact, "Hi", channel=channel1, status="E")
         self.create_outgoing_msg(contact, "Hi", channel=channel1, status="S")
-        Alert.objects.create(
-            channel=channel1, alert_type=Alert.TYPE_POWER, created_by=self.admin, modified_by=self.admin
-        )
+        Alert.objects.create(channel=channel1, alert_type="P", created_by=self.admin, modified_by=self.admin)
         ChannelDisconnectedIncidentType.get_or_create(channel1)
         SyncEvent.create(
             channel1,
@@ -223,9 +221,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # and some on another channel
         self.create_outgoing_msg(contact, "Hi", channel=channel2, status="E")
-        Alert.objects.create(
-            channel=channel2, alert_type=Alert.TYPE_POWER, created_by=self.admin, modified_by=self.admin
-        )
+        Alert.objects.create(channel=channel2, alert_type="P", created_by=self.admin, modified_by=self.admin)
         SyncEvent.create(
             channel2,
             dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc="RW"),
@@ -864,31 +860,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         # no new message
         self.assertEqual(Msg.objects.all().count(), msgs_count)
 
-        # set an email on our channel
-        self.tel_channel.alert_email = "fred@worldrelif.org"
-        self.tel_channel.save()
-
-        # We should not have an alert this time
-        self.assertEqual(0, Alert.objects.all().count())
-
-        # the case the status must be be reported
-        response = self.sync(
-            self.tel_channel,
-            cmds=[
-                # device details status
-                dict(cmd="status", p_sts="DIS", p_src="BAT", p_lvl="20", net="UMTS", retry=[], pending=[])
-            ],
-        )
-
-        # we should now have an Alert
-        self.assertEqual(1, Alert.objects.all().count())
-
-        # and at this time it must be not ended
-        self.assertEqual(
-            1, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type="P").count()
-        )
-
-        # the case the status must be be reported but already notification sent
         response = self.sync(
             self.tel_channel,
             cmds=[
@@ -897,30 +868,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             ],
         )
 
-        # we should not create a new alert
-        self.assertEqual(1, Alert.objects.all().count())
-
-        # still not ended
-        self.assertEqual(
-            1, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type="P").count()
-        )
-
-        # Let plug the channel to charger
-        response = self.sync(
-            self.tel_channel,
-            cmds=[
-                # device details status
-                dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
-            ],
-        )
-
-        # only one alert
-        self.assertEqual(1, Alert.objects.all().count())
-
-        # and we end all alert related to this issue
-        self.assertEqual(
-            0, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type="P").count()
-        )
+        self.assertEqual(2, SyncEvent.objects.all().count())
 
         # make our events old so we can test trimming them
         SyncEvent.objects.all().update(created_on=timezone.now() - timedelta(days=45))
@@ -929,77 +877,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         # should be cleared out
         self.assertEqual(1, SyncEvent.objects.all().count())
         self.assertFalse(Alert.objects.exists())
-
-        # the case the status is in unknown state
-        response = self.sync(
-            self.tel_channel,
-            cmds=[
-                # device details status
-                dict(cmd="status", p_sts="UNK", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
-            ],
-        )
-
-        # we should now create a new alert
-        self.assertEqual(1, Alert.objects.all().count())
-
-        # one alert not ended
-        self.assertEqual(
-            1, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type="P").count()
-        )
-
-        # Let plug the channel to charger to end this unknown power status
-        response = self.sync(
-            self.tel_channel,
-            cmds=[
-                # device details status
-                dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
-            ],
-        )
-
-        # still only one alert
-        self.assertEqual(1, Alert.objects.all().count())
-
-        # and we end all alert related to this issue
-        self.assertEqual(
-            0, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type="P").count()
-        )
-
-        # clear all the alerts
-        Alert.objects.all().delete()
-
-        # the case the status is in not charging state
-        response = self.sync(
-            self.tel_channel,
-            cmds=[
-                # device details status
-                dict(cmd="status", p_sts="NOT", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
-            ],
-        )
-
-        # we should now create a new alert
-        self.assertEqual(1, Alert.objects.all().count())
-
-        # one alert not ended
-        self.assertEqual(
-            1, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type="P").count()
-        )
-
-        # Let plug the channel to charger to end this unknown power status
-        response = self.sync(
-            self.tel_channel,
-            cmds=[
-                # device details status
-                dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
-            ],
-        )
-
-        # first we have a new alert created
-        self.assertEqual(1, Alert.objects.all().count())
-
-        # and we end all alert related to this issue
-        self.assertEqual(
-            0, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type="P").count()
-        )
 
         response = self.sync(
             self.tel_channel,
@@ -1144,24 +1021,19 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             android_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields={"name": "My Android", "alert_email": None, "allow_international": False},
+            form_fields={"name": "My Android", "allow_international": False},
         )
         self.assertUpdateFetch(
             vonage_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields={
-                "name": "My Vonage",
-                "alert_email": None,
-                "allow_international": False,
-                "machine_detection": False,
-            },
+            form_fields={"name": "My Vonage", "allow_international": False, "machine_detection": False},
         )
         self.assertUpdateFetch(
             telegram_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields={"name": "My Telegram", "alert_email": None},
+            form_fields={"name": "My Telegram"},
         )
 
         # name can't be empty
@@ -1175,18 +1047,12 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         # make some changes
         self.assertUpdateSubmit(
             vonage_url,
-            {
-                "name": "Updated Name",
-                "alert_email": "bob@nyaruka.com",
-                "allow_international": True,
-                "machine_detection": True,
-            },
+            {"name": "Updated Name", "allow_international": True, "machine_detection": True},
         )
 
         vonage_channel.refresh_from_db()
         self.assertEqual("Updated Name", vonage_channel.name)
         self.assertEqual("+1234567890", vonage_channel.address)
-        self.assertEqual("bob@nyaruka.com", vonage_channel.alert_email)
         self.assertTrue(vonage_channel.config.get("allow_international"))
         self.assertTrue(vonage_channel.config.get("machine_detection"))
 
@@ -1194,19 +1060,14 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             vonage_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields={
-                "name": "Updated Name",
-                "alert_email": "bob@nyaruka.com",
-                "allow_international": True,
-                "machine_detection": True,
-            },
+            form_fields={"name": "Updated Name", "allow_international": True, "machine_detection": True},
         )
 
         # staff users see extra log policy field
         self.login(self.customer_support, choose_org=self.org)
         response = self.client.get(vonage_url)
         self.assertEqual(
-            ["name", "alert_email", "log_policy", "allow_international", "machine_detection", "loc"],
+            ["name", "log_policy", "allow_international", "machine_detection", "loc"],
             list(response.context["form"].fields.keys()),
         )
 
