@@ -1,3 +1,10 @@
+v8.3.30 (2023-09-27)
+-------------------------
+ * Allow the target_urls of incident notifications to differ by type
+ * Use proper secret generation for recovery tokens and re-org code
+ * Fix task discover for legacy whatsapp channel type
+ * Implement channel disconnected alert as incident
+
 v8.3.29 (2023-09-26)
 -------------------------
  * Update editor to include opt-ins
