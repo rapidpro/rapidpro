@@ -336,9 +336,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     os = models.CharField(max_length=255, null=True, blank=True)
     last_seen = models.DateTimeField(null=True)
 
-    # TODO drop
-    alert_email = models.EmailField(null=True, blank=True)
-
     @classmethod
     def create(
         cls,
@@ -661,7 +658,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for trigger in self.triggers.all():
             trigger.delete()
 
-        delete_in_batches(self.alerts.all())
+        delete_in_batches(self.incidents.all())
         delete_in_batches(self.sync_events.all())
         delete_in_batches(self.logs.all())
         delete_in_batches(self.http_logs.all())
@@ -1097,14 +1094,3 @@ def pre_save(sender, instance, **kwargs):
             td = timezone.now() - last_sync_event.created_on
             last_sync_event.lifetime = td.seconds + td.days * 24 * 3600
             last_sync_event.save()
-
-
-class Alert(SmartModel):
-    """
-    TODO drop
-    """
-
-    channel = models.ForeignKey(Channel, related_name="alerts", on_delete=models.PROTECT)
-    sync_event = models.ForeignKey(SyncEvent, related_name="alerts", on_delete=models.PROTECT, null=True)
-    alert_type = models.CharField(max_length=1)
-    ended_on = models.DateTimeField(blank=True, null=True)

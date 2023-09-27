@@ -15,7 +15,7 @@ from temba.utils.crons import cron_task
 from temba.utils.models import delete_in_batches
 
 from .android import sync
-from .models import Alert, Channel, ChannelCount, ChannelLog, SyncEvent
+from .models import Channel, ChannelCount, ChannelLog, SyncEvent
 from .types.android import AndroidType
 
 logger = logging.getLogger(__name__)
@@ -99,7 +99,6 @@ def trim_sync_events():
             .values_list("id", flat=True)[1:]
         )
 
-        Alert.objects.filter(sync_event__in=event_ids).delete()
         SyncEvent.objects.filter(id__in=event_ids).delete()
         num_deleted += len(event_ids)
 
