@@ -14,6 +14,7 @@ import pyotp
 import pytz
 from packaging.version import Version
 from smartmin.models import SmartModel
+from smartmin.users.models import FailedLogin, RecoveryToken
 from timezone_field import TimeZoneField
 
 from django.conf import settings
@@ -22,6 +23,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.validators import ArrayMinLengthValidator
 from django.db import models, transaction
 from django.db.models import Prefetch
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.functional import cached_property
@@ -267,6 +269,24 @@ class User(AuthUser):
         from temba.api.models import get_or_create_api_token
 
         return get_or_create_api_token(org, self)
+
+    def recover_password(self, branding: dict):
+        """
+        Generates a recovery token for this user and sends them an email with a recovery link using that token.
+        """
+
+        token = generate_secret(32)
+        RecoveryToken.objects.create(token=token, user=self)
+        FailedLogin.objects.filter(username__iexact=self.username).delete()
+
+        self.send_recovery_email(token, branding)
+
+    def send_recovery_email(self, token: str, branding: dict):
+        subject = _("Password Recovery Request")
+        template = "orgs/email/user_forget"
+        context = {"user": self, "path": reverse("users.user_recover", args=[token])}
+
+        send_template_email(self.email, subject, template, context, branding)
 
     def as_engine_ref(self) -> dict:
         return {"email": self.email, "name": self.name}
