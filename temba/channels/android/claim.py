@@ -89,7 +89,6 @@ def claim_channel(org, user, channel, phone):
     if not channel.country:  # pragma: needs cover
         channel.country = countries.from_tel(phone)
 
-    channel.alert_email = user.email
     channel.org = org
     channel.is_active = True
     channel.claim_code = None

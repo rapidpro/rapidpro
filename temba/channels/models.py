@@ -14,7 +14,6 @@ from smartmin.models import SmartModel
 from twilio.base.exceptions import TwilioRestException
 
 from django.conf import settings
-from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.storage import storages
 from django.db import models
@@ -29,7 +28,6 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact
-from temba.utils.email import send_template_email
 from temba.utils.models import (
     JSONAsTextField,
     LegacyUUIDMixin,
@@ -325,13 +323,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         verbose_name=_("Country"), null=True, blank=True, help_text=_("Country which this channel is for")
     )
 
-    alert_email = models.EmailField(
-        verbose_name=_("Alert Email"),
-        null=True,
-        blank=True,
-        help_text=_("We will send email alerts to this address if experiencing issues sending"),
-    )
-
     config = models.JSONField(default=dict)
     schemes = ArrayField(models.CharField(max_length=16), default=_get_default_channel_scheme)
     role = models.CharField(max_length=4, default=DEFAULT_ROLE)
@@ -344,6 +335,9 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     device = models.CharField(max_length=255, null=True, blank=True)
     os = models.CharField(max_length=255, null=True, blank=True)
     last_seen = models.DateTimeField(null=True)
+
+    # TODO drop
+    alert_email = models.EmailField(null=True, blank=True)
 
     @classmethod
     def create(
@@ -1106,119 +1100,11 @@ def pre_save(sender, instance, **kwargs):
 
 
 class Alert(SmartModel):
-    TYPE_POWER = "P"
+    """
+    TODO drop
+    """
 
-    TYPE_CHOICES = ((TYPE_POWER, _("Power")),)  # channel has low power
-
-    channel = models.ForeignKey(
-        Channel,
-        related_name="alerts",
-        on_delete=models.PROTECT,
-        verbose_name=_("Channel"),
-        help_text=_("The channel that this alert is for"),
-    )
-    sync_event = models.ForeignKey(
-        SyncEvent,
-        related_name="alerts",
-        on_delete=models.PROTECT,
-        verbose_name=_("Sync Event"),
-        null=True,
-        help_text=_("The sync event that caused this alert to be sent (if any)"),
-    )
-    alert_type = models.CharField(
-        verbose_name=_("Alert Type"),
-        max_length=1,
-        choices=TYPE_CHOICES,
-        help_text=_("The type of alert the channel is sending"),
-    )
-    ended_on = models.DateTimeField(verbose_name=_("Ended On"), blank=True, null=True)
-
-    @classmethod
-    def create_and_send(cls, channel, alert_type: str, *, sync_event=None):
-        user = get_alert_user()
-        alert = cls.objects.create(
-            channel=channel,
-            alert_type=alert_type,
-            sync_event=sync_event,
-            created_by=user,
-            modified_by=user,
-        )
-        alert.send_alert()
-
-        return alert
-
-    @classmethod
-    def check_power_alert(cls, sync):
-        if (
-            sync.power_status in (SyncEvent.STATUS_DISCHARGING, SyncEvent.STATUS_UNKNOWN, SyncEvent.STATUS_NOT_CHARGING)
-            and int(sync.power_level) < 25
-        ):
-            alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
-
-            if not alerts:
-                cls.create_and_send(sync.channel, cls.TYPE_POWER, sync_event=sync)
-
-        if sync.power_status == SyncEvent.STATUS_CHARGING or sync.power_status == SyncEvent.STATUS_FULL:
-            alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
-            alerts = alerts.order_by("-created_on")
-
-            # end our previous alert
-            if alerts and int(alerts[0].sync_event.power_level) < 25:
-                for alert in alerts:
-                    alert.ended_on = timezone.now()
-                    alert.save()
-                    last_alert = alert
-                last_alert.send_resolved()
-
-    def send_alert(self):
-        from .tasks import send_alert_task
-
-        on_transaction_commit(lambda: send_alert_task.delay(self.id, resolved=False))
-
-    def send_resolved(self):
-        from .tasks import send_alert_task
-
-        on_transaction_commit(lambda: send_alert_task.delay(self.id, resolved=True))
-
-    def send_email(self, resolved):
-        from temba.msgs.models import Msg
-
-        # no-op if this channel has no alert email
-        if not self.channel.alert_email:  # pragma: no cover
-            return
-
-        # no-op if the channel is not tied to an org
-        if not self.channel.org:  # pragma: no cover
-            return
-
-        if self.alert_type == self.TYPE_POWER:
-            if resolved:
-                subject = "Your Android phone is now charging"
-                template = "channels/email/power_charging_alert"
-            else:
-                subject = "Your Android phone battery is low"
-                template = "channels/email/power_alert"
-
-        else:  # pragma: no cover
-            raise Exception(_("Unknown alert type: %(alert)s") % {"alert": self.alert_type})
-
-        context = dict(
-            org=self.channel.org,
-            channel=self.channel,
-            last_seen=self.channel.last_seen,
-            sync=self.sync_event,
-        )
-        context["unsent_count"] = Msg.objects.filter(channel=self.channel, status__in=["Q", "P"]).count()
-        context["subject"] = subject
-
-        send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.branding)
-
-
-def get_alert_user():
-    user = User.objects.filter(username="alert").first()
-    if user:
-        return user
-    else:
-        user = User.objects.create_user("alert")
-        user.groups.add(Group.objects.get(name="Service Users"))
-        return user
+    channel = models.ForeignKey(Channel, related_name="alerts", on_delete=models.PROTECT)
+    sync_event = models.ForeignKey(SyncEvent, related_name="alerts", on_delete=models.PROTECT, null=True)
+    alert_type = models.CharField(max_length=1)
+    ended_on = models.DateTimeField(blank=True, null=True)
