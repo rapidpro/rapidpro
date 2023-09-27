@@ -1,3 +1,4 @@
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from ..models import Incident, IncidentType
@@ -19,6 +20,12 @@ class ChannelDisconnectedIncidentType(IncidentType):
         return Incident.get_or_create(
             channel.org, ChannelDisconnectedIncidentType.slug, scope=str(channel.id), channel=channel
         )
+
+    def get_notification_scope(self, incident) -> str:
+        return str(incident.channel.id)
+
+    def get_notification_target_url(self, incident) -> str:
+        return reverse("channels.channel_read", args=[str(incident.channel.uuid)])
 
 
 class OrgFlaggedIncidentType(IncidentType):

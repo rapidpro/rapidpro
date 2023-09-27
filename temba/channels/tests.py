@@ -1322,13 +1322,24 @@ class ChannelIncidentsTest(TembaTest):
 
             self.assertEqual(1, self.admin.notifications.count())
 
+            notification = self.admin.notifications.get()
+            self.assertFalse(notification.is_seen)
+
             send_notification_emails()
 
             self.assertEqual(1, len(mail.outbox))
             self.assertEqual("[Nyaruka] Incident: Channel Disconnected", mail.outbox[0].subject)
             self.assertEqual("support@mybrand.com", mail.outbox[0].from_email)
 
-        # call it again
+        # if we go to the read page of the channel, notification will be marked as seen
+        read_url = reverse("channels.channel_read", args=[self.channel.uuid])
+        self.login(self.admin)
+        self.client.get(read_url)
+
+        notification.refresh_from_db()
+        self.assertTrue(notification.is_seen)
+
+        # call task again
         check_android_channels()
 
         # still only one incident

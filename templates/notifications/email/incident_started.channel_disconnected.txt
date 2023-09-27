@@ -2,8 +2,7 @@
 {% load i18n %}
 
 {% block notification-body %}
-{% url 'channels.channel_read' incident.channel.uuid as read_url %}
-{% blocktrans trimmed with read_url=read_url %}
-Your Android channel ({{ read_url }}) appears to be disconnected and hasn't been seen for some time.
+{% blocktrans trimmed with url=branding.link|add:target_url %}
+Your Android channel ({{ url }}) appears to be disconnected and hasn't been seen for some time.
 {% endblocktrans %}
 {% endblock notification-body %}
