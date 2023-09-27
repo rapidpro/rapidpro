@@ -27,7 +27,7 @@ from temba.classifiers.models import Classifier
 from temba.contacts import search
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.msgs.models import Label
+from temba.msgs.models import Label, OptIn
 from temba.orgs.models import DependencyMixin, Org
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
@@ -183,6 +183,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
     global_dependencies = models.ManyToManyField(Global, related_name="dependent_flows")
     group_dependencies = models.ManyToManyField(ContactGroup, related_name="dependent_flows")
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
+    optin_dependencies = models.ManyToManyField(OptIn, related_name="dependent_flows")
     template_dependencies = models.ManyToManyField(Template, related_name="dependent_flows")
     ticketer_dependencies = models.ManyToManyField(Ticketer, related_name="dependent_flows")
     topic_dependencies = models.ManyToManyField(Topic, related_name="dependent_flows")
@@ -573,6 +574,11 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             label, _ = Label.import_def(self.org, user, ref)
             dependency_mapping[ref["uuid"]] = str(label.uuid)
 
+        # ensure any opt-in dependencies exist
+        for ref in deps_of_type("optin"):
+            optin, _ = OptIn.import_def(self.org, user, ref)
+            dependency_mapping[ref["uuid"]] = str(optin.uuid)
+
         # ensure any topic dependencies exist
         for ref in deps_of_type("topic"):
             topic, _ = Topic.import_def(self.org, user, ref)
@@ -932,6 +938,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             "global": self.org.globals.filter(is_active=True, key__in=identifiers["global"]),
             "group": ContactGroup.get_groups(self.org).filter(uuid__in=identifiers["group"]),
             "label": Label.get_active_for_org(self.org).filter(uuid__in=identifiers["label"]),
+            "optin": OptIn.get_active_for_org(self.org).filter(uuid__in=identifiers["optin"]),
             "template": self.org.templates.filter(uuid__in=identifiers["template"]),
             "ticketer": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["ticketer"]),
             "topic": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["topic"]),
