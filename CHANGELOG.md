@@ -1,3 +1,9 @@
+v8.3.32 (2023-09-27)
+-------------------------
+ * Fix previous accidental merge to main to add optin import support
+ * Cleanup views accessing request org
+ * Add optin as option to broadcast create wizard
+
 v8.3.30 (2023-09-27)
 -------------------------
  * Allow the target_urls of incident notifications to differ by type
