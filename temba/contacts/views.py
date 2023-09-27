@@ -882,7 +882,7 @@ class ContactCRUDL(SmartCRUDL):
 
             if has_contactgroup_create_perm and valid_search_condition:
                 try:
-                    parsed = parse_query(self.org, search)
+                    parsed = parse_query(self.request.org, search)
                     if parsed.metadata.allow_as_group:
                         menu.add_modax(
                             _("Create Smart Group"),
@@ -1416,7 +1416,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context_data = super().get_context_data(**kwargs)
-            org_count, org_limit = ContactField.get_org_limit_progress(self.org)
+            org_count, org_limit = ContactField.get_org_limit_progress(self.request.org)
             context_data["total_count"] = org_count
             context_data["total_limit"] = org_limit
             return context_data

@@ -1791,8 +1791,8 @@ class FlowCRUDL(SmartCRUDL):
             # queue the flow start to be started by mailroom
             flow.async_start(
                 self.request.user,
-                groups=(self.org.groups.filter(uuid__in=group_uuids)),
-                contacts=(self.org.contacts.filter(uuid__in=contact_uuids)),
+                groups=(self.request.org.groups.filter(uuid__in=group_uuids)),
+                contacts=(self.request.org.contacts.filter(uuid__in=contact_uuids)),
                 query=contact_search["parsed_query"] if "parsed_query" in contact_search else None,
                 exclusions=contact_search.get("exclusions", {}),
             )

@@ -315,8 +315,8 @@ class BroadcastCRUDL(SmartCRUDL):
                 if len(contact_uuids) > 0:
                     params["c"] = ",".join(contact_uuids)
 
-                results = omnibox_query(self.org, **params)
-                initial["omnibox"] = omnibox_results_to_dict(self.org, results)
+                results = omnibox_query(self.request.org, **params)
+                initial["omnibox"] = omnibox_results_to_dict(self.request.org, results)
                 return initial
             return super().get_form_initial(step)
 

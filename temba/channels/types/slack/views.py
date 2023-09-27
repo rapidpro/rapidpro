@@ -79,7 +79,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         }
 
         self.object = Channel.create(
-            org=self.org,
+            org=self.request.org,
             user=self.request.user,
             country=None,
             channel_type=self.channel_type,
