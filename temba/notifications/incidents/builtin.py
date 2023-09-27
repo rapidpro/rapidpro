@@ -3,6 +3,24 @@ from django.utils.translation import gettext_lazy as _
 from ..models import Incident, IncidentType
 
 
+class ChannelDisconnectedIncidentType(IncidentType):
+    """
+    Android channel appears to be disconnected.
+    """
+
+    slug = "channel:disconnected"
+    title = _("Channel Disconnected")
+
+    @classmethod
+    def get_or_create(cls, channel):
+        """
+        Creates a channel disconnected incident if one is not already ongoing
+        """
+        return Incident.get_or_create(
+            channel.org, ChannelDisconnectedIncidentType.slug, scope=str(channel.id), channel=channel
+        )
+
+
 class OrgFlaggedIncidentType(IncidentType):
     """
     Org has been flagged due to suspicious activity.

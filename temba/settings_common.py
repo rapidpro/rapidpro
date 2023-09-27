@@ -794,7 +794,7 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_BROKER_TRANSPORT_OPTIONS = {"socket_timeout": 5}
 
 CELERY_BEAT_SCHEDULE = {
-    "check-channel-alerts": {"task": "check_channel_alerts", "schedule": timedelta(seconds=300)},
+    "check-android-channels": {"task": "check_android_channels", "schedule": timedelta(seconds=300)},
     "check-elasticsearch-lag": {"task": "check_elasticsearch_lag", "schedule": timedelta(seconds=300)},
     "delete-released-orgs": {"task": "delete_released_orgs", "schedule": crontab(hour=4, minute=0)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},

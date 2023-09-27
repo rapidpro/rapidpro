@@ -1106,13 +1106,9 @@ def pre_save(sender, instance, **kwargs):
 
 
 class Alert(SmartModel):
-    TYPE_DISCONNECTED = "D"
     TYPE_POWER = "P"
 
-    TYPE_CHOICES = (
-        (TYPE_POWER, _("Power")),  # channel has low power
-        (TYPE_DISCONNECTED, _("Disconnected")),  # channel hasn't synced in a while
-    )
+    TYPE_CHOICES = ((TYPE_POWER, _("Power")),)  # channel has low power
 
     channel = models.ForeignKey(
         Channel,
@@ -1174,29 +1170,6 @@ class Alert(SmartModel):
                     last_alert = alert
                 last_alert.send_resolved()
 
-    @classmethod
-    def check_alerts(cls):
-        from temba.channels.types.android import AndroidType
-
-        thirty_minutes_ago = timezone.now() - timedelta(minutes=30)
-
-        # end any alerts that no longer seem valid
-        for alert in Alert.objects.filter(alert_type=cls.TYPE_DISCONNECTED, ended_on=None):
-            # if we've seen the channel since this alert went out, then clear the alert
-            if alert.channel.last_seen > alert.created_on:
-                alert.ended_on = alert.channel.last_seen
-                alert.save()
-                alert.send_resolved()
-
-        for channel in (
-            Channel.objects.filter(channel_type=AndroidType.code, is_active=True)
-            .exclude(org=None)
-            .exclude(last_seen__gte=thirty_minutes_ago)
-        ):
-            # have we already sent an alert for this channel
-            if not Alert.objects.filter(channel=channel, alert_type=cls.TYPE_DISCONNECTED, ended_on=None):
-                cls.create_and_send(channel, cls.TYPE_DISCONNECTED)
-
     def send_alert(self):
         from .tasks import send_alert_task
 
@@ -1211,11 +1184,11 @@ class Alert(SmartModel):
         from temba.msgs.models import Msg
 
         # no-op if this channel has no alert email
-        if not self.channel.alert_email:
+        if not self.channel.alert_email:  # pragma: no cover
             return
 
         # no-op if the channel is not tied to an org
-        if not self.channel.org:
+        if not self.channel.org:  # pragma: no cover
             return
 
         if self.alert_type == self.TYPE_POWER:
@@ -1225,14 +1198,6 @@ class Alert(SmartModel):
             else:
                 subject = "Your Android phone battery is low"
                 template = "channels/email/power_alert"
-
-        elif self.alert_type == self.TYPE_DISCONNECTED:
-            if resolved:
-                subject = "Your Android phone is now connected"
-                template = "channels/email/connected_alert"
-            else:
-                subject = "Your Android phone is disconnected"
-                template = "channels/email/disconnected_alert"
 
         else:  # pragma: no cover
             raise Exception(_("Unknown alert type: %(alert)s") % {"alert": self.alert_type})
