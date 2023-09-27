@@ -43,8 +43,14 @@
         </div>
       </div>
     {% else %}
-      <div class="flex flex-row px-4 py-2 bg-gray-100 text-sm schedule text-center align-bottom">
+      <div class="flex flex-row px-4 py-2 bg-gray-100 text-sm schedule align-bottom">
         <div class="text-gray-700">
+          {% if broadcast.optin %}
+            {% blocktrans trimmed %}
+              Sends with opt-in
+            {% endblocktrans %}
+            {{ broadcast.optin.name }}.
+          {% endif %}
           {% if broadcast.schedule and broadcast.schedule.repeat_period != "O" %}
             {% if broadcast.schedule.repeat_period == 'M' %}
               {% blocktrans trimmed with date=broadcast.schedule.repeat_day_of_month|ordinal %}
