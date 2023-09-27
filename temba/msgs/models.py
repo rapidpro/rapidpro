@@ -1068,6 +1068,10 @@ class OptIn(TembaModel):
 
         return org.optins.create(name=name, created_by=user, modified_by=user)
 
+    @classmethod
+    def create_from_import_def(cls, org, user, definition: dict):
+        return cls.create(org, user, definition["name"])
+
     class Meta:
         constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_optin_names")]
 

@@ -114,7 +114,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         self.object = Channel(
             uuid=uuid4(),
-            org=self.org,
+            org=self.request.org,
             channel_type=RocketChatType.code,
             config=config,
             name=truncate(f"{RocketChatType.name}: {rc_host}", Channel._meta.get_field("name").max_length),
