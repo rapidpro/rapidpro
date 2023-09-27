@@ -4,6 +4,7 @@ from abc import abstractmethod
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Q
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
 
@@ -22,6 +23,12 @@ logger = logging.getLogger(__name__)
 class IncidentType:
     slug: str
     title: str
+
+    def get_notification_scope(self, incident) -> str:
+        return str(incident.id)
+
+    def get_notification_target_url(self, incident) -> str:
+        return reverse("notifications.incident_list")
 
     def as_json(self, incident) -> dict:
         return {

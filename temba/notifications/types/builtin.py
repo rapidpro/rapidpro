@@ -79,14 +79,14 @@ class IncidentStartedNotificationType(NotificationType):
         Notification.create_all(
             incident.org,
             cls.slug,
-            scope=str(incident.id),
+            scope=incident.type.get_notification_scope(incident),
             users=incident.org.get_admins(),
             email_status=Notification.EMAIL_STATUS_PENDING,
             incident=incident,
         )
 
     def get_target_url(self, notification) -> str:
-        return reverse("notifications.incident_list")
+        return notification.incident.type.get_notification_target_url(notification.incident)
 
     def get_email_subject(self, notification) -> str:
         return _("Incident") + ": " + notification.incident.type.title

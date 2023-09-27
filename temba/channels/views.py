@@ -34,6 +34,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.contacts.models import URN
 from temba.ivr.models import Call
 from temba.msgs.models import Msg
+from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import countries
 from temba.utils.fields import SelectWidget
@@ -469,7 +470,7 @@ class ChannelCRUDL(SmartCRUDL):
         "facebook_whitelist",
     )
 
-    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, NotificationTargetMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
@@ -478,6 +479,9 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_queryset(self):
             return Channel.objects.filter(is_active=True)
+
+        def get_notification_scope(self) -> tuple:
+            return "incident:started", str(self.object.id)
 
         def build_content_menu(self, menu):
             obj = self.get_object()
