@@ -860,6 +860,16 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         # no new message
         self.assertEqual(Msg.objects.all().count(), msgs_count)
 
+        response = self.sync(
+            self.tel_channel,
+            cmds=[
+                # device details status
+                dict(cmd="status", p_sts="DIS", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
+            ],
+        )
+
+        self.assertEqual(2, SyncEvent.objects.all().count())
+
         # make our events old so we can test trimming them
         SyncEvent.objects.all().update(created_on=timezone.now() - timedelta(days=45))
         trim_sync_events()
