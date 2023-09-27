@@ -24,6 +24,7 @@ from temba.msgs.models import (
     LabelCount,
     Media,
     Msg,
+    OptIn,
     SystemLabel,
     SystemLabelCount,
 )
@@ -1934,13 +1935,16 @@ def get_broadcast_form_data(
     start_datetime="",
     repeat_period="",
     repeat_days_of_week="",
+    optin=None,
 ):
     payload = OrderedDict(
         [
             ("target", {"omnibox": omnibox_serialize(org, groups=[], contacts=contacts, json_encode=True)}),
             (
                 "compose",
-                {"compose": compose_serialize({"text": message, "attachments": attachments}, json_encode=True)},
+                {
+                    "compose": compose_serialize({"text": message, "attachments": attachments}, json_encode=True),
+                },
             ),
             (
                 "schedule",
@@ -1953,6 +1957,9 @@ def get_broadcast_form_data(
             ),
         ]
     )
+
+    if optin:
+        payload["compose"]["optin"] = optin if not optin.id else optin.id
 
     if send_when == ScheduleForm.SEND_NOW:
         payload["schedule"] = {"send_when": send_when, "repeat_period": Schedule.REPEAT_NEVER}
@@ -2019,6 +2026,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertFormError(response.context["form"], None, ["Select when you would like the broadcast to be sent"])
 
+        optin = OptIn.create(self.org, self.admin, "Alerts")
+
         # successful broadcast schedule
         response = self.process_wizard(
             "create",
@@ -2030,12 +2039,15 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
                 start_datetime="2021-06-24 12:00",
                 repeat_period="W",
                 repeat_days_of_week=["M", "F"],
+                optin=optin,
             ),
         )
+
         self.assertEqual(302, response.status_code)
         self.assertEqual(1, Broadcast.objects.count())
         broadcast = Broadcast.objects.filter(translations__icontains=text).first()
         self.assertEqual("W", broadcast.schedule.repeat_period)
+        self.assertEqual("Alerts", broadcast.optin.name)
 
         # send a broadcast right away
         response = self.process_wizard(
