@@ -51,12 +51,13 @@ from temba.utils.fields import (
     OmniboxChoice,
     OmniboxField,
     SelectWidget,
+    TembaChoiceField,
 )
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ContentMenuMixin, PostOnlyMixin, SpaMixin, StaffOnlyMixin
 from temba.utils.wizard import SmartWizardUpdateView, SmartWizardView
 
-from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, SystemLabel
+from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, OptIn, SystemLabel
 from .tasks import export_messages_task
 
 
@@ -163,8 +164,23 @@ class ComposeForm(Form):
         widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True}),
     )
 
+    optin = TembaChoiceField(
+        OptIn.objects.none(),
+        label=_("Opt-In"),
+        help_text=_("The opt-in to use when sending"),
+        required=False,
+        widget=SelectWidget(
+            attrs={
+                "placeholder": _("Select an opt-in to use for supported channels (optional)"),
+                "searchable": True,
+                "clearable": True,
+            }
+        ),
+    )
+
     def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["optin"].queryset = org.optins.all().order_by("name")
 
     def clean_compose(self):
         compose = self.cleaned_data["compose"]
@@ -326,6 +342,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             compose = form_dict["compose"].cleaned_data["compose"]
             text, attachments = compose_deserialize(compose)
+            optin = form_dict["compose"].cleaned_data["optin"]
 
             recipients = form_dict["target"].cleaned_data["omnibox"]
 
@@ -349,6 +366,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 groups=list(recipients["groups"]),
                 contacts=list(recipients["contacts"]),
                 schedule=schedule,
+                optin=optin,
             )
 
             # if we are sending now, just kick it off now
@@ -378,7 +396,7 @@ class BroadcastCRUDL(SmartCRUDL):
             if step == "compose":
                 translation = self.object.get_translation()
                 compose = compose_serialize(translation)
-                return {"compose": compose}
+                return {"compose": compose, "optin": self.object.optin}
 
             if step == "schedule":
                 schedule = self.object.schedule
@@ -395,8 +413,11 @@ class BroadcastCRUDL(SmartCRUDL):
 
             # update message
             compose = form_dict["compose"].cleaned_data["compose"]
+            optin = form_dict["compose"].cleaned_data["optin"]
             text, attachments = compose_deserialize(compose)
             broadcast.translations = {broadcast.base_language: {"text": text, "attachments": attachments}}
+            broadcast.optin = optin
+            broadcast.save()
 
             # update recipients
             recipients = form_dict["target"].cleaned_data["omnibox"]
