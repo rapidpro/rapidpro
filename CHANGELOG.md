@@ -1,3 +1,7 @@
+v8.3.34 (2023-09-28)
+-------------------------
+ * Fix migration conflict
+
 v8.3.33 (2023-09-28)
 -------------------------
  * Fix rendering of optin triggers
