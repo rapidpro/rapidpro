@@ -19,7 +19,7 @@ from temba import mailroom
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-from temba.channels.models import Alert, Channel, ChannelLog, SyncEvent
+from temba.channels.models import Channel, ChannelLog, SyncEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
 from temba.contacts.models import (
@@ -2154,7 +2154,6 @@ class OrgDeleteTest(TembaTest):
                 [],
             )
         )
-        add(Alert.objects.create(channel=channel2, alert_type="P", created_by=self.admin, modified_by=self.admin))
         add(ChannelDisconnectedIncidentType.get_or_create(channel2))
         add(ChannelLog.objects.create(channel=channel1, log_type=ChannelLog.LOG_TYPE_MSG_SEND))
         add(

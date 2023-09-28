@@ -31,7 +31,7 @@ from temba.utils import json
 from temba.utils.models import generate_uuid
 from temba.utils.views import TEMBA_MENU_SELECTION
 
-from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
+from .models import Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
 from .tasks import (
     check_android_channels,
     squash_channel_counts,
@@ -211,7 +211,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.create_outgoing_msg(contact, "Hi", channel=channel1, status="P")
         self.create_outgoing_msg(contact, "Hi", channel=channel1, status="E")
         self.create_outgoing_msg(contact, "Hi", channel=channel1, status="S")
-        Alert.objects.create(channel=channel1, alert_type="P", created_by=self.admin, modified_by=self.admin)
         ChannelDisconnectedIncidentType.get_or_create(channel1)
         SyncEvent.create(
             channel1,
@@ -221,7 +220,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # and some on another channel
         self.create_outgoing_msg(contact, "Hi", channel=channel2, status="E")
-        Alert.objects.create(channel=channel2, alert_type="P", created_by=self.admin, modified_by=self.admin)
+        ChannelDisconnectedIncidentType.get_or_create(channel2)
         SyncEvent.create(
             channel2,
             dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc="RW"),
@@ -252,7 +251,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # other channel should be unaffected
         self.assertEqual(1, channel2.msgs.filter(status="E").count())
-        self.assertEqual(1, channel2.alerts.count())
+        self.assertEqual(1, channel2.incidents.count())
         self.assertEqual(1, channel2.sync_events.count())
         self.assertEqual(1, channel2.triggers.filter(is_active=True).count())
 
@@ -876,7 +875,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # should be cleared out
         self.assertEqual(1, SyncEvent.objects.all().count())
-        self.assertFalse(Alert.objects.exists())
 
         response = self.sync(
             self.tel_channel,
