@@ -826,6 +826,8 @@ class ChannelEvent(models.Model):
     TYPE_REFERRAL = "referral"
     TYPE_STOP_CONTACT = "stop_contact"
     TYPE_WELCOME_MESSAGE = "welcome_message"
+    TYPE_OPTIN = "optin"
+    TYPE_OPTOUT = "optout"
 
     # single char flag, human readable name, API readable name
     TYPE_CONFIG = (
@@ -838,6 +840,8 @@ class ChannelEvent(models.Model):
         (TYPE_NEW_CONVERSATION, _("New Conversation"), "new-conversation"),
         (TYPE_REFERRAL, _("Referral"), "referral"),
         (TYPE_WELCOME_MESSAGE, _("Welcome Message"), "welcome-message"),
+        (TYPE_OPTIN, _("Opt In"), "optin"),
+        (TYPE_OPTOUT, _("Opt Out"), "optout"),
     )
 
     TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]

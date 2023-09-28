@@ -122,6 +122,7 @@ class Event:
                 "created_by": _user(created_by) if created_by else None,
                 "status": obj.status,
                 "logs_url": logs_url,
+                "optin": {"uuid": str(obj.optin.uuid), "name": obj.optin.name} if obj.optin else None,
             }
 
             # TODO remove once chat component uses .created_by
