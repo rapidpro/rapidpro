@@ -1,3 +1,12 @@
+v8.3.34 (2023-09-28)
+-------------------------
+ * Fix migration conflict
+
+v8.3.33 (2023-09-28)
+-------------------------
+ * Fix rendering of optin triggers
+ * Completely remove channel alerts
+
 v8.3.32 (2023-09-27)
 -------------------------
  * Fix previous accidental merge to main to add optin import support
