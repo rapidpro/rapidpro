@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("channels", "0175_alter_channelevent_event_type"),
+        ("channels", "0174_alter_alert_alert_type_alter_alert_channel_and_more"),
     ]
 
     operations = [
