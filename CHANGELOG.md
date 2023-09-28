@@ -1,3 +1,8 @@
+v8.3.35 (2023-09-28)
+-------------------------
+ * Update opt-in styling
+ * Fix generation of history events from messages with optins
+
 v8.3.34 (2023-09-28)
 -------------------------
  * Fix migration conflict
