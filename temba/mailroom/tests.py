@@ -1034,6 +1034,51 @@ class EventTest(TembaTest):
             Event.from_msg(self.org, self.admin, msg_out4),
         )
 
+    def test_from_channel_event(self):
+        self.create_contact("Jim", phone="+250979111111")
+
+        event1 = self.create_channel_event(
+            self.channel, "tel:+250979111111", ChannelEvent.TYPE_CALL_IN, extra={"duration": 5}
+        )
+
+        self.assertEqual(
+            {
+                "type": "channel_event",
+                "created_on": matchers.ISODate(),
+                "event": {
+                    "type": "mo_call",
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    "duration": 5,
+                },
+                "channel_event_type": "mo_call",  # deprecated
+                "duration": 5,  # deprecated
+            },
+            Event.from_channel_event(self.org, self.admin, event1),
+        )
+
+        optin = self.create_optin("Polls")
+        event2 = self.create_channel_event(
+            self.channel,
+            "tel:+250979111111",
+            ChannelEvent.TYPE_OPTIN,
+            extra={"optin_id": optin.id, "optin_name": "Polls"},
+        )
+
+        self.assertEqual(
+            {
+                "type": "channel_event",
+                "created_on": matchers.ISODate(),
+                "event": {
+                    "type": "optin",
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    "optin": {"uuid": str(optin.uuid), "name": "Polls"},
+                },
+                "channel_event_type": "optin",  # deprecated
+                "duration": None,  # deprecated
+            },
+            Event.from_channel_event(self.org, self.admin, event2),
+        )
+
     def test_from_flow_run(self):
         contact = self.create_contact("Jim", phone="0979111111")
         flow = self.get_flow("color_v13")

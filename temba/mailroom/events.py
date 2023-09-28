@@ -247,11 +247,19 @@ class Event:
     @classmethod
     def from_channel_event(cls, org: Org, user: User, obj: ChannelEvent) -> dict:
         extra = obj.extra or {}
+        ch_event = {"type": obj.event_type, "channel": _channel(obj.channel)}
+
+        if obj.event_type in ChannelEvent.CALL_TYPES:
+            ch_event["duration"] = extra.get("duration")
+        elif obj.event_type in (ChannelEvent.TYPE_OPTIN, ChannelEvent.TYPE_OPTOUT):
+            ch_event["optin"] = _optin(OptIn.objects.get(org=org, id=extra.get("optin_id")))
+
         return {
             "type": cls.TYPE_CHANNEL_EVENT,
             "created_on": get_event_time(obj).isoformat(),
-            "channel_event_type": obj.event_type,
-            "duration": extra.get("duration"),
+            "event": ch_event,
+            "channel_event_type": obj.event_type,  # deprecated
+            "duration": extra.get("duration"),  # deprecated
         }
 
 
