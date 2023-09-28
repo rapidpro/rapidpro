@@ -108,7 +108,7 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContentMenu(
             reverse("orgs.org_workspace"),
             self.admin,
-            ["New Channel", "New Classifier", "New Ticketing Service", "-", "Export", "Import"],
+            ["New Channel", "New Classifier", "-", "Export", "Import"],
         )
 
         read_url = reverse("classifiers.classifier_read", args=[self.c1.uuid])

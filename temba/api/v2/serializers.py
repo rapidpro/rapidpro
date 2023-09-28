@@ -21,7 +21,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.mailroom import modifiers
-from temba.msgs.models import Broadcast, Label, Media, Msg
+from temba.msgs.models import Broadcast, Label, Media, Msg, OptIn
 from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, Ticketer, Topic
@@ -1242,7 +1242,7 @@ class MediaWriteSerializer(WriteSerializer):
 
 
 class MsgReadSerializer(ReadSerializer):
-    TYPES = {Msg.TYPE_TEXT: "text", Msg.TYPE_VOICE: "voice"}
+    TYPES = {Msg.TYPE_TEXT: "text", Msg.TYPE_OPTIN: "optin", Msg.TYPE_VOICE: "voice"}
     STATUSES = {
         Msg.STATUS_PENDING: "queued",  # same as far as users are concerned
         Msg.STATUS_HANDLED: "handled",
@@ -1459,6 +1459,29 @@ class MsgBulkActionSerializer(WriteSerializer):
                     msg.restore()
 
         return BulkActionFailure(missing_message_ids) if missing_message_ids else None
+
+
+class OptInReadSerializer(ReadSerializer):
+    created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    class Meta:
+        model = Topic
+        fields = ("uuid", "name", "created_on")
+
+
+class OptInWriteSerializer(WriteSerializer):
+    name = serializers.CharField(
+        required=True,
+        max_length=OptIn.MAX_NAME_LEN,
+        validators=[
+            NameValidator(OptIn.MAX_NAME_LEN),
+            UniqueForOrgValidator(queryset=OptIn.objects.filter(is_active=True), ignore_case=True),
+        ],
+    )
+
+    def save(self):
+        name = self.validated_data["name"]
+        return OptIn.create(self.context["org"], self.context["user"], name)
 
 
 class ResthookReadSerializer(ReadSerializer):

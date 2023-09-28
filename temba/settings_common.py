@@ -293,7 +293,7 @@ BRAND = {
     "title": _("Visually build nationally scalable mobile applications"),
 }
 
-FEATURES = {"locations", "surveyor", "ticketers"}
+FEATURES = {"locations", "surveyor"}
 
 
 # -----------------------------------------------------------------------------------
@@ -361,28 +361,13 @@ PERMISSIONS = {
     ),
     "flows.flowsession": ("json",),
     "globals.global": ("api", "unused"),
-    "ivr.call": ("list",),
     "locations.adminboundary": ("alias", "api", "boundaries", "geometry"),
-    "msgs.broadcast": (
-        "api",
-        "list",
-        "scheduled",
-        "scheduled_read",
-        "scheduled_delete",
-        "send",
-    ),
+    "msgs.broadcast": ("api", "scheduled", "scheduled_read", "scheduled_delete", "send"),
     "msgs.label": ("api",),
-    "msgs.media": ("upload", "list", "api"),
-    "msgs.msg": (
-        "api",
-        "archive",
-        "export",
-        "label",
-        "menu",
-        "update",
-    ),
+    "msgs.media": ("api", "upload"),
+    "msgs.msg": ("api", "archive", "export", "label", "menu"),
+    "msgs.optin": ("api",),
     "orgs.org": (
-        "account",
         "api",
         "country",
         "create_login",
@@ -421,7 +406,7 @@ PERMISSIONS = {
     "request_logs.httplog": ("webhooks", "classifier", "ticketer"),
     "templates.template": ("api",),
     "tickets.ticket": ("api", "assign", "assignee", "menu", "note", "export_stats", "export"),
-    "tickets.ticketer": ("api", "connect", "configure"),
+    "tickets.ticketer": ("api", "configure"),
     "tickets.topic": ("api",),
     "triggers.trigger": ("archived", "type", "menu"),
 }
@@ -514,9 +499,9 @@ GROUP_PERMISSIONS = {
         "msgs.msg_list",
         "msgs.msg_menu",
         "msgs.msg_update",
+        "msgs.optin.*",
         "notifications.incident.*",
         "notifications.notification.*",
-        "orgs.org_account",
         "orgs.org_api",
         "orgs.org_country",
         "orgs.org_create",
@@ -616,8 +601,8 @@ GROUP_PERMISSIONS = {
         "msgs.msg_list",
         "msgs.msg_menu",
         "msgs.msg_update",
+        "msgs.optin_api",
         "notifications.notification_list",
-        "orgs.org_account",
         "orgs.org_api",
         "orgs.org_download",
         "orgs.org_export",
@@ -691,8 +676,8 @@ GROUP_PERMISSIONS = {
         "msgs.msg_export",
         "msgs.msg_list",
         "msgs.msg_menu",
+        "msgs.optin_api",
         "notifications.notification_list",
-        "orgs.org_account",
         "orgs.org_api",
         "orgs.org_download",
         "orgs.org_export",
@@ -717,7 +702,6 @@ GROUP_PERMISSIONS = {
         "msgs.msg_api",
         "msgs.broadcast_api",
         "notifications.notification_list",
-        "orgs.org_account",
         "orgs.org_api",
         "orgs.org_languages",
         "orgs.org_menu",
@@ -805,7 +789,7 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_BROKER_TRANSPORT_OPTIONS = {"socket_timeout": 5}
 
 CELERY_BEAT_SCHEDULE = {
-    "check-channel-alerts": {"task": "check_channel_alerts", "schedule": timedelta(seconds=300)},
+    "check-android-channels": {"task": "check_android_channels", "schedule": timedelta(seconds=300)},
     "check-elasticsearch-lag": {"task": "check_elasticsearch_lag", "schedule": timedelta(seconds=300)},
     "delete-released-orgs": {"task": "delete_released_orgs", "schedule": crontab(hour=4, minute=0)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},
@@ -886,7 +870,6 @@ TICKETER_TYPES = [
     "temba.tickets.types.internal.InternalType",
     "temba.tickets.types.mailgun.MailgunType",
     "temba.tickets.types.zendesk.ZendeskType",
-    "temba.tickets.types.rocketchat.RocketChatType",
 ]
 
 CHANNEL_TYPES = [
@@ -899,12 +882,12 @@ CHANNEL_TYPES = [
     "temba.channels.types.clickmobile.ClickMobileType",
     "temba.channels.types.clicksend.ClickSendType",
     "temba.channels.types.dartmedia.DartMediaType",
+    "temba.channels.types.dialog360_legacy.Dialog360LegacyType",
     "temba.channels.types.dialog360.Dialog360Type",
-    "temba.channels.types.dialog360_cloud.Dialog360CloudType",
     "temba.channels.types.discord.DiscordType",
     "temba.channels.types.dmark.DMarkType",
     "temba.channels.types.external.ExternalType",
-    "temba.channels.types.facebook.FacebookType",
+    "temba.channels.types.facebook_legacy.FacebookLegacyType",
     "temba.channels.types.facebookapp.FacebookAppType",
     "temba.channels.types.firebase.FirebaseCloudMessagingType",
     "temba.channels.types.freshchat.FreshChatType",
@@ -952,8 +935,8 @@ CHANNEL_TYPES = [
     "temba.channels.types.vonage.VonageType",
     "temba.channels.types.wavy.WavyType",
     "temba.channels.types.wechat.WeChatType",
-    "temba.channels.types.whatsapp_cloud.WhatsAppCloudType",
     "temba.channels.types.whatsapp.WhatsAppType",
+    "temba.channels.types.whatsapp_legacy.WhatsAppLegacyType",
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia_sms.ZenviaSMSType",
     "temba.channels.types.zenvia_whatsapp.ZenviaWhatsAppType",

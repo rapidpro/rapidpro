@@ -25,7 +25,9 @@ class ArchiveCRUDL(SmartCRUDL):
             queryset = super().get_queryset(**kwargs)
 
             # filter by our archive type
-            return queryset.filter(org=self.org, archive_type=self.get_archive_type()).exclude(rollup_id__isnull=False)
+            return queryset.filter(org=self.request.org, archive_type=self.get_archive_type()).exclude(
+                rollup_id__isnull=False
+            )
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

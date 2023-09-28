@@ -1,3 +1,49 @@
+v8.3.34 (2023-09-28)
+-------------------------
+ * Fix migration conflict
+
+v8.3.33 (2023-09-28)
+-------------------------
+ * Fix rendering of optin triggers
+ * Completely remove channel alerts
+
+v8.3.32 (2023-09-27)
+-------------------------
+ * Fix previous accidental merge to main to add optin import support
+ * Cleanup views accessing request org
+ * Add optin as option to broadcast create wizard
+
+v8.3.30 (2023-09-27)
+-------------------------
+ * Allow the target_urls of incident notifications to differ by type
+ * Use proper secret generation for recovery tokens and re-org code
+ * Fix task discover for legacy whatsapp channel type
+ * Implement channel disconnected alert as incident
+
+v8.3.29 (2023-09-26)
+-------------------------
+ * Update editor to include opt-ins
+
+v8.3.28 (2023-09-26)
+-------------------------
+ * Fix Contact Importss
+ * Rename old legacy channel types
+ * Add title to incident list page and tweak styling
+ * Implement email notifications for incidents
+ * Fix ticket squashable count models
+
+v8.3.27 (2023-09-25)
+-------------------------
+ * Tweak mailroom_db to create an FBA channel instead of a TWT channel
+ * Remove ticketers as a feature and the views for connecting external ticketers
+ * Re-add optin as distinct message type
+ * Add undocumented API endpoint for opt-ins
+
+v8.3.26 (2023-09-22)
+-------------------------
+ * Bump cryptography from 41.0.3 to 41.0.4
+ * Add optin field to Broadcast
+
 v8.3.25 (2023-09-21)
 -------------------------
  * Fix trigger ordering

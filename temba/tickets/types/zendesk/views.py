@@ -1,16 +1,13 @@
-import re
 from urllib.parse import urlparse
 
 from smartmin.views import SmartFormView, SmartReadView
 
 from django import forms
 from django.conf import settings
-from django.contrib import messages
-from django.http import FileResponse, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http import FileResponse, HttpResponse, JsonResponse
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils import timezone, translation
-from django.utils.http import urlencode
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.views.decorators.csrf import csrf_exempt
@@ -19,100 +16,9 @@ from django.views.generic import View
 from temba.orgs.views import OrgPermsMixin
 from temba.utils import json
 from temba.utils.s3 import public_file_storage
-from temba.utils.text import generate_secret
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin
 
 from ...models import Ticketer
-from ...views import BaseConnectView
-from .client import Client, ClientError
-
-
-class ConnectView(BaseConnectView):
-    form_blurb = _(
-        "Enter your Zendesk subdomain. You will be redirected to Zendesk where you need to grant access to this "
-        "application."
-    )
-
-    class Form(BaseConnectView.Form):
-        subdomain = forms.CharField(help_text=_("Your subdomain on Zendesk"), required=True)
-
-        def clean_subdomain(self):
-            from .type import ZendeskType
-
-            org = self.request.org
-            data = self.cleaned_data["subdomain"]
-
-            if not re.match(r"^[\w\-]+", data):
-                raise forms.ValidationError(_("Not a valid subdomain name."))
-
-            for_domain = org.ticketers.filter(is_active=True, ticketer_type=ZendeskType.slug, config__subdomain=data)
-            if for_domain.exists():
-                raise forms.ValidationError(_("There is already a ticketing service configured for this subdomain."))
-
-            return data
-
-    form_class = Form
-
-    def get(self, request, *args, **kwargs):
-        # if zendesk is returning to us with an authorization code...
-        if request.GET.get("code"):
-            return self.handle_code_granted(request, *args, **kwargs)
-
-        # if zendesk is returning to us with an error, display that
-        if request.GET.get("error"):
-            messages.error(request, request.GET.get("error_description"))
-
-        return super(ConnectView, self).get(request, *args, **kwargs)
-
-    def get_absolute_url(self):
-        return f"https://{self.org.branding['domain']}{reverse('tickets.types.zendesk.connect')}"
-
-    def get_success_url(self):
-        return reverse("tickets.types.zendesk.configure", args=[self.object.uuid])
-
-    def form_valid(self, form):
-        subdomain = form.cleaned_data["subdomain"]
-        query = urlencode(
-            {
-                "response_type": "code",
-                "redirect_uri": self.get_absolute_url(),
-                "client_id": settings.ZENDESK_CLIENT_ID,
-                "scope": "read write",
-                "state": subdomain,
-            }
-        )
-
-        return HttpResponseRedirect(f"https://{subdomain}.zendesk.com/oauth/authorizations/new?{query}")
-
-    def handle_code_granted(self, request, *args, **kwargs):
-        from .type import ZendeskType
-
-        code = request.GET["code"]
-        subdomain = request.GET["state"]
-        client = Client(subdomain)
-        try:
-            access_token = client.get_oauth_token(
-                settings.ZENDESK_CLIENT_ID, settings.ZENDESK_CLIENT_SECRET, code, self.get_absolute_url()
-            )
-        except ClientError:
-            messages.error(request, _("Unable to request OAuth token."))
-            return super(ConnectView, self).get(request, *args, **kwargs)
-
-        config = {
-            ZendeskType.CONFIG_SUBDOMAIN: subdomain,
-            ZendeskType.CONFIG_OAUTH_TOKEN: access_token,
-            ZendeskType.CONFIG_SECRET: generate_secret(32),
-        }
-
-        self.object = Ticketer.create(
-            org=self.org,
-            user=self.request.user,
-            ticketer_type=ZendeskType.slug,
-            name=subdomain,
-            config=config,
-        )
-
-        return HttpResponseRedirect(self.get_success_url())
 
 
 class ConfigureView(ComponentFormMixin, ContentMenuMixin, OrgPermsMixin, SmartReadView):

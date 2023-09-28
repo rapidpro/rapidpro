@@ -23,13 +23,13 @@ class IncidentTest(TembaTest):
     def test_create(self):
         # we use a unique constraint to enforce uniqueness on org+type+scope for ongoing incidents which allows use of
         # INSERT .. ON CONFLICT DO NOTHING
-        incident1 = Incident.get_or_create(self.org, "incident:test", scope="scope1")
+        incident1 = Incident.get_or_create(self.org, "org:flagged", scope="scope1")
 
         # try to create another for the same scope
-        incident2 = Incident.get_or_create(self.org, "incident:test", scope="scope1")
+        incident2 = Incident.get_or_create(self.org, "org:flagged", scope="scope1")
 
         # different scope
-        incident3 = Incident.get_or_create(self.org, "incident:test", scope="scope2")
+        incident3 = Incident.get_or_create(self.org, "org:flagged", scope="scope2")
 
         self.assertEqual(incident1, incident2)
         self.assertNotEqual(incident1, incident3)
@@ -42,7 +42,7 @@ class IncidentTest(TembaTest):
         # check that once incident 1 ends, new incidents can be created for same scope
         incident1.end()
 
-        incident4 = Incident.get_or_create(self.org, "incident:test", scope="scope1")
+        incident4 = Incident.get_or_create(self.org, "org:flagged", scope="scope1")
 
         self.assertNotEqual(incident1, incident4)
         self.assertEqual(3, Notification.objects.count())
@@ -351,8 +351,16 @@ class NotificationTest(TembaTest):
                 },
             },
             expected_users={self.editor, self.admin},
-            email=False,
+            email=True,
         )
+
+        send_notification_emails()
+
+        self.assertEqual(2, len(mail.outbox))
+        self.assertEqual("[Nyaruka] Incident: Workspace Flagged", mail.outbox[0].subject)
+        self.assertEqual(["admin@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertEqual("[Nyaruka] Incident: Workspace Flagged", mail.outbox[1].subject)
+        self.assertEqual(["editor@nyaruka.com"], mail.outbox[1].recipients())
 
         # if a user visits the incident page, all incident notifications are now read
         self.login(self.editor)

@@ -16,7 +16,7 @@ from temba.contacts.models import URN
 from temba.msgs.models import Msg
 from temba.utils import analytics, json
 
-from ..models import Alert, Channel, SyncEvent
+from ..models import Channel, SyncEvent
 from .claim import UnsupportedAndroidChannelError, get_or_create_channel
 from .sync import create_event, create_incoming, get_channel_commands, update_message
 
@@ -193,7 +193,6 @@ def sync(request, channel_id):
 
             elif keyword == "status":
                 sync_event = SyncEvent.create(channel, cmd, cmds)
-                Alert.check_power_alert(sync_event)
 
                 # tell the channel to update its org if this channel got moved
                 if channel.org and "org_id" in cmd and channel.org.pk != cmd["org_id"]:

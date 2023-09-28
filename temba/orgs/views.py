@@ -1,7 +1,5 @@
 import itertools
-import random
 import smtplib
-import string
 from collections import OrderedDict
 from datetime import timedelta
 from email.utils import parseaddr
@@ -10,7 +8,7 @@ from urllib.parse import parse_qs, quote, quote_plus, unquote, urlparse
 import iso8601
 import pyotp
 from packaging.version import Version
-from smartmin.users.models import FailedLogin, PasswordHistory, RecoveryToken
+from smartmin.users.models import FailedLogin, PasswordHistory
 from smartmin.users.views import Login, UserUpdateForm
 from smartmin.views import (
     SmartCreateView,
@@ -51,7 +49,7 @@ from temba.campaigns.models import Campaign
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages
-from temba.utils.email import is_valid_address, send_template_email
+from temba.utils.email import is_valid_address
 from temba.utils.fields import ArbitraryJsonChoiceField, CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import (
@@ -103,8 +101,9 @@ class OrgPermsMixin:
         return self.request.org
 
     def has_org_perm(self, permission):
-        if self.org:
-            return self.get_user().has_org_perm(self.org, permission)
+        org = self.derive_org()
+        if org:
+            return self.get_user().has_org_perm(org, permission)
         return False
 
     def has_permission(self, request, *args, **kwargs):
@@ -114,9 +113,10 @@ class OrgPermsMixin:
         self.kwargs = kwargs
         self.args = args
         self.request = request
-        self.org = self.derive_org()
 
-        if self.get_user().is_staff and self.org:
+        org = self.derive_org()
+
+        if self.get_user().is_staff and org:
             return True
 
         if self.get_user().is_anonymous:
@@ -172,10 +172,10 @@ class OrgObjPermsMixin(OrgPermsMixin):
             return self.request.org == self.get_object_org()
 
     def pre_process(self, request, *args, **kwargs):
-        self.org = self.get_object_org()
-        if request.user.is_staff and self.request.org != self.org:
+        org = self.get_object_org()
+        if request.user.is_staff and self.request.org != org:
             return HttpResponseRedirect(
-                f"{reverse('orgs.org_service')}?next={quote_plus(request.path)}&other_org={self.org.pk}"
+                f"{reverse('orgs.org_service')}?next={quote_plus(request.path)}&other_org={org.id}"
             )
 
 
@@ -768,16 +768,7 @@ class UserCRUDL(SmartCRUDL):
             user = User.objects.filter(email__iexact=email).first()
 
             if user:
-                subject = _("Password Recovery Request")
-                template = "orgs/email/user_forget"
-
-                token = "".join(random.choice(string.ascii_uppercase + string.digits) for x in range(32))
-                RecoveryToken.objects.create(token=token, user=user)
-                FailedLogin.objects.filter(username__iexact=user.username).delete()
-
-                context = dict(user=user, path=f'{reverse("users.user_recover", args=[token])}')
-                send_template_email(email, subject, template, context, self.request.branding)
-
+                user.recover_password(self.request.branding)
             else:
                 # No user, check if we have an invite for the email and resend that
                 existing_invite = Invitation.objects.filter(is_active=True, email__iexact=email).first()
@@ -1008,8 +999,10 @@ class UserCRUDL(SmartCRUDL):
 
     class Account(SpaMixin, FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Account")
-        permission = "orgs.org_account"
         menu_path = "/settings/account"
+
+        def has_permission(self, request):
+            return request.user.is_authenticated
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -1152,33 +1145,32 @@ class OrgCRUDL(SmartCRUDL):
             return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)
 
         def has_permission(self, request, *args, **kwargs):
-            self.org = self.request.org
-
             if self.request.user.is_staff:
                 return True
+
             return super().has_permission(request, *args, **kwargs)
 
         def derive_menu(self):
             submenu = self.kwargs.get("submenu")
+            org = self.request.org
 
             # how this menu is made up is a wip
             # TODO: remove pragma
             if submenu == "settings":  # pragma: no cover
-                menu = []
-                menu.append(
+                menu = [
                     self.create_menu_item(
-                        menu_id="workspace", name=self.org.name, icon="settings", href="orgs.org_workspace"
+                        menu_id="workspace", name=self.request.org.name, icon="settings", href="orgs.org_workspace"
                     )
-                )
+                ]
 
-                if self.has_org_perm("orgs.org_sub_orgs") and Org.FEATURE_CHILD_ORGS in self.org.features:
-                    children = Org.objects.filter(parent=self.org, is_active=True).count()
+                if self.has_org_perm("orgs.org_sub_orgs") and Org.FEATURE_CHILD_ORGS in org.features:
+                    children = org.children.filter(is_active=True).count()
                     item = self.create_menu_item(name=_("Workspaces"), icon="children", href="orgs.org_sub_orgs")
                     if children:
                         item["count"] = children
                     menu.append(item)
 
-                if self.has_org_perm("orgs.org_dashboard") and Org.FEATURE_CHILD_ORGS in self.org.features:
+                if self.has_org_perm("orgs.org_dashboard") and Org.FEATURE_CHILD_ORGS in org.features:
                     menu.append(
                         self.create_menu_item(
                             menu_id="dashboard",
@@ -1209,7 +1201,7 @@ class OrgCRUDL(SmartCRUDL):
                         )
                     )
 
-                if self.has_org_perm("orgs.org_account"):
+                if self.request.user.is_authenticated:
                     menu.append(
                         self.create_menu_item(
                             menu_id="account",
@@ -1219,13 +1211,13 @@ class OrgCRUDL(SmartCRUDL):
                         )
                     )
 
-                if self.has_org_perm("orgs.org_manage_accounts") and Org.FEATURE_USERS in self.org.features:
+                if self.has_org_perm("orgs.org_manage_accounts") and Org.FEATURE_USERS in org.features:
                     menu.append(
                         self.create_menu_item(
                             name=_("Users"),
                             icon="users",
                             href="orgs.org_manage_accounts",
-                            count=self.org.users.count(),
+                            count=org.users.count(),
                         )
                     )
 
@@ -1235,7 +1227,7 @@ class OrgCRUDL(SmartCRUDL):
                     from temba.channels.views import get_channel_read_url
 
                     items = []
-                    channels = self.org.channels.filter(is_active=True).order_by(Lower("name"))
+                    channels = org.channels.filter(is_active=True).order_by(Lower("name"))
                     for channel in channels:
                         items.append(
                             self.create_menu_item(
@@ -1251,7 +1243,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 if self.has_org_perm("classifiers.classifier_read"):
                     items = []
-                    classifiers = self.org.classifiers.filter(is_active=True).order_by(Lower("name"))
+                    classifiers = org.classifiers.filter(is_active=True).order_by(Lower("name"))
                     for classifier in classifiers:
                         items.append(
                             self.create_menu_item(
@@ -1302,8 +1294,8 @@ class OrgCRUDL(SmartCRUDL):
                 ]
 
             menu = []
-            if self.org:
-                other_orgs = User.get_orgs_for_request(self.request).exclude(id=self.org.id).order_by("-parent", "name")
+            if org:
+                other_orgs = User.get_orgs_for_request(self.request).exclude(id=org.id).order_by("-parent", "name")
                 other_org_items = [
                     self.create_menu_item(menu_id=other_org.id, name=other_org.name, avatar=other_org.name, event=True)
                     for other_org in other_orgs
@@ -1313,7 +1305,7 @@ class OrgCRUDL(SmartCRUDL):
                     other_org_items.insert(0, self.create_divider())
 
                 if self.has_org_perm("orgs.org_create"):
-                    if Org.FEATURE_NEW_ORGS in self.org.features and Org.FEATURE_CHILD_ORGS not in self.org.features:
+                    if Org.FEATURE_NEW_ORGS in org.features and Org.FEATURE_CHILD_ORGS not in org.features:
                         other_org_items.append(self.create_divider())
                         other_org_items.append(
                             self.create_modax_button(name=_("New Workspace"), href="orgs.org_create")
@@ -1323,13 +1315,11 @@ class OrgCRUDL(SmartCRUDL):
                     self.create_menu_item(
                         menu_id="workspace",
                         name=_("Workspace"),
-                        avatar=self.org.name,
+                        avatar=org.name,
                         popup=True,
                         items=[
                             self.create_space(),
-                            self.create_menu_item(
-                                menu_id="settings", name=self.org.name, avatar=self.org.name, event=True
-                            ),
+                            self.create_menu_item(menu_id="settings", name=org.name, avatar=org.name, event=True),
                             self.create_divider(),
                             self.create_menu_item(
                                 menu_id="logout",
@@ -1394,7 +1384,7 @@ class OrgCRUDL(SmartCRUDL):
                 ),
             ]
 
-            if self.org:
+            if org:
                 menu.append(
                     {
                         "id": "settings",
@@ -2240,7 +2230,7 @@ class OrgCRUDL(SmartCRUDL):
         def form_valid(self, form):
             default_type = form.TYPE_CHILD if Org.FEATURE_CHILD_ORGS in self.request.org.features else form.TYPE_NEW
 
-            self.object = self.org.create_new(
+            self.object = self.request.org.create_new(
                 self.request.user,
                 form.cleaned_data["name"],
                 tz=form.cleaned_data["timezone"],
@@ -2853,8 +2843,6 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("classifiers.classifier_connect"):
                 menu.add_link(_("New Classifier"), reverse("classifiers.classifier_connect"))
-            if self.has_org_perm("tickets.ticketer_connect") and "ticketers" in settings.FEATURES:
-                menu.add_link(_("New Ticketing Service"), reverse("tickets.ticketer_connect"))
 
             menu.new_group()
 
@@ -2903,10 +2891,6 @@ class OrgCRUDL(SmartCRUDL):
         success_message = ""
         form_class = Form
 
-        def has_permission(self, request, *args, **kwargs):
-            self.org = self.derive_org()
-            return self.has_org_perm("orgs.org_edit")
-
     class EditSubOrg(SpaMixin, ModalMixin, Edit):
         success_url = "@orgs.org_sub_orgs"
 
@@ -2935,10 +2919,6 @@ class OrgCRUDL(SmartCRUDL):
 
         success_message = ""
         form_class = CountryForm
-
-        def has_permission(self, request, *args, **kwargs):
-            self.org = self.derive_org()
-            return self.request.user.has_perm("orgs.org_country") or self.has_org_perm("orgs.org_country")
 
     class Languages(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
@@ -3044,7 +3024,6 @@ class OrgCRUDL(SmartCRUDL):
             if self.request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest" and self.request.method == "GET":
                 perm = "orgs.org_languages"
 
-            self.org = self.derive_org()
             return self.request.user.has_perm(perm) or self.has_org_perm(perm)
 
 

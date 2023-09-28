@@ -25,6 +25,7 @@ from .views import (
     MediaEndpoint,
     MessageActionsEndpoint,
     MessagesEndpoint,
+    OptInsEndpoint,
     ResthookEventsEndpoint,
     ResthooksEndpoint,
     ResthookSubscribersEndpoint,
@@ -64,6 +65,7 @@ urlpatterns = [
     re_path(r"^media$", MediaEndpoint.as_view(), name="api.v2.media"),
     re_path(r"^messages$", MessagesEndpoint.as_view(), name="api.v2.messages"),
     re_path(r"^message_actions$", MessageActionsEndpoint.as_view(), name="api.v2.message_actions"),
+    re_path(r"^optins$", OptInsEndpoint.as_view(), name="api.v2.optins"),
     re_path(r"^org$", WorkspaceEndpoint.as_view(), name="api.v2.org"),  # deprecated
     re_path(r"^resthooks$", ResthooksEndpoint.as_view(), name="api.v2.resthooks"),
     re_path(r"^resthook_events$", ResthookEventsEndpoint.as_view(), name="api.v2.resthook_events"),

@@ -194,6 +194,7 @@ class Broadcast(models.Model):
     # message content in different languages, e.g. {"eng": {"text": "Hello", "attachments": [...]}, "spa": ...}
     translations = models.JSONField()
     base_language = models.CharField(max_length=3)  # ISO-639-3
+    optin = models.ForeignKey("msgs.OptIn", null=True, on_delete=models.PROTECT)
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_QUEUED)
     created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_creations")
@@ -480,8 +481,9 @@ class Msg(models.Model):
     DIRECTION_CHOICES = ((DIRECTION_IN, "Incoming"), (DIRECTION_OUT, "Outgoing"))
 
     TYPE_TEXT = "T"
+    TYPE_OPTIN = "O"
     TYPE_VOICE = "V"
-    TYPE_CHOICES = ((TYPE_TEXT, "Text Message"), (TYPE_VOICE, "Voice Message"))
+    TYPE_CHOICES = ((TYPE_TEXT, "Text"), (TYPE_OPTIN, "Opt-In Request"), (TYPE_VOICE, "Interactive Voice Response"))
 
     FAILED_SUSPENDED = "S"
     FAILED_CONTACT = "C"
@@ -1058,6 +1060,17 @@ class OptIn(TembaModel):
     """
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="optins")
+
+    @classmethod
+    def create(cls, org, user, name: str):
+        assert cls.is_valid_name(name), f"'{name}' is not a valid optin name"
+        assert not org.optins.filter(name__iexact=name).exists()
+
+        return org.optins.create(name=name, created_by=user, modified_by=user)
+
+    @classmethod
+    def create_from_import_def(cls, org, user, definition: dict):
+        return cls.create(org, user, definition["name"])
 
     class Meta:
         constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_optin_names")]
