@@ -2384,7 +2384,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         assertHistoryEvent(history, 11, "flow_entered", flow__name="Colors")
         assertHistoryEvent(history, 12, "msg_received", msg__text="Message caption")
         assertHistoryEvent(
-            history, 13, "msg_created", msg__text="A beautiful broadcast", msg__created_by__email="viewer@nyaruka.com"
+            history, 13, "msg_created", msg__text="A beautiful broadcast", created_by__email="viewer@nyaruka.com"
         )
         assertHistoryEvent(history, 14, "campaign_fired", campaign__name="Planting Reminders")
         assertHistoryEvent(history, -1, "msg_received", msg__text="Inbound message 11")

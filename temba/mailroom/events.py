@@ -10,10 +10,10 @@ from django.utils import timezone
 
 from temba.airtime.models import AirtimeTransfer
 from temba.campaigns.models import EventFire
-from temba.channels.models import ChannelEvent
+from temba.channels.models import Channel, ChannelEvent
 from temba.flows.models import FlowExit, FlowRun
 from temba.ivr.models import Call
-from temba.msgs.models import Msg
+from temba.msgs.models import Msg, OptIn
 from temba.orgs.models import Org
 from temba.tickets.models import Ticket, TicketEvent, Topic
 
@@ -39,6 +39,7 @@ class Event:
     TYPE_IVR_CREATED = "ivr_created"
     TYPE_MSG_CREATED = "msg_created"
     TYPE_MSG_RECEIVED = "msg_received"
+    TYPE_OPTIN_REQUESTED = "optin_requested"
     TYPE_RUN_RESULT_CHANGED = "run_result_changed"
     TYPE_TICKET_ASSIGNED = "ticket_assigned"
     TYPE_TICKET_CLOSED = "ticket_closed"
@@ -107,6 +108,7 @@ class Event:
                 # additional properties
                 "created_by": _user(obj.broadcast.created_by) if obj.broadcast.created_by else None,
                 "msg": _msg_out(obj),
+                "optin": _optin(obj.optin) if obj.optin else None,
                 "status": obj.status,
                 "recipient_count": obj.broadcast.get_message_count(),
                 "logs_url": logs_url,
@@ -114,19 +116,32 @@ class Event:
         else:
             created_by = obj.broadcast.created_by if obj.broadcast else obj.created_by
 
-            msg_event = {
-                "type": cls.TYPE_IVR_CREATED if obj.msg_type == Msg.TYPE_VOICE else cls.TYPE_MSG_CREATED,
-                "created_on": get_event_time(obj).isoformat(),
-                "msg": _msg_out(obj),
-                # additional properties
-                "created_by": _user(created_by) if created_by else None,
-                "status": obj.status,
-                "logs_url": logs_url,
-                "optin": {"uuid": str(obj.optin.uuid), "name": obj.optin.name} if obj.optin else None,
-            }
+            if obj.msg_type == Msg.TYPE_VOICE:
+                msg_event = {
+                    "type": cls.TYPE_IVR_CREATED,
+                    "created_on": get_event_time(obj).isoformat(),
+                    "msg": _msg_out(obj),
+                }
+            elif obj.msg_type == Msg.TYPE_OPTIN and obj.optin:
+                msg_event = {
+                    "type": cls.TYPE_OPTIN_REQUESTED,
+                    "created_on": get_event_time(obj).isoformat(),
+                    "optin": _optin(obj.optin),
+                    "channel": _channel(obj.channel),
+                    "urn": str(obj.contact_urn),
+                }
+            else:
+                msg_event = {
+                    "type": cls.TYPE_MSG_CREATED,
+                    "created_on": get_event_time(obj).isoformat(),
+                    "msg": _msg_out(obj),
+                    "optin": _optin(obj.optin) if obj.optin else None,
+                }
 
-            # TODO remove once chat component uses .created_by
-            msg_event["msg"]["created_by"] = msg_event["created_by"]
+            # add additional properties
+            msg_event["created_by"] = _user(created_by) if created_by else None
+            msg_event["status"] = obj.status
+            msg_event["logs_url"] = logs_url
 
             if obj.status == Msg.STATUS_FAILED:
                 msg_event["failed_reason"] = obj.failed_reason
@@ -270,10 +285,9 @@ def _base_msg(obj) -> dict:
         "uuid": str(obj.uuid),
         "id": obj.id,
         "urn": str(obj.contact_urn) if obj.contact_urn else None,
+        "channel": _channel(obj.channel) if obj.channel else None,
         "text": obj.text if not redact else "",
     }
-    if obj.channel:
-        d["channel"] = {"uuid": str(obj.channel.uuid), "name": obj.channel.name}
     if obj.attachments:
         d["attachments"] = obj.attachments if not redact else []
 
@@ -289,8 +303,16 @@ def _user(user: User) -> dict:
     }
 
 
+def _channel(channel: Channel) -> dict:
+    return {"uuid": str(channel.uuid), "name": channel.name}
+
+
 def _topic(topic: Topic) -> dict:
     return {"uuid": str(topic.uuid), "name": topic.name}
+
+
+def _optin(optin: OptIn) -> dict:
+    return {"uuid": str(optin.uuid), "name": optin.name}
 
 
 # map of history item types to methods to render them as events

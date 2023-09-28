@@ -897,12 +897,6 @@ class EventTest(TembaTest):
                     "text": "Hello",
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                     "quick_replies": ["yes", "no"],
-                    "created_by": {
-                        "id": self.agent.id,
-                        "email": "agent@nyaruka.com",
-                        "first_name": "Agnes",
-                        "last_name": "",
-                    },
                 },
                 "created_by": {
                     "id": self.agent.id,
@@ -931,7 +925,6 @@ class EventTest(TembaTest):
                     "urn": "tel:+250979111111",
                     "text": "Hello",
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
-                    "created_by": None,
                 },
                 "created_by": None,
                 "optin": None,
@@ -955,10 +948,8 @@ class EventTest(TembaTest):
                     "urn": "tel:+250979111111",
                     "text": "Hello",
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
-                    "created_by": None,
                 },
                 "created_by": None,
-                "optin": None,
                 "status": "S",
                 "logs_url": f"/channels/{str(self.channel.uuid)}/logs/msg/{ivr_out.id}/",
             },
@@ -987,11 +978,60 @@ class EventTest(TembaTest):
                     "first_name": "Andy",
                     "last_name": "",
                 },
+                "optin": None,
                 "status": "S",
                 "recipient_count": 2,
                 "logs_url": f"/channels/{str(self.channel.uuid)}/logs/msg/{msg_out2.id}/",
             },
             Event.from_msg(self.org, self.admin, msg_out2),
+        )
+
+        # create a broadcast that was sent with an opt-in
+        optin = self.create_optin("Polls")
+        bcast2 = self.create_broadcast(self.admin, "Hi there", contacts=[contact1, contact2], optin=optin)
+        msg_out3 = bcast2.msgs.filter(contact=contact1).get()
+
+        self.assertEqual(
+            {
+                "type": "broadcast_created",
+                "created_on": matchers.ISODate(),
+                "translations": {"und": {"text": "Hi there"}},
+                "base_language": "und",
+                "msg": {
+                    "uuid": str(msg_out3.uuid),
+                    "id": msg_out3.id,
+                    "urn": "tel:+250979111111",
+                    "text": "Hi there",
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                },
+                "created_by": {
+                    "id": self.admin.id,
+                    "email": "admin@nyaruka.com",
+                    "first_name": "Andy",
+                    "last_name": "",
+                },
+                "optin": {"uuid": str(optin.uuid), "name": "Polls"},
+                "status": "S",
+                "recipient_count": 2,
+                "logs_url": f"/channels/{str(self.channel.uuid)}/logs/msg/{msg_out3.id}/",
+            },
+            Event.from_msg(self.org, self.admin, msg_out3),
+        )
+
+        # create a message that was an opt-in request
+        msg_out4 = self.create_optin_request(contact1, self.channel, optin)
+        self.assertEqual(
+            {
+                "type": "optin_requested",
+                "created_on": matchers.ISODate(),
+                "optin": {"uuid": str(optin.uuid), "name": "Polls"},
+                "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                "urn": "tel:+250979111111",
+                "created_by": None,
+                "status": "S",
+                "logs_url": f"/channels/{str(self.channel.uuid)}/logs/msg/{msg_out4.id}/",
+            },
+            Event.from_msg(self.org, self.admin, msg_out4),
         )
 
     def test_from_flow_run(self):
