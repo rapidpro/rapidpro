@@ -2,6 +2,7 @@ import hmac
 import logging
 from hashlib import sha1
 
+from rest_framework import exceptions
 from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
 
@@ -35,8 +36,34 @@ class APIPermission(BasePermission):
     Verifies that the user has the permission set on the endpoint view
     """
 
+    perms_map = {
+        "GET": "%(app_label)s.%(model_name)s_list",
+        "POST": "%(app_label)s.%(model_name)s_create",
+        "PUT": "%(app_label)s.%(model_name)s_update",
+        "DELETE": "%(app_label)s.%(model_name)s_delete",
+    }
+
+    def get_required_permission(self, request, view) -> str:
+        """
+        Given a model and an HTTP method, return the list of permission
+        codes that the user is required to have.
+        """
+
+        if hasattr(view, "permission"):
+            return view.permission
+
+        if request.method not in self.perms_map:
+            raise exceptions.MethodNotAllowed(request.method)
+
+        return self.perms_map[request.method] % {
+            "app_label": view.model._meta.app_label,
+            "model_name": view.model._meta.model_name,
+        }
+
     def has_permission(self, request, view):
-        if getattr(view, "permission", None):
+        permission = self.get_required_permission(request, view)
+
+        if permission:
             # no anon access to API endpoints
             if request.user.is_anonymous:
                 return False
@@ -55,7 +82,7 @@ class APIPermission(BasePermission):
             else:
                 return False
 
-            has_perm = role.has_perm(view.permission)
+            has_perm = role.has_perm(permission)
 
             # viewers can only ever get from the API
             if role == OrgRole.VIEWER:

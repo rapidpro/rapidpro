@@ -21,7 +21,6 @@ class BaseEndpoint(BaseAPIView):
 
 
 class NotificationsEndpoint(ListAPIMixin, BaseEndpoint):
-    permission = "notifications.notification_list"
     model = Notification
     pagination_class = CreatedOnCursorPagination
     serializer_class = ModelAsJsonSerializer

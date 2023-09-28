@@ -1006,7 +1006,7 @@ class EndpointsTest(APITest):
 
         boundaries_url = reverse("api.v2.boundaries")
 
-        self.assertEndpointAccess(boundaries_url, viewer_get=403, admin_get=200, agent_get=403)
+        self.assertEndpointAccess(boundaries_url, viewer_get=200, admin_get=200, agent_get=403)
 
         BoundaryAlias.create(self.org, self.admin, self.state1, "Kigali")
         BoundaryAlias.create(self.org, self.admin, self.state2, "East Prov")
@@ -1269,7 +1269,7 @@ class EndpointsTest(APITest):
     def test_campaigns(self):
         campaigns_url = reverse("api.v2.campaigns")
 
-        self.assertEndpointAccess(campaigns_url, viewer_get=403, admin_get=200, agent_get=403)
+        self.assertEndpointAccess(campaigns_url, viewer_get=200, admin_get=200, agent_get=403)
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         other_group = self.create_group("Others", [])
@@ -1380,7 +1380,7 @@ class EndpointsTest(APITest):
     def test_campaign_events(self, mr_mocks):
         events_url = reverse("api.v2.campaign_events")
 
-        self.assertEndpointAccess(events_url, viewer_get=403, admin_get=200, agent_get=403)
+        self.assertEndpointAccess(events_url, viewer_get=200, admin_get=200, agent_get=403)
 
         flow = self.create_flow("Test Flow")
         reporters = self.create_group("Reporters", [self.joe, self.frank])
@@ -1833,7 +1833,7 @@ class EndpointsTest(APITest):
     def test_channels(self):
         channels_url = reverse("api.v2.channels")
 
-        self.assertEndpointAccess(channels_url, viewer_get=403, admin_get=200, agent_get=403)
+        self.assertEndpointAccess(channels_url, viewer_get=200, admin_get=200, agent_get=403)
 
         # create deleted channel
         deleted = self.create_channel("JC", "Deleted", "nyaruka")
