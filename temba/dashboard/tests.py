@@ -50,10 +50,27 @@ class DashboardTest(TembaTest):
         self.assertEqual(2, len(response))
 
         # incoming messages
-        self.assertEqual(2, response[0]["data"][0][1])
+        self.assertEqual(1, response[0]["data"][0][1])
 
         # outgoing messages
-        self.assertEqual(3, response[1]["data"][0][1])
+        self.assertEqual(2, response[1]["data"][0][1])
+
+    def test_workspace_stats(self):
+        url = reverse("dashboard.dashboard_workspace_stats")
+
+        # visit this page without authenticating
+        response = self.client.get(url, follow=True)
+
+        # nope!
+        self.assertRedirects(response, "/users/login/?next=%s" % url)
+
+        self.login(self.admin)
+        self.create_activity()
+        response = self.client.get(url).json()
+
+        self.assertEqual(2, len(response["series"]))
+        self.assertEqual(1, response["series"][0]["data"][0])  # incoming
+        self.assertEqual(2, response["series"][1]["data"][0])  # outgoing
 
     def test_range_details(self):
         url = reverse("dashboard.dashboard_range_details")

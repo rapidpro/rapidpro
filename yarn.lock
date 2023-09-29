@@ -443,10 +443,10 @@ has@^1.0.3:
   dependencies:
     function-bind "^1.1.1"
 
-highcharts@5.0.6:
-  version "5.0.6"
-  resolved "https://registry.npmjs.org/highcharts/-/highcharts-5.0.6.tgz#9fba0fbd38c34cca23ffffa8898d39eb23fd35ba"
-  integrity sha512-7QxpMuCgHIUfcO6rvKza+0syBa+P9aZrGS/Z16wxOsjgN9ygwyeKzUWC3sZC9iBzeMhGNHt2oTnVIfx+RjJj5w==
+highcharts@9.3.0:
+  version "9.3.0"
+  resolved "https://registry.npmjs.org/highcharts/-/highcharts-9.3.0.tgz#999496c8af677d5f08e41e2e708d3eb7baf56640"
+  integrity sha512-nQ7yW5ni7wFiPgDN2IWrS6o6NjL1gK/OhZjrdpyB3FQuefMkTQngygP+JqZFMx7PDrP3YAvfejx0M5IgkC01ow==
 
 highlight.js@^10.7.1:
   version "10.7.3"

@@ -47,8 +47,8 @@
           {% endif %}
           {% if unsent_msgs_count %}
             <div onclick="goto(event)"
-                  href="{% url 'msgs.msg_failed' %}"
-                  class="text-error text-base inline-block ml-2">
+                 href="{% url 'msgs.msg_failed' %}"
+                 class="text-error text-base inline-block ml-2">
               {{ unsent_msgs_count|intcomma }}
               {% blocktrans trimmed count unsent_msgs_count=unsent_msgs_count %}
                 unsent message
@@ -271,7 +271,7 @@
               },
               yAxis: [{
                 title: {
-                  text: '{{ _("Minutes")|escapejs }}'
+                  text: ''
                 },
                 opposite: false,
                 min: 0,
@@ -300,7 +300,7 @@
               series: chartData.series
             });
 
-          }, 100);
+          }, 500);
         }
       });
     });
