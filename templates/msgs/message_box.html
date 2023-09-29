@@ -51,7 +51,19 @@
               <td class="whitespace-nowrap">{{ object.contact|name_or_urn:user_org|truncatechars:20 }}</td>
               <td class="w-full">
                 <div class="flex flex-wrap flex-end items-center justify-end">
-                  <div class="flex-grow inline">{% get_value object 'text' %}</div>
+                  {% if object.msg_type == "O" %}
+                    <div class="flex-grow optin flex">
+                      <temba-icon name="optin_requested" class="mr-2">
+                      </temba-icon>
+                      <div class="flex-grow">
+                        {% blocktrans trimmed with optin=object.optin.name %}
+                          Opt-in request for {{ optin }}
+                        {% endblocktrans %}
+                      </div>
+                    </div>
+                  {% else %}
+                    <div class="flex-grow inline">{% get_value object 'text' %}</div>
+                  {% endif %}
                   <div class="labels flex items-center flex-wrap">
                     {% if 'label' in actions %}
                       {% for label in object.labels.all %}
