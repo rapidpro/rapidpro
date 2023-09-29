@@ -175,10 +175,15 @@ class WorkspaceStats(OrgPermsMixin, SmartTemplateView):
                 elif count["count_type"] == ChannelCount.OUTGOING_MSG_TYPE:
                     outbound.append(count["count_sum"])
 
-            if len(inbound) < len(outbound):
-                inbound.append(0)
-            elif len(outbound) < len(inbound):
-                outbound.append(0)
+            # make sure inbound and outbound lengths remain the same in case
+            # we catch a window where there is an outbound without an inbound, etc
+            inbound_count = len(inbound)
+            outbound_count = len(outbound)
+            if inbound_count != outbound_count:  # pragma: no cover
+                if inbound_count < outbound_count:
+                    inbound.append(0)
+                elif outbound_count < inbound_count:
+                    outbound.append(0)
 
         return JsonResponse(
             dict(
