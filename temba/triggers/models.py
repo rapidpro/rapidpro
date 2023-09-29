@@ -13,7 +13,7 @@ from temba.orgs.models import Org
 
 class TriggerType:
     """
-    Base class for trigger types
+    Base class for trigger types.
     """
 
     code = None  # single char code used for database model
@@ -57,6 +57,17 @@ class TriggerType:
         for field in self.required_fields:
             if not trigger_def.get(field):
                 raise ValueError(f"Field '{field}' is required.")
+
+
+class ChannelTriggerType(TriggerType):
+    """
+    Base class for trigger types based on channel activity.
+    """
+
+    # channels with these schemes allowed for this type
+    allowed_channel_schemes = ()
+
+    export_fields = TriggerType.export_fields + ("channel",)
 
 
 class Trigger(SmartModel):

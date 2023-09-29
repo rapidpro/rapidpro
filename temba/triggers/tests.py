@@ -926,7 +926,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["channel", "flow", "groups", "exclude_groups"],
+            form_fields=["flow", "channel", "groups", "exclude_groups"],
         )
 
         # flow options should show messaging and voice flows
@@ -983,7 +983,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["channel", "referrer_id", "flow", "groups", "exclude_groups"],
+            form_fields=["referrer_id", "flow", "channel", "groups", "exclude_groups"],
         )
 
         # flow options should show messaging and voice flows
