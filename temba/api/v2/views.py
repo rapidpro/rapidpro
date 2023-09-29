@@ -616,7 +616,6 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "msgs.broadcast_api"
     model = Broadcast
     serializer_class = BroadcastReadSerializer
     write_serializer_class = BroadcastWriteSerializer
@@ -1143,7 +1142,6 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseEndpoint):
 
     """
 
-    permission = "channels.channelevent_api"
     model = ChannelEvent
     serializer_class = ChannelEventReadSerializer
     pagination_class = CreatedOnCursorPagination
