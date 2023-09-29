@@ -1,3 +1,8 @@
+v8.3.36 (2023-09-29)
+-------------------------
+ * Remove minutes label from channel chart
+ * Add workspace breakdown for dashboard
+
 v8.3.35 (2023-09-28)
 -------------------------
  * Update opt-in styling
