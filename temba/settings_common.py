@@ -368,7 +368,6 @@ PERMISSIONS = {
     "msgs.msg": ("api", "archive", "export", "label", "menu"),
     "msgs.optin": ("api",),
     "orgs.org": (
-        "account",
         "api",
         "country",
         "create_login",
@@ -503,7 +502,6 @@ GROUP_PERMISSIONS = {
         "msgs.optin.*",
         "notifications.incident.*",
         "notifications.notification.*",
-        "orgs.org_account",
         "orgs.org_api",
         "orgs.org_country",
         "orgs.org_create",
@@ -605,7 +603,6 @@ GROUP_PERMISSIONS = {
         "msgs.msg_update",
         "msgs.optin_api",
         "notifications.notification_list",
-        "orgs.org_account",
         "orgs.org_api",
         "orgs.org_download",
         "orgs.org_export",
@@ -681,7 +678,6 @@ GROUP_PERMISSIONS = {
         "msgs.msg_menu",
         "msgs.optin_api",
         "notifications.notification_list",
-        "orgs.org_account",
         "orgs.org_api",
         "orgs.org_download",
         "orgs.org_export",
@@ -706,7 +702,6 @@ GROUP_PERMISSIONS = {
         "msgs.msg_api",
         "msgs.broadcast_api",
         "notifications.notification_list",
-        "orgs.org_account",
         "orgs.org_api",
         "orgs.org_languages",
         "orgs.org_menu",
@@ -794,7 +789,7 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_BROKER_TRANSPORT_OPTIONS = {"socket_timeout": 5}
 
 CELERY_BEAT_SCHEDULE = {
-    "check-channel-alerts": {"task": "check_channel_alerts", "schedule": timedelta(seconds=300)},
+    "check-android-channels": {"task": "check_android_channels", "schedule": timedelta(seconds=300)},
     "check-elasticsearch-lag": {"task": "check_elasticsearch_lag", "schedule": timedelta(seconds=300)},
     "delete-released-orgs": {"task": "delete_released_orgs", "schedule": crontab(hour=4, minute=0)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},

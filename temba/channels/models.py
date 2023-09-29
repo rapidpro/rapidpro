@@ -14,7 +14,6 @@ from smartmin.models import SmartModel
 from twilio.base.exceptions import TwilioRestException
 
 from django.conf import settings
-from django.contrib.auth.models import Group, User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.storage import storages
 from django.db import models
@@ -29,7 +28,6 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact
-from temba.utils.email import send_template_email
 from temba.utils.models import (
     JSONAsTextField,
     LegacyUUIDMixin,
@@ -323,13 +321,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     country = CountryField(
         verbose_name=_("Country"), null=True, blank=True, help_text=_("Country which this channel is for")
-    )
-
-    alert_email = models.EmailField(
-        verbose_name=_("Alert Email"),
-        null=True,
-        blank=True,
-        help_text=_("We will send email alerts to this address if experiencing issues sending"),
     )
 
     config = models.JSONField(default=dict)
@@ -667,7 +658,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for trigger in self.triggers.all():
             trigger.delete()
 
-        delete_in_batches(self.alerts.all())
+        delete_in_batches(self.incidents.all())
         delete_in_batches(self.sync_events.all())
         delete_in_batches(self.logs.all())
         delete_in_batches(self.http_logs.all())
@@ -832,6 +823,8 @@ class ChannelEvent(models.Model):
     TYPE_REFERRAL = "referral"
     TYPE_STOP_CONTACT = "stop_contact"
     TYPE_WELCOME_MESSAGE = "welcome_message"
+    TYPE_OPTIN = "optin"
+    TYPE_OPTOUT = "optout"
 
     # single char flag, human readable name, API readable name
     TYPE_CONFIG = (
@@ -844,6 +837,8 @@ class ChannelEvent(models.Model):
         (TYPE_NEW_CONVERSATION, _("New Conversation"), "new-conversation"),
         (TYPE_REFERRAL, _("Referral"), "referral"),
         (TYPE_WELCOME_MESSAGE, _("Welcome Message"), "welcome-message"),
+        (TYPE_OPTIN, _("Opt In"), "optin"),
+        (TYPE_OPTOUT, _("Opt Out"), "optout"),
     )
 
     TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
@@ -1103,157 +1098,3 @@ def pre_save(sender, instance, **kwargs):
             td = timezone.now() - last_sync_event.created_on
             last_sync_event.lifetime = td.seconds + td.days * 24 * 3600
             last_sync_event.save()
-
-
-class Alert(SmartModel):
-    TYPE_DISCONNECTED = "D"
-    TYPE_POWER = "P"
-
-    TYPE_CHOICES = (
-        (TYPE_POWER, _("Power")),  # channel has low power
-        (TYPE_DISCONNECTED, _("Disconnected")),  # channel hasn't synced in a while
-    )
-
-    channel = models.ForeignKey(
-        Channel,
-        related_name="alerts",
-        on_delete=models.PROTECT,
-        verbose_name=_("Channel"),
-        help_text=_("The channel that this alert is for"),
-    )
-    sync_event = models.ForeignKey(
-        SyncEvent,
-        related_name="alerts",
-        on_delete=models.PROTECT,
-        verbose_name=_("Sync Event"),
-        null=True,
-        help_text=_("The sync event that caused this alert to be sent (if any)"),
-    )
-    alert_type = models.CharField(
-        verbose_name=_("Alert Type"),
-        max_length=1,
-        choices=TYPE_CHOICES,
-        help_text=_("The type of alert the channel is sending"),
-    )
-    ended_on = models.DateTimeField(verbose_name=_("Ended On"), blank=True, null=True)
-
-    @classmethod
-    def create_and_send(cls, channel, alert_type: str, *, sync_event=None):
-        user = get_alert_user()
-        alert = cls.objects.create(
-            channel=channel,
-            alert_type=alert_type,
-            sync_event=sync_event,
-            created_by=user,
-            modified_by=user,
-        )
-        alert.send_alert()
-
-        return alert
-
-    @classmethod
-    def check_power_alert(cls, sync):
-        if (
-            sync.power_status in (SyncEvent.STATUS_DISCHARGING, SyncEvent.STATUS_UNKNOWN, SyncEvent.STATUS_NOT_CHARGING)
-            and int(sync.power_level) < 25
-        ):
-            alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
-
-            if not alerts:
-                cls.create_and_send(sync.channel, cls.TYPE_POWER, sync_event=sync)
-
-        if sync.power_status == SyncEvent.STATUS_CHARGING or sync.power_status == SyncEvent.STATUS_FULL:
-            alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
-            alerts = alerts.order_by("-created_on")
-
-            # end our previous alert
-            if alerts and int(alerts[0].sync_event.power_level) < 25:
-                for alert in alerts:
-                    alert.ended_on = timezone.now()
-                    alert.save()
-                    last_alert = alert
-                last_alert.send_resolved()
-
-    @classmethod
-    def check_alerts(cls):
-        from temba.channels.types.android import AndroidType
-
-        thirty_minutes_ago = timezone.now() - timedelta(minutes=30)
-
-        # end any alerts that no longer seem valid
-        for alert in Alert.objects.filter(alert_type=cls.TYPE_DISCONNECTED, ended_on=None):
-            # if we've seen the channel since this alert went out, then clear the alert
-            if alert.channel.last_seen > alert.created_on:
-                alert.ended_on = alert.channel.last_seen
-                alert.save()
-                alert.send_resolved()
-
-        for channel in (
-            Channel.objects.filter(channel_type=AndroidType.code, is_active=True)
-            .exclude(org=None)
-            .exclude(last_seen__gte=thirty_minutes_ago)
-        ):
-            # have we already sent an alert for this channel
-            if not Alert.objects.filter(channel=channel, alert_type=cls.TYPE_DISCONNECTED, ended_on=None):
-                cls.create_and_send(channel, cls.TYPE_DISCONNECTED)
-
-    def send_alert(self):
-        from .tasks import send_alert_task
-
-        on_transaction_commit(lambda: send_alert_task.delay(self.id, resolved=False))
-
-    def send_resolved(self):
-        from .tasks import send_alert_task
-
-        on_transaction_commit(lambda: send_alert_task.delay(self.id, resolved=True))
-
-    def send_email(self, resolved):
-        from temba.msgs.models import Msg
-
-        # no-op if this channel has no alert email
-        if not self.channel.alert_email:
-            return
-
-        # no-op if the channel is not tied to an org
-        if not self.channel.org:
-            return
-
-        if self.alert_type == self.TYPE_POWER:
-            if resolved:
-                subject = "Your Android phone is now charging"
-                template = "channels/email/power_charging_alert"
-            else:
-                subject = "Your Android phone battery is low"
-                template = "channels/email/power_alert"
-
-        elif self.alert_type == self.TYPE_DISCONNECTED:
-            if resolved:
-                subject = "Your Android phone is now connected"
-                template = "channels/email/connected_alert"
-            else:
-                subject = "Your Android phone is disconnected"
-                template = "channels/email/disconnected_alert"
-
-        else:  # pragma: no cover
-            raise Exception(_("Unknown alert type: %(alert)s") % {"alert": self.alert_type})
-
-        context = dict(
-            org=self.channel.org,
-            channel=self.channel,
-            last_seen=self.channel.last_seen,
-            sync=self.sync_event,
-        )
-        context["unsent_count"] = Msg.objects.filter(channel=self.channel, status__in=["Q", "P"]).count()
-        context["subject"] = subject
-
-        send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.branding)
-
-
-def get_alert_user():
-    user = User.objects.filter(username="alert").first()
-    if user:
-        return user
-    else:
-        user = User.objects.create_user("alert")
-        user.groups.add(Group.objects.get(name="Service Users"))
-        return user

@@ -229,7 +229,7 @@ class TembaModel(TembaUUIDMixin, TembaNameMixin, SmartModel):
 
     @classmethod
     def create_from_import_def(cls, org, user, definition: dict):  # pragma: no cover
-        return NotImplementedError("importable classes must define this")
+        raise NotImplementedError("importable classes must define this")
 
     def as_export_ref(self) -> dict:
         return {"uuid": str(self.uuid), "name": self.name}

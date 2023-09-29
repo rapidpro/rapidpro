@@ -13,7 +13,6 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core import mail
 from django.core.files.storage import storages
-from django.template import loader
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -21,6 +20,8 @@ from django.utils.encoding import force_bytes
 
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.msgs.models import Msg
+from temba.notifications.incidents.builtin import ChannelDisconnectedIncidentType
+from temba.notifications.tasks import send_notification_emails
 from temba.orgs.models import Org
 from temba.request_logs.models import HTTPLog
 from temba.tests import CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
@@ -30,9 +31,9 @@ from temba.utils import json
 from temba.utils.models import generate_uuid
 from temba.utils.views import TEMBA_MENU_SELECTION
 
-from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
+from .models import Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
 from .tasks import (
-    check_channel_alerts,
+    check_android_channels,
     squash_channel_counts,
     sync_old_seen_channels,
     track_org_channel_counts,
@@ -210,12 +211,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.create_outgoing_msg(contact, "Hi", channel=channel1, status="P")
         self.create_outgoing_msg(contact, "Hi", channel=channel1, status="E")
         self.create_outgoing_msg(contact, "Hi", channel=channel1, status="S")
-        Alert.objects.create(
-            channel=channel1, alert_type=Alert.TYPE_POWER, created_by=self.admin, modified_by=self.admin
-        )
-        Alert.objects.create(
-            channel=channel1, alert_type=Alert.TYPE_DISCONNECTED, created_by=self.admin, modified_by=self.admin
-        )
+        ChannelDisconnectedIncidentType.get_or_create(channel1)
         SyncEvent.create(
             channel1,
             dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc="RW"),
@@ -224,9 +220,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # and some on another channel
         self.create_outgoing_msg(contact, "Hi", channel=channel2, status="E")
-        Alert.objects.create(
-            channel=channel2, alert_type=Alert.TYPE_POWER, created_by=self.admin, modified_by=self.admin
-        )
+        ChannelDisconnectedIncidentType.get_or_create(channel2)
         SyncEvent.create(
             channel2,
             dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc="RW"),
@@ -257,12 +251,14 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # other channel should be unaffected
         self.assertEqual(1, channel2.msgs.filter(status="E").count())
-        self.assertEqual(1, channel2.alerts.count())
+        self.assertEqual(1, channel2.incidents.count())
         self.assertEqual(1, channel2.sync_events.count())
         self.assertEqual(1, channel2.triggers.filter(is_active=True).count())
 
         # now do actual delete of channel
         channel1.msgs.all().delete()
+        channel1.org.notifications.all().delete()
+        channel1.incidents.all().delete()
         channel1.delete()
 
         self.assertFalse(Channel.objects.filter(id=channel1.id).exists())
@@ -863,31 +859,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         # no new message
         self.assertEqual(Msg.objects.all().count(), msgs_count)
 
-        # set an email on our channel
-        self.tel_channel.alert_email = "fred@worldrelif.org"
-        self.tel_channel.save()
-
-        # We should not have an alert this time
-        self.assertEqual(0, Alert.objects.all().count())
-
-        # the case the status must be be reported
-        response = self.sync(
-            self.tel_channel,
-            cmds=[
-                # device details status
-                dict(cmd="status", p_sts="DIS", p_src="BAT", p_lvl="20", net="UMTS", retry=[], pending=[])
-            ],
-        )
-
-        # we should now have an Alert
-        self.assertEqual(1, Alert.objects.all().count())
-
-        # and at this time it must be not ended
-        self.assertEqual(
-            1, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type="P").count()
-        )
-
-        # the case the status must be be reported but already notification sent
         response = self.sync(
             self.tel_channel,
             cmds=[
@@ -896,30 +867,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             ],
         )
 
-        # we should not create a new alert
-        self.assertEqual(1, Alert.objects.all().count())
-
-        # still not ended
-        self.assertEqual(
-            1, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type="P").count()
-        )
-
-        # Let plug the channel to charger
-        response = self.sync(
-            self.tel_channel,
-            cmds=[
-                # device details status
-                dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
-            ],
-        )
-
-        # only one alert
-        self.assertEqual(1, Alert.objects.all().count())
-
-        # and we end all alert related to this issue
-        self.assertEqual(
-            0, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type="P").count()
-        )
+        self.assertEqual(2, SyncEvent.objects.all().count())
 
         # make our events old so we can test trimming them
         SyncEvent.objects.all().update(created_on=timezone.now() - timedelta(days=45))
@@ -927,78 +875,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # should be cleared out
         self.assertEqual(1, SyncEvent.objects.all().count())
-        self.assertFalse(Alert.objects.exists())
-
-        # the case the status is in unknown state
-        response = self.sync(
-            self.tel_channel,
-            cmds=[
-                # device details status
-                dict(cmd="status", p_sts="UNK", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
-            ],
-        )
-
-        # we should now create a new alert
-        self.assertEqual(1, Alert.objects.all().count())
-
-        # one alert not ended
-        self.assertEqual(
-            1, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type="P").count()
-        )
-
-        # Let plug the channel to charger to end this unknown power status
-        response = self.sync(
-            self.tel_channel,
-            cmds=[
-                # device details status
-                dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
-            ],
-        )
-
-        # still only one alert
-        self.assertEqual(1, Alert.objects.all().count())
-
-        # and we end all alert related to this issue
-        self.assertEqual(
-            0, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type="P").count()
-        )
-
-        # clear all the alerts
-        Alert.objects.all().delete()
-
-        # the case the status is in not charging state
-        response = self.sync(
-            self.tel_channel,
-            cmds=[
-                # device details status
-                dict(cmd="status", p_sts="NOT", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
-            ],
-        )
-
-        # we should now create a new alert
-        self.assertEqual(1, Alert.objects.all().count())
-
-        # one alert not ended
-        self.assertEqual(
-            1, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type="P").count()
-        )
-
-        # Let plug the channel to charger to end this unknown power status
-        response = self.sync(
-            self.tel_channel,
-            cmds=[
-                # device details status
-                dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
-            ],
-        )
-
-        # first we have a new alert created
-        self.assertEqual(1, Alert.objects.all().count())
-
-        # and we end all alert related to this issue
-        self.assertEqual(
-            0, Alert.objects.filter(sync_event__channel=self.tel_channel, ended_on=None, alert_type="P").count()
-        )
 
         response = self.sync(
             self.tel_channel,
@@ -1143,24 +1019,19 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             android_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields={"name": "My Android", "alert_email": None, "allow_international": False},
+            form_fields={"name": "My Android", "allow_international": False},
         )
         self.assertUpdateFetch(
             vonage_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields={
-                "name": "My Vonage",
-                "alert_email": None,
-                "allow_international": False,
-                "machine_detection": False,
-            },
+            form_fields={"name": "My Vonage", "allow_international": False, "machine_detection": False},
         )
         self.assertUpdateFetch(
             telegram_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields={"name": "My Telegram", "alert_email": None},
+            form_fields={"name": "My Telegram"},
         )
 
         # name can't be empty
@@ -1174,18 +1045,12 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         # make some changes
         self.assertUpdateSubmit(
             vonage_url,
-            {
-                "name": "Updated Name",
-                "alert_email": "bob@nyaruka.com",
-                "allow_international": True,
-                "machine_detection": True,
-            },
+            {"name": "Updated Name", "allow_international": True, "machine_detection": True},
         )
 
         vonage_channel.refresh_from_db()
         self.assertEqual("Updated Name", vonage_channel.name)
         self.assertEqual("+1234567890", vonage_channel.address)
-        self.assertEqual("bob@nyaruka.com", vonage_channel.alert_email)
         self.assertTrue(vonage_channel.config.get("allow_international"))
         self.assertTrue(vonage_channel.config.get("machine_detection"))
 
@@ -1193,19 +1058,14 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
             vonage_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields={
-                "name": "Updated Name",
-                "alert_email": "bob@nyaruka.com",
-                "allow_international": True,
-                "machine_detection": True,
-            },
+            form_fields={"name": "Updated Name", "allow_international": True, "machine_detection": True},
         )
 
         # staff users see extra log policy field
         self.login(self.customer_support, choose_org=self.org)
         response = self.client.get(vonage_url)
         self.assertEqual(
-            ["name", "alert_email", "log_policy", "allow_international", "machine_detection", "loc"],
+            ["name", "log_policy", "allow_international", "machine_detection", "loc"],
             list(response.context["form"].fields.keys()),
         )
 
@@ -1281,25 +1141,6 @@ class SyncEventTest(SmartminTest):
         self.assertEqual("RW", self.tel_channel.country)
 
 
-class ChannelAlertTest(TembaTest):
-    def test_no_alert_email(self):
-        # set our last seen to a while ago
-        self.channel.last_seen = timezone.now() - timedelta(minutes=40)
-        self.channel.save()
-
-        check_channel_alerts()
-        self.assertTrue(len(mail.outbox) == 0)
-
-        # add alert email, remove org and set last seen to now to force an resolve email to try to send
-        self.channel.alert_email = "fred@unicef.org"
-        self.channel.org = None
-        self.channel.last_seen = timezone.now()
-        self.channel.save()
-        check_channel_alerts()
-
-        self.assertTrue(len(mail.outbox) == 0)
-
-
 class ChannelSyncTest(TembaTest):
     @patch("temba.channels.models.Channel.trigger_sync")
     def test_sync_old_seen_chaanels(self, mock_trigger_sync):
@@ -1322,71 +1163,57 @@ class ChannelSyncTest(TembaTest):
         self.assertTrue(mock_trigger_sync.called)
 
 
-class ChannelClaimTest(TembaTest):
+class ChannelIncidentsTest(TembaTest):
     @override_settings(SEND_EMAILS=True)
-    def test_disconnected_alert(self):
+    def test_disconnected(self):
         # set our last seen to a while ago
-        self.channel.alert_email = "fred@unicef.org"
         self.channel.last_seen = timezone.now() - timedelta(minutes=40)
-        self.channel.save()
+        self.channel.save(update_fields=("last_seen",))
 
         with override_brand(from_email="support@mybrand.com"):
-            check_channel_alerts()
+            check_android_channels()
 
-            # should have created one alert
-            alert = Alert.objects.get()
-            self.assertEqual(self.channel, alert.channel)
-            self.assertEqual(Alert.TYPE_DISCONNECTED, alert.alert_type)
-            self.assertFalse(alert.ended_on)
+            # should have created an incident
+            incident = self.org.incidents.get()
+            self.assertEqual(self.channel, incident.channel)
+            self.assertEqual("channel:disconnected", incident.incident_type)
+            self.assertIsNone(incident.ended_on)
 
-            self.assertTrue(len(mail.outbox) == 1)
-            template = "channels/email/disconnected_alert.txt"
-            context = dict(
-                org=self.channel.org,
-                channel=self.channel,
-                now=timezone.now(),
-                branding=self.channel.org.branding,
-                last_seen=self.channel.last_seen,
-                sync=alert.sync_event,
-            )
+            self.assertEqual(1, self.admin.notifications.count())
 
-            text_template = loader.get_template(template)
-            text = text_template.render(context)
+            notification = self.admin.notifications.get()
+            self.assertFalse(notification.is_seen)
 
-            self.assertEqual(mail.outbox[0].body, text)
-            self.assertEqual(mail.outbox[0].from_email, "support@mybrand.com")
+            send_notification_emails()
 
-        # call it again
-        check_channel_alerts()
+            self.assertEqual(1, len(mail.outbox))
+            self.assertEqual("[Nyaruka] Incident: Channel Disconnected", mail.outbox[0].subject)
+            self.assertEqual("support@mybrand.com", mail.outbox[0].from_email)
 
-        # still only one alert
-        self.assertEqual(1, Alert.objects.all().count())
-        self.assertTrue(len(mail.outbox) == 1)
+        # if we go to the read page of the channel, notification will be marked as seen
+        read_url = reverse("channels.channel_read", args=[self.channel.uuid])
+        self.login(self.admin)
+        self.client.get(read_url)
+
+        notification.refresh_from_db()
+        self.assertTrue(notification.is_seen)
+
+        # call task again
+        check_android_channels()
+
+        # still only one incident
+        incident = self.org.incidents.get()
+        self.assertEqual(1, len(mail.outbox))
 
         # ok, let's have the channel show up again
         self.channel.last_seen = timezone.now() + timedelta(minutes=5)
-        self.channel.save()
+        self.channel.save(update_fields=("last_seen",))
 
-        check_channel_alerts()
+        check_android_channels()
 
-        # still only one alert, but it is now ended
-        alert = Alert.objects.get()
-        self.assertTrue(alert.ended_on)
-        self.assertTrue(len(mail.outbox) == 2)
-        template = "channels/email/connected_alert.txt"
-        context = dict(
-            org=self.channel.org,
-            channel=self.channel,
-            now=timezone.now(),
-            branding=self.channel.org.branding,
-            last_seen=self.channel.last_seen,
-            sync=alert.sync_event,
-        )
-
-        text_template = loader.get_template(template)
-        text = text_template.render(context)
-
-        self.assertEqual(mail.outbox[1].body, text)
+        # still only one incident, but it is now ended
+        incident = self.org.incidents.get()
+        self.assertIsNotNone(incident.ended_on)
 
 
 class ChannelCountTest(TembaTest):

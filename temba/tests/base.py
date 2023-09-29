@@ -24,7 +24,7 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup, Cont
 from temba.flows.models import Flow, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import Call
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, Msg
+from temba.msgs.models import Broadcast, Label, Msg, OptIn
 from temba.orgs.models import Org, OrgRole, User
 from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
@@ -369,6 +369,23 @@ class TembaTest(SmartminTest):
             logs=logs,
         )
 
+    def create_optin_request(self, contact, channel, optin, flow=None, logs=None) -> Msg:
+        return self._create_msg(
+            contact,
+            "",
+            Msg.DIRECTION_OUT,
+            channel=channel,
+            msg_type=Msg.TYPE_OPTIN,
+            attachments=[],
+            quick_replies=[],
+            status=Msg.STATUS_SENT,
+            sent_on=timezone.now(),
+            created_on=None,
+            optin=optin,
+            flow=flow,
+            logs=logs,
+        )
+
     def _create_msg(
         self,
         contact,
@@ -390,6 +407,7 @@ class TembaTest(SmartminTest):
         flow=None,
         ticket=None,
         broadcast=None,
+        optin=None,
         locale=None,
         metadata=None,
         next_attempt=None,
@@ -432,6 +450,7 @@ class TembaTest(SmartminTest):
             created_by=created_by,
             sent_on=sent_on,
             broadcast=broadcast,
+            optin=optin,
             flow=flow,
             ticket=ticket,
             metadata=metadata,
@@ -446,6 +465,7 @@ class TembaTest(SmartminTest):
         text: str | dict,
         contacts=(),
         groups=(),
+        optin=None,
         status=Broadcast.STATUS_SENT,
         msg_status=Msg.STATUS_SENT,
         parent=None,
@@ -459,6 +479,7 @@ class TembaTest(SmartminTest):
             {"und": text} if isinstance(text, str) else text,
             contacts=contacts,
             groups=groups,
+            optin=optin,
             parent=parent,
             schedule=schedule,
             created_on=created_on or timezone.now(),
@@ -479,6 +500,7 @@ class TembaTest(SmartminTest):
                     msg_type=Msg.TYPE_TEXT,
                     attachments=(),
                     quick_replies=(),
+                    optin=optin,
                     status=msg_status,
                     created_on=timezone.now(),
                     created_by=user,
@@ -724,6 +746,9 @@ class TembaTest(SmartminTest):
             )
 
         return ticket
+
+    def create_optin(self, name: str, org=None):
+        return OptIn.create(org or self.org, self.admin, name)
 
     def set_contact_field(self, contact, key, value):
         update_field_locally(self.admin, contact, key, value)

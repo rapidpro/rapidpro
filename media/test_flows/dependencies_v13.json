@@ -484,6 +484,14 @@
               ],
               "type": "start_session",
               "uuid": "d70d853f-23be-4531-bec0-89012cd1991e"
+            },
+            {
+              "optin": {
+                "uuid": "ec03a6da-861d-4ee1-9ec2-71dd0e9c9b70",
+                "name": "Cat Facts"
+              },
+              "type": "request_optin",
+              "uuid": "a71f6917-f291-4b85-8b2d-68198bbb52db"
             }
           ],
           "exits": [

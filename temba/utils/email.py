@@ -128,7 +128,7 @@ def send_temba_email(subject, text, html, from_email, recipient_list, connection
             message.send()
         else:
             send_mail(subject, text, from_email, recipient_list, connection=connection)
-    else:
+    else:  # pragma: no cover
         # just print to console if we aren't meant to send emails
         print("------------- Skipping sending email, SEND_EMAILS is False -------------")
         print(f"To: {', '.join(recipient_list)}")

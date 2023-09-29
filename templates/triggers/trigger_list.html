@@ -67,6 +67,10 @@
                 {% trans "An uncaught message" %}
               {% elif obj.trigger_type == 'V' %}
                 {% trans "An inbound call" %}
+              {% elif obj.trigger_type == 'I' %}
+                {% trans "An opt in event" %}
+              {% elif obj.trigger_type == 'O' %}
+                {% trans "An opt out event" %}
               {% elif obj.trigger_type == 'N' %}
                 {% trans "A new conversation" %}
                 {% if obj.channel %}

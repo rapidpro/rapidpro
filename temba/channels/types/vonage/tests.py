@@ -138,13 +138,11 @@ class VonageTypeTest(TembaTest):
 
         # try changing our address
         updated = response.context["form"].initial
-        updated["alert_email"] = "foo@bar.com"
 
         response = self.client.post(update_url, updated)
         channel = Channel.objects.get(pk=channel.id)
 
         self.assertEqual("+13607884540", channel.address)
-        self.assertEqual("foo@bar.com", channel.alert_email)
 
         # add a canada number
         mock_get_numbers.side_effect = None
@@ -279,9 +277,7 @@ class VonageTypeTest(TembaTest):
 
         self.login(self.admin)
         response = self.client.get(update_url)
-        self.assertEqual(
-            ["name", "alert_email", "allow_international", "loc"], list(response.context["form"].fields.keys())
-        )
+        self.assertEqual(["name", "allow_international", "loc"], list(response.context["form"].fields.keys()))
 
     def test_get_error_ref_url(self):
         self.assertEqual(
