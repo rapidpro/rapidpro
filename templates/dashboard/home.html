@@ -4,6 +4,7 @@
 {% block messages %}
 {% endblock messages %}
 {% block content %}
+  <script src="https://rawgit.com/highcharts/rounded-corners/master/rounded-corners.js"></script>
   <div class="card scrollable flex-shrink-0" id="range-group">
     <div style="min-height:2.55em"
          class="bg-gray-700 text-gray-400 -mx-6 -mt-6 px-4 py-2 border-b range-header"
@@ -14,26 +15,15 @@
       </div>
     </div>
     <div id="message-chart"></div>
-  </div>
-  <div class="card scrollable flex-shrink-0" id="range-group-1">
-    <div style="min-height:2.55em"
-         class="bg-gray-700 text-gray-400 -mx-6 -mt-6 px-4 py-2 border-b range-header"
-         id="range-header">
-      <div class="flex opacity-0 transition-opacity chart-dates" id="workspace-chart-dates">
-        <div class="flex-grow" id="workspace-chart-range-from"></div>
-        <div id="workspace-chart-range-to"></div>
-      </div>
-    </div>
     <div id="workspace-chart"></div>
-  </div>
-  <div class="card scrollable flex-shrink-0" id="range-group-2">
-    <div id="channel-types-chart"></div>
   </div>
 {% endblock content %}
 {% block extra-script %}
   {{ block.super }}
   <script type="text/javascript">
     var redrawMarker = null;
+
+    var store = document.querySelector("temba-store");
 
     function setChartOptions(chart, begin, end, direction) {
       var chartID = chart.renderTo.id;
@@ -42,27 +32,6 @@
       document.querySelector("#" + chartID + "-dates").classList.add("opacity-100");
       document.querySelector("#" + chartID + "-range-from").innerText = from;
       document.querySelector("#" + chartID + "-range-to").innerText = to;
-    }
-
-    function selectionChanged(chart) {
-      var direction = "";
-      if (chart.series[0].visible) {
-        direction += "I";
-      }
-
-      if (chart.series[1].visible) {
-        direction += "O";
-      }
-
-      var axis = chart.xAxis[0];
-      setChartOptions(chart, axis.min, axis.max, direction);
-    }
-
-    function markDirty(chart) {
-      if (redrawMarker != null) {
-        window.clearTimeout(redrawMarker);
-      }
-      redrawMarker = window.setTimeout(selectionChanged.bind(null, chart), 200);
     }
 
     function createChart(container, data) {
@@ -106,18 +75,72 @@
       })
     }
 
+    var handleUpdatedRange = function(e) {
+      const chart = e.target;
+      const range = chart.xAxis[0];
+
+      var direction = "";
+      if (chart.series[0].visible) {
+        direction += "I";
+      }
+
+      if (chart.series[1].visible) {
+        direction += "O";
+      }
+
+      var axis = chart.xAxis[0];
+
+      store.getUrl(`/dashboard/workspace_stats/?min=${axis.min}&max=${axis.max}`).then(function(response) {
+        var data = response.json;
+
+        Highcharts.chart('workspace-chart', {
+
+          chart: {
+            type: 'bar',
+          },
+          title: {
+            text: 'Workspaces'
+          },
+          xAxis: {
+            categories: data.categories
+          },
+          yAxis: {
+            min: 0,
+          },
+
+          tooltip: {
+            pointFormat: '{series.name}: <b>{point.y}</b>'
+          },
+          plotOptions: {
+            series: {
+              stacking: 'normal',
+              dataLabels: {
+                enabled: true,
+                color: '#000000',
+                inside: false,
+                formatter: function(e) {
+                  if (this.point.series.index == 0) {
+                    return this.point.stackTotal.toLocaleString();
+                  }
+                }
+              }
+            }
+          },
+          series: data.series
+
+        });
+      });
+
+      setChartOptions(chart, axis.min, axis.max, direction);
+    }
+
     function createStockChart(container, data) {
       return Highcharts.stockChart(container, {
         chart: {
           zoomType: 'x',
           events: {
-            // mark dirty out the gate
-            load: function(e) {
-              markDirty(this);
-            },
-            redraw: function(e) {
-              markDirty(this);
-            }
+            redraw: handleUpdatedRange,
+            load: handleUpdatedRange
           }
         },
         plotOptions: {
@@ -182,27 +205,15 @@
         }
       });
 
-      var store = document.querySelector("temba-store");
-      store.getUrl('/dashboard/message_history').then(function(response) {
+
+      store.getUrl('/dashboard/message_history/').then(function(response) {
         var data = response.json;
         // Create the chart
-        createStockChart('message-chart', data);
-
+        window.setTimeout(function() {
+          createStockChart('message-chart', data);
+        }, 500);
       });
 
-      store.getUrl('/dashboard/workspace_stats').then(function(response) {
-        var data = response.json;
-        // Create the chart
-        createStockChart('workspace-chart', data);
-
-      });
-
-      store.getUrl('/dashboard/channel_types_stats').then(function(response) {
-        var data = response.json;
-        // Create the chart
-        createChart('channel-types-chart', data);
-
-      });
     }
 
     onSpload(loadCharts);

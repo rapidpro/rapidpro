@@ -64,8 +64,6 @@ class MessageHistory(OrgPermsMixin, SmartTemplateView):
             count_type__in=[
                 ChannelCount.INCOMING_MSG_TYPE,
                 ChannelCount.OUTGOING_MSG_TYPE,
-                ChannelCount.INCOMING_IVR_TYPE,
-                ChannelCount.OUTGOING_IVR_TYPE,
             ]
         )
 
@@ -124,7 +122,6 @@ class MessageHistory(OrgPermsMixin, SmartTemplateView):
             [
                 dict(name="Incoming", type="column", data=msgs_in, showInNavigator=False),
                 dict(name="Outgoing", type="column", data=msgs_out, showInNavigator=False),
-                ## dict(name="Total", type="line", cumulative=True, data=msgs_total, showInNavigator=True, visible=False, showInLegend=False),
             ],
             safe=False,
         )
@@ -139,208 +136,55 @@ class WorkspaceStats(OrgPermsMixin, SmartTemplateView):
         if org:
             orgs = Org.objects.filter(Q(id=org.id) | Q(parent=org))
 
+        min_date = self.request.GET.get("min", None)
+        max_date = self.request.GET.get("max", None)
+
+        if min_date and max_date:
+            min_date = datetime.utcfromtimestamp(float(min_date) / 1000).strftime("%Y-%m-%d")
+            max_date = datetime.utcfromtimestamp(float(max_date) / 1000).strftime("%Y-%m-%d")
+
         # get all our counts for that period
         daily_counts = ChannelCount.objects.filter(
             count_type__in=[
                 ChannelCount.INCOMING_MSG_TYPE,
                 ChannelCount.OUTGOING_MSG_TYPE,
-                ChannelCount.INCOMING_IVR_TYPE,
-                ChannelCount.OUTGOING_IVR_TYPE,
             ]
         )
 
-        daily_counts = daily_counts.filter(day__gt="2013-02-01").filter(day__lte=timezone.now())
+        daily_counts = daily_counts.filter(day__gte=min_date).filter(day__lte=max_date)
 
         if orgs or not self.request.user.is_support:
             daily_counts = daily_counts.filter(channel__org__in=orgs)
 
-        output = []
-        epoch = datetime(1970, 1, 1)
+        categories = [org.name for org in orgs]
 
-        def get_timestamp(count_dict):
-            """
-            Gets a unix time that is highcharts friendly for a given day
-            """
-            count_date = datetime.fromtimestamp(time.mktime(count_dict["day"].timetuple()))
-            return int((count_date - epoch).total_seconds() * 1000)
+        inbound = []
+        outbound = []
 
-        def record_count(counts, day, count):
-            """
-            Records a count in counts list which is an ordered list of day, count tuples
-            """
-            is_new = True
-
-            # if we have seen this one before, increment it
-            if len(counts):
-                last = counts[-1]
-                if last and last[0] == day:
-                    last[1] += count["count_sum"]
-                    is_new = False
-
-            # otherwise add it as a new count
-            if is_new:
-                counts.append([day, count["count_sum"]])
-
-        for idx, org in enumerate(orgs):
+        for org in orgs:
             org_daily_counts = list(
                 daily_counts.filter(channel__org_id=org.id)
-                .values("day", "count_type")
-                .order_by("day", "count_type")
-                .annotate(count_sum=Sum("count"))
-            )
-
-            org_colors = flattened_colors[((idx % 6) * 3) : ((idx % 6) * 3) + 3]
-
-            org_msgs_total = []
-            org_msgs_in = []
-            org_msgs_out = []
-            for count in org_daily_counts:
-                direction = count["count_type"][0]
-                day = get_timestamp(count)
-
-                if direction == "I":
-                    record_count(org_msgs_in, day, count)
-                elif direction == "O":
-                    record_count(org_msgs_out, day, count)
-
-                record_count(org_msgs_total, day, count)
-
-            output.extend(
-                [
-                    dict(
-                        name=f"{org.name} Incoming",
-                        stack=f"{org.id}.{idx}",
-                        type="column",
-                        data=org_msgs_in,
-                        showInNavigator=False,
-                        color=org_colors[0],
-                    ),
-                    dict(
-                        name=f"{org.name} Cumulative Incoming",
-                        stack=f"{org.id}.{idx}.cumulative.in",
-                        cumulative=True,
-                        type="line",
-                        data=org_msgs_in,
-                        showInNavigator=False,
-                        visible=False,
-                        color=org_colors[0],
-                    ),
-                    dict(
-                        name=f"{org.name} Outgoing",
-                        stack=f"{org.id}.{idx}",
-                        type="column",
-                        data=org_msgs_out,
-                        showInNavigator=False,
-                        color=org_colors[1],
-                    ),
-                    dict(
-                        name=f"{org.name} Cumulative Outgoing",
-                        stack=f"{org.id}.{idx}.cumulative.out",
-                        cumulative=True,
-                        type="line",
-                        data=org_msgs_out,
-                        showInNavigator=False,
-                        visible=False,
-                        color=org_colors[1],
-                    ),
-                    dict(
-                        name=f"{org.name} Total",
-                        stack=f"{org.id}.{idx}.total",
-                        cumulative=True,
-                        type="line",
-                        data=org_msgs_total,
-                        showInNavigator=False,
-                        tooltip=dict(pointFormat="{series.name}: <b>{point.cumulativeSum:.0f}</b>"),
-                        color=org_colors[2],
-                    ),
-                ]
-            )
-
-        return JsonResponse(
-            output,
-            safe=False,
-        )
-
-
-class ChannelTypesStats(OrgPermsMixin, SmartTemplateView):
-    permission = "orgs.org_dashboard"
-
-    def render_to_response(self, context, **response_kwargs):
-        orgs = []
-        org = self.derive_org()
-        if org:
-            orgs = Org.objects.filter(Q(id=org.id) | Q(parent=org))
-
-        # get all our counts for that period
-        daily_counts = ChannelCount.objects.filter(
-            count_type__in=[
-                ChannelCount.INCOMING_MSG_TYPE,
-                ChannelCount.OUTGOING_MSG_TYPE,
-                ChannelCount.INCOMING_IVR_TYPE,
-                ChannelCount.OUTGOING_IVR_TYPE,
-            ]
-        ).exclude(channel__org=None)
-
-        if orgs or not self.request.user.is_support:
-            daily_counts = daily_counts.filter(channel__org__in=orgs)
-
-        daily_counts = daily_counts.filter(day__gt="2013-02-01").filter(day__lte=timezone.now())
-
-        output = []
-        channel_types = list(
-            daily_counts.values("channel__channel_type").annotate(count_sum=Sum("count")).order_by("-count_sum")
-        )
-
-        for ch_type in channel_types:
-            channel_type_name = Channel.get_type_from_code(ch_type["channel__channel_type"]).name
-
-            ch_type_daily_counts = list(
-                daily_counts.filter(channel__channel_type=ch_type["channel__channel_type"])
                 .values("count_type")
                 .order_by("count_type")
                 .annotate(count_sum=Sum("count"))
             )
 
-            ch_type_msgs_in = []
-            ch_type_msgs_out = []
-            for count in ch_type_daily_counts:
-                direction = count["count_type"][0]
+            for count in org_daily_counts:
+                if count["count_type"] == ChannelCount.INCOMING_MSG_TYPE:
+                    inbound.append(count["count_sum"])
+                elif count["count_type"] == ChannelCount.OUTGOING_MSG_TYPE:
+                    outbound.append(count["count_sum"])
 
-                if direction == "I":
-                    ch_type_msgs_in.append(count.get("count_sum", 0))
-
-                elif direction == "O":
-                    ch_type_msgs_out.append(count.get("count_sum", 0))
-
-            output.extend(
-                [
-                    dict(
-                        name=f"{channel_type_name} Incoming",
-                        stack=ch_type["channel__channel_type"],
-                        type="column",
-                        data=ch_type_msgs_in,
-                        showInNavigator=False,
-                        label=False,
-                        tooltip=dict(
-                            pointFormat="{series.name}: <b>{point.y:.0f}</b>", nullFormat="{series.name}: <b>0</b>"
-                        ),
-                    ),
-                    dict(
-                        name=f"{channel_type_name} Outgoing",
-                        stack=ch_type["channel__channel_type"],
-                        type="column",
-                        data=ch_type_msgs_out,
-                        showInNavigator=False,
-                        label=False,
-                        tooltip=dict(
-                            pointFormat="{series.name}: <b>{point.y:.0f}</b>", nullFormat="{series.name}: <b>0</b>"
-                        ),
-                    ),
-                ]
-            )
+            if len(inbound) < len(outbound):
+                inbound.append(0)
+            elif len(outbound) < len(inbound):
+                outbound.append(0)
 
         return JsonResponse(
-            output,
+            dict(
+                series=[{"name": "Incoming", "data": inbound}, {"name": "Outgoing", "data": outbound}],
+                categories=categories,
+            ),
             safe=False,
         )
 
