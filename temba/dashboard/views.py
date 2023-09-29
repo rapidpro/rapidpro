@@ -136,12 +136,12 @@ class WorkspaceStats(OrgPermsMixin, SmartTemplateView):
         if org:
             orgs = Org.objects.filter(Q(id=org.id) | Q(parent=org))
 
-        min_date = self.request.GET.get("min", None)
-        max_date = self.request.GET.get("max", None)
+        min_date = self.request.GET.get("min", datetime(2013,1,1).timestamp())
+        max_date = self.request.GET.get("max", datetime.now().timestamp())
 
         if min_date and max_date:
-            min_date = datetime.utcfromtimestamp(float(min_date) / 1000).strftime("%Y-%m-%d")
-            max_date = datetime.utcfromtimestamp(float(max_date) / 1000).strftime("%Y-%m-%d")
+            min_date = datetime.utcfromtimestamp(float(min_date)).strftime("%Y-%m-%d")
+            max_date = datetime.utcfromtimestamp(float(max_date)).strftime("%Y-%m-%d")
 
         # get all our counts for that period
         daily_counts = ChannelCount.objects.filter(
