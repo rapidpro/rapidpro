@@ -136,7 +136,7 @@ class WorkspaceStats(OrgPermsMixin, SmartTemplateView):
         if org:
             orgs = Org.objects.filter(Q(id=org.id) | Q(parent=org))
 
-        min_date = self.request.GET.get("min", datetime(2013,1,1).timestamp())
+        min_date = self.request.GET.get("min", datetime(2013, 1, 1).timestamp())
         max_date = self.request.GET.get("max", datetime.now().timestamp())
 
         if min_date and max_date:

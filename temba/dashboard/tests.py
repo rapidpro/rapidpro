@@ -68,9 +68,9 @@ class DashboardTest(TembaTest):
         self.create_activity()
         response = self.client.get(url).json()
 
-        self.assertEqual(2, len(response['series']))
-        self.assertEqual(1, response['series'][0]['data'][0]) # incoming
-        self.assertEqual(2, response['series'][1]["data"][0]) # outgoing
+        self.assertEqual(2, len(response["series"]))
+        self.assertEqual(1, response["series"][0]["data"][0])  # incoming
+        self.assertEqual(2, response["series"][1]["data"][0])  # outgoing
 
     def test_range_details(self):
         url = reverse("dashboard.dashboard_range_details")
