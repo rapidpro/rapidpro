@@ -40,7 +40,7 @@ from temba.orgs.views import (
 )
 from temba.schedules.models import Schedule
 from temba.schedules.views import ScheduleFormMixin
-from temba.utils import analytics, json, on_transaction_commit
+from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.compose import compose_deserialize, compose_serialize
 from temba.utils.export.views import BaseExportView
 from temba.utils.fields import (
@@ -160,7 +160,6 @@ class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
 class ComposeForm(Form):
     compose = ComposeField(
         required=True,
-        initial={"text": "", "attachments": []},
         widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True}),
     )
 
@@ -180,6 +179,8 @@ class ComposeForm(Form):
 
     def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        langs = [{"iso": iso, "name": languages.get_name(iso)} for iso in org.flow_languages]
+        self.fields["compose"].widget.attrs["languages"] = json.dumps(langs)
         self.fields["optin"].queryset = org.optins.all().order_by("name")
 
     def clean_compose(self):
@@ -316,7 +317,7 @@ class BroadcastCRUDL(SmartCRUDL):
             )
 
     class Create(OrgPermsMixin, SmartWizardView):
-        form_list = [("target", TargetForm), ("compose", ComposeForm), ("schedule", ScheduleForm)]
+        form_list = [("compose", ComposeForm), ("target", TargetForm), ("schedule", ScheduleForm)]
         success_url = "@msgs.broadcast_scheduled"
         submit_button_name = _("Create Broadcast")
 
