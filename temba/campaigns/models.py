@@ -30,11 +30,6 @@ class Campaign(TembaModel):
         self.modified_on = timezone.now()
         self.save(update_fields=("is_archived", "modified_by", "modified_on"))
 
-        # recreate events so existing event fires will be ignored
-        from .tasks import recreate_events
-
-        on_transaction_commit(lambda: recreate_events.delay(self.id))
-
     def recreate_events(self):
         """
         Recreates all the events in this campaign - called when something like the group changes.
