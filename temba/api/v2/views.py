@@ -409,7 +409,6 @@ class ArchivesEndpoint(ListAPIMixin, BaseEndpoint):
 
     """
 
-    permission = "archives.archive_api"
     model = Archive
     serializer_class = ArchiveReadSerializer
 
@@ -508,7 +507,6 @@ class BoundariesEndpoint(ListAPIMixin, BaseEndpoint):
     class Pagination(CursorPagination):
         ordering = ("osm_id",)
 
-    permission = "locations.adminboundary_api"
     model = AdminBoundary
     serializer_class = AdminBoundaryReadSerializer
     pagination_class = Pagination
@@ -618,7 +616,6 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "msgs.broadcast_api"
     model = Broadcast
     serializer_class = BroadcastReadSerializer
     write_serializer_class = BroadcastWriteSerializer
@@ -752,7 +749,6 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
 
     """
 
-    permission = "campaigns.campaign_api"
     model = Campaign
     serializer_class = CampaignReadSerializer
     write_serializer_class = CampaignWriteSerializer
@@ -912,7 +908,6 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEn
 
     """
 
-    permission = "campaigns.campaignevent_api"
     model = CampaignEvent
     serializer_class = CampaignEventReadSerializer
     write_serializer_class = CampaignEventWriteSerializer
@@ -1070,7 +1065,6 @@ class ChannelsEndpoint(ListAPIMixin, BaseEndpoint):
 
     """
 
-    permission = "channels.channel_api"
     model = Channel
     serializer_class = ChannelReadSerializer
     pagination_class = CreatedOnCursorPagination
@@ -1148,7 +1142,6 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseEndpoint):
 
     """
 
-    permission = "channels.channelevent_api"
     model = ChannelEvent
     serializer_class = ChannelEventReadSerializer
     pagination_class = CreatedOnCursorPagination
