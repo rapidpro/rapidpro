@@ -1,3 +1,9 @@
+v8.3.37 (2023-10-02)
+-------------------------
+ * Abstract functionality for triggers based on channel actvity into base classes
+ * API endpoint should default to CRUDL based permissions if permission not specified
+ * Update to use Facebook API v17
+
 v8.3.36 (2023-09-29)
 -------------------------
  * Remove minutes label from channel chart
