@@ -161,7 +161,7 @@ class ComposeForm(Form):
     compose = ComposeField(
         required=True,
         initial={"text": "", "attachments": []},
-        widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True}),
+        widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True, "completion": True}),
     )
 
     optin = TembaChoiceField(
