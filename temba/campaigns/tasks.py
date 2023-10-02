@@ -1,9 +1,11 @@
 from datetime import timedelta
 
+from celery import shared_task
+
 from django.conf import settings
 from django.utils import timezone
 
-from temba.campaigns.models import EventFire
+from temba.campaigns.models import Campaign, EventFire
 from temba.utils.crons import cron_task
 from temba.utils.models import delete_in_batches
 
@@ -27,3 +29,9 @@ def trim_event_fires():
         num_deleted += delete_in_batches(EventFire.objects.filter(fired__lt=trim_before), post_delete=can_continue)
 
     return {"deleted": num_deleted}
+
+
+@shared_task
+def recreate_events(campaign_id):
+    campaign = Campaign.objects.get(id=campaign_id)
+    campaign.recreate_events()

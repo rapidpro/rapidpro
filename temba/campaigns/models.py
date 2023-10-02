@@ -31,7 +31,9 @@ class Campaign(TembaModel):
         self.save(update_fields=("is_archived", "modified_by", "modified_on"))
 
         # recreate events so existing event fires will be ignored
-        self.recreate_events()
+        from .tasks import recreate_events
+
+        on_transaction_commit(lambda: recreate_events.delay(self.id))
 
     def recreate_events(self):
         """
