@@ -317,7 +317,7 @@ class BroadcastCRUDL(SmartCRUDL):
             )
 
     class Create(OrgPermsMixin, SmartWizardView):
-        form_list = [("compose", ComposeForm), ("target", TargetForm), ("schedule", ScheduleForm)]
+        form_list = [ ("compose", ComposeForm), ("target", TargetForm),("schedule", ScheduleForm)]
         success_url = "@msgs.broadcast_scheduled"
         submit_button_name = _("Create Broadcast")
 
