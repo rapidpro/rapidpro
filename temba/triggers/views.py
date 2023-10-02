@@ -62,7 +62,7 @@ class Folder(Enum):
 
 class BaseTriggerForm(forms.ModelForm):
     """
-    Base form for different trigger types
+    Base form for different trigger types.
     """
 
     flow = TembaChoiceField(
@@ -72,7 +72,6 @@ class BaseTriggerForm(forms.ModelForm):
         required=True,
         widget=SelectWidget(attrs={"placeholder": _("Select a flow"), "searchable": True}),
     )
-
     groups = TembaMultipleChoiceField(
         queryset=ContactGroup.objects.none(),
         label=_("Groups To Include"),
@@ -99,18 +98,17 @@ class BaseTriggerForm(forms.ModelForm):
         self.user = user
         self.trigger_type = Trigger.get_type(code=trigger_type)
 
-        flow_types = self.trigger_type.allowed_flow_types
-        flows = self.org.flows.filter(flow_type__in=flow_types, is_active=True, is_archived=False, is_system=False)
+        self.fields["flow"].queryset = self.get_flow_choices().order_by(Upper("name"))
+        self.fields["groups"].queryset = self.get_group_choices().order_by(Upper("name"))
+        self.fields["exclude_groups"].queryset = self.get_group_choices().order_by(Upper("name"))
 
-        self.fields["flow"].queryset = flows.order_by("name")
+    def get_flow_choices(self):
+        return self.org.flows.filter(
+            flow_type__in=self.trigger_type.allowed_flow_types, is_active=True, is_archived=False, is_system=False
+        )
 
-        groups = ContactGroup.get_groups(self.org).order_by(Upper("name"))
-
-        self.fields["groups"].queryset = groups
-        self.fields["exclude_groups"].queryset = groups
-
-    def get_channel_choices(self, schemes):
-        return self.org.channels.filter(is_active=True, schemes__overlap=list(schemes)).order_by("name")
+    def get_group_choices(self):
+        return ContactGroup.get_groups(self.org)
 
     def get_conflicts(self, cleaned_data):
         conflicts = Trigger.get_conflicts(self.org, self.trigger_type.code, **self.get_conflicts_kwargs(cleaned_data))
@@ -153,6 +151,39 @@ class BaseTriggerForm(forms.ModelForm):
     class Meta:
         model = Trigger
         fields = ("flow", "groups", "exclude_groups")
+
+
+class BaseChannelTriggerForm(BaseTriggerForm):
+    """
+    Base form for trigger types based on channel activity.
+    """
+
+    channel = TembaChoiceField(
+        queryset=Channel.objects.none(),
+        label=_("Channel"),
+        help_text=_("Only include activity from this channel."),
+        required=False,
+    )
+
+    def __init__(self, org, user, trigger_type, *args, **kwargs):
+        super().__init__(org, user, trigger_type, *args, **kwargs)
+
+        self.fields["channel"].queryset = self.get_channel_choices().order_by(Upper("name"))
+
+    def get_channel_choices(self):
+        qs = self.org.channels.filter(is_active=True)
+        if self.trigger_type.allowed_channel_schemes:
+            qs = qs.filter(schemes__overlap=list(self.trigger_type.allowed_channel_schemes))
+        return qs
+
+    def get_conflicts_kwargs(self, cleaned_data):
+        kwargs = super().get_conflicts_kwargs(cleaned_data)
+        kwargs["channel"] = cleaned_data.get("channel")
+        return kwargs
+
+    class Meta:
+        model = Trigger
+        fields = ("flow", "channel", "groups", "exclude_groups")
 
 
 class RegisterTriggerForm(BaseTriggerForm):
@@ -340,8 +371,9 @@ class TriggerCRUDL(SmartCRUDL):
             flow = form.cleaned_data.get("flow")
             groups = form.cleaned_data["groups"]
             exclude_groups = form.cleaned_data["exclude_groups"]
+            channel = form.cleaned_data.get("channel")
 
-            create_kwargs = {"flow": flow, "groups": groups, "exclude_groups": exclude_groups}
+            create_kwargs = {"flow": flow, "groups": groups, "exclude_groups": exclude_groups, "channel": channel}
             create_kwargs.update(self.get_create_kwargs(user, form.cleaned_data))
 
             Trigger.create(
@@ -419,14 +451,11 @@ class TriggerCRUDL(SmartCRUDL):
     class CreateNewConversation(BaseCreate):
         trigger_type = Trigger.TYPE_NEW_CONVERSATION
 
-        def get_create_kwargs(self, user, cleaned_data):
-            return {"channel": cleaned_data["channel"]}
-
     class CreateReferral(BaseCreate):
         trigger_type = Trigger.TYPE_REFERRAL
 
         def get_create_kwargs(self, user, cleaned_data):
-            return {"channel": cleaned_data["channel"], "referrer_id": cleaned_data["referrer_id"]}
+            return {"referrer_id": cleaned_data["referrer_id"]}
 
     class CreateClosedTicket(BaseCreate):
         trigger_type = Trigger.TYPE_CLOSED_TICKET
