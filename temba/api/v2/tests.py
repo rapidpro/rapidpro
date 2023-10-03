@@ -3553,8 +3553,8 @@ class EndpointsTest(APITest):
     def test_globals(self):
         endpoint_url = reverse("api.v2.globals") + ".json"
 
-        self.assertGetNotPermitted(endpoint_url, [None])
-        self.assertPostNotPermitted(endpoint_url, [None, self.user])
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotPermitted(endpoint_url, [None, self.user, self.agent])
         self.assertDeleteNotAllowed(endpoint_url)
 
         # create some globals
@@ -3566,7 +3566,7 @@ class EndpointsTest(APITest):
 
         response = self.assertGet(
             endpoint_url,
-            [self.agent, self.user, self.editor],
+            [self.user, self.editor],
             results=[
                 {
                     "key": "access_token",

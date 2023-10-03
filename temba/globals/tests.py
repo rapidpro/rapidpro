@@ -89,7 +89,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         list_url = reverse("globals.global_list")
 
         response = self.assertListFetch(
-            list_url, allow_viewers=False, allow_editors=False, context_objects=[self.global2, self.global1]
+            list_url, allow_viewers=True, allow_editors=True, context_objects=[self.global2, self.global1]
         )
         self.assertContains(response, "Acme Ltd")
         self.assertContains(response, "23464373")
@@ -100,7 +100,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
 
         unused_url = reverse("globals.global_unused")
 
-        self.assertListFetch(unused_url, allow_viewers=False, allow_editors=False, context_objects=[self.global2])
+        self.assertListFetch(unused_url, allow_viewers=True, allow_editors=True, context_objects=[self.global2])
 
         self.assertContentMenu(list_url, self.admin, ["New Global"])
 
@@ -108,7 +108,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create(self):
         create_url = reverse("globals.global_create")
 
-        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=False, form_fields=["name", "value"])
+        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=["name", "value"])
 
         # try to submit with invalid name and missing value
         self.assertCreateSubmit(
@@ -153,7 +153,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_update(self):
         update_url = reverse("globals.global_update", args=[self.global1.id])
 
-        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=False, form_fields=["value"])
+        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=["value"])
 
         # try to submit with missing value
         self.assertUpdateSubmit(
@@ -182,9 +182,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_usages(self):
         detail_url = reverse("globals.global_usages", args=[self.global1.uuid])
 
-        response = self.assertReadFetch(
-            detail_url, allow_viewers=False, allow_editors=False, context_object=self.global1
-        )
+        response = self.assertReadFetch(detail_url, allow_viewers=True, allow_editors=True, context_object=self.global1)
 
         self.assertEqual({"flow": [self.flow]}, {t: list(qs) for t, qs in response.context["dependents"].items()})
 
@@ -192,7 +190,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         delete_url = reverse("globals.global_delete", args=[self.global2.uuid])
 
         # fetch delete modal
-        response = self.assertDeleteFetch(delete_url)
+        response = self.assertDeleteFetch(delete_url, allow_editors=True)
         self.assertContains(response, "You are about to delete")
 
         response = self.assertDeleteSubmit(delete_url, object_deactivated=self.global2, success_status=200)
@@ -203,7 +201,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertFalse(self.flow.has_issues)
 
-        response = self.assertDeleteFetch(delete_url)
+        response = self.assertDeleteFetch(delete_url, allow_editors=True)
         self.assertContains(response, "is used by the following items but can still be deleted:")
         self.assertContains(response, "Color Flow")
 
