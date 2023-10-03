@@ -1,3 +1,8 @@
+v8.3.38 (2023-10-03)
+-------------------------
+ * Remove completion from contact chat
+ * Do not recreate the events when the campaign is archived
+
 v8.3.37 (2023-10-02)
 -------------------------
  * Abstract functionality for triggers based on channel actvity into base classes
