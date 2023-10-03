@@ -375,7 +375,7 @@ class OrgRole(Enum):
 
     @cached_property
     def api_permissions(self) -> set:
-        return set(settings.API_PERMISSION.get(self.group_name, ()))
+        return set(settings.API_PERMISSIONS.get(self.group_name, ()))
 
     def has_perm(self, permission: str) -> bool:
         """
