@@ -1,3 +1,8 @@
+v8.3.40 (2023-10-03)
+-------------------------
+ * Remove globals from agent store when missing permission
+ * Remove arst
+
 v8.3.39 (2023-10-03)
 -------------------------
  * Fix compose clear on send
