@@ -1,3 +1,8 @@
+v8.3.39 (2023-10-03)
+-------------------------
+ * Fix compose clear on send
+ * Use more CRUDL perms with API endpoints
+
 v8.3.38 (2023-10-03)
 -------------------------
  * Remove completion from contact chat
