@@ -1,17 +1,17 @@
 from django.urls import reverse
 
-from temba.api.v2.tests import APITest
+from temba.api.tests import APITestMixin
 from temba.contacts.models import ExportContactsTask
-from temba.notifications.models import Notification
 from temba.notifications.types import ExportFinishedNotificationType
-from temba.tests import matchers
+from temba.tests import TembaTest, matchers
 
 
-class EndpointsTest(APITest):
+class EndpointsTest(APITestMixin, TembaTest):
     def test_notifications(self):
-        notifications_url = reverse("api.internal.notifications")
+        endpoint_url = reverse("api.internal.notifications") + ".json"
 
-        self.assertEndpointAccess(notifications_url, viewer_get=200, admin_get=200, agent_get=200)
+        self.assertPostNotAllowed(endpoint_url)
+        self.assertDeleteNotAllowed(endpoint_url)
 
         # simulate an export finishing
         export = ExportContactsTask.create(self.org, self.admin)
@@ -20,44 +20,30 @@ class EndpointsTest(APITest):
         # and org being suspended
         self.org.suspend()
 
-        response = self.getJSON(notifications_url, readonly_models={Notification})
-
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            {
-                "next": None,
-                "previous": None,
-                "results": [
-                    {
-                        "type": "incident:started",
-                        "created_on": matchers.ISODate(),
-                        "target_url": "/incident/",
-                        "is_seen": False,
-                        "incident": {
-                            "type": "org:suspended",
-                            "started_on": matchers.ISODate(),
-                            "ended_on": None,
-                        },
+        self.assertGet(
+            endpoint_url,
+            [self.admin],
+            results=[
+                {
+                    "type": "incident:started",
+                    "created_on": matchers.ISODate(),
+                    "target_url": "/incident/",
+                    "is_seen": False,
+                    "incident": {
+                        "type": "org:suspended",
+                        "started_on": matchers.ISODate(),
+                        "ended_on": None,
                     },
-                    {
-                        "type": "export:finished",
-                        "created_on": matchers.ISODate(),
-                        "target_url": f"/assets/download/contact_export/{export.id}/",
-                        "is_seen": False,
-                        "export": {"type": "contact"},
-                    },
-                ],
-            },
-            response.json(),
+                },
+                {
+                    "type": "export:finished",
+                    "created_on": matchers.ISODate(),
+                    "target_url": f"/assets/download/contact_export/{export.id}/",
+                    "is_seen": False,
+                    "export": {"type": "contact"},
+                },
+            ],
         )
 
         # notifications are user specific
-        self.login(self.editor)
-
-        response = self.getJSON(notifications_url, readonly_models={Notification})
-
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            {"next": None, "previous": None, "results": []},
-            response.json(),
-        )
+        self.assertGet(endpoint_url, [self.agent, self.user, self.editor], results=[])

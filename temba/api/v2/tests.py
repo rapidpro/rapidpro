@@ -15,7 +15,6 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.cache import cache
-from django.db import connection
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -43,24 +42,14 @@ from temba.tickets.types.zendesk import ZendeskType
 from temba.triggers.models import Trigger
 from temba.utils import json
 
+from ..tests import APITestMixin
 from . import fields
 from .serializers import format_datetime, normalize_extra
 
 NUM_BASE_REQUEST_QUERIES = 5  # number of db queries required for any API request
 
 
-class APITest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        # this is needed to prevent REST framework from rolling back transaction created around each unit test
-        connection.settings_dict["ATOMIC_REQUESTS"] = False
-
-    def tearDown(self):
-        super().tearDown()
-
-        connection.settings_dict["ATOMIC_REQUESTS"] = True
-
+class APITest(APITestMixin, TembaTest):
     def getHTML(self, url, query=None):
         if query:
             url += "?" + query
@@ -506,29 +495,6 @@ class EndpointsTest(APITest):
     def assertResultsByUUID(self, response, expected):
         self.assertEqual(response.status_code, 200)
         self.assertEqual([r["uuid"] for r in response.json()["results"]], [str(o.uuid) for o in expected])
-
-    def assertResponseError(self, response, field, expected_message, status_code=400):
-        self.assertEqual(response.status_code, status_code)
-        resp_json = response.json()
-        if field:
-            if isinstance(field, tuple):
-                field, sub_field = field
-            else:
-                sub_field = None
-
-            self.assertIn(field, resp_json)
-
-            if sub_field:
-                self.assertIsInstance(resp_json[field], dict)
-                self.assertIn(sub_field, resp_json[field])
-                self.assertIn(expected_message, resp_json[field][sub_field])
-            else:
-                self.assertIsInstance(resp_json[field], list)
-                self.assertIn(expected_message, resp_json[field])
-        else:
-            self.assertIsInstance(resp_json, dict)
-            self.assertIn("detail", resp_json)
-            self.assertEqual(resp_json["detail"], expected_message)
 
     def assert404(self, response):
         self.assertEqual(response.status_code, 404)
@@ -3006,11 +2972,13 @@ class EndpointsTest(APITest):
 
     @override_settings(ORG_LIMIT_DEFAULTS={"fields": 10})
     def test_fields(self):
-        fields_url = reverse("api.v2.fields")
+        endpoint_url = reverse("api.v2.fields") + ".json"
 
-        self.assertEndpointAccess(fields_url, viewer_get=200, admin_get=200, agent_get=200)
+        self.assertGetNotPermitted(endpoint_url, [None])
+        self.assertPostNotPermitted(endpoint_url, [None, self.user])
+        self.assertDeleteNotAllowed(endpoint_url)
 
-        self.create_field("nick_name", "Nick Name", agent_access=ContactField.ACCESS_EDIT)
+        nick_name = self.create_field("nick_name", "Nick Name", agent_access=ContactField.ACCESS_EDIT)
         registered = self.create_field("registered", "Registered On", value_type=ContactField.TYPE_DATETIME)
         self.create_field("not_ours", "Something Else", org=self.org2)
 
@@ -3024,15 +2992,10 @@ class EndpointsTest(APITest):
         deleted.release(self.admin)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
-            response = self.getJSON(fields_url, readonly_models={ContactField})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
+        self.assertGet(
+            endpoint_url,
+            [self.user, self.editor],
+            results=[
                 {
                     "key": "registered",
                     "name": "Registered On",
@@ -3056,78 +3019,79 @@ class EndpointsTest(APITest):
                     "value_type": "text",
                 },
             ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 1,
         )
 
         # filter by key
-        response = self.getJSON(fields_url, "key=nick_name")
-        self.assertEqual(
-            response.json()["results"],
-            [
-                {
-                    "key": "nick_name",
-                    "name": "Nick Name",
-                    "type": "text",
-                    "featured": False,
-                    "priority": 0,
-                    "usages": {"campaign_events": 0, "flows": 0, "groups": 0},
-                    "agent_access": "edit",
-                    "label": "Nick Name",
-                    "value_type": "text",
-                }
-            ],
-        )
+        self.assertGet(endpoint_url + "?key=nick_name", [self.editor], results=[nick_name])
 
         # try to create empty field
-        response = self.postJSON(fields_url, None, {})
-        self.assertResponseError(response, "non_field_errors", "Field 'name' is required.")
+        self.assertPost(endpoint_url, self.admin, {}, errors={"non_field_errors": "Field 'name' is required."})
 
         # try to create field without type
-        response = self.postJSON(fields_url, None, {"name": "goats"})
-        self.assertResponseError(response, "non_field_errors", "Field 'type' is required.")
+        self.assertPost(
+            endpoint_url, self.admin, {"name": "goats"}, errors={"non_field_errors": "Field 'type' is required."}
+        )
 
         # try again with some invalid values
-        response = self.postJSON(fields_url, None, {"name": "!@#$%", "type": "video"})
-        self.assertResponseError(response, "name", "Can only contain letters, numbers and hypens.")
-        self.assertResponseError(response, "type", '"video" is not a valid choice.')
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"name": "!@#$%", "type": "video"},
+            errors={"name": "Can only contain letters, numbers and hypens.", "type": '"video" is not a valid choice.'},
+        )
 
         # try again with some invalid values using deprecated field names
-        response = self.postJSON(fields_url, None, {"label": "!@#$%", "value_type": "video"})
-        self.assertResponseError(response, "label", "Can only contain letters, numbers and hypens.")
-        self.assertResponseError(response, "value_type", '"video" is not a valid choice.')
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"label": "!@#$%", "value_type": "video"},
+            errors={
+                "label": "Can only contain letters, numbers and hypens.",
+                "value_type": '"video" is not a valid choice.',
+            },
+        )
 
         # try again with a label that would generate an invalid key
-        response = self.postJSON(fields_url, None, {"name": "UUID", "type": "text"})
-        self.assertResponseError(response, "name", 'Generated key "uuid" is invalid or a reserved name.')
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"name": "UUID", "type": "text"},
+            errors={"name": 'Generated key "uuid" is invalid or a reserved name.'},
+        )
 
         # try again with a label that's already taken
-        response = self.postJSON(fields_url, None, {"label": "nick name", "value_type": "text"})
-        self.assertResponseError(response, "label", "This field must be unique.")
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"label": "nick name", "value_type": "text"},
+            errors={"label": "This field must be unique."},
+        )
 
         # create a new field
-        response = self.postJSON(fields_url, None, {"name": "Age", "type": "number"})
-        self.assertEqual(response.status_code, 201)
+        self.assertPost(endpoint_url, self.editor, {"name": "Age", "type": "number"}, status=201)
 
         age = ContactField.user_fields.get(org=self.org, name="Age", value_type="N", is_active=True)
 
         # update a field by its key
-        response = self.postJSON(fields_url, "key=age", {"name": "Real Age", "type": "datetime"})
-        self.assertEqual(response.status_code, 200)
-
+        self.assertPost(endpoint_url + "?key=age", self.admin, {"name": "Real Age", "type": "datetime"})
         age.refresh_from_db()
         self.assertEqual(age.name, "Real Age")
         self.assertEqual(age.value_type, "D")
 
         # try to update with key of deleted field
-        response = self.postJSON(fields_url, "key=deleted", {"name": "Something", "type": "text"})
-        self.assert404(response)
+        self.assertPost(endpoint_url + "?key=deleted", self.admin, {"name": "Something", "type": "text"}, status=404)
 
         # try to update with non-existent key
-        response = self.postJSON(fields_url, "key=not_ours", {"name": "Something", "type": "text"})
-        self.assert404(response)
+        self.assertPost(endpoint_url + "?key=not_ours", self.admin, {"name": "Something", "type": "text"}, status=404)
 
         # try to change type of date field used by campaign event
-        response = self.postJSON(fields_url, "key=registered", {"name": "Registered", "type": "text"})
-        self.assertResponseError(response, "type", "Can't change type of date field being used by campaign events.")
+        self.assertPost(
+            endpoint_url + "?key=registered",
+            self.admin,
+            {"name": "Registered", "type": "text"},
+            errors={"type": "Can't change type of date field being used by campaign events."},
+        )
 
         CampaignEvent.objects.all().delete()
         ContactField.objects.filter(is_system=False).delete()
@@ -3135,9 +3099,12 @@ class EndpointsTest(APITest):
         for i in range(10):
             self.create_field("field%d" % i, "Field%d" % i)
 
-        response = self.postJSON(fields_url, None, {"label": "Age", "value_type": "numeric"})
-        self.assertResponseError(
-            response, None, "Cannot create object because workspace has reached limit of 10.", status_code=409
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"label": "Age", "value_type": "numeric"},
+            errors={None: "Cannot create object because workspace has reached limit of 10."},
+            status=409,
         )
 
     def test_flows(self):
@@ -3584,27 +3551,23 @@ class EndpointsTest(APITest):
 
     @override_settings(ORG_LIMIT_DEFAULTS={"globals": 3})
     def test_globals(self):
-        globals_url = reverse("api.v2.globals")
+        endpoint_url = reverse("api.v2.globals") + ".json"
 
-        self.assertEndpointAccess(globals_url, viewer_get=200, admin_get=200, agent_get=200)
+        self.assertGetNotPermitted(endpoint_url, [None])
+        self.assertPostNotPermitted(endpoint_url, [None, self.user])
+        self.assertDeleteNotAllowed(endpoint_url)
 
         # create some globals
         global1 = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Ltd")
         global2 = Global.get_or_create(self.org, self.admin, "access_token", "Access Token", "23464373")
 
         # on another org
-        Global.get_or_create(self.org2, self.admin, "thingy", "Thingy", "xyz")
+        global3 = Global.get_or_create(self.org2, self.admin, "thingy", "Thingy", "xyz")
 
-        # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
-            response = self.getJSON(globals_url, readonly_models={Global})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
+        response = self.assertGet(
+            endpoint_url,
+            [self.agent, self.user, self.editor],
+            results=[
                 {
                     "key": "access_token",
                     "name": "Access Token",
@@ -3618,90 +3581,60 @@ class EndpointsTest(APITest):
                     "modified_on": format_datetime(global1.modified_on),
                 },
             ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 1,
         )
 
-        # Filter by key
-        response = self.getJSON(globals_url, "key=org_name")
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
-                {
-                    "key": "org_name",
-                    "name": "Org Name",
-                    "value": "Acme Ltd",
-                    "modified_on": format_datetime(global1.modified_on),
-                }
-            ],
-        )
+        self.assertGet(endpoint_url, [self.admin2], results=[global3])
+
+        # filter by key
+        self.assertGet(endpoint_url + "?key=org_name", [self.editor], results=[global1])
 
         # filter by after
-        response = self.getJSON(globals_url, "after=%s" % format_datetime(global1.modified_on))
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
-                {
-                    "key": "access_token",
-                    "name": "Access Token",
-                    "value": "23464373",
-                    "modified_on": format_datetime(global2.modified_on),
-                },
-                {
-                    "key": "org_name",
-                    "name": "Org Name",
-                    "value": "Acme Ltd",
-                    "modified_on": format_datetime(global1.modified_on),
-                },
-            ],
+        self.assertGet(
+            endpoint_url + f"?after={format_datetime(global1.modified_on)}", [self.editor], results=[global2, global1]
         )
 
         # filter by before
-        response = self.getJSON(globals_url, "before=%s" % format_datetime(global1.modified_on))
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
-                {
-                    "key": "org_name",
-                    "name": "Org Name",
-                    "value": "Acme Ltd",
-                    "modified_on": format_datetime(global1.modified_on),
-                }
-            ],
+        self.assertGet(
+            endpoint_url + f"?before={format_datetime(global1.modified_on)}", [self.editor], results=[global1]
         )
 
         # lets change a global
-        response = self.postJSON(globals_url, "key=org_name", {"value": "Acme LLC"})
-        self.assertEqual(response.status_code, 200)
+        self.assertPost(endpoint_url + "?key=org_name", self.admin, {"value": "Acme LLC"})
         global1.refresh_from_db()
         self.assertEqual(global1.value, "Acme LLC")
 
         # try to create a global with no name
-        response = self.postJSON(globals_url, None, {"value": "yes"})
-        self.assertResponseError(response, "non_field_errors", "Name is required when creating new global.")
+        response = self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"value": "yes"},
+            errors={"non_field_errors": "Name is required when creating new global."},
+        )
 
         # try to create a global with invalid name
-        response = self.postJSON(globals_url, None, {"name": "!!!#$%^"})
-        self.assertResponseError(response, "name", "Name contains illegal characters.")
+        response = self.assertPost(
+            endpoint_url, self.admin, {"name": "!!!#$%^"}, errors={"name": "Name contains illegal characters."}
+        )
 
         # try to create a global with name that creates an invalid key
-        response = self.postJSON(globals_url, None, {"name": "2cool key", "value": "23464373"})
-        self.assertResponseError(response, "name", "Name creates Key that is invalid")
+        response = self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"name": "2cool key", "value": "23464373"},
+            errors={"name": "Name creates Key that is invalid"},
+        )
 
         # try to create a global with name that's too long
-        response = self.postJSON(globals_url, None, {"name": "x" * 37})
-        self.assertResponseError(response, "name", "Ensure this field has no more than 36 characters.")
+        response = self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"name": "x" * 37},
+            errors={"name": "Ensure this field has no more than 36 characters."},
+        )
 
-        # lets create a global via the API
-        response = self.postJSON(globals_url, None, {"name": "New Global", "value": "23464373"})
-        self.assertEqual(response.status_code, 201)
+        # lets create a new global
+        response = self.assertPost(endpoint_url, self.admin, {"name": "New Global", "value": "23464373"}, status=201)
         global3 = Global.objects.get(key="new_global")
         self.assertEqual(
             response.json(),
@@ -3714,9 +3647,12 @@ class EndpointsTest(APITest):
         )
 
         # try again now that we've hit the mocked limit of globals per org
-        response = self.postJSON(globals_url, None, {"name": "Website URL", "value": "http://example.com"})
-        self.assertResponseError(
-            response, None, "Cannot create object because workspace has reached limit of 3.", status_code=409
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"name": "Website URL", "value": "http://example.com"},
+            errors={None: "Cannot create object because workspace has reached limit of 3."},
+            status=409,
         )
 
     @override_settings(ORG_LIMIT_DEFAULTS={"groups": 10})
@@ -3931,9 +3867,11 @@ class EndpointsTest(APITest):
         self.assertEqual(response.json(), {"detail": "Group is being used by campaigns which must be archived first."})
 
     def test_labels(self):
-        labels_url = reverse("api.v2.labels")
+        endpoint_url = reverse("api.v2.labels") + ".json"
 
-        self.assertEndpointAccess(labels_url, viewer_get=200, admin_get=200, agent_get=403)
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotPermitted(endpoint_url, [None, self.user, self.agent])
+        self.assertDeleteNotPermitted(endpoint_url + "?uuid=123", [None, self.user, self.agent])
 
         important = self.create_label("Important")
         feedback = self.create_label("Feedback")
@@ -3949,92 +3887,86 @@ class EndpointsTest(APITest):
         important.toggle_label([msg], add=True)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
-            response = self.getJSON(labels_url, readonly_models={Label})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
+        self.assertGet(
+            endpoint_url,
+            [self.user, self.editor],
+            results=[
                 {"uuid": str(feedback.uuid), "name": "Feedback", "count": 0},
                 {"uuid": str(important.uuid), "name": "Important", "count": 1},
             ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 2,
         )
 
         # filter by UUID
-        response = self.getJSON(labels_url, f"uuid={feedback.uuid}")
-        self.assertEqual(response.json()["results"], [{"uuid": str(feedback.uuid), "name": "Feedback", "count": 0}])
+        self.assertGet(endpoint_url + f"?uuid={feedback.uuid}", [self.editor], results=[feedback])
 
         # filter by name
-        response = self.getJSON(labels_url, "name=important")
-        self.assertResultsByUUID(response, [important])
+        self.assertGet(endpoint_url + "?name=important", [self.editor], results=[important])
 
         # try to filter by both
-        response = self.getJSON(labels_url, f"uuid={important.uuid}&name=important")
-        self.assertResponseError(response, None, "You may only specify one of the uuid, name parameters")
+        self.assertGet(
+            endpoint_url + f"?uuid={important.uuid}&name=important",
+            [self.editor],
+            errors={None: "You may only specify one of the uuid, name parameters"},
+        )
 
         # try to create empty label
-        response = self.postJSON(labels_url, None, {})
-        self.assertResponseError(response, "name", "This field is required.")
+        self.assertPost(endpoint_url, self.editor, {}, errors={"name": "This field is required."})
 
         # create new label
-        response = self.postJSON(labels_url, None, {"name": "Interesting"})
-        self.assertEqual(response.status_code, 201)
+        response = self.assertPost(endpoint_url, self.editor, {"name": "Interesting"}, status=201)
 
         interesting = Label.objects.get(name="Interesting")
         self.assertEqual(response.json(), {"uuid": str(interesting.uuid), "name": "Interesting", "count": 0})
 
         # try to create another label with same name
-        response = self.postJSON(labels_url, None, {"name": "interesting"})
-        self.assertResponseError(response, "name", "This field must be unique.")
+        self.assertPost(
+            endpoint_url, self.admin, {"name": "interesting"}, errors={"name": "This field must be unique."}
+        )
 
         # it's fine if a label in another org has that name
-        response = self.postJSON(labels_url, None, {"name": "Spam"})
-        self.assertEqual(response.status_code, 201)
+        self.assertPost(endpoint_url, self.admin, {"name": "Spam"}, status=201)
 
         # try to create a label with invalid name
-        response = self.postJSON(labels_url, None, {"name": '""'})
-        self.assertResponseError(response, "name", 'Cannot contain the character: "')
+        self.assertPost(endpoint_url, self.admin, {"name": '""'}, errors={"name": 'Cannot contain the character: "'})
 
         # try to create a label with name that's too long
-        response = self.postJSON(labels_url, None, {"name": "x" * 65})
-        self.assertResponseError(response, "name", "Ensure this field has no more than 64 characters.")
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"name": "x" * 65},
+            errors={"name": "Ensure this field has no more than 64 characters."},
+        )
 
         # update label by UUID
-        response = self.postJSON(labels_url, f"uuid={interesting.uuid}", {"name": "More Interesting"})
-        self.assertEqual(response.status_code, 200)
-
+        response = self.assertPost(endpoint_url + f"?uuid={interesting.uuid}", self.admin, {"name": "More Interesting"})
         interesting.refresh_from_db()
         self.assertEqual(interesting.name, "More Interesting")
 
         # can't update label from other org
-        response = self.postJSON(labels_url, f"uuid={spam.uuid}", {"name": "Won't work"})
-        self.assert404(response)
+        self.assertPost(endpoint_url + f"?uuid={spam.uuid}", self.admin, {"name": "Won't work"}, status=404)
 
         # try an empty delete request
-        response = self.deleteJSON(labels_url, None)
-        self.assertResponseError(response, None, "URL must contain one of the following parameters: uuid")
+        self.assertDelete(
+            endpoint_url, self.admin, errors={None: "URL must contain one of the following parameters: uuid"}
+        )
 
         # delete a label by UUID
-        response = self.deleteJSON(labels_url, f"uuid={interesting.uuid}")
-        self.assertEqual(response.status_code, 204)
-
+        self.assertDelete(endpoint_url + f"?uuid={interesting.uuid}", self.admin)
         interesting.refresh_from_db()
-
         self.assertFalse(interesting.is_active)
 
         # try to delete a label in another org
-        response = self.deleteJSON(labels_url, f"uuid={spam.uuid}")
-        self.assert404(response)
+        self.assertDelete(endpoint_url + f"?uuid={spam.uuid}", self.admin, status=404)
 
         # try creating a new label after reaching the limit on labels
-        current_count = Label.objects.filter(org=self.org, is_active=True).count()
-        with override_settings(ORG_LIMIT_DEFAULTS={"labels": current_count}):
-            response = self.postJSON(labels_url, None, {"name": "Interesting"})
-            self.assertResponseError(
-                response, None, "Cannot create object because workspace has reached limit of 3.", status_code=409
+        with override_settings(ORG_LIMIT_DEFAULTS={"labels": self.org.msgs_labels.filter(is_active=True).count()}):
+            self.assertPost(
+                endpoint_url,
+                self.admin,
+                {"name": "Interesting"},
+                errors={None: "Cannot create object because workspace has reached limit of 3."},
+                status=409,
             )
 
     @mock_uuids
