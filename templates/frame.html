@@ -99,10 +99,10 @@
         {% include "components-body.html" %}
       {% endif %}
       {% if user_org %}
-        <temba-store completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
+        <temba-store {% if org_perms.globals.global_list %}globals="/api/v2/globals.json"{% endif %}
+                     completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
                      languages="/org/languages/"
                      fields="/api/v2/fields.json"
-                     globals="/api/v2/globals.json"
                      groups="/api/v2/groups.json"
                      workspace="/api/v2/workspace.json"
                      users="/api/v2/users.json">
