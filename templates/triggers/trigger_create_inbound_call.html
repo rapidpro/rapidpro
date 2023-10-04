@@ -8,6 +8,7 @@
   {% render_field "action" %}
   <div class="{% if form.action.value == 'hangup' %}hidden{% endif %} voice-flow-container">{% render_field "voice_flow" %}</div>
   <div class="{% if form.action.value == 'answer' %}hidden{% endif %} msg-flow-container">{% render_field "msg_flow" %}</div>
+  {% render_field "channel" %}
   {% render_field "groups" %}
   {% render_field "exclude_groups" %}
 {% endblock fields %}

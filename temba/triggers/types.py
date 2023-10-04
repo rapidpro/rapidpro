@@ -46,8 +46,9 @@ class KeywordTriggerType(ChannelTriggerType):
             kwargs["keyword"] = cleaned_data.get("keyword") or ""
             return kwargs
 
-        class Meta(BaseTriggerForm.Meta):
+        class Meta(BaseChannelTriggerForm.Meta):
             fields = ("keyword", "match_type") + BaseChannelTriggerForm.Meta.fields
+            help_texts = {"channel": "Only include messages from this channel."}
             widgets = {"keyword": InputWidget(), "match_type": SelectWidget()}
 
     code = Trigger.TYPE_KEYWORD
@@ -81,6 +82,9 @@ class CatchallTriggerType(ChannelTriggerType):
     class Form(BaseChannelTriggerForm):
         def __init__(self, org, user, *args, **kwargs):
             super().__init__(org, user, Trigger.TYPE_CATCH_ALL, *args, **kwargs)
+
+        class Meta(BaseChannelTriggerForm.Meta):
+            help_texts = {"channel": "Only include messages from this channel."}
 
     code = Trigger.TYPE_CATCH_ALL
     slug = "catch_all"
@@ -193,6 +197,7 @@ class InboundCallTriggerType(ChannelTriggerType):
 
         class Meta(BaseTriggerForm.Meta):
             fields = ("action", "voice_flow", "msg_flow", "channel", "groups", "exclude_groups")
+            help_texts = {"channel": "Only include calls from this channel."}
 
     code = Trigger.TYPE_INBOUND_CALL
     slug = "inbound_call"
