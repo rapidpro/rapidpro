@@ -252,7 +252,7 @@ class Event:
         if obj.event_type in ChannelEvent.CALL_TYPES:
             ch_event["duration"] = extra.get("duration")
         elif obj.event_type in (ChannelEvent.TYPE_OPTIN, ChannelEvent.TYPE_OPTOUT):
-            ch_event["optin"] = _optin(OptIn.objects.get(org=org, id=extra.get("optin_id")))
+            ch_event["optin"] = _optin(obj.optin) if obj.optin else None
 
         return {
             "type": cls.TYPE_CHANNEL_EVENT,
