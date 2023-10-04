@@ -82,7 +82,7 @@ class APIPermission(BasePermission):
             else:
                 return False
 
-            has_perm = role.has_perm(permission)
+            has_perm = role.has_api_perm(permission)
 
             # viewers can only ever get from the API
             if role == OrgRole.VIEWER:
