@@ -679,7 +679,7 @@ class TembaTest(SmartminTest):
             modified_by=self.admin,
         )
 
-    def create_channel_event(self, channel, urn, event_type, occurred_on=None, extra=None):
+    def create_channel_event(self, channel, urn, event_type, occurred_on=None, optin=None, extra=None):
         urn_obj = ContactURN.lookup(channel.org, urn, country_code=channel.country)
         if urn_obj:
             contact = urn_obj.contact
@@ -694,6 +694,7 @@ class TembaTest(SmartminTest):
             contact_urn=urn_obj,
             occurred_on=occurred_on or timezone.now(),
             event_type=event_type,
+            optin=optin,
             extra=extra,
         )
 
