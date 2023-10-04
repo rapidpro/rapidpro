@@ -64,8 +64,9 @@ class ChannelTriggerType(TriggerType):
     Base class for trigger types based on channel activity.
     """
 
-    # channels with these schemes allowed for this type
+    # channels with these schemes or role allowed for this type
     allowed_channel_schemes = ()
+    allowed_channel_role = None
 
     export_fields = TriggerType.export_fields + ("channel",)
 
