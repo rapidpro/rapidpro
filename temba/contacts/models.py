@@ -778,7 +778,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
             .exclude(status=Msg.STATUS_PENDING)
             .order_by("-created_on", "-id")
-            .select_related("channel", "contact_urn", "broadcast")[:limit]
+            .select_related("channel", "contact_urn", "broadcast", "optin")[:limit]
         )
 
         # get all runs start started or ended in this period
@@ -797,7 +797,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         channel_events = (
             self.channel_events.filter(created_on__gte=after, created_on__lt=before)
             .order_by("-created_on")
-            .select_related("channel")[:limit]
+            .select_related("channel", "optin")[:limit]
         )
 
         campaign_events = (
