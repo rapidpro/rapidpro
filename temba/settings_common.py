@@ -696,8 +696,6 @@ GROUP_PERMISSIONS = {
     "Agents": (
         "contacts.contact_api",
         "contacts.contact_history",
-        "contacts.contactfield_list",
-        "contacts.contactgroup_list",
         "msgs.media_api",
         "msgs.msg_api",
         "notifications.notification_list",
@@ -716,6 +714,14 @@ GROUP_PERMISSIONS = {
         "tickets.topic_api",
     ),
     "Prometheus": (),
+}
+
+# extra permissions that only apply to API requests (wildcard notation not supported here)
+API_PERMISSIONS = {
+    "Agents": (
+        "contacts.contactfield_list",
+        "contacts.contactgroup_list",
+    )
 }
 
 # -----------------------------------------------------------------------------------

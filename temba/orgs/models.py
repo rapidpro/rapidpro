@@ -373,11 +373,21 @@ class OrgRole(Enum):
         perms = self.group.permissions.select_related("content_type")
         return {f"{p.content_type.app_label}.{p.codename}" for p in perms}
 
+    @cached_property
+    def api_permissions(self) -> set:
+        return set(settings.API_PERMISSIONS.get(self.group_name, ()))
+
     def has_perm(self, permission: str) -> bool:
         """
         Returns whether this role has the given permission
         """
         return permission in self.permissions
+
+    def has_api_perm(self, permission: str) -> bool:
+        """
+        Returns whether this role has the given permission in the context of an API request.
+        """
+        return self.has_perm(permission) or permission in self.api_permissions
 
 
 class Org(SmartModel):

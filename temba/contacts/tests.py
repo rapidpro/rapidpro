@@ -4279,7 +4279,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             list_url,
             allow_viewers=True,
             allow_editors=True,
-            allow_agents=True,
+            allow_agents=False,
             context_objects=[self.age, self.gender, self.state],
         )
 
