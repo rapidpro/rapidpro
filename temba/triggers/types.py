@@ -3,6 +3,7 @@ import regex
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
+from temba.channels.models import Channel
 from temba.contacts.models import ContactURN
 from temba.contacts.search.omnibox import omnibox_deserialize
 from temba.flows.models import Flow
@@ -13,7 +14,7 @@ from .models import ChannelTriggerType, Trigger, TriggerType
 from .views import BaseChannelTriggerForm, BaseTriggerForm
 
 
-class KeywordTriggerType(TriggerType):
+class KeywordTriggerType(ChannelTriggerType):
     """
     A trigger for incoming messages that match given keywords
     """
@@ -24,7 +25,7 @@ class KeywordTriggerType(TriggerType):
         flags=regex.UNICODE,
     )
 
-    class Form(BaseTriggerForm):
+    class Form(BaseChannelTriggerForm):
         keyword = forms.CharField(
             max_length=Trigger.KEYWORD_MAX_LEN,
             label=_("Keyword"),
@@ -46,15 +47,16 @@ class KeywordTriggerType(TriggerType):
             return kwargs
 
         class Meta(BaseTriggerForm.Meta):
-            fields = ("keyword", "match_type") + BaseTriggerForm.Meta.fields
+            fields = ("keyword", "match_type") + BaseChannelTriggerForm.Meta.fields
             widgets = {"keyword": InputWidget(), "match_type": SelectWidget()}
 
     code = Trigger.TYPE_KEYWORD
     slug = "keyword"
     name = _("Keyword")
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE)
-    export_fields = TriggerType.export_fields + ("keyword", "match_type")
-    required_fields = TriggerType.required_fields + ("keyword",)
+    allowed_channel_role = Channel.ROLE_RECEIVE
+    export_fields = ChannelTriggerType.export_fields + ("keyword", "match_type")
+    required_fields = ChannelTriggerType.required_fields + ("keyword",)
     form = Form
 
     def get_instance_name(self, trigger):
@@ -71,12 +73,12 @@ class KeywordTriggerType(TriggerType):
         return 0 < len(keyword) <= Trigger.KEYWORD_MAX_LEN and cls.KEYWORD_REGEX.match(keyword) is not None
 
 
-class CatchallTriggerType(TriggerType):
+class CatchallTriggerType(ChannelTriggerType):
     """
     A catchall trigger for incoming messages that don't match a keyword trigger
     """
 
-    class Form(BaseTriggerForm):
+    class Form(BaseChannelTriggerForm):
         def __init__(self, org, user, *args, **kwargs):
             super().__init__(org, user, Trigger.TYPE_CATCH_ALL, *args, **kwargs)
 
@@ -84,6 +86,7 @@ class CatchallTriggerType(TriggerType):
     slug = "catch_all"
     name = _("Catch All")
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE)
+    allowed_channel_role = Channel.ROLE_RECEIVE
     form = Form
 
 
@@ -134,12 +137,12 @@ class ScheduledTriggerType(TriggerType):
     form = Form
 
 
-class InboundCallTriggerType(TriggerType):
+class InboundCallTriggerType(ChannelTriggerType):
     """
     A trigger for inbound IVR calls
     """
 
-    class Form(BaseTriggerForm):
+    class Form(BaseChannelTriggerForm):
         """
         Overrides the base trigger form to allow us to put voice and non-voice flow options in separate fields
         """
@@ -189,12 +192,13 @@ class InboundCallTriggerType(TriggerType):
             return cleaned_data
 
         class Meta(BaseTriggerForm.Meta):
-            fields = ("action", "voice_flow", "msg_flow", "groups", "exclude_groups")
+            fields = ("action", "voice_flow", "msg_flow", "channel", "groups", "exclude_groups")
 
     code = Trigger.TYPE_INBOUND_CALL
     slug = "inbound_call"
     name = _("Inbound Call")
     allowed_flow_types = (Flow.TYPE_VOICE, Flow.TYPE_MESSAGE, Flow.TYPE_BACKGROUND)
+    allowed_channel_role = Channel.ROLE_ANSWER
     form = Form
 
 
@@ -223,9 +227,6 @@ class NewConversationTriggerType(ChannelTriggerType):
         def __init__(self, org, user, *args, **kwargs):
             super().__init__(org, user, Trigger.TYPE_NEW_CONVERSATION, *args, **kwargs)
 
-        class Meta(BaseTriggerForm.Meta):
-            fields = BaseChannelTriggerForm.Meta.fields
-
     code = Trigger.TYPE_NEW_CONVERSATION
     slug = "new_conversation"
     name = _("New Conversation")
@@ -252,7 +253,7 @@ class ReferralTriggerType(ChannelTriggerType):
             kwargs["referrer_id"] = cleaned_data.get("referrer_id", "").strip()
             return kwargs
 
-        class Meta(BaseTriggerForm.Meta):
+        class Meta(BaseChannelTriggerForm.Meta):
             fields = ("referrer_id",) + BaseChannelTriggerForm.Meta.fields
 
     code = Trigger.TYPE_REFERRAL
@@ -279,12 +280,12 @@ class ClosedTicketTriggerType(TriggerType):
     form = Form
 
 
-class OptInTriggerType(TriggerType):
+class OptInTriggerType(ChannelTriggerType):
     """
     An opt-in trigger type
     """
 
-    class Form(BaseTriggerForm):
+    class Form(BaseChannelTriggerForm):
         def __init__(self, org, user, *args, **kwargs):
             super().__init__(org, user, Trigger.TYPE_OPT_IN, *args, **kwargs)
 
@@ -292,15 +293,16 @@ class OptInTriggerType(TriggerType):
     slug = "opt_in"
     name = _("Opt-In")
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_BACKGROUND)
+    allowed_channel_schemes = ContactURN.SCHEMES_SUPPORTING_OPTINS
     form = Form
 
 
-class OptOutTriggerType(TriggerType):
+class OptOutTriggerType(ChannelTriggerType):
     """
     An opt-out trigger type
     """
 
-    class Form(BaseTriggerForm):
+    class Form(BaseChannelTriggerForm):
         def __init__(self, org, user, *args, **kwargs):
             super().__init__(org, user, Trigger.TYPE_OPT_OUT, *args, **kwargs)
 
@@ -308,6 +310,7 @@ class OptOutTriggerType(TriggerType):
     slug = "opt_out"
     name = _("Opt-Out")
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_BACKGROUND)
+    allowed_channel_schemes = ContactURN.SCHEMES_SUPPORTING_OPTINS
     form = Form
 
 

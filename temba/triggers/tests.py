@@ -307,6 +307,7 @@ class TriggerTest(TembaTest):
             {
                 "trigger_type": "K",
                 "flow": {"uuid": str(flow.uuid), "name": "Test"},
+                "channel": None,
                 "groups": [
                     {"uuid": str(doctors.uuid), "name": "Doctors"},
                     {"uuid": str(farmers.uuid), "name": "Farmers"},
@@ -326,6 +327,7 @@ class TriggerTest(TembaTest):
             {
                 "trigger_type": "V",
                 "flow": {"uuid": str(flow.uuid), "name": "Test"},
+                "channel": None,
                 "groups": [],
                 "exclude_groups": [],
                 "keyword": None,
@@ -553,7 +555,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["keyword", "match_type", "flow", "groups", "exclude_groups"],
+            form_fields=["keyword", "match_type", "flow", "channel", "groups", "exclude_groups"],
         )
 
         # flow options should show messaging and voice flows
@@ -630,6 +632,14 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             {"keyword": "start", "flow": flow2.id, "match_type": "F", "groups": group1.id},
             new_obj_query=Trigger.objects.filter(keyword="start", flow=flow2, groups=group1),
+            success_status=200,
+        )
+
+        # or a channel
+        self.assertCreateSubmit(
+            create_url,
+            {"keyword": "start", "flow": flow2.id, "match_type": "F", "channel": self.channel.id},
+            new_obj_query=Trigger.objects.filter(keyword="start", flow=flow2, channel=self.channel),
             success_status=200,
         )
 
@@ -809,9 +819,11 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     def test_create_inbound_call(self):
-        # make our channel support ivr
-        self.channel.role += Channel.ROLE_CALL + Channel.ROLE_ANSWER
-        self.channel.save()
+        channel1 = self.create_channel("NX", "Vonage", "78598", "AC")
+        channel2 = self.create_channel("T", "Twilio", "34636", "SRAC")
+
+        # channels that shouldn't appear as options
+        self.create_channel("T", "Twilio", "45674", "SR")
 
         flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_VOICE)
         flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_VOICE)
@@ -830,12 +842,15 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["action", "voice_flow", "msg_flow", "groups", "exclude_groups"],
+            form_fields=["action", "voice_flow", "msg_flow", "channel", "groups", "exclude_groups"],
         )
 
         # check which flows appear in which fields
         self.assertEqual([flow1, flow2], list(response.context["form"].fields["voice_flow"].queryset))
         self.assertEqual([flow3, flow4], list(response.context["form"].fields["msg_flow"].queryset))
+
+        # check which channels are allowed
+        self.assertEqual([channel2, channel1], list(response.context["form"].fields["channel"].queryset))
 
         # which flow field is required depends on the action selected
         self.assertCreateSubmit(create_url, {"action": "answer"}, form_errors={"voice_flow": "This field is required."})
@@ -1055,7 +1070,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["flow", "groups", "exclude_groups"],
+            form_fields=["flow", "channel", "groups", "exclude_groups"],
         )
 
         # flow options should show messaging and voice flows
@@ -1084,6 +1099,14 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             {"flow": flow2.id, "groups": group1.id},
             new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_CATCH_ALL, flow=flow2),
+            success_status=200,
+        )
+
+        # or a channel
+        self.assertCreateSubmit(
+            create_url,
+            {"flow": flow2.id, "channel": self.channel.id},
+            new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_CATCH_ALL, flow=flow2, channel=self.channel),
             success_status=200,
         )
 
@@ -1129,6 +1152,10 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create_opt_in(self):
         flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
         flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_BACKGROUND)
+        group1 = self.create_group("Group 1", contacts=[])
+
+        channel1 = self.create_channel("FB", "Facebook 1", "1234567")
+        channel2 = self.create_channel("FB", "Facebook 2", "2345678")
 
         # flows that shouldn't appear as options
         self.create_flow("Flow 3", flow_type=Flow.TYPE_VOICE)
@@ -1138,11 +1165,17 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         create_url = reverse("triggers.trigger_create_opt_in")
 
         response = self.assertCreateFetch(
-            create_url, allow_viewers=False, allow_editors=True, form_fields=["flow", "groups", "exclude_groups"]
+            create_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["flow", "channel", "groups", "exclude_groups"],
         )
 
         # flow options should be messaging and background flows
         self.assertEqual([flow1, flow2], list(response.context["form"].fields["flow"].queryset))
+
+        # channel options should only be channels that support optins
+        self.assertEqual([channel1, channel2], list(response.context["form"].fields["channel"].queryset))
 
         self.assertCreateSubmit(
             create_url,
@@ -1151,16 +1184,36 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             success_status=200,
         )
 
-        # we can't create another...
+        # we can't create another
         self.assertCreateSubmit(
             create_url,
             {"flow": flow2.id},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
+        # works if we specify a group
+        self.assertCreateSubmit(
+            create_url,
+            {"flow": flow2.id, "groups": group1.id},
+            new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_OPT_IN, flow=flow2),
+            success_status=200,
+        )
+
+        # or a channel
+        self.assertCreateSubmit(
+            create_url,
+            {"flow": flow2.id, "channel": channel2.id},
+            new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_OPT_IN, flow=flow2, channel=channel2),
+            success_status=200,
+        )
+
     def test_create_opt_out(self):
         flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
         flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_BACKGROUND)
+        group1 = self.create_group("Group 1", contacts=[])
+
+        channel1 = self.create_channel("FB", "Facebook 1", "1234567")
+        channel2 = self.create_channel("FB", "Facebook 2", "2345678")
 
         # flows that shouldn't appear as options
         self.create_flow("Flow 3", flow_type=Flow.TYPE_VOICE)
@@ -1170,11 +1223,17 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         create_url = reverse("triggers.trigger_create_opt_out")
 
         response = self.assertCreateFetch(
-            create_url, allow_viewers=False, allow_editors=True, form_fields=["flow", "groups", "exclude_groups"]
+            create_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["flow", "channel", "groups", "exclude_groups"],
         )
 
         # flow options should be messaging and background flows
         self.assertEqual([flow1, flow2], list(response.context["form"].fields["flow"].queryset))
+
+        # channel options should only be channels that support optins
+        self.assertEqual([channel1, channel2], list(response.context["form"].fields["channel"].queryset))
 
         self.assertCreateSubmit(
             create_url,
@@ -1190,11 +1249,28 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
+        # works if we specify a group
+        self.assertCreateSubmit(
+            create_url,
+            {"flow": flow2.id, "groups": group1.id},
+            new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_OPT_OUT, flow=flow2),
+            success_status=200,
+        )
+
+        # or a channel
+        self.assertCreateSubmit(
+            create_url,
+            {"flow": flow2.id, "channel": channel1.id},
+            new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_OPT_OUT, flow=flow2, channel=channel1),
+            success_status=200,
+        )
+
     def test_update_keyword(self):
         flow = self.create_flow("Test")
         group1 = self.create_group("Chat", contacts=[])
         group2 = self.create_group("Testers", contacts=[])
         group3 = self.create_group("Doctors", contacts=[])
+        channel1 = self.create_channel("NX", "Nexmo", "345636", role="SRAC")
         trigger = Trigger.create(
             self.org,
             self.admin,
@@ -1211,7 +1287,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             update_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["keyword", "match_type", "flow", "groups", "exclude_groups"],
+            form_fields=["keyword", "match_type", "flow", "channel", "groups", "exclude_groups"],
         )
 
         # submit with valid keyword and extra group
@@ -1221,6 +1297,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
                 "keyword": "kiki",
                 "flow": flow.id,
                 "match_type": "O",
+                "channel": channel1.id,
                 "groups": [group1.id, group2.id],
                 "exclude_groups": [group3.id],
             },
@@ -1230,6 +1307,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("kiki", trigger.keyword)
         self.assertEqual(flow, trigger.flow)
         self.assertEqual(Trigger.MATCH_ONLY_WORD, trigger.match_type)
+        self.assertEqual(channel1, trigger.channel)
         self.assertEqual({group1, group2}, set(trigger.groups.all()))
         self.assertEqual({group3}, set(trigger.exclude_groups.all()))
 
@@ -1265,6 +1343,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
                 "action": "answer",
                 "voice_flow": flow2,
                 "msg_flow": None,
+                "channel": None,
                 "groups": [],
                 "exclude_groups": [],
             },
@@ -1291,6 +1370,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
                 "action": "hangup",
                 "voice_flow": None,
                 "msg_flow": flow3,
+                "channel": None,
                 "groups": [],
                 "exclude_groups": [],
             },

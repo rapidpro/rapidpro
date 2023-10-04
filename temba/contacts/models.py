@@ -1343,6 +1343,7 @@ class ContactURN(models.Model):
         URN.INSTAGRAM_SCHEME,
     }
     SCHEMES_SUPPORTING_REFERRALS = {URN.FACEBOOK_SCHEME}  # schemes that support "referral" triggers
+    SCHEMES_SUPPORTING_OPTINS = {URN.FACEBOOK_SCHEME}  # schemes that support opt-in/opt-out triggers
 
     # mailroom sets priorites like 1000, 999, ...
     PRIORITY_HIGHEST = 1000

@@ -174,6 +174,8 @@ class BaseChannelTriggerForm(BaseTriggerForm):
         qs = self.org.channels.filter(is_active=True)
         if self.trigger_type.allowed_channel_schemes:
             qs = qs.filter(schemes__overlap=list(self.trigger_type.allowed_channel_schemes))
+        if self.trigger_type.allowed_channel_role:
+            qs = qs.filter(role__contains=self.trigger_type.allowed_channel_role)
         return qs
 
     def get_conflicts_kwargs(self, cleaned_data):
