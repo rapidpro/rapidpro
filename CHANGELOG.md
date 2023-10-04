@@ -1,3 +1,8 @@
+v8.3.41 (2023-10-04)
+-------------------------
+ * Add optin as field to channelevents
+ * Allow perms to be made API specific so that we can limit agent access to the UI
+
 v8.3.40 (2023-10-03)
 -------------------------
  * Remove globals from agent store when missing permission
