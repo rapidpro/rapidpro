@@ -7,11 +7,10 @@ import iso8601
 import pytz
 from django_redis import get_redis_connection
 from packaging.version import Version
-from smartmin.models import SmartModel
 from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
@@ -28,7 +27,7 @@ from temba.contacts import search
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.msgs.models import Label, OptIn
-from temba.orgs.models import DependencyMixin, Org
+from temba.orgs.models import DependencyMixin, Org, User
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer, Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
@@ -874,7 +873,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             revision = self.revisions.create(
                 definition=definition,
                 created_by=user,
-                modified_by=user,
                 spec_version=Flow.CURRENT_SPEC_VERSION,
                 revision=revision,
             )
@@ -1324,22 +1322,24 @@ class FlowExit:
         self.run = run
 
 
-class FlowRevision(SmartModel):
+class FlowRevision(models.Model):
     """
-    JSON definitions for previous flow revisions
+    Each version of a flow's definition.
     """
 
     LAST_TRIM_KEY = "temba:last_flow_revision_trim"
 
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="revisions")
+    definition = JSONAsTextField(default=dict)
+    spec_version = models.CharField(default=Flow.FINAL_LEGACY_VERSION, max_length=8)
+    revision = models.IntegerField()
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="revisions")
+    created_on = models.DateTimeField(default=timezone.now)
 
-    definition = JSONAsTextField(help_text=_("The JSON flow definition"), default=dict)
-
-    spec_version = models.CharField(
-        default=Flow.FINAL_LEGACY_VERSION, max_length=8, help_text=_("The flow version this definition is in")
-    )
-
-    revision = models.IntegerField(null=True, help_text=_("Revision number for this definition"))
+    # TODO drop
+    is_active = models.BooleanField(null=True)
+    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True)
+    modified_on = models.DateTimeField(null=True)
 
     @classmethod
     def trim(cls, since):
