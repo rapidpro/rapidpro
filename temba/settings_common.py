@@ -412,7 +412,6 @@ PERMISSIONS = {
 
 # assigns the permissions that each group should have
 GROUP_PERMISSIONS = {
-    "Service Users": ("flows.flow_assets", "msgs.msg_create"),  # internal Temba services have limited permissions
     "Alpha": (),
     "Beta": (),
     "Dashboard": ("orgs.org_dashboard",),
