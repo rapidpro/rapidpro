@@ -1336,11 +1336,6 @@ class FlowRevision(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="revisions")
     created_on = models.DateTimeField(default=timezone.now)
 
-    # TODO drop
-    is_active = models.BooleanField(null=True)
-    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True)
-    modified_on = models.DateTimeField(null=True)
-
     @classmethod
     def trim(cls, since):
         """
@@ -2093,9 +2088,6 @@ class FlowLabel(TembaModel):
     """
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flow_labels")
-
-    # TODO drop
-    parent = models.ForeignKey("FlowLabel", on_delete=models.PROTECT, null=True, related_name="children")
 
     @classmethod
     def create(cls, org, user, name: str):
