@@ -1897,7 +1897,6 @@ class FlowsEndpoint(ListAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "flows.flow_api"
     model = Flow
     serializer_class = FlowReadSerializer
     pagination_class = CreatedOnCursorPagination
@@ -3157,7 +3156,6 @@ class RunsEndpoint(ListAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "flows.flow_api"
     model = FlowRun
     serializer_class = FlowRunReadSerializer
     pagination_class = ModifiedOnCursorPagination
@@ -3351,7 +3349,6 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
 
     """
 
-    permission = "flows.flowstart_api"
     model = FlowStart
     serializer_class = FlowStartReadSerializer
     write_serializer_class = FlowStartWriteSerializer
@@ -3373,6 +3370,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
+            Prefetch("flow", queryset=Flow.objects.only("uuid", "name")),
             Prefetch("contacts", queryset=Contact.objects.only("uuid", "name").order_by("id")),
             Prefetch("groups", queryset=ContactGroup.objects.only("uuid", "name").order_by("id")),
         )
