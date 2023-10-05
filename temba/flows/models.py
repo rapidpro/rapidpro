@@ -872,7 +872,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             revision = self.revisions.create(
                 definition=definition,
                 created_by=user,
-                modified_by=user,
                 spec_version=Flow.CURRENT_SPEC_VERSION,
                 revision=revision,
             )
@@ -1324,7 +1323,7 @@ class FlowExit:
 
 class FlowRevision(models.Model):
     """
-    JSON definitions for previous flow revisions
+    Each version of a flow's definition.
     """
 
     LAST_TRIM_KEY = "temba:last_flow_revision_trim"
@@ -1332,9 +1331,14 @@ class FlowRevision(models.Model):
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="revisions")
     definition = JSONAsTextField(default=dict)
     spec_version = models.CharField(default=Flow.FINAL_LEGACY_VERSION, max_length=8)
-    revision = models.IntegerField(null=True)
+    revision = models.IntegerField()
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="revisions")
     created_on = models.DateTimeField(default=timezone.now)
+
+    # TODO drop
+    is_active = models.BooleanField(null=True)
+    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True)
+    modified_on = models.DateTimeField(null=True)
 
     @classmethod
     def trim(cls, since):

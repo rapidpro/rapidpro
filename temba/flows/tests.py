@@ -5555,9 +5555,7 @@ class FlowRevisionTest(TembaTest):
             definition=dict(),
             revision=99,
             created_on=timezone.now() - timedelta(days=7),
-            modified_on=timezone.now(),
             created_by=self.admin,
-            modified_by=self.admin,
         )
 
         # make a bunch of revisions for color on the same day
@@ -5566,13 +5564,7 @@ class FlowRevisionTest(TembaTest):
             revision -= 1
             created = created - timedelta(minutes=1)
             FlowRevision.objects.create(
-                flow=color,
-                definition=dict(),
-                revision=revision,
-                created_by=self.admin,
-                modified_by=self.admin,
-                created_on=created,
-                modified_on=created,
+                flow=color, definition=dict(), revision=revision, created_by=self.admin, created_on=created
             )
 
         # then for 5 days prior, make a few more
@@ -5582,13 +5574,7 @@ class FlowRevisionTest(TembaTest):
                 revision -= 1
                 created = created - timedelta(minutes=1)
                 FlowRevision.objects.create(
-                    flow=color,
-                    definition=dict(),
-                    revision=revision,
-                    created_by=self.admin,
-                    modified_by=self.admin,
-                    created_on=created,
-                    modified_on=created,
+                    flow=color, definition=dict(), revision=revision, created_by=self.admin, created_on=created
                 )
 
         # trim our flow revisions, should be left with original (today), 25 from yesterday, 1 per day for 5 days = 31
