@@ -1,3 +1,11 @@
+v8.3.42 (2023-10-05)
+-------------------------
+ * Make channel on trigger forms clearable
+ * Prepare unused fields on FlowRevision for removal and change all models in flows app to use orgs.User
+ * Allow beta testers to access optin features
+ * Switch flows, flow_starts and runs API endpoints to use CRUDL permissions
+ * Add optional channel field to call triggers types that are based on channel activity
+
 v8.3.41 (2023-10-04)
 -------------------------
  * Add optin as field to channelevents
