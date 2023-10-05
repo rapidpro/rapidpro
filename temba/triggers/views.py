@@ -163,7 +163,7 @@ class BaseChannelTriggerForm(BaseTriggerForm):
         label=_("Channel"),
         help_text=_("Only include activity from this channel."),
         required=False,
-        widget=SelectWidget(attrs={"placeholder": _("Optional: Select channel"), "searchable": True}),
+        widget=SelectWidget(attrs={"placeholder": _("Optional: Select channel"), "clearable": True}),
     )
 
     def __init__(self, org, user, trigger_type, *args, **kwargs):
