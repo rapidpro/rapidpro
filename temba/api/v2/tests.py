@@ -3108,9 +3108,11 @@ class EndpointsTest(APITest):
         )
 
     def test_flows(self):
-        flows_url = reverse("api.v2.flows")
+        endpoint_url = reverse("api.v2.flows") + ".json"
 
-        self.assertEndpointAccess(flows_url, viewer_get=200, admin_get=200, agent_get=403)
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotAllowed(endpoint_url)
+        self.assertDeleteNotAllowed(endpoint_url)
 
         survey = self.get_flow("media_survey")
         color = self.get_flow("color")
@@ -3130,18 +3132,13 @@ class EndpointsTest(APITest):
         )
 
         # flow belong to other org
-        self.create_flow("Other", org=self.org2)
+        other_org = self.create_flow("Other", org=self.org2)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
-            response = self.getJSON(flows_url, readonly_models={Flow})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
+        self.assertGet(
+            endpoint_url,
+            [self.user, self.editor],
+            results=[
                 {
                     "uuid": archived.uuid,
                     "name": "Favorites",
@@ -3233,61 +3230,56 @@ class EndpointsTest(APITest):
                     "modified_on": format_datetime(survey.modified_on),
                 },
             ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 5,
         )
 
-        # filter by UUID
-        response = self.getJSON(flows_url, "uuid=%s" % color.uuid)
-        self.assertResultsByUUID(response, [color])
+        self.assertGet(endpoint_url, [self.admin2], results=[other_org])
+
+        # filter by key
+        self.assertGet(endpoint_url + f"?uuid={color.uuid}", [self.editor], results=[color])
 
         # filter by type
-        response = self.getJSON(flows_url, "type=message")
-        self.assertResultsByUUID(response, [archived, color])
-
-        response = self.getJSON(flows_url, "type=survey")
-        self.assertResultsByUUID(response, [survey])
+        self.assertGet(endpoint_url + "?type=message", [self.editor], results=[archived, color])
+        self.assertGet(endpoint_url + "?type=survey", [self.editor], results=[survey])
 
         # filter by archived
-        response = self.getJSON(flows_url, "archived=1")
-        self.assertResultsByUUID(response, [archived])
+        self.assertGet(endpoint_url + "?archived=1", [self.editor], results=[archived])
+        self.assertGet(endpoint_url + "?archived=0", [self.editor], results=[color, survey])
+        self.assertGet(endpoint_url + "?archived=false", [self.editor], results=[color, survey])
 
-        response = self.getJSON(flows_url, "archived=0")
-        self.assertResultsByUUID(response, [color, survey])
-
-        response = self.getJSON(flows_url, "archived=false")
-        self.assertResultsByUUID(response, [color, survey])
-
-        # filter by before
-        response = self.getJSON(flows_url, "before=%s" % format_datetime(color.modified_on))
-        self.assertResultsByUUID(response, [color, survey])
-
-        # filter by after
-        response = self.getJSON(flows_url, "after=%s" % format_datetime(color.modified_on))
-        self.assertResultsByUUID(response, [archived, color])
+        # filter by before / after
+        self.assertGet(
+            endpoint_url + f"?before={format_datetime(color.modified_on)}", [self.editor], results=[color, survey]
+        )
+        self.assertGet(
+            endpoint_url + f"?after={format_datetime(color.modified_on)}", [self.editor], results=[archived, color]
+        )
 
         # inactive flows are never returned
         archived.is_active = False
         archived.save()
 
-        response = self.getJSON(flows_url)
-        self.assertResultsByUUID(response, [color, survey])
+        self.assertGet(endpoint_url, [self.editor], results=[color, survey])
 
     @patch("temba.flows.models.FlowStart.async_start")
     def test_flow_starts(self, mock_async_start):
-        starts_url = reverse("api.v2.flow_starts")
+        endpoint_url = reverse("api.v2.flow_starts") + ".json"
 
-        self.assertEndpointAccess(starts_url, viewer_get=403, admin_get=200, agent_get=403)
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotPermitted(endpoint_url, [None, self.agent, self.user])
+        self.assertDeleteNotAllowed(endpoint_url)
 
         flow = self.get_flow("favorites_v13")
 
         # try to create an empty flow start
-        response = self.postJSON(starts_url, None, {})
-        self.assertResponseError(response, "flow", "This field is required.")
+        self.assertPost(endpoint_url, self.editor, {}, errors={"flow": "This field is required."})
 
         # start a flow with the minimum required parameters
-        response = self.postJSON(starts_url, None, {"flow": flow.uuid, "contacts": [self.joe.uuid]})
-        self.assertEqual(response.status_code, 201)
+        response = self.assertPost(
+            endpoint_url, self.editor, {"flow": flow.uuid, "contacts": [self.joe.uuid]}, status=201
+        )
 
-        start1 = flow.starts.get(pk=response.json()["id"])
+        start1 = flow.starts.get(id=response.json()["id"])
         self.assertEqual(start1.flow, flow)
         self.assertEqual(set(start1.contacts.all()), {self.joe})
         self.assertEqual(set(start1.groups.all()), set())
@@ -3300,9 +3292,9 @@ class EndpointsTest(APITest):
 
         # start a flow with all parameters
         hans_group = self.create_group("hans", contacts=[self.hans])
-        response = self.postJSON(
-            starts_url,
-            None,
+        response = self.assertPost(
+            endpoint_url,
+            self.admin,
             {
                 "urns": ["tel:+12067791212"],
                 "contacts": [self.joe.uuid],
@@ -3311,9 +3303,8 @@ class EndpointsTest(APITest):
                 "restart_participants": False,
                 "extra": {"first_name": "Ryan", "last_name": "Lewis"},
             },
+            status=201,
         )
-
-        self.assertEqual(response.status_code, 201)
 
         # assert our new start
         start2 = flow.starts.get(id=response.json()["id"])
@@ -3329,9 +3320,9 @@ class EndpointsTest(APITest):
         mock_async_start.assert_called_once()
         mock_async_start.reset_mock()
 
-        response = self.postJSON(
-            starts_url,
-            None,
+        response = self.assertPost(
+            endpoint_url,
+            self.admin,
             {
                 "urns": ["tel:+12067791212"],
                 "contacts": [self.joe.uuid],
@@ -3341,12 +3332,11 @@ class EndpointsTest(APITest):
                 "extra": {"first_name": "Ryan", "last_name": "Lewis"},
                 "params": {"first_name": "Bob", "last_name": "Marley"},
             },
+            status=201,
         )
 
-        self.assertEqual(response.status_code, 201)
-
         # assert our new start
-        start3 = flow.starts.get(pk=response.json()["id"])
+        start3 = flow.starts.get(id=response.json()["id"])
         self.assertEqual(start3.flow, flow)
         self.assertEqual(["tel:+12067791212"], start3.urns)
         self.assertEqual({self.joe}, set(start3.contacts.all()))
@@ -3359,24 +3349,30 @@ class EndpointsTest(APITest):
         mock_async_start.reset_mock()
 
         # calls from Zapier have user-agent set to Zapier
-        response = self.postJSON(
-            starts_url, None, {"contacts": [self.joe.uuid], "flow": flow.uuid}, HTTP_USER_AGENT="Zapier"
+        response = self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"contacts": [self.joe.uuid], "flow": flow.uuid},
+            HTTP_USER_AGENT="Zapier",
+            status=201,
         )
-
-        self.assertEqual(response.status_code, 201)
 
         # assert our new start has start_type of Zapier
         start4 = flow.starts.get(id=response.json()["id"])
         self.assertEqual(FlowStart.TYPE_API_ZAPIER, start4.start_type)
 
         # try to start a flow with no contact/group/URN
-        response = self.postJSON(starts_url, None, {"flow": flow.uuid, "restart_participants": True})
-        self.assertResponseError(response, "non_field_errors", "Must specify at least one group, contact or URN")
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"flow": flow.uuid, "restart_participants": True},
+            errors={"non_field_errors": "Must specify at least one group, contact or URN"},
+        )
 
         # should raise validation error for invalid JSON in extra
-        response = self.postJSON(
-            starts_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.admin,
             {
                 "urns": ["tel:+12067791212"],
                 "contacts": [self.joe.uuid],
@@ -3385,14 +3381,13 @@ class EndpointsTest(APITest):
                 "restart_participants": False,
                 "extra": "YES",
             },
+            errors={"extra": "Must be a valid JSON object"},
         )
 
-        self.assertResponseError(response, "extra", "Must be a valid JSON object")
-
         # a list is valid JSON, but extra has to be a dict
-        response = self.postJSON(
-            starts_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.admin,
             {
                 "urns": ["tel:+12067791212"],
                 "contacts": [self.joe.uuid],
@@ -3401,13 +3396,12 @@ class EndpointsTest(APITest):
                 "restart_participants": False,
                 "extra": [1],
             },
+            errors={"extra": "Must be a valid JSON object"},
         )
 
-        self.assertResponseError(response, "extra", "Must be a valid JSON object")
-
-        response = self.postJSON(
-            starts_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.admin,
             {
                 "urns": ["tel:+12067791212"],
                 "contacts": [self.joe.uuid],
@@ -3416,14 +3410,13 @@ class EndpointsTest(APITest):
                 "restart_participants": False,
                 "params": "YES",
             },
+            errors={"params": "Must be a valid JSON object"},
         )
 
-        self.assertResponseError(response, "params", "Must be a valid JSON object")
-
         # a list is valid JSON, but extra has to be a dict
-        response = self.postJSON(
-            starts_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.admin,
             {
                 "urns": ["tel:+12067791212"],
                 "contacts": [self.joe.uuid],
@@ -3432,53 +3425,63 @@ class EndpointsTest(APITest):
                 "restart_participants": False,
                 "params": [1],
             },
+            errors={"params": "Must be a valid JSON object"},
         )
-
-        self.assertResponseError(response, "params", "Must be a valid JSON object")
 
         # invalid URN
-        response = self.postJSON(
-            starts_url,
-            None,
-            dict(flow=flow.uuid, restart_participants=True, urns=["foo:bar"], contacts=[self.joe.uuid]),
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"flow": flow.uuid, "urns": ["foo:bar"], "contacts": [self.joe.uuid]},
+            errors={("urns", "0"): "Invalid URN: foo:bar. Ensure phone numbers contain country codes."},
         )
-        self.assertEqual(response.status_code, 400)
 
         # invalid contact uuid
-        response = self.postJSON(
-            starts_url,
-            None,
-            dict(flow=flow.uuid, restart_participants=True, urns=["tel:+12067791212"], contacts=["abcde"]),
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"flow": flow.uuid, "urns": ["tel:+12067791212"], "contacts": ["abcde"]},
+            errors={"contacts": "No such object: abcde"},
         )
-        self.assertEqual(response.status_code, 400)
 
         # invalid group uuid
-        response = self.postJSON(
-            starts_url,
-            None,
-            dict(flow=flow.uuid, restart_participants=True, urns=["tel:+12067791212"], groups=["abcde"]),
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"flow": flow.uuid, "urns": ["tel:+12067791212"], "groups": ["abcde"]},
+            errors={"groups": "No such object: abcde"},
         )
-        self.assertResponseError(response, "groups", "No such object: abcde")
 
         # invalid flow uuid
-        response = self.postJSON(
-            starts_url, None, dict(flow="abcde", restart_participants=True, urns=["tel:+12067791212"])
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {
+                "flow": "abcde",
+                "urns": ["tel:+12067791212"],
+            },
+            errors={"flow": "No such object: abcde"},
         )
-        self.assertResponseError(response, "flow", "No such object: abcde")
 
         # too many groups
         group_uuids = []
         for g in range(101):
             group_uuids.append(self.create_group("Group %d" % g).uuid)
 
-        response = self.postJSON(starts_url, None, dict(flow=flow.uuid, restart_participants=True, groups=group_uuids))
-        self.assertResponseError(response, "groups", "Ensure this field has no more than 100 elements.")
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"flow": flow.uuid, "groups": group_uuids},
+            errors={"groups": "Ensure this field has no more than 100 elements."},
+        )
 
-        # check no params
-        response = self.getJSON(starts_url, readonly_models={FlowStart})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["next"], None)
-        self.assertResultsById(response, [start4, start3, start2, start1])
+        # check fetching with no filtering
+        response = self.assertGet(
+            endpoint_url,
+            [self.user, self.editor],
+            results=[start4, start3, start2, start1],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 4,
+        )
         self.assertEqual(
             response.json()["results"][1],
             {
@@ -3498,20 +3501,17 @@ class EndpointsTest(APITest):
         )
 
         # check filtering by UUID
-        response = self.getJSON(starts_url, "uuid=%s" % str(start2.uuid))
-        self.assertResultsById(response, [start2])
+        self.assertGet(endpoint_url + f"?uuid={start2.uuid}", [self.admin], results=[start2])
 
         # check filtering by in invalid UUID
-        response = self.getJSON(starts_url, "uuid=xyz")
-        self.assertResponseError(response, None, "Value for uuid must be a valid UUID")
+        self.assertGet(endpoint_url + "?uuid=xyz", [self.editor], errors={None: "Value for uuid must be a valid UUID"})
 
         # check filtering by id (deprecated)
-        response = self.getJSON(starts_url, "id=%d" % start2.id)
-        self.assertResultsById(response, [start2])
+        response = self.assertGet(endpoint_url + f"?id={start2.id}", [self.editor], results=[start2])
 
-        response = self.postJSON(
-            starts_url,
-            None,
+        response = self.assertPost(
+            endpoint_url,
+            self.editor,
             {
                 "urns": ["tel:+12067791212"],
                 "contacts": [self.joe.uuid],
@@ -3522,16 +3522,15 @@ class EndpointsTest(APITest):
                 "extra": {"first_name": "Ryan", "last_name": "Lewis"},
                 "params": {"first_name": "Bob", "last_name": "Marley"},
             },
+            status=201,
         )
 
-        self.assertEqual(response.status_code, 201)
+        start4 = flow.starts.get(id=response.json()["id"])
+        self.assertEqual({"started_previously": False, "in_a_flow": False}, start4.exclusions)
 
-        start4 = flow.starts.get(pk=response.json()["id"])
-        self.assertTrue(start4.exclusions, {"started_previously": False, "in_a_flow": False})
-
-        response = self.postJSON(
-            starts_url,
-            None,
+        response = self.assertPost(
+            endpoint_url,
+            self.editor,
             {
                 "urns": ["tel:+12067791212"],
                 "contacts": [self.joe.uuid],
@@ -3542,12 +3541,11 @@ class EndpointsTest(APITest):
                 "extra": {"first_name": "Ryan", "last_name": "Lewis"},
                 "params": {"first_name": "Bob", "last_name": "Marley"},
             },
+            status=201,
         )
 
-        self.assertEqual(response.status_code, 201)
-
-        start5 = flow.starts.get(pk=response.json()["id"])
-        self.assertEqual(start5.exclusions, {"started_previously": False, "in_a_flow": True})
+        start5 = flow.starts.get(id=response.json()["id"])
+        self.assertEqual({"started_previously": False, "in_a_flow": True}, start5.exclusions)
 
     @override_settings(ORG_LIMIT_DEFAULTS={"globals": 3})
     def test_globals(self):
@@ -3589,14 +3587,12 @@ class EndpointsTest(APITest):
         # filter by key
         self.assertGet(endpoint_url + "?key=org_name", [self.editor], results=[global1])
 
-        # filter by after
-        self.assertGet(
-            endpoint_url + f"?after={format_datetime(global1.modified_on)}", [self.editor], results=[global2, global1]
-        )
-
-        # filter by before
+        # filter by before / after
         self.assertGet(
             endpoint_url + f"?before={format_datetime(global1.modified_on)}", [self.editor], results=[global1]
+        )
+        self.assertGet(
+            endpoint_url + f"?after={format_datetime(global1.modified_on)}", [self.editor], results=[global2, global1]
         )
 
         # lets change a global
@@ -4388,9 +4384,11 @@ class EndpointsTest(APITest):
         self.assertResponseError(response, "action", '"like" is not a valid choice.')
 
     def test_runs(self):
-        runs_url = reverse("api.v2.runs")
+        endpoint_url = reverse("api.v2.runs") + ".json"
 
-        self.assertEndpointAccess(runs_url, viewer_get=200, admin_get=200, agent_get=403)
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotAllowed(endpoint_url)
+        self.assertDeleteNotAllowed(endpoint_url)
 
         flow1 = self.get_flow("color_v13")
         flow2 = flow1.clone(self.user)
@@ -4447,13 +4445,12 @@ class EndpointsTest(APITest):
         frank_run2.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
-            response = self.getJSON(runs_url, readonly_models={FlowRun})
-
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(None, response.json()["next"])
-        self.assertResultsById(response, [joe_run3, joe_run2, frank_run2, frank_run1, joe_run1])
-
+        response = self.assertGet(
+            endpoint_url,
+            [self.user, self.editor],
+            results=[joe_run3, joe_run2, frank_run2, frank_run1, joe_run1],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 6,
+        )
         resp_json = response.json()
         self.assertEqual(
             {
@@ -4532,9 +4529,9 @@ class EndpointsTest(APITest):
         )
 
         # can request without path data
-        response = self.getJSON(runs_url, "paths=false", readonly_models={FlowRun})
-
-        self.assertEqual(200, response.status_code)
+        response = self.assertGet(
+            endpoint_url + "?paths=false", [self.editor], results=[joe_run3, joe_run2, frank_run2, frank_run1, joe_run1]
+        )
         resp_json = response.json()
         self.assertEqual(
             {
@@ -4560,21 +4557,18 @@ class EndpointsTest(APITest):
         )
 
         # reversed
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
-            response = self.getJSON(runs_url, "reverse=true")
-
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(None, response.json()["next"])
-        self.assertResultsById(response, [joe_run1, frank_run1, frank_run2, joe_run2, joe_run3])
+        self.assertGet(
+            endpoint_url + "?reverse=true",
+            [self.editor],
+            results=[joe_run1, frank_run1, frank_run2, joe_run2, joe_run3],
+        )
 
         # filter by id
-        response = self.getJSON(runs_url, "id=%d" % frank_run2.pk)
-        self.assertResultsById(response, [frank_run2])
+        self.assertGet(endpoint_url + f"?id={frank_run2.id}", [self.admin], results=[frank_run2])
 
         # anon orgs should not have a URN field
         with self.anonymous(self.org):
-            response = self.getJSON(runs_url, "id=%d" % frank_run2.pk)
-            self.assertResultsById(response, [frank_run2])
+            response = self.assertGet(endpoint_url + f"?id={frank_run2.id}", [self.admin], results=[frank_run2])
             self.assertEqual(
                 {
                     "id": frank_run2.pk,
@@ -4609,111 +4603,65 @@ class EndpointsTest(APITest):
             )
 
         # filter by uuid
-        response = self.getJSON(runs_url, "uuid=%s" % frank_run2.uuid)
-        self.assertResultsById(response, [frank_run2])
+        self.assertGet(endpoint_url + f"?uuid={frank_run2.uuid}", [self.admin], results=[frank_run2])
 
-        # filter by mismatching id and uuid
-        response = self.getJSON(runs_url, "uuid=%s&id=%d" % (frank_run2.uuid, joe_run1.pk))
-        self.assertResultsById(response, [])
-
-        response = self.getJSON(runs_url, "uuid=%s&id=%d" % (frank_run2.uuid, frank_run2.pk))
-        self.assertResultsById(response, [frank_run2])
+        # filter by id and uuid
+        self.assertGet(endpoint_url + f"?uuid={frank_run2.uuid}&id={joe_run1.id}", [self.admin], results=[])
+        self.assertGet(endpoint_url + f"?uuid={frank_run2.uuid}&id={frank_run2.id}", [self.admin], results=[frank_run2])
 
         # filter by flow
-        response = self.getJSON(runs_url, "flow=%s" % flow1.uuid)
-        self.assertResultsById(response, [joe_run2, frank_run2, frank_run1, joe_run1])
+        self.assertGet(
+            endpoint_url + f"?flow={flow1.uuid}", [self.admin], results=[joe_run2, frank_run2, frank_run1, joe_run1]
+        )
 
         # doesn't work if flow is inactive
         flow1.is_active = False
         flow1.save()
 
-        response = self.getJSON(runs_url, "flow=%s" % flow1.uuid)
-        self.assertResultsById(response, [])
+        self.assertGet(endpoint_url + f"?flow={flow1.uuid}", [self.admin], results=[])
 
         # restore to active
         flow1.is_active = True
         flow1.save()
 
         # filter by invalid flow
-        response = self.getJSON(runs_url, "flow=invalid")
-        self.assertResultsById(response, [])
+        self.assertGet(endpoint_url + "?flow=invalid", [self.admin], results=[])
 
         # filter by flow + responded
-        response = self.getJSON(runs_url, "flow=%s&responded=TrUe" % flow1.uuid)
-        self.assertResultsById(response, [frank_run1, joe_run1])
-
-        # filter by contact
-        response = self.getJSON(runs_url, "contact=%s" % self.joe.uuid)
-        self.assertResultsById(response, [joe_run3, joe_run2, joe_run1])
-
-        # filter by invalid contact
-        response = self.getJSON(runs_url, "contact=invalid")
-        self.assertResultsById(response, [])
-
-        # filter by contact + responded
-        response = self.getJSON(runs_url, "contact=%s&responded=yes" % self.joe.uuid)
-        self.assertResultsById(response, [joe_run1])
-
-        # filter by after
-        response = self.getJSON(runs_url, "after=%s" % format_datetime(frank_run1.modified_on))
-        self.assertResultsById(response, [joe_run3, joe_run2, frank_run2, frank_run1])
-
-        # filter by before
-        response = self.getJSON(runs_url, "before=%s" % format_datetime(frank_run1.modified_on))
-        self.assertResultsById(response, [frank_run1, joe_run1])
-
-        # filter by invalid before
-        response = self.getJSON(runs_url, "before=longago")
-        self.assertResultsById(response, [])
-
-        # filter by invalid after
-        response = self.getJSON(runs_url, "before=%s&after=thefuture" % format_datetime(frank_run1.modified_on))
-        self.assertResultsById(response, [])
-
-        # can't filter by both contact and flow together
-        response = self.getJSON(runs_url, "contact=%s&flow=%s" % (self.joe.uuid, flow1.uuid))
-        self.assertResponseError(response, None, "You may only specify one of the contact, flow parameters")
-
-    def test_runs_with_action_results(self):
-        """
-        Runs from save_run_result actions may have some fields missing
-        """
-
-        runs_url = reverse("api.v2.runs")
-
-        flow = self.create_flow("Test")
-        FlowRun.objects.create(
-            org=self.org,
-            flow=flow,
-            contact=self.frank,
-            status=FlowRun.STATUS_COMPLETED,
-            exited_on=timezone.now(),
-            results={
-                "manual": {
-                    "created_on": "2019-06-28T06:37:02.628152471Z",
-                    "name": "Manual",
-                    "node_uuid": "6edeb849-1f65-4038-95dc-4d99d7dde6b8",
-                    "value": "",
-                }
-            },
+        self.assertGet(
+            endpoint_url + f"?flow={flow1.uuid}&responded=TrUe", [self.admin], results=[frank_run1, joe_run1]
         )
 
-        self.login(self.admin)
-        response = self.getJSON(runs_url)
+        # filter by contact
+        self.assertGet(endpoint_url + f"?contact={self.joe.uuid}", [self.admin], results=[joe_run3, joe_run2, joe_run1])
 
-        resp_json = response.json()
-        self.assertEqual(
-            resp_json["results"][0]["values"],
-            {
-                "manual": {
-                    "name": "Manual",
-                    "value": "",
-                    "input": None,
-                    "category": None,
-                    "node": "6edeb849-1f65-4038-95dc-4d99d7dde6b8",
-                    "time": "2019-06-28T06:37:02.628152Z",
-                }
-            },
+        # filter by invalid contact
+        self.assertGet(endpoint_url + "?contact=invalid", [self.admin], results=[])
+
+        # filter by contact + responded
+        self.assertGet(endpoint_url + f"?contact={self.joe.uuid}&responded=yes", [self.admin], results=[joe_run1])
+
+        # filter by before / after
+        self.assertGet(
+            endpoint_url + f"?before={format_datetime(frank_run1.modified_on)}",
+            [self.admin],
+            results=[frank_run1, joe_run1],
+        )
+        self.assertGet(
+            endpoint_url + f"?after={format_datetime(frank_run1.modified_on)}",
+            [self.admin],
+            results=[joe_run3, joe_run2, frank_run2, frank_run1],
+        )
+
+        # filter by invalid before / after
+        self.assertGet(endpoint_url + "?before=longago", [self.admin], results=[])
+        self.assertGet(endpoint_url + "?after=thefuture", [self.admin], results=[])
+
+        # can't filter by both contact and flow together
+        self.assertGet(
+            endpoint_url + f"?contact={self.joe.uuid}&flow={flow1.uuid}",
+            [self.admin],
+            errors={None: "You may only specify one of the contact, flow parameters"},
         )
 
     def test_optins(self):

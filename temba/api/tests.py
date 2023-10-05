@@ -149,12 +149,14 @@ class APITestMixin:
 
         return self.client.delete(endpoint_url, content_type="application/json", HTTP_X_FORWARDED_HTTPS="https")
 
-    def _postJSON(self, endpoint_url: str, user, data: dict):
+    def _postJSON(self, endpoint_url: str, user, data: dict, **kwargs):
         self.client.logout()
         if user:
             self.login(user)
 
-        return self.client.post(endpoint_url, data, content_type="application/json", HTTP_X_FORWARDED_HTTPS="https")
+        return self.client.post(
+            endpoint_url, data, content_type="application/json", HTTP_X_FORWARDED_HTTPS="https", **kwargs
+        )
 
     def assertGetNotAllowed(self, endpoint_url: str):
         response = self._getJSON(endpoint_url, self.admin)
@@ -210,8 +212,8 @@ class APITestMixin:
             response = self._postJSON(endpoint_url, user, {})
             self.assertEqual(403, response.status_code, f"status code mismatch for user {user}")
 
-    def assertPost(self, endpoint_url: str, user, data: dict, *, errors: dict = None, status=None):
-        response = self._postJSON(endpoint_url, user, data)
+    def assertPost(self, endpoint_url: str, user, data: dict, *, errors: dict = None, status=None, **kwargs):
+        response = self._postJSON(endpoint_url, user, data, **kwargs)
         if errors:
             for field, msg in errors.items():
                 self.assertResponseError(response, field, msg, status_code=status or 400)
