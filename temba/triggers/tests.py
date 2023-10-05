@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytz
 
+from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.utils import timezone
 
@@ -532,8 +533,9 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, create_new_convo_url)
         self.assertNotContains(response, create_missed_call_url)
 
-        # for now only staff see opt-in triggers
-        self.login(self.customer_support, choose_org=self.org)
+        # for now only beta testers see opt-in triggers
+        Group.objects.get(name="Beta").user_set.add(self.editor)
+        self.login(self.editor, choose_org=self.org)
         response = self.client.get(create_url)
 
         self.assertContains(response, create_opt_in_url)

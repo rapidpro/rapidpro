@@ -346,7 +346,7 @@ class TriggerCRUDL(SmartCRUDL):
 
             add_section("trigger-closed-ticket", "triggers.trigger_create_closed_ticket", "agent")
 
-            if self.request.user.is_staff:
+            if self.request.user.is_beta:
                 add_section("trigger-opt-in", "triggers.trigger_create_opt_in", "optin")
                 add_section("trigger-opt-out", "triggers.trigger_create_opt_out", "optout")
 
