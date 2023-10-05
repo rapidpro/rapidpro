@@ -2777,7 +2777,6 @@ class OptInsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "msgs.optin_api"
     model = OptIn
     serializer_class = OptInReadSerializer
     write_serializer_class = OptInWriteSerializer
@@ -3484,7 +3483,6 @@ class TemplatesEndpoint(ListAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "templates.template_api"
     model = Template
     serializer_class = TemplateReadSerializer
     pagination_class = ModifiedOnCursorPagination
@@ -3513,7 +3511,6 @@ class TicketersEndpoint(ListAPIMixin, BaseEndpoint):
     Deprecated... ticketers won't be a thing
     """
 
-    permission = "tickets.ticketer_api"
     model = Ticketer
     serializer_class = TicketerReadSerializer
     pagination_class = CreatedOnCursorPagination
@@ -3728,7 +3725,6 @@ class TopicsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "tickets.topic_api"
     model = Topic
     serializer_class = TopicReadSerializer
     write_serializer_class = TopicWriteSerializer

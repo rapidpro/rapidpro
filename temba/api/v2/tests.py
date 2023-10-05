@@ -33,7 +33,7 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Media, Msg, OptIn
 from temba.orgs.models import Org, OrgRole, User
 from temba.schedules.models import Schedule
-from temba.templates.models import Template, TemplateTranslation
+from temba.templates.models import TemplateTranslation
 from temba.tests import TembaTest, matchers, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import Ticket, Ticketer, Topic
@@ -4665,9 +4665,11 @@ class EndpointsTest(APITest):
         )
 
     def test_optins(self):
-        optins_url = reverse("api.v2.optins")
+        endpoint_url = reverse("api.v2.optins") + ".json"
 
-        self.assertEndpointAccess(optins_url, viewer_get=200, admin_get=200, agent_get=403)
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotPermitted(endpoint_url, [None, self.agent, self.user])
+        self.assertDeleteNotAllowed(endpoint_url)
 
         # create some optins
         polls = OptIn.create(self.org, self.admin, "Polls")
@@ -4675,15 +4677,10 @@ class EndpointsTest(APITest):
         OptIn.create(self.org2, self.admin, "Promos")
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
-            response = self.getJSON(optins_url, readonly_models={OptIn})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
+        self.assertGet(
+            endpoint_url,
+            [self.user, self.editor],
+            results=[
                 {
                     "uuid": str(offers.uuid),
                     "name": "Offers",
@@ -4695,15 +4692,14 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(polls.created_on),
                 },
             ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 1,
         )
 
         # try to create empty optin
-        response = self.postJSON(optins_url, None, {})
-        self.assertResponseError(response, "name", "This field is required.")
+        self.assertPost(endpoint_url, self.admin, {}, errors={"name": "This field is required."})
 
         # create new optin
-        response = self.postJSON(optins_url, None, {"name": "Alerts"})
-        self.assertEqual(response.status_code, 201)
+        response = self.assertPost(endpoint_url, self.admin, {"name": "Alerts"}, status=201)
 
         alerts = OptIn.objects.get(name="Alerts")
         self.assertEqual(
@@ -4716,20 +4712,21 @@ class EndpointsTest(APITest):
         )
 
         # try to create another optin with same name
-        response = self.postJSON(optins_url, None, {"name": "alerts"})
-        self.assertResponseError(response, "name", "This field must be unique.")
+        self.assertPost(endpoint_url, self.admin, {"name": "Alerts"}, errors={"name": "This field must be unique."})
 
         # it's fine if a optin in another org has that name
-        response = self.postJSON(optins_url, None, {"name": "Promos"})
-        self.assertEqual(response.status_code, 201)
+        self.assertPost(endpoint_url, self.editor, {"name": "Promos"}, status=201)
 
         # try to create a optin with invalid name
-        response = self.postJSON(optins_url, None, {"name": '"Hi"'})
-        self.assertResponseError(response, "name", 'Cannot contain the character: "')
+        self.assertPost(endpoint_url, self.admin, {"name": '"Hi"'}, errors={"name": 'Cannot contain the character: "'})
 
         # try to create a optin with name that's too long
-        response = self.postJSON(optins_url, None, {"name": "x" * 65})
-        self.assertResponseError(response, "name", "Ensure this field has no more than 64 characters.")
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"name": "x" * 65},
+            errors={"name": "Ensure this field has no more than 64 characters."},
+        )
 
     def test_resthooks(self):
         hooks_url = reverse("api.v2.resthooks")
@@ -4890,9 +4887,11 @@ class EndpointsTest(APITest):
         )
 
     def test_templates(self):
-        templates_url = reverse("api.v2.templates")
+        endpoint_url = reverse("api.v2.templates") + ".json"
 
-        self.assertEndpointAccess(templates_url, viewer_get=403, admin_get=200, agent_get=403)
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotAllowed(endpoint_url)
+        self.assertDeleteNotAllowed(endpoint_url)
 
         # create some templates
         TemplateTranslation.get_or_create(
@@ -4956,15 +4955,10 @@ class EndpointsTest(APITest):
         )
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
-            response = self.getJSON(templates_url, readonly_models={Template})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
+        self.assertGet(
+            endpoint_url,
+            [self.user, self.editor],
+            results=[
                 {
                     "name": "hello",
                     "uuid": str(tt.template.uuid),
@@ -4990,12 +4984,15 @@ class EndpointsTest(APITest):
                     "modified_on": format_datetime(tt.template.modified_on),
                 }
             ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 3,
         )
 
     def test_ticketers(self):
-        ticketers_url = reverse("api.v2.ticketers")
+        endpoint_url = reverse("api.v2.ticketers") + ".json"
 
-        self.assertEndpointAccess(ticketers_url, viewer_get=200, admin_get=200, agent_get=403)
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotAllowed(endpoint_url)
+        self.assertDeleteNotAllowed(endpoint_url)
 
         t1 = self.org.ticketers.get()  # the internal ticketer
 
@@ -5011,15 +5008,10 @@ class EndpointsTest(APITest):
         Ticketer.create(self.org2, self.admin, ZendeskType.slug, "zendesk", {})
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
-            response = self.getJSON(ticketers_url, readonly_models={Ticketer})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
+        self.assertGet(
+            endpoint_url,
+            [self.user, self.editor],
+            results=[
                 {
                     "uuid": str(t3.uuid),
                     "name": "jim@acme.com",
@@ -5039,20 +5031,14 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(t1.created_on),
                 },
             ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 1,
         )
 
         # filter by uuid (not there)
-        response = self.getJSON(ticketers_url, "uuid=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab")
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(0, len(resp_json["results"]))
+        self.assertGet(endpoint_url + "?uuid=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", [self.admin], results=[])
 
         # filter by uuid present
-        response = self.getJSON(ticketers_url, "uuid=" + str(t2.uuid))
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(1, len(resp_json["results"]))
-        self.assertEqual("bob@acme.com", resp_json["results"][0]["name"])
+        self.assertGet(endpoint_url + f"?uuid={t2.uuid}", [self.admin], results=[t2])
 
     @patch("temba.mailroom.client.MailroomClient.ticket_close")
     @patch("temba.mailroom.client.MailroomClient.ticket_reopen")
@@ -5267,9 +5253,11 @@ class EndpointsTest(APITest):
         self.assertEqual("O", ticket2.status)
 
     def test_topics(self):
-        topics_url = reverse("api.v2.topics")
+        endpoint_url = reverse("api.v2.topics") + ".json"
 
-        self.assertEndpointAccess(topics_url, viewer_get=200, admin_get=200, agent_get=200)
+        self.assertGetNotPermitted(endpoint_url, [None])
+        self.assertPostNotPermitted(endpoint_url, [None, self.agent, self.user])
+        self.assertDeleteNotAllowed(endpoint_url)
 
         # create some topics
         support = Topic.create(self.org, self.admin, "Support")
@@ -5280,15 +5268,10 @@ class EndpointsTest(APITest):
         self.create_ticket(self.org.ticketers.get(), contact, "Help", topic=support)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
-            response = self.getJSON(topics_url, readonly_models={Topic})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
+        self.assertGet(
+            endpoint_url,
+            [self.user, self.editor],
+            results=[
                 {
                     "uuid": str(sales.uuid),
                     "name": "Sales",
@@ -5311,15 +5294,14 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(self.org.default_ticket_topic.created_on),
                 },
             ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 3,
         )
 
         # try to create empty topic
-        response = self.postJSON(topics_url, None, {})
-        self.assertResponseError(response, "name", "This field is required.")
+        response = self.assertPost(endpoint_url, self.editor, {}, errors={"name": "This field is required."})
 
         # create new topic
-        response = self.postJSON(topics_url, None, {"name": "Food"})
-        self.assertEqual(response.status_code, 201)
+        response = self.assertPost(endpoint_url, self.editor, {"name": "Food"}, status=201)
 
         food = Topic.objects.get(name="Food")
         self.assertEqual(
@@ -5334,46 +5316,57 @@ class EndpointsTest(APITest):
         )
 
         # try to create another topic with same name
-        response = self.postJSON(topics_url, None, {"name": "food"})
-        self.assertResponseError(response, "name", "This field must be unique.")
+        self.assertPost(endpoint_url, self.editor, {"name": "Food"}, errors={"name": "This field must be unique."})
 
         # it's fine if a topic in another org has that name
-        response = self.postJSON(topics_url, None, {"name": "Bugs"})
-        self.assertEqual(response.status_code, 201)
+        self.assertPost(endpoint_url, self.editor, {"name": "Bugs"}, status=201)
 
         # try to create a topic with invalid name
-        response = self.postJSON(topics_url, None, {"name": '"Hi"'})
-        self.assertResponseError(response, "name", 'Cannot contain the character: "')
+        self.assertPost(endpoint_url, self.editor, {"name": '"Hi"'}, errors={"name": 'Cannot contain the character: "'})
 
         # try to create a topic with name that's too long
-        response = self.postJSON(topics_url, None, {"name": "x" * 65})
-        self.assertResponseError(response, "name", "Ensure this field has no more than 64 characters.")
+        self.assertPost(
+            endpoint_url,
+            self.editor,
+            {"name": "x" * 65},
+            errors={"name": "Ensure this field has no more than 64 characters."},
+        )
 
         # update topic by UUID
-        response = self.postJSON(topics_url, "uuid=%s" % support.uuid, {"name": "Support Tickets"})
-        self.assertEqual(response.status_code, 200)
+        self.assertPost(endpoint_url + f"?uuid={support.uuid}", self.admin, {"name": "Support Tickets"})
 
         support.refresh_from_db()
         self.assertEqual(support.name, "Support Tickets")
 
         # can't update default topic for an org
-        response = self.postJSON(topics_url, "uuid=%s" % self.org.default_ticket_topic.uuid, {"name": "Won't work"})
-        self.assertResponseError(response, None, "Cannot modify system object.", status_code=403)
+        self.assertPost(
+            endpoint_url + f"?uuid={self.org.default_ticket_topic.uuid}",
+            self.admin,
+            {"name": "Won't work"},
+            errors={None: "Cannot modify system object."},
+            status=403,
+        )
 
         # can't update topic from other org
-        response = self.postJSON(topics_url, "uuid=%s" % other_org.uuid, {"name": "Won't work"})
-        self.assert404(response)
+        self.assertPost(endpoint_url + f"?uuid={other_org.uuid}", self.admin, {"name": "Won't work"}, status=404)
 
         # can't update topic to same name as existing topic
-        response = self.postJSON(topics_url, "uuid=%s" % support.uuid, {"name": "General"})
-        self.assertResponseError(response, "name", "This field must be unique.")
+        self.assertPost(
+            endpoint_url + f"?uuid={support.uuid}",
+            self.admin,
+            {"name": "General"},
+            errors={"name": "This field must be unique."},
+        )
 
         # try creating a new topic after reaching the limit
         current_count = self.org.topics.filter(is_system=False, is_active=True).count()
         with override_settings(ORG_LIMIT_DEFAULTS={"topics": current_count}):
-            response = self.postJSON(topics_url, None, {"name": "Interesting"})
-            self.assertResponseError(
-                response, None, "Cannot create object because workspace has reached limit of 4.", status_code=409
+            response = self.assertPost(
+                endpoint_url,
+                self.admin,
+                {"name": "Interesting"},
+                errors={None: "Cannot create object because workspace has reached limit of 4."},
+                status=409,
             )
 
     def test_users(self):
