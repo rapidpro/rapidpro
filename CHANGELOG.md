@@ -1,3 +1,11 @@
+v8.3.44 (2023-10-06)
+-------------------------
+ * Allow request optin if optins exist
+ * Fix blurb for opt-out trigger
+ * Remove last usages of FlowLabel.parent and FlowRevision.modifiy_by
+ * Switch optins, topics, ticketers and templates API endpoints to use CRUDL perms
+ * Replace brand specific flow users with a single system user
+
 v8.3.43 (2023-10-05)
 -------------------------
  * Update editor and components
