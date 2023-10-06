@@ -1287,6 +1287,7 @@ class Org(SmartModel):
         delete_in_batches(self.exportmessagestasks.all())
         delete_in_batches(self.exportflowresultstasks.all())
         delete_in_batches(self.exportticketstasks.all())
+        delete_in_batches(self.flow_labels.all())
 
         for imp in self.contact_imports.all():
             imp.delete()
@@ -1311,10 +1312,6 @@ class Org(SmartModel):
         for flow in self.flows.all():
             flow.release(user, interrupt_sessions=False)
             counts["runs"] += flow.delete_runs()
-
-        # delete our flow labels (deleting a label deletes its children)
-        for flow_label in self.flow_labels.filter(parent=None):
-            flow_label.delete()
 
         # delete contact-related data
         delete_in_batches(self.http_logs.all())

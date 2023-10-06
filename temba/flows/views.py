@@ -20,7 +20,7 @@ from django.contrib import messages
 from django.contrib.humanize.templatetags import humanize
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Max, Min, Sum
-from django.db.models.functions import Upper
+from django.db.models.functions import Lower
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.encoding import force_str
@@ -220,7 +220,7 @@ class FlowCRUDL(SmartCRUDL):
             return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)
 
         def derive_menu(self):
-            labels = FlowLabel.objects.filter(org=self.request.org).order_by(Upper("name"))
+            labels = FlowLabel.objects.filter(org=self.request.org).order_by(Lower("name"))
 
             menu = []
             menu.append(self.create_menu_item(menu_id="", name=_("Active"), icon="active", href="flows.flow_list"))
@@ -1708,7 +1708,7 @@ class FlowCRUDL(SmartCRUDL):
                     is_archived=False,
                     is_system=False,
                     is_active=True,
-                ).order_by(Upper("name"))
+                ).order_by(Lower("name"))
 
                 if flow:
                     self.fields["flow"].widget = forms.HiddenInput(
