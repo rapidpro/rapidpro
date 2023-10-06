@@ -133,6 +133,8 @@ class User(AuthUser):
     related model.
     """
 
+    SYSTEM_USER_USERNAME = "system"
+
     @classmethod
     def create(cls, email: str, first_name: str, last_name: str, password: str, language: str = None):
         obj = cls.objects.create_user(
@@ -165,6 +167,13 @@ class User(AuthUser):
             orgs = orgs.filter(orgmembership__user=user, orgmembership__role_code__in=[r.code for r in roles])
 
         return orgs
+
+    @classmethod
+    def get_system_user(cls):
+        user = cls.objects.filter(username=cls.SYSTEM_USER_USERNAME).first()
+        if not user:
+            user = cls.objects.create_user(cls.SYSTEM_USER_USERNAME, first_name="System", last_name="Update")
+        return user
 
     @property
     def name(self) -> str:

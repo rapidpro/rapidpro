@@ -21,7 +21,7 @@ from django.utils import timezone
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactImport, ContactURN
-from temba.flows.models import Flow, FlowRun, FlowSession, clear_flow_users
+from temba.flows.models import Flow, FlowRun, FlowSession
 from temba.ivr.models import Call
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg, OptIn
@@ -109,8 +109,6 @@ class TembaTest(SmartminTest):
 
         utils._anon_user = None
 
-        clear_flow_users()
-
         # OrgRole.group and OrgRole.permissions are cached properties so get those cached before test starts to avoid
         # query count differences when a test is first to request it and when it's not.
         for role in OrgRole:
@@ -146,8 +144,6 @@ class TembaTest(SmartminTest):
 
         r = get_redis_connection()
         r.flushdb()
-
-        clear_flow_users()
 
     def clear_storage(self):
         """

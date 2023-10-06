@@ -10,7 +10,6 @@ from packaging.version import Version
 from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
-from django.contrib.auth.models import Group
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
@@ -842,7 +841,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         if user is None:
             is_system_rev = True
-            user = get_flow_user(self.org)
+            user = User.get_system_user()
         else:
             is_system_rev = False
 
@@ -1457,14 +1456,13 @@ class FlowRevision(models.Model):
         return definition
 
     def as_json(self):
-        name = self.created_by.get_full_name()
-        return dict(
-            user=dict(email=self.created_by.email, name=name),
-            created_on=json.encode_datetime(self.created_on, micros=True),
-            id=self.pk,
-            version=self.spec_version,
-            revision=self.revision,
-        )
+        return {
+            "id": self.id,
+            "user": self.created_by.as_engine_ref(),
+            "created_on": self.created_on.isoformat(),
+            "version": self.spec_version,
+            "revision": self.revision,
+        }
 
     def release(self):
         self.delete()
@@ -2136,34 +2134,3 @@ class FlowLabel(TembaModel):
 
     class Meta:
         constraints = [models.UniqueConstraint("org", Lower("name"), name="unique_flowlabel_names")]
-
-
-__flow_users = None
-
-
-def clear_flow_users():
-    global __flow_users
-    __flow_users = None
-
-
-def get_flow_user(org):
-    global __flow_users
-    if not __flow_users:
-        __flow_users = {}
-
-    username = "%s_flow" % org.branding["slug"]
-    flow_user = __flow_users.get(username)
-
-    # not cached, let's look it up
-    if not flow_user:
-        email = org.branding["support_email"]
-        flow_user = User.objects.filter(username=username).first()
-        if flow_user:  # pragma: needs cover
-            __flow_users[username] = flow_user
-        else:
-            # doesn't exist for this brand, create it
-            flow_user = User.objects.create_user(username, email, first_name="System Update")
-            flow_user.groups.add(Group.objects.get(name="Service Users"))
-            __flow_users[username] = flow_user
-
-    return flow_user
