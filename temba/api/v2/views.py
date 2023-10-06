@@ -2828,7 +2828,6 @@ class ResthooksEndpoint(ListAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "api.resthook_api"
     model = Resthook
     serializer_class = ResthookReadSerializer
     pagination_class = ModifiedOnCursorPagination
@@ -2922,7 +2921,6 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
 
     """
 
-    permission = "api.resthooksubscriber_api"
     model = ResthookSubscriber
     serializer_class = ResthookSubscriberReadSerializer
     write_serializer_class = ResthookSubscriberWriteSerializer
@@ -3060,7 +3058,6 @@ class ResthookEventsEndpoint(ListAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "api.webhookevent_api"
     model = WebHookEvent
     serializer_class = WebHookEventReadSerializer
     pagination_class = CreatedOnCursorPagination
