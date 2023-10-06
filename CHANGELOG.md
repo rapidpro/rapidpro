@@ -1,3 +1,7 @@
+v8.3.43 (2023-10-05)
+-------------------------
+ * Update editor and components
+
 v8.3.42 (2023-10-05)
 -------------------------
  * Make channel on trigger forms clearable
