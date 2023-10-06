@@ -308,7 +308,7 @@ PERMISSIONS = {
         "delete",  # can delete an object,
         "list",  # can view a list of the objects
     ),
-    "api.apitoken": ("refresh",),
+    "api.apitoken": ("explorer", "refresh"),
     "archives.archive": ("run", "message"),
     "campaigns.campaign": ("archived", "archive", "activate", "menu"),
     "channels.channel": ("chart", "claim", "configuration", "errors", "facebook_whitelist"),
@@ -422,6 +422,7 @@ GROUP_PERMISSIONS = {
     "Administrators": (
         "airtime.airtimetransfer_list",
         "airtime.airtimetransfer_read",
+        "api.apitoken_explorer",
         "api.apitoken_refresh",
         "api.resthook_list",
         "api.resthooksubscriber_create",
@@ -528,6 +529,7 @@ GROUP_PERMISSIONS = {
     "Editors": (
         "airtime.airtimetransfer_list",
         "airtime.airtimetransfer_read",
+        "api.apitoken_explorer",
         "api.apitoken_refresh",
         "api.resthook_list",
         "api.resthooksubscriber_create",
