@@ -14,9 +14,7 @@ class ExceptionMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        response = self.get_response(request)
-
-        return response
+        return self.get_response(request)
 
     def process_exception(self, request, exception):
         if settings.DEBUG:
@@ -25,25 +23,9 @@ class ExceptionMiddleware:
         return None
 
 
-class BrandingMiddleware:
-    def __init__(self, get_response=None):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        """
-        Set branding for this request
-        """
-        request.branding = self.get_branding_for_request(request)
-        return self.get_response(request)
-
-    @classmethod
-    def get_branding_for_request(cls, request) -> dict:
-        return settings.BRAND
-
-
 class OrgMiddleware:
     """
-    Determines the current org for this request and sets it on the user object on the request
+    Determines the org for this request and sets it on the request. Also sets request.branding for convenience.
     """
 
     def __init__(self, get_response=None):
@@ -56,6 +38,8 @@ class OrgMiddleware:
         if request.org:
             # set our current role for this org
             request.role = request.org.get_user_role(request.user)
+
+        request.branding = settings.BRAND
 
         # continue the chain, which in the case of the API will set request.org
         response = self.get_response(request)
