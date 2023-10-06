@@ -619,9 +619,7 @@ class FlowMigrationTest(TembaTest):
             version_number=1,
         )
 
-        FlowRevision.objects.create(
-            flow=flow, definition=definition, spec_version=1, revision=1, created_by=self.admin, modified_by=self.admin
-        )
+        FlowRevision.objects.create(flow=flow, definition=definition, spec_version=1, revision=1, created_by=self.admin)
 
         new_definition = migrate_to_version_11_1(definition, flow=flow)
 
