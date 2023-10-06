@@ -5227,9 +5227,7 @@ class FlowLabelCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         self.assertCreateSubmit(
-            create_url,
-            {"name": "Cool Flows"},
-            new_obj_query=FlowLabel.objects.filter(org=self.org, name="Cool Flows", parent=None),
+            create_url, {"name": "Cool Flows"}, new_obj_query=FlowLabel.objects.filter(org=self.org, name="Cool Flows")
         )
 
         # try to create with a name that's already used

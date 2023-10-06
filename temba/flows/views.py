@@ -220,7 +220,7 @@ class FlowCRUDL(SmartCRUDL):
             return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)
 
         def derive_menu(self):
-            labels = FlowLabel.objects.filter(org=self.request.org, parent=None).order_by("name")
+            labels = FlowLabel.objects.filter(org=self.request.org).order_by(Lower("name"))
 
             menu = []
             menu.append(self.create_menu_item(menu_id="", name=_("Active"), icon="active", href="flows.flow_list"))
