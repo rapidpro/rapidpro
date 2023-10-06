@@ -165,7 +165,7 @@ class APITestMixin:
     def assertGetNotPermitted(self, endpoint_url: str, users: list):
         for user in users:
             response = self._getJSON(endpoint_url, user)
-            self.assertEqual(403, response.status_code)
+            self.assertEqual(403, response.status_code, f"status code mismatch for {user}")
 
     def assertGet(
         self, endpoint_url: str, users: list, *, results: list = None, errors: dict = None, num_queries: int = None
