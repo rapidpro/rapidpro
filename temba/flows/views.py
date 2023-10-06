@@ -945,7 +945,7 @@ class FlowCRUDL(SmartCRUDL):
             if org.country_id:
                 features.append("locations")
 
-            if self.request.user.is_beta:  # pragma: no cover
+            if org.optins.filter(is_active=True).exists() or self.request.user.is_beta:  # pragma: no cover
                 features.append("optins")
 
             return features
