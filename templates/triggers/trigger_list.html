@@ -73,26 +73,22 @@
                 {% trans "An opt out event" %}
               {% elif obj.trigger_type == 'N' %}
                 {% trans "A new conversation" %}
-                {% if obj.channel %}
-                  {% trans "on" %}
-                  <b>
-                    <a href="{% url "channels.channel_read" obj.channel.uuid %}">{{ obj.channel }}</a>
-                  </b>
-                {% endif %}
               {% elif obj.trigger_type == 'R' %}
                 {% trans "The referrer id" %}
                 <b>
                   {{ obj.referrer_id }}
                 </b>
-                {% if obj.channel %}
+              {% elif obj.trigger_type == 'T' %}
+                {% trans "A closed ticket" %}
+              {% endif %}
+
+              {% if obj.channel %}
                   {% trans "on the channel" %}
                   <div onclick="goto(event)"
                        href="{% url "channels.channel_read" obj.channel.uuid %}"
                        class="linked inline">{{ obj.channel }}</div>
-                {% endif %}
-              {% elif obj.trigger_type == 'T' %}
-                {% trans "A closed ticket" %}
               {% endif %}
+
               {% if obj.schedule %}
                 {% trans "Start" %}
               {% else %}
