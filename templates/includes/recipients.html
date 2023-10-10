@@ -1,13 +1,18 @@
 {% load contacts i18n %}
 
-{% for group in groups %}
-  {% if group.is_active %}
-    {% include "includes/recipients_group.html" with group=group %}
-  {% endif %}
-{% endfor %}
 {% for contact in contacts %}
   {% if contact.is_active %}
     {% include "includes/recipients_contact.html" with contact=contact %}
+  {% endif %}
+{% endfor %}
+{% for group in groups %}
+  {% if group.is_active %}
+    {% include "includes/recipients_group.html" with group=group exclude=False %}
+  {% endif %}
+{% endfor %}
+{% for group in exclude_groups %}
+  {% if group.is_active %}
+    {% include "includes/recipients_group.html" with group=group exclude=True %}
   {% endif %}
 {% endfor %}
 {% with groups|inactive_count as num_deleted_groups %}

@@ -1,11 +1,5 @@
-{% if group.is_active %}
-  <a href="{% url 'contacts.contact_filter' group.uuid %}" onclick="goto(event, this)">
-    <temba-label icon="group" clickable class="mr-1 mb-1">
-      {{ group.name }}
-    </temba-label>
-  </a>
-{% else %}
-  <temba-label icon="group" clickable class="mr-1 mb-1">
-    <div class="line-through">{{ group.name }}</div>
+<a href="{% url 'contacts.contact_filter' group.uuid %}" onclick="goto(event, this)">
+  <temba-label icon="group_{% if exclude %}exclude{% else %}include{% endif %}" clickable class="mr-1 mb-1">
+    {{ group.name }}
   </temba-label>
-{% endif %}
+</a>
