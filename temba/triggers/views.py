@@ -163,6 +163,7 @@ class BaseChannelTriggerForm(BaseTriggerForm):
         label=_("Channel"),
         help_text=_("Only include activity from this channel."),
         required=False,
+        widget=SelectWidget(attrs={"placeholder": _("Optional: Select channel"), "clearable": True}),
     )
 
     def __init__(self, org, user, trigger_type, *args, **kwargs):
@@ -174,6 +175,8 @@ class BaseChannelTriggerForm(BaseTriggerForm):
         qs = self.org.channels.filter(is_active=True)
         if self.trigger_type.allowed_channel_schemes:
             qs = qs.filter(schemes__overlap=list(self.trigger_type.allowed_channel_schemes))
+        if self.trigger_type.allowed_channel_role:
+            qs = qs.filter(role__contains=self.trigger_type.allowed_channel_role)
         return qs
 
     def get_conflicts_kwargs(self, cleaned_data):
@@ -343,7 +346,7 @@ class TriggerCRUDL(SmartCRUDL):
 
             add_section("trigger-closed-ticket", "triggers.trigger_create_closed_ticket", "agent")
 
-            if self.request.user.is_staff:
+            if self.request.user.is_beta:
                 add_section("trigger-opt-in", "triggers.trigger_create_opt_in", "optin")
                 add_section("trigger-opt-out", "triggers.trigger_create_opt_out", "optout")
 

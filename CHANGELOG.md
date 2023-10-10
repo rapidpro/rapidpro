@@ -1,3 +1,43 @@
+v8.3.44 (2023-10-06)
+-------------------------
+ * Allow request optin if optins exist
+ * Fix blurb for opt-out trigger
+ * Remove last usages of FlowLabel.parent and FlowRevision.modifiy_by
+ * Switch optins, topics, ticketers and templates API endpoints to use CRUDL perms
+ * Replace brand specific flow users with a single system user
+
+v8.3.43 (2023-10-05)
+-------------------------
+ * Update editor and components
+
+v8.3.42 (2023-10-05)
+-------------------------
+ * Make channel on trigger forms clearable
+ * Prepare unused fields on FlowRevision for removal and change all models in flows app to use orgs.User
+ * Allow beta testers to access optin features
+ * Switch flows, flow_starts and runs API endpoints to use CRUDL permissions
+ * Add optional channel field to call triggers types that are based on channel activity
+
+v8.3.41 (2023-10-04)
+-------------------------
+ * Add optin as field to channelevents
+ * Allow perms to be made API specific so that we can limit agent access to the UI
+
+v8.3.40 (2023-10-03)
+-------------------------
+ * Remove globals from agent store when missing permission
+ * Remove arst
+
+v8.3.39 (2023-10-03)
+-------------------------
+ * Fix compose clear on send
+ * Use more CRUDL perms with API endpoints
+
+v8.3.38 (2023-10-03)
+-------------------------
+ * Remove completion from contact chat
+ * Do not recreate the events when the campaign is archived
+
 v8.3.37 (2023-10-02)
 -------------------------
  * Abstract functionality for triggers based on channel actvity into base classes

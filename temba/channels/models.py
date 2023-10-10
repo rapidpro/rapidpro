@@ -852,6 +852,7 @@ class ChannelEvent(models.Model):
     contact_urn = models.ForeignKey(
         "contacts.ContactURN", on_delete=models.PROTECT, null=True, related_name="channel_events"
     )
+    optin = models.ForeignKey("msgs.OptIn", null=True, on_delete=models.PROTECT, related_name="optins")
     extra = JSONAsTextField(null=True, default=dict)
     occurred_on = models.DateTimeField()
     created_on = models.DateTimeField(default=timezone.now)

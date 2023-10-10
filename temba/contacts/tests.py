@@ -4276,7 +4276,11 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         list_url = reverse("contacts.contactfield_list")
 
         self.assertListFetch(
-            list_url, allow_viewers=False, allow_editors=True, context_objects=[self.age, self.gender, self.state]
+            list_url,
+            allow_viewers=True,
+            allow_editors=True,
+            allow_agents=False,
+            context_objects=[self.age, self.gender, self.state],
         )
 
     def test_create_warnings(self):

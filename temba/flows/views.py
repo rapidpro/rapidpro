@@ -220,7 +220,7 @@ class FlowCRUDL(SmartCRUDL):
             return r"^%s/%s/((?P<submenu>[A-z]+)/)?$" % (path, action)
 
         def derive_menu(self):
-            labels = FlowLabel.objects.filter(org=self.request.org, parent=None).order_by("name")
+            labels = FlowLabel.objects.filter(org=self.request.org).order_by(Lower("name"))
 
             menu = []
             menu.append(self.create_menu_item(menu_id="", name=_("Active"), icon="active", href="flows.flow_list"))
@@ -945,8 +945,7 @@ class FlowCRUDL(SmartCRUDL):
             if org.country_id:
                 features.append("locations")
 
-            # only staff have optins so far
-            if self.request.user.is_staff:  # pragma: no cover
+            if org.optins.filter(is_active=True).exists() or self.request.user.is_beta:  # pragma: no cover
                 features.append("optins")
 
             return features

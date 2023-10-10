@@ -184,9 +184,7 @@ class CampaignTest(TembaTest):
             flow_type="V",
         )
 
-        FlowRevision.objects.create(
-            flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin, modified_by=self.admin
-        )
+        FlowRevision.objects.create(flow=flow, definition=flow_json, spec_version=3, revision=1, created_by=self.admin)
 
         event4 = CampaignEvent.create_flow_event(
             self.org, self.admin, campaign, self.planting_date, offset=2, unit="W", flow=flow, delivery_hour="5"

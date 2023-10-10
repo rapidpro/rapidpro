@@ -50,7 +50,6 @@ from .models import (
     FlowStartCount,
     FlowUserConflictException,
     FlowVersionConflictException,
-    get_flow_user,
 )
 from .tasks import (
     interrupt_flow_sessions,
@@ -72,10 +71,6 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         self.contact4 = self.create_contact("Teeh", phone="+250788123457", language="por")
 
         self.other_group = self.create_group("Other", [])
-
-    def test_get_flow_user(self):
-        user = get_flow_user(self.org)
-        self.assertEqual(user.pk, get_flow_user(self.org).pk)
 
     def test_get_unique_name(self):
         self.assertEqual("Testing", Flow.get_unique_name(self.org, "Testing"))
@@ -182,7 +177,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         # check we migrate to current spec version
         self.assertEqual("13.2.0", flow.version_number)
         self.assertEqual(2, flow.revisions.count())
-        self.assertEqual(get_flow_user(self.org), flow.revisions.order_by("id").last().created_by)
+        self.assertEqual("system", flow.revisions.order_by("id").last().created_by.username)
 
         # saved on won't have been updated but modified on will
         self.assertEqual(old_saved_on, flow.saved_on)
@@ -5232,9 +5227,7 @@ class FlowLabelCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         self.assertCreateSubmit(
-            create_url,
-            {"name": "Cool Flows"},
-            new_obj_query=FlowLabel.objects.filter(org=self.org, name="Cool Flows", parent=None),
+            create_url, {"name": "Cool Flows"}, new_obj_query=FlowLabel.objects.filter(org=self.org, name="Cool Flows")
         )
 
         # try to create with a name that's already used
@@ -5555,9 +5548,7 @@ class FlowRevisionTest(TembaTest):
             definition=dict(),
             revision=99,
             created_on=timezone.now() - timedelta(days=7),
-            modified_on=timezone.now(),
             created_by=self.admin,
-            modified_by=self.admin,
         )
 
         # make a bunch of revisions for color on the same day
@@ -5566,13 +5557,7 @@ class FlowRevisionTest(TembaTest):
             revision -= 1
             created = created - timedelta(minutes=1)
             FlowRevision.objects.create(
-                flow=color,
-                definition=dict(),
-                revision=revision,
-                created_by=self.admin,
-                modified_by=self.admin,
-                created_on=created,
-                modified_on=created,
+                flow=color, definition=dict(), revision=revision, created_by=self.admin, created_on=created
             )
 
         # then for 5 days prior, make a few more
@@ -5582,13 +5567,7 @@ class FlowRevisionTest(TembaTest):
                 revision -= 1
                 created = created - timedelta(minutes=1)
                 FlowRevision.objects.create(
-                    flow=color,
-                    definition=dict(),
-                    revision=revision,
-                    created_by=self.admin,
-                    modified_by=self.admin,
-                    created_on=created,
-                    modified_on=created,
+                    flow=color, definition=dict(), revision=revision, created_by=self.admin, created_on=created
                 )
 
         # trim our flow revisions, should be left with original (today), 25 from yesterday, 1 per day for 5 days = 31

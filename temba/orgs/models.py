@@ -133,6 +133,8 @@ class User(AuthUser):
     related model.
     """
 
+    SYSTEM_USER_USERNAME = "system"
+
     @classmethod
     def create(cls, email: str, first_name: str, last_name: str, password: str, language: str = None):
         obj = cls.objects.create_user(
@@ -165,6 +167,13 @@ class User(AuthUser):
             orgs = orgs.filter(orgmembership__user=user, orgmembership__role_code__in=[r.code for r in roles])
 
         return orgs
+
+    @classmethod
+    def get_system_user(cls):
+        user = cls.objects.filter(username=cls.SYSTEM_USER_USERNAME).first()
+        if not user:
+            user = cls.objects.create_user(cls.SYSTEM_USER_USERNAME, first_name="System", last_name="Update")
+        return user
 
     @property
     def name(self) -> str:
@@ -373,11 +382,21 @@ class OrgRole(Enum):
         perms = self.group.permissions.select_related("content_type")
         return {f"{p.content_type.app_label}.{p.codename}" for p in perms}
 
+    @cached_property
+    def api_permissions(self) -> set:
+        return set(settings.API_PERMISSIONS.get(self.group_name, ()))
+
     def has_perm(self, permission: str) -> bool:
         """
         Returns whether this role has the given permission
         """
         return permission in self.permissions
+
+    def has_api_perm(self, permission: str) -> bool:
+        """
+        Returns whether this role has the given permission in the context of an API request.
+        """
+        return self.has_perm(permission) or permission in self.api_permissions
 
 
 class Org(SmartModel):
@@ -1268,6 +1287,7 @@ class Org(SmartModel):
         delete_in_batches(self.exportmessagestasks.all())
         delete_in_batches(self.exportflowresultstasks.all())
         delete_in_batches(self.exportticketstasks.all())
+        delete_in_batches(self.flow_labels.all())
 
         for imp in self.contact_imports.all():
             imp.delete()
@@ -1292,10 +1312,6 @@ class Org(SmartModel):
         for flow in self.flows.all():
             flow.release(user, interrupt_sessions=False)
             counts["runs"] += flow.delete_runs()
-
-        # delete our flow labels (deleting a label deletes its children)
-        for flow_label in self.flow_labels.filter(parent=None):
-            flow_label.delete()
 
         # delete contact-related data
         delete_in_batches(self.http_logs.all())

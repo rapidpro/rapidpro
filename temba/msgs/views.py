@@ -160,7 +160,7 @@ class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
 class ComposeForm(Form):
     compose = ComposeField(
         required=True,
-        widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True}),
+        widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True, "completion": True}),
     )
 
     optin = TembaChoiceField(
@@ -317,7 +317,7 @@ class BroadcastCRUDL(SmartCRUDL):
             )
 
     class Create(OrgPermsMixin, SmartWizardView):
-        form_list = [ ("compose", ComposeForm), ("target", TargetForm),("schedule", ScheduleForm)]
+        form_list = [("compose", ComposeForm), ("target", TargetForm), ("schedule", ScheduleForm)]
         success_url = "@msgs.broadcast_scheduled"
         submit_button_name = _("Create Broadcast")
 

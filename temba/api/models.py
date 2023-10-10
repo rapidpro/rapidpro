@@ -2,7 +2,6 @@ import hmac
 import logging
 from hashlib import sha1
 
-from rest_framework import exceptions
 from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
 
@@ -52,8 +51,8 @@ class APIPermission(BasePermission):
         if hasattr(view, "permission"):
             return view.permission
 
-        if request.method not in self.perms_map:
-            raise exceptions.MethodNotAllowed(request.method)
+        if request.method not in self.perms_map or request.method not in view.allowed_methods:
+            view.http_method_not_allowed(request)
 
         return self.perms_map[request.method] % {
             "app_label": view.model._meta.app_label,
@@ -82,7 +81,7 @@ class APIPermission(BasePermission):
             else:
                 return False
 
-            has_perm = role.has_perm(permission)
+            has_perm = role.has_api_perm(permission)
 
             # viewers can only ever get from the API
             if role == OrgRole.VIEWER:

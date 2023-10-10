@@ -1061,7 +1061,8 @@ class EventTest(TembaTest):
             self.channel,
             "tel:+250979111111",
             ChannelEvent.TYPE_OPTIN,
-            extra={"optin_id": optin.id, "optin_name": "Polls"},
+            optin=optin,
+            extra={"title": "Polls", "payload": str(optin.id)},
         )
 
         self.assertEqual(
