@@ -408,7 +408,7 @@ class FlowCRUDL(SmartCRUDL):
         class Form(BaseFlowForm):
             keyword_triggers = forms.CharField(
                 required=False,
-                label=_("Global keyword triggers"),
+                label=_("Keyword triggers"),
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
                 widget=SelectWidget(
                     attrs={
@@ -540,7 +540,7 @@ class FlowCRUDL(SmartCRUDL):
         class BaseOnlineForm(BaseFlowForm):
             keyword_triggers = forms.CharField(
                 required=False,
-                label=_("Global keyword triggers"),
+                label=_("Keyword triggers"),
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
                 widget=SelectWidget(
                     attrs={
