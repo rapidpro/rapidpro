@@ -686,21 +686,22 @@ class EndpointsTest(APITest):
     def test_explorer(self):
         explorer_url = reverse("api.v2.explorer")
 
-        response = self.getHTML(explorer_url)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Log in to use the Explorer")
+        response = self.client.get(explorer_url)
+        self.assertLoginRedirect(response)
 
-        # login as non-org user
-        self.login(self.non_org_user)
-        response = self.getHTML(explorer_url)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Log in to use the Explorer")
+        # viewers can't access
+        self.login(self.user)
+        response = self.client.get(explorer_url)
+        self.assertLoginRedirect(response)
 
-        # login as administrator
+        # editors and administrators can
+        self.login(self.editor)
+        response = self.client.get(explorer_url)
+        self.assertEqual(200, response.status_code)
+
         self.login(self.admin)
-        response = self.getHTML(explorer_url)
+        response = self.client.get(explorer_url)
         self.assertEqual(200, response.status_code)
-        self.assertNotContains(response, "Log in to use the Explorer")
 
     def test_pagination(self):
         runs_url = reverse("api.v2.runs") + ".json"

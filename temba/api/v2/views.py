@@ -26,6 +26,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Media, Msg, OptIn, SystemLabel
 from temba.orgs.models import OrgMembership, OrgRole, User
+from temba.orgs.views import OrgPermsMixin
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, TicketCount, Ticketer, Topic
 from temba.utils import splitting_getlist, str_to_bool
@@ -240,11 +241,12 @@ class RootView(views.APIView):
         )
 
 
-class ExplorerView(SmartTemplateView):
+class ExplorerView(OrgPermsMixin, SmartTemplateView):
     """
     Explorer view which lets users experiment with endpoints against their own data
     """
 
+    permission = "api.apitoken_explorer"
     template_name = "api/v2/api_explorer.html"
     title = _("API Explorer")
 
@@ -254,7 +256,7 @@ class ExplorerView(SmartTemplateView):
         org = self.request.org
         user = self.request.user
 
-        context["api_token"] = user.get_api_token(org) if (org and user) else None
+        context["api_token"] = user.get_api_token(org)
         context["endpoints"] = [
             ArchivesEndpoint.get_read_explorer(),
             BoundariesEndpoint.get_read_explorer(),
