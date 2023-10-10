@@ -1743,7 +1743,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_views(self):
         create_url = reverse("flows.flow_create")
 
-        contact = self.create_contact("Eric", phone="+250788382382")
+        self.create_contact("Eric", phone="+250788382382")
         flow = self.get_flow("color")
 
         # create a flow for another org
@@ -1898,53 +1898,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # check we're being redirected to the editor view
         self.assertRedirect(response, reverse("flows.flow_editor", args=[flow3.uuid]))
 
-        # update flow triggers, and test if form has expected fields
-        response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), {})
-
-        field_names = [field for field in response.context_data["form"].fields]
-        self.assertEqual(field_names, ["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "loc"])
-
-        post_data = {
-            "name": "Flow With Keyword Triggers",
-            "keyword_triggers": ["it", "changes", "everything"],
-            "expires_after_minutes": 60 * 12,
-        }
-        response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data)
-
-        flow3 = Flow.objects.get(name=post_data["name"])
-        self.assertEqual(302, response.status_code)
-        self.assertEqual(flow3.triggers.count(), 5)
-        self.assertEqual(flow3.triggers.filter(is_archived=True).count(), 2)
-        self.assertEqual(flow3.triggers.filter(is_archived=False).count(), 3)
-        self.assertEqual(flow3.triggers.filter(is_archived=False, match_type=Trigger.MATCH_FIRST_WORD).count(), 3)
-        self.assertEqual(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
-
-        # update flow with unformatted keyword
-        post_data["keyword_triggers"] = "it,changes,every thing"
-        response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data)
-        self.assertTrue(response.context["form"].errors)
-
-        # update flow with unformatted keyword
-        post_data["keyword_triggers"] = ["it", "changes", "everything", "unique"]
-        response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data)
-        self.assertTrue(response.context["form"].errors)
-        response = self.client.get(reverse("flows.flow_update", args=[flow3.pk]))
-        self.assertEqual(response.context["form"].fields["keyword_triggers"].initial, ["it", "changes", "everything"])
-        self.assertEqual(flow3.triggers.filter(is_archived=False).count(), 3)
-        self.assertEqual(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
-        trigger = Trigger.objects.get(keyword="everything", flow=flow3)
-        group = self.create_group("first", [contact])
-        trigger.groups.add(group)
-        self.assertEqual(flow3.triggers.filter(is_archived=False).count(), 3)
-        self.assertEqual(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 1)
-        self.assertEqual(flow3.triggers.filter(is_archived=False).exclude(groups=None)[0].keyword, "everything")
-        response = self.client.get(reverse("flows.flow_update", args=[flow3.pk]))
-        self.assertEqual(response.context["form"].fields["keyword_triggers"].initial, ["it", "changes"])
-        self.assertNotContains(response, "contact_creation")
-        self.assertEqual(flow3.triggers.filter(is_archived=False).count(), 3)
-        self.assertEqual(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 1)
-        self.assertEqual(flow3.triggers.filter(is_archived=False).exclude(groups=None)[0].keyword, "everything")
-
         # can see results for a flow
         response = self.client.get(reverse("flows.flow_results", args=[flow.uuid]))
         self.assertEqual(200, response.status_code)
@@ -2010,12 +1963,22 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow = self.get_flow("color_v13")
         update_url = reverse("flows.flow_update", args=[flow.id])
 
-        # we should only see name and contact creation option on form
+        def assert_triggers(expected: list):
+            actual = list(
+                flow.triggers.filter(trigger_type="K", is_active=True).order_by("id").values("keyword", "is_archived")
+            )
+            self.assertEqual(actual, expected)
+
         self.assertUpdateFetch(
             update_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers"],
+            form_fields={
+                "name": "Colors",
+                "keyword_triggers": [],
+                "expires_after_minutes": 720,
+                "ignore_triggers": False,
+            },
         )
 
         # try to update with empty name
@@ -2026,7 +1989,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             object_unchanged=flow,
         )
 
-        # update name and contact creation option to be per login
+        # update all fields
         self.assertUpdateSubmit(
             update_url,
             {
@@ -2040,8 +2003,72 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.refresh_from_db()
         self.assertEqual("New Name", flow.name)
         self.assertEqual(10, flow.expires_after_minutes)
-        self.assertEqual({"test", "help"}, {t.keyword for t in flow.triggers.filter(is_active=True)})
         self.assertTrue(flow.ignore_triggers)
+
+        assert_triggers([{"keyword": "help", "is_archived": False}, {"keyword": "test", "is_archived": False}])
+
+        # remove one keyword and add another
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "name": "New Name",
+                "keyword_triggers": ["help", "support"],
+                "expires_after_minutes": 10,
+                "ignore_triggers": True,
+            },
+        )
+
+        assert_triggers(
+            [
+                {"keyword": "help", "is_archived": False},
+                {"keyword": "test", "is_archived": True},  # "test" now archived
+                {"keyword": "support", "is_archived": False},
+            ]
+        )
+
+        # put "test" keyword back and remove "support"
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "name": "New Name",
+                "keyword_triggers": ["test", "help"],
+                "expires_after_minutes": 10,
+                "ignore_triggers": True,
+            },
+        )
+
+        assert_triggers(
+            [
+                {"keyword": "help", "is_archived": False},
+                {"keyword": "test", "is_archived": False},  # "test" now restored
+                {"keyword": "support", "is_archived": True},  # "support" now archived
+            ]
+        )
+
+        # add channel filter to "support"
+        support = flow.triggers.get(keyword="support")
+        support.channel = self.channel
+        support.save(update_fields=("channel",))
+
+        # re-adding "support" will now create a new trigger with default values
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "name": "New Name",
+                "keyword_triggers": ["test", "help", "support"],
+                "expires_after_minutes": 10,
+                "ignore_triggers": True,
+            },
+        )
+
+        assert_triggers(
+            [
+                {"keyword": "help", "is_archived": False},
+                {"keyword": "test", "is_archived": False},  # "test" now restored
+                {"keyword": "support", "is_archived": True},  # old "support" still archived
+                {"keyword": "support", "is_archived": False},  # new "support" created
+            ]
+        )
 
     def test_update_voice_flow(self):
         flow = self.get_flow("ivr")
