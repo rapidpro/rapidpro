@@ -537,7 +537,7 @@ class TriggerCRUDL(SmartCRUDL):
                 .annotate(earliest_group=Min("groups__name"))
                 .order_by("keyword", "earliest_group", "id")
                 .select_related("flow", "channel")
-                .prefetch_related("contacts", "groups")
+                .prefetch_related("contacts", "groups", "exclude_groups")
             )
             return qs
 

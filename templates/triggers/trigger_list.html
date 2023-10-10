@@ -107,7 +107,7 @@
                 {% endif %}
               {% endif %}
             </td>
-            <td onclick="handleRowSelection(this)" width="250px">{% include "includes/recipients.html" with groups=obj.groups.all contacts=obj.contacts.all %}</td>
+            <td onclick="handleRowSelection(this)" width="250px">{% include "includes/recipients.html" with contacts=obj.contacts.all groups=obj.groups.all exclude_groups=obj.exclude_groups.all %}</td>
           </tr>
         {% empty %}
           <tr class="empty_list">
