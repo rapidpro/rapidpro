@@ -1656,7 +1656,7 @@ class DefinitionsEndpoint(BaseEndpoint):
         }
     """
 
-    permission = "orgs.org_api"
+    permission = "orgs.org_export"
 
     class Depends(Enum):
         none = 0
@@ -3786,7 +3786,6 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
             ...
     """
 
-    permission = "orgs.org_api"
     model = User
     serializer_class = UserReadSerializer
     pagination_class = DateJoinedCursorPagination
@@ -3851,7 +3850,7 @@ class WorkspaceEndpoint(BaseEndpoint):
         }
     """
 
-    permission = "orgs.org_api"
+    permission = "orgs.org_read"
 
     def get(self, request, *args, **kwargs):
         serializer = WorkspaceReadSerializer(request.org)

@@ -168,9 +168,16 @@ class APITestMixin:
             self.assertEqual(403, response.status_code, f"status code mismatch for {user}")
 
     def assertGet(
-        self, endpoint_url: str, users: list, *, results: list = None, errors: dict = None, num_queries: int = None
+        self,
+        endpoint_url: str,
+        users: list,
+        *,
+        results: list = None,
+        errors: dict = None,
+        raw=None,
+        num_queries: int = None,
     ):
-        assert (results is not None or errors) and not (results and errors), "must specify one of results or errors"
+        assert (results is not None) ^ (errors is not None) ^ (raw is not None)
 
         def as_user(user, expected_results: list, expected_queries: int = None):
             response = self._getJSON(endpoint_url, user, expected_queries)
@@ -186,15 +193,21 @@ class APITestMixin:
                         id_key, id_fn = "id", lambda o: o.id
                     elif "key" in actual_results[0]:
                         id_key, id_fn = "key", lambda o: o.key
+                    elif "email" in actual_results[0]:
+                        id_key, id_fn = "email", lambda o: o.email
                     else:
                         id_key, id_fn = "uuid", lambda o: str(o.uuid)
 
                     self.assertEqual([r[id_key] for r in actual_results], [id_fn(o) for o in expected_results])
                 else:
                     self.assertEqual(expected_results, actual_results)
-            else:
+            elif errors is not None:
                 for field, msg in errors.items():
                     self.assertResponseError(response, field, msg, status_code=400)
+            elif callable(raw):
+                self.assertTrue(raw(response.json()))
+            else:
+                self.assertEqual(raw, response.json())
 
             return response
 
