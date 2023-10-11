@@ -29,7 +29,7 @@ from temba.orgs.models import OrgMembership, OrgRole, User
 from temba.orgs.views import OrgPermsMixin
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, TicketCount, Ticketer, Topic
-from temba.utils import splitting_getlist, str_to_bool
+from temba.utils import str_to_bool
 from temba.utils.uuid import is_uuid
 
 from ..models import APIPermission, APIToken, Resthook, ResthookSubscriber, SSLPermission, WebHookEvent
@@ -1666,15 +1666,10 @@ class DefinitionsEndpoint(BaseEndpoint):
     def get(self, request, *args, **kwargs):
         org = request.org
         params = request.query_params
-
-        if "flow_uuid" in params or "campaign_uuid" in params:  # deprecated
-            flow_uuids = splitting_getlist(self.request, "flow_uuid")
-            campaign_uuids = splitting_getlist(self.request, "campaign_uuid")
-        else:
-            flow_uuids = params.getlist("flow")
-            campaign_uuids = params.getlist("campaign")
-
+        flow_uuids = params.getlist("flow")
+        campaign_uuids = params.getlist("campaign")
         include = params.get("dependencies", "all")
+
         if include not in DefinitionsEndpoint.Depends.__members__:
             raise InvalidQueryError(
                 "dependencies must be one of %s" % ", ".join(DefinitionsEndpoint.Depends.__members__)

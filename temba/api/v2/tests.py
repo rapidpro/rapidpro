@@ -2951,13 +2951,6 @@ class EndpointsTest(APITest):
             raw=lambda j: len(j["flows"]) == 6 and len(j["campaigns"]) == 1 and len(j["triggers"]) == 2,
         )
 
-        # test deprecated param names
-        self.assertGet(
-            endpoint_url + f"?flow_uuid={flow.uuid}&campaign_uuid={campaign.uuid}&dependencies=none",
-            [self.surveyor],
-            raw=lambda j: len(j["flows"]) == 1 and len(j["campaigns"]) == 1 and len(j["triggers"]) == 0,
-        )
-
         # test an invalid value for dependencies
         self.assertGet(
             endpoint_url + f"?flow={flow.uuid}&dependencies=xx",
