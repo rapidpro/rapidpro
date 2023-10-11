@@ -1104,6 +1104,8 @@ class MediaCRUDL(SmartCRUDL):
         TODO deprecated, migrate usages to /api/v2/media.json
         """
 
+        permission = "msgs.media_create"
+
         def post(self, request, *args, **kwargs):
             file = request.FILES["file"]
 
