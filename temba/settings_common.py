@@ -316,7 +316,6 @@ PERMISSIONS = {
     "classifiers.classifier": ("connect", "sync"),
     "classifiers.intent": ("api",),
     "contacts.contact": (
-        "api",
         "export",
         "history",
         "interrupt",
@@ -355,7 +354,7 @@ PERMISSIONS = {
     "flows.flowsession": ("json",),
     "globals.global": ("unused",),
     "locations.adminboundary": ("alias", "boundaries", "geometry"),
-    "msgs.broadcast": ("scheduled", "scheduled_read", "scheduled_delete", "send"),
+    "msgs.broadcast": ("scheduled", "scheduled_read", "scheduled_delete"),
     "msgs.msg": ("archive", "export", "label", "menu"),
     "orgs.org": (
         "country",
@@ -405,7 +404,7 @@ GROUP_PERMISSIONS = {
     "Beta": (),
     "Dashboard": ("orgs.org_dashboard",),
     "Surveyors": (
-        "contacts.contact_api",
+        "contacts.contact_list",
         "contacts.contactfield_list",
         "contacts.contactgroup_list",
         "flows.flow_list",
@@ -448,7 +447,6 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_read",
         "classifiers.classifier_sync",
         "classifiers.intent_api",
-        "contacts.contact_api",
         "contacts.contact_create",
         "contacts.contact_delete",
         "contacts.contact_export",
@@ -550,7 +548,6 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_menu",
         "classifiers.classifier_read",
         "classifiers.intent_api",
-        "contacts.contact_api",
         "contacts.contact_create",
         "contacts.contact_delete",
         "contacts.contact_export",
@@ -690,7 +687,6 @@ GROUP_PERMISSIONS = {
         "triggers.trigger_menu",
     ),
     "Agents": (
-        "contacts.contact_api",
         "contacts.contact_history",
         "notifications.notification_list",
         "orgs.org_languages",
@@ -712,6 +708,9 @@ GROUP_PERMISSIONS = {
 # extra permissions that only apply to API requests (wildcard notation not supported here)
 API_PERMISSIONS = {
     "Agents": (
+        "contacts.contact_create",
+        "contacts.contact_list",
+        "contacts.contact_update",
         "contacts.contactfield_list",
         "contacts.contactgroup_list",
         "msgs.media_create",

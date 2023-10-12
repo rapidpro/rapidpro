@@ -40,7 +40,7 @@ from temba.orgs.views import (
 )
 from temba.schedules.models import Schedule
 from temba.schedules.views import ScheduleFormMixin
-from temba.utils import analytics, json, on_transaction_commit
+from temba.utils import json, on_transaction_commit
 from temba.utils.compose import compose_deserialize, compose_serialize
 from temba.utils.export.views import BaseExportView
 from temba.utils.fields import (
@@ -106,7 +106,7 @@ class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
     default_order = ("-created_on", "-id")
     allow_export = False
     bulk_actions = ()
-    bulk_action_permissions = {"resend": "msgs.broadcast_send", "delete": "msgs.msg_update"}
+    bulk_action_permissions = {"resend": "msgs.msg_create", "delete": "msgs.msg_update"}
 
     def derive_export_url(self):
         redirect = quote_plus(self.request.get_full_path())
@@ -256,7 +256,7 @@ class BroadcastCRUDL(SmartCRUDL):
         "scheduled_read",
         "scheduled_delete",
         "preview",
-        "send",
+        "to_node",
     )
     model = Broadcast
 
@@ -482,7 +482,7 @@ class BroadcastCRUDL(SmartCRUDL):
             return response
 
     class Preview(OrgPermsMixin, SmartCreateView):
-        permission = "msgs.broadcast_send"
+        permission = "msgs.broadcast_create"
 
         blockers = {
             "no_send_channel": _(
@@ -522,50 +522,17 @@ class BroadcastCRUDL(SmartCRUDL):
                 }
             )
 
-    class Send(OrgPermsMixin, ModalMixin, SmartFormView):
+    class ToNode(OrgPermsMixin, ModalMixin, SmartFormView):
         class Form(Form):
-            omnibox = OmniboxField(
-                label=_("Recipients"),
-                required=False,
-                help_text=_("The contacts to send the message to."),
-                widget=OmniboxChoice(
-                    attrs={
-                        "placeholder": _("Search for contacts or groups"),
-                        "widget_only": True,
-                        "groups": True,
-                        "contacts": True,
-                    }
-                ),
-            )
             text = forms.CharField(
                 widget=CompletionTextarea(
                     attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True, "counter": "temba-charcount"}
                 )
             )
-            step_node = forms.CharField(widget=forms.HiddenInput, max_length=36, required=False)
 
-            def __init__(self, org, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-                self.org = org
-                self.fields["omnibox"].default_country = org.default_country_code
-
-            def clean(self):
-                cleaned = super().clean()
-
-                if self.is_valid():
-                    omnibox = cleaned.get("omnibox")
-                    step_node = cleaned.get("step_node")
-
-                    if not step_node and not omnibox:
-                        self.add_error("omnibox", _("At least one recipient is required."))
-
-                return cleaned
-
+        permission = "msgs.broadcast_create"
         form_class = Form
         title = _("Send Message")
-        fields = ("omnibox", "text", "step_node")
-        success_url = "@msgs.msg_inbox"
         submit_button_name = _("Send")
 
         blockers = {
@@ -575,26 +542,10 @@ class BroadcastCRUDL(SmartCRUDL):
             ),
         }
 
-        def derive_initial(self):
-            initial = super().derive_initial()
-            initial["step_node"] = self.request.GET.get("step_node", None)
-            return initial
-
-        def derive_fields(self):
-            if self.request.GET.get("step_node"):
-                return ("text", "step_node")
-            else:
-                return super().derive_fields()
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
-
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["blockers"] = self.get_blockers(self.request.org)
-            context["recipient_count"] = int(self.request.GET.get("count", 0))
+            context["recipient_count"] = int(self.request.GET["count"])
             return context
 
         def get_blockers(self, org) -> list:
@@ -610,40 +561,16 @@ class BroadcastCRUDL(SmartCRUDL):
             return blockers
 
         def form_valid(self, form):
-            user = self.request.user
-            org = self.request.org
-            step_uuid = form.cleaned_data.get("step_node", None)
+            from .tasks import send_to_flow_node
+
+            node_uuid = self.request.GET["node"]
             text = form.cleaned_data["text"]
 
-            if step_uuid:
-                from .tasks import send_to_flow_node
-
-                get_params = {k: v for k, v in self.request.GET.items()}
-                get_params.update({"s": step_uuid})
-                send_to_flow_node.delay(org.pk, user.pk, text, **get_params)
-            else:
-                omnibox = omnibox_deserialize(org, form.cleaned_data["omnibox"])
-                groups = list(omnibox["groups"])
-                contacts = list(omnibox["contacts"])
-
-                broadcast = Broadcast.create(
-                    org, user, {"und": text}, groups=groups, contacts=contacts, status=Msg.STATUS_QUEUED
-                )
-
-                self.post_save(broadcast)
-                super().form_valid(form)
-
-                analytics.track(
-                    self.request.user, "temba.broadcast_created", dict(contacts=len(contacts), groups=len(groups))
-                )
+            send_to_flow_node.delay(self.request.org.id, self.request.user.id, node_uuid, text)
 
             response = self.render_to_response(self.get_context_data())
             response["Temba-Success"] = "hide"
             return response
-
-        def post_save(self, obj):
-            on_transaction_commit(lambda: obj.send_async())
-            return obj
 
 
 class MsgCRUDL(SmartCRUDL):
