@@ -1407,7 +1407,6 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint
     You will receive either a 204 response if a contact was deleted, or a 404 response if no matching contact was found.
     """
 
-    permission = "contacts.contact_api"
     model = Contact
     serializer_class = ContactReadSerializer
     write_serializer_class = ContactWriteSerializer
@@ -1564,7 +1563,6 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
         * _block_ - Block the contacts
         * _unblock_ - Un-block the contacts
         * _interrupt_ - Interrupt and end any of the contacts' active flow runs
-        * _archive_messages_ - Archive all of the contacts' messages
         * _delete_ - Permanently delete the contacts
 
     * **group** - the UUID or name of a contact group (string, optional)
@@ -1581,7 +1579,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
     You will receive an empty response with status code 204 if successful.
     """
 
-    permission = "contacts.contact_api"
+    model = Contact
     serializer_class = ContactBulkActionSerializer
 
     @classmethod

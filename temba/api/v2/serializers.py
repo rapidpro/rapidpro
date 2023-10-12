@@ -639,7 +639,7 @@ class ContactWriteSerializer(WriteSerializer):
 
     def validate(self, data):
         if self.instance and not self.instance.is_active:
-            raise serializers.ValidationError("Inactive contacts can't be modified.")
+            raise serializers.ValidationError("Deleted contacts can't be modified.")
 
         # we allow creation of contacts by URN used for lookup
         if not data.get("urns") and "urns__identity" in self.context["lookup_values"] and not self.instance:

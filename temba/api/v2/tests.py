@@ -1952,9 +1952,11 @@ class EndpointsTest(APITest):
 
     @mock_mailroom
     def test_contacts(self, mr_mocks):
-        contacts_url = reverse("api.v2.contacts")
+        endpoint_url = reverse("api.v2.contacts") + ".json"
 
-        self.assertEndpointAccess(contacts_url, viewer_get=403, admin_get=200, agent_get=200)
+        self.assertGetNotPermitted(endpoint_url, [None])
+        self.assertPostNotPermitted(endpoint_url, [None, self.user])
+        self.assertDeleteNotPermitted(endpoint_url, [None, self.user, self.agent])
 
         # create some more contacts (in addition to Joe and Frank)
         contact1 = self.create_contact(
@@ -1992,13 +1994,12 @@ class EndpointsTest(APITest):
         hans = self.create_contact("Hans", phone="0788000004", org=self.org2)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
-            response = self.getJSON(contacts_url, readonly_models={Contact})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertResultsByUUID(response, [contact4, self.joe, contact2, contact1, self.frank])
+        response = self.assertGet(
+            endpoint_url,
+            [self.user, self.editor, self.admin, self.agent],
+            results=[contact4, self.joe, contact2, contact1, self.frank],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 6,
+        )
         self.assertEqual(
             {
                 "uuid": contact4.uuid,
@@ -2015,13 +2016,15 @@ class EndpointsTest(APITest):
                 "blocked": False,
                 "stopped": False,
             },
-            resp_json["results"][0],
+            response.json()["results"][0],
         )
 
         # with expanded URNs
-        response = self.getJSON(contacts_url, "expand_urns=true", readonly_models={Contact})
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
+        response = self.assertGet(
+            endpoint_url + "?expand_urns=true",
+            [self.user],
+            results=[contact4, self.joe, contact2, contact1, self.frank],
+        )
         self.assertEqual(
             {
                 "uuid": contact4.uuid,
@@ -2045,26 +2048,23 @@ class EndpointsTest(APITest):
                 "blocked": False,
                 "stopped": False,
             },
-            resp_json["results"][0],
+            response.json()["results"][0],
         )
 
         # reversed
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
-            response = self.getJSON(contacts_url, "reverse=true")
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertResultsByUUID(response, [self.frank, contact1, contact2, self.joe, contact4])
+        response = self.assertGet(
+            endpoint_url + "?reverse=true",
+            [self.user],
+            results=[self.frank, contact1, contact2, self.joe, contact4],
+        )
 
         with self.anonymous(self.org):
-            with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
-                response = self.getJSON(contacts_url)
-
-            resp_json = response.json()
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(resp_json["next"], None)
-            self.assertResultsByUUID(response, [contact4, self.joe, contact2, contact1, self.frank])
+            response = self.assertGet(
+                endpoint_url,
+                [self.user, self.editor, self.admin, self.agent],
+                results=[contact4, self.joe, contact2, contact1, self.frank],
+                num_queries=NUM_BASE_REQUEST_QUERIES + 6,
+            )
             self.assertEqual(
                 {
                     "uuid": contact4.uuid,
@@ -2082,13 +2082,15 @@ class EndpointsTest(APITest):
                     "blocked": False,
                     "stopped": False,
                 },
-                resp_json["results"][0],
+                response.json()["results"][0],
             )
 
             # with expanded URNs
-            response = self.getJSON(contacts_url, "expand_urns=true", readonly_models={Contact})
-            resp_json = response.json()
-            self.assertEqual(response.status_code, 200)
+            response = self.assertGet(
+                endpoint_url + "?expand_urns=true",
+                [self.user],
+                results=[contact4, self.joe, contact2, contact1, self.frank],
+            )
             self.assertEqual(
                 {
                     "uuid": contact4.uuid,
@@ -2113,73 +2115,69 @@ class EndpointsTest(APITest):
                     "blocked": False,
                     "stopped": False,
                 },
-                resp_json["results"][0],
+                response.json()["results"][0],
             )
 
         # filter by UUID
-        response = self.getJSON(contacts_url, "uuid=%s" % contact2.uuid)
-        self.assertResultsByUUID(response, [contact2])
+        self.assertGet(endpoint_url + f"?uuid={contact2.uuid}", [self.editor], results=[contact2])
 
         # filter by URN (which should be normalized)
-        response = self.getJSON(contacts_url, "urn=%s" % quote_plus("tel:078-8000004"))
-        self.assertResultsByUUID(response, [contact4])
+        self.assertGet(endpoint_url + f"?urn={quote_plus('tel:078-8000004')}", [self.editor], results=[contact4])
 
         # error if URN can't be parsed
-        response = self.getJSON(contacts_url, "urn=12345")
-        self.assertResponseError(response, None, "Invalid URN: 12345")
+        self.assertGet(endpoint_url + "?urn=12345", [self.editor], errors={None: "Invalid URN: 12345"})
 
-        # filter by group name
-        response = self.getJSON(contacts_url, "group=Customers")
-        self.assertResultsByUUID(response, [contact4, self.joe])
-
-        # filter by group UUID
-        response = self.getJSON(contacts_url, "group=%s" % group.uuid)
-        self.assertResultsByUUID(response, [contact4, self.joe])
+        # filter by group UUID / name
+        self.assertGet(endpoint_url + f"?group={group.uuid}", [self.editor], results=[contact4, self.joe])
+        self.assertGet(endpoint_url + "?group=Customers", [self.editor], results=[contact4, self.joe])
 
         # filter by invalid group
-        response = self.getJSON(contacts_url, "group=invalid")
-        self.assertResultsByUUID(response, [])
+        self.assertGet(endpoint_url + "?group=invalid", [self.editor], results=[])
 
-        # filter by before
-        response = self.getJSON(contacts_url, "before=%s" % format_datetime(contact1.modified_on))
-        self.assertResultsByUUID(response, [contact1, self.frank])
-
-        # filter by after
-        response = self.getJSON(contacts_url, "after=%s" % format_datetime(self.joe.modified_on))
-        self.assertResultsByUUID(response, [contact4, self.joe])
+        # filter by before / after
+        self.assertGet(
+            endpoint_url + f"?before={format_datetime(contact1.modified_on)}",
+            [self.editor],
+            results=[contact1, self.frank],
+        )
+        self.assertGet(
+            endpoint_url + f"?after={format_datetime(self.joe.modified_on)}",
+            [self.editor],
+            results=[contact4, self.joe],
+        )
 
         # view the deleted contact
-        response = self.getJSON(contacts_url, "deleted=true")
-        self.assertResultsByUUID(response, [contact3])
-        self.assertEqual(
-            {
-                "uuid": contact3.uuid,
-                "name": None,
-                "status": None,
-                "language": None,
-                "urns": [],
-                "groups": [],
-                "fields": {},
-                "flow": None,
-                "created_on": format_datetime(contact3.created_on),
-                "modified_on": format_datetime(contact3.modified_on),
-                "last_seen_on": None,
-                "blocked": None,
-                "stopped": None,
-            },
-            response.json()["results"][0],
+        self.assertGet(
+            endpoint_url + "?deleted=true",
+            [self.editor],
+            results=[
+                {
+                    "uuid": contact3.uuid,
+                    "name": None,
+                    "status": None,
+                    "language": None,
+                    "urns": [],
+                    "groups": [],
+                    "fields": {},
+                    "flow": None,
+                    "created_on": format_datetime(contact3.created_on),
+                    "modified_on": format_datetime(contact3.modified_on),
+                    "last_seen_on": None,
+                    "blocked": None,
+                    "stopped": None,
+                }
+            ],
         )
 
         # try to post something other than an object
-        response = self.postJSON(contacts_url, None, [])
-        self.assertEqual(response.status_code, 400)
+        self.assertPost(
+            endpoint_url, self.editor, [], errors={"non_field_errors": "Request body should be a single JSON object"}
+        )
 
         # create an empty contact
-        response = self.postJSON(contacts_url, None, {})
-        self.assertEqual(response.status_code, 201)
+        response = self.assertPost(endpoint_url, self.editor, {}, status=201)
 
         empty = Contact.objects.get(name=None, is_active=True)
-
         self.assertEqual(
             {
                 "uuid": empty.uuid,
@@ -2200,10 +2198,12 @@ class EndpointsTest(APITest):
         )
 
         # create with all fields but empty
-        response = self.postJSON(
-            contacts_url, None, {"name": None, "language": None, "urns": [], "groups": [], "fields": {}}
+        response = self.assertPost(
+            endpoint_url,
+            self.editor,
+            {"name": None, "language": None, "urns": [], "groups": [], "fields": {}},
+            status=201,
         )
-        self.assertEqual(response.status_code, 201)
 
         jaqen = Contact.objects.order_by("id").last()
         self.assertIsNone(jaqen.name)
@@ -2213,14 +2213,10 @@ class EndpointsTest(APITest):
         self.assertEqual(set(), set(jaqen.get_groups()))
         self.assertIsNone(jaqen.fields)
 
-        # create a dynamic group
-        dyn_group = self.create_group("Dynamic Group", query="name = Frank")
-        ContactGroup.objects.filter(id=dyn_group.id).update(status=ContactGroup.STATUS_READY)
-
         # create with all fields
-        response = self.postJSON(
-            contacts_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.editor,
             {
                 "name": "Jean",
                 "language": "fra",
@@ -2228,11 +2224,8 @@ class EndpointsTest(APITest):
                 "groups": [group.uuid],
                 "fields": {"nickname": "Jado"},
             },
+            status=201,
         )
-        self.assertEqual(response.status_code, 201)
-
-        resp_json = response.json()
-        self.assertEqual(resp_json["urns"], ["tel:+250783333333", "twitter:jean"])
 
         # URNs will be normalized
         nickname = self.org.fields.get(key="nickname")
@@ -2243,13 +2236,17 @@ class EndpointsTest(APITest):
         self.assertEqual(jean.get_field_value(nickname), "Jado")
 
         # try to create with group from other org
-        response = self.postJSON(contacts_url, None, {"name": "Jim", "groups": [other_org_group.uuid]})
-        self.assertResponseError(response, "groups", f"No such object: {other_org_group.uuid}")
+        self.assertPost(
+            endpoint_url,
+            self.editor,
+            {"name": "Jim", "groups": [other_org_group.uuid]},
+            errors={"groups": f"No such object: {other_org_group.uuid}"},
+        )
 
         # try to create with invalid fields
-        response = self.postJSON(
-            contacts_url,
-            None,
+        response = self.assertPost(
+            endpoint_url,
+            self.editor,
             {
                 "name": "Jim",
                 "language": "xyz",
@@ -2257,21 +2254,19 @@ class EndpointsTest(APITest):
                 "groups": ["59686b4e-14bc-4160-9376-b649b218c806"],
                 "fields": {"hmmm": "X"},
             },
-        )
-        self.assertResponseError(response, "language", "Not a valid ISO639-3 language code.")
-        self.assertResponseError(response, "groups", "No such object: 59686b4e-14bc-4160-9376-b649b218c806")
-        self.assertResponseError(response, "fields", "Invalid contact field key: hmmm")
-
-        self.assertEqual(
-            response.json()["urns"], {"0": ["Invalid URN: 1234556789. Ensure phone numbers contain country codes."]}
+            errors={
+                "language": "Not a valid ISO639-3 language code.",
+                "groups": "No such object: 59686b4e-14bc-4160-9376-b649b218c806",
+                "fields": "Invalid contact field key: hmmm",
+                ("urns", "0"): "Invalid URN: 1234556789. Ensure phone numbers contain country codes.",
+            },
         )
 
         # update an existing contact by UUID but don't provide any fields
-        response = self.postJSON(contacts_url, "uuid=%s" % jean.uuid, {})
-        self.assertEqual(response.status_code, 200)
+        self.assertPost(endpoint_url + f"?uuid={jean.uuid}", self.editor, {})
 
         # contact should be unchanged
-        jean = Contact.objects.get(pk=jean.pk)
+        jean.refresh_from_db()
         self.assertEqual(jean.name, "Jean")
         self.assertEqual(jean.language, "fra")
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250783333333", "twitter:jean"})
@@ -2279,9 +2274,9 @@ class EndpointsTest(APITest):
         self.assertEqual(jean.get_field_value(nickname), "Jado")
 
         # update by UUID and change all fields
-        response = self.postJSON(
-            contacts_url,
-            "uuid=%s" % jean.uuid,
+        self.assertPost(
+            endpoint_url + f"?uuid={jean.uuid}",
+            self.editor,
             {
                 "name": "Jason Undead",
                 "language": "ita",
@@ -2290,9 +2285,8 @@ class EndpointsTest(APITest):
                 "fields": {"nickname": "Žan", "gender": "frog"},
             },
         )
-        self.assertEqual(response.status_code, 200)
 
-        jean = Contact.objects.get(pk=jean.pk)
+        jean.refresh_from_db()
         self.assertEqual(jean.name, "Jason Undead")
         self.assertEqual(jean.language, "ita")
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250784444444"})
@@ -2301,13 +2295,13 @@ class EndpointsTest(APITest):
         self.assertEqual(jean.get_field_value(gender), "frog")
 
         # change the language field
-        response = self.postJSON(
-            contacts_url,
-            "uuid=%s" % jean.uuid,
+        self.assertPost(
+            endpoint_url + f"?uuid={jean.uuid}",
+            self.editor,
             {"name": "Jean II", "language": "eng", "urns": ["tel:+250784444444"], "groups": [], "fields": {}},
         )
-        self.assertEqual(response.status_code, 200)
-        jean = Contact.objects.get(pk=jean.pk)
+
+        jean.refresh_from_db()
         self.assertEqual(jean.name, "Jean II")
         self.assertEqual(jean.language, "eng")
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250784444444"})
@@ -2315,9 +2309,9 @@ class EndpointsTest(APITest):
         self.assertEqual(jean.get_field_value(nickname), "Žan")
 
         # update by uuid and remove all fields
-        response = self.postJSON(
-            contacts_url,
-            "uuid=%s" % jean.uuid,
+        self.assertPost(
+            endpoint_url + f"?uuid={jean.uuid}",
+            self.editor,
             {
                 "name": "Jean II",
                 "language": "eng",
@@ -2326,16 +2320,15 @@ class EndpointsTest(APITest):
                 "fields": {"nickname": "", "gender": ""},
             },
         )
-        self.assertEqual(response.status_code, 200)
 
-        jean = Contact.objects.get(pk=jean.pk)
+        jean.refresh_from_db()
         self.assertEqual(jean.get_field_value(nickname), None)
         self.assertEqual(jean.get_field_value(gender), None)
 
         # update by uuid and update/remove fields
-        response = self.postJSON(
-            contacts_url,
-            "uuid=%s" % jean.uuid,
+        self.assertPost(
+            endpoint_url + f"?uuid={jean.uuid}",
+            self.editor,
             {
                 "name": "Jean II",
                 "language": "eng",
@@ -2344,129 +2337,151 @@ class EndpointsTest(APITest):
                 "fields": {"nickname": "Jado", "gender": ""},
             },
         )
-        self.assertEqual(response.status_code, 200)
 
-        jean = Contact.objects.get(pk=jean.pk)
+        jean.refresh_from_db()
         self.assertEqual(jean.get_field_value(nickname), "Jado")
         self.assertEqual(jean.get_field_value(gender), None)
 
         # update by URN (which should be normalized)
-        response = self.postJSON(contacts_url, "urn=%s" % quote_plus("tel:+250-78-4444444"), {"name": "Jean III"})
-        self.assertEqual(response.status_code, 200)
+        self.assertPost(endpoint_url + f"?urn={quote_plus('tel:+250-78-4444444')}", self.editor, {"name": "Jean III"})
 
-        jean = Contact.objects.get(pk=jean.pk)
+        jean.refresh_from_db()
         self.assertEqual(jean.name, "Jean III")
 
         # try to specify URNs field whilst referencing by URN
-        response = self.postJSON(
-            contacts_url, "urn=%s" % quote_plus("tel:+250784444444"), {"urns": ["tel:+250785555555"]}
+        self.assertPost(
+            endpoint_url + f"?urn={quote_plus('tel:+250-78-4444444')}",
+            self.editor,
+            {"urns": ["tel:+250785555555"]},
+            errors={"urns": "Field not allowed when using URN in URL"},
         )
-        self.assertResponseError(response, "urns", "Field not allowed when using URN in URL")
 
         # if contact doesn't exist with URN, they're created
-        response = self.postJSON(contacts_url, "urn=%s" % quote_plus("tel:+250-78-5555555"), {"name": "Bobby"})
-        self.assertEqual(response.status_code, 201)
+        self.assertPost(
+            endpoint_url + f"?urn={quote_plus('tel:+250-78-5555555')}", self.editor, {"name": "Bobby"}, status=201
+        )
 
         # URN should be normalized
         bobby = Contact.objects.get(name="Bobby")
         self.assertEqual(set(bobby.urns.values_list("identity", flat=True)), {"tel:+250785555555"})
 
         # try to create a contact with a URN belonging to another contact
-        response = self.postJSON(contacts_url, None, {"name": "Robert", "urns": ["tel:+250-78-5555555"]})
-        self.assertEqual(response.status_code, 400)
-        self.assertResponseError(response, "urns", "URN belongs to another contact: tel:+250785555555")
+        self.assertPost(
+            endpoint_url,
+            self.editor,
+            {"name": "Robert", "urns": ["tel:+250-78-5555555"]},
+            errors={"urns": "URN belongs to another contact: tel:+250785555555"},
+        )
 
         # try to update a contact with non-existent UUID
-        response = self.postJSON(contacts_url, "uuid=ad6acad9-959b-4d70-b144-5de2891e4d00", {})
-        self.assert404(response)
+        self.assertPost(endpoint_url + "?uuid=ad6acad9-959b-4d70-b144-5de2891e4d00", self.editor, {}, status=404)
 
         # try to update a contact in another org
-        response = self.postJSON(contacts_url, "uuid=%s" % hans.uuid, {})
-        self.assert404(response)
+        self.assertPost(endpoint_url + f"?uuid={hans.uuid}", self.editor, {}, status=404)
 
         # try to add a contact to a dynamic group
-        response = self.postJSON(contacts_url, "uuid=%s" % jean.uuid, {"groups": [dyn_group.uuid]})
-        self.assertResponseError(response, "groups", "Contact group must not be query based: %s" % dyn_group.uuid)
+        dyn_group = self.create_group("Dynamic Group", query="name = Frank")
+        ContactGroup.objects.filter(id=dyn_group.id).update(status=ContactGroup.STATUS_READY)
+        self.assertPost(
+            endpoint_url + f"?uuid={jean.uuid}",
+            self.editor,
+            {"groups": [dyn_group.uuid]},
+            errors={"groups": "Contact group must not be query based: %s" % dyn_group.uuid},
+        )
 
         # try to give a contact more than 100 URNs
-        response = self.postJSON(
-            contacts_url, "uuid=%s" % jean.uuid, {"urns": ["twitter:bob%d" % u for u in range(101)]}
+        self.assertPost(
+            endpoint_url + f"?uuid={jean.uuid}",
+            self.editor,
+            {"urns": ["twitter:bob%d" % u for u in range(101)]},
+            errors={"urns": "Ensure this field has no more than 100 elements."},
         )
-        self.assertResponseError(response, "urns", "Ensure this field has no more than 100 elements.")
 
         # try to give a contact more than 100 contact fields
-        response = self.postJSON(
-            contacts_url, "uuid=%s" % jean.uuid, {"fields": {"field_%d" % f: f for f in range(101)}}
+        self.assertPost(
+            endpoint_url + f"?uuid={jean.uuid}",
+            self.editor,
+            {"fields": {"field_%d" % f: f for f in range(101)}},
+            errors={"fields": "Ensure this field has no more than 100 elements."},
         )
-        self.assertResponseError(response, "fields", "Ensure this field has no more than 100 elements.")
 
         # ok to give them 100 URNs
-        response = self.postJSON(
-            contacts_url, "uuid=%s" % jean.uuid, {"urns": ["twitter:bob%d" % u for u in range(100)]}
+        self.assertPost(
+            endpoint_url + f"?uuid={jean.uuid}",
+            self.editor,
+            {"urns": ["twitter:bob%d" % u for u in range(100)]},
         )
-        self.assertEqual(response.status_code, 200)
         self.assertEqual(jean.urns.count(), 100)
 
         # try to move a blocked contact into a group
         jean.block(self.user)
-        response = self.postJSON(contacts_url, "uuid=%s" % jean.uuid, {"groups": [group.uuid]})
-        self.assertResponseError(response, "groups", "Non-active contacts can't be added to groups")
+        self.assertPost(
+            endpoint_url + f"?uuid={jean.uuid}",
+            self.editor,
+            {"groups": [group.uuid]},
+            errors={"groups": "Non-active contacts can't be added to groups"},
+        )
 
         # try to update a contact by both UUID and URN
-        response = self.postJSON(contacts_url, "uuid=%s&urn=%s" % (jean.uuid, quote_plus("tel:+250784444444")), {})
-        self.assertResponseError(response, None, "URL can only contain one of the following parameters: urn, uuid")
+        self.assertPost(
+            endpoint_url + f"?uuid={jean.uuid}&urn={quote_plus('tel:+250784444444')}",
+            self.editor,
+            {},
+            errors={None: "URL can only contain one of the following parameters: urn, uuid"},
+        )
 
         # try an empty delete request
-        response = self.deleteJSON(contacts_url, None)
-        self.assertResponseError(response, None, "URL must contain one of the following parameters: urn, uuid")
+        self.assertDelete(
+            endpoint_url,
+            self.editor,
+            errors={None: "URL must contain one of the following parameters: urn, uuid"},
+        )
 
         # delete a contact by UUID
-        response = self.deleteJSON(contacts_url, "uuid=%s" % jean.uuid)
-        self.assertEqual(response.status_code, 204)
+        self.assertDelete(endpoint_url + f"?uuid={jean.uuid}", self.editor, status=204)
 
         jean.refresh_from_db()
         self.assertFalse(jean.is_active)
 
-        response = self.postJSON(contacts_url, "uuid=%s" % jean.uuid, {})
-        self.assertResponseError(response, "non_field_errors", "Inactive contacts can't be modified.")
+        self.assertPost(
+            endpoint_url + f"?uuid={jean.uuid}",
+            self.admin,
+            {},
+            errors={"non_field_errors": "Deleted contacts can't be modified."},
+        )
 
         # create xavier
-        response = self.postJSON(
-            contacts_url, None, {"name": "Xavier", "urns": ["tel:+250-78-7777777", "twitter:XAVIER"]}
+        self.assertPost(
+            endpoint_url, self.admin, {"name": "Xavier", "urns": ["tel:+250-78-7777777", "twitter:XAVIER"]}, status=201
         )
-        self.assertEqual(response.status_code, 201)
 
         xavier = Contact.objects.get(name="Xavier")
         self.assertEqual(set(xavier.urns.values_list("identity", flat=True)), {"twitter:xavier", "tel:+250787777777"})
 
         # updating fields by urn should keep all exiting urns
-        response = self.postJSON(
-            contacts_url, "urn=%s" % quote_plus("tel:+250787777777"), {"fields": {"gender": "Male"}}
+        self.assertPost(
+            endpoint_url + f"?urn={quote_plus('tel:+250787777777')}", self.admin, {"fields": {"gender": "Male"}}
         )
-        self.assertEqual(response.status_code, 200)
 
-        xavier = Contact.objects.get(name="Xavier")
+        xavier.refresh_from_db()
         self.assertEqual(set(xavier.urns.values_list("identity", flat=True)), {"twitter:xavier", "tel:+250787777777"})
         self.assertEqual(xavier.get_field_value(gender), "Male")
 
         # delete a contact by URN (which should be normalized)
-        response = self.deleteJSON(contacts_url, "urn=%s" % quote_plus("twitter:XAVIER"))
-        self.assertEqual(response.status_code, 204)
+        self.assertDelete(endpoint_url + f"?urn={quote_plus('twitter:XAVIER')}", self.editor, status=204)
 
         xavier.refresh_from_db()
         self.assertFalse(xavier.is_active)
 
         # try deleting a contact by a non-existent URN
-        response = self.deleteJSON(contacts_url, "urn=twitter:billy")
-        self.assert404(response)
+        self.assertDelete(endpoint_url + "?urn=twitter:billy", self.editor, status=404)
 
         # try to delete a contact in another org
-        response = self.deleteJSON(contacts_url, "uuid=%s" % hans.uuid)
-        self.assert404(response)
+        self.assertDelete(endpoint_url + f"?uuid={hans.uuid}", self.editor, status=404)
 
     @mock_mailroom
     def test_contacts_as_agent(self, mr_mocks):
-        contacts_url = reverse("api.v2.contacts")
+        endpoint_url = reverse("api.v2.contacts") + ".json"
 
         self.create_field("gender", "Gender", ContactField.TYPE_TEXT, agent_access=ContactField.ACCESS_NONE)
         self.create_field("age", "Age", ContactField.TYPE_NUMBER, agent_access=ContactField.ACCESS_VIEW)
@@ -2476,40 +2491,51 @@ class EndpointsTest(APITest):
             "Bob", urns=["telegram:12345"], fields={"gender": "M", "age": "40", "height": "180"}
         )
 
-        self.login(self.agent)
-
         # fetching a contact returns only the fields that agents can access
-        response = self.getJSON(contacts_url, f"uuid={contact.uuid}")
-        self.assertEqual(
-            {
-                "uuid": str(contact.uuid),
-                "name": "Bob",
-                "status": "active",
-                "language": None,
-                "urns": ["telegram:12345"],
-                "groups": [],
-                "fields": {"age": "40", "height": "180"},
-                "flow": None,
-                "created_on": format_datetime(contact.created_on),
-                "modified_on": format_datetime(contact.modified_on),
-                "last_seen_on": None,
-                "blocked": False,
-                "stopped": False,
-            },
-            response.json()["results"][0],
+        self.assertGet(
+            endpoint_url + f"?uuid={contact.uuid}",
+            [self.agent],
+            results=[
+                {
+                    "uuid": str(contact.uuid),
+                    "name": "Bob",
+                    "status": "active",
+                    "language": None,
+                    "urns": ["telegram:12345"],
+                    "groups": [],
+                    "fields": {"age": "40", "height": "180"},
+                    "flow": None,
+                    "created_on": format_datetime(contact.created_on),
+                    "modified_on": format_datetime(contact.modified_on),
+                    "last_seen_on": None,
+                    "blocked": False,
+                    "stopped": False,
+                }
+            ],
         )
 
         # can't edit the field that we don't have any access to
-        response = self.postJSON(contacts_url, f"uuid={contact.uuid}", {"fields": {"gender": "M"}})
-        self.assertResponseError(response, "fields", "Invalid contact field key: gender")
+        self.assertPost(
+            endpoint_url + f"?uuid={contact.uuid}",
+            self.agent,
+            {"fields": {"gender": "M"}},
+            errors={"fields": "Invalid contact field key: gender"},
+        )
 
         # nor the field that we have view access to
-        response = self.postJSON(contacts_url, f"uuid={contact.uuid}", {"fields": {"age": "30"}})
-        self.assertResponseError(response, "fields", "Editing of 'age' values disallowed for current user.")
+        self.assertPost(
+            endpoint_url + f"?uuid={contact.uuid}",
+            self.agent,
+            {"fields": {"age": "30"}},
+            errors={"fields": "Editing of 'age' values disallowed for current user."},
+        )
 
         # but can edit the field we have edit access for
-        response = self.postJSON(contacts_url, f"uuid={contact.uuid}", {"fields": {"height": "160"}})
-        self.assertEqual(200, response.status_code)
+        self.assertPost(
+            endpoint_url + f"?uuid={contact.uuid}",
+            self.agent,
+            {"fields": {"height": "160"}},
+        )
 
     def test_contacts_prevent_null_chars(self):
         contacts_url = reverse("api.v2.contacts")
@@ -2689,9 +2715,11 @@ class EndpointsTest(APITest):
 
     @mock_mailroom
     def test_contact_actions(self, mr_mocks):
-        actions_url = reverse("api.v2.contact_actions")
+        endpoint_url = reverse("api.v2.contact_actions") + ".json"
 
-        self.assertEndpointAccess(actions_url, viewer_get=403, admin_get=405, agent_get=405)
+        self.assertGetNotAllowed(endpoint_url)
+        self.assertPostNotPermitted(endpoint_url, [None, self.user])
+        self.assertDeleteNotAllowed(endpoint_url)
 
         for contact in Contact.objects.all():
             contact.release(self.admin)
@@ -2723,148 +2751,187 @@ class EndpointsTest(APITest):
         self.create_incoming_msg(contact4, "Hello")
 
         # try adding more contacts to group than this endpoint is allowed to operate on at one time
-        response = self.postJSON(
-            actions_url, None, {"contacts": [str(x) for x in range(101)], "action": "add", "group": "Testers"}
+        self.assertPost(
+            endpoint_url,
+            self.agent,
+            {"contacts": [str(x) for x in range(101)], "action": "add", "group": "Testers"},
+            errors={"contacts": "Ensure this field has no more than 100 elements."},
         )
-        self.assertResponseError(response, "contacts", "Ensure this field has no more than 100 elements.")
 
         # try adding all contacts to a group by its name
-        response = self.postJSON(
-            actions_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.editor,
             {
                 "contacts": [contact1.uuid, "tel:+250788000002", contact3.uuid, contact4.uuid, contact5.uuid],
                 "action": "add",
                 "group": "Testers",
             },
+            errors={"contacts": "No such object: %s" % contact5.uuid},
         )
 
-        # error reporting that at least one of the UUIDs is not a valid contact
-        self.assertResponseError(response, "contacts", "No such object: %s" % contact5.uuid)
-
         # try adding a blocked contact to a group
-        response = self.postJSON(
-            actions_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.admin,
             {
                 "contacts": [contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid],
                 "action": "add",
                 "group": "Testers",
             },
-        )
-
-        # error reporting that the deleted and test contacts are invalid
-        self.assertResponseError(
-            response, "non_field_errors", "Non-active contacts cannot be added to groups: %s" % contact4.uuid
+            errors={"non_field_errors": "Non-active contacts cannot be added to groups: %s" % contact4.uuid},
         )
 
         # add valid contacts to the group by name
-        response = self.postJSON(
-            actions_url, None, {"contacts": [contact1.uuid, "tel:+250788000002"], "action": "add", "group": "Testers"}
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"contacts": [contact1.uuid, "tel:+250788000002"], "action": "add", "group": "Testers"},
+            status=204,
         )
-        self.assertEqual(response.status_code, 204)
         self.assertEqual(set(group.contacts.all()), {contact1, contact2})
 
         # try to add to a non-existent group
-        response = self.postJSON(actions_url, None, {"contacts": [contact1.uuid], "action": "add", "group": "Spammers"})
-        self.assertResponseError(response, "group", "No such object: Spammers")
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"contacts": [contact1.uuid], "action": "add", "group": "Spammers"},
+            errors={"group": "No such object: Spammers"},
+        )
 
         # try to add to a dynamic group
-        response = self.postJSON(
-            actions_url, None, {"contacts": [contact1.uuid], "action": "add", "group": "Developers"}
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"contacts": [contact1.uuid], "action": "add", "group": "Developers"},
+            errors={"group": "Contact group must not be query based: Developers"},
         )
-        self.assertResponseError(response, "group", "Contact group must not be query based: Developers")
 
         # add contact 3 to a group by its UUID
-        response = self.postJSON(actions_url, None, {"contacts": [contact3.uuid], "action": "add", "group": group.uuid})
-        self.assertEqual(response.status_code, 204)
+        self.assertPost(
+            endpoint_url, self.admin, {"contacts": [contact3.uuid], "action": "add", "group": group.uuid}, status=204
+        )
         self.assertEqual(set(group.contacts.all()), {contact1, contact2, contact3})
 
         # try adding with invalid group UUID
-        response = self.postJSON(actions_url, None, {"contacts": [contact3.uuid], "action": "add", "group": "nope"})
-        self.assertResponseError(response, "group", "No such object: nope")
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"contacts": [contact3.uuid], "action": "add", "group": "15611256-95b5-46d5-b857-abafe0d32fe9"},
+            errors={"group": "No such object: 15611256-95b5-46d5-b857-abafe0d32fe9"},
+        )
 
         # try to add to a group in another org
-        response = self.postJSON(
-            actions_url, None, {"contacts": [contact1.uuid], "action": "add", "group": other_org_group.uuid}
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"contacts": [contact3.uuid], "action": "add", "group": other_org_group.uuid},
+            errors={"group": f"No such object: {other_org_group.uuid}"},
         )
-        self.assertResponseError(response, "group", f"No such object: {other_org_group.uuid}")
 
         # remove contact 2 from group by its name (which is case-insensitive)
-        response = self.postJSON(
-            actions_url, None, {"contacts": [contact2.uuid], "action": "remove", "group": "testers"}
+        self.assertPost(
+            endpoint_url, self.admin, {"contacts": [contact2.uuid], "action": "remove", "group": "testers"}, status=204
         )
-        self.assertEqual(response.status_code, 204)
         self.assertEqual(set(group.contacts.all()), {contact1, contact3})
 
         # and remove contact 3 from group by its UUID
-        response = self.postJSON(
-            actions_url, None, {"contacts": [contact3.uuid], "action": "remove", "group": group.uuid}
+        self.assertPost(
+            endpoint_url, self.admin, {"contacts": [contact3.uuid], "action": "remove", "group": group.uuid}, status=204
         )
-        self.assertEqual(response.status_code, 204)
         self.assertEqual(set(group.contacts.all()), {contact1})
 
         # try to add to group without specifying a group
-        response = self.postJSON(actions_url, None, {"contacts": [contact1.uuid], "action": "add"})
-        self.assertResponseError(response, "non_field_errors", 'For action "add" you should also specify a group')
-        response = self.postJSON(actions_url, None, {"contacts": [contact1.uuid], "action": "add", "group": ""})
-        self.assertResponseError(response, "group", "This field may not be null.")
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"contacts": [contact1.uuid], "action": "add"},
+            errors={"non_field_errors": 'For action "add" you should also specify a group'},
+        )
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"contacts": [contact1.uuid], "action": "add", "group": ""},
+            errors={"group": "This field may not be null."},
+        )
 
         # block all contacts
-        response = self.postJSON(
-            actions_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.admin,
             {"contacts": [contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid], "action": "block"},
+            status=204,
         )
-        self.assertEqual(response.status_code, 204)
         self.assertEqual(
             set(Contact.objects.filter(status=Contact.STATUS_BLOCKED)), {contact1, contact2, contact3, contact4}
         )
 
         # unblock contact 1
-        response = self.postJSON(actions_url, None, {"contacts": [contact1.uuid], "action": "unblock"})
-        self.assertEqual(response.status_code, 204)
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"contacts": [contact1.uuid], "action": "unblock"},
+            status=204,
+        )
         self.assertEqual(set(self.org.contacts.filter(status=Contact.STATUS_ACTIVE)), {contact1, contact5})
         self.assertEqual(set(self.org.contacts.filter(status=Contact.STATUS_BLOCKED)), {contact2, contact3, contact4})
 
         # interrupt any active runs of contacts 1 and 2
         with patch("temba.mailroom.queue_interrupt") as mock_queue_interrupt:
-            response = self.postJSON(
-                actions_url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "interrupt"}
+            self.assertPost(
+                endpoint_url,
+                self.admin,
+                {"contacts": [contact1.uuid, contact2.uuid], "action": "interrupt"},
+                status=204,
             )
-            self.assertEqual(response.status_code, 204)
 
             mock_queue_interrupt.assert_called_once_with(self.org, contacts=[contact1, contact2])
 
         # archive all messages for contacts 1 and 2
-        response = self.postJSON(
-            actions_url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "archive_messages"}
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"contacts": [contact1.uuid, contact2.uuid], "action": "archive_messages"},
+            status=204,
         )
-        self.assertEqual(response.status_code, 204)
         self.assertFalse(Msg.objects.filter(contact__in=[contact1, contact2], direction="I", visibility="V").exists())
         self.assertTrue(Msg.objects.filter(contact=contact3, direction="I", visibility="V").exists())
 
         # delete contacts 1 and 2
-        response = self.postJSON(actions_url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "delete"})
-        self.assertEqual(response.status_code, 204)
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"contacts": [contact1.uuid, contact2.uuid], "action": "delete"},
+            status=204,
+        )
         self.assertEqual(set(self.org.contacts.filter(is_active=False)), {contact1, contact2, contact5})
         self.assertEqual(set(self.org.contacts.filter(is_active=True)), {contact3, contact4})
         self.assertFalse(Msg.objects.filter(contact__in=[contact1, contact2]).exclude(visibility="D").exists())
         self.assertTrue(Msg.objects.filter(contact=contact3).exclude(visibility="D").exists())
 
         # try to provide a group for a non-group action
-        response = self.postJSON(
-            actions_url, None, {"contacts": [contact3.uuid], "action": "block", "group": "Testers"}
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"contacts": [contact3.uuid], "action": "block", "group": "Testers"},
+            errors={"non_field_errors": 'For action "block" you should not specify a group'},
         )
-        self.assertResponseError(response, "non_field_errors", 'For action "block" you should not specify a group')
 
         # trying to act on zero contacts is an error
-        response = self.postJSON(actions_url, None, {"contacts": [], "action": "interrupt"})
-        self.assertResponseError(response, "contacts", "Contacts can't be empty.")
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"contacts": [], "action": "block"},
+            errors={"contacts": "Contacts can't be empty."},
+        )
 
         # try to invoke an invalid action
-        response = self.postJSON(actions_url, None, {"contacts": [contact3.uuid], "action": "like"})
-        self.assertResponseError(response, "action", '"like" is not a valid choice.')
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"contacts": [contact3.uuid], "action": "like"},
+            errors={"action": '"like" is not a valid choice.'},
+        )
 
     def test_definitions(self):
         endpoint_url = reverse("api.v2.definitions") + ".json"
