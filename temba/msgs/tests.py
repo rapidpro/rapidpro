@@ -1,8 +1,8 @@
+import json
 from collections import OrderedDict
 from datetime import date, datetime, timedelta
 from unittest.mock import patch
 
-import json
 import pytz
 from openpyxl import load_workbook
 
