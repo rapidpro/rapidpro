@@ -1036,18 +1036,7 @@ class LabelForm(BaseLabelForm):
 
 class LabelCRUDL(SmartCRUDL):
     model = Label
-    actions = ("create", "update", "usages", "delete", "list")
-
-    class List(OrgPermsMixin, SmartListView):
-        paginate_by = None
-        default_order = ("name",)
-
-        def derive_queryset(self, **kwargs):
-            return Label.get_active_for_org(self.request.org)
-
-        def render_to_response(self, context, **response_kwargs):
-            results = [{"id": str(lb.uuid), "text": lb.name} for lb in context["object_list"]]
-            return HttpResponse(json.dumps(results), content_type="application/json")
+    actions = ("create", "update", "usages", "delete")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "messages")
@@ -1103,6 +1092,8 @@ class MediaCRUDL(SmartCRUDL):
         """
         TODO deprecated, migrate usages to /api/v2/media.json
         """
+
+        permission = "msgs.media_create"
 
         def post(self, request, *args, **kwargs):
             file = request.FILES["file"]
