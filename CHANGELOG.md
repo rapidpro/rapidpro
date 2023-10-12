@@ -1,3 +1,11 @@
+v8.3.47 (2023-10-12)
+-------------------------
+ * Add Trigger.keywords and start writing
+ * Switch contacts API endpoints to use CRUDL perms
+ * Cleanup BroadcastCRUDL.Send which is now only for sending to a flow node
+ * Remove unused LabelCRUDL.List view
+ * Convert messages, media and label API endpoints to use CRUDL perms
+
 v8.3.46 (2023-10-11)
 -------------------------
  * Remove no longer needed deprecated options on definitions endpoint
