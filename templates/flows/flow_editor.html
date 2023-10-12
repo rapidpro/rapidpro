@@ -137,9 +137,9 @@
     }
 
     function handleActivityClicked(nodeUUID, count) {
-      var endpoint = '{% url "msgs.broadcast_send" %}';
+      var endpoint = '{% url "msgs.broadcast_to_node" %}';
       var modal = document.querySelector("#send-message-modal");
-      modal.endpoint = endpoint + "?step_node=" + nodeUUID + "&count=" + count;
+      modal.endpoint = endpoint + "?node=" + nodeUUID + "&count=" + count;
       modal.open = true;
     }
 
