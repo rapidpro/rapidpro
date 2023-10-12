@@ -468,11 +468,13 @@ class TembaTest(SmartminTest):
         schedule=None,
         created_on=None,
         org=None,
+        translations=None,
     ):
         bcast = Broadcast.create(
             org or self.org,
             user,
-            {"und": text} if isinstance(text, str) else text,
+            {"und": text} if isinstance(text, str) else text if text else None,
+            translations=translations,
             contacts=contacts,
             groups=groups,
             optin=optin,

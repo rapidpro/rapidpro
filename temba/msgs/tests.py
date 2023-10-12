@@ -2,6 +2,7 @@ from collections import OrderedDict
 from datetime import date, datetime, timedelta
 from unittest.mock import patch
 
+import json
 import pytz
 from openpyxl import load_workbook
 
@@ -1927,10 +1928,11 @@ class BroadcastTest(TembaTest):
 
 def get_broadcast_form_data(
     org,
-    message,
     *,
+    message=None,
     attachments=[],
     contacts=[],
+    translations=None,
     send_when=ScheduleForm.SEND_LATER,
     start_datetime="",
     repeat_period="",
@@ -1944,9 +1946,12 @@ def get_broadcast_form_data(
                 "compose",
                 {
                     "compose": compose_serialize(
-                        {"und": {"text": message, "attachments": attachments}}, json_encode=True
+                        translations if translations else {"und": {"text": message, "attachments": attachments}},
+                        json_encode=True,
                     ),
-                },
+                }
+                if message or attachments or translations
+                else None,
             ),
             (
                 "schedule",
@@ -1955,7 +1960,9 @@ def get_broadcast_form_data(
                     "start_datetime": start_datetime,
                     "repeat_period": repeat_period,
                     "repeat_days_of_week": repeat_days_of_week,
-                },
+                }
+                if send_when
+                else None,
             ),
         ]
     )
@@ -2082,7 +2089,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             update_url,
             get_broadcast_form_data(
                 self.org,
-                updated_text,
+                message=updated_text,
                 contacts=[self.joe],
                 start_datetime="2021-06-24 12:00",
                 repeat_period="W",
@@ -2093,6 +2100,76 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         broadcast.refresh_from_db()
         self.assertEqual(updated_text, broadcast.get_translation(self.joe)["text"])
+
+    def test_localization(self):
+        # create a broadcast without a language
+        broadcast = self.create_broadcast(
+            self.admin,
+            "This should end up as the language und",
+            groups=[self.joe_and_frank],
+            contacts=[self.joe],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+        )
+        update_url = reverse("msgs.broadcast_update", args=[broadcast.id])
+
+        self.org.flow_languages = ["eng", "esp"]
+        self.org.save()
+        update_url = reverse("msgs.broadcast_update", args=[broadcast.id])
+
+        def get_languages(response):
+            return json.loads(response.context["form"]["compose"].field.widget.attrs["languages"])
+
+        self.login(self.admin)
+        response = self.process_wizard(
+            "update",
+            update_url,
+            get_broadcast_form_data(self.org, contacts=[self.joe]),
+        )
+
+        # we only have a base language and don't have values for org languages, it should be first
+        languages = get_languages(response)
+        self.assertEqual("und", languages[0]["iso"])
+
+        # add a value for the primary language
+        response = self.process_wizard(
+            "update",
+            update_url,
+            get_broadcast_form_data(
+                self.org,
+                translations={"und": {"text": "undefined"}, "eng": {"text": "hello"}, "esp": {"text": "hola"}},
+                contacts=[self.joe],
+                start_datetime="2021-06-24 12:00",
+                repeat_period="W",
+                repeat_days_of_week=["M", "F"],
+            ),
+        )
+        self.assertEqual(302, response.status_code)
+
+        response = self.process_wizard(
+            "update",
+            update_url,
+            get_broadcast_form_data(self.org, contacts=[self.joe]),
+        )
+
+        # We have a primary language, it should be first
+        languages = get_languages(response)
+        self.assertEqual("eng", languages[0]["iso"])
+
+        # and our base language should now be last
+        self.assertEqual("und", languages[-1]["iso"])
+
+        # now mark our secondary language as the base language
+        broadcast.base_language = "esp"
+        broadcast.save()
+
+        # with a secondary language as the base language, it should come first
+        response = self.process_wizard(
+            "update",
+            update_url,
+            get_broadcast_form_data(self.org, contacts=[self.joe]),
+        )
+        languages = get_languages(response)
+        self.assertEqual("esp", languages[0]["iso"])
 
     @mock_mailroom
     def test_preview(self, mr_mocks):

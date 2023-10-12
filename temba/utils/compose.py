@@ -48,7 +48,7 @@ def compose_deserialize(compose):
     Deserializes attachments from compose widget to db for saving final db values
     """
     for details in compose.values():
-        details["attachments"] = compose_deserialize_attachments(details["attachments"])
+        details["attachments"] = compose_deserialize_attachments(details.get("attachments", []))
     return compose
 
 

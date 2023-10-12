@@ -182,8 +182,8 @@ class ComposeForm(Form):
 
         def is_language_missing(values):
             if values:
-                text = values["text"]
-                attachments = values["attachments"]
+                text = values.get("text", "")
+                attachments = values.get("attachments", [])
                 return not (text or attachments)
             return True
 
@@ -197,10 +197,10 @@ class ComposeForm(Form):
 
         # check that all of our text and attachments are limited
         # these are also limited client side, so this is a fail safe
-        for iso, values in compose.items():
+        for values in compose.values():
             if values:
-                text = values["text"]
-                attachments = values["attachments"]
+                text = values.get("text", "")
+                attachments = values.get("attachments", [])
                 if text and len(text) > Msg.MAX_TEXT_LEN:
                     raise forms.ValidationError(_(f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters."))
                 if attachments and len(attachments) > Msg.MAX_ATTACHMENTS:
