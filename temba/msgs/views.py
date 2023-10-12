@@ -106,7 +106,7 @@ class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
     default_order = ("-created_on", "-id")
     allow_export = False
     bulk_actions = ()
-    bulk_action_permissions = {"resend": "msgs.broadcast_send", "delete": "msgs.msg_update"}
+    bulk_action_permissions = {"resend": "msgs.msg_create", "delete": "msgs.msg_update"}
 
     def derive_export_url(self):
         redirect = quote_plus(self.request.get_full_path())
@@ -482,7 +482,7 @@ class BroadcastCRUDL(SmartCRUDL):
             return response
 
     class Preview(OrgPermsMixin, SmartCreateView):
-        permission = "msgs.broadcast_send"
+        permission = "msgs.broadcast_create"
 
         blockers = {
             "no_send_channel": _(

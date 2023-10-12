@@ -13,9 +13,6 @@
       <temba-charcount>
       </temba-charcount>
     </div>
-    {% if form.step_node %}
-      {% render_field 'step_node' %}
-    {% endif %}
     {% if recipient_count %}
       {% blocktrans trimmed count recipient_count as recipients %}
         <b>{{ recipients }}</b> recipient currently at this point in the flow

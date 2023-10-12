@@ -355,7 +355,7 @@ PERMISSIONS = {
     "flows.flowsession": ("json",),
     "globals.global": ("unused",),
     "locations.adminboundary": ("alias", "boundaries", "geometry"),
-    "msgs.broadcast": ("scheduled", "scheduled_read", "scheduled_delete", "send"),
+    "msgs.broadcast": ("scheduled", "scheduled_read", "scheduled_delete"),
     "msgs.msg": ("archive", "export", "label", "menu"),
     "orgs.org": (
         "country",
