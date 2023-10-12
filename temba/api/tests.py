@@ -243,7 +243,7 @@ class APITestMixin:
             response = self._deleteJSON(endpoint_url, user)
             self.assertEqual(403, response.status_code, f"status code mismatch for user {user}")
 
-    def assertDelete(self, endpoint_url: str, user, errors: dict = None, status=None):
+    def assertDelete(self, endpoint_url: str, user, *, errors: dict = None, status=None):
         response = self._deleteJSON(endpoint_url, user)
         if errors:
             for field, msg in errors.items():
