@@ -4005,31 +4005,6 @@ class EndpointsTest(APITest):
 
         self.clear_storage()
 
-    def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
-        self.assertEqual(
-            msg_json,
-            {
-                "id": msg.id,
-                "broadcast": msg.broadcast,
-                "contact": {"uuid": str(msg.contact.uuid), "name": msg.contact.name},
-                "urn": str(msg.contact_urn),
-                "channel": {"uuid": str(msg.channel.uuid), "name": msg.channel.name} if msg.channel else None,
-                "direction": "in" if msg.direction == "I" else "out",
-                "type": msg_type,
-                "status": msg_status,
-                "archived": msg.visibility == "A",
-                "visibility": msg_visibility,
-                "text": msg.text,
-                "labels": [{"uuid": str(lb.uuid), "name": lb.name} for lb in msg.labels.all()],
-                "flow": {"uuid": str(msg.flow.uuid), "name": msg.flow.name} if msg.flow else None,
-                "attachments": [{"content_type": a.content_type, "url": a.url} for a in msg.get_attachments()],
-                "created_on": format_datetime(msg.created_on),
-                "sent_on": format_datetime(msg.sent_on),
-                "modified_on": format_datetime(msg.modified_on),
-                "media": msg.attachments[0] if msg.attachments else None,
-            },
-        )
-
     @mock_mailroom
     def test_messages(self, mr_mocks):
         endpoint_url = reverse("api.v2.messages") + ".json"
