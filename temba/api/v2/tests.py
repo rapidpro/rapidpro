@@ -31,7 +31,7 @@ from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Media, Msg, OptIn
-from temba.orgs.models import Org, OrgRole, User
+from temba.orgs.models import Org, OrgRole
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
 from temba.tests import TembaTest, matchers, mock_mailroom, mock_uuids
@@ -686,21 +686,22 @@ class EndpointsTest(APITest):
     def test_explorer(self):
         explorer_url = reverse("api.v2.explorer")
 
-        response = self.getHTML(explorer_url)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Log in to use the Explorer")
+        response = self.client.get(explorer_url)
+        self.assertLoginRedirect(response)
 
-        # login as non-org user
-        self.login(self.non_org_user)
-        response = self.getHTML(explorer_url)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Log in to use the Explorer")
+        # viewers can't access
+        self.login(self.user)
+        response = self.client.get(explorer_url)
+        self.assertLoginRedirect(response)
 
-        # login as administrator
+        # editors and administrators can
+        self.login(self.editor)
+        response = self.client.get(explorer_url)
+        self.assertEqual(200, response.status_code)
+
         self.login(self.admin)
-        response = self.getHTML(explorer_url)
+        response = self.client.get(explorer_url)
         self.assertEqual(200, response.status_code)
-        self.assertNotContains(response, "Log in to use the Explorer")
 
     def test_pagination(self):
         runs_url = reverse("api.v2.runs") + ".json"
@@ -2866,109 +2867,106 @@ class EndpointsTest(APITest):
         self.assertResponseError(response, "action", '"like" is not a valid choice.')
 
     def test_definitions(self):
-        defs_url = reverse("api.v2.definitions")
+        endpoint_url = reverse("api.v2.definitions") + ".json"
 
-        self.assertEndpointAccess(defs_url, viewer_get=200, admin_get=200, agent_get=200)
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotAllowed(endpoint_url)
+        self.assertDeleteNotAllowed(endpoint_url)
 
         self.import_file("subflow")
-        flow = Flow.objects.filter(name="Parent Flow").first()
+        flow = Flow.objects.get(name="Parent Flow")
 
         # all flow dependencies and we should get the child flow
-        response = self.getJSON(defs_url, "flow=%s" % flow.uuid)
-        self.assertEqual({f["name"] for f in response.json()["flows"]}, {"Parent Flow", "Child Flow"})
+        self.assertGet(
+            endpoint_url + f"?flow={flow.uuid}",
+            [self.surveyor],
+            raw=lambda j: {f["name"] for f in j["flows"]} == {"Child Flow", "Parent Flow"},
+        )
 
         # export just the parent flow
-        response = self.getJSON(defs_url, "flow=%s&dependencies=none" % flow.uuid)
-        self.assertEqual({f["name"] for f in response.json()["flows"]}, {"Parent Flow"})
+        self.assertGet(
+            endpoint_url + f"?flow={flow.uuid}&dependencies=none",
+            [self.surveyor],
+            raw=lambda j: {f["name"] for f in j["flows"]} == {"Parent Flow"},
+        )
 
         # import the clinic app which has campaigns
         self.import_file("the_clinic")
 
         # our catchall flow, all alone
-        flow = Flow.objects.filter(name="Catch All").first()
-        response = self.getJSON(defs_url, "flow=%s&dependencies=none" % flow.uuid)
-        resp_json = response.json()
-        self.assertEqual(len(resp_json["flows"]), 1)
-        self.assertEqual(len(resp_json["campaigns"]), 0)
-        self.assertEqual(len(resp_json["triggers"]), 0)
+        flow = Flow.objects.get(name="Catch All")
+        self.assertGet(
+            endpoint_url + f"?flow={flow.uuid}&dependencies=none",
+            [self.surveyor],
+            raw=lambda j: len(j["flows"]) == 1 and len(j["campaigns"]) == 0 and len(j["triggers"]) == 0,
+        )
 
         # with its trigger dependency
-        response = self.getJSON(defs_url, "flow_uuid=%s" % flow.uuid)
-        resp_json = response.json()
-        self.assertEqual(len(resp_json["flows"]), 1)
-        self.assertEqual(len(resp_json["campaigns"]), 0)
-        self.assertEqual(len(resp_json["triggers"]), 1)
+        self.assertGet(
+            endpoint_url + f"?flow={flow.uuid}",
+            [self.surveyor],
+            raw=lambda j: len(j["flows"]) == 1 and len(j["campaigns"]) == 0 and len(j["triggers"]) == 1,
+        )
 
         # our registration flow, all alone
-        flow = Flow.objects.filter(name="Register Patient").first()
-        response = self.getJSON(defs_url, "flow=%s&dependencies=none" % flow.uuid)
-        resp_json = response.json()
-        self.assertEqual(len(resp_json["flows"]), 1)
-        self.assertEqual(len(resp_json["campaigns"]), 0)
-        self.assertEqual(len(resp_json["triggers"]), 0)
+        flow = Flow.objects.get(name="Register Patient")
+        self.assertGet(
+            endpoint_url + f"?flow={flow.uuid}&dependencies=none",
+            [self.surveyor],
+            raw=lambda j: len(j["flows"]) == 1 and len(j["campaigns"]) == 0 and len(j["triggers"]) == 0,
+        )
 
         # touches a lot of stuff
-        response = self.getJSON(defs_url, "flow=%s" % flow.uuid)
-        resp_json = response.json()
-        self.assertEqual(len(resp_json["flows"]), 6)
-        self.assertEqual(len(resp_json["campaigns"]), 1)
-        self.assertEqual(len(resp_json["triggers"]), 2)
+        self.assertGet(
+            endpoint_url + f"?flow={flow.uuid}",
+            [self.surveyor],
+            raw=lambda j: len(j["flows"]) == 6 and len(j["campaigns"]) == 1 and len(j["triggers"]) == 2,
+        )
 
         # ignore campaign dependencies
-        response = self.getJSON(defs_url, "flow=%s&dependencies=flows" % flow.uuid)
-        resp_json = response.json()
-        self.assertEqual(len(resp_json["flows"]), 2)
-        self.assertEqual(len(resp_json["campaigns"]), 0)
-        self.assertEqual(len(resp_json["triggers"]), 1)
+        self.assertGet(
+            endpoint_url + f"?flow={flow.uuid}&dependencies=flows",
+            [self.surveyor],
+            raw=lambda j: len(j["flows"]) == 2 and len(j["campaigns"]) == 0 and len(j["triggers"]) == 1,
+        )
 
         # add our missed call flow
-        missed_call = Flow.objects.filter(name="Missed Call").first()
-        response = self.getJSON(defs_url, "flow=%s&flow=%s&dependencies=all" % (flow.uuid, missed_call.uuid))
-        resp_json = response.json()
-        self.assertEqual(len(resp_json["flows"]), 7)
-        self.assertEqual(len(resp_json["campaigns"]), 1)
-        self.assertEqual(len(resp_json["triggers"]), 3)
-
-        campaign = Campaign.objects.filter(name="Appointment Schedule").first()
-        response = self.getJSON(defs_url, "campaign=%s&dependencies=none" % campaign.uuid)
-        resp_json = response.json()
-        self.assertEqual(len(resp_json["flows"]), 0)
-        self.assertEqual(len(resp_json["campaigns"]), 1)
-        self.assertEqual(len(resp_json["triggers"]), 0)
-
-        response = self.getJSON(defs_url, "campaign=%s" % campaign.uuid)
-        resp_json = response.json()
-        self.assertEqual(len(resp_json["flows"]), 6)
-        self.assertEqual(len(resp_json["campaigns"]), 1)
-        self.assertEqual(len(resp_json["triggers"]), 2)
-
-        # test deprecated param names
-        response = self.getJSON(
-            defs_url, "flow_uuid=%s&campaign_uuid=%s&dependencies=none" % (flow.uuid, campaign.uuid)
+        missed_call = Flow.objects.get(name="Missed Call")
+        self.assertGet(
+            endpoint_url + f"?flow={flow.uuid}&flow={missed_call.uuid}&dependencies=all",
+            [self.surveyor],
+            raw=lambda j: len(j["flows"]) == 7 and len(j["campaigns"]) == 1 and len(j["triggers"]) == 3,
         )
-        resp_json = response.json()
-        self.assertEqual(len(resp_json["flows"]), 1)
-        self.assertEqual(len(resp_json["campaigns"]), 1)
-        self.assertEqual(len(resp_json["triggers"]), 0)
+
+        campaign = Campaign.objects.get(name="Appointment Schedule")
+        self.assertGet(
+            endpoint_url + f"?campaign={campaign.uuid}&dependencies=none",
+            [self.surveyor],
+            raw=lambda j: len(j["flows"]) == 0 and len(j["campaigns"]) == 1 and len(j["triggers"]) == 0,
+        )
+
+        self.assertGet(
+            endpoint_url + f"?campaign={campaign.uuid}",
+            [self.surveyor],
+            raw=lambda j: len(j["flows"]) == 6 and len(j["campaigns"]) == 1 and len(j["triggers"]) == 2,
+        )
 
         # test an invalid value for dependencies
-        response = self.getJSON(defs_url, "flow_uuid=%s&campaign_uuid=%s&dependencies=xx" % (flow.uuid, campaign.uuid))
-        self.assertResponseError(response, None, "dependencies must be one of none, flows, all")
+        self.assertGet(
+            endpoint_url + f"?flow={flow.uuid}&dependencies=xx",
+            [self.surveyor],
+            errors={None: "dependencies must be one of none, flows, all"},
+        )
 
-    def test_definitions_with_non_legacy_flow(self):
-        defs_url = reverse("api.v2.definitions")
-
-        self.login(self.admin)
-
+        # test that flows are migrated
         self.import_file("favorites_v13")
 
-        flow = Flow.objects.filter(name="Favorites").first()
-
-        response = self.getJSON(defs_url, "flow=%s" % flow.uuid)
-
-        self.assertEqual(len(response.json()["flows"]), 1)
-        self.assertEqual(len(response.json()["flows"][0]["nodes"]), 9)
-        self.assertEqual(response.json()["flows"][0]["spec_version"], Flow.CURRENT_SPEC_VERSION)
+        flow = Flow.objects.get(name="Favorites")
+        self.assertGet(
+            endpoint_url + f"?flow={flow.uuid}",
+            [self.surveyor],
+            raw=lambda j: len(j["flows"]) == 1 and j["flows"][0]["spec_version"] == Flow.CURRENT_SPEC_VERSION,
+        )
 
     @override_settings(ORG_LIMIT_DEFAULTS={"fields": 10})
     def test_fields(self):
@@ -4729,9 +4727,21 @@ class EndpointsTest(APITest):
         )
 
     def test_resthooks(self):
-        hooks_url = reverse("api.v2.resthooks")
+        hooks_url = reverse("api.v2.resthooks") + ".json"
+        subs_url = reverse("api.v2.resthook_subscribers") + ".json"
+        events_url = reverse("api.v2.resthook_events") + ".json"
 
-        self.assertEndpointAccess(hooks_url, viewer_get=403, admin_get=200, agent_get=403)
+        self.assertGetNotPermitted(hooks_url, [None, self.agent, self.user])
+        self.assertPostNotAllowed(hooks_url)
+        self.assertDeleteNotAllowed(hooks_url)
+
+        self.assertGetNotPermitted(subs_url, [None, self.agent, self.user])
+        self.assertPostNotPermitted(subs_url, [None, self.agent, self.user])
+        self.assertDeleteNotPermitted(subs_url, [None, self.agent, self.user])
+
+        self.assertGetNotPermitted(events_url, [None, self.agent, self.user])
+        self.assertPostNotAllowed(events_url)
+        self.assertDeleteNotAllowed(events_url)
 
         # create some resthooks
         resthook1 = Resthook.get_or_create(self.org, "new-mother", self.admin)
@@ -4743,16 +4753,11 @@ class EndpointsTest(APITest):
         # create a resthook for another org
         other_org_resthook = Resthook.get_or_create(self.org2, "spam", self.admin2)
 
-        # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
-            response = self.getJSON(hooks_url, readonly_models={Resthook})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
+        # fetch hooks with no filtering
+        self.assertGet(
+            hooks_url,
+            [self.editor, self.admin],
+            results=[
                 {
                     "resthook": "new-father",
                     "created_on": format_datetime(resthook2.created_on),
@@ -4764,51 +4769,44 @@ class EndpointsTest(APITest):
                     "modified_on": format_datetime(resthook1.modified_on),
                 },
             ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 1,
         )
 
-        # ok, let's look at subscriptions
-        subs_url = reverse("api.v2.resthook_subscribers")
-
-        self.assertEndpointAccess(subs_url, viewer_get=403, admin_get=200, agent_get=403)
-
         # try to create empty subscription
-        response = self.postJSON(subs_url, None, {})
-        self.assertResponseError(response, "resthook", "This field is required.")
-        self.assertResponseError(response, "target_url", "This field is required.")
+        self.assertPost(
+            subs_url,
+            self.admin,
+            {},
+            errors={"resthook": "This field is required.", "target_url": "This field is required."},
+        )
 
         # try to create one for resthook in other org
-        response = self.postJSON(subs_url, None, dict(resthook="spam", target_url="https://foo.bar/"))
-        self.assertResponseError(response, "resthook", "No resthook with slug: spam")
+        self.assertPost(
+            subs_url,
+            self.admin,
+            {"resthook": "spam", "target_url": "https://foo.bar/"},
+            errors={"resthook": "No resthook with slug: spam"},
+        )
 
         # create subscribers on each resthook
-        response = self.postJSON(subs_url, None, dict(resthook="new-mother", target_url="https://foo.bar/mothers"))
-        self.assertEqual(response.status_code, 201)
-        response = self.postJSON(subs_url, None, dict(resthook="new-father", target_url="https://foo.bar/fathers"))
-        self.assertEqual(response.status_code, 201)
+        self.assertPost(
+            subs_url, self.editor, {"resthook": "new-mother", "target_url": "https://foo.bar/mothers"}, status=201
+        )
+        self.assertPost(
+            subs_url, self.admin, {"resthook": "new-father", "target_url": "https://foo.bar/fathers"}, status=201
+        )
 
         hook1_subscriber = resthook1.subscribers.get()
         hook2_subscriber = resthook2.subscribers.get()
 
-        self.assertEqual(
-            response.json(),
-            {
-                "id": hook2_subscriber.id,
-                "resthook": "new-father",
-                "target_url": "https://foo.bar/fathers",
-                "created_on": format_datetime(hook2_subscriber.created_on),
-            },
-        )
-
         # create a subscriber on our other resthook
         other_org_subscriber = other_org_resthook.add_subscriber("https://bar.foo", self.admin2)
 
-        # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
-            response = self.getJSON(subs_url)
-
-        self.assertEqual(
-            response.json()["results"],
-            [
+        # fetch subscribers with no filtering
+        self.assertGet(
+            subs_url,
+            [self.editor, self.admin],
+            results=[
                 {
                     "id": hook2_subscriber.id,
                     "resthook": "new-father",
@@ -4822,36 +4820,29 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(hook1_subscriber.created_on),
                 },
             ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 1,
         )
 
         # filter by id
-        response = self.getJSON(subs_url, "id=%d" % hook1_subscriber.id)
-        self.assertResultsById(response, [hook1_subscriber])
+        self.assertGet(subs_url + f"?id={hook1_subscriber.id}", [self.editor], results=[hook1_subscriber])
 
         # filter by resthook
-        response = self.getJSON(subs_url, "resthook=new-father")
-        self.assertResultsById(response, [hook2_subscriber])
+        self.assertGet(subs_url + "?resthook=new-father", [self.editor], results=[hook2_subscriber])
 
         # remove a subscriber
-        response = self.deleteJSON(subs_url, "id=%d" % hook2_subscriber.id)
-        self.assertEqual(response.status_code, 204)
+        self.assertDelete(subs_url + f"?id={hook2_subscriber.id}", self.admin)
 
         # subscriber should no longer be active
         hook2_subscriber.refresh_from_db()
         self.assertFalse(hook2_subscriber.is_active)
 
         # try to delete without providing id
-        response = self.deleteJSON(subs_url, "")
-        self.assertResponseError(response, None, "URL must contain one of the following parameters: id")
+        self.assertDelete(
+            subs_url + "?", self.editor, errors={None: "URL must contain one of the following parameters: id"}
+        )
 
         # try to delete a subscriber from another org
-        response = self.deleteJSON(subs_url, "id=%d" % other_org_subscriber.id)
-        self.assert404(response)
-
-        # ok, let's look at the events on this resthook
-        events_url = reverse("api.v2.resthook_events")
-
-        self.assertEndpointAccess(events_url, viewer_get=403, admin_get=200, agent_get=403)
+        self.assertDelete(subs_url + f"?id={other_org_subscriber.id}", self.editor, status=404)
 
         # create some events on our resthooks
         event1 = WebHookEvent.objects.create(
@@ -4865,14 +4856,11 @@ class EndpointsTest(APITest):
             data={"event": "new father", "values": {"name": "Yo"}, "steps": {"uuid": "12345"}},
         )
 
-        # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
-            response = self.getJSON(events_url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            response.json()["results"],
-            [
+        # fetch events with no filtering
+        self.assertGet(
+            events_url,
+            [self.editor, self.admin],
+            results=[
                 {
                     "resthook": "new-father",
                     "created_on": format_datetime(event2.created_on),
@@ -4884,6 +4872,7 @@ class EndpointsTest(APITest):
                     "data": {"event": "new mother", "values": {"name": "Greg"}, "steps": {"uuid": "abcde"}},
                 },
             ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 1,
         )
 
     def test_templates(self):
@@ -5370,53 +5359,77 @@ class EndpointsTest(APITest):
             )
 
     def test_users(self):
-        users_url = reverse("api.v2.users")
+        endpoint_url = reverse("api.v2.users") + ".json"
+
+        self.assertGetNotPermitted(endpoint_url, [None])
+        self.assertPostNotAllowed(endpoint_url)
+        self.assertDeleteNotAllowed(endpoint_url)
 
         self.surveyor.first_name = "Stu"
         self.surveyor.last_name = "McSurveys"
         self.surveyor.save()
 
-        self.assertEndpointAccess(users_url, viewer_get=200, admin_get=200, agent_get=200)
-
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
-            response = self.getJSON(users_url, readonly_models={User})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(len(resp_json["results"]), 5)
-        self.assertEqual(
-            resp_json["results"][0],
-            {
-                "email": "surveyor@nyaruka.com",
-                "first_name": "Stu",
-                "last_name": "McSurveys",
-                "role": "surveyor",
-                "created_on": format_datetime(self.surveyor.date_joined),
-            },
+        self.assertGet(
+            endpoint_url,
+            [self.agent, self.user, self.editor, self.admin],
+            results=[
+                {
+                    "email": "surveyor@nyaruka.com",
+                    "first_name": "Stu",
+                    "last_name": "McSurveys",
+                    "role": "surveyor",
+                    "created_on": format_datetime(self.surveyor.date_joined),
+                },
+                {
+                    "email": "agent@nyaruka.com",
+                    "first_name": "Agnes",
+                    "last_name": "",
+                    "role": "agent",
+                    "created_on": format_datetime(self.agent.date_joined),
+                },
+                {
+                    "email": "viewer@nyaruka.com",
+                    "first_name": "",
+                    "last_name": "",
+                    "role": "viewer",
+                    "created_on": format_datetime(self.user.date_joined),
+                },
+                {
+                    "email": "editor@nyaruka.com",
+                    "first_name": "Ed",
+                    "last_name": "McEdits",
+                    "role": "editor",
+                    "created_on": format_datetime(self.editor.date_joined),
+                },
+                {
+                    "email": "admin@nyaruka.com",
+                    "first_name": "Andy",
+                    "last_name": "",
+                    "role": "administrator",
+                    "created_on": format_datetime(self.admin.date_joined),
+                },
+            ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 2,
         )
 
         # filter by roles
-        response = self.getJSON(users_url, "role=agent&role=editor")
-        resp_json = response.json()
-        self.assertEqual(["agent@nyaruka.com", "editor@nyaruka.com"], [u["email"] for u in resp_json["results"]])
+        self.assertGet(endpoint_url + "?role=agent&role=editor", [self.editor], results=[self.agent, self.editor])
 
         # non-existent roles ignored
-        response = self.getJSON(users_url, "role=caretaker&role=editor")
-        resp_json = response.json()
-        self.assertEqual(["editor@nyaruka.com"], [u["email"] for u in resp_json["results"]])
+        self.assertGet(endpoint_url + "?role=caretaker&role=editor", [self.editor], results=[self.editor])
 
     def test_workspace(self):
-        workspace_url = reverse("api.v2.workspace")
+        endpoint_url = reverse("api.v2.workspace") + ".json"
 
-        self.assertEndpointAccess(workspace_url, viewer_get=200, admin_get=200, agent_get=200)
+        self.assertGetNotPermitted(endpoint_url, [None])
+        self.assertPostNotAllowed(endpoint_url)
+        self.assertDeleteNotAllowed(endpoint_url)
 
-        # fetch as JSON
-        response = self.getJSON(workspace_url)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            response.json(),
-            {
+        # no filtering options.. just gets the current org
+        self.assertGet(
+            endpoint_url,
+            [self.agent, self.user, self.editor, self.admin],
+            raw={
                 "uuid": str(self.org.uuid),
                 "name": "Nyaruka",
                 "country": "RW",
@@ -5431,10 +5444,10 @@ class EndpointsTest(APITest):
 
         self.org.set_flow_languages(self.admin, ["kin"])
 
-        response = self.getJSON(workspace_url)
-        self.assertEqual(
-            response.json(),
-            {
+        self.assertGet(
+            endpoint_url,
+            [self.agent],
+            raw={
                 "uuid": str(self.org.uuid),
                 "name": "Nyaruka",
                 "country": "RW",

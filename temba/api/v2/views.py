@@ -26,9 +26,10 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Media, Msg, OptIn, SystemLabel
 from temba.orgs.models import OrgMembership, OrgRole, User
+from temba.orgs.views import OrgPermsMixin
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, TicketCount, Ticketer, Topic
-from temba.utils import splitting_getlist, str_to_bool
+from temba.utils import str_to_bool
 from temba.utils.uuid import is_uuid
 
 from ..models import APIPermission, APIToken, Resthook, ResthookSubscriber, SSLPermission, WebHookEvent
@@ -240,11 +241,12 @@ class RootView(views.APIView):
         )
 
 
-class ExplorerView(SmartTemplateView):
+class ExplorerView(OrgPermsMixin, SmartTemplateView):
     """
     Explorer view which lets users experiment with endpoints against their own data
     """
 
+    permission = "api.apitoken_explorer"
     template_name = "api/v2/api_explorer.html"
     title = _("API Explorer")
 
@@ -254,7 +256,7 @@ class ExplorerView(SmartTemplateView):
         org = self.request.org
         user = self.request.user
 
-        context["api_token"] = user.get_api_token(org) if (org and user) else None
+        context["api_token"] = user.get_api_token(org)
         context["endpoints"] = [
             ArchivesEndpoint.get_read_explorer(),
             BoundariesEndpoint.get_read_explorer(),
@@ -1654,7 +1656,7 @@ class DefinitionsEndpoint(BaseEndpoint):
         }
     """
 
-    permission = "orgs.org_api"
+    permission = "orgs.org_export"
 
     class Depends(Enum):
         none = 0
@@ -1664,15 +1666,10 @@ class DefinitionsEndpoint(BaseEndpoint):
     def get(self, request, *args, **kwargs):
         org = request.org
         params = request.query_params
-
-        if "flow_uuid" in params or "campaign_uuid" in params:  # deprecated
-            flow_uuids = splitting_getlist(self.request, "flow_uuid")
-            campaign_uuids = splitting_getlist(self.request, "campaign_uuid")
-        else:
-            flow_uuids = params.getlist("flow")
-            campaign_uuids = params.getlist("campaign")
-
+        flow_uuids = params.getlist("flow")
+        campaign_uuids = params.getlist("campaign")
         include = params.get("dependencies", "all")
+
         if include not in DefinitionsEndpoint.Depends.__members__:
             raise InvalidQueryError(
                 "dependencies must be one of %s" % ", ".join(DefinitionsEndpoint.Depends.__members__)
@@ -2828,7 +2825,6 @@ class ResthooksEndpoint(ListAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "api.resthook_api"
     model = Resthook
     serializer_class = ResthookReadSerializer
     pagination_class = ModifiedOnCursorPagination
@@ -2922,7 +2918,6 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
 
     """
 
-    permission = "api.resthooksubscriber_api"
     model = ResthookSubscriber
     serializer_class = ResthookSubscriberReadSerializer
     write_serializer_class = ResthookSubscriberWriteSerializer
@@ -3060,7 +3055,6 @@ class ResthookEventsEndpoint(ListAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "api.webhookevent_api"
     model = WebHookEvent
     serializer_class = WebHookEventReadSerializer
     pagination_class = CreatedOnCursorPagination
@@ -3787,7 +3781,6 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
             ...
     """
 
-    permission = "orgs.org_api"
     model = User
     serializer_class = UserReadSerializer
     pagination_class = DateJoinedCursorPagination
@@ -3852,7 +3845,7 @@ class WorkspaceEndpoint(BaseEndpoint):
         }
     """
 
-    permission = "orgs.org_api"
+    permission = "orgs.org_read"
 
     def get(self, request, *args, **kwargs):
         serializer = WorkspaceReadSerializer(request.org)

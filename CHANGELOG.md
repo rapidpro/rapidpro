@@ -1,3 +1,17 @@
+v8.3.46 (2023-10-11)
+-------------------------
+ * Remove no longer needed deprecated options on definitions endpoint
+ * Replace orgs.org_api permission
+ * Drop no longer used fields on FlowRevision
+
+v8.3.45 (2023-10-10)
+-------------------------
+ * Show exclusion groups on trigger list pages
+ * Fix updating keyword triggers for flows
+ * Make sure we display trigger channel if set
+ * Limit access to API explorer to editors and admins
+ * Convert resthook API endpoints to use CRUDL based permissions
+
 v8.3.44 (2023-10-06)
 -------------------------
  * Allow request optin if optins exist
