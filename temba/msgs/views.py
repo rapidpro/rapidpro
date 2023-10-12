@@ -177,7 +177,7 @@ class ComposeForm(Form):
     )
 
     def clean_compose(self):
-        base_language = self.initial.get("base_language")
+        base_language = self.initial.get("base_language", "und")
         primary_language = self.org.flow_languages[0] if self.org.flow_languages else None
 
         def is_language_missing(values):
@@ -193,7 +193,18 @@ class ComposeForm(Form):
         primary = compose.get(primary_language, None)
 
         if is_language_missing(base) and is_language_missing(primary):
-            raise forms.ValidationError(_("This field is required"))
+            raise forms.ValidationError(_("This field is required."))
+
+        # check that all of our text and attachments are limited
+        # these are also limited client side, so this is a fail safe
+        for iso, values in compose.items():
+            if values:
+                text = values["text"]
+                attachments = values["attachments"]
+                if text and len(text) > Msg.MAX_TEXT_LEN:
+                    raise forms.ValidationError(_(f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters."))
+                if attachments and len(attachments) > Msg.MAX_ATTACHMENTS:
+                    raise forms.ValidationError(_(f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files."))
 
         return compose
 
@@ -346,7 +357,7 @@ class BroadcastCRUDL(SmartCRUDL):
             )
 
     class Create(OrgPermsMixin, SmartWizardView):
-        form_list = [("compose", ComposeForm), ("target", TargetForm), ("schedule", ScheduleForm)]
+        form_list = [("target", TargetForm), ("compose", ComposeForm), ("schedule", ScheduleForm)]
         success_url = "@msgs.broadcast_scheduled"
         submit_button_name = _("Create Broadcast")
 

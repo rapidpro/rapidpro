@@ -10,14 +10,15 @@ def compose_serialize(translation=None, json_encode=False):
     """
 
     if not translation:
-        return translation
+        return {}
 
     translation = copy.deepcopy(translation)
     for details in translation.values():
-        details["attachments"] = compose_serialize_attachments(details["attachments"])
+        if "attachments" in details:
+            details["attachments"] = compose_serialize_attachments(details["attachments"])
 
     if json_encode:
-        return json.dump(translation)
+        return json.dumps(translation)
 
     return translation
 

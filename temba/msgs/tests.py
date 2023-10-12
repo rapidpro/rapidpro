@@ -1846,7 +1846,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(0, Schedule.objects.count())
 
         with self.assertRaises(AssertionError):
-            Broadcast.create(self.org, self.user, "no recipients")
+            Broadcast.create(self.org, self.user, {"und": {"text": "no recipients"}})
 
     @mock_mailroom
     def test_preview(self, mr_mocks):
@@ -1943,7 +1943,9 @@ def get_broadcast_form_data(
             (
                 "compose",
                 {
-                    "compose": compose_serialize({"text": message, "attachments": attachments}, json_encode=True),
+                    "compose": compose_serialize(
+                        {"und": {"text": message, "attachments": attachments}}, json_encode=True
+                    ),
                 },
             ),
             (
@@ -1997,7 +1999,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # missing text
         response = self.process_wizard("create", create_url, get_broadcast_form_data(self.org, "", contacts=[self.joe]))
-        self.assertFormError(response.context["form"], "compose", ["Text or attachments are required."])
+        self.assertFormError(response.context["form"], "compose", ["This field is required."])
 
         # text too long
         response = self.process_wizard(

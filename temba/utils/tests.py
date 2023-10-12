@@ -954,4 +954,4 @@ class TestUUIDs(TembaTest):
 
 class ComposeTest(TembaTest):
     def test_empty_compose(self):
-        self.assertEqual(compose_serialize(), {"text": "", "attachments": []})
+        self.assertEqual(compose_serialize(), {})
