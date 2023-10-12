@@ -2608,28 +2608,6 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(flow.has_issues)
         self.assertNotIn(label, flow.label_dependencies.all())
 
-    def test_list(self):
-        self.create_label("Spam")
-        self.create_label("Junk")
-        self.create_label("Important")
-        self.create_label("Other Org", org=self.org2)
-
-        # viewers can't edit flows so don't have access to this JSON endpoint as that's only place it's used
-        self.login(self.user)
-        response = self.client.get(reverse("msgs.label_list"))
-        self.assertLoginRedirect(response)
-
-        # editors can though
-        self.login(self.editor)
-        response = self.client.get(reverse("msgs.label_list"))
-        results = response.json()
-
-        # results should be A-Z and not include folders or labels from other orgs
-        self.assertEqual(3, len(results))
-        self.assertEqual("Important", results[0]["text"])
-        self.assertEqual("Junk", results[1]["text"])
-        self.assertEqual("Spam", results[2]["text"])
-
 
 class SystemLabelTest(TembaTest):
     def test_get_archive_query(self):
