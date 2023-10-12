@@ -159,7 +159,6 @@ class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
 
 class ComposeForm(Form):
     compose = ComposeField(
-        required=True,
         widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True, "completion": True}),
     )
 
@@ -177,23 +176,53 @@ class ComposeForm(Form):
         ),
     )
 
+    def clean_compose(self):
+        base_language = self.initial.get("base_language")
+        primary_language = self.org.flow_languages[0] if self.org.flow_languages else None
+
+        def is_language_missing(values):
+            if values:
+                text = values["text"]
+                attachments = values["attachments"]
+                return not (text or attachments)
+            return True
+
+        # need at least a base or a primary
+        compose = self.cleaned_data["compose"]
+        base = compose.get(base_language, None)
+        primary = compose.get(primary_language, None)
+
+        if is_language_missing(base) and is_language_missing(primary):
+            raise forms.ValidationError(_("This field is required"))
+
+        return compose
+
     def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        langs = [{"iso": iso, "name": languages.get_name(iso)} for iso in org.flow_languages]
-        self.fields["compose"].widget.attrs["languages"] = json.dumps(langs)
+        self.org = org
         self.fields["optin"].queryset = org.optins.all().order_by("name")
+        isos = [iso for iso in org.flow_languages]
 
-    def clean_compose(self):
-        compose = self.cleaned_data["compose"]
-        text = compose["text"]
-        attachments = compose["attachments"]
-        if not (text or attachments):
-            raise forms.ValidationError(_("Text or attachments are required."))
-        if text and len(text) > Msg.MAX_TEXT_LEN:
-            raise forms.ValidationError(_(f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters."))
-        if attachments and len(attachments) > Msg.MAX_ATTACHMENTS:
-            raise forms.ValidationError(_(f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files."))
-        return compose
+        if self.initial and "base_language" in self.initial:
+            compose = self.initial["compose"]
+            base_language = self.initial["base_language"]
+
+            if base_language not in isos:
+                # if we have a value for the primary org language show that first
+                if isos and isos[0] in compose:
+                    isos.append(base_language)
+                else:
+                    # otherwise, put our base_language first
+                    isos.insert(0, base_language)
+
+            # our base language might be a secondary language, see if it should be first
+            elif isos[0] not in compose:
+                isos.remove(base_language)
+                isos.insert(0, base_language)
+
+        langs = [{"iso": iso, "name": str(_("Default")) if iso == "und" else languages.get_name(iso)} for iso in isos]
+        compose_attrs = self.fields["compose"].widget.attrs
+        compose_attrs["languages"] = json.dumps(langs)
 
 
 class ScheduleForm(ScheduleFormMixin):
@@ -342,7 +371,7 @@ class BroadcastCRUDL(SmartCRUDL):
             org = self.request.org
 
             compose = form_dict["compose"].cleaned_data["compose"]
-            text, attachments = compose_deserialize(compose)
+            translations = compose_deserialize(compose)
             optin = form_dict["compose"].cleaned_data["optin"]
 
             recipients = form_dict["target"].cleaned_data["omnibox"]
@@ -362,8 +391,7 @@ class BroadcastCRUDL(SmartCRUDL):
             self.object = Broadcast.create(
                 org,
                 user,
-                text={"und": text},
-                attachments={"und": attachments},
+                translations=translations,
                 groups=list(recipients["groups"]),
                 contacts=list(recipients["contacts"]),
                 schedule=schedule,
@@ -395,9 +423,16 @@ class BroadcastCRUDL(SmartCRUDL):
                 return {"omnibox": omnibox}
 
             if step == "compose":
-                translation = self.object.get_translation()
-                compose = compose_serialize(translation)
-                return {"compose": compose, "optin": self.object.optin}
+                compose = compose_serialize(self.object.translations)
+                base_language = self.object.base_language
+
+                # remove any languages not present on the org
+                langs = [k for k in compose.keys()]
+                for iso in langs:
+                    if iso != base_language and iso not in org.flow_languages:
+                        del compose[iso]
+
+                return {"compose": compose, "optin": self.object.optin, "base_language": base_language}
 
             if step == "schedule":
                 schedule = self.object.schedule
@@ -415,8 +450,7 @@ class BroadcastCRUDL(SmartCRUDL):
             # update message
             compose = form_dict["compose"].cleaned_data["compose"]
             optin = form_dict["compose"].cleaned_data["optin"]
-            text, attachments = compose_deserialize(compose)
-            broadcast.translations = {broadcast.base_language: {"text": text, "attachments": attachments}}
+            broadcast.translations = compose_deserialize(compose)
             broadcast.optin = optin
             broadcast.save()
 
