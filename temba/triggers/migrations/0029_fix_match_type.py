@@ -7,7 +7,7 @@ TYPE_KEYWORD = "K"
 MATCH_FIRST_WORD = "F"
 
 
-def fix_and_archive_broken_keyword_triggers(apps, schema_editor):
+def fix_and_archive_broken_keyword_triggers(apps, schema_editor):  # pragma: no cover
     Trigger = apps.get_model("triggers", "Trigger")
     num_fixed = 0
 
@@ -22,7 +22,7 @@ def fix_and_archive_broken_keyword_triggers(apps, schema_editor):
         print(f"Fixed and archived {num_fixed} keyword triggers")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
