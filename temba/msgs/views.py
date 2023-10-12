@@ -329,7 +329,6 @@ class BroadcastCRUDL(SmartCRUDL):
         title = _("Scheduled Broadcasts")
         menu_path = "/msg/scheduled"
         fields = ("contacts", "msgs", "sent", "status")
-        search_fields = ("translations__und__icontains", "contacts__urns__path__icontains")
         system_label = SystemLabel.TYPE_SCHEDULED
         paginate_by = 25
         default_order = (

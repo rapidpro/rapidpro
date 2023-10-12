@@ -2005,12 +2005,16 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # missing text
-        response = self.process_wizard("create", create_url, get_broadcast_form_data(self.org, "", contacts=[self.joe]))
+        response = self.process_wizard(
+            "create",
+            create_url,
+            get_broadcast_form_data(self.org, translations={"und": {"text": ""}}, contacts=[self.joe]),
+        )
         self.assertFormError(response.context["form"], "compose", ["This field is required."])
 
         # text too long
         response = self.process_wizard(
-            "create", create_url, get_broadcast_form_data(self.org, "." * 641, contacts=[self.joe])
+            "create", create_url, get_broadcast_form_data(self.org, message="." * 641, contacts=[self.joe])
         )
         self.assertFormError(response.context["form"], "compose", ["Maximum allowed text is 640 characters."])
 
@@ -2019,19 +2023,19 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.process_wizard(
             "create",
             create_url,
-            get_broadcast_form_data(self.org, text, attachments=attachments * 11, contacts=[self.joe]),
+            get_broadcast_form_data(self.org, message=text, attachments=attachments * 11, contacts=[self.joe]),
         )
         self.assertFormError(response.context["form"], "compose", ["Maximum allowed attachments is 10 files."])
 
         # empty recipients
-        response = self.process_wizard("create", create_url, get_broadcast_form_data(self.org, text))
+        response = self.process_wizard("create", create_url, get_broadcast_form_data(self.org, message=text))
         self.assertFormError(response.context["form"], "omnibox", ["At least one recipient is required."])
 
         # missing start time
         response = self.process_wizard(
             "create",
             create_url,
-            get_broadcast_form_data(self.org, text, contacts=[self.joe]),
+            get_broadcast_form_data(self.org, message=text, contacts=[self.joe]),
         )
         self.assertFormError(response.context["form"], None, ["Select when you would like the broadcast to be sent"])
 
@@ -2043,7 +2047,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             get_broadcast_form_data(
                 self.org,
-                text,
+                message=text,
                 contacts=[self.joe],
                 start_datetime="2021-06-24 12:00",
                 repeat_period="W",
@@ -2062,7 +2066,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.process_wizard(
             "create",
             create_url,
-            get_broadcast_form_data(self.org, text, contacts=[self.joe], send_when=ScheduleForm.SEND_NOW),
+            get_broadcast_form_data(self.org, message=text, contacts=[self.joe], send_when=ScheduleForm.SEND_NOW),
         )
         self.assertEqual(302, response.status_code)
 
