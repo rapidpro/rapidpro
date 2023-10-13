@@ -956,7 +956,7 @@ class EventTest(TembaTest):
             Event.from_msg(self.org, self.admin, ivr_out),
         )
 
-        bcast = self.create_broadcast(self.admin, "Hi there", contacts=[contact1, contact2])
+        bcast = self.create_broadcast(self.admin, {"und": {"text": "Hi there"}}, contacts=[contact1, contact2])
         msg_out2 = bcast.msgs.filter(contact=contact1).get()
 
         self.assertEqual(
@@ -988,7 +988,9 @@ class EventTest(TembaTest):
 
         # create a broadcast that was sent with an opt-in
         optin = self.create_optin("Polls")
-        bcast2 = self.create_broadcast(self.admin, "Hi there", contacts=[contact1, contact2], optin=optin)
+        bcast2 = self.create_broadcast(
+            self.admin, {"und": {"text": "Hi there"}}, contacts=[contact1, contact2], optin=optin
+        )
         msg_out3 = bcast2.msgs.filter(contact=contact1).get()
 
         self.assertEqual(
