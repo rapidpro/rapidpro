@@ -690,6 +690,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_two_factor",
         "tickets.ticket_assign",
         "tickets.ticket_assignee",
+        "tickets.ticket_list",
         "tickets.ticket_menu",
         "tickets.ticket_note",
         "tickets.ticket_update",

@@ -22,7 +22,7 @@ from django.utils import timezone
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, ChannelEvent
+from temba.channels.models import ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.luis import LuisType
 from temba.classifiers.types.wit import WitType
@@ -1909,9 +1909,11 @@ class EndpointsTest(APITest):
         self.assertEqual(response.status_code, 204)
 
     def test_channels(self):
-        channels_url = reverse("api.v2.channels")
+        endpoint_url = reverse("api.v2.channels") + ".json"
 
-        self.assertEndpointAccess(channels_url, viewer_get=200, admin_get=200, agent_get=403)
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotAllowed(endpoint_url)
+        self.assertDeleteNotAllowed(endpoint_url)
 
         # create deleted channel
         deleted = self.create_channel("JC", "Deleted", "nyaruka")
@@ -1921,39 +1923,43 @@ class EndpointsTest(APITest):
         self.create_channel("TWT", "Twitter Channel", "nyaruka", org=self.org2)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
-            response = self.getJSON(channels_url, readonly_models={Channel})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertResultsByUUID(response, [self.twitter, self.channel])
-        self.assertEqual(
-            resp_json["results"][1],
-            {
-                "uuid": self.channel.uuid,
-                "name": "Test Channel",
-                "address": "+250785551212",
-                "country": "RW",
-                "device": {
-                    "name": "Nexus 5X",
-                    "network_type": None,
-                    "power_level": -1,
-                    "power_source": None,
-                    "power_status": None,
+        self.assertGet(
+            endpoint_url,
+            [self.user, self.editor, self.admin],
+            results=[
+                {
+                    "uuid": self.twitter.uuid,
+                    "name": "Twitter Channel",
+                    "address": "billy_bob",
+                    "country": None,
+                    "device": None,
+                    "last_seen": None,
+                    "created_on": format_datetime(self.twitter.created_on),
                 },
-                "last_seen": format_datetime(self.channel.last_seen),
-                "created_on": format_datetime(self.channel.created_on),
-            },
+                {
+                    "uuid": self.channel.uuid,
+                    "name": "Test Channel",
+                    "address": "+250785551212",
+                    "country": "RW",
+                    "device": {
+                        "name": "Nexus 5X",
+                        "network_type": None,
+                        "power_level": -1,
+                        "power_source": None,
+                        "power_status": None,
+                    },
+                    "last_seen": format_datetime(self.channel.last_seen),
+                    "created_on": format_datetime(self.channel.created_on),
+                },
+            ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 2,
         )
 
         # filter by UUID
-        response = self.getJSON(channels_url, "uuid=%s" % self.twitter.uuid)
-        self.assertResultsByUUID(response, [self.twitter])
+        self.assertGet(endpoint_url + f"?uuid={self.twitter.uuid}", [self.admin], results=[self.twitter])
 
         # filter by address
-        response = self.getJSON(channels_url, "address=billy_bob")
-        self.assertResultsByUUID(response, [self.twitter])
+        self.assertGet(endpoint_url + "?address=billy_bob", [self.admin], results=[self.twitter])
 
     def test_channel_events(self):
         events_url = reverse("api.v2.channel_events")
@@ -5271,7 +5277,7 @@ class EndpointsTest(APITest):
     def test_tickets(self, mock_ticket_reopen, mock_ticket_close):
         endpoint_url = reverse("api.v2.tickets") + ".json"
 
-        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertGetNotPermitted(endpoint_url, [None])
         self.assertPostNotAllowed(endpoint_url)
         self.assertDeleteNotAllowed(endpoint_url)
 
@@ -5294,7 +5300,7 @@ class EndpointsTest(APITest):
         # no filtering
         self.assertGet(
             endpoint_url,
-            [self.user, self.editor, self.admin],
+            [self.user, self.editor, self.admin, self.agent],
             results=[
                 {
                     "uuid": str(ticket3.uuid),

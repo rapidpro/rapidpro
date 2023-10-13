@@ -299,7 +299,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         ticket = self.create_ticket(self.internal, self.contact, "Test 1", assignee=self.admin)
 
         # just a placeholder view for frontend components
-        self.assertListFetch(list_url, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[])
+        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, allow_agents=True, context_objects=[])
 
         # can hit this page with a uuid
         # TODO: work out reverse for deep link
@@ -310,7 +310,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         deep_link = f"{list_url}all/open/{str(ticket.uuid)}/"
         self.assertContentMenu(deep_link, self.admin, ["Edit", "Add Note", "Start Flow"])
         response = self.assertListFetch(
-            deep_link, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[]
+            deep_link, allow_viewers=True, allow_editors=True, allow_agents=True, context_objects=[]
         )
 
         # our ticket exists on the first page, so it'll get flagged to be focused
@@ -380,8 +380,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_ticket(self.internal, self.contact, "Test 3", assignee=None)
         self.create_ticket(self.internal, self.contact, "Test 4", closed_on=timezone.now())
 
-        self.assertListFetch(menu_url, allow_viewers=False, allow_editors=True, allow_agents=True)
-        self.assertMenu(menu_url, 5, ["My Tickets", "Unassigned", "All", "General"], allow_viewers=False)
+        self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=True)
+        self.assertMenu(menu_url, 5, ["My Tickets", "Unassigned", "All", "General"], allow_viewers=True)
 
     @mock_mailroom
     def test_folder(self, mr_mocks):
