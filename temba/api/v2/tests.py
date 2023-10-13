@@ -36,7 +36,7 @@ from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
 from temba.tests import TembaTest, matchers, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
-from temba.tickets.models import Ticket, Ticketer, Topic
+from temba.tickets.models import Ticketer, Topic
 from temba.tickets.types.mailgun import MailgunType
 from temba.tickets.types.zendesk import ZendeskType
 from temba.triggers.models import Trigger
@@ -5269,9 +5269,11 @@ class EndpointsTest(APITest):
     @patch("temba.mailroom.client.MailroomClient.ticket_close")
     @patch("temba.mailroom.client.MailroomClient.ticket_reopen")
     def test_tickets(self, mock_ticket_reopen, mock_ticket_close):
-        tickets_url = reverse("api.v2.tickets")
+        endpoint_url = reverse("api.v2.tickets") + ".json"
 
-        self.assertEndpointAccess(tickets_url, viewer_get=403, admin_get=200, agent_get=200)
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotAllowed(endpoint_url)
+        self.assertDeleteNotAllowed(endpoint_url)
 
         # create some tickets
         mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
@@ -5290,15 +5292,10 @@ class EndpointsTest(APITest):
         self.create_ticket(zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Stuff")
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
-            response = self.getJSON(tickets_url, readonly_models={Ticket})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
+        self.assertGet(
+            endpoint_url,
+            [self.user, self.editor, self.admin],
+            results=[
                 {
                     "uuid": str(ticket3.uuid),
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
@@ -5342,31 +5339,25 @@ class EndpointsTest(APITest):
                     "closed_on": "2021-01-01T12:30:45.123456Z",
                 },
             ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 7,
         )
 
         # filter by contact uuid (not there)
-        response = self.getJSON(tickets_url, "contact=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab")
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(0, len(resp_json["results"]))
+        self.assertGet(endpoint_url + "?contact=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", [self.admin], results=[])
 
         # filter by contact uuid present
-        response = self.getJSON(tickets_url, "contact=" + str(bob.uuid))
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(2, len(resp_json["results"]))
-        self.assertEqual("Bob", resp_json["results"][0]["contact"]["name"])
+        self.assertGet(endpoint_url + f"?contact={bob.uuid}", [self.admin], results=[ticket3, ticket2])
 
         # filter further by ticket uuid
-        response = self.getJSON(tickets_url, f"uuid={ticket3.uuid}")
-        resp_json = response.json()
-        self.assertEqual(1, len(resp_json["results"]))
+        self.assertGet(endpoint_url + f"?uuid={ticket3.uuid}", [self.admin], results=[ticket3])
 
     @mock_mailroom
     def test_ticket_actions(self, mr_mocks):
-        actions_url = reverse("api.v2.ticket_actions")
+        endpoint_url = reverse("api.v2.ticket_actions") + ".json"
 
-        self.assertEndpointAccess(actions_url, viewer_get=403, admin_get=405, agent_get=405)
+        self.assertGetNotAllowed(endpoint_url)
+        self.assertPostNotPermitted(endpoint_url, [None, self.user])
+        self.assertDeleteNotAllowed(endpoint_url)
 
         # create some tickets
         mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
@@ -5385,40 +5376,60 @@ class EndpointsTest(APITest):
         ticket4 = self.create_ticket(zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Hi")
 
         # try actioning more tickets than this endpoint is allowed to operate on at one time
-        response = self.postJSON(actions_url, None, {"tickets": [str(x) for x in range(101)], "action": "close"})
-        self.assertResponseError(response, "tickets", "Ensure this field has no more than 100 elements.")
+        self.assertPost(
+            endpoint_url,
+            self.agent,
+            {"tickets": [str(x) for x in range(101)], "action": "close"},
+            errors={"tickets": "Ensure this field has no more than 100 elements."},
+        )
 
         # try actioning a ticket which is not in this org
-        response = self.postJSON(
-            actions_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.agent,
             {"tickets": [str(ticket1.uuid), str(ticket4.uuid)], "action": "close"},
+            errors={"tickets": f"No such object: {ticket4.uuid}"},
         )
-        self.assertResponseError(response, "tickets", f"No such object: {ticket4.uuid}")
 
         # try to close tickets without specifying any tickets
-        response = self.postJSON(actions_url, None, {"action": "close"})
-        self.assertResponseError(response, "tickets", "This field is required.")
+        self.assertPost(
+            endpoint_url,
+            self.agent,
+            {"action": "close"},
+            errors={"tickets": "This field is required."},
+        )
 
         # try to assign ticket without specifying assignee
-        response = self.postJSON(actions_url, None, {"tickets": [str(ticket1.uuid)], "action": "assign"})
-        self.assertResponseError(response, "non_field_errors", 'For action "assign" you must specify the assignee')
+        self.assertPost(
+            endpoint_url,
+            self.agent,
+            {"tickets": [str(ticket1.uuid)], "action": "assign"},
+            errors={"non_field_errors": 'For action "assign" you must specify the assignee'},
+        )
 
         # try to add a note without specifying note
-        response = self.postJSON(actions_url, None, {"tickets": [str(ticket1.uuid)], "action": "add_note"})
-        self.assertResponseError(response, "non_field_errors", 'For action "add_note" you must specify the note')
+        self.assertPost(
+            endpoint_url,
+            self.agent,
+            {"tickets": [str(ticket1.uuid)], "action": "add_note"},
+            errors={"non_field_errors": 'For action "add_note" you must specify the note'},
+        )
 
         # try to change topic without specifying topic
-        response = self.postJSON(actions_url, None, {"tickets": [str(ticket1.uuid)], "action": "change_topic"})
-        self.assertResponseError(response, "non_field_errors", 'For action "change_topic" you must specify the topic')
+        self.assertPost(
+            endpoint_url,
+            self.agent,
+            {"tickets": [str(ticket1.uuid)], "action": "change_topic"},
+            errors={"non_field_errors": 'For action "change_topic" you must specify the topic'},
+        )
 
         # assign valid tickets to a user
-        response = self.postJSON(
-            actions_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.agent,
             {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "assign", "assignee": "agent@nyaruka.com"},
+            status=204,
         )
-        self.assertEqual(response.status_code, 204)
 
         ticket1.refresh_from_db()
         ticket2.refresh_from_db()
@@ -5426,55 +5437,63 @@ class EndpointsTest(APITest):
         self.assertEqual(self.agent, ticket2.assignee)
 
         # unassign tickets
-        response = self.postJSON(
-            actions_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.agent,
             {"tickets": [str(ticket1.uuid)], "action": "assign", "assignee": None},
+            status=204,
         )
-        self.assertEqual(response.status_code, 204)
 
         ticket1.refresh_from_db()
         self.assertIsNone(ticket1.assignee)
 
         # add a note to tickets
-        response = self.postJSON(
-            actions_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.agent,
             {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "add_note", "note": "Looks important"},
+            status=204,
         )
-        self.assertEqual(response.status_code, 204)
+
         self.assertEqual("Looks important", ticket1.events.last().note)
         self.assertEqual("Looks important", ticket2.events.last().note)
 
         # change topic of tickets
-        response = self.postJSON(
-            actions_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.agent,
             {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "change_topic", "topic": str(sales.uuid)},
+            status=204,
         )
+
         ticket1.refresh_from_db()
         ticket2.refresh_from_db()
-        self.assertEqual(response.status_code, 204)
         self.assertEqual(sales, ticket1.topic)
         self.assertEqual(sales, ticket2.topic)
 
         # close tickets
-        response = self.postJSON(
-            actions_url, None, {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "close"}
+        self.assertPost(
+            endpoint_url,
+            self.agent,
+            {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "close"},
+            status=204,
         )
+
         ticket1.refresh_from_db()
         ticket2.refresh_from_db()
-        self.assertEqual(response.status_code, 204)
         self.assertEqual("C", ticket1.status)
         self.assertEqual("C", ticket2.status)
 
         # and finally reopen them
-        response = self.postJSON(
-            actions_url, None, {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "reopen"}
+        self.assertPost(
+            endpoint_url,
+            self.agent,
+            {"tickets": [str(ticket1.uuid), str(ticket2.uuid)], "action": "reopen"},
+            status=204,
         )
+
         ticket1.refresh_from_db()
         ticket2.refresh_from_db()
-        self.assertEqual(response.status_code, 204)
         self.assertEqual("O", ticket1.status)
         self.assertEqual("O", ticket2.status)
 
