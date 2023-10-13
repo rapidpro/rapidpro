@@ -1,3 +1,8 @@
+v8.3.49 (2023-10-13)
+-------------------------
+ * Add data migration to populate keywords on trigger
+ * Add localization to create broadcast wizard
+
 v8.3.47 (2023-10-12)
 -------------------------
  * Add Trigger.keywords and start writing
