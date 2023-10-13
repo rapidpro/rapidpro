@@ -29,7 +29,7 @@ from temba.classifiers.types.wit import WitType
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
-from temba.locations.models import AdminBoundary, BoundaryAlias
+from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Media, Msg, OptIn
 from temba.orgs.models import Org, OrgRole
 from temba.schedules.models import Schedule
@@ -836,9 +836,14 @@ class EndpointsTest(APITest):
         mock_flowstart_create.side_effect = ValueError("DOH!")
 
         flow = self.create_flow("Test")
-        self.login(self.admin)
+
         try:
-            self.postJSON(reverse("api.v2.flow_starts"), None, dict(flow=flow.uuid, urns=["tel:+12067791212"]))
+            self.assertPost(
+                reverse("api.v2.flow_starts") + ".json",
+                self.admin,
+                {"flow": str(flow.uuid), "urns": ["tel:+12067791212"]},
+                status=201,
+            )
             self.fail()  # ensure exception is thrown
         except ValueError:
             pass
@@ -846,9 +851,11 @@ class EndpointsTest(APITest):
         self.assertFalse(Contact.objects.filter(urns__path="+12067791212"))
 
     def test_archives(self):
-        archives_url = reverse("api.v2.archives")
+        endpoint_url = reverse("api.v2.archives") + ".json"
 
-        self.assertEndpointAccess(archives_url, viewer_get=403, admin_get=200, agent_get=403)
+        self.assertGetNotPermitted(endpoint_url, [None, self.user, self.agent])
+        self.assertPostNotAllowed(endpoint_url)
+        self.assertDeleteNotAllowed(endpoint_url)
 
         # create some archives
         Archive.objects.create(
@@ -857,37 +864,37 @@ class EndpointsTest(APITest):
             build_time=12,
             record_count=34,
             size=345,
-            hash="feca9988b7772c003204a28bd741d0d0",
+            hash="c4ca4238a0b923820dcc509a6f75849b",
             archive_type=Archive.TYPE_MSG,
             period=Archive.PERIOD_DAILY,
         )
-        may_archive = Archive.objects.create(
+        archive2 = Archive.objects.create(
             org=self.org,
             start_date=datetime(2017, 5, 5),
             build_time=12,
             record_count=34,
             size=345,
-            hash="feca9988b7772c003204a28bd741d0d0",
+            hash="c81e728d9d4c2f636f067f89cc14862c",
             archive_type=Archive.TYPE_MSG,
             period=Archive.PERIOD_MONTHLY,
         )
-        Archive.objects.create(
+        archive3 = Archive.objects.create(
             org=self.org,
             start_date=datetime(2017, 6, 5),
             build_time=12,
             record_count=34,
             size=345,
-            hash="feca9988b7772c003204a28bd741d0d0",
+            hash="eccbc87e4b5ce2fe28308fd9f2a7baf3",
             archive_type=Archive.TYPE_FLOWRUN,
             period=Archive.PERIOD_DAILY,
         )
-        Archive.objects.create(
+        archive4 = Archive.objects.create(
             org=self.org,
             start_date=datetime(2017, 7, 5),
             build_time=12,
             record_count=34,
             size=345,
-            hash="feca9988b7772c003204a28bd741d0d0",
+            hash="a87ff679a2f3e71d9181a67b7542122c",
             archive_type=Archive.TYPE_FLOWRUN,
             period=Archive.PERIOD_MONTHLY,
         )
@@ -898,10 +905,10 @@ class EndpointsTest(APITest):
             build_time=12,
             record_count=34,
             size=345,
-            hash="feca9988b7772c003204a28bd741d0d0",
+            hash="e4da3b7fbbce2345d7772b0674a318d5",
             archive_type=Archive.TYPE_FLOWRUN,
             period=Archive.PERIOD_DAILY,
-            rollup_id=may_archive.id,
+            rollup=archive2,
         )
 
         # create archive for other org
@@ -911,69 +918,78 @@ class EndpointsTest(APITest):
             build_time=12,
             record_count=34,
             size=345,
-            hash="feca9988b7772c003204a28bd741d123",
+            hash="1679091c5a880faf6fb5e6087eb1b2dc",
             archive_type=Archive.TYPE_FLOWRUN,
             period=Archive.PERIOD_DAILY,
         )
 
-        response = self.getJSON(archives_url, readonly_models={Archive})
-        resp_json = response.json()
-
-        self.assertEqual(response.status_code, 200)
         # there should be 4 archives in the response, because one has been rolled up
-        self.assertEqual(len(resp_json["results"]), 4)
-        self.assertEqual(
-            resp_json["results"][0],
-            {
-                "archive_type": "run",
-                "download_url": "",
-                "hash": "feca9988b7772c003204a28bd741d0d0",
-                "period": "monthly",
-                "record_count": 34,
-                "size": 345,
-                "start_date": "2017-07-05",
-            },
+        self.assertGet(
+            endpoint_url,
+            [self.editor],
+            results=[
+                {
+                    "archive_type": "run",
+                    "download_url": "",
+                    "hash": "a87ff679a2f3e71d9181a67b7542122c",
+                    "period": "monthly",
+                    "record_count": 34,
+                    "size": 345,
+                    "start_date": "2017-07-05",
+                },
+                {
+                    "archive_type": "run",
+                    "download_url": "",
+                    "hash": "eccbc87e4b5ce2fe28308fd9f2a7baf3",
+                    "period": "daily",
+                    "record_count": 34,
+                    "size": 345,
+                    "start_date": "2017-06-05",
+                },
+                {
+                    "archive_type": "message",
+                    "download_url": "",
+                    "hash": "c81e728d9d4c2f636f067f89cc14862c",
+                    "period": "monthly",
+                    "record_count": 34,
+                    "size": 345,
+                    "start_date": "2017-05-05",
+                },
+                {
+                    "archive_type": "message",
+                    "download_url": "",
+                    "hash": "c4ca4238a0b923820dcc509a6f75849b",
+                    "period": "daily",
+                    "record_count": 34,
+                    "size": 345,
+                    "start_date": "2017-04-05",
+                },
+            ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 2,
         )
 
-        response = self.getJSON(archives_url, query="after=2017-05-01")
-        resp_json = response.json()
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(resp_json["results"]), 3)
-
-        response = self.getJSON(archives_url, query="after=2017-05-01&archive_type=run")
-        resp_json = response.json()
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(resp_json["results"]), 2)
+        self.assertGet(endpoint_url + "?after=2017-05-01", [self.editor], results=[archive4, archive3, archive2])
+        self.assertGet(endpoint_url + "?after=2017-05-01&archive_type=run", [self.editor], results=[archive4, archive3])
 
         # unknown archive type
-        response = self.getJSON(archives_url, query="after=2017-05-01&archive_type=!!!unknown!!!")
-        resp_json = response.json()
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(resp_json["results"]), 0)
+        self.assertGet(endpoint_url + "?archive_type=invalid", [self.editor], results=[])
 
         # only for dailies
-        response = self.getJSON(archives_url, query="after=2017-05-01&archive_type=run&period=daily")
-        resp_json = response.json()
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(resp_json["results"]), 1)
+        self.assertGet(
+            endpoint_url + "?after=2017-05-01&archive_type=run&period=daily", [self.editor], results=[archive3]
+        )
 
         # only for monthlies
-        response = self.getJSON(archives_url, query="period=monthly")
-        resp_json = response.json()
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(resp_json["results"]), 2)
+        self.assertGet(endpoint_url + "?period=monthly", [self.editor], results=[archive4, archive2])
 
     def test_boundaries(self):
+        endpoint_url = reverse("api.v2.boundaries") + ".json"
+
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotAllowed(endpoint_url)
+        self.assertDeleteNotAllowed(endpoint_url)
+
         self.setUpLocations()
-
-        boundaries_url = reverse("api.v2.boundaries")
-
-        self.assertEndpointAccess(boundaries_url, viewer_get=200, admin_get=200, agent_get=403)
 
         BoundaryAlias.create(self.org, self.admin, self.state1, "Kigali")
         BoundaryAlias.create(self.org, self.admin, self.state2, "East Prov")
@@ -983,56 +999,129 @@ class EndpointsTest(APITest):
         self.state1.save()
 
         # test without geometry
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
-            response = self.getJSON(boundaries_url, readonly_models={AdminBoundary})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(len(resp_json["results"]), 10)
-        self.assertEqual(
-            resp_json["results"][0],
-            {
-                "osm_id": "1708283",
-                "name": "Kigali City",
-                "parent": {"osm_id": "171496", "name": "Rwanda"},
-                "level": 1,
-                "aliases": ["Kigali", "Kigari"],
-                "geometry": None,
-            },
+        self.assertGet(
+            endpoint_url,
+            [self.user, self.editor, self.admin],
+            results=[
+                {
+                    "osm_id": "1708283",
+                    "name": "Kigali City",
+                    "parent": {"osm_id": "171496", "name": "Rwanda"},
+                    "level": 1,
+                    "aliases": ["Kigali", "Kigari"],
+                    "geometry": None,
+                },
+                {
+                    "osm_id": "171113181",
+                    "name": "Kageyo",
+                    "parent": {"osm_id": "R1711131", "name": "Gatsibo"},
+                    "level": 3,
+                    "aliases": [],
+                    "geometry": None,
+                },
+                {
+                    "osm_id": "1711142",
+                    "name": "Rwamagana",
+                    "parent": {"osm_id": "171591", "name": "Eastern Province"},
+                    "level": 2,
+                    "aliases": [],
+                    "geometry": None,
+                },
+                {
+                    "osm_id": "1711163",
+                    "name": "Kay\u00f4nza",
+                    "parent": {"osm_id": "171591", "name": "Eastern Province"},
+                    "level": 2,
+                    "aliases": [],
+                    "geometry": None,
+                },
+                {
+                    "osm_id": "171116381",
+                    "name": "Kabare",
+                    "parent": {"osm_id": "1711163", "name": "Kay\u00f4nza"},
+                    "level": 3,
+                    "aliases": [],
+                    "geometry": None,
+                },
+                {"osm_id": "171496", "name": "Rwanda", "parent": None, "level": 0, "aliases": [], "geometry": None},
+                {
+                    "osm_id": "171591",
+                    "name": "Eastern Province",
+                    "parent": {"osm_id": "171496", "name": "Rwanda"},
+                    "level": 1,
+                    "aliases": ["East Prov"],
+                    "geometry": None,
+                },
+                {
+                    "osm_id": "3963734",
+                    "name": "Nyarugenge",
+                    "parent": {"osm_id": "1708283", "name": "Kigali City"},
+                    "level": 2,
+                    "aliases": [],
+                    "geometry": None,
+                },
+                {
+                    "osm_id": "R1711131",
+                    "name": "Gatsibo",
+                    "parent": {"osm_id": "171591", "name": "Eastern Province"},
+                    "level": 2,
+                    "aliases": [],
+                    "geometry": None,
+                },
+                {
+                    "osm_id": "VMN.49.1_1",
+                    "name": "Bukure",
+                    "parent": {"osm_id": "1711142", "name": "Rwamagana"},
+                    "level": 3,
+                    "aliases": [],
+                    "geometry": None,
+                },
+            ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 3,
         )
 
-        # test without geometry
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
-            response = self.getJSON(boundaries_url, "geometry=true")
-
-        self.assertEqual(
-            response.json()["results"][0],
-            {
-                "osm_id": "1708283",
-                "name": "Kigali City",
-                "parent": {"osm_id": "171496", "name": "Rwanda"},
-                "level": 1,
-                "aliases": ["Kigali", "Kigari"],
-                "geometry": {
-                    "type": "MultiPolygon",
-                    "coordinates": [[[[1.0, 1.0], [1.0, -1.0], [-1.0, -1.0], [-1.0, 1.0], [1.0, 1.0]]]],
+        # test with geometry
+        self.assertGet(
+            endpoint_url + "?geometry=true",
+            [self.admin],
+            results=[
+                {
+                    "osm_id": "1708283",
+                    "name": "Kigali City",
+                    "parent": {"osm_id": "171496", "name": "Rwanda"},
+                    "level": 1,
+                    "aliases": ["Kigali", "Kigari"],
+                    "geometry": {
+                        "type": "MultiPolygon",
+                        "coordinates": [[[[1.0, 1.0], [1.0, -1.0], [-1.0, -1.0], [-1.0, 1.0], [1.0, 1.0]]]],
+                    },
                 },
-            },
+                matchers.Dict(),
+                matchers.Dict(),
+                matchers.Dict(),
+                matchers.Dict(),
+                matchers.Dict(),
+                matchers.Dict(),
+                matchers.Dict(),
+                matchers.Dict(),
+                matchers.Dict(),
+            ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 3,
         )
 
         # if org doesn't have a country, just return no results
         self.org.country = None
         self.org.save(update_fields=("country",))
 
-        response = self.getJSON(boundaries_url)
-        self.assertEqual(response.json()["results"], [])
+        self.assertGet(endpoint_url, [self.admin], results=[])
 
     @patch("temba.mailroom.queue_broadcast")
     def test_broadcasts(self, mock_queue_broadcast):
-        broadcasts_url = reverse("api.v2.broadcasts")
+        endpoint_url = reverse("api.v2.broadcasts") + ".json"
 
-        self.assertEndpointAccess(broadcasts_url, viewer_get=200, admin_get=200, agent_get=403)
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotPermitted(endpoint_url, [None, self.user, self.agent])
+        self.assertDeleteNotAllowed(endpoint_url)
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
 
@@ -1060,13 +1149,14 @@ class EndpointsTest(APITest):
         bcast4.save(update_fields=("status",))
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
-            response = self.getJSON(broadcasts_url, readonly_models={Broadcast})
-
+        response = self.assertGet(
+            endpoint_url,
+            [self.user, self.editor, self.admin],
+            results=[bcast4, bcast3, bcast2, bcast1],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 3,
+        )
         resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertResultsById(response, [bcast4, bcast3, bcast2, bcast1])
+
         self.assertEqual(
             {
                 "id": bcast2.id,
@@ -1097,60 +1187,71 @@ class EndpointsTest(APITest):
         )
 
         # filter by id
-        response = self.getJSON(broadcasts_url, "id=%d" % bcast3.pk)
-        self.assertResultsById(response, [bcast3])
+        self.assertGet(endpoint_url + f"?id={bcast3.id}", [self.editor], results=[bcast3])
 
-        # filter by after
-        response = self.getJSON(broadcasts_url, "after=%s" % format_datetime(bcast3.created_on))
-        self.assertResultsById(response, [bcast4, bcast3])
-
-        # filter by before
-        response = self.getJSON(broadcasts_url, "before=%s" % format_datetime(bcast2.created_on))
-        self.assertResultsById(response, [bcast2, bcast1])
+        # filter by before / after
+        self.assertGet(
+            endpoint_url + f"?before={format_datetime(bcast2.created_on)}", [self.editor], results=[bcast2, bcast1]
+        )
+        self.assertGet(
+            endpoint_url + f"?after={format_datetime(bcast3.created_on)}", [self.editor], results=[bcast4, bcast3]
+        )
 
         with self.anonymous(self.org):
+            response = self.assertGet(endpoint_url + f"?id={bcast1.id}", [self.editor], results=[bcast1])
+
             # URNs shouldn't be included
-            response = self.getJSON(broadcasts_url, "id=%d" % bcast1.id)
             self.assertIsNone(response.json()["results"][0]["urns"])
 
         # try to create new broadcast with no data at all
-        response = self.postJSON(broadcasts_url, None, {})
-        self.assertResponseError(response, "non_field_errors", "Must provide either text or attachments.")
+        self.assertPost(
+            endpoint_url, self.admin, {}, errors={"non_field_errors": "Must provide either text or attachments."}
+        )
 
         # try to create new broadcast with no recipients
-        response = self.postJSON(broadcasts_url, None, {"text": "Hello"})
-        self.assertResponseError(response, "non_field_errors", "Must provide either urns, contacts or groups.")
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"text": "Hello"},
+            errors={"non_field_errors": "Must provide either urns, contacts or groups."},
+        )
 
         # try to create new broadcast with invalid group lookup
-        response = self.postJSON(broadcasts_url, None, {"text": "Hello", "groups": [123456]})
-        self.assertResponseError(response, "groups", "No such object: 123456")
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"text": "Hello", "groups": [123456]},
+            errors={"groups": "No such object: 123456"},
+        )
 
         # try to create new broadcast with translations that don't include base language
-        response = self.postJSON(
-            broadcasts_url, None, {"text": {"kin": "Muraho"}, "base_language": "eng", "contacts": [self.joe.uuid]}
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"text": {"kin": "Muraho"}, "base_language": "eng", "contacts": [self.joe.uuid]},
+            errors={"non_field_errors": "No text translation provided in base language."},
         )
-        self.assertResponseError(response, "non_field_errors", "No text translation provided in base language.")
 
         media1 = self.upload_media(self.admin, f"{settings.MEDIA_ROOT}/test_media/steve marten.jpg")
         media2 = self.upload_media(self.admin, f"{settings.MEDIA_ROOT}/test_media/snow.mp4")
 
-        # try to create new broadcast with translations that don't include base language
-        response = self.postJSON(
-            broadcasts_url,
-            None,
+        # try to create new broadcast with attachment translations that don't include base language
+        self.assertPost(
+            endpoint_url,
+            self.admin,
             {
                 "text": {"eng": "Hello"},
                 "attachments": {"spa": [str(media1.uuid)]},
                 "base_language": "eng",
                 "contacts": [self.joe.uuid],
             },
+            errors={"non_field_errors": "No attachment translations provided in base language."},
         )
-        self.assertResponseError(response, "non_field_errors", "No attachment translations provided in base language.")
 
         # create new broadcast with all fields
-        response = self.postJSON(
-            broadcasts_url,
-            None,
+        response = self.assertPost(
+            endpoint_url,
+            self.admin,
             {
                 "text": {"eng": "Hello @contact.name", "spa": "Hola @contact.name"},
                 "attachments": {
@@ -1162,7 +1263,9 @@ class EndpointsTest(APITest):
                 "contacts": [self.joe.uuid, self.frank.uuid],
                 "groups": [reporters.uuid],
             },
+            status=201,
         )
+
         broadcast = Broadcast.objects.get(id=response.json()["id"])
         self.assertEqual(
             {
@@ -1183,16 +1286,16 @@ class EndpointsTest(APITest):
         mock_queue_broadcast.assert_called_once_with(broadcast)
 
         # create new broadcast without translations
-        response = self.postJSON(
-            broadcasts_url,
-            None,
+        response = self.assertPost(
+            endpoint_url,
+            self.admin,
             {
                 "text": "Hello",
                 "attachments": [str(media1.uuid), str(media2.uuid)],
                 "contacts": [self.joe.uuid, self.frank.uuid],
             },
+            status=201,
         )
-        self.assertEqual(201, response.status_code)
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
         self.assertEqual(
@@ -1208,19 +1311,23 @@ class EndpointsTest(APITest):
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
 
         # create new broadcast without translations containing only text, no attachments
-        response = self.postJSON(broadcasts_url, None, {"text": "Hello", "contacts": [self.joe.uuid, self.frank.uuid]})
-        self.assertEqual(201, response.status_code)
+        response = self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"text": "Hello", "contacts": [self.joe.uuid, self.frank.uuid]},
+            status=201,
+        )
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
         self.assertEqual({"eng": {"text": "Hello"}}, broadcast.translations)
 
         # create new broadcast without translations containing only attachments, no text
-        response = self.postJSON(
-            broadcasts_url,
-            None,
+        response = self.assertPost(
+            endpoint_url,
+            self.admin,
             {"attachments": [str(media1.uuid), str(media2.uuid)], "contacts": [self.joe.uuid, self.frank.uuid]},
+            status=201,
         )
-        self.assertEqual(201, response.status_code)
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
         self.assertEqual(
@@ -1230,8 +1337,12 @@ class EndpointsTest(APITest):
 
         # try sending as a flagged org
         self.org.flag()
-        response = self.postJSON(broadcasts_url, None, {"text": "Hello", "urns": ["twitter:franky"]})
-        self.assertResponseError(response, "non_field_errors", Org.BLOCKER_FLAGGED)
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"text": "Hello", "contacts": [self.joe.uuid]},
+            errors={"non_field_errors": Org.BLOCKER_FLAGGED},
+        )
 
     def test_campaigns(self):
         campaigns_url = reverse("api.v2.campaigns")
@@ -1900,9 +2011,11 @@ class EndpointsTest(APITest):
         self.assertResultsById(response, [call4, call3, call2])
 
     def test_classifiers(self):
-        classifiers_url = reverse("api.v2.classifiers")
+        endpoint_url = reverse("api.v2.classifiers") + ".json"
 
-        self.assertEndpointAccess(classifiers_url, viewer_get=200, admin_get=200, agent_get=403)
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotAllowed(endpoint_url)
+        self.assertDeleteNotAllowed(endpoint_url)
 
         # create some classifiers
         c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {})
@@ -1918,15 +2031,10 @@ class EndpointsTest(APITest):
         Classifier.create(self.org2, self.admin, LuisType.slug, "Org2 Booker", {})
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
-            response = self.getJSON(classifiers_url, readonly_models={Classifier})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
+        self.assertGet(
+            endpoint_url,
+            [self.user, self.editor, self.admin],
+            results=[
                 {
                     "name": "Booker",
                     "type": "wit",
@@ -1935,20 +2043,14 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(c1.created_on),
                 }
             ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 2,
         )
 
         # filter by uuid (not there)
-        response = self.getJSON(classifiers_url, "uuid=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab")
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(0, len(resp_json["results"]))
+        self.assertGet(endpoint_url + "?uuid=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", [self.editor], results=[])
 
         # filter by uuid present
-        response = self.getJSON(classifiers_url, "uuid=" + str(c1.uuid))
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(1, len(resp_json["results"]))
-        self.assertEqual("Booker", resp_json["results"][0]["name"])
+        self.assertGet(endpoint_url + f"?uuid={c1.uuid}", [self.user, self.editor, self.admin], results=[c1])
 
     @mock_mailroom
     def test_contacts(self, mr_mocks):
