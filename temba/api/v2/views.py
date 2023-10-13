@@ -1407,7 +1407,6 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint
     You will receive either a 204 response if a contact was deleted, or a 404 response if no matching contact was found.
     """
 
-    permission = "contacts.contact_api"
     model = Contact
     serializer_class = ContactReadSerializer
     write_serializer_class = ContactWriteSerializer
@@ -1564,7 +1563,6 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
         * _block_ - Block the contacts
         * _unblock_ - Un-block the contacts
         * _interrupt_ - Interrupt and end any of the contacts' active flow runs
-        * _archive_messages_ - Archive all of the contacts' messages
         * _delete_ - Permanently delete the contacts
 
     * **group** - the UUID or name of a contact group (string, optional)
@@ -1581,7 +1579,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
     You will receive an empty response with status code 204 if successful.
     """
 
-    permission = "contacts.contact_api"
+    model = Contact
     serializer_class = ContactBulkActionSerializer
 
     @classmethod
@@ -2339,7 +2337,6 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint):
     You will receive either a 204 response if a label was deleted, or a 404 response if no matching label was found.
     """
 
-    permission = "msgs.label_api"
     model = Label
     serializer_class = LabelReadSerializer
     write_serializer_class = LabelWriteSerializer
@@ -2426,7 +2423,6 @@ class MediaEndpoint(WriteAPIMixin, BaseEndpoint):
     """
 
     parser_classes = (MultiPartParser, FormParser)
-    permission = "msgs.media_api"
     model = Media
     serializer_class = MediaReadSerializer
     write_serializer_class = MediaWriteSerializer
@@ -2547,7 +2543,6 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             folder = request.query_params.get("folder", "").lower()
             return self.ordering.get(folder, CreatedOnCursorPagination.ordering)
 
-    permission = "msgs.msg_api"
     model = Msg
     serializer_class = MsgReadSerializer
     write_serializer_class = MsgWriteSerializer
@@ -2711,7 +2706,7 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
 
     """
 
-    permission = "msgs.msg_api"
+    permission = "msgs.msg_update"
     serializer_class = MsgBulkActionSerializer
 
     @classmethod

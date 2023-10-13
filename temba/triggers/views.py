@@ -520,6 +520,10 @@ class TriggerCRUDL(SmartCRUDL):
             response["REDIRECT"] = self.get_success_url()
             return response
 
+        def pre_save(self, obj):
+            obj.keywords = [obj.keyword] if obj.keyword else None
+            return super().pre_save(obj)
+
     class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         """
         Base class for list views

@@ -12,7 +12,7 @@ from temba.contacts.models import ContactGroup
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
+from temba.tests import CRUDLTestMixin, TembaTest
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import Trigger
@@ -1806,40 +1806,3 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertListFetch(referral_url, allow_viewers=True, allow_editors=True, context_objects=[trigger3, trigger4])
         self.assertListFetch(tickets_url, allow_viewers=True, allow_editors=True, context_objects=[])
-
-
-class FixKeywordTriggers(MigrationTest):
-    app = "triggers"
-    migrate_from = "0028_alter_trigger_channel_alter_trigger_flow_and_more"
-    migrate_to = "0029_fix_match_type"
-
-    def setUpBeforeMigration(self, apps):
-        flow1 = self.create_flow("Flow 1")
-
-        self.trigger1 = Trigger.create(
-            self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="foo", match_type=Trigger.MATCH_ONLY_WORD
-        )
-        self.trigger2 = Trigger.create(
-            self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="bar", match_type=Trigger.MATCH_ONLY_WORD
-        )
-        self.trigger3 = Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow1)
-
-        self.trigger2.match_type = None
-        self.trigger2.save(update_fields=("match_type",))
-
-    def test_migration(self):
-        self.trigger1.refresh_from_db()
-        self.trigger2.refresh_from_db()
-        self.trigger3.refresh_from_db()
-
-        # keyword trigger with non-null match_type should unchanged
-        self.assertEqual(Trigger.MATCH_ONLY_WORD, self.trigger1.match_type)
-        self.assertFalse(self.trigger1.is_archived)
-
-        # keyword trigger with null match_type should be fixed but archived
-        self.assertEqual(Trigger.MATCH_FIRST_WORD, self.trigger2.match_type)
-        self.assertTrue(self.trigger2.is_archived)
-
-        # non keyword trigger unchanged
-        self.assertEqual(Trigger.TYPE_CATCH_ALL, self.trigger3.trigger_type)
-        self.assertFalse(self.trigger3.is_archived)

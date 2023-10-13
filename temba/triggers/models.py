@@ -1,5 +1,6 @@
 from smartmin.models import SmartModel
 
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.db.models import Case, Q, When
 from django.utils import timezone
@@ -110,6 +111,7 @@ class Trigger(SmartModel):
     contacts = models.ManyToManyField(Contact, related_name="triggers")  # scheduled triggers only
 
     keyword = models.CharField(max_length=KEYWORD_MAX_LEN, null=True)
+    keywords = ArrayField(models.CharField(max_length=KEYWORD_MAX_LEN), null=True)
     match_type = models.CharField(max_length=1, choices=MATCH_TYPES, null=True)
     referrer_id = models.CharField(max_length=255, null=True)
     schedule = models.OneToOneField("schedules.Schedule", on_delete=models.PROTECT, null=True, related_name="trigger")
@@ -142,6 +144,7 @@ class Trigger(SmartModel):
             flow=flow,
             channel=channel,
             keyword=keyword,
+            keywords=[keyword] if keyword else None,
             schedule=schedule,
             match_type=match_type,
             created_by=user,

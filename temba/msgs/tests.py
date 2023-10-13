@@ -2260,65 +2260,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     @patch("temba.mailroom.queue_broadcast")
-    def test_send(self, mock_queue_broadcast):
-        send_url = reverse("msgs.broadcast_send")
-
-        # can't send if you're not logged in
-        response = self.client.get(send_url)
-        self.assertLoginRedirect(response)
-
-        response = self.client.post(
-            send_url, {"text": "Test", "omnibox": omnibox_serialize(self.org, [], [self.joe], json_encode=True)}
-        )
-        self.assertLoginRedirect(response)
-
-        # or just a viewer user
-        self.login(self.user)
-
-        response = self.client.get(send_url)
-        self.assertLoginRedirect(response)
-
-        # but editors can
-        self.login(self.editor)
-
-        response = self.client.get(send_url)
-        self.assertEqual(["omnibox", "text", "step_node", "loc"], list(response.context["form"].fields.keys()))
-
-        # submit with a send to a group and a contact
-        response = self.client.post(
-            send_url,
-            {
-                "text": "Hey Joe, where you goin?",
-                "omnibox": omnibox_serialize(self.org, [self.joe_and_frank], [self.frank], json_encode=True),
-            },
-        )
-        self.assertEqual(200, response.status_code)
-
-        broadcast = Broadcast.objects.get()
-        self.assertEqual({"und": {"text": "Hey Joe, where you goin?"}}, broadcast.translations)
-        self.assertEqual({self.joe_and_frank}, set(broadcast.groups.all()))
-        self.assertEqual({self.frank}, set(broadcast.contacts.all()))
-
-        mock_queue_broadcast.assert_called_once_with(broadcast)
-
-        # try to submit a send to nobody
-        response = self.client.post(
-            send_url, {"text": "Broken", "omnibox": omnibox_serialize(self.org, [], [], json_encode=True)}
-        )
-        self.assertFormError(response, "form", "omnibox", "At least one recipient is required.")
-
-        # if we release our send channel we also can't start send
-        self.channel.release(self.admin)
-
-        response = self.requestView(send_url, self.admin)
-        self.assertContains(response, 'To get started you need to <a href="/channels/channel/claim/">add a channel</a>')
-        self.assertNotContains(response, "Send")
-
-    @patch("temba.mailroom.queue_broadcast")
-    def test_send_to_node(self, mock_queue_broadcast):
-        send_url = reverse("msgs.broadcast_send")
-
-        self.login(self.editor)
+    def test_to_node(self, mock_queue_broadcast):
+        to_node_url = reverse("msgs.broadcast_to_node")
 
         # give Joe a flow run that has stopped on a node
         flow = self.get_flow("color_v13")
@@ -2335,25 +2278,32 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         ).session.runs.get()
 
         # initialize form based on a flow node UUID
-        response = self.client.get(f"{send_url}?step_node={color_split['uuid']}")
+        self.assertCreateFetch(
+            f"{to_node_url}?node={color_split['uuid']}&count=1",
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["text"],
+        )
 
-        # no omnibox...
-        self.assertEqual(["text", "step_node", "loc"], list(response.context["form"].fields.keys()))
-
-        response = self.client.post(send_url, {"text": "Hurry up", "step_node": color_split["uuid"]})
+        response = self.assertCreateSubmit(
+            f"{to_node_url}?node={color_split['uuid']}&count=1",
+            {"text": "Hurry up"},
+            new_obj_query=Broadcast.objects.filter(
+                translations={"und": {"text": "Hurry up"}}, groups=None, contacts=self.joe
+            ),
+            success_status=200,
+        )
         self.assertEqual("hide", response["Temba-Success"])
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.translations, {"und": {"text": "Hurry up"}})
-        self.assertEqual(broadcast.groups.count(), 0)
-        self.assertEqual({self.joe}, set(broadcast.contacts.all()))
 
         mock_queue_broadcast.assert_called_once_with(broadcast)
 
         # if there are no contacts at the given node, we don't actually create a broadcast
-        response = self.client.post(send_url, {"text": "Hurry up", "step_node": "36b2c697-a1d9-47a9-9553-d07d6a725877"})
+        response = self.client.post(
+            f"{to_node_url}?node=4ba8fcfa-f213-4164-a8d4-daede0a02144&count=1", {"text": "Hurry up"}
+        )
         self.assertEqual("hide", response["Temba-Success"])
-
         self.assertEqual(1, Broadcast.objects.count())
 
     def test_list(self):
@@ -2693,28 +2643,6 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.refresh_from_db()
         self.assertTrue(flow.has_issues)
         self.assertNotIn(label, flow.label_dependencies.all())
-
-    def test_list(self):
-        self.create_label("Spam")
-        self.create_label("Junk")
-        self.create_label("Important")
-        self.create_label("Other Org", org=self.org2)
-
-        # viewers can't edit flows so don't have access to this JSON endpoint as that's only place it's used
-        self.login(self.user)
-        response = self.client.get(reverse("msgs.label_list"))
-        self.assertLoginRedirect(response)
-
-        # editors can though
-        self.login(self.editor)
-        response = self.client.get(reverse("msgs.label_list"))
-        results = response.json()
-
-        # results should be A-Z and not include folders or labels from other orgs
-        self.assertEqual(3, len(results))
-        self.assertEqual("Important", results[0]["text"])
-        self.assertEqual("Junk", results[1]["text"])
-        self.assertEqual("Spam", results[2]["text"])
 
 
 class SystemLabelTest(TembaTest):
