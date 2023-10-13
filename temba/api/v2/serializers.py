@@ -233,13 +233,19 @@ class BroadcastWriteSerializer(WriteSerializer):
         """
         Create a new broadcast to send out
         """
+        base_language = self.validated_data.get("base_language")
+        translations = {
+            base_language: {
+                "text": self.validated_data.get("text"),
+                "attachments": self.validated_data.get("attachments", {}),
+            }
+        }
 
         broadcast = Broadcast.create(
             self.context["org"],
             self.context["user"],
-            text=self.validated_data.get("text"),
-            attachments=self.validated_data.get("attachments", {}),
-            base_language=self.validated_data.get("base_language"),
+            translations=translations,
+            base_language=base_language,
             groups=self.validated_data.get("groups", []),
             contacts=self.validated_data.get("contacts", []),
             urns=self.validated_data.get("urns", []),

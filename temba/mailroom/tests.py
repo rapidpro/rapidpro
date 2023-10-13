@@ -583,7 +583,7 @@ class MailroomQueueTest(TembaTest):
         bcast = Broadcast.create(
             self.org,
             self.admin,
-            {"eng": "Welcome to mailroom!", "spa": "¡Bienvenidx a mailroom!"},
+            {"eng": {"text": "Welcome to mailroom!"}, "spa": {"text": "¡Bienvenidx a mailroom!"}},
             groups=[bobs],
             contacts=[jim],
             urns=["tel:+12065556666"],

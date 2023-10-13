@@ -212,10 +212,8 @@ class Broadcast(models.Model):
         cls,
         org,
         user,
-        text: dict[str, str] = None,
+        translations: dict[str, dict] = None,
         *,
-        attachments: dict[str, list] = None,
-        translations: dict[str, list] = None,
         base_language: str = None,
         groups=None,
         contacts=None,
@@ -224,20 +222,6 @@ class Broadcast(models.Model):
         **kwargs,
     ):
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
-        if not translations:
-            assert text or attachments, "can't create broadcast without text or attachments"
-
-            # merge text and attachments into single dict of translations
-            translations = {}
-            if text:
-                translations = {lang: {"text": t} for lang, t in text.items()}
-            if attachments:
-                for lang, atts in attachments.items():
-                    if lang not in translations:
-                        translations[lang] = {}
-
-                    # TODO update broadcast sending to allow media objects to stay as UUIDs for longer
-                    translations[lang]["attachments"] = [str(m) for m in atts]
 
         # if base language is not provided
         if not base_language:

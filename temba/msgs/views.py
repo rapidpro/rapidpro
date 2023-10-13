@@ -672,7 +672,12 @@ class BroadcastCRUDL(SmartCRUDL):
                 contacts = list(omnibox["contacts"])
 
                 broadcast = Broadcast.create(
-                    org, user, {"und": text}, groups=groups, contacts=contacts, status=Msg.STATUS_QUEUED
+                    org,
+                    user,
+                    translations={"und": {"text": text}},
+                    groups=groups,
+                    contacts=contacts,
+                    status=Msg.STATUS_QUEUED,
                 )
 
                 self.post_save(broadcast)
