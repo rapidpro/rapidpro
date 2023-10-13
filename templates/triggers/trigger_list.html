@@ -81,14 +81,12 @@
               {% elif obj.trigger_type == 'T' %}
                 {% trans "A closed ticket" %}
               {% endif %}
-
               {% if obj.channel %}
-                  {% trans "on the channel" %}
-                  <div onclick="goto(event)"
-                       href="{% url "channels.channel_read" obj.channel.uuid %}"
-                       class="linked inline">{{ obj.channel }}</div>
+                {% trans "on the channel" %}
+                <div onclick="goto(event)"
+                     href="{% url "channels.channel_read" obj.channel.uuid %}"
+                     class="linked inline">{{ obj.channel }}</div>
               {% endif %}
-
               {% if obj.schedule %}
                 {% trans "Start" %}
               {% else %}
@@ -103,7 +101,9 @@
                 {% endif %}
               {% endif %}
             </td>
-            <td onclick="handleRowSelection(this)" width="250px">{% include "includes/recipients.html" with contacts=obj.contacts.all groups=obj.groups.all exclude_groups=obj.exclude_groups.all %}</td>
+            <td onclick="handleRowSelection(this)" width="250px">
+              {% include "includes/recipients.html" with contacts=obj.contacts.all groups=obj.groups.all exclude_groups=obj.exclude_groups.all groups_as_filters=True %}
+            </td>
           </tr>
         {% empty %}
           <tr class="empty_list">

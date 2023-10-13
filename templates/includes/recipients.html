@@ -7,12 +7,12 @@
 {% endfor %}
 {% for group in groups %}
   {% if group.is_active %}
-    {% include "includes/recipients_group.html" with group=group exclude=False %}
+    {% include "includes/recipients_group.html" with group=group groups_as_filters=groups_as_filters exclusion=False %}
   {% endif %}
 {% endfor %}
 {% for group in exclude_groups %}
   {% if group.is_active %}
-    {% include "includes/recipients_group.html" with group=group exclude=True %}
+    {% include "includes/recipients_group.html" with group=group groups_as_filters=groups_as_filters exclusion=True %}
   {% endif %}
 {% endfor %}
 {% with groups|inactive_count as num_deleted_groups %}

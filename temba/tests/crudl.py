@@ -35,6 +35,9 @@ class CRUDLTestMixin:
 
     def process_wizard(self, view_name, url, form_data):
         for step, data in form_data.items():
+            if not data:
+                break
+
             # prepends each field name with the step name
             data = {f"{step}-{key}": value for key, value in data.items()}
             response = self.client.post(url, {f"{view_name}-current_step": step, **data})
@@ -43,6 +46,7 @@ class CRUDLTestMixin:
 
             if response.status_code == 302:
                 return response
+        return response
 
     def assertReadFetch(
         self, url, *, allow_viewers, allow_editors, allow_agents=False, context_object=None, status=200

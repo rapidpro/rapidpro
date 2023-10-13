@@ -32,7 +32,7 @@ def send_to_flow_node(org_id, user_id, node_uuid: str, text: str):
     )
 
     if contact_ids:
-        broadcast = Broadcast.create(org, user, {"und": text}, contact_ids=contact_ids)
+        broadcast = Broadcast.create(org, user, {"und": {"text": text}}, contact_ids=contact_ids)
         broadcast.send_async()
 
         analytics.track(user, "temba.broadcast_created", dict(contacts=len(contact_ids), groups=0, urns=0))

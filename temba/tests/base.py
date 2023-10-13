@@ -455,10 +455,13 @@ class TembaTest(SmartminTest):
             log_uuids=[l.uuid for l in logs or []],
         )
 
+    def create_translations(self, text="", attachments=[], lang="und"):
+        return {lang: {"text": text, "attachments": attachments}}
+
     def create_broadcast(
         self,
         user,
-        text: str | dict,
+        translations: dict[str, list] | str,
         contacts=(),
         groups=(),
         optin=None,
@@ -469,10 +472,13 @@ class TembaTest(SmartminTest):
         created_on=None,
         org=None,
     ):
+        if isinstance(translations, str):
+            translations = self.create_translations(translations)
+
         bcast = Broadcast.create(
             org or self.org,
             user,
-            {"und": text} if isinstance(text, str) else text,
+            translations=translations,
             contacts=contacts,
             groups=groups,
             optin=optin,
@@ -488,9 +494,10 @@ class TembaTest(SmartminTest):
 
         if not schedule:
             for contact in contacts:
+                translation = bcast.get_translation(contact)
                 self._create_msg(
                     contact,
-                    text,
+                    translation["text"],
                     Msg.DIRECTION_OUT,
                     channel=None,
                     msg_type=Msg.TYPE_TEXT,

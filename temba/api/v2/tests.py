@@ -1036,13 +1036,13 @@ class EndpointsTest(APITest):
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
 
-        bcast1 = Broadcast.create(self.org, self.admin, {"eng": "Hello 1"}, urns=["twitter:franky"])
-        bcast2 = Broadcast.create(self.org, self.admin, {"eng": "Hello 2"}, contacts=[self.joe])
-        bcast3 = Broadcast.create(self.org, self.admin, {"eng": "Hello 3"}, contacts=[self.frank], status="S")
+        bcast1 = Broadcast.create(self.org, self.admin, {"eng": {"text": "Hello 1"}}, urns=["twitter:franky"])
+        bcast2 = Broadcast.create(self.org, self.admin, {"eng": {"text": "Hello 2"}}, contacts=[self.joe])
+        bcast3 = Broadcast.create(self.org, self.admin, {"eng": {"text": "Hello 3"}}, contacts=[self.frank], status="S")
         bcast4 = Broadcast.create(
             self.org,
             self.admin,
-            {"eng": "Hello 4"},
+            {"eng": {"text": "Hello 4"}},
             urns=["twitter:franky"],
             contacts=[self.joe],
             groups=[reporters],
@@ -1050,11 +1050,11 @@ class EndpointsTest(APITest):
         Broadcast.create(
             self.org,
             self.admin,
-            {"eng": "Scheduled"},
+            {"eng": {"text": "Scheduled"}},
             contacts=[self.joe],
             schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
         )
-        Broadcast.create(self.org2, self.admin2, {"eng": "Different org..."}, contacts=[self.hans])
+        Broadcast.create(self.org2, self.admin2, {"eng": {"text": "Different org..."}}, contacts=[self.hans])
 
         bcast4.status = "F"
         bcast4.save(update_fields=("status",))

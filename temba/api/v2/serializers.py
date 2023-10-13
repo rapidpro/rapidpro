@@ -233,13 +233,29 @@ class BroadcastWriteSerializer(WriteSerializer):
         """
         Create a new broadcast to send out
         """
+        base_language = self.validated_data.get("base_language")
+
+        text = self.validated_data.get("text")
+        attachments = self.validated_data.get("attachments", {})
+
+        # merge text and attachments into single dict of translations
+        translations = {}
+        if text:
+            translations = {lang: {"text": t} for lang, t in text.items()}
+
+        if attachments:
+            for lang, atts in attachments.items():
+                if lang not in translations:
+                    translations[lang] = {}
+
+                # TODO update broadcast sending to allow media objects to stay as UUIDs for longer
+                translations[lang]["attachments"] = [str(m) for m in atts]
 
         broadcast = Broadcast.create(
             self.context["org"],
             self.context["user"],
-            text=self.validated_data.get("text"),
-            attachments=self.validated_data.get("attachments", {}),
-            base_language=self.validated_data.get("base_language"),
+            translations=translations,
+            base_language=base_language,
             groups=self.validated_data.get("groups", []),
             contacts=self.validated_data.get("contacts", []),
             urns=self.validated_data.get("urns", []),
