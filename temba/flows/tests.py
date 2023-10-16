@@ -1157,7 +1157,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
             self.admin,
             Trigger.TYPE_SCHEDULE,
             flow_with_keywords,
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
         )
 
         self.assertEqual(flow_with_keywords.triggers.filter(is_archived=False).count(), 7)
