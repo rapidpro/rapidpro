@@ -79,7 +79,13 @@
               <td>
                 {% if not object.is_archived %}
                   <div class="whitespace-no-break flex items-center justify-end">
-                    {% if object.has_issues %}<div title="{{ _("Has issues") |escapejs }}" class="icon-warning mr-2"></div>{% endif %}
+                    {% if object.has_issues %}
+                    <div>
+                      <temba-tip position="top" text="{{ _("Has issues") |escapejs }}" slot="toggle">
+                        <temba-icon name="issue" class="mr-2" clickable="true"></temba-icon>
+                      </temba-tip>
+                    </div>
+                    {% endif %}
                     {% if object.run_stats.total %}
                       <div onclick="goto(event)"
                            href="{% url "flows.flow_results" object.uuid %}"
