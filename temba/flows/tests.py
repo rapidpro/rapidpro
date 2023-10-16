@@ -1797,13 +1797,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(10080, flow1.expires_after_minutes)
 
         # add a trigger on this flow
-        Trigger.objects.create(
-            org=self.org,
-            keyword="unique",
+        trigger = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow1,
+            keywords=["unique"],
             match_type=Trigger.MATCH_FIRST_WORD,
-            flow=flow1,
-            created_by=self.admin,
-            modified_by=self.admin,
         )
 
         # create a new surveyor flow
@@ -1865,13 +1865,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response, "form", "keyword_triggers", '"unique" is already used for another flow.')
 
         # create another trigger so there are two in the way
-        trigger = Trigger.objects.create(
-            org=self.org,
-            keyword="this",
+        trigger = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow1,
+            keywords=["this"],
             match_type=Trigger.MATCH_FIRST_WORD,
-            flow=flow1,
-            created_by=self.admin,
-            modified_by=self.admin,
         )
 
         response = self.client.post(

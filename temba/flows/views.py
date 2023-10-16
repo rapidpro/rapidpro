@@ -111,7 +111,7 @@ class BaseFlowForm(forms.ModelForm):
                 wrong_format.append(keyword)
 
             # make sure it won't conflict with existing triggers
-            conflicts = Trigger.get_conflicts(self.org, Trigger.TYPE_KEYWORD, keyword=keyword)
+            conflicts = Trigger.get_conflicts(self.org, Trigger.TYPE_KEYWORD, keywords=[keyword])
             if self.instance:
                 conflicts = conflicts.exclude(flow=self.instance.id)
 
@@ -490,7 +490,12 @@ class FlowCRUDL(SmartCRUDL):
                 keywords = self.form.cleaned_data["keyword_triggers"].split(",")
                 for keyword in keywords:
                     Trigger.create(
-                        org, user, Trigger.TYPE_KEYWORD, flow=obj, keyword=keyword, match_type=Trigger.MATCH_FIRST_WORD
+                        org,
+                        user,
+                        Trigger.TYPE_KEYWORD,
+                        flow=obj,
+                        keywords=[keyword],
+                        match_type=Trigger.MATCH_FIRST_WORD,
                     )
 
             return obj
@@ -681,7 +686,7 @@ class FlowCRUDL(SmartCRUDL):
                             user,
                             Trigger.TYPE_KEYWORD,
                             flow,
-                            keyword=keyword,
+                            keywords=[keyword],
                             match_type=Trigger.MATCH_FIRST_WORD,
                         )
 
