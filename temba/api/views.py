@@ -40,13 +40,6 @@ class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
     model_manager = "objects"
     lookup_params = {"uuid": "uuid"}
 
-    def options(self, request, *args, **kwargs):
-        """
-        Disable the default behaviour of OPTIONS returning serializer fields since we typically have two serializers
-        per endpoint.
-        """
-        return self.http_method_not_allowed(request, *args, **kwargs)
-
     def derive_queryset(self):
         return getattr(self.model, self.model_manager).filter(org=self.request.org)
 

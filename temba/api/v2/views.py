@@ -1579,7 +1579,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
     You will receive an empty response with status code 204 if successful.
     """
 
-    model = Contact
+    permission = "contacts.contact_update"
     serializer_class = ContactBulkActionSerializer
 
     @classmethod
@@ -3518,7 +3518,7 @@ class TicketersEndpoint(ListAPIMixin, BaseEndpoint):
         return self.filter_before_after(queryset, "created_on")
 
 
-class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
+class TicketsEndpoint(ListAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list the tickets opened on your account.
 
@@ -3566,7 +3566,6 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             ...
     """
 
-    permission = "tickets.ticket_api"
     model = Ticket
     serializer_class = TicketReadSerializer
     pagination_class = ModifiedOnCursorPagination
@@ -3647,7 +3646,7 @@ class TicketActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
     You will receive an empty response with status code 204 if successful.
     """
 
-    permission = "tickets.ticket_api"
+    permission = "tickets.ticket_update"
     serializer_class = TicketBulkActionSerializer
 
     @classmethod
