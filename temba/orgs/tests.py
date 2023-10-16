@@ -4243,7 +4243,7 @@ class BulkExportTest(TembaTest):
         # self.assertFalse(trigger1.is_archived)
 
         flow = Flow.objects.get(name="Rate us")
-        self.assertEqual(1, Trigger.objects.filter(keyword="rating", is_archived=False).count())
+        self.assertEqual(1, Trigger.objects.filter(keywords=["rating"], is_archived=False).count())
         self.assertEqual(1, Trigger.objects.filter(flow=flow).count())
 
         # shoud have archived the existing
@@ -4252,7 +4252,7 @@ class BulkExportTest(TembaTest):
 
         # Archive trigger
         flow_trigger = (
-            Trigger.objects.filter(flow=flow, keyword="rating", is_archived=False).order_by("-created_on").first()
+            Trigger.objects.filter(flow=flow, keywords=["rating"], is_archived=False).order_by("-created_on").first()
         )
         flow_trigger.archive(self.admin)
 
@@ -4263,13 +4263,13 @@ class BulkExportTest(TembaTest):
 
         flow_trigger.refresh_from_db()
 
-        self.assertEqual(1, Trigger.objects.filter(keyword="rating", is_archived=False).count())
+        self.assertEqual(1, Trigger.objects.filter(keywords=["rating"], is_archived=False).count())
         self.assertEqual(1, Trigger.objects.filter(flow=flow).count())
         self.assertFalse(Trigger.objects.filter(pk=trigger1.pk, is_archived=False).first())
         self.assertFalse(Trigger.objects.filter(pk=trigger2.pk, is_archived=False).first())
 
         restored_trigger = (
-            Trigger.objects.filter(flow=flow, keyword="rating", is_archived=False).order_by("-created_on").first()
+            Trigger.objects.filter(flow=flow, keywords=["rating"], is_archived=False).order_by("-created_on").first()
         )
         self.assertEqual(restored_trigger.pk, flow_trigger.pk)
 
@@ -4318,7 +4318,7 @@ class BulkExportTest(TembaTest):
         confirm_appointment.expires_after_minutes = 360
         confirm_appointment.save(update_fields=("expires_after_minutes",))
 
-        trigger = Trigger.objects.filter(keyword="patient").first()
+        trigger = Trigger.objects.filter(keywords=["patient"]).first()
         trigger.flow = confirm_appointment
         trigger.save()
 
