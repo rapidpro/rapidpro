@@ -285,7 +285,7 @@ class TriggerTest(TembaTest):
         self._import_trigger({"trigger_type": "C", "keyword": "this is ignored", "flow": flow_ref, "groups": []})
 
         trigger = Trigger.objects.get(trigger_type="C")
-        self.assertIsNone(trigger.keyword)
+        self.assertIsNone(trigger.keywords)
 
     def test_export_import_keyword(self):
         flow = self.create_flow("Test")
@@ -1306,7 +1306,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         trigger.refresh_from_db()
-        self.assertEqual("kiki", trigger.keyword)
+        self.assertEqual("kiki", trigger.keywords[0])
         self.assertEqual(flow, trigger.flow)
         self.assertEqual(Trigger.MATCH_ONLY_WORD, trigger.match_type)
         self.assertEqual(channel1, trigger.channel)
@@ -1735,41 +1735,45 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # cannot bulk delete an active trigger
         self.client.post(archived_url, {"action": "delete", "objects": trigger7.id})
+
         response = self.client.get(archived_url)
-        self.assertNotContains(response, trigger7.keyword)
+        self.assertNotContains(response, trigger7.keywords[0])
+
         response = self.client.get(list_url)
-        self.assertContains(response, trigger7.keyword)
+        self.assertContains(response, trigger7.keywords[0])
 
         # cannot bulk delete a mix of active and archived triggers
         self.client.post(archived_url, {"action": "delete", "objects": [trigger3.id, trigger4.id, trigger7.id]})
         response = self.client.get(archived_url)
-        self.assertContains(response, trigger3.keyword)
-        self.assertContains(response, trigger4.keyword)
-        self.assertContains(response, trigger5.keyword)
-        self.assertContains(response, trigger6.keyword)
-        self.assertNotContains(response, trigger7.keyword)
+        self.assertContains(response, trigger3.keywords[0])
+        self.assertContains(response, trigger4.keywords[0])
+        self.assertContains(response, trigger5.keywords[0])
+        self.assertContains(response, trigger6.keywords[0])
+        self.assertNotContains(response, trigger7.keywords[0])
+
         response = self.client.get(list_url)
-        self.assertContains(response, trigger7.keyword)
+        self.assertContains(response, trigger7.keywords[0])
 
         # can bulk delete archived triggers
         self.client.post(archived_url, {"action": "delete", "objects": [trigger3.id, trigger4.id]})
         response = self.client.get(archived_url)
-        self.assertNotContains(response, trigger3.keyword)
-        self.assertNotContains(response, trigger4.keyword)
-        self.assertContains(response, trigger5.keyword)
-        self.assertContains(response, trigger6.keyword)
+        self.assertNotContains(response, trigger3.keywords[0])
+        self.assertNotContains(response, trigger4.keywords[0])
+        self.assertContains(response, trigger5.keywords[0])
+        self.assertContains(response, trigger6.keywords[0])
 
         # can bulk "delete all" archived triggers
         self.client.post(archived_url, {"action": "delete", "all": "true"})
         response = self.client.get(archived_url)
-        self.assertNotContains(response, trigger3.keyword)
-        self.assertNotContains(response, trigger4.keyword)
-        self.assertNotContains(response, trigger5.keyword)
-        self.assertNotContains(response, trigger6.keyword)
+        self.assertNotContains(response, trigger3.keywords[0])
+        self.assertNotContains(response, trigger4.keywords[0])
+        self.assertNotContains(response, trigger5.keywords[0])
+        self.assertNotContains(response, trigger6.keywords[0])
         # check that the active trigger is unaffected by the bulk "delete all"
-        self.assertNotContains(response, trigger7.keyword)
+        self.assertNotContains(response, trigger7.keywords[0])
+
         response = self.client.get(list_url)
-        self.assertContains(response, trigger7.keyword)
+        self.assertContains(response, trigger7.keywords[0])
 
     def test_folder(self):
         flow1 = self.create_flow("Flow 1")
