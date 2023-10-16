@@ -59,7 +59,7 @@
               {% if obj.trigger_type == 'K' %}
                 {% trans "The keyword" %}
                 <b>
-                  {{ obj.keyword }}
+                  {{ obj.keywords.0 }}
                 </b>
               {% elif obj.trigger_type == 'M' %}
                 {% trans "A missed call" %}

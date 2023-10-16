@@ -243,7 +243,7 @@ class RegisterTriggerForm(BaseTriggerForm):
 
     def get_conflicts_kwargs(self, cleaned_data):
         kwargs = super().get_conflicts_kwargs(cleaned_data)
-        kwargs["keyword"] = cleaned_data.get("keyword") or ""
+        kwargs["keywords"] = [cleaned_data["keyword"]] if cleaned_data["keyword"] else None
         return kwargs
 
     class Meta(BaseTriggerForm.Meta):
@@ -394,7 +394,7 @@ class TriggerCRUDL(SmartCRUDL):
         trigger_type = Trigger.TYPE_KEYWORD
 
         def get_create_kwargs(self, user, cleaned_data):
-            return {"keyword": cleaned_data["keyword"], "match_type": cleaned_data["match_type"]}
+            return {"keywords": [cleaned_data["keyword"]], "match_type": cleaned_data["match_type"]}
 
     class CreateRegister(BaseCreate):
         form_class = RegisterTriggerForm
@@ -417,7 +417,7 @@ class TriggerCRUDL(SmartCRUDL):
                 register_flow,
                 groups=groups,
                 exclude_groups=exclude_groups,
-                keyword=keyword,
+                keywords=[keyword],
                 match_type=Trigger.MATCH_ONLY_WORD,
             )
 
@@ -484,7 +484,9 @@ class TriggerCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super().derive_initial()
 
-            if self.object.trigger_type == Trigger.TYPE_INBOUND_CALL:
+            if self.object.trigger_type == Trigger.TYPE_KEYWORD:
+                initial["keyword"] = self.object.keywords[0]
+            elif self.object.trigger_type == Trigger.TYPE_INBOUND_CALL:
                 if self.object.flow.flow_type == Flow.TYPE_VOICE:
                     initial["action"] = "answer"
                     initial["voice_flow"] = self.object.flow

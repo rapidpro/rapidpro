@@ -43,7 +43,7 @@ class KeywordTriggerType(ChannelTriggerType):
 
         def get_conflicts_kwargs(self, cleaned_data):
             kwargs = super().get_conflicts_kwargs(cleaned_data)
-            kwargs["keyword"] = cleaned_data.get("keyword") or ""
+            kwargs["keywords"] = [cleaned_data["keyword"]] if cleaned_data["keyword"] else None
             return kwargs
 
         class Meta(BaseChannelTriggerForm.Meta):
