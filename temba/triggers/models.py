@@ -45,7 +45,7 @@ class TriggerType:
             "groups": [group.as_export_ref() for group in trigger.groups.order_by("name")],
             "exclude_groups": [group.as_export_ref() for group in trigger.exclude_groups.order_by("name")],
             "channel": trigger.channel.uuid if trigger.channel else None,
-            "keyword": trigger.keyword,
+            "keyword": trigger.keywords[0] if trigger.keywords else None,
             "match_type": trigger.match_type,
         }
         return {f: all_fields[f] for f in self.export_fields}
