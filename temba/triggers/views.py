@@ -3,7 +3,6 @@ from enum import Enum
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
-from django.db.models import Min
 from django.db.models.functions import Upper
 from django.http import HttpResponseRedirect
 from django.urls import reverse
@@ -534,14 +533,13 @@ class TriggerCRUDL(SmartCRUDL):
         permission = "triggers.trigger_list"
         fields = ("name",)
         default_template = "triggers/trigger_list.html"
-        search_fields = ("keyword__icontains", "flow__name__icontains", "channel__name__icontains")
+        search_fields = ("keywords__0__iexact", "flow__name__icontains", "channel__name__icontains")
 
         def get_queryset(self, *args, **kwargs):
             qs = super().get_queryset(*args, **kwargs)
             qs = (
                 qs.filter(is_active=True)
-                .annotate(earliest_group=Min("groups__name"))
-                .order_by("keyword", "earliest_group", "id")
+                .order_by("-created_on")
                 .select_related("flow", "channel")
                 .prefetch_related("contacts", "groups", "exclude_groups")
             )
@@ -607,5 +605,5 @@ class TriggerCRUDL(SmartCRUDL):
                 super()
                 .get_queryset(*args, **kwargs)
                 .filter(is_archived=False, trigger_type__in=self.folder.types)
-                .order_by(Trigger.type_order(), "keyword", "earliest_group", "id")
+                .order_by(Trigger.type_order(), "-created_on")
             )

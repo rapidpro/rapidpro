@@ -61,7 +61,7 @@ class KeywordTriggerType(ChannelTriggerType):
     form = Form
 
     def get_instance_name(self, trigger):
-        return f"{self.name}[{trigger.keyword}] → {trigger.flow.name}"
+        return f"{self.name}[{', '.join(trigger.keywords)}] → {trigger.flow.name}"
 
     def validate_import_def(self, trigger_def: dict):
         super().validate_import_def(trigger_def)

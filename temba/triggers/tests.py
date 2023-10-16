@@ -1480,15 +1480,17 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
     @patch("temba.channels.types.facebook_legacy.FacebookLegacyType.deactivate_trigger")
     @patch("temba.channels.types.facebook_legacy.FacebookLegacyType.activate_trigger")
     def test_list(self, mock_activate_trigger, mock_deactivate_trigger):
+        list_url = reverse("triggers.trigger_list")
+
         flow1 = self.create_flow("Report")
         flow2 = self.create_flow("Survey")
         flow3 = self.create_flow("Test", org=self.org2)
         channel = self.create_channel("FB", "Facebook", "1234567")
         trigger1 = Trigger.create(
-            self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keywords=["test"], match_type=Trigger.MATCH_FIRST_WORD
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keywords=["abc"], match_type=Trigger.MATCH_FIRST_WORD
         )
         trigger2 = Trigger.create(
-            self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keywords=["abc"], match_type=Trigger.MATCH_ONLY_WORD
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keywords=["test"], match_type=Trigger.MATCH_ONLY_WORD
         )
         trigger3 = Trigger.create(
             self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keywords=["start"], match_type=Trigger.MATCH_ONLY_WORD
@@ -1517,16 +1519,14 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             self.org2, self.admin, Trigger.TYPE_KEYWORD, flow3, keywords=["other"], match_type=Trigger.MATCH_ONLY_WORD
         )
 
-        list_url = reverse("triggers.trigger_list")
-
         response = self.assertListFetch(
-            list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger3, trigger1, trigger4]
+            list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger4, trigger3, trigger2, trigger1]
         )
         self.assertEqual(("archive",), response.context["actions"])
 
         # can search by keyword
         self.assertListFetch(
-            list_url + "?search=Sta", allow_viewers=True, allow_editors=True, context_objects=[trigger3]
+            list_url + "?search=Start", allow_viewers=True, allow_editors=True, context_objects=[trigger3]
         )
 
         # or flow name
@@ -1542,7 +1542,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # no longer appears in list
         self.assertListFetch(
-            list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1, trigger4]
+            list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger4, trigger2, trigger1]
         )
 
         # test when archiving fails
@@ -1799,10 +1799,10 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("/trigger/messages", response.headers[TEMBA_MENU_SELECTION])
         self.assertEqual(("archive",), response.context["actions"])
 
-        # can search by keyword
+        # can search by keywords
         self.assertListFetch(
-            messages_url + "?search=TES", allow_viewers=True, allow_editors=True, context_objects=[trigger1]
+            messages_url + "?search=TEST", allow_viewers=True, allow_editors=True, context_objects=[trigger1]
         )
 
-        self.assertListFetch(referral_url, allow_viewers=True, allow_editors=True, context_objects=[trigger3, trigger4])
+        self.assertListFetch(referral_url, allow_viewers=True, allow_editors=True, context_objects=[trigger4, trigger3])
         self.assertListFetch(tickets_url, allow_viewers=True, allow_editors=True, context_objects=[])
