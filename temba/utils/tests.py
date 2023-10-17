@@ -193,8 +193,8 @@ class TemplateTagTest(TembaTest):
     def test_icon(self):
         campaign = Campaign.create(self.org, self.admin, "Test Campaign", self.create_group("Test group", []))
         flow = Flow.create(self.org, self.admin, "Test Flow")
-        trigger = Trigger.objects.create(
-            org=self.org, keyword="trigger", flow=flow, created_by=self.admin, modified_by=self.admin
+        trigger = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keywords=["trigger"], match_type=Trigger.MATCH_FIRST_WORD
         )
 
         self.assertEqual("icon-campaign", icon(campaign))
