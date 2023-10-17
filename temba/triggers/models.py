@@ -115,9 +115,6 @@ class Trigger(SmartModel):
     referrer_id = models.CharField(max_length=255, null=True)
     schedule = models.OneToOneField("schedules.Schedule", on_delete=models.PROTECT, null=True, related_name="trigger")
 
-    # deprecated
-    keyword = models.CharField(max_length=KEYWORD_MAX_LEN, null=True)
-
     @classmethod
     def create(
         cls,
