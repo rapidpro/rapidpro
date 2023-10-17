@@ -1,3 +1,7 @@
+v8.3.52 (2023-10-17)
+-------------------------
+ * Stop writing Trigger.keyword
+
 v8.3.51 (2023-10-17)
 -------------------------
  * Only read from Trigger.keywords
