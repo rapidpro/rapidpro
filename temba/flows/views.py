@@ -657,7 +657,7 @@ class FlowCRUDL(SmartCRUDL):
             existing_keywords = set()
 
             # update existing keyword triggers for this flow, archiving any that are no longer valid
-            for trigger in flow.triggers.filter(trigger_type=Trigger.TYPE_KEYWORD, is_archived=False):
+            for trigger in flow.triggers.filter(trigger_type=Trigger.TYPE_KEYWORD, is_archived=False, is_active=True):
                 if set(trigger.keywords).issubset(new_keywords):
                     existing_keywords.update(trigger.keywords)
                 else:
@@ -673,10 +673,11 @@ class FlowCRUDL(SmartCRUDL):
                 archived = flow.triggers.filter(
                     trigger_type=Trigger.TYPE_KEYWORD,
                     keywords__contained_by=list(missing_keywords) + [keyword],
-                    is_archived=True,
                     channel=None,
                     groups=None,
                     exclude_groups=None,
+                    is_archived=True,
+                    is_active=True,
                 ).first()
 
                 if archived:

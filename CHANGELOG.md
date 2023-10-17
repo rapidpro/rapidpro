@@ -1,3 +1,9 @@
+v8.3.50 (2023-10-16)
+-------------------------
+ * Make ticketer nullable on ticket
+ * Convert tickets API endpoints to use CRUDL perms
+ * Make sure we show the issue icon on the flow list page
+
 v8.3.49 (2023-10-13)
 -------------------------
  * Add data migration to populate keywords on trigger
