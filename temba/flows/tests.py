@@ -1967,7 +1967,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             actual = list(
                 flow.triggers.filter(trigger_type="K", is_active=True).order_by("id").values("keywords", "is_archived")
             )
-            self.assertEqual(actual, expected)
+            self.assertCountEqual(actual, expected)
 
         self.assertUpdateFetch(
             update_url,
@@ -2108,7 +2108,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.refresh_from_db()
         self.assertEqual("New Name", flow.name)
         self.assertEqual(10, flow.expires_after_minutes)
-        self.assertEqual(
+        self.assertCountEqual(
             [["help"], ["test"]],
             list(flow.triggers.filter(is_active=True).order_by("id").values_list("keywords", flat=True)),
         )

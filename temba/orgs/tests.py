@@ -4335,7 +4335,7 @@ class BulkExportTest(TembaTest):
         self.assertEqual(10080, confirm_appointment.expires_after_minutes)
 
         # same with our trigger
-        trigger = Trigger.objects.filter(keyword="patient").order_by("-created_on").first()
+        trigger = Trigger.objects.filter(keywords=["patient"]).order_by("-created_on").first()
         self.assertEqual(Flow.objects.filter(name="Register Patient").first(), trigger.flow)
 
         # our old campaign message flow should be inactive now
