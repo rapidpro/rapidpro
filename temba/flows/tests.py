@@ -1964,9 +1964,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         update_url = reverse("flows.flow_update", args=[flow.id])
 
         def assert_triggers(expected: list):
-            actual = list(
-                flow.triggers.filter(trigger_type="K", is_active=True).order_by("id").values("keywords", "is_archived")
-            )
+            actual = list(flow.triggers.filter(trigger_type="K", is_active=True).values("keywords", "is_archived"))
             self.assertCountEqual(actual, expected)
 
         self.assertUpdateFetch(
@@ -2066,6 +2064,29 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 {"keywords": ["help"], "is_archived": False},
                 {"keywords": ["test"], "is_archived": False},  # "test" now restored
                 {"keywords": ["support"], "is_archived": True},  # old "support" still archived
+                {"keywords": ["support"], "is_archived": False},  # new "support" created
+            ]
+        )
+
+        # updating should work when archived triggers have multiple keywords
+        flow.triggers.filter(is_archived=False).delete()
+        flow.triggers.filter(is_archived=True).update(keywords=["test", "help"], channel=None)
+
+        assert_triggers([{"keywords": ["test", "help"], "is_archived": True}])
+
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "name": "New Name",
+                "keyword_triggers": ["test", "help", "support"],
+                "expires_after_minutes": 10,
+                "ignore_triggers": True,
+            },
+        )
+
+        assert_triggers(
+            [
+                {"keywords": ["test", "help"], "is_archived": False},  # old "test"+"help" restored
                 {"keywords": ["support"], "is_archived": False},  # new "support" created
             ]
         )
