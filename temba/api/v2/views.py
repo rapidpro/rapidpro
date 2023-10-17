@@ -1579,7 +1579,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
     You will receive an empty response with status code 204 if successful.
     """
 
-    model = Contact
+    permission = "contacts.contact_update"
     serializer_class = ContactBulkActionSerializer
 
     @classmethod
@@ -3518,7 +3518,7 @@ class TicketersEndpoint(ListAPIMixin, BaseEndpoint):
         return self.filter_before_after(queryset, "created_on")
 
 
-class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
+class TicketsEndpoint(ListAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list the tickets opened on your account.
 
@@ -3527,7 +3527,6 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     A **GET** returns the tickets for your organization, most recent first.
 
      * **uuid** - the UUID of the ticket, filterable as `uuid`.
-     * **ticketer** - the UUID and name of the ticketer (object).
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **status** - the status of the ticket, e.g. 'open' or 'closed'.
      * **topic** - the topic of the ticket (object).
@@ -3551,7 +3550,6 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             "results": [
             {
                 "uuid": "9a8b001e-a913-486c-80f4-1356e23f582e",
-                "ticketer": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Email (bob@acme.com)"},
                 "contact": {"uuid": "f1ea776e-c923-4c1a-b3a3-0c466932b2cc", "name": "Jim"},
                 "status": "open",
                 "topic": {"uuid": "040edbfe-be55-48f3-864d-a4a7147c447b", "name": "Support"},
@@ -3566,7 +3564,6 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             ...
     """
 
-    permission = "tickets.ticket_api"
     model = Ticket
     serializer_class = TicketReadSerializer
     pagination_class = ModifiedOnCursorPagination
@@ -3647,7 +3644,7 @@ class TicketActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
     You will receive an empty response with status code 204 if successful.
     """
 
-    permission = "tickets.ticket_api"
+    permission = "tickets.ticket_update"
     serializer_class = TicketBulkActionSerializer
 
     @classmethod

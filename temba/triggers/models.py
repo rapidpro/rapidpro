@@ -1,9 +1,9 @@
 from smartmin.models import SmartModel
 
 from django.contrib.postgres.fields import ArrayField
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Case, Q, When
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
@@ -43,21 +43,21 @@ class TriggerType:
         all_fields = {
             "trigger_type": trigger.trigger_type,
             "flow": trigger.flow.as_export_ref(),
+            "channel": trigger.channel.as_export_ref() if trigger.channel else None,
             "groups": [group.as_export_ref() for group in trigger.groups.order_by("name")],
             "exclude_groups": [group.as_export_ref() for group in trigger.exclude_groups.order_by("name")],
-            "channel": trigger.channel.uuid if trigger.channel else None,
-            "keyword": trigger.keyword,
+            "keywords": trigger.keywords,
             "match_type": trigger.match_type,
         }
         return {f: all_fields[f] for f in self.export_fields}
 
-    def validate_import_def(self, trigger_def: dict):
+    def clean_import_def(self, trigger_def: dict):
         """
         Validates a trigger definition being imported
         """
         for field in self.required_fields:
             if not trigger_def.get(field):
-                raise ValueError(f"Field '{field}' is required.")
+                raise ValidationError(_("Field '%(field)s' is required."), params={"field": field})
 
 
 class ChannelTriggerType(TriggerType):
@@ -110,7 +110,6 @@ class Trigger(SmartModel):
     exclude_groups = models.ManyToManyField(ContactGroup, related_name="triggers_excluded")
     contacts = models.ManyToManyField(Contact, related_name="triggers")  # scheduled triggers only
 
-    keyword = models.CharField(max_length=KEYWORD_MAX_LEN, null=True)
     keywords = ArrayField(models.CharField(max_length=KEYWORD_MAX_LEN), null=True)
     match_type = models.CharField(max_length=1, choices=MATCH_TYPES, null=True)
     referrer_id = models.CharField(max_length=255, null=True)
@@ -128,13 +127,13 @@ class Trigger(SmartModel):
         groups=(),
         exclude_groups=(),
         contacts=(),
-        keyword=None,
+        keywords=None,
         schedule=None,
         match_type=None,
         **kwargs,
     ):
         assert flow.flow_type != Flow.TYPE_SURVEY, "can't create triggers for surveyor flows"
-        assert trigger_type != cls.TYPE_KEYWORD or (keyword and match_type), "keyword required for keyword triggers"
+        assert trigger_type != cls.TYPE_KEYWORD or (keywords and match_type), "keywords required for keyword triggers"
         assert trigger_type != cls.TYPE_SCHEDULE or schedule, "schedule must be provided for scheduled triggers"
         assert trigger_type == cls.TYPE_SCHEDULE or not contacts, "contacts can only be provided for scheduled triggers"
 
@@ -143,8 +142,7 @@ class Trigger(SmartModel):
             trigger_type=trigger_type,
             flow=flow,
             channel=channel,
-            keyword=keyword,
-            keywords=[keyword] if keyword else None,
+            keywords=keywords,
             schedule=schedule,
             match_type=match_type,
             created_by=user,
@@ -160,19 +158,13 @@ class Trigger(SmartModel):
             trigger.contacts.add(contact)
 
         # archive any conflicts
-        trigger.archive_conflicts(user)
+        for conflict in trigger._get_conflicts():
+            conflict.archive(user)
 
         if trigger.channel:
             trigger.channel.type.activate_trigger(trigger)
 
         return trigger
-
-    def trigger_scopes(self):
-        """
-        Returns keys that represents the scopes that this trigger can operate against (and might conflict with other triggers with)
-        """
-        groups = ["**"] if not self.groups else [str(g.id) for g in self.groups.all().order_by("id")]
-        return ["%s_%s_%s_%s" % (self.trigger_type, str(self.channel_id), group, str(self.keyword)) for group in groups]
 
     def archive(self, user):
         self.modified_by = user
@@ -188,21 +180,16 @@ class Trigger(SmartModel):
         self.save(update_fields=("modified_by", "modified_on", "is_archived"))
 
         # archive any conflicts
-        self.archive_conflicts(user)
+        for conflict in self._get_conflicts():
+            conflict.archive(user)
 
         if self.channel:
             self.channel.type.activate_trigger(self)
 
-    def archive_conflicts(self, user):
-        """
-        Archives any triggers that conflict with this one
-        """
-
-        conflicts = self.get_conflicts(
-            self.org, self.trigger_type, self.channel, self.groups.all(), self.keyword, self.referrer_id
+    def _get_conflicts(self):
+        return Trigger.get_conflicts(
+            self.org, self.trigger_type, self.channel, self.groups.all(), self.keywords, self.referrer_id
         ).exclude(id=self.id)
-
-        conflicts.update(is_archived=True, modified_on=timezone.now(), modified_by=user)
 
     @classmethod
     def get_conflicts(
@@ -211,7 +198,7 @@ class Trigger(SmartModel):
         trigger_type: str,
         channel=None,
         groups=None,
-        keyword: str = None,
+        keywords: list[str] = None,
         referrer_id: str = None,
         include_archived=False,
     ):
@@ -237,8 +224,8 @@ class Trigger(SmartModel):
         else:
             conflicts = conflicts.filter(groups=None)
 
-        if keyword:
-            conflicts = conflicts.filter(keyword__iexact=keyword)
+        if keywords:
+            conflicts = conflicts.filter(keywords__overlap=keywords)
 
         if referrer_id:
             conflicts = conflicts.filter(referrer_id__iexact=referrer_id)
@@ -248,14 +235,18 @@ class Trigger(SmartModel):
         return conflicts
 
     @classmethod
-    def validate_import_def(cls, trigger_def: dict):
+    def clean_import_def(cls, trigger_def: dict):
         type_code = trigger_def.get("trigger_type", "")
         try:
             trigger_type = cls.get_type(code=type_code)
         except KeyError:
-            raise ValueError(f"{type_code} is not a valid trigger type")
+            raise ValidationError(_("%(type)s is not a valid trigger type"), params={"type": type_code})
 
-        trigger_type.validate_import_def(trigger_def)
+        # if channel is just a UUID, convert to reference object
+        if "channel" in trigger_def and isinstance(trigger_def["channel"], str):
+            trigger_def["channel"] = {"uuid": trigger_def["channel"], "name": ""}
+
+        trigger_type.clean_import_def(trigger_def)
 
     @classmethod
     def import_triggers(cls, org, user, trigger_defs, same_site=False):
@@ -277,12 +268,14 @@ class Trigger(SmartModel):
         groups = cls._resolve_import_groups(org, user, same_site, trigger_def["groups"])
         exclude_groups = cls._resolve_import_groups(org, user, same_site, trigger_def.get("exclude_groups", []))
 
-        channel_uuid = trigger_def.get("channel")
-        channel = org.channels.filter(uuid=channel_uuid, is_active=True).first() if channel_uuid else None
+        channel = None
+        if "channel" in trigger_def and isinstance(trigger_def["channel"], dict):
+            channel = org.channels.filter(uuid=trigger_def["channel"]["uuid"], is_active=True).first()
 
         flow_uuid = trigger_def["flow"]["uuid"]
         flow = org.flows.get(uuid=flow_uuid, is_active=True)
 
+        keywords = trigger_def.get("keywords")
         match_type = None
         if trigger_type.code == Trigger.TYPE_KEYWORD:
             match_type = trigger_def.get("match_type", Trigger.MATCH_FIRST_WORD)
@@ -292,7 +285,7 @@ class Trigger(SmartModel):
             org,
             trigger_def["trigger_type"],
             groups=groups,
-            keyword=trigger_def.get("keyword"),
+            keywords=keywords,
             channel=channel,
             include_archived=True,
         )
@@ -317,7 +310,7 @@ class Trigger(SmartModel):
                 channel=channel,
                 groups=groups,
                 exclude_groups=exclude_groups,
-                keyword=trigger_def.get("keyword"),
+                keywords=keywords,
                 match_type=match_type,
             )
 
@@ -351,17 +344,9 @@ class Trigger(SmartModel):
 
     @classmethod
     def apply_action_restore(cls, user, triggers):
-        restore_priority = triggers.order_by("-modified_on")
-        trigger_scopes = set()
-
         # work through all the restored triggers in order of most recent used
-        for trigger in restore_priority:
-            trigger_scope = set(trigger.trigger_scopes())
-
-            # if we haven't already restored a trigger with this scope
-            if not trigger_scopes.intersection(trigger_scope):
-                trigger.restore(user)
-                trigger_scopes = trigger_scopes | trigger_scope
+        for trigger in triggers.order_by("-modified_on"):
+            trigger.restore(user)
 
     @classmethod
     def apply_action_delete(cls, user, triggers):
@@ -372,13 +357,8 @@ class Trigger(SmartModel):
         """
         The definition of this trigger for export.
         """
-        export_def = self.type.export_def(self)
 
-        # for backwards compatibility keyword needs to always be present even if the trigger type doesn't use it
-        if "keyword" not in export_def:
-            export_def["keyword"] = None
-
-        return export_def
+        return self.type.export_def(self)
 
     @classmethod
     def get_type(cls, *, code: str = None, slug: str = None):

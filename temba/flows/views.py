@@ -1,5 +1,4 @@
 import logging
-from collections import defaultdict
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
@@ -111,7 +110,7 @@ class BaseFlowForm(forms.ModelForm):
                 wrong_format.append(keyword)
 
             # make sure it won't conflict with existing triggers
-            conflicts = Trigger.get_conflicts(self.org, Trigger.TYPE_KEYWORD, keyword=keyword)
+            conflicts = Trigger.get_conflicts(self.org, Trigger.TYPE_KEYWORD, keywords=[keyword])
             if self.instance:
                 conflicts = conflicts.exclude(flow=self.instance.id)
 
@@ -490,7 +489,12 @@ class FlowCRUDL(SmartCRUDL):
                 keywords = self.form.cleaned_data["keyword_triggers"].split(",")
                 for keyword in keywords:
                     Trigger.create(
-                        org, user, Trigger.TYPE_KEYWORD, flow=obj, keyword=keyword, match_type=Trigger.MATCH_FIRST_WORD
+                        org,
+                        user,
+                        Trigger.TYPE_KEYWORD,
+                        flow=obj,
+                        keywords=[keyword],
+                        match_type=Trigger.MATCH_FIRST_WORD,
                     )
 
             return obj
@@ -565,11 +569,9 @@ class FlowCRUDL(SmartCRUDL):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
-                existing_keywords = set(
-                    self.instance.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_KEYWORD).values_list(
-                        "keyword", flat=True
-                    )
-                )
+                existing_keywords = set()
+                for trigger in self.instance.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_KEYWORD):
+                    existing_keywords.update(trigger.keywords)
 
                 self.fields["keyword_triggers"].initial = list(sorted(existing_keywords))
 
@@ -650,40 +652,48 @@ class FlowCRUDL(SmartCRUDL):
             return obj
 
         def update_triggers(self, flow, user, new_keywords: list):
-            # get existing keyword triggers for this flow by their keyword
-            existing_keywords = defaultdict(list)
-            for trigger in flow.triggers.filter(trigger_type=Trigger.TYPE_KEYWORD, is_archived=False):
-                existing_keywords[trigger.keyword].append(trigger)
+            existing_keywords = set()
 
-            # archive any triggers for keywords not in the new set
-            for keyword, triggers in existing_keywords.items():
-                if keyword not in new_keywords:
-                    for trigger in triggers:
-                        trigger.archive(user)
+            # update existing keyword triggers for this flow, archiving any that are no longer valid
+            for trigger in flow.triggers.filter(trigger_type=Trigger.TYPE_KEYWORD, is_archived=False, is_active=True):
+                if set(trigger.keywords).issubset(new_keywords):
+                    existing_keywords.update(trigger.keywords)
+                else:
+                    trigger.archive(user)
 
-            for keyword in new_keywords:
-                if keyword not in existing_keywords:
-                    # look for archived trigger with default empty settings that we can restore
-                    archived = flow.triggers.filter(
-                        trigger_type=Trigger.TYPE_KEYWORD,
-                        keyword=keyword,
-                        is_archived=True,
-                        channel=None,
-                        groups=None,
-                        exclude_groups=None,
-                    ).first()
+            missing_keywords = set(new_keywords) - existing_keywords
 
-                    if archived:
-                        archived.restore(user)
-                    else:
-                        Trigger.create(
-                            flow.org,
-                            user,
-                            Trigger.TYPE_KEYWORD,
-                            flow,
-                            keyword=keyword,
-                            match_type=Trigger.MATCH_FIRST_WORD,
-                        )
+            while missing_keywords:
+                keyword = missing_keywords.pop()
+
+                # look for archived trigger, with default empty settings, whose keywords are a subset of the missing
+                # ones, that we can restore instead of creating a new trigger each time
+                archived = flow.triggers.filter(
+                    trigger_type=Trigger.TYPE_KEYWORD,
+                    keywords__contains=[keyword],
+                    keywords__contained_by=list(missing_keywords) + [keyword],
+                    channel=None,
+                    groups=None,
+                    exclude_groups=None,
+                    is_archived=True,
+                    is_active=True,
+                ).first()
+
+                if archived:
+                    archived.restore(user)
+
+                    for kw in archived.keywords:
+                        if kw in missing_keywords:
+                            missing_keywords.remove(kw)
+                else:
+                    Trigger.create(
+                        flow.org,
+                        user,
+                        Trigger.TYPE_KEYWORD,
+                        flow,
+                        keywords=[keyword],
+                        match_type=Trigger.MATCH_FIRST_WORD,
+                    )
 
     class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, ContentMenuMixin, SmartListView):
         title = _("Flows")

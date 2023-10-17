@@ -3,7 +3,6 @@ from enum import Enum
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
-from django.db.models import Min
 from django.db.models.functions import Upper
 from django.http import HttpResponseRedirect
 from django.urls import reverse
@@ -243,7 +242,7 @@ class RegisterTriggerForm(BaseTriggerForm):
 
     def get_conflicts_kwargs(self, cleaned_data):
         kwargs = super().get_conflicts_kwargs(cleaned_data)
-        kwargs["keyword"] = cleaned_data.get("keyword") or ""
+        kwargs["keywords"] = [cleaned_data["keyword"]] if cleaned_data["keyword"] else None
         return kwargs
 
     class Meta(BaseTriggerForm.Meta):
@@ -394,7 +393,7 @@ class TriggerCRUDL(SmartCRUDL):
         trigger_type = Trigger.TYPE_KEYWORD
 
         def get_create_kwargs(self, user, cleaned_data):
-            return {"keyword": cleaned_data["keyword"], "match_type": cleaned_data["match_type"]}
+            return {"keywords": [cleaned_data["keyword"]], "match_type": cleaned_data["match_type"]}
 
     class CreateRegister(BaseCreate):
         form_class = RegisterTriggerForm
@@ -417,7 +416,7 @@ class TriggerCRUDL(SmartCRUDL):
                 register_flow,
                 groups=groups,
                 exclude_groups=exclude_groups,
-                keyword=keyword,
+                keywords=[keyword],
                 match_type=Trigger.MATCH_ONLY_WORD,
             )
 
@@ -484,7 +483,9 @@ class TriggerCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super().derive_initial()
 
-            if self.object.trigger_type == Trigger.TYPE_INBOUND_CALL:
+            if self.object.trigger_type == Trigger.TYPE_KEYWORD:
+                initial["keyword"] = self.object.keywords[0]
+            elif self.object.trigger_type == Trigger.TYPE_INBOUND_CALL:
                 if self.object.flow.flow_type == Flow.TYPE_VOICE:
                     initial["action"] = "answer"
                     initial["voice_flow"] = self.object.flow
@@ -504,7 +505,9 @@ class TriggerCRUDL(SmartCRUDL):
             return initial
 
         def form_valid(self, form):
-            if self.object.trigger_type == Trigger.TYPE_INBOUND_CALL:
+            if self.object.trigger_type == Trigger.TYPE_KEYWORD:
+                self.object.keywords = [self.form.cleaned_data["keyword"]]
+            elif self.object.trigger_type == Trigger.TYPE_INBOUND_CALL:
                 voice_flow = form.cleaned_data.pop("voice_flow", None)
                 msg_flow = form.cleaned_data.pop("msg_flow", None)
                 self.object.flow = voice_flow or msg_flow
@@ -520,10 +523,6 @@ class TriggerCRUDL(SmartCRUDL):
             response["REDIRECT"] = self.get_success_url()
             return response
 
-        def pre_save(self, obj):
-            obj.keywords = [obj.keyword] if obj.keyword else None
-            return super().pre_save(obj)
-
     class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         """
         Base class for list views
@@ -532,14 +531,13 @@ class TriggerCRUDL(SmartCRUDL):
         permission = "triggers.trigger_list"
         fields = ("name",)
         default_template = "triggers/trigger_list.html"
-        search_fields = ("keyword__icontains", "flow__name__icontains", "channel__name__icontains")
+        search_fields = ("keywords__0__iexact", "flow__name__icontains", "channel__name__icontains")
 
         def get_queryset(self, *args, **kwargs):
             qs = super().get_queryset(*args, **kwargs)
             qs = (
                 qs.filter(is_active=True)
-                .annotate(earliest_group=Min("groups__name"))
-                .order_by("keyword", "earliest_group", "id")
+                .order_by("-created_on")
                 .select_related("flow", "channel")
                 .prefetch_related("contacts", "groups", "exclude_groups")
             )
@@ -605,5 +603,5 @@ class TriggerCRUDL(SmartCRUDL):
                 super()
                 .get_queryset(*args, **kwargs)
                 .filter(is_archived=False, trigger_type__in=self.folder.types)
-                .order_by(Trigger.type_order(), "keyword", "earliest_group", "id")
+                .order_by(Trigger.type_order(), "-created_on")
             )

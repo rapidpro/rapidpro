@@ -185,7 +185,6 @@ class Ticket(models.Model):
 
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="tickets", db_index=False)  # indexed below
-    ticketer = models.ForeignKey(Ticketer, on_delete=models.PROTECT, related_name="tickets")
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="tickets", db_index=False)
 
     # ticket content
@@ -214,6 +213,9 @@ class Ticket(models.Model):
     # when this ticket last had activity which includes messages being sent and received, and is used for ordering
     last_activity_on = models.DateTimeField(default=timezone.now)
 
+    # TODO to be removed
+    ticketer = models.ForeignKey(Ticketer, on_delete=models.PROTECT, related_name="tickets", null=True)
+
     def assign(self, user: User, *, assignee: User):
         self.bulk_assign(self.org, user, [self], assignee=assignee)
 
@@ -222,28 +224,28 @@ class Ticket(models.Model):
 
     @classmethod
     def bulk_assign(cls, org, user: User, tickets: list, assignee: User):
-        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        ticket_ids = [t.id for t in tickets]
         assignee_id = assignee.id if assignee else None
         return mailroom.get_client().ticket_assign(org.id, user.id, ticket_ids, assignee_id)
 
     @classmethod
     def bulk_add_note(cls, org, user: User, tickets: list, note: str):
-        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        ticket_ids = [t.id for t in tickets]
         return mailroom.get_client().ticket_add_note(org.id, user.id, ticket_ids, note)
 
     @classmethod
     def bulk_change_topic(cls, org, user: User, tickets: list, topic: Topic):
-        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        ticket_ids = [t.id for t in tickets]
         return mailroom.get_client().ticket_change_topic(org.id, user.id, ticket_ids, topic.id)
 
     @classmethod
     def bulk_close(cls, org, user, tickets, *, force: bool = False):
-        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        ticket_ids = [t.id for t in tickets]
         return mailroom.get_client().ticket_close(org.id, user.id, ticket_ids, force=force)
 
     @classmethod
     def bulk_reopen(cls, org, user, tickets):
-        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        ticket_ids = [t.id for t in tickets]
         return mailroom.get_client().ticket_reopen(org.id, user.id, ticket_ids)
 
     @classmethod

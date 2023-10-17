@@ -1,3 +1,25 @@
+v8.3.54 (2023-10-17)
+-------------------------
+ * Drop Trigger.keyword
+
+v8.3.53 (2023-10-17)
+-------------------------
+ * Fix fetching of keywords across triggers when editing a flow
+
+v8.3.52 (2023-10-17)
+-------------------------
+ * Stop writing Trigger.keyword
+
+v8.3.51 (2023-10-17)
+-------------------------
+ * Only read from Trigger.keywords
+
+v8.3.50 (2023-10-16)
+-------------------------
+ * Make ticketer nullable on ticket
+ * Convert tickets API endpoints to use CRUDL perms
+ * Make sure we show the issue icon on the flow list page
+
 v8.3.49 (2023-10-13)
 -------------------------
  * Add data migration to populate keywords on trigger
