@@ -1,6 +1,7 @@
 import regex
 
 from django import forms
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
@@ -56,18 +57,23 @@ class KeywordTriggerType(ChannelTriggerType):
     name = _("Keyword")
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE)
     allowed_channel_role = Channel.ROLE_RECEIVE
-    export_fields = ChannelTriggerType.export_fields + ("keyword", "match_type")
-    required_fields = ChannelTriggerType.required_fields + ("keyword",)
+    export_fields = ChannelTriggerType.export_fields + ("keywords", "match_type")
+    required_fields = ChannelTriggerType.required_fields + ("keywords",)
     form = Form
 
     def get_instance_name(self, trigger):
         return f"{self.name}[{', '.join(trigger.keywords)}] → {trigger.flow.name}"
 
-    def validate_import_def(self, trigger_def: dict):
-        super().validate_import_def(trigger_def)
+    def clean_import_def(self, trigger_def: dict):
+        if "keyword" in trigger_def:
+            trigger_def["keywords"] = [trigger_def["keyword"]]
+            del trigger_def["keyword"]
 
-        if not self.is_valid_keyword(trigger_def["keyword"]):
-            raise ValueError(f"{trigger_def['keyword']} is not a valid keyword")
+        super().clean_import_def(trigger_def)
+
+        for keyword in trigger_def["keywords"]:
+            if not self.is_valid_keyword(keyword):
+                raise ValidationError(f"{keyword} is not a valid keyword")
 
     @classmethod
     def is_valid_keyword(cls, keyword: str) -> bool:
