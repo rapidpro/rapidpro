@@ -1,3 +1,9 @@
+v8.3.55 (2023-10-17)
+-------------------------
+ * Show urns properly for urn change events
+ * Use localized validation errors for import validation
+ * Support multi-keyword triggers in exports and imports
+
 v8.3.54 (2023-10-17)
 -------------------------
  * Drop Trigger.keyword
