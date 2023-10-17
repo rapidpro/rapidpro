@@ -1467,7 +1467,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
             schedule=schedule1,
         )
         self.assertEqual(1, group3.triggers.count())
-        self.assertEqual(trigger1, group3.triggers.get(is_active=True, keyword=trigger1.keyword))
+        self.assertEqual(trigger1, group3.triggers.get(is_active=True, keywords=trigger1.keywords))
 
         # create a group which is used by a flow (soft), a trigger (soft), and a campaign (hard dependency)
         group4 = self.create_group("Group 4", contacts=[])

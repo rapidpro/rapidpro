@@ -569,11 +569,9 @@ class FlowCRUDL(SmartCRUDL):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
-                existing_keywords = set(
-                    self.instance.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_KEYWORD).values_list(
-                        "keyword", flat=True
-                    )
-                )
+                existing_keywords = set()
+                for trigger in self.instance.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_KEYWORD):
+                    existing_keywords.update(trigger.keywords)
 
                 self.fields["keyword_triggers"].initial = list(sorted(existing_keywords))
 
