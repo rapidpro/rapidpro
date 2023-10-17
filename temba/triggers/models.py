@@ -57,7 +57,7 @@ class TriggerType:
         """
         for field in self.required_fields:
             if not trigger_def.get(field):
-                raise ValidationError(f"Field '{field}' is required.")
+                raise ValidationError(_("Field '%(field)s' is required."), params={"field": field})
 
 
 class ChannelTriggerType(TriggerType):
@@ -243,7 +243,7 @@ class Trigger(SmartModel):
         try:
             trigger_type = cls.get_type(code=type_code)
         except KeyError:
-            raise ValidationError(f"{type_code} is not a valid trigger type")
+            raise ValidationError(_("%(type)s is not a valid trigger type"), params={"type": type_code})
 
         # if channel is just a UUID, convert to reference object
         if "channel" in trigger_def and isinstance(trigger_def["channel"], str):

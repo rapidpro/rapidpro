@@ -73,7 +73,7 @@ class KeywordTriggerType(ChannelTriggerType):
 
         for keyword in trigger_def["keywords"]:
             if not self.is_valid_keyword(keyword):
-                raise ValidationError(f"{keyword} is not a valid keyword")
+                raise ValidationError(_("%(keyword)s is not a valid keyword"), params={"keyword": keyword})
 
     @classmethod
     def is_valid_keyword(cls, keyword: str) -> bool:
