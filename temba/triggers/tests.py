@@ -285,7 +285,7 @@ class TriggerTest(TembaTest):
         self._import_trigger({"trigger_type": "C", "keyword": "this is ignored", "flow": flow_ref, "groups": []})
 
         trigger = Trigger.objects.get(trigger_type="C")
-        self.assertIsNone(trigger.keyword)
+        self.assertIsNone(trigger.keywords)
 
     def test_export_import_keyword(self):
         flow = self.create_flow("Test")
@@ -1306,7 +1306,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         trigger.refresh_from_db()
-        self.assertEqual("kiki", trigger.keyword)
+        self.assertEqual("kiki", trigger.keywords[0])
         self.assertEqual(flow, trigger.flow)
         self.assertEqual(Trigger.MATCH_ONLY_WORD, trigger.match_type)
         self.assertEqual(channel1, trigger.channel)
@@ -1735,6 +1735,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # cannot bulk delete an active trigger
         self.client.post(archived_url, {"action": "delete", "objects": trigger7.id})
+
         response = self.client.get(archived_url)
         self.assertNotContains(response, trigger7.keywords[0])
 

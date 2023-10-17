@@ -505,7 +505,9 @@ class TriggerCRUDL(SmartCRUDL):
             return initial
 
         def form_valid(self, form):
-            if self.object.trigger_type == Trigger.TYPE_INBOUND_CALL:
+            if self.object.trigger_type == Trigger.TYPE_KEYWORD:
+                self.object.keywords = [self.form.cleaned_data["keyword"]]
+            elif self.object.trigger_type == Trigger.TYPE_INBOUND_CALL:
                 voice_flow = form.cleaned_data.pop("voice_flow", None)
                 msg_flow = form.cleaned_data.pop("msg_flow", None)
                 self.object.flow = voice_flow or msg_flow
@@ -520,10 +522,6 @@ class TriggerCRUDL(SmartCRUDL):
             response = super().form_valid(form)
             response["REDIRECT"] = self.get_success_url()
             return response
-
-        def pre_save(self, obj):
-            obj.keywords = [obj.keyword] if obj.keyword else None
-            return super().pre_save(obj)
 
     class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         """

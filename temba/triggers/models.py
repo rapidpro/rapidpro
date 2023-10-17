@@ -144,7 +144,6 @@ class Trigger(SmartModel):
             trigger_type=trigger_type,
             flow=flow,
             channel=channel,
-            keyword=keywords[0] if keywords else None,  # deprecated
             keywords=keywords,
             schedule=schedule,
             match_type=match_type,
