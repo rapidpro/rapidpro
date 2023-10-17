@@ -43,7 +43,7 @@ class KeywordTriggerType(ChannelTriggerType):
 
         def get_conflicts_kwargs(self, cleaned_data):
             kwargs = super().get_conflicts_kwargs(cleaned_data)
-            kwargs["keyword"] = cleaned_data.get("keyword") or ""
+            kwargs["keywords"] = [cleaned_data["keyword"]] if cleaned_data["keyword"] else None
             return kwargs
 
         class Meta(BaseChannelTriggerForm.Meta):
@@ -61,7 +61,7 @@ class KeywordTriggerType(ChannelTriggerType):
     form = Form
 
     def get_instance_name(self, trigger):
-        return f"{self.name}[{trigger.keyword}] → {trigger.flow.name}"
+        return f"{self.name}[{', '.join(trigger.keywords)}] → {trigger.flow.name}"
 
     def validate_import_def(self, trigger_def: dict):
         super().validate_import_def(trigger_def)

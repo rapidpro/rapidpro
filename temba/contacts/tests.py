@@ -1417,7 +1417,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
             self.admin,
             Trigger.TYPE_KEYWORD,
             flow,
-            keyword="test1",
+            keywords=["test1"],
             match_type=Trigger.MATCH_FIRST_WORD,
             groups=[group],
         )
@@ -1426,7 +1426,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
             self.admin,
             Trigger.TYPE_KEYWORD,
             flow,
-            keyword="test2",
+            keywords=["test2"],
             match_type=Trigger.MATCH_FIRST_WORD,
             exclude_groups=[group],
         )
@@ -1461,7 +1461,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
             self.admin,
             trigger_type=Trigger.TYPE_SCHEDULE,
             flow=flow2,
-            keyword="trigger1",
+            keywords=["trigger1"],
             match_type=Trigger.MATCH_FIRST_WORD,
             groups=[group3.id],
             schedule=schedule1,
@@ -1478,7 +1478,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
             self.admin,
             Trigger.TYPE_KEYWORD,
             flow3,
-            keyword="trigger2",
+            keywords=["trigger2"],
             match_type=Trigger.MATCH_FIRST_WORD,
             groups=[group4],
         )
