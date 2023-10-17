@@ -1,3 +1,7 @@
+v8.3.53 (2023-10-17)
+-------------------------
+ * Fix fetching of keywords across triggers when editing a flow
+
 v8.3.52 (2023-10-17)
 -------------------------
  * Stop writing Trigger.keyword
