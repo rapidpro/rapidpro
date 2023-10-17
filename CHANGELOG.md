@@ -1,3 +1,7 @@
+v8.3.51 (2023-10-17)
+-------------------------
+ * Only read from Trigger.keywords
+
 v8.3.50 (2023-10-16)
 -------------------------
  * Make ticketer nullable on ticket
