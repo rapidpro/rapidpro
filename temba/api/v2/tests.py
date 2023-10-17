@@ -4011,7 +4011,14 @@ class EndpointsTest(APITest):
         flow = self.get_flow("dependencies")
         cats = ContactGroup.objects.get(name="Cat Facts")
 
-        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keywords=["block_group"], match_type=Trigger.MATCH_FIRST_WORD)
+        trigger = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow,
+            keywords=["block_group"],
+            match_type=Trigger.MATCH_FIRST_WORD,
+        )
         trigger.groups.add(cats)
 
         response = self.deleteJSON(groups_url, "uuid=%s" % cats.uuid)

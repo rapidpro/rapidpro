@@ -1378,7 +1378,9 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         )
 
         # create a trigger that contains this flow
-        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keywords=["poll"], match_type=Trigger.MATCH_FIRST_WORD)
+        trigger = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keywords=["poll"], match_type=Trigger.MATCH_FIRST_WORD
+        )
 
         # run the flow
         (
