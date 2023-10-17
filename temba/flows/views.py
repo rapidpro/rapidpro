@@ -672,6 +672,7 @@ class FlowCRUDL(SmartCRUDL):
                 # ones, that we can restore instead of creating a new trigger each time
                 archived = flow.triggers.filter(
                     trigger_type=Trigger.TYPE_KEYWORD,
+                    keywords__contains=[keyword],
                     keywords__contained_by=list(missing_keywords) + [keyword],
                     channel=None,
                     groups=None,
@@ -683,9 +684,9 @@ class FlowCRUDL(SmartCRUDL):
                 if archived:
                     archived.restore(user)
 
-                    for keyword in archived.keywords:
-                        if keyword in missing_keywords:
-                            missing_keywords.remove(keyword)
+                    for kw in archived.keywords:
+                        if kw in missing_keywords:
+                            missing_keywords.remove(kw)
                 else:
                     Trigger.create(
                         flow.org,
