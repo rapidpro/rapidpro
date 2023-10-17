@@ -1,6 +1,7 @@
 from smartmin.models import SmartModel
 
 from django.contrib.postgres.fields import ArrayField
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Case, Q, When
 from django.utils.translation import gettext_lazy as _
@@ -42,21 +43,21 @@ class TriggerType:
         all_fields = {
             "trigger_type": trigger.trigger_type,
             "flow": trigger.flow.as_export_ref(),
+            "channel": trigger.channel.as_export_ref() if trigger.channel else None,
             "groups": [group.as_export_ref() for group in trigger.groups.order_by("name")],
             "exclude_groups": [group.as_export_ref() for group in trigger.exclude_groups.order_by("name")],
-            "channel": trigger.channel.uuid if trigger.channel else None,
-            "keyword": trigger.keywords[0] if trigger.keywords else None,
+            "keywords": trigger.keywords,
             "match_type": trigger.match_type,
         }
         return {f: all_fields[f] for f in self.export_fields}
 
-    def validate_import_def(self, trigger_def: dict):
+    def clean_import_def(self, trigger_def: dict):
         """
         Validates a trigger definition being imported
         """
         for field in self.required_fields:
             if not trigger_def.get(field):
-                raise ValueError(f"Field '{field}' is required.")
+                raise ValidationError(_("Field '%(field)s' is required."), params={"field": field})
 
 
 class ChannelTriggerType(TriggerType):
@@ -234,14 +235,18 @@ class Trigger(SmartModel):
         return conflicts
 
     @classmethod
-    def validate_import_def(cls, trigger_def: dict):
+    def clean_import_def(cls, trigger_def: dict):
         type_code = trigger_def.get("trigger_type", "")
         try:
             trigger_type = cls.get_type(code=type_code)
         except KeyError:
-            raise ValueError(f"{type_code} is not a valid trigger type")
+            raise ValidationError(_("%(type)s is not a valid trigger type"), params={"type": type_code})
 
-        trigger_type.validate_import_def(trigger_def)
+        # if channel is just a UUID, convert to reference object
+        if "channel" in trigger_def and isinstance(trigger_def["channel"], str):
+            trigger_def["channel"] = {"uuid": trigger_def["channel"], "name": ""}
+
+        trigger_type.clean_import_def(trigger_def)
 
     @classmethod
     def import_triggers(cls, org, user, trigger_defs, same_site=False):
@@ -263,14 +268,14 @@ class Trigger(SmartModel):
         groups = cls._resolve_import_groups(org, user, same_site, trigger_def["groups"])
         exclude_groups = cls._resolve_import_groups(org, user, same_site, trigger_def.get("exclude_groups", []))
 
-        channel_uuid = trigger_def.get("channel")
-        channel = org.channels.filter(uuid=channel_uuid, is_active=True).first() if channel_uuid else None
+        channel = None
+        if "channel" in trigger_def and isinstance(trigger_def["channel"], dict):
+            channel = org.channels.filter(uuid=trigger_def["channel"]["uuid"], is_active=True).first()
 
         flow_uuid = trigger_def["flow"]["uuid"]
         flow = org.flows.get(uuid=flow_uuid, is_active=True)
 
-        keywords = [trigger_def.get("keyword")] if trigger_def.get("keyword") else None
-
+        keywords = trigger_def.get("keywords")
         match_type = None
         if trigger_type.code == Trigger.TYPE_KEYWORD:
             match_type = trigger_def.get("match_type", Trigger.MATCH_FIRST_WORD)
@@ -352,13 +357,8 @@ class Trigger(SmartModel):
         """
         The definition of this trigger for export.
         """
-        export_def = self.type.export_def(self)
 
-        # for backwards compatibility keyword needs to always be present even if the trigger type doesn't use it
-        if "keyword" not in export_def:
-            export_def["keyword"] = None
-
-        return export_def
+        return self.type.export_def(self)
 
     @classmethod
     def get_type(cls, *, code: str = None, slug: str = None):

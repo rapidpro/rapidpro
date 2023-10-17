@@ -763,14 +763,13 @@ class Org(SmartModel):
 
         for trigger_def in import_def.get("triggers", []):
             trigger_type = trigger_def.get("trigger_type", "")
-            channel_uuid = trigger_def.get("channel")
 
             # TODO need better way to report import results back to users
-            # ignore scheduled triggers and new conversation triggers without channels
-            if trigger_type == "S" or (trigger_type == "N" and not channel_uuid):
+            # ignore scheduled triggers
+            if trigger_type == "S":
                 continue
 
-            Trigger.validate_import_def(trigger_def)
+            Trigger.clean_import_def(trigger_def)
             cleaned_triggers.append(trigger_def)
 
         import_def["triggers"] = cleaned_triggers

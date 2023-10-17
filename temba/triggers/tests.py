@@ -4,6 +4,7 @@ from unittest.mock import patch
 import pytz
 
 from django.contrib.auth.models import Group
+from django.core.exceptions import ValidationError
 from django.urls import reverse
 from django.utils import timezone
 
@@ -113,7 +114,7 @@ class TriggerTest(TembaTest):
         )
 
     def assert_import_error(self, trigger_def: dict, error: str):
-        with self.assertRaisesMessage(ValueError, expected_message=error):
+        with self.assertRaisesMessage(ValidationError, expected_message=error):
             self._import_trigger(trigger_def)
 
     def assert_export_import(self, trigger: Trigger, expected_def: dict):
@@ -233,18 +234,6 @@ class TriggerTest(TembaTest):
         self._import_trigger(
             {
                 "trigger_type": "S",
-                "keyword": None,
-                "flow": {"uuid": "8907acb0-4f32-41c2-887d-b5d2ffcc2da9", "name": "Reminder"},
-                "groups": [],
-            }
-        )
-
-        self.assertEqual(3, Trigger.objects.count())  # no new triggers imported
-
-        # and new conversation triggers with no channel
-        self._import_trigger(
-            {
-                "trigger_type": "N",
                 "flow": {"uuid": "8907acb0-4f32-41c2-887d-b5d2ffcc2da9", "name": "Reminder"},
                 "groups": [],
             }
@@ -258,31 +247,40 @@ class TriggerTest(TembaTest):
 
         # invalid type
         self.assert_import_error(
-            {"trigger_type": "Z", "keyword": None, "flow": flow_ref, "groups": []},
+            {"trigger_type": "Z", "flow": flow_ref, "groups": []},
             "Z is not a valid trigger type",
         )
 
         # no flow
-        self.assert_import_error({"trigger_type": "M", "keyword": None, "groups": []}, "Field 'flow' is required.")
+        self.assert_import_error({"trigger_type": "M", "keywords": ["test"], "groups": []}, "Field 'flow' is required.")
 
-        # keyword with no keyword
+        # keyword with no keywords
         self.assert_import_error(
             {
                 "trigger_type": "K",
                 "flow": flow_ref,
                 "groups": [],
             },
-            "Field 'keyword' is required.",
+            "Field 'keywords' is required.",
+        )
+        self.assert_import_error(
+            {
+                "trigger_type": "K",
+                "flow": flow_ref,
+                "groups": [],
+                "keywords": [],
+            },
+            "Field 'keywords' is required.",
         )
 
         # keyword with invalid keyword
         self.assert_import_error(
-            {"trigger_type": "K", "flow": flow_ref, "groups": [], "keyword": "12345678901234567"},
+            {"trigger_type": "K", "flow": flow_ref, "groups": [], "keywords": ["12345678901234567"]},
             "12345678901234567 is not a valid keyword",
         )
 
         # fields which don't apply to the trigger type are ignored
-        self._import_trigger({"trigger_type": "C", "keyword": "this is ignored", "flow": flow_ref, "groups": []})
+        self._import_trigger({"trigger_type": "C", "keywords": ["this is ignored"], "flow": flow_ref, "groups": []})
 
         trigger = Trigger.objects.get(trigger_type="C")
         self.assertIsNone(trigger.keywords)
@@ -297,6 +295,7 @@ class TriggerTest(TembaTest):
             self.admin,
             Trigger.TYPE_KEYWORD,
             flow,
+            channel=self.channel,
             groups=[doctors, farmers],
             exclude_groups=[testers],
             keywords=["join"],
@@ -308,16 +307,39 @@ class TriggerTest(TembaTest):
             {
                 "trigger_type": "K",
                 "flow": {"uuid": str(flow.uuid), "name": "Test"},
-                "channel": None,
+                "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                 "groups": [
                     {"uuid": str(doctors.uuid), "name": "Doctors"},
                     {"uuid": str(farmers.uuid), "name": "Farmers"},
                 ],
                 "exclude_groups": [{"uuid": str(testers.uuid), "name": "Testers"}],
-                "keyword": "join",
+                "keywords": ["join"],
                 "match_type": "F",
             },
         )
+
+        # single keyword field supported
+        self._import_trigger(
+            {
+                "trigger_type": "K",
+                "flow": {"uuid": str(flow.uuid), "name": "Test"},
+                "keyword": "test",
+                "groups": [],
+            }
+        )
+        self.assertEqual(1, Trigger.objects.filter(keywords=["test"]).count())
+
+        # channel as just UUID supported
+        self._import_trigger(
+            {
+                "trigger_type": "K",
+                "flow": {"uuid": str(flow.uuid), "name": "Test"},
+                "channel": str(self.channel.uuid),
+                "keywords": ["test"],
+                "groups": [],
+            }
+        )
+        self.assertEqual(1, Trigger.objects.filter(keywords=["test"], channel=self.channel).count())
 
     def test_export_import_inbound_call(self):
         flow = self.create_flow("Test")
@@ -331,7 +353,21 @@ class TriggerTest(TembaTest):
                 "channel": None,
                 "groups": [],
                 "exclude_groups": [],
-                "keyword": None,
+            },
+        )
+
+    def test_export_import_inbound_call_with_channel(self):
+        flow = self.create_flow("Test")
+        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow, channel=self.channel)
+
+        self.assert_export_import(
+            trigger,
+            {
+                "trigger_type": "V",
+                "flow": {"uuid": str(flow.uuid), "name": "Test"},
+                "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                "groups": [],
+                "exclude_groups": [],
             },
         )
 
@@ -346,7 +382,6 @@ class TriggerTest(TembaTest):
                 "flow": {"uuid": str(flow.uuid), "name": "Test"},
                 "groups": [],
                 "exclude_groups": [],
-                "keyword": None,
             },
         )
 
@@ -361,10 +396,9 @@ class TriggerTest(TembaTest):
             {
                 "trigger_type": "N",
                 "flow": {"uuid": str(flow.uuid), "name": "Test"},
+                "channel": {"uuid": str(channel.uuid), "name": "Facebook"},
                 "groups": [],
                 "exclude_groups": [],
-                "keyword": None,
-                "channel": str(channel.uuid),
             },
         )
 
@@ -378,10 +412,9 @@ class TriggerTest(TembaTest):
             {
                 "trigger_type": "R",
                 "flow": {"uuid": str(flow.uuid), "name": "Test"},
+                "channel": {"uuid": str(channel.uuid), "name": "Facebook"},
                 "groups": [],
                 "exclude_groups": [],
-                "keyword": None,
-                "channel": str(channel.uuid),
             },
         )
 
