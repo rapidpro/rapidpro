@@ -1,3 +1,9 @@
+v8.3.56 (2023-10-18)
+-------------------------
+ * Improve display of triggers on list pages
+ * Support multiple keywords per trigger in UI
+ * Fix WA legacy config page
+
 v8.3.55 (2023-10-17)
 -------------------------
  * Show urns properly for urn change events
