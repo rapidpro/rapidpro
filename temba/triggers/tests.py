@@ -491,7 +491,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         flow = self.create_flow("My Flow", flow_type=Flow.TYPE_MESSAGE)
         self.assertCreateSubmit(
             create_url,
-            {"keyword": "start", "flow": flow.id, "match_type": "F"},
+            {"keywords": ["start"], "flow": flow.id, "match_type": "F"},
             new_obj_query=Trigger.objects.filter(keywords=["start"], flow=flow),
             success_status=200,
         )
@@ -590,7 +590,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["keyword", "match_type", "flow", "channel", "groups", "exclude_groups"],
+            form_fields=["keywords", "match_type", "flow", "channel", "groups", "exclude_groups"],
         )
 
         # flow options should show messaging and voice flows
@@ -605,18 +605,18 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # try a keyword with spaces
         self.assertCreateSubmit(
             create_url,
-            {"keyword": "with spaces", "flow": flow1.id, "match_type": "F"},
+            {"keywords": ["with spaces"], "flow": flow1.id, "match_type": "F"},
             form_errors={
-                "keyword": "Must be a single word containing only letters and numbers, or a single emoji character."
+                "keywords": "Must be a single word containing only letters and numbers, or a single emoji character."
             },
         )
 
         # try a keyword with special characters
         self.assertCreateSubmit(
             create_url,
-            {"keyword": "keyw!o^rd__", "flow": flow1.id, "match_type": "F"},
+            {"keywords": ["keyw!o^rd__"], "flow": flow1.id, "match_type": "F"},
             form_errors={
-                "keyword": "Must be a single word containing only letters and numbers, or a single emoji character."
+                "keywords": "Must be a single word containing only letters and numbers, or a single emoji character."
             },
         )
 
@@ -624,7 +624,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {
-                "keyword": "start",
+                "keywords": ["start"],
                 "flow": flow1.id,
                 "match_type": "F",
                 "groups": [group1.id, group2.id],
@@ -636,36 +636,30 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # create a trigger with no groups
         self.assertCreateSubmit(
             create_url,
-            {"keyword": "start", "flow": flow1.id, "match_type": "F"},
-            new_obj_query=Trigger.objects.filter(keywords=["start"], flow=flow1),
+            {"keywords": ["start", "begin"], "flow": flow1.id, "match_type": "F"},
+            new_obj_query=Trigger.objects.filter(keywords=["start", "begin"], flow=flow1),
             success_status=200,
         )
 
         # creating triggers with non-ASCII keywords
         self.assertCreateSubmit(
             create_url,
-            {"keyword": "١٠٠", "flow": flow1.id, "match_type": "F"},
-            new_obj_query=Trigger.objects.filter(keywords=["١٠٠"], flow=flow1),
-            success_status=200,
-        )
-        self.assertCreateSubmit(
-            create_url,
-            {"keyword": "मिलाए", "flow": flow1.id, "match_type": "F"},
-            new_obj_query=Trigger.objects.filter(keywords=["मिलाए"], flow=flow1),
+            {"keywords": ["١٠٠", "मिलाए"], "flow": flow1.id, "match_type": "F"},
+            new_obj_query=Trigger.objects.filter(keywords=["١٠٠", "मिलाए"], flow=flow1),
             success_status=200,
         )
 
         # try a duplicate keyword
         self.assertCreateSubmit(
             create_url,
-            {"keyword": "start", "flow": flow2.id, "match_type": "F"},
+            {"keywords": ["start"], "flow": flow2.id, "match_type": "F"},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
         # works if we specify a group
         self.assertCreateSubmit(
             create_url,
-            {"keyword": "start", "flow": flow2.id, "match_type": "F", "groups": group1.id},
+            {"keywords": ["start"], "flow": flow2.id, "match_type": "F", "groups": group1.id},
             new_obj_query=Trigger.objects.filter(keywords=["start"], flow=flow2, groups=group1),
             success_status=200,
         )
@@ -673,7 +667,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # or a channel
         self.assertCreateSubmit(
             create_url,
-            {"keyword": "start", "flow": flow2.id, "match_type": "F", "channel": self.channel.id},
+            {"keywords": ["start"], "flow": flow2.id, "match_type": "F", "channel": self.channel.id},
             new_obj_query=Trigger.objects.filter(keywords=["start"], flow=flow2, channel=self.channel),
             success_status=200,
         )
@@ -681,7 +675,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # groups between triggers can't overlap
         self.assertCreateSubmit(
             create_url,
-            {"keyword": "start", "flow": flow2.id, "match_type": "F", "groups": [group1.id, group2.id]},
+            {"keywords": ["start"], "flow": flow2.id, "match_type": "F", "groups": [group1.id, group2.id]},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
@@ -1312,7 +1306,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             Trigger.TYPE_KEYWORD,
             flow,
             groups=(group1,),
-            keywords=["join"],
+            keywords=["join", "start"],
             match_type=Trigger.MATCH_ONLY_WORD,
         )
 
@@ -1322,14 +1316,21 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             update_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["keyword", "match_type", "flow", "channel", "groups", "exclude_groups"],
+            form_fields={
+                "keywords": ["join", "start"],
+                "match_type": "O",
+                "flow": flow.id,
+                "channel": None,
+                "groups": [group1],
+                "exclude_groups": [],
+            },
         )
 
         # submit with valid keyword and extra group
         self.assertUpdateSubmit(
             update_url,
             {
-                "keyword": "kiki",
+                "keywords": ["begin", "start"],
                 "flow": flow.id,
                 "match_type": "O",
                 "channel": channel1.id,
@@ -1339,7 +1340,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         trigger.refresh_from_db()
-        self.assertEqual("kiki", trigger.keywords[0])
+        self.assertEqual(["begin", "start"], trigger.keywords)
         self.assertEqual(flow, trigger.flow)
         self.assertEqual(Trigger.MATCH_ONLY_WORD, trigger.match_type)
         self.assertEqual(channel1, trigger.channel)
@@ -1349,15 +1350,15 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # error if keyword is not defined or invalid
         self.assertUpdateSubmit(
             update_url,
-            {"keyword": "", "flow": flow.id, "match_type": "F"},
-            form_errors={"keyword": "This field is required."},
+            {"keywords": "", "flow": flow.id, "match_type": "F"},
+            form_errors={"keywords": "This field is required."},
             object_unchanged=trigger,
         )
         self.assertUpdateSubmit(
             update_url,
-            {"keyword": "two words", "flow": flow.id, "match_type": "F"},
+            {"keywords": ["two words"], "flow": flow.id, "match_type": "F"},
             form_errors={
-                "keyword": "Must be a single word containing only letters and numbers, or a single emoji character."
+                "keywords": "Must be a single word containing only letters and numbers, or a single emoji character."
             },
             object_unchanged=trigger,
         )
@@ -1669,21 +1670,25 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         trigger.is_archived = True
         trigger.save(update_fields=("is_archived",))
 
-        post_data = dict(keyword="start", flow=flow.id, match_type="F")
-        response = self.client.post(reverse("triggers.trigger_create_keyword"), data=post_data)
+        response = self.client.post(
+            reverse("triggers.trigger_create_keyword"), data={"keywords": ["start"], "flow": flow.id, "match_type": "F"}
+        )
         self.assertEqual(Trigger.objects.filter(keywords=["start"]).count(), 2)
         self.assertEqual(1, Trigger.objects.filter(keywords=["start"], is_archived=False).count())
+
         other_trigger = Trigger.objects.filter(keywords=["start"], is_archived=False)[0]
         self.assertFalse(trigger.pk == other_trigger.pk)
 
         # try archiving it we have one archived and the other active
-        response = self.client.get(archived_url, post_data)
+        response = self.client.get(archived_url)
         self.assertContains(response, "start")
-        post_data = dict(action="restore", objects=trigger.pk)
-        self.client.post(archived_url, post_data)
-        response = self.client.get(archived_url, post_data)
+
+        self.client.post(archived_url, {"action": "restore", "objects": trigger.id})
+
+        response = self.client.get(archived_url)
         self.assertContains(response, "start")
-        response = self.client.get(list_url, post_data)
+
+        response = self.client.get(list_url)
         self.assertContains(response, "start")
         self.assertEqual(1, Trigger.objects.filter(keywords=["start"], is_archived=False).count())
         self.assertNotEqual(other_trigger, Trigger.objects.filter(keywords=["start"], is_archived=False)[0])
@@ -1698,13 +1703,13 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(Trigger.objects.filter(keywords=["start"], is_archived=False).count(), 1)
 
         # update trigger with 2 groups
-        post_data = dict(keyword="start", flow=flow.id, match_type="F", groups=[group1.pk, group2.pk])
+        post_data = dict(keywords=["start"], flow=flow.id, match_type="F", groups=[group1.pk, group2.pk])
         response = self.client.post(reverse("triggers.trigger_create_keyword"), data=post_data)
         self.assertEqual(Trigger.objects.filter(keywords=["start"]).count(), 3)
         self.assertEqual(Trigger.objects.filter(keywords=["start"], is_archived=False).count(), 2)
 
         # get error when groups overlap
-        post_data = dict(keyword="start", flow=flow.id, match_type="F")
+        post_data = dict(keywords=["start"], flow=flow.id, match_type="F")
         post_data["groups"] = [group2.pk, group3.pk]
         response = self.client.post(reverse("triggers.trigger_create_keyword"), data=post_data)
         self.assertEqual(1, len(response.context["form"].errors))
@@ -1712,7 +1717,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(Trigger.objects.filter(keywords=["start"], is_archived=False).count(), 2)
 
         # allow new creation when groups do not overlap
-        post_data = dict(keyword="start", flow=flow.id, match_type="F")
+        post_data = dict(keywords=["start"], flow=flow.id, match_type="F")
         post_data["groups"] = [group3.pk]
         self.client.post(reverse("triggers.trigger_create_keyword"), data=post_data)
         self.assertEqual(Trigger.objects.filter(keywords=["start"]).count(), 4)

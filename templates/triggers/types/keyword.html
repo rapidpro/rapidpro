@@ -1,0 +1,13 @@
+{% load i18n %}
+
+{% with keywords=trigger.keywords|join:'</b>, <b>' %}
+  {% if trigger.match_type == 'F' %}
+    {% blocktrans trimmed with keywords=keywords %}
+      A message that starts with <b>{{ keywords }}</b>
+    {% endblocktrans %}
+  {% else %}
+    {% blocktrans trimmed with keywords=keywords %}
+      A message that matches <b>{{ keywords }}</b>
+    {% endblocktrans %}
+  {% endif %}
+{% endwith %}

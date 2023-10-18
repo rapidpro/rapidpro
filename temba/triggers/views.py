@@ -121,17 +121,6 @@ class BaseTriggerForm(forms.ModelForm):
     def get_conflicts_kwargs(self, cleaned_data):
         return {"groups": cleaned_data.get("groups", [])}
 
-    def clean_keyword(self):
-        keyword = self.cleaned_data.get("keyword") or ""
-        keyword = keyword.strip()
-
-        if not self.trigger_type.is_valid_keyword(keyword):
-            raise forms.ValidationError(
-                _("Must be a single word containing only letters and numbers, or a single emoji character.")
-            )
-
-        return keyword.lower()
-
     def clean(self):
         cleaned_data = super().clean()
 
@@ -393,7 +382,7 @@ class TriggerCRUDL(SmartCRUDL):
         trigger_type = Trigger.TYPE_KEYWORD
 
         def get_create_kwargs(self, user, cleaned_data):
-            return {"keywords": [cleaned_data["keyword"]], "match_type": cleaned_data["match_type"]}
+            return {"keywords": cleaned_data["keywords"], "match_type": cleaned_data["match_type"]}
 
     class CreateRegister(BaseCreate):
         form_class = RegisterTriggerForm
@@ -483,9 +472,7 @@ class TriggerCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super().derive_initial()
 
-            if self.object.trigger_type == Trigger.TYPE_KEYWORD:
-                initial["keyword"] = self.object.keywords[0]
-            elif self.object.trigger_type == Trigger.TYPE_INBOUND_CALL:
+            if self.object.trigger_type == Trigger.TYPE_INBOUND_CALL:
                 if self.object.flow.flow_type == Flow.TYPE_VOICE:
                     initial["action"] = "answer"
                     initial["voice_flow"] = self.object.flow
@@ -505,9 +492,7 @@ class TriggerCRUDL(SmartCRUDL):
             return initial
 
         def form_valid(self, form):
-            if self.object.trigger_type == Trigger.TYPE_KEYWORD:
-                self.object.keywords = [self.form.cleaned_data["keyword"]]
-            elif self.object.trigger_type == Trigger.TYPE_INBOUND_CALL:
+            if self.object.trigger_type == Trigger.TYPE_INBOUND_CALL:
                 voice_flow = form.cleaned_data.pop("voice_flow", None)
                 msg_flow = form.cleaned_data.pop("msg_flow", None)
                 self.object.flow = voice_flow or msg_flow
