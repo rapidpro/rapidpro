@@ -1,0 +1,7 @@
+{% load i18n %}
+
+{% if obj.schedule.next_fire and not obj.is_archived %}
+  {{ obj.schedule.get_display|capfirst }}
+{% else %}
+  {% trans "is not scheduled" %}
+{% endif %}
