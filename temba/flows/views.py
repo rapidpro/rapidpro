@@ -133,7 +133,7 @@ class BaseFlowForm(forms.ModelForm):
                 error_message = _("%(keyword)s is already used for another flow.") % {"keyword": joined}
             raise forms.ValidationError(error_message)
 
-        return ",".join(cleaned_keywords)
+        return cleaned_keywords
 
     class Meta:
         model = Flow
@@ -484,18 +484,17 @@ class FlowCRUDL(SmartCRUDL):
             user = self.request.user
             org = self.request.org
 
-            # create any triggers if user provided keywords
-            if self.form.cleaned_data["keyword_triggers"]:
-                keywords = self.form.cleaned_data["keyword_triggers"].split(",")
-                for keyword in keywords:
-                    Trigger.create(
-                        org,
-                        user,
-                        Trigger.TYPE_KEYWORD,
-                        flow=obj,
-                        keywords=[keyword],
-                        match_type=Trigger.MATCH_FIRST_WORD,
-                    )
+            # create a triggers if user provided keywords
+            keywords = self.form.cleaned_data["keyword_triggers"]
+            if keywords:
+                Trigger.create(
+                    org,
+                    user,
+                    Trigger.TYPE_KEYWORD,
+                    flow=obj,
+                    keywords=keywords,
+                    match_type=Trigger.MATCH_FIRST_WORD,
+                )
 
             return obj
 
@@ -643,9 +642,7 @@ class FlowCRUDL(SmartCRUDL):
             keyword_triggers = self.form.cleaned_data.get("keyword_triggers")
 
             if keyword_triggers is not None:
-                new_keywords = sorted(set([k for k in keyword_triggers.split(",") if k]))
-
-                self.update_triggers(obj, self.request.user, new_keywords)
+                self.update_triggers(obj, self.request.user, keyword_triggers)
 
             on_transaction_commit(lambda: update_session_wait_expires.delay(obj.id))
 
@@ -661,17 +658,14 @@ class FlowCRUDL(SmartCRUDL):
                 else:
                     trigger.archive(user)
 
-            missing_keywords = set(new_keywords) - existing_keywords
+            missing_keywords = [k for k in new_keywords if k not in existing_keywords]
 
-            while missing_keywords:
-                keyword = missing_keywords.pop()
-
-                # look for archived trigger, with default empty settings, whose keywords are a subset of the missing
-                # ones, that we can restore instead of creating a new trigger each time
+            if missing_keywords:
+                # look for archived trigger, with default empty settings, whose keywords match, that we can restore
                 archived = flow.triggers.filter(
                     trigger_type=Trigger.TYPE_KEYWORD,
-                    keywords__contains=[keyword],
-                    keywords__contained_by=list(missing_keywords) + [keyword],
+                    keywords__contains=missing_keywords,
+                    keywords__contained_by=new_keywords,
                     channel=None,
                     groups=None,
                     exclude_groups=None,
@@ -681,17 +675,13 @@ class FlowCRUDL(SmartCRUDL):
 
                 if archived:
                     archived.restore(user)
-
-                    for kw in archived.keywords:
-                        if kw in missing_keywords:
-                            missing_keywords.remove(kw)
                 else:
                     Trigger.create(
                         flow.org,
                         user,
                         Trigger.TYPE_KEYWORD,
                         flow,
-                        keywords=[keyword],
+                        keywords=missing_keywords,
                         match_type=Trigger.MATCH_FIRST_WORD,
                     )
 

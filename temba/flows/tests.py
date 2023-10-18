@@ -23,7 +23,6 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup, Cont
 from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
-from temba.schedules.models import Schedule
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
 from temba.tests.base import get_contact_search
@@ -1111,93 +1110,6 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         self.assertFalse(flow.ignore_triggers)
         self.assertEqual(0, flow.triggers.all().count())
 
-    def test_global_keywords_trigger_update(self):
-        self.login(self.admin)
-        flow = Flow.create(self.org, self.admin, "Flow")
-
-        # update flow triggers
-        response = self.client.post(
-            reverse("flows.flow_update", args=[flow.id]),
-            {
-                "name": "Flow With Keyword Triggers",
-                "keyword_triggers": ["it", "changes", "everything"],
-                "expires_after_minutes": 60 * 12,
-            },
-        )
-        self.assertEqual(response.status_code, 302)
-
-        flow_with_keywords = Flow.objects.get(name="Flow With Keyword Triggers")
-        self.assertEqual(flow_with_keywords.triggers.count(), 3)
-        self.assertEqual(flow_with_keywords.triggers.filter(is_archived=False).count(), 3)
-        self.assertEqual(flow_with_keywords.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
-
-        Trigger.create(
-            self.org,
-            self.admin,
-            Trigger.TYPE_CATCH_ALL,
-            flow_with_keywords,
-        )
-
-        Trigger.create(
-            self.org,
-            self.admin,
-            Trigger.TYPE_MISSED_CALL,
-            flow_with_keywords,
-        )
-
-        Trigger.create(
-            self.org,
-            self.admin,
-            Trigger.TYPE_INBOUND_CALL,
-            flow_with_keywords,
-        )
-
-        Trigger.create(
-            self.org,
-            self.admin,
-            Trigger.TYPE_SCHEDULE,
-            flow_with_keywords,
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
-        )
-
-        self.assertEqual(flow_with_keywords.triggers.filter(is_archived=False).count(), 7)
-
-        # test if form has expected fields
-        post_data = dict()
-        response = self.client.post(reverse("flows.flow_update", args=[flow.pk]), post_data, follow=True)
-
-        field_names = [field for field in response.context_data["form"].fields]
-        self.assertEqual(
-            field_names,
-            ["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "loc"],
-        )
-
-        # update flow triggers
-        post_data = dict()
-        post_data["name"] = "Flow With Keyword Triggers"
-        post_data["keyword_triggers"] = ["it", "join"]
-        post_data["expires_after_minutes"] = 60 * 12
-        response = self.client.post(reverse("flows.flow_update", args=[flow.pk]), post_data, follow=True)
-
-        flow_with_keywords = Flow.objects.get(name=post_data["name"])
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertEqual(flow_with_keywords.triggers.count(), 8)
-        self.assertEqual(flow_with_keywords.triggers.filter(is_archived=True).count(), 2)
-        self.assertEqual(
-            flow_with_keywords.triggers.filter(is_archived=True, trigger_type=Trigger.TYPE_KEYWORD).count(), 2
-        )
-        self.assertEqual(flow_with_keywords.triggers.filter(is_archived=False).count(), 6)
-        self.assertEqual(
-            flow_with_keywords.triggers.filter(is_archived=True, trigger_type=Trigger.TYPE_KEYWORD).count(), 2
-        )
-
-        # only keyword triggers got archived, other are stil active
-        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL))
-        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_SCHEDULE))
-        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL))
-        self.assertTrue(flow_with_keywords.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_INBOUND_CALL))
-
     def test_flow_update_of_inactive_flow(self):
         flow = self.get_flow("favorites")
         flow.release(self.admin)
@@ -1697,11 +1609,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             new_obj_query=Flow.objects.filter(org=self.org, name="Flow 1", flow_type="M"),
         )
 
-        # check the created keyword triggers
+        # check the created keyword trigger
         flow1 = Flow.objects.get(name="Flow 1")
-        self.assertEqual(
-            [["testing"], ["test"]], list(flow1.triggers.order_by("id").values_list("keywords", flat=True))
-        )
+        self.assertEqual(1, flow1.triggers.count())
+        self.assertEqual(1, flow1.triggers.filter(trigger_type="K", keywords=["testing", "test"]).count())
 
         # try to create another flow with one of the same keywords
         self.assertCreateSubmit(
@@ -1715,9 +1626,9 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={"keyword_triggers": '"test" is already used for another flow.'},
         )
 
-        # add a group to the existing trigger with that keyword
+        # add a group to the existing trigger
         group = self.create_group("Testers", contacts=[])
-        flow1.triggers.get(keywords=["test"]).groups.add(group)
+        flow1.triggers.get().groups.add(group)
 
         # and now it's no longer a conflict
         self.assertCreateSubmit(
@@ -1998,7 +1909,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(10, flow.expires_after_minutes)
         self.assertTrue(flow.ignore_triggers)
 
-        assert_triggers([{"keywords": ["help"], "is_archived": False}, {"keywords": ["test"], "is_archived": False}])
+        assert_triggers([{"keywords": ["test", "help"], "is_archived": False}])
 
         # remove one keyword and add another
         self.assertUpdateSubmit(
@@ -2013,9 +1924,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         assert_triggers(
             [
-                {"keywords": ["help"], "is_archived": False},
-                {"keywords": ["test"], "is_archived": True},  # "test" now archived
-                {"keywords": ["support"], "is_archived": False},
+                {"keywords": ["test", "help"], "is_archived": True},
+                {"keywords": ["help", "support"], "is_archived": False},
             ]
         )
 
@@ -2032,18 +1942,17 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         assert_triggers(
             [
-                {"keywords": ["help"], "is_archived": False},
-                {"keywords": ["test"], "is_archived": False},  # "test" now restored
-                {"keywords": ["support"], "is_archived": True},  # "support" now archived
+                {"keywords": ["test", "help"], "is_archived": False},
+                {"keywords": ["help", "support"], "is_archived": True},
             ]
         )
 
-        # add channel filter to "support"
-        support = flow.triggers.get(keywords=["support"])
+        # add channel filter to active trigger
+        support = flow.triggers.get(is_archived=False)
         support.channel = self.channel
         support.save(update_fields=("channel",))
 
-        # re-adding "support" will now create a new trigger with default values
+        # re-adding "support" will now restore that trigger
         self.assertUpdateSubmit(
             update_url,
             {
@@ -2056,33 +1965,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         assert_triggers(
             [
-                {"keywords": ["help"], "is_archived": False},
-                {"keywords": ["test"], "is_archived": False},  # "test" now restored
-                {"keywords": ["support"], "is_archived": True},  # old "support" still archived
-                {"keywords": ["support"], "is_archived": False},  # new "support" created
-            ]
-        )
-
-        # updating should work when archived triggers have multiple keywords
-        flow.triggers.filter(is_archived=False).delete()
-        flow.triggers.filter(is_archived=True).update(keywords=["test", "help"], channel=None)
-
-        assert_triggers([{"keywords": ["test", "help"], "is_archived": True}])
-
-        self.assertUpdateSubmit(
-            update_url,
-            {
-                "name": "New Name",
-                "keyword_triggers": ["test", "help", "support"],
-                "expires_after_minutes": 10,
-                "ignore_triggers": True,
-            },
-        )
-
-        assert_triggers(
-            [
-                {"keywords": ["test", "help"], "is_archived": False},  # old "test"+"help" restored
-                {"keywords": ["support"], "is_archived": False},  # new "support" created
+                {"keywords": ["test", "help"], "is_archived": False},
+                {"keywords": ["help", "support"], "is_archived": False},
             ]
         )
 
@@ -2124,12 +2008,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.refresh_from_db()
         self.assertEqual("New Name", flow.name)
         self.assertEqual(10, flow.expires_after_minutes)
-        self.assertCountEqual(
-            [["help"], ["test"]],
-            list(flow.triggers.filter(is_active=True).order_by("id").values_list("keywords", flat=True)),
-        )
         self.assertTrue(flow.ignore_triggers)
         self.assertEqual(30, flow.metadata.get("ivr_retry"))
+        self.assertEqual(1, flow.triggers.count())
+        self.assertEqual(1, flow.triggers.filter(keywords=["test", "help"]).count())
 
         # check we still have that value after saving a new revision
         flow.save_revision(self.admin, flow.get_definition())

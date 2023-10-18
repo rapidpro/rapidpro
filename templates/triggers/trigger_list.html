@@ -57,10 +57,7 @@
             {% endif %}
             <td class="w-full">
               {% if obj.trigger_type == 'K' %}
-                {% trans "The keyword" %}
-                <b>
-                  {{ obj.keywords.0 }}
-                </b>
+                {% include "triggers/types/keyword.html" with trigger=obj %}
               {% elif obj.trigger_type == 'M' %}
                 {% trans "A missed call" %}
               {% elif obj.trigger_type == 'C' %}

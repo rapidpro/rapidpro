@@ -9,7 +9,7 @@ from temba.contacts.models import ContactURN
 from temba.contacts.search.omnibox import omnibox_deserialize
 from temba.flows.models import Flow
 from temba.schedules.views import ScheduleFormMixin
-from temba.utils.fields import InputWidget, JSONField, OmniboxChoice, SelectWidget, TembaChoiceField
+from temba.utils.fields import JSONField, OmniboxChoice, SelectWidget, TembaChoiceField
 
 from .models import ChannelTriggerType, Trigger, TriggerType
 from .views import BaseChannelTriggerForm, BaseTriggerForm
@@ -27,10 +27,18 @@ class KeywordTriggerType(ChannelTriggerType):
     )
 
     class Form(BaseChannelTriggerForm):
-        keyword = forms.CharField(
-            max_length=Trigger.KEYWORD_MAX_LEN,
-            label=_("Keyword"),
-            help_text=_("Word to match in the message text."),
+        keywords = forms.CharField(
+            label=_("Keywords"),
+            widget=SelectWidget(
+                attrs={
+                    "widget_only": False,
+                    "multi": True,
+                    "searchable": True,
+                    "tags": True,
+                    "space_select": True,
+                    "placeholder": _("Keywords"),
+                }
+            ),
         )
         match_type = forms.ChoiceField(
             choices=Trigger.MATCH_TYPES,
@@ -42,15 +50,26 @@ class KeywordTriggerType(ChannelTriggerType):
         def __init__(self, org, user, *args, **kwargs):
             super().__init__(org, user, Trigger.TYPE_KEYWORD, *args, **kwargs)
 
+        def clean_keywords(self):
+            keywords = [k.lower() for k in self.data.getlist("keywords", [])]
+
+            for keyword in keywords:
+                if not self.trigger_type.is_valid_keyword(keyword):
+                    raise forms.ValidationError(
+                        _("Must be a single word containing only letters and numbers, or a single emoji character.")
+                    )
+
+            return keywords
+
         def get_conflicts_kwargs(self, cleaned_data):
             kwargs = super().get_conflicts_kwargs(cleaned_data)
-            kwargs["keywords"] = [cleaned_data["keyword"]] if cleaned_data["keyword"] else None
+            kwargs["keywords"] = cleaned_data["keywords"]
             return kwargs
 
         class Meta(BaseChannelTriggerForm.Meta):
-            fields = ("keyword", "match_type") + BaseChannelTriggerForm.Meta.fields
+            fields = ("keywords", "match_type") + BaseChannelTriggerForm.Meta.fields
             help_texts = {"channel": "Only include messages from this channel."}
-            widgets = {"keyword": InputWidget(), "match_type": SelectWidget()}
+            widgets = {"match_type": SelectWidget()}
 
     code = Trigger.TYPE_KEYWORD
     slug = "keyword"
