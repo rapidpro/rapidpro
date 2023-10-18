@@ -74,6 +74,7 @@ class KeywordTriggerType(ChannelTriggerType):
     code = Trigger.TYPE_KEYWORD
     slug = "keyword"
     name = _("Keyword")
+    icon = "message"
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE)
     allowed_channel_role = Channel.ROLE_RECEIVE
     export_fields = ChannelTriggerType.export_fields + ("keywords", "match_type")
@@ -114,6 +115,7 @@ class CatchallTriggerType(ChannelTriggerType):
     code = Trigger.TYPE_CATCH_ALL
     slug = "catch_all"
     name = _("Catch All")
+    icon = "message"
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE)
     allowed_channel_role = Channel.ROLE_RECEIVE
     form = Form
@@ -161,6 +163,7 @@ class ScheduledTriggerType(TriggerType):
     code = Trigger.TYPE_SCHEDULE
     slug = "schedule"
     name = _("Schedule")
+    icon = "calendar"
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND)
     exportable = False
     form = Form
@@ -227,6 +230,7 @@ class InboundCallTriggerType(ChannelTriggerType):
     code = Trigger.TYPE_INBOUND_CALL
     slug = "inbound_call"
     name = _("Inbound Call")
+    icon = "incoming_call"
     allowed_flow_types = (Flow.TYPE_VOICE, Flow.TYPE_MESSAGE, Flow.TYPE_BACKGROUND)
     allowed_channel_role = Channel.ROLE_ANSWER
     form = Form
@@ -260,6 +264,7 @@ class NewConversationTriggerType(ChannelTriggerType):
     code = Trigger.TYPE_NEW_CONVERSATION
     slug = "new_conversation"
     name = _("New Conversation")
+    icon = "conversation"
     allowed_flow_types = (Flow.TYPE_MESSAGE,)
     allowed_channel_schemes = ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION
     form = Form
@@ -289,6 +294,7 @@ class ReferralTriggerType(ChannelTriggerType):
     code = Trigger.TYPE_REFERRAL
     slug = "referral"
     name = _("Referral")
+    icon = "referral"
     allowed_flow_types = (Flow.TYPE_MESSAGE,)
     allowed_channel_schemes = ContactURN.SCHEMES_SUPPORTING_REFERRALS
     form = Form
@@ -306,6 +312,7 @@ class ClosedTicketTriggerType(TriggerType):
     code = Trigger.TYPE_CLOSED_TICKET
     slug = "closed_ticket"
     name = _("Closed Ticket")
+    icon = "agent"
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND)
     form = Form
 
@@ -322,6 +329,7 @@ class OptInTriggerType(ChannelTriggerType):
     code = Trigger.TYPE_OPT_IN
     slug = "opt_in"
     name = _("Opt-In")
+    icon = "optin"
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_BACKGROUND)
     allowed_channel_schemes = ContactURN.SCHEMES_SUPPORTING_OPTINS
     form = Form
@@ -339,6 +347,7 @@ class OptOutTriggerType(ChannelTriggerType):
     code = Trigger.TYPE_OPT_OUT
     slug = "opt_out"
     name = _("Opt-Out")
+    icon = "optout"
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_BACKGROUND)
     allowed_channel_schemes = ContactURN.SCHEMES_SUPPORTING_OPTINS
     form = Form
