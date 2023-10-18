@@ -8,7 +8,7 @@
   the contacts on the WhatsApp application. This may take a few minutes.
 {% endblocktrans %}
 <div class="mt-4">
-  <a href="{% url 'channels.types.whatsapp.refresh' channel.uuid %}"
+  <a href="{% url 'channels.types.whatsapp_legacy.refresh' channel.uuid %}"
      onclick="handlePosterizeClick(event)"
      class="button-primary inline-block mt-2 posterize">{% trans "Refresh Contacts" %}</a>
 </div>
