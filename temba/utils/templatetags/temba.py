@@ -45,21 +45,22 @@ def object_class_name(obj):
 
 
 @register.filter
-def oxford(forloop, punctuation=""):
+def oxford(forloop, conjunction=_("and")):
     """
-    Filter that looks at the current step in a forloop and adds commas or and
+    Filter for use in a forloop to join items using oxford commas and a conjunction.
     """
     # there are only two items
     if forloop["counter"] == 1 and forloop["revcounter"] == 2:
-        return f' {_("and")} '
+        return f" {conjunction} "
 
     # we are the last in a list of 3 or more
     if forloop["revcounter"] == 2:
-        return f', {_("and")} '
+        return f", {conjunction} "
 
     if not forloop["last"]:
         return ", "
-    return punctuation
+
+    return ""
 
 
 @register.filter

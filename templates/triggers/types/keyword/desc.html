@@ -1,13 +1,8 @@
 {% load i18n %}
 
-{% with keywords=trigger.keywords|join:'</b>, <b>' %}
-  {% if trigger.match_type == 'F' %}
-    {% blocktrans trimmed with keywords=keywords %}
-      A message that starts with <b>{{ keywords }}</b>
-    {% endblocktrans %}
-  {% else %}
-    {% blocktrans trimmed with keywords=keywords %}
-      A message that matches <b>{{ keywords }}</b>
-    {% endblocktrans %}
-  {% endif %}
-{% endwith %}
+{% if trigger.match_type == 'F' %}
+  {% trans "A message that starts with" %}
+{% else %}
+  {% trans "A message that matches" %}
+{% endif %}
+{% for keyword in trigger.keywords %}<b>{{ keyword }}</b>{{ forloop|oxford:"or" }}{% endfor %}
