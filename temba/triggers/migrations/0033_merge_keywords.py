@@ -69,6 +69,12 @@ def reverse(apps, schema_editor):
     pass
 
 
+def apply_manual():  # pragma: no cover
+    from django.apps import apps
+
+    merge_keyword_triggers(apps, None)
+
+
 class Migration(migrations.Migration):
     dependencies = [("triggers", "0032_remove_trigger_keyword")]
 
