@@ -15,13 +15,14 @@ def merge_keyword_triggers(apps, schema_editor):
 def merge_org_triggers(org):
     triggers_by_params = defaultdict(list)
 
-    for trigger in org.triggers.filter(trigger_type="K", is_archived=False, is_active=True):
+    for trigger in org.triggers.filter(trigger_type="K", is_active=True).order_by("id"):
         params = (
             trigger.flow,
             trigger.match_type,
             trigger.channel,
             tuple(trigger.groups.order_by("id")),
             tuple(trigger.exclude_groups.order_by("id")),
+            trigger.is_archived,
         )
         triggers_by_params[params].append(trigger)
 
@@ -29,7 +30,7 @@ def merge_org_triggers(org):
         if len(triggers) <= 1:
             continue
 
-        flow, match_type, channel, groups, exclude_groups = params
+        flow, match_type, channel, groups, exclude_groups, is_archived = params
         user = triggers[0].created_by
         merged_keywords = set()
         for t in triggers:
@@ -44,6 +45,7 @@ def merge_org_triggers(org):
                 channel=channel,
                 created_by=user,
                 modified_by=user,
+                is_archived=is_archived,
             )
             for g in groups:
                 merged.groups.add(g)
@@ -51,12 +53,14 @@ def merge_org_triggers(org):
                 merged.exclude_groups.add(g)
 
             print(
-                f"Created merged trigger id={merged.id} org={merged.org_id} keywords={merged.keywords} flow={merged.flow_id} type={merged.match_type} channel={merged.channel_id}"
+                f"Created merged trigger id={merged.id} org={merged.org_id} keywords={merged.keywords} "
+                f"flow={merged.flow_id} type={merged.match_type} channel={merged.channel_id} archived={merged.is_archived}"
             )
 
             for t in triggers:
                 print(
-                    f" > Deleted trigger id={t.id} org={t.org_id} keywords={t.keywords} flow={t.flow_id} type={t.match_type} channel={t.channel_id}"
+                    f" > Deleted trigger id={t.id} org={t.org_id} keywords={t.keywords} "
+                    f"flow={t.flow_id} type={t.match_type} channel={t.channel_id} archived={t.is_archived}"
                 )
                 t.delete()
 
