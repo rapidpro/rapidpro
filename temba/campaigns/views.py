@@ -425,6 +425,7 @@ class CampaignEventForm(forms.ModelForm):
                             "Hi @contact.name! This is just a friendly reminder to apply your fertilizer."
                         ),
                         "widget_only": True,
+                        "maxlength": Msg.MAX_TEXT_LEN,
                     }
                 ),
                 required=False,
