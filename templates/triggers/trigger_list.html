@@ -63,7 +63,7 @@
                     </temba-icon>
                   </div>
                   <div class="flex-grow">
-                    {% with "triggers/types/"|add:obj.type.slug|add:".html" as type_template %}
+                    {% with "triggers/types/"|add:obj.type.slug|add:"/desc.html" as type_template %}
                       {% include type_template with trigger=obj %}
                     {% endwith %}
                   </div>
