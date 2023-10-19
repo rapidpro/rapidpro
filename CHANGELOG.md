@@ -1,3 +1,9 @@
+v8.3.57 (2023-10-19)
+-------------------------
+ * Update oxford template filter to allow different conjunctions
+ * Move all trigger type templates into their own folders
+ * Add data migration to merge compatible keyword triggers
+
 v8.3.56 (2023-10-18)
 -------------------------
  * Improve display of triggers on list pages
