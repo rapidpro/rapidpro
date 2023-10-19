@@ -1,3 +1,7 @@
+v8.3.58 (2023-10-19)
+-------------------------
+ * Allow triggers to wrap
+
 v8.3.57 (2023-10-19)
 -------------------------
  * Update oxford template filter to allow different conjunctions
