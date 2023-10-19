@@ -344,8 +344,17 @@ class TriggerCRUDL(SmartCRUDL):
         success_url = "@triggers.trigger_list"
         success_message = ""
 
+        @property
+        def type(self):
+            return Trigger.get_type(code=self.trigger_type) if self.trigger_type else None
+
         def get_form_class(self):
-            return self.form_class or Trigger.get_type(code=self.trigger_type).form
+            return self.form_class or self.type.form
+
+        def get_template_names(self):
+            if self.trigger_type:
+                return (f"triggers/types/{self.type.slug}/create.html",)
+            return super().get_template_names()
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -370,7 +379,7 @@ class TriggerCRUDL(SmartCRUDL):
             Trigger.create(
                 org,
                 user,
-                form.trigger_type.code,
+                self.type.code,
                 **create_kwargs,
             )
 
