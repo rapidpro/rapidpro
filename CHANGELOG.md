@@ -1,3 +1,7 @@
+v8.3.59 (2023-10-20)
+-------------------------
+ * Fix maxlength for campaign events and focus on compose
+
 v8.3.58 (2023-10-19)
 -------------------------
  * Allow triggers to wrap
