@@ -102,7 +102,7 @@ class Trigger(SmartModel):
     trigger_type = models.CharField(max_length=1, default=TYPE_KEYWORD)
     is_archived = models.BooleanField(default=False)
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="triggers")
-    priority = models.IntegerField(null=True)
+    priority = models.IntegerField()
 
     # who trigger applies to
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, related_name="triggers")

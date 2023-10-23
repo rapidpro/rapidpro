@@ -203,7 +203,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         # add channel trigger
         flow = self.get_flow("color")
-        Trigger.objects.create(org=self.org, flow=flow, channel=channel1, modified_by=self.admin, created_by=self.admin)
+        Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow, channel=channel1)
 
         # create some activity on this channel
         contact = self.create_contact("Bob", phone="+593979123456")
@@ -226,7 +226,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc="RW"),
             [1, 2],
         )
-        Trigger.objects.create(org=self.org, flow=flow, channel=channel2, modified_by=self.admin, created_by=self.admin)
+        Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow, channel=channel2)
 
         # add channel to a flow as a dependency
         flow.channel_dependencies.add(channel1)
