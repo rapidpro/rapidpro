@@ -188,7 +188,6 @@ MIDDLEWARE = (
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "temba.middleware.OrgMiddleware",
-    "temba.middleware.BrandingMiddleware",
     "temba.middleware.LanguageMiddleware",
     "temba.middleware.TimezoneMiddleware",
 )
