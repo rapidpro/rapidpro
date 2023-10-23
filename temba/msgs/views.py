@@ -40,7 +40,7 @@ from temba.orgs.views import (
 )
 from temba.schedules.models import Schedule
 from temba.schedules.views import ScheduleFormMixin
-from temba.utils import analytics, json, on_transaction_commit
+from temba.utils import json, languages, on_transaction_commit
 from temba.utils.compose import compose_deserialize, compose_serialize
 from temba.utils.export.views import BaseExportView
 from temba.utils.fields import (
@@ -106,7 +106,7 @@ class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
     default_order = ("-created_on", "-id")
     allow_export = False
     bulk_actions = ()
-    bulk_action_permissions = {"resend": "msgs.broadcast_send", "delete": "msgs.msg_update"}
+    bulk_action_permissions = {"resend": "msgs.msg_create", "delete": "msgs.msg_update"}
 
     def derive_export_url(self):
         redirect = quote_plus(self.request.get_full_path())
@@ -159,8 +159,6 @@ class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
 
 class ComposeForm(Form):
     compose = ComposeField(
-        required=True,
-        initial={"text": "", "attachments": []},
         widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True, "completion": True}),
     )
 
@@ -178,21 +176,64 @@ class ComposeForm(Form):
         ),
     )
 
+    def clean_compose(self):
+        base_language = self.initial.get("base_language", "und")
+        primary_language = self.org.flow_languages[0] if self.org.flow_languages else None
+
+        def is_language_missing(values):
+            if values:
+                text = values.get("text", "")
+                attachments = values.get("attachments", [])
+                return not (text or attachments)
+            return True
+
+        # need at least a base or a primary
+        compose = self.cleaned_data["compose"]
+        base = compose.get(base_language, None)
+        primary = compose.get(primary_language, None)
+
+        if is_language_missing(base) and is_language_missing(primary):
+            raise forms.ValidationError(_("This field is required."))
+
+        # check that all of our text and attachments are limited
+        # these are also limited client side, so this is a fail safe
+        for values in compose.values():
+            if values:
+                text = values.get("text", "")
+                attachments = values.get("attachments", [])
+                if text and len(text) > Msg.MAX_TEXT_LEN:
+                    raise forms.ValidationError(_(f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters."))
+                if attachments and len(attachments) > Msg.MAX_ATTACHMENTS:
+                    raise forms.ValidationError(_(f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files."))
+
+        return compose
+
     def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.org = org
         self.fields["optin"].queryset = org.optins.all().order_by("name")
+        isos = [iso for iso in org.flow_languages]
 
-    def clean_compose(self):
-        compose = self.cleaned_data["compose"]
-        text = compose["text"]
-        attachments = compose["attachments"]
-        if not (text or attachments):
-            raise forms.ValidationError(_("Text or attachments are required."))
-        if text and len(text) > Msg.MAX_TEXT_LEN:
-            raise forms.ValidationError(_(f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters."))
-        if attachments and len(attachments) > Msg.MAX_ATTACHMENTS:
-            raise forms.ValidationError(_(f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files."))
-        return compose
+        if self.initial and "base_language" in self.initial:
+            compose = self.initial["compose"]
+            base_language = self.initial["base_language"]
+
+            if base_language not in isos:
+                # if we have a value for the primary org language show that first
+                if isos and isos[0] in compose:
+                    isos.append(base_language)
+                else:
+                    # otherwise, put our base_language first
+                    isos.insert(0, base_language)
+
+            # our base language might be a secondary language, see if it should be first
+            elif isos[0] not in compose:
+                isos.remove(base_language)
+                isos.insert(0, base_language)
+
+        langs = [{"iso": iso, "name": str(_("Default")) if iso == "und" else languages.get_name(iso)} for iso in isos]
+        compose_attrs = self.fields["compose"].widget.attrs
+        compose_attrs["languages"] = json.dumps(langs)
 
 
 class ScheduleForm(ScheduleFormMixin):
@@ -256,7 +297,7 @@ class BroadcastCRUDL(SmartCRUDL):
         "scheduled_read",
         "scheduled_delete",
         "preview",
-        "send",
+        "to_node",
     )
     model = Broadcast
 
@@ -288,7 +329,6 @@ class BroadcastCRUDL(SmartCRUDL):
         title = _("Scheduled Broadcasts")
         menu_path = "/msg/scheduled"
         fields = ("contacts", "msgs", "sent", "status")
-        search_fields = ("translations__und__icontains", "contacts__urns__path__icontains")
         system_label = SystemLabel.TYPE_SCHEDULED
         paginate_by = 25
         default_order = (
@@ -341,7 +381,7 @@ class BroadcastCRUDL(SmartCRUDL):
             org = self.request.org
 
             compose = form_dict["compose"].cleaned_data["compose"]
-            text, attachments = compose_deserialize(compose)
+            translations = compose_deserialize(compose)
             optin = form_dict["compose"].cleaned_data["optin"]
 
             recipients = form_dict["target"].cleaned_data["omnibox"]
@@ -361,8 +401,7 @@ class BroadcastCRUDL(SmartCRUDL):
             self.object = Broadcast.create(
                 org,
                 user,
-                text={"und": text},
-                attachments={"und": attachments},
+                translations=translations,
                 groups=list(recipients["groups"]),
                 contacts=list(recipients["contacts"]),
                 schedule=schedule,
@@ -394,9 +433,16 @@ class BroadcastCRUDL(SmartCRUDL):
                 return {"omnibox": omnibox}
 
             if step == "compose":
-                translation = self.object.get_translation()
-                compose = compose_serialize(translation)
-                return {"compose": compose, "optin": self.object.optin}
+                compose = compose_serialize(self.object.translations)
+                base_language = self.object.base_language
+
+                # remove any languages not present on the org
+                langs = [k for k in compose.keys()]
+                for iso in langs:
+                    if iso != base_language and iso not in org.flow_languages:
+                        del compose[iso]
+
+                return {"compose": compose, "optin": self.object.optin, "base_language": base_language}
 
             if step == "schedule":
                 schedule = self.object.schedule
@@ -414,8 +460,7 @@ class BroadcastCRUDL(SmartCRUDL):
             # update message
             compose = form_dict["compose"].cleaned_data["compose"]
             optin = form_dict["compose"].cleaned_data["optin"]
-            text, attachments = compose_deserialize(compose)
-            broadcast.translations = {broadcast.base_language: {"text": text, "attachments": attachments}}
+            broadcast.translations = compose_deserialize(compose)
             broadcast.optin = optin
             broadcast.save()
 
@@ -482,7 +527,7 @@ class BroadcastCRUDL(SmartCRUDL):
             return response
 
     class Preview(OrgPermsMixin, SmartCreateView):
-        permission = "msgs.broadcast_send"
+        permission = "msgs.broadcast_create"
 
         blockers = {
             "no_send_channel": _(
@@ -522,50 +567,17 @@ class BroadcastCRUDL(SmartCRUDL):
                 }
             )
 
-    class Send(OrgPermsMixin, ModalMixin, SmartFormView):
+    class ToNode(OrgPermsMixin, ModalMixin, SmartFormView):
         class Form(Form):
-            omnibox = OmniboxField(
-                label=_("Recipients"),
-                required=False,
-                help_text=_("The contacts to send the message to."),
-                widget=OmniboxChoice(
-                    attrs={
-                        "placeholder": _("Search for contacts or groups"),
-                        "widget_only": True,
-                        "groups": True,
-                        "contacts": True,
-                    }
-                ),
-            )
             text = forms.CharField(
                 widget=CompletionTextarea(
                     attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True, "counter": "temba-charcount"}
                 )
             )
-            step_node = forms.CharField(widget=forms.HiddenInput, max_length=36, required=False)
 
-            def __init__(self, org, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-                self.org = org
-                self.fields["omnibox"].default_country = org.default_country_code
-
-            def clean(self):
-                cleaned = super().clean()
-
-                if self.is_valid():
-                    omnibox = cleaned.get("omnibox")
-                    step_node = cleaned.get("step_node")
-
-                    if not step_node and not omnibox:
-                        self.add_error("omnibox", _("At least one recipient is required."))
-
-                return cleaned
-
+        permission = "msgs.broadcast_create"
         form_class = Form
         title = _("Send Message")
-        fields = ("omnibox", "text", "step_node")
-        success_url = "@msgs.msg_inbox"
         submit_button_name = _("Send")
 
         blockers = {
@@ -575,26 +587,10 @@ class BroadcastCRUDL(SmartCRUDL):
             ),
         }
 
-        def derive_initial(self):
-            initial = super().derive_initial()
-            initial["step_node"] = self.request.GET.get("step_node", None)
-            return initial
-
-        def derive_fields(self):
-            if self.request.GET.get("step_node"):
-                return ("text", "step_node")
-            else:
-                return super().derive_fields()
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
-
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["blockers"] = self.get_blockers(self.request.org)
-            context["recipient_count"] = int(self.request.GET.get("count", 0))
+            context["recipient_count"] = int(self.request.GET["count"])
             return context
 
         def get_blockers(self, org) -> list:
@@ -610,40 +606,16 @@ class BroadcastCRUDL(SmartCRUDL):
             return blockers
 
         def form_valid(self, form):
-            user = self.request.user
-            org = self.request.org
-            step_uuid = form.cleaned_data.get("step_node", None)
+            from .tasks import send_to_flow_node
+
+            node_uuid = self.request.GET["node"]
             text = form.cleaned_data["text"]
 
-            if step_uuid:
-                from .tasks import send_to_flow_node
-
-                get_params = {k: v for k, v in self.request.GET.items()}
-                get_params.update({"s": step_uuid})
-                send_to_flow_node.delay(org.pk, user.pk, text, **get_params)
-            else:
-                omnibox = omnibox_deserialize(org, form.cleaned_data["omnibox"])
-                groups = list(omnibox["groups"])
-                contacts = list(omnibox["contacts"])
-
-                broadcast = Broadcast.create(
-                    org, user, {"und": text}, groups=groups, contacts=contacts, status=Msg.STATUS_QUEUED
-                )
-
-                self.post_save(broadcast)
-                super().form_valid(form)
-
-                analytics.track(
-                    self.request.user, "temba.broadcast_created", dict(contacts=len(contacts), groups=len(groups))
-                )
+            send_to_flow_node.delay(self.request.org.id, self.request.user.id, node_uuid, text)
 
             response = self.render_to_response(self.get_context_data())
             response["Temba-Success"] = "hide"
             return response
-
-        def post_save(self, obj):
-            on_transaction_commit(lambda: obj.send_async())
-            return obj
 
 
 class MsgCRUDL(SmartCRUDL):
@@ -1036,18 +1008,7 @@ class LabelForm(BaseLabelForm):
 
 class LabelCRUDL(SmartCRUDL):
     model = Label
-    actions = ("create", "update", "usages", "delete", "list")
-
-    class List(OrgPermsMixin, SmartListView):
-        paginate_by = None
-        default_order = ("name",)
-
-        def derive_queryset(self, **kwargs):
-            return Label.get_active_for_org(self.request.org)
-
-        def render_to_response(self, context, **response_kwargs):
-            results = [{"id": str(lb.uuid), "text": lb.name} for lb in context["object_list"]]
-            return HttpResponse(json.dumps(results), content_type="application/json")
+    actions = ("create", "update", "usages", "delete")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "messages")
@@ -1103,6 +1064,8 @@ class MediaCRUDL(SmartCRUDL):
         """
         TODO deprecated, migrate usages to /api/v2/media.json
         """
+
+        permission = "msgs.media_create"
 
         def post(self, request, *args, **kwargs):
             file = request.FILES["file"]

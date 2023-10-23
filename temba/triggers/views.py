@@ -3,7 +3,6 @@ from enum import Enum
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
-from django.db.models import Min
 from django.db.models.functions import Upper
 from django.http import HttpResponseRedirect
 from django.urls import reverse
@@ -122,17 +121,6 @@ class BaseTriggerForm(forms.ModelForm):
     def get_conflicts_kwargs(self, cleaned_data):
         return {"groups": cleaned_data.get("groups", [])}
 
-    def clean_keyword(self):
-        keyword = self.cleaned_data.get("keyword") or ""
-        keyword = keyword.strip()
-
-        if not self.trigger_type.is_valid_keyword(keyword):
-            raise forms.ValidationError(
-                _("Must be a single word containing only letters and numbers, or a single emoji character.")
-            )
-
-        return keyword.lower()
-
     def clean(self):
         cleaned_data = super().clean()
 
@@ -243,7 +231,7 @@ class RegisterTriggerForm(BaseTriggerForm):
 
     def get_conflicts_kwargs(self, cleaned_data):
         kwargs = super().get_conflicts_kwargs(cleaned_data)
-        kwargs["keyword"] = cleaned_data.get("keyword") or ""
+        kwargs["keywords"] = [cleaned_data["keyword"]] if cleaned_data["keyword"] else None
         return kwargs
 
     class Meta(BaseTriggerForm.Meta):
@@ -356,8 +344,17 @@ class TriggerCRUDL(SmartCRUDL):
         success_url = "@triggers.trigger_list"
         success_message = ""
 
+        @property
+        def type(self):
+            return Trigger.get_type(code=self.trigger_type) if self.trigger_type else None
+
         def get_form_class(self):
-            return self.form_class or Trigger.get_type(code=self.trigger_type).form
+            return self.form_class or self.type.form
+
+        def get_template_names(self):
+            if self.trigger_type:
+                return (f"triggers/types/{self.type.slug}/create.html",)
+            return super().get_template_names()
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -382,7 +379,7 @@ class TriggerCRUDL(SmartCRUDL):
             Trigger.create(
                 org,
                 user,
-                form.trigger_type.code,
+                self.type.code,
                 **create_kwargs,
             )
 
@@ -394,7 +391,7 @@ class TriggerCRUDL(SmartCRUDL):
         trigger_type = Trigger.TYPE_KEYWORD
 
         def get_create_kwargs(self, user, cleaned_data):
-            return {"keyword": cleaned_data["keyword"], "match_type": cleaned_data["match_type"]}
+            return {"keywords": cleaned_data["keywords"], "match_type": cleaned_data["match_type"]}
 
     class CreateRegister(BaseCreate):
         form_class = RegisterTriggerForm
@@ -417,7 +414,7 @@ class TriggerCRUDL(SmartCRUDL):
                 register_flow,
                 groups=groups,
                 exclude_groups=exclude_groups,
-                keyword=keyword,
+                keywords=[keyword],
                 match_type=Trigger.MATCH_ONLY_WORD,
             )
 
@@ -516,6 +513,12 @@ class TriggerCRUDL(SmartCRUDL):
                     form.cleaned_data.get("repeat_days_of_week"),
                 )
 
+            self.object.priority = Trigger._priority(
+                form.cleaned_data.get("channel"),
+                form.cleaned_data.get("groups"),
+                form.cleaned_data.get("exclude_groups"),
+            )
+
             response = super().form_valid(form)
             response["REDIRECT"] = self.get_success_url()
             return response
@@ -528,16 +531,15 @@ class TriggerCRUDL(SmartCRUDL):
         permission = "triggers.trigger_list"
         fields = ("name",)
         default_template = "triggers/trigger_list.html"
-        search_fields = ("keyword__icontains", "flow__name__icontains", "channel__name__icontains")
+        search_fields = ("keywords__0__iexact", "flow__name__icontains", "channel__name__icontains")
 
         def get_queryset(self, *args, **kwargs):
             qs = super().get_queryset(*args, **kwargs)
             qs = (
                 qs.filter(is_active=True)
-                .annotate(earliest_group=Min("groups__name"))
-                .order_by("keyword", "earliest_group", "id")
+                .order_by("-created_on")
                 .select_related("flow", "channel")
-                .prefetch_related("contacts", "groups")
+                .prefetch_related("contacts", "groups", "exclude_groups")
             )
             return qs
 
@@ -601,5 +603,5 @@ class TriggerCRUDL(SmartCRUDL):
                 super()
                 .get_queryset(*args, **kwargs)
                 .filter(is_archived=False, trigger_type__in=self.folder.types)
-                .order_by(Trigger.type_order(), "keyword", "earliest_group", "id")
+                .order_by(Trigger.type_order(), "-created_on")
             )

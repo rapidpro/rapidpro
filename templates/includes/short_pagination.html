@@ -60,7 +60,7 @@
           </div>
         {% endif %}
         {% if 'send' in actions %}
-          {% if org_perms.msgs.broadcast_send and not reply_disabled %}
+          {% if org_perms.msgs.broadcast_create and not reply_disabled %}
             <div onclick="handleSendMessageClicked()" class="linked ml-4">
               <temba-tip position="top" text="{{ _("New Broadcast") |escapejs }}">
                 <temba-icon name="message" clickable="true">

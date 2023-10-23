@@ -50,17 +50,6 @@ def sizeof_fmt(num, suffix="b"):
     return "%.1f %s%s" % (num, "Y", suffix)
 
 
-def splitting_getlist(request, name, default=None):
-    """
-    Used for backward compatibility in the API where some list params can be provided as comma separated values
-    """
-    vals = request.query_params.getlist(name, default)
-    if vals and len(vals) == 1:
-        return vals[0].split(",")
-    else:
-        return vals
-
-
 def chunk_list(iterable, size):
     """
     Splits a very large list into evenly sized chunks.

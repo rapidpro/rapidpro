@@ -26,9 +26,10 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Media, Msg, OptIn, SystemLabel
 from temba.orgs.models import OrgMembership, OrgRole, User
+from temba.orgs.views import OrgPermsMixin
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, TicketCount, Ticketer, Topic
-from temba.utils import splitting_getlist, str_to_bool
+from temba.utils import str_to_bool
 from temba.utils.uuid import is_uuid
 
 from ..models import APIPermission, APIToken, Resthook, ResthookSubscriber, SSLPermission, WebHookEvent
@@ -240,11 +241,12 @@ class RootView(views.APIView):
         )
 
 
-class ExplorerView(SmartTemplateView):
+class ExplorerView(OrgPermsMixin, SmartTemplateView):
     """
     Explorer view which lets users experiment with endpoints against their own data
     """
 
+    permission = "api.apitoken_explorer"
     template_name = "api/v2/api_explorer.html"
     title = _("API Explorer")
 
@@ -254,7 +256,7 @@ class ExplorerView(SmartTemplateView):
         org = self.request.org
         user = self.request.user
 
-        context["api_token"] = user.get_api_token(org) if (org and user) else None
+        context["api_token"] = user.get_api_token(org)
         context["endpoints"] = [
             ArchivesEndpoint.get_read_explorer(),
             BoundariesEndpoint.get_read_explorer(),
@@ -1405,7 +1407,6 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint
     You will receive either a 204 response if a contact was deleted, or a 404 response if no matching contact was found.
     """
 
-    permission = "contacts.contact_api"
     model = Contact
     serializer_class = ContactReadSerializer
     write_serializer_class = ContactWriteSerializer
@@ -1562,7 +1563,6 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
         * _block_ - Block the contacts
         * _unblock_ - Un-block the contacts
         * _interrupt_ - Interrupt and end any of the contacts' active flow runs
-        * _archive_messages_ - Archive all of the contacts' messages
         * _delete_ - Permanently delete the contacts
 
     * **group** - the UUID or name of a contact group (string, optional)
@@ -1579,7 +1579,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
     You will receive an empty response with status code 204 if successful.
     """
 
-    permission = "contacts.contact_api"
+    permission = "contacts.contact_update"
     serializer_class = ContactBulkActionSerializer
 
     @classmethod
@@ -1654,7 +1654,7 @@ class DefinitionsEndpoint(BaseEndpoint):
         }
     """
 
-    permission = "orgs.org_api"
+    permission = "orgs.org_export"
 
     class Depends(Enum):
         none = 0
@@ -1664,15 +1664,10 @@ class DefinitionsEndpoint(BaseEndpoint):
     def get(self, request, *args, **kwargs):
         org = request.org
         params = request.query_params
-
-        if "flow_uuid" in params or "campaign_uuid" in params:  # deprecated
-            flow_uuids = splitting_getlist(self.request, "flow_uuid")
-            campaign_uuids = splitting_getlist(self.request, "campaign_uuid")
-        else:
-            flow_uuids = params.getlist("flow")
-            campaign_uuids = params.getlist("campaign")
-
+        flow_uuids = params.getlist("flow")
+        campaign_uuids = params.getlist("campaign")
         include = params.get("dependencies", "all")
+
         if include not in DefinitionsEndpoint.Depends.__members__:
             raise InvalidQueryError(
                 "dependencies must be one of %s" % ", ".join(DefinitionsEndpoint.Depends.__members__)
@@ -2342,7 +2337,6 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint):
     You will receive either a 204 response if a label was deleted, or a 404 response if no matching label was found.
     """
 
-    permission = "msgs.label_api"
     model = Label
     serializer_class = LabelReadSerializer
     write_serializer_class = LabelWriteSerializer
@@ -2429,7 +2423,6 @@ class MediaEndpoint(WriteAPIMixin, BaseEndpoint):
     """
 
     parser_classes = (MultiPartParser, FormParser)
-    permission = "msgs.media_api"
     model = Media
     serializer_class = MediaReadSerializer
     write_serializer_class = MediaWriteSerializer
@@ -2550,7 +2543,6 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             folder = request.query_params.get("folder", "").lower()
             return self.ordering.get(folder, CreatedOnCursorPagination.ordering)
 
-    permission = "msgs.msg_api"
     model = Msg
     serializer_class = MsgReadSerializer
     write_serializer_class = MsgWriteSerializer
@@ -2714,7 +2706,7 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
 
     """
 
-    permission = "msgs.msg_api"
+    permission = "msgs.msg_update"
     serializer_class = MsgBulkActionSerializer
 
     @classmethod
@@ -2828,7 +2820,6 @@ class ResthooksEndpoint(ListAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "api.resthook_api"
     model = Resthook
     serializer_class = ResthookReadSerializer
     pagination_class = ModifiedOnCursorPagination
@@ -2922,7 +2913,6 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
 
     """
 
-    permission = "api.resthooksubscriber_api"
     model = ResthookSubscriber
     serializer_class = ResthookSubscriberReadSerializer
     write_serializer_class = ResthookSubscriberWriteSerializer
@@ -3060,7 +3050,6 @@ class ResthookEventsEndpoint(ListAPIMixin, BaseEndpoint):
         }
     """
 
-    permission = "api.webhookevent_api"
     model = WebHookEvent
     serializer_class = WebHookEventReadSerializer
     pagination_class = CreatedOnCursorPagination
@@ -3529,7 +3518,7 @@ class TicketersEndpoint(ListAPIMixin, BaseEndpoint):
         return self.filter_before_after(queryset, "created_on")
 
 
-class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
+class TicketsEndpoint(ListAPIMixin, BaseEndpoint):
     """
     This endpoint allows you to list the tickets opened on your account.
 
@@ -3538,7 +3527,6 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     A **GET** returns the tickets for your organization, most recent first.
 
      * **uuid** - the UUID of the ticket, filterable as `uuid`.
-     * **ticketer** - the UUID and name of the ticketer (object).
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **status** - the status of the ticket, e.g. 'open' or 'closed'.
      * **topic** - the topic of the ticket (object).
@@ -3562,7 +3550,6 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             "results": [
             {
                 "uuid": "9a8b001e-a913-486c-80f4-1356e23f582e",
-                "ticketer": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Email (bob@acme.com)"},
                 "contact": {"uuid": "f1ea776e-c923-4c1a-b3a3-0c466932b2cc", "name": "Jim"},
                 "status": "open",
                 "topic": {"uuid": "040edbfe-be55-48f3-864d-a4a7147c447b", "name": "Support"},
@@ -3577,7 +3564,6 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             ...
     """
 
-    permission = "tickets.ticket_api"
     model = Ticket
     serializer_class = TicketReadSerializer
     pagination_class = ModifiedOnCursorPagination
@@ -3658,7 +3644,7 @@ class TicketActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
     You will receive an empty response with status code 204 if successful.
     """
 
-    permission = "tickets.ticket_api"
+    permission = "tickets.ticket_update"
     serializer_class = TicketBulkActionSerializer
 
     @classmethod
@@ -3787,7 +3773,6 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
             ...
     """
 
-    permission = "orgs.org_api"
     model = User
     serializer_class = UserReadSerializer
     pagination_class = DateJoinedCursorPagination
@@ -3852,7 +3837,7 @@ class WorkspaceEndpoint(BaseEndpoint):
         }
     """
 
-    permission = "orgs.org_api"
+    permission = "orgs.org_read"
 
     def get(self, request, *args, **kwargs):
         serializer = WorkspaceReadSerializer(request.org)

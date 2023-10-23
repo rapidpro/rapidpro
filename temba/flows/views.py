@@ -110,7 +110,7 @@ class BaseFlowForm(forms.ModelForm):
                 wrong_format.append(keyword)
 
             # make sure it won't conflict with existing triggers
-            conflicts = Trigger.get_conflicts(self.org, Trigger.TYPE_KEYWORD, keyword=keyword)
+            conflicts = Trigger.get_conflicts(self.org, Trigger.TYPE_KEYWORD, keywords=[keyword])
             if self.instance:
                 conflicts = conflicts.exclude(flow=self.instance.id)
 
@@ -133,7 +133,7 @@ class BaseFlowForm(forms.ModelForm):
                 error_message = _("%(keyword)s is already used for another flow.") % {"keyword": joined}
             raise forms.ValidationError(error_message)
 
-        return ",".join(cleaned_keywords)
+        return cleaned_keywords
 
     class Meta:
         model = Flow
@@ -407,7 +407,7 @@ class FlowCRUDL(SmartCRUDL):
         class Form(BaseFlowForm):
             keyword_triggers = forms.CharField(
                 required=False,
-                label=_("Global keyword triggers"),
+                label=_("Keyword triggers"),
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
                 widget=SelectWidget(
                     attrs={
@@ -484,13 +484,17 @@ class FlowCRUDL(SmartCRUDL):
             user = self.request.user
             org = self.request.org
 
-            # create any triggers if user provided keywords
-            if self.form.cleaned_data["keyword_triggers"]:
-                keywords = self.form.cleaned_data["keyword_triggers"].split(",")
-                for keyword in keywords:
-                    Trigger.create(
-                        org, user, Trigger.TYPE_KEYWORD, flow=obj, keyword=keyword, match_type=Trigger.MATCH_FIRST_WORD
-                    )
+            # create a triggers if user provided keywords
+            keywords = self.form.cleaned_data["keyword_triggers"]
+            if keywords:
+                Trigger.create(
+                    org,
+                    user,
+                    Trigger.TYPE_KEYWORD,
+                    flow=obj,
+                    keywords=keywords,
+                    match_type=Trigger.MATCH_FIRST_WORD,
+                )
 
             return obj
 
@@ -536,14 +540,23 @@ class FlowCRUDL(SmartCRUDL):
                 fields = ("name", "contact_creation")
                 widgets = {"name": InputWidget()}
 
-        class VoiceForm(BaseForm):
-            ivr_retry = forms.ChoiceField(
-                label=_("Retry call if unable to connect"),
-                help_text=_("Retries call three times for the chosen interval"),
-                initial=60,
-                choices=Call.RETRY_CHOICES,
-                widget=SelectWidget(attrs={"widget_only": False}),
+        class BaseOnlineForm(BaseFlowForm):
+            keyword_triggers = forms.CharField(
+                required=False,
+                label=_("Keyword triggers"),
+                help_text=_("When a user sends any of these keywords they will begin this flow"),
+                widget=SelectWidget(
+                    attrs={
+                        "widget_only": False,
+                        "multi": True,
+                        "searchable": True,
+                        "tags": True,
+                        "space_select": True,
+                        "placeholder": _("Keywords"),
+                    }
+                ),
             )
+
             expires_after_minutes = forms.ChoiceField(
                 label=_("Expire inactive contacts"),
                 help_text=_("When inactive contacts should be removed from the flow"),
@@ -551,64 +564,36 @@ class FlowCRUDL(SmartCRUDL):
                 choices=Flow.EXPIRES_CHOICES[Flow.TYPE_VOICE],
                 widget=SelectWidget(attrs={"widget_only": False}),
             )
-            keyword_triggers = forms.CharField(
-                required=False,
-                label=_("Global keyword triggers"),
-                help_text=_("When a user sends any of these keywords they will begin this flow"),
-                widget=SelectWidget(
-                    attrs={
-                        "widget_only": False,
-                        "multi": True,
-                        "searchable": True,
-                        "tags": True,
-                        "space_select": True,
-                        "placeholder": _("Keywords"),
-                    }
-                ),
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                existing_keywords = set()
+                for trigger in self.instance.triggers.filter(is_archived=False, trigger_type=Trigger.TYPE_KEYWORD):
+                    existing_keywords.update(trigger.keywords)
+
+                self.fields["keyword_triggers"].initial = list(sorted(existing_keywords))
+
+        class VoiceForm(BaseOnlineForm):
+            ivr_retry = forms.ChoiceField(
+                label=_("Retry call if unable to connect"),
+                help_text=_("Retries call three times for the chosen interval"),
+                initial=60,
+                choices=Call.RETRY_CHOICES,
+                widget=SelectWidget(attrs={"widget_only": False}),
             )
 
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
-                metadata = self.instance.metadata
-
-                # IVR retries
-                ivr_retry = self.fields["ivr_retry"]
-                ivr_retry.initial = metadata.get("ivr_retry", self.fields["ivr_retry"].initial)
-
-                flow_triggers = Trigger.objects.filter(
-                    org=self.instance.org,
-                    flow=self.instance,
-                    is_archived=False,
-                    groups=None,
-                    trigger_type=Trigger.TYPE_KEYWORD,
-                ).order_by("created_on")
-
-                keyword_triggers = self.fields["keyword_triggers"]
-                keyword_triggers.initial = ",".join(t.keyword for t in flow_triggers)
+                self.fields["ivr_retry"].initial = self.instance.metadata.get("ivr_retry", 60)
 
             class Meta:
                 model = Flow
                 fields = ("name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "ivr_retry")
                 widgets = {"name": InputWidget(), "ignore_triggers": CheckboxWidget()}
 
-        class MessagingForm(BaseForm):
-            keyword_triggers = forms.CharField(
-                required=False,
-                label=_("Global keyword triggers"),
-                help_text=_("When a user sends any of these keywords they will begin this flow"),
-                widget=SelectWidget(
-                    attrs={
-                        "widget_only": False,
-                        "multi": True,
-                        "searchable": True,
-                        "tags": True,
-                        "space_select": True,
-                        "placeholder": _("Keywords"),
-                    }
-                ),
-            )
-
+        class MessagingForm(BaseOnlineForm):
             expires_after_minutes = forms.ChoiceField(
                 label=_("Expire inactive contacts"),
                 help_text=_("When inactive contacts should be removed from the flow"),
@@ -616,20 +601,6 @@ class FlowCRUDL(SmartCRUDL):
                 choices=Flow.EXPIRES_CHOICES[Flow.TYPE_MESSAGE],
                 widget=SelectWidget(attrs={"widget_only": False}),
             )
-
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-                flow_triggers = Trigger.objects.filter(
-                    org=self.instance.org,
-                    flow=self.instance,
-                    is_archived=False,
-                    groups=None,
-                    trigger_type=Trigger.TYPE_KEYWORD,
-                ).order_by("created_on")
-
-                keyword_triggers = self.fields["keyword_triggers"]
-                keyword_triggers.initial = list([t.keyword for t in flow_triggers])
 
             class Meta:
                 model = Flow
@@ -668,49 +639,51 @@ class FlowCRUDL(SmartCRUDL):
             return obj
 
         def post_save(self, obj):
-            keywords = set()
-            user = self.request.user
-            org = self.request.org
+            keyword_triggers = self.form.cleaned_data.get("keyword_triggers")
 
-            if "keyword_triggers" in self.form.cleaned_data:
-                # get existing keyword triggers for this flow
-                existing = obj.triggers.filter(trigger_type=Trigger.TYPE_KEYWORD, is_archived=False, groups=None)
-                existing_keywords = {t.keyword for t in existing}
+            if keyword_triggers is not None:
+                self.update_triggers(obj, self.request.user, keyword_triggers)
 
-                if len(self.form.cleaned_data["keyword_triggers"]) > 0:
-                    keywords = set(self.form.cleaned_data["keyword_triggers"].split(","))
-
-                removed_keywords = existing_keywords.difference(keywords)
-                for keyword in removed_keywords:
-                    obj.triggers.filter(keyword=keyword, groups=None, is_archived=False).update(is_archived=True)
-
-                added_keywords = keywords.difference(existing_keywords)
-                archived_keywords = [
-                    t.keyword
-                    for t in obj.triggers.filter(
-                        org=org, flow=obj, trigger_type=Trigger.TYPE_KEYWORD, is_archived=True, groups=None
-                    )
-                ]
-
-                # set difference does not have a deterministic order, we need to sort the keywords
-                for keyword in sorted(added_keywords):
-                    # first check if the added keyword is not amongst archived
-                    if keyword in archived_keywords:  # pragma: needs cover
-                        obj.triggers.filter(org=org, flow=obj, keyword=keyword, groups=None).update(is_archived=False)
-                    else:
-                        Trigger.objects.create(
-                            org=org,
-                            keyword=keyword,
-                            trigger_type=Trigger.TYPE_KEYWORD,
-                            match_type=Trigger.MATCH_FIRST_WORD,
-                            flow=obj,
-                            created_by=user,
-                            modified_by=user,
-                        )
-
-            on_transaction_commit(lambda: update_session_wait_expires.delay(obj.pk))
+            on_transaction_commit(lambda: update_session_wait_expires.delay(obj.id))
 
             return obj
+
+        def update_triggers(self, flow, user, new_keywords: list):
+            existing_keywords = set()
+
+            # update existing keyword triggers for this flow, archiving any that are no longer valid
+            for trigger in flow.triggers.filter(trigger_type=Trigger.TYPE_KEYWORD, is_archived=False, is_active=True):
+                if set(trigger.keywords).issubset(new_keywords):
+                    existing_keywords.update(trigger.keywords)
+                else:
+                    trigger.archive(user)
+
+            missing_keywords = [k for k in new_keywords if k not in existing_keywords]
+
+            if missing_keywords:
+                # look for archived trigger, with default empty settings, whose keywords match, that we can restore
+                archived = flow.triggers.filter(
+                    trigger_type=Trigger.TYPE_KEYWORD,
+                    keywords__contains=missing_keywords,
+                    keywords__contained_by=new_keywords,
+                    channel=None,
+                    groups=None,
+                    exclude_groups=None,
+                    is_archived=True,
+                    is_active=True,
+                ).first()
+
+                if archived:
+                    archived.restore(user)
+                else:
+                    Trigger.create(
+                        flow.org,
+                        user,
+                        Trigger.TYPE_KEYWORD,
+                        flow,
+                        keywords=missing_keywords,
+                        match_type=Trigger.MATCH_FIRST_WORD,
+                    )
 
     class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, ContentMenuMixin, SmartListView):
         title = _("Flows")

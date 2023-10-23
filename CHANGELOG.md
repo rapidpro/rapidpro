@@ -1,3 +1,86 @@
+v8.3.61 (2023-10-23)
+-------------------------
+ * Add data migration to backfill Trigger.priority
+
+v8.3.60 (2023-10-23)
+-------------------------
+ * Add Trigger.priority and start writing
+
+v8.3.59 (2023-10-20)
+-------------------------
+ * Fix maxlength for campaign events and focus on compose
+
+v8.3.58 (2023-10-19)
+-------------------------
+ * Allow triggers to wrap
+
+v8.3.57 (2023-10-19)
+-------------------------
+ * Update oxford template filter to allow different conjunctions
+ * Move all trigger type templates into their own folders
+ * Add data migration to merge compatible keyword triggers
+
+v8.3.56 (2023-10-18)
+-------------------------
+ * Improve display of triggers on list pages
+ * Support multiple keywords per trigger in UI
+ * Fix WA legacy config page
+
+v8.3.55 (2023-10-17)
+-------------------------
+ * Show urns properly for urn change events
+ * Use localized validation errors for import validation
+ * Support multi-keyword triggers in exports and imports
+
+v8.3.54 (2023-10-17)
+-------------------------
+ * Drop Trigger.keyword
+
+v8.3.53 (2023-10-17)
+-------------------------
+ * Fix fetching of keywords across triggers when editing a flow
+
+v8.3.52 (2023-10-17)
+-------------------------
+ * Stop writing Trigger.keyword
+
+v8.3.51 (2023-10-17)
+-------------------------
+ * Only read from Trigger.keywords
+
+v8.3.50 (2023-10-16)
+-------------------------
+ * Make ticketer nullable on ticket
+ * Convert tickets API endpoints to use CRUDL perms
+ * Make sure we show the issue icon on the flow list page
+
+v8.3.49 (2023-10-13)
+-------------------------
+ * Add data migration to populate keywords on trigger
+ * Add localization to create broadcast wizard
+
+v8.3.47 (2023-10-12)
+-------------------------
+ * Add Trigger.keywords and start writing
+ * Switch contacts API endpoints to use CRUDL perms
+ * Cleanup BroadcastCRUDL.Send which is now only for sending to a flow node
+ * Remove unused LabelCRUDL.List view
+ * Convert messages, media and label API endpoints to use CRUDL perms
+
+v8.3.46 (2023-10-11)
+-------------------------
+ * Remove no longer needed deprecated options on definitions endpoint
+ * Replace orgs.org_api permission
+ * Drop no longer used fields on FlowRevision
+
+v8.3.45 (2023-10-10)
+-------------------------
+ * Show exclusion groups on trigger list pages
+ * Fix updating keyword triggers for flows
+ * Make sure we display trigger channel if set
+ * Limit access to API explorer to editors and admins
+ * Convert resthook API endpoints to use CRUDL based permissions
+
 v8.3.44 (2023-10-06)
 -------------------------
  * Allow request optin if optins exist

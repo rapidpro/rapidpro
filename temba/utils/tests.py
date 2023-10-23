@@ -12,6 +12,7 @@ from django_redis import get_redis_connection
 from django import forms
 from django.conf import settings
 from django.forms import ValidationError
+from django.template import Context, Template
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone, translation
@@ -29,7 +30,7 @@ from .crons import clear_cron_stats, cron_task
 from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
 from .fields import ExternalURLField, NameValidator
-from .templatetags.temba import oxford, short_datetime
+from .templatetags.temba import short_datetime
 from .text import clean_string, decode_stream, generate_secret, generate_token, slugify_with, truncate, unsnakify
 from .timezones import TimeZoneFormField, timezone_to_country_code
 
@@ -190,11 +191,16 @@ class TimezonesTest(TembaTest):
 
 
 class TemplateTagTest(TembaTest):
+    def _render(self, template, context=None):
+        context = context or {}
+        context = Context(context)
+        return Template("{% load temba %}" + template).render(context)
+
     def test_icon(self):
         campaign = Campaign.create(self.org, self.admin, "Test Campaign", self.create_group("Test group", []))
         flow = Flow.create(self.org, self.admin, "Test Flow")
-        trigger = Trigger.objects.create(
-            org=self.org, keyword="trigger", flow=flow, created_by=self.admin, modified_by=self.admin
+        trigger = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keywords=["trigger"], match_type=Trigger.MATCH_FIRST_WORD
         )
 
         self.assertEqual("icon-campaign", icon(campaign))
@@ -323,8 +329,6 @@ class TemplateTagTest(TembaTest):
             jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
             self.assertEqual("2012/7/20", short_datetime(context, jan_2))
 
-
-class TemplateTagTestSimple(TestCase):
     def test_delta(self):
         from temba.utils.templatetags.temba import delta_filter
 
@@ -343,36 +347,65 @@ class TemplateTagTestSimple(TestCase):
         self.assertEqual("", delta_filter("Invalid"))
 
     def test_oxford(self):
-        def forloop(idx, total):
-            """
-            Creates a dict like that available inside a template tag
-            """
-            return dict(counter0=idx, counter=idx + 1, revcounter=total - idx, last=total == idx + 1)
-
-        # list of two
-        self.assertEqual(" and ", oxford(forloop(0, 2)))
-        self.assertEqual(".", oxford(forloop(1, 2), "."))
-
-        # list of three
-        self.assertEqual(", ", oxford(forloop(0, 3)))
-        self.assertEqual(", and ", oxford(forloop(1, 3)))
-        self.assertEqual(".", oxford(forloop(2, 3), "."))
-
-        # list of four
-        self.assertEqual(", ", oxford(forloop(0, 4)))
-        self.assertEqual(", ", oxford(forloop(1, 4)))
-        self.assertEqual(", and ", oxford(forloop(2, 4)))
-        self.assertEqual(".", oxford(forloop(3, 4), "."))
-
+        self.assertEqual(
+            "",
+            self._render(
+                "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
+                {"words": []},
+            ),
+        )
+        self.assertEqual(
+            "one",
+            self._render(
+                "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
+                {"words": ["one"]},
+            ),
+        )
+        self.assertEqual(
+            "one and two",
+            self._render(
+                "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
+                {"words": ["one", "two"]},
+            ),
+        )
         with translation.override("es"):
-            self.assertEqual(", ", oxford(forloop(0, 3)))
-            self.assertEqual(" y ", oxford(forloop(0, 2)))
-            self.assertEqual(", y ", oxford(forloop(1, 3)))
-
+            self.assertEqual(
+                "one y two",
+                self._render(
+                    "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
+                    {"words": ["one", "two"]},
+                ),
+            )
         with translation.override("fr"):
-            self.assertEqual(", ", oxford(forloop(0, 3)))
-            self.assertEqual(" et ", oxford(forloop(0, 2)))
-            self.assertEqual(", et ", oxford(forloop(1, 3)))
+            self.assertEqual(
+                "one et two",
+                self._render(
+                    "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
+                    {"words": ["one", "two"]},
+                ),
+            )
+        self.assertEqual(
+            "one or two",
+            self._render(
+                '{% for word in words %}{{ word }}{{ forloop|oxford:"or" }}{% endfor %}',
+                {"words": ["one", "two"]},
+            ),
+        )
+        with translation.override("es"):
+            self.assertEqual(
+                "uno o dos",
+                self._render(
+                    '{% for word in words %}{{ word }}{{ forloop|oxford:_("or") }}{% endfor %}',
+                    {"words": ["uno", "dos"]},
+                ),
+            )
+        self.assertEqual(
+            "one, two, and three",
+            self._render(
+                "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
+                {"words": ["one", "two", "three"]},
+            ),
+        )
 
     def test_to_json(self):
         from temba.utils.templatetags.temba import to_json
@@ -954,4 +987,4 @@ class TestUUIDs(TembaTest):
 
 class ComposeTest(TembaTest):
     def test_empty_compose(self):
-        self.assertEqual(compose_serialize(), {"text": "", "attachments": []})
+        self.assertEqual(compose_serialize(), {})

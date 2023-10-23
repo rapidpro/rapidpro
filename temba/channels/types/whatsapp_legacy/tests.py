@@ -144,6 +144,11 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             except ValidationError:
                 pass
 
+        # ok, test our config page
+        config_url = reverse("channels.channel_configuration", args=[channel.uuid])
+        resp = self.client.get(config_url)
+        self.assertEqual(200, resp.status_code)
+
         # ok, test our refreshing
         refresh_url = reverse("channels.types.whatsapp_legacy.refresh", args=[channel.uuid])
         resp = self.client.get(refresh_url)

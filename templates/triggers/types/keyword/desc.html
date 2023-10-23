@@ -1,0 +1,8 @@
+{% load i18n %}
+
+{% if trigger.match_type == 'F' %}
+  {% trans "A message that starts with" %}
+{% else %}
+  {% trans "A message that matches" %}
+{% endif %}
+{% for keyword in trigger.keywords %}<b>{{ keyword }}</b>{{ forloop|oxford:"or" }}{% endfor %}

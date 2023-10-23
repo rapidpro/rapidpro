@@ -1,6 +1,7 @@
 import regex
 
 from django import forms
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
@@ -8,7 +9,7 @@ from temba.contacts.models import ContactURN
 from temba.contacts.search.omnibox import omnibox_deserialize
 from temba.flows.models import Flow
 from temba.schedules.views import ScheduleFormMixin
-from temba.utils.fields import InputWidget, JSONField, OmniboxChoice, SelectWidget, TembaChoiceField
+from temba.utils.fields import JSONField, OmniboxChoice, SelectWidget, TembaChoiceField
 
 from .models import ChannelTriggerType, Trigger, TriggerType
 from .views import BaseChannelTriggerForm, BaseTriggerForm
@@ -26,10 +27,18 @@ class KeywordTriggerType(ChannelTriggerType):
     )
 
     class Form(BaseChannelTriggerForm):
-        keyword = forms.CharField(
-            max_length=Trigger.KEYWORD_MAX_LEN,
-            label=_("Keyword"),
-            help_text=_("Word to match in the message text."),
+        keywords = forms.CharField(
+            label=_("Keywords"),
+            widget=SelectWidget(
+                attrs={
+                    "widget_only": False,
+                    "multi": True,
+                    "searchable": True,
+                    "tags": True,
+                    "space_select": True,
+                    "placeholder": _("Keywords"),
+                }
+            ),
         )
         match_type = forms.ChoiceField(
             choices=Trigger.MATCH_TYPES,
@@ -41,33 +50,50 @@ class KeywordTriggerType(ChannelTriggerType):
         def __init__(self, org, user, *args, **kwargs):
             super().__init__(org, user, Trigger.TYPE_KEYWORD, *args, **kwargs)
 
+        def clean_keywords(self):
+            keywords = [k.lower() for k in self.data.getlist("keywords", [])]
+
+            for keyword in keywords:
+                if not self.trigger_type.is_valid_keyword(keyword):
+                    raise forms.ValidationError(
+                        _("Must be a single word containing only letters and numbers, or a single emoji character.")
+                    )
+
+            return keywords
+
         def get_conflicts_kwargs(self, cleaned_data):
             kwargs = super().get_conflicts_kwargs(cleaned_data)
-            kwargs["keyword"] = cleaned_data.get("keyword") or ""
+            kwargs["keywords"] = cleaned_data["keywords"]
             return kwargs
 
         class Meta(BaseChannelTriggerForm.Meta):
-            fields = ("keyword", "match_type") + BaseChannelTriggerForm.Meta.fields
+            fields = ("keywords", "match_type") + BaseChannelTriggerForm.Meta.fields
             help_texts = {"channel": "Only include messages from this channel."}
-            widgets = {"keyword": InputWidget(), "match_type": SelectWidget()}
+            widgets = {"match_type": SelectWidget()}
 
     code = Trigger.TYPE_KEYWORD
     slug = "keyword"
     name = _("Keyword")
+    icon = "message"
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE)
     allowed_channel_role = Channel.ROLE_RECEIVE
-    export_fields = ChannelTriggerType.export_fields + ("keyword", "match_type")
-    required_fields = ChannelTriggerType.required_fields + ("keyword",)
+    export_fields = ChannelTriggerType.export_fields + ("keywords", "match_type")
+    required_fields = ChannelTriggerType.required_fields + ("keywords",)
     form = Form
 
     def get_instance_name(self, trigger):
-        return f"{self.name}[{trigger.keyword}] → {trigger.flow.name}"
+        return f"{self.name}[{', '.join(trigger.keywords)}] → {trigger.flow.name}"
 
-    def validate_import_def(self, trigger_def: dict):
-        super().validate_import_def(trigger_def)
+    def clean_import_def(self, trigger_def: dict):
+        if "keyword" in trigger_def:
+            trigger_def["keywords"] = [trigger_def["keyword"]]
+            del trigger_def["keyword"]
 
-        if not self.is_valid_keyword(trigger_def["keyword"]):
-            raise ValueError(f"{trigger_def['keyword']} is not a valid keyword")
+        super().clean_import_def(trigger_def)
+
+        for keyword in trigger_def["keywords"]:
+            if not self.is_valid_keyword(keyword):
+                raise ValidationError(_("%(keyword)s is not a valid keyword"), params={"keyword": keyword})
 
     @classmethod
     def is_valid_keyword(cls, keyword: str) -> bool:
@@ -89,6 +115,7 @@ class CatchallTriggerType(ChannelTriggerType):
     code = Trigger.TYPE_CATCH_ALL
     slug = "catch_all"
     name = _("Catch All")
+    icon = "message"
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE)
     allowed_channel_role = Channel.ROLE_RECEIVE
     form = Form
@@ -136,6 +163,7 @@ class ScheduledTriggerType(TriggerType):
     code = Trigger.TYPE_SCHEDULE
     slug = "schedule"
     name = _("Schedule")
+    icon = "calendar"
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND)
     exportable = False
     form = Form
@@ -202,6 +230,7 @@ class InboundCallTriggerType(ChannelTriggerType):
     code = Trigger.TYPE_INBOUND_CALL
     slug = "inbound_call"
     name = _("Inbound Call")
+    icon = "incoming_call"
     allowed_flow_types = (Flow.TYPE_VOICE, Flow.TYPE_MESSAGE, Flow.TYPE_BACKGROUND)
     allowed_channel_role = Channel.ROLE_ANSWER
     form = Form
@@ -235,6 +264,7 @@ class NewConversationTriggerType(ChannelTriggerType):
     code = Trigger.TYPE_NEW_CONVERSATION
     slug = "new_conversation"
     name = _("New Conversation")
+    icon = "conversation"
     allowed_flow_types = (Flow.TYPE_MESSAGE,)
     allowed_channel_schemes = ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION
     form = Form
@@ -264,6 +294,7 @@ class ReferralTriggerType(ChannelTriggerType):
     code = Trigger.TYPE_REFERRAL
     slug = "referral"
     name = _("Referral")
+    icon = "referral"
     allowed_flow_types = (Flow.TYPE_MESSAGE,)
     allowed_channel_schemes = ContactURN.SCHEMES_SUPPORTING_REFERRALS
     form = Form
@@ -281,6 +312,7 @@ class ClosedTicketTriggerType(TriggerType):
     code = Trigger.TYPE_CLOSED_TICKET
     slug = "closed_ticket"
     name = _("Closed Ticket")
+    icon = "agent"
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND)
     form = Form
 
@@ -297,6 +329,7 @@ class OptInTriggerType(ChannelTriggerType):
     code = Trigger.TYPE_OPT_IN
     slug = "opt_in"
     name = _("Opt-In")
+    icon = "optin"
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_BACKGROUND)
     allowed_channel_schemes = ContactURN.SCHEMES_SUPPORTING_OPTINS
     form = Form
@@ -314,6 +347,7 @@ class OptOutTriggerType(ChannelTriggerType):
     code = Trigger.TYPE_OPT_OUT
     slug = "opt_out"
     name = _("Opt-Out")
+    icon = "optout"
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_BACKGROUND)
     allowed_channel_schemes = ContactURN.SCHEMES_SUPPORTING_OPTINS
     form = Form

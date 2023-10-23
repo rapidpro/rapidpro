@@ -17,12 +17,9 @@
         <a href="{% url 'api.v2.explorer' %}" class="active">{% trans "Explorer" %}</a>
       </li>
       <li style="flex-grow:1"></li>
-      {% if api_token %}
-        <li style="color: #666"></li>
+      <li style="color: #666">
         API Token: {{ api_token }}
-      {% else %}
-        <li>{% trans "Log in to get your API Token" %}</li>
-      {% endif %}
+      </li>
     </ul>
   {% endblock breadcrumbs %}
   <div style="position: relative;" class="flex justify-between items-center pb-1 mb-4 px-8">

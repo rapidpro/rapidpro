@@ -30,7 +30,7 @@
   <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
   <div class="flex-grow overflow-y-auto shadow rounded-b-lg">
     {% if has_messages %}
-      <table class="{% if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send %}selectable{% endif %} list object-list lined scrolled">
+      <table class="{% if org_perms.msgs.msg_update or org_perms.msgs.broadcast_create %}selectable{% endif %} list object-list lined scrolled">
         <tbody>
           {% for object in object_list %}
             <tr data-object-id="{{ object.id }}"
@@ -41,7 +41,7 @@
                 class="sms object-row"
                 id="id-row-{{ object.id }}">
               {% if actions %}
-                {% if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send %}
+                {% if org_perms.msgs.msg_update or org_perms.msgs.broadcast_create %}
                   <td onclick="checkInner(event);" class="checkbox sms object-row-check">
                     <temba-checkbox onclick="handleRowSelection(this)">
                     </temba-checkbox>

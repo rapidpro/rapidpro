@@ -49,8 +49,8 @@
               <td>
                 <div class="flex items-center">
                   <div class="flex-grow">
-                    <div style="max-width:80%" class="flex inline whitespace-nowrap flex-grow items-center">
-                      <div class="inline-block flex items-center text-gray-600">
+                    <div style="max-width:80%" class="flex whitespace-nowrap flex-grow items-center">
+                      <div class="flex items-center text-gray-600">
                         {% if object.flow_type == 'V' %}
                           <temba-icon name="flow_ivr" class="mr-2">
                           </temba-icon>
@@ -79,7 +79,14 @@
               <td>
                 {% if not object.is_archived %}
                   <div class="whitespace-no-break flex items-center justify-end">
-                    {% if object.has_issues %}<div title="{{ _("Has issues") |escapejs }}" class="icon-warning mr-2"></div>{% endif %}
+                    {% if object.has_issues %}
+                      <div>
+                        <temba-tip position="top" text="{{ _("Has issues") |escapejs }}" slot="toggle">
+                          <temba-icon name="issue" class="mr-2" clickable="true">
+                          </temba-icon>
+                        </temba-tip>
+                      </div>
+                    {% endif %}
                     {% if object.run_stats.total %}
                       <div onclick="goto(event)"
                            href="{% url "flows.flow_results" object.uuid %}"

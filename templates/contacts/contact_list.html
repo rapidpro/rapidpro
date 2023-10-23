@@ -229,7 +229,7 @@
                 data-object-id="{{ object.id }}"
                 href="{% url 'contacts.contact_read' object.uuid %}"
                 class="contact select-row object-row">
-              {% if org_perms.contacts.contact_update or org_perms.msgs.broadcast_send %}
+              {% if org_perms.contacts.contact_update or org_perms.msgs.broadcast_create %}
                 <td onclick="checkInner(event);" class="contact checkbox object-row-checkbox">
                   <temba-checkbox onclick="handleRowSelection(this)">
                   </temba-checkbox>

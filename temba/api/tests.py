@@ -168,9 +168,24 @@ class APITestMixin:
             self.assertEqual(403, response.status_code, f"status code mismatch for {user}")
 
     def assertGet(
-        self, endpoint_url: str, users: list, *, results: list = None, errors: dict = None, num_queries: int = None
+        self,
+        endpoint_url: str,
+        users: list,
+        *,
+        results: list = None,
+        errors: dict = None,
+        raw=None,
+        num_queries: int = None,
     ):
-        assert (results is not None or errors) and not (results and errors), "must specify one of results or errors"
+        assert (results is not None) ^ (errors is not None) ^ (raw is not None)
+
+        matchers = (
+            ("uuid", lambda o: str(o.uuid)),
+            ("id", lambda o: o.id),
+            ("key", lambda o: o.key),
+            ("email", lambda o: o.email),
+            ("hash", lambda o: o.hash),
+        )
 
         def as_user(user, expected_results: list, expected_queries: int = None):
             response = self._getJSON(endpoint_url, user, expected_queries)
@@ -182,19 +197,24 @@ class APITestMixin:
                 full_check = expected_results and isinstance(expected_results[0], dict)
 
                 if results and not full_check:
-                    if "id" in actual_results[0]:
-                        id_key, id_fn = "id", lambda o: o.id
-                    elif "key" in actual_results[0]:
-                        id_key, id_fn = "key", lambda o: o.key
+                    for id_key, id_fn in matchers:
+                        if id_key in actual_results[0]:
+                            actual_ids = [r[id_key] for r in actual_results]
+                            expected_ids = [id_fn(o) for o in expected_results]
+                            break
                     else:
-                        id_key, id_fn = "uuid", lambda o: str(o.uuid)
+                        self.fail("results contain no matchable values")
 
-                    self.assertEqual([r[id_key] for r in actual_results], [id_fn(o) for o in expected_results])
+                    self.assertEqual(expected_ids, actual_ids)
                 else:
                     self.assertEqual(expected_results, actual_results)
-            else:
+            elif errors is not None:
                 for field, msg in errors.items():
                     self.assertResponseError(response, field, msg, status_code=400)
+            elif callable(raw):
+                self.assertTrue(raw(response.json()))
+            else:
+                self.assertEqual(raw, response.json())
 
             return response
 
@@ -230,7 +250,7 @@ class APITestMixin:
             response = self._deleteJSON(endpoint_url, user)
             self.assertEqual(403, response.status_code, f"status code mismatch for user {user}")
 
-    def assertDelete(self, endpoint_url: str, user, errors: dict = None, status=None):
+    def assertDelete(self, endpoint_url: str, user, *, errors: dict = None, status=None):
         response = self._deleteJSON(endpoint_url, user)
         if errors:
             for field, msg in errors.items():
