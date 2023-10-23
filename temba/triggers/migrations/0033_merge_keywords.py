@@ -5,14 +5,14 @@ from collections import defaultdict
 from django.db import migrations, transaction
 
 
-def merge_keyword_triggers(apps, schema_editor):
+def merge_keyword_triggers(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
 
     for org in Org.objects.filter(is_active=True):
         merge_org_triggers(org)
 
 
-def merge_org_triggers(org):
+def merge_org_triggers(org):  # pragma: no cover
     triggers_by_params = defaultdict(list)
 
     for trigger in org.triggers.filter(trigger_type="K", is_active=True).order_by("id"):
@@ -65,7 +65,7 @@ def merge_org_triggers(org):
                 t.delete()
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

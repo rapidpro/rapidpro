@@ -13,7 +13,7 @@ from temba.contacts.models import ContactGroup
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
+from temba.tests import CRUDLTestMixin, TembaTest
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import Trigger
@@ -24,16 +24,39 @@ from .views import Folder
 class TriggerTest(TembaTest):
     def test_model(self):
         flow = self.create_flow("Test Flow")
-        keyword = Trigger.create(
-            self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keywords=["join"], match_type=Trigger.MATCH_ONLY_WORD
+        group1 = self.create_group("Testers", contacts=[])
+        group2 = self.create_group("Developers", contacts=[])
+        keyword1 = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow,
+            keywords=["join"],
+            match_type=Trigger.MATCH_ONLY_WORD,
+            groups=[group1],
         )
-        catchall = Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow)
+        keyword2 = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow,
+            keywords=["join"],
+            match_type=Trigger.MATCH_ONLY_WORD,
+            groups=[group1],
+            exclude_groups=[group2],
+        )
+        catchall1 = Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow)
+        catchall2 = Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow, channel=self.channel)
 
-        self.assertEqual("Keyword[join] → Test Flow", keyword.name)
-        self.assertEqual('Trigger[type=K, flow="Test Flow"]', str(keyword))
+        self.assertEqual("Keyword[join] → Test Flow", keyword1.name)
+        self.assertEqual('Trigger[type=K, flow="Test Flow"]', str(keyword1))
+        self.assertEqual(2, keyword1.priority)
+        self.assertEqual(3, keyword2.priority)
 
-        self.assertEqual("Catch All → Test Flow", catchall.name)
-        self.assertEqual('Trigger[type=C, flow="Test Flow"]', str(catchall))
+        self.assertEqual("Catch All → Test Flow", catchall1.name)
+        self.assertEqual('Trigger[type=C, flow="Test Flow"]', str(catchall1))
+        self.assertEqual(0, catchall1.priority)
+        self.assertEqual(4, catchall2.priority)
 
         self.assertEqual(Folder.TICKETS, Folder.from_slug("tickets"))
         self.assertIsNone(Folder.from_slug("xx"))
@@ -1346,6 +1369,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(channel1, trigger.channel)
         self.assertEqual({group1, group2}, set(trigger.groups.all()))
         self.assertEqual({group3}, set(trigger.exclude_groups.all()))
+        self.assertEqual(7, trigger.priority)
 
         # error if keyword is not defined or invalid
         self.assertUpdateSubmit(
@@ -1848,62 +1872,3 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertListFetch(referral_url, allow_viewers=True, allow_editors=True, context_objects=[trigger4, trigger3])
         self.assertListFetch(tickets_url, allow_viewers=True, allow_editors=True, context_objects=[])
-
-
-class MergeTriggersTest(MigrationTest):
-    app = "triggers"
-    migrate_from = "0032_remove_trigger_keyword"
-    migrate_to = "0033_merge_keywords"
-
-    def setUpBeforeMigration(self, apps):
-        self.flow1 = self.create_flow("Flow 1")
-        self.flow2 = self.create_flow("Flow 2")
-        self.group1 = self.create_group("Group 1", contacts=[])
-        self.group2 = self.create_group("Group 2", contacts=[])
-
-        def create_trigger(keywords, match_type, channel, groups, exclude_groups, flow, is_archived):
-            trigger = Trigger.objects.create(
-                org=self.org,
-                trigger_type=Trigger.TYPE_KEYWORD,
-                flow=flow,
-                keywords=keywords,
-                match_type=match_type,
-                channel=channel,
-                is_archived=is_archived,
-                created_by=self.admin,
-                modified_by=self.admin,
-            )
-            trigger.groups.set(groups)
-            trigger.exclude_groups.set(exclude_groups)
-            return trigger
-
-        create_trigger(["start"], "O", None, [], [], self.flow1, False)
-        create_trigger(["join"], "O", None, [], [], self.flow1, False)
-        create_trigger(["join"], "O", None, [self.group1], [self.group2], self.flow1, False)
-        create_trigger(["begin"], "O", None, [self.group1], [self.group2], self.flow1, False)
-        create_trigger(["join"], "O", self.channel, [], [], self.flow1, False)
-        create_trigger(["go"], "O", self.channel, [], [], self.flow1, False)
-        create_trigger(["launch"], "F", self.channel, [], [], self.flow1, False)
-        create_trigger(["stop"], "O", None, [], [], self.flow2, False)
-        create_trigger(["stop"], "O", None, [], [], self.flow2, True)
-        create_trigger(["halt"], "O", None, [], [], self.flow2, True)
-
-    def test_migration(self):
-        def assert_trigger(keywords, match_type, channel, groups, exclude_groups, flow, is_archived):
-            matches = 0
-            candidates = self.org.triggers.filter(
-                keywords=keywords, match_type=match_type, channel=channel, flow=flow, is_archived=is_archived
-            )
-            for t in candidates:
-                if set(t.groups.all()) == set(groups) and set(t.exclude_groups.all()) == set(exclude_groups):
-                    matches += 1
-
-            self.assertEqual(1, matches, f"expected 1 matching trigger but found {matches}")
-
-        assert_trigger(["join", "start"], "O", None, [], [], self.flow1, False)
-        assert_trigger(["begin", "join"], "O", None, [self.group1], [self.group2], self.flow1, False)
-        assert_trigger(["go", "join"], "O", self.channel, [], [], self.flow1, False)
-        assert_trigger(["launch"], "F", self.channel, [], [], self.flow1, False)
-        assert_trigger(["stop"], "O", None, [], [], self.flow2, False)
-        assert_trigger(["halt", "stop"], "O", None, [], [], self.flow2, True)
-        self.assertEqual(6, self.org.triggers.count())  # check they are no more triggers

@@ -93,7 +93,6 @@ class Trigger(SmartModel):
 
     MATCH_FIRST_WORD = "F"
     MATCH_ONLY_WORD = "O"
-
     MATCH_TYPES = (
         (MATCH_FIRST_WORD, _("Message starts with the keyword")),
         (MATCH_ONLY_WORD, _("Message contains only the keyword")),
@@ -103,9 +102,10 @@ class Trigger(SmartModel):
     trigger_type = models.CharField(max_length=1, default=TYPE_KEYWORD)
     is_archived = models.BooleanField(default=False)
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="triggers")
-    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, related_name="triggers")
+    priority = models.IntegerField(null=True)
 
     # who trigger applies to
+    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, related_name="triggers")
     groups = models.ManyToManyField(ContactGroup, related_name="triggers_included")
     exclude_groups = models.ManyToManyField(ContactGroup, related_name="triggers_excluded")
     contacts = models.ManyToManyField(Contact, related_name="triggers")  # scheduled triggers only
@@ -145,6 +145,7 @@ class Trigger(SmartModel):
             keywords=keywords,
             schedule=schedule,
             match_type=match_type,
+            priority=cls._priority(channel, groups, exclude_groups),
             created_by=user,
             modified_by=user,
             **kwargs,
@@ -165,6 +166,20 @@ class Trigger(SmartModel):
             trigger.channel.type.activate_trigger(trigger)
 
         return trigger
+
+    @classmethod
+    def _priority(cls, channel, groups, exclude_groups) -> int:
+        """
+        Calculate priority based on specificity
+        """
+        priority = 0
+        if channel:
+            priority += 4
+        if groups:
+            priority += 2
+        if exclude_groups:
+            priority += 1
+        return priority
 
     def archive(self, user):
         self.modified_by = user
