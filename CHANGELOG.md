@@ -1,3 +1,7 @@
+v8.3.61 (2023-10-23)
+-------------------------
+ * Add data migration to backfill Trigger.priority
+
 v8.3.60 (2023-10-23)
 -------------------------
  * Add Trigger.priority and start writing
