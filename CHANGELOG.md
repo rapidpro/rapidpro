@@ -1,3 +1,7 @@
+v8.3.60 (2023-10-23)
+-------------------------
+ * Add Trigger.priority and start writing
+
 v8.3.59 (2023-10-20)
 -------------------------
  * Fix maxlength for campaign events and focus on compose
