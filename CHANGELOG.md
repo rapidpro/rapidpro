@@ -1,3 +1,7 @@
+v8.3.63 (2023-10-23)
+-------------------------
+ * Fix SendBroadcast action to work with localized compose
+
 v8.3.62 (2023-10-23)
 -------------------------
  * Make Trigger.priority non-null and use for ordering
