@@ -513,6 +513,12 @@ class TriggerCRUDL(SmartCRUDL):
                     form.cleaned_data.get("repeat_days_of_week"),
                 )
 
+            self.object.priority = Trigger._priority(
+                form.cleaned_data.get("channel"),
+                form.cleaned_data.get("groups"),
+                form.cleaned_data.get("exclude_groups"),
+            )
+
             response = super().form_valid(form)
             response["REDIRECT"] = self.get_success_url()
             return response
