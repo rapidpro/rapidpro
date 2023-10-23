@@ -13,7 +13,7 @@ from temba.contacts.models import ContactGroup
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, TembaTest
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import Trigger
@@ -1872,3 +1872,44 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertListFetch(referral_url, allow_viewers=True, allow_editors=True, context_objects=[trigger4, trigger3])
         self.assertListFetch(tickets_url, allow_viewers=True, allow_editors=True, context_objects=[])
+
+
+class BackfillPriorityTest(MigrationTest):
+    app = "triggers"
+    migrate_from = "0034_trigger_priority"
+    migrate_to = "0035_backfill_trigger_priority"
+
+    def setUpBeforeMigration(self, apps):
+        flow = self.create_flow("Flow 1")
+        group1 = self.create_group("Group 1", contacts=[])
+        group2 = self.create_group("Group 2", contacts=[])
+
+        def create_trigger(channel, groups, exclude_groups):
+            trigger = Trigger.objects.create(
+                org=self.org,
+                trigger_type=Trigger.TYPE_KEYWORD,
+                flow=flow,
+                keywords=["join"],
+                match_type=Trigger.MATCH_FIRST_WORD,
+                channel=channel,
+                created_by=self.admin,
+                modified_by=self.admin,
+            )
+            trigger.groups.set(groups)
+            trigger.exclude_groups.set(exclude_groups)
+            return trigger
+
+        self.trigger0 = create_trigger(None, [], [])
+        self.trigger1 = create_trigger(None, [], [group1, group2])
+        self.trigger2 = create_trigger(None, [group1, group2], [])
+        self.trigger3 = create_trigger(None, [group1], [group2])
+        self.trigger4 = create_trigger(self.channel, [], [])
+        self.trigger5 = create_trigger(self.channel, [], [group1])
+        self.trigger6 = create_trigger(self.channel, [group2], [])
+        self.trigger7 = create_trigger(self.channel, [group2], [group1])
+
+    def test_migration(self):
+        for i in range(8):
+            trigger = getattr(self, f"trigger{i}")
+            trigger.refresh_from_db()
+            self.assertEqual(i, trigger.priority)
