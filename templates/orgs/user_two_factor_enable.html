@@ -1,28 +1,20 @@
-{% extends "smartmin/form.html" %}
-{% load smartmin i18n %}
+{% extends "smartmin/update.html" %}
+{% load i18n %}
 
-{% block page-title %}
-  {{ title }}
-{% endblock page-title %}
-{% block content %}
-  <div class="card -mt-1">
-    <div style="max-width:30em;margin: 0 auto" class="flex pt-6">
-      <div class="pl-2 pr-6">
-        {% blocktrans trimmed with ga_url="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" authy_url="https://authy.com/" %}
-          To enable two-factor authentication on your login, use a one-time password (OTP) application such as
-          <a target="_blank" href="{{ ga_url }}">Google Authenticator</a> or <a target="_blank" href="{{ authy_url }}">Authy</a> to scan the QR code
-          below.
-        {% endblocktrans %}
-      </div>
-      <div class="px-2">
-        <canvas id="qr"></canvas>
-      </div>
-    </div>
-    <div style="max-width:30em;margin: 0 auto" class="flex pt-4">{{ block.super }}</div>
+{% block pre-form %}
+  <div class="mb-2">
+    {% blocktrans trimmed with ga_url="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" authy_url="https://authy.com/" %}
+      To enable two-factor authentication on your login, use a one-time password (OTP) application such as
+      <a target="_blank" href="{{ ga_url }}">Google Authenticator</a> or <a target="_blank" href="{{ authy_url }}">Authy</a> to scan the QR code
+      below.
+    {% endblocktrans %}
   </div>
-{% endblock content %}
+  <div class="mb-2 text-center">
+    <canvas id="qr"></canvas>
+  </div>
+{% endblock pre-form %}
 {% block form-buttons %}
-  <div class="mt-6 text-right">
+  <div class="form-actions">
     <input type="submit" value="{{ submit_button_name }}" class="button-primary">
   </div>
 {% endblock form-buttons %}

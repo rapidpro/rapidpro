@@ -403,64 +403,38 @@ class UserTest(TembaTest):
 
         self.assertFalse(self.admin.settings.two_factor_enabled)
 
-    def test_two_factor_spa(self):
-        enable_url = reverse("orgs.user_two_factor_enable")
-        tokens_url = reverse("orgs.user_two_factor_tokens")
-        self.login(self.admin)
-
-        # submit with valid OTP and password
-        with patch("pyotp.TOTP.verify", return_value=True):
-            response = self.client.post(enable_url, {"otp": "123456", "password": "Qwerty123"})
-
-        header = {"HTTP_TEMBA_SPA": 1}
-        response = self.client.get(tokens_url, **header)
-        self.assertContains(response, "Regenerate Tokens")
-        self.assertNotContains(response, "gear-container")
-
     def test_two_factor_views(self):
         enable_url = reverse("orgs.user_two_factor_enable")
         tokens_url = reverse("orgs.user_two_factor_tokens")
         disable_url = reverse("orgs.user_two_factor_disable")
-        menu_url = reverse("orgs.org_menu") + "settings/"
 
         self.login(self.admin, update_last_auth_on=True)
 
-        # settings menu gives us option to enable
-        response = self.client.get(menu_url)
-        self.assertContains(response, "Enable 2FA")
-        self.assertContains(response, enable_url)
-
         # view form to enable 2FA
         response = self.client.get(enable_url)
-        self.assertEqual(["otp", "password", "loc"], list(response.context["form"].fields.keys()))
+        self.assertEqual(["otp", "confirm_password", "loc"], list(response.context["form"].fields.keys()))
 
         # try to submit with no OTP or password
         response = self.client.post(enable_url, {})
         self.assertFormError(response, "form", "otp", "This field is required.")
-        self.assertFormError(response, "form", "password", "This field is required.")
+        self.assertFormError(response, "form", "confirm_password", "This field is required.")
 
         # try to submit with invalid OTP and password
-        response = self.client.post(enable_url, {"otp": "nope", "password": "wrong"})
+        response = self.client.post(enable_url, {"otp": "nope", "confirm_password": "wrong"})
         self.assertFormError(response, "form", "otp", "OTP incorrect. Please try again.")
-        self.assertFormError(response, "form", "password", "Password incorrect.")
+        self.assertFormError(response, "form", "confirm_password", "Password incorrect.")
 
         # submit with valid OTP and password
         with patch("pyotp.TOTP.verify", return_value=True):
-            response = self.client.post(enable_url, {"otp": "123456", "password": "Qwerty123"})
+            response = self.client.post(enable_url, {"otp": "123456", "confirm_password": "Qwerty123"})
         self.assertRedirect(response, tokens_url)
 
         del self.admin.settings  # clear cached_property
         self.assertTrue(self.admin.settings.two_factor_enabled)
 
-        # settings menu now has a Security option which links to tokens page
-        response = self.client.get(menu_url)
-        self.assertContains(response, "Security")
-        self.assertContains(response, tokens_url)
-
         # view backup tokens page
         response = self.client.get(tokens_url)
         self.assertContains(response, "Regenerate Tokens")
-        self.assertContains(response, disable_url)
 
         tokens = [t.token for t in response.context["backup_tokens"]]
 
@@ -471,19 +445,19 @@ class UserTest(TembaTest):
 
         # view form to disable 2FA
         response = self.client.get(disable_url)
-        self.assertEqual(["password", "loc"], list(response.context["form"].fields.keys()))
+        self.assertEqual(["confirm_password", "loc"], list(response.context["form"].fields.keys()))
 
         # try to submit with no password
         response = self.client.post(disable_url, {})
-        self.assertFormError(response, "form", "password", "This field is required.")
+        self.assertFormError(response, "form", "confirm_password", "This field is required.")
 
         # try to submit with invalid password
-        response = self.client.post(disable_url, {"password": "wrong"})
-        self.assertFormError(response, "form", "password", "Password incorrect.")
+        response = self.client.post(disable_url, {"confirm_password": "wrong"})
+        self.assertFormError(response, "form", "confirm_password", "Password incorrect.")
 
         # submit with valid password
-        response = self.client.post(disable_url, {"password": "Qwerty123"})
-        self.assertRedirect(response, reverse("orgs.user_two_factor_enable"))
+        response = self.client.post(disable_url, {"confirm_password": "Qwerty123"})
+        self.assertRedirect(response, reverse("orgs.user_account"))
 
         del self.admin.settings  # clear cached_property
         self.assertFalse(self.admin.settings.two_factor_enabled)
@@ -516,15 +490,9 @@ class UserTest(TembaTest):
 
     def test_two_factor_confirm_access(self):
         tokens_url = reverse("orgs.user_two_factor_tokens")
-        menu_url = reverse("orgs.org_menu") + "settings/"
 
         self.admin.enable_2fa()
         self.login(self.admin, update_last_auth_on=False)
-
-        # settings menu tells us 2FA is enabled, links to page manage tokens
-        response = self.client.get(menu_url)
-        self.assertContains(response, "Security")
-        self.assertContains(response, tokens_url)
 
         # but navigating to tokens page redirects to confirm auth
         response = self.client.get(tokens_url)
@@ -2603,7 +2571,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         menu_url = reverse("orgs.org_menu")
 
         self.assertMenu(menu_url, 9, ["Workspace/Child Workspace"])
-        self.assertMenu(f"{menu_url}settings/", 6)
+        self.assertMenu(f"{menu_url}settings/", 5)
 
         # agents should only see tickets and settings
         self.login(self.agent)
@@ -2665,7 +2633,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # make sure we have the appropriate number of sections
         self.assertEqual(7, len(response.context["formax"].sections))
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 6)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 5)
 
         # enable child workspaces and users
         self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS]
@@ -2684,7 +2652,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             response = self.client.get(workspace_url)
 
         # should have an extra menu options for workspaces and users
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 8)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 7)
 
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")
