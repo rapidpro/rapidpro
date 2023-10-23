@@ -1,3 +1,7 @@
+v8.3.62 (2023-10-23)
+-------------------------
+ * Make Trigger.priority non-null and use for ordering
+
 v8.3.61 (2023-10-23)
 -------------------------
  * Add data migration to backfill Trigger.priority
