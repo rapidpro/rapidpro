@@ -4,7 +4,7 @@ from django.db import migrations
 from django.db.models import Count
 
 
-def backfill_trigger_priority(apps, schema_editor):
+def backfill_trigger_priority(apps, schema_editor):  # pragma: no cover
     Trigger = apps.get_model("triggers", "Trigger")
 
     triggers = (
@@ -30,7 +30,7 @@ def backfill_trigger_priority(apps, schema_editor):
         print(f"Updated priority on {num_updated} triggers")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

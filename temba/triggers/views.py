@@ -31,18 +31,29 @@ from .models import Trigger
 
 
 class Folder(Enum):
-    MESSAGES = (_("Messages"), _("Message Triggers"), (Trigger.TYPE_KEYWORD, Trigger.TYPE_CATCH_ALL))
-    SCHEDULE = (_("Scheduled"), _("Scheduled Triggers"), (Trigger.TYPE_SCHEDULE,))
-    CALLS = (_("Calls"), _("Call Triggers"), (Trigger.TYPE_INBOUND_CALL, Trigger.TYPE_MISSED_CALL))
-    NEW_CONVERSATION = (_("New Conversation"), _("New Conversation Triggers"), (Trigger.TYPE_NEW_CONVERSATION,))
-    REFERRAL = (_("Referral"), _("Referral Triggers"), (Trigger.TYPE_REFERRAL,))
-    TICKETS = (_("Tickets"), _("Ticket Triggers"), (Trigger.TYPE_CLOSED_TICKET,))
-    OPTINS = (_("Opt-Ins"), _("Opt-In Triggers"), (Trigger.TYPE_OPT_IN, Trigger.TYPE_OPT_OUT))
+    MESSAGES = (
+        _("Messages"),
+        _("Message Triggers"),
+        (Trigger.TYPE_KEYWORD, Trigger.TYPE_CATCH_ALL),
+        ("keywords__0", "-priority"),
+    )
+    SCHEDULE = (_("Scheduled"), _("Scheduled Triggers"), (Trigger.TYPE_SCHEDULE,), ())
+    CALLS = (_("Calls"), _("Call Triggers"), (Trigger.TYPE_INBOUND_CALL, Trigger.TYPE_MISSED_CALL), ("-priority",))
+    NEW_CONVERSATION = (
+        _("New Conversation"),
+        _("New Conversation Triggers"),
+        (Trigger.TYPE_NEW_CONVERSATION,),
+        ("-priority",),
+    )
+    REFERRAL = (_("Referral"), _("Referral Triggers"), (Trigger.TYPE_REFERRAL,), ("-priority",))
+    TICKETS = (_("Tickets"), _("Ticket Triggers"), (Trigger.TYPE_CLOSED_TICKET,), ("-priority",))
+    OPTINS = (_("Opt-Ins"), _("Opt-In Triggers"), (Trigger.TYPE_OPT_IN, Trigger.TYPE_OPT_OUT), ("-priority",))
 
-    def __init__(self, display, title, types):
+    def __init__(self, display, title, types, ordering):
         self.display = display
         self.title = title
         self.types = types
+        self.ordering = ordering
 
     @property
     def slug(self) -> str:
@@ -583,6 +594,7 @@ class TriggerCRUDL(SmartCRUDL):
         """
 
         bulk_actions = ("archive",)
+        paginate_by = 100
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -603,5 +615,5 @@ class TriggerCRUDL(SmartCRUDL):
                 super()
                 .get_queryset(*args, **kwargs)
                 .filter(is_archived=False, trigger_type__in=self.folder.types)
-                .order_by(Trigger.type_order(), "-created_on")
+                .order_by(Trigger.type_order(), *self.folder.ordering, "-created_on")
             )
