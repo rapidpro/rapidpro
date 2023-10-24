@@ -2219,7 +2219,7 @@ class OrgCRUDL(SmartCRUDL):
 
             # if we created a new separate org, switch to it
             switch_to_org(self.request, self.object)
-            return reverse("msgs.msg_inbox")
+            return reverse("orgs.org_start")
 
         def form_valid(self, form):
             default_type = form.TYPE_CHILD if Org.FEATURE_CHILD_ORGS in self.request.org.features else form.TYPE_NEW
@@ -2247,16 +2247,11 @@ class OrgCRUDL(SmartCRUDL):
                 response["Temba-Success"] = success_url
                 return response
 
-    class StartMixin:
-        start_urls = {
-            OrgRole.ADMINISTRATOR: "msgs.msg_inbox",
-            OrgRole.EDITOR: "msgs.msg_inbox",
-            OrgRole.VIEWER: "msgs.msg_inbox",
-            OrgRole.AGENT: "tickets.ticket_list",
-            OrgRole.SURVEYOR: "orgs.org_surveyor",
-        }
+    class Start(SmartTemplateView):
+        def has_permission(self, request, *args, **kwargs):
+            return self.request.user.is_authenticated
 
-        def get_start_redirect(self):
+        def pre_process(self, request, *args, **kwargs):
             user = self.request.user
             org = self.request.org
 
@@ -2264,16 +2259,9 @@ class OrgCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse("orgs.org_manage"))
 
             role = org.get_user_role(user)
-            return HttpResponseRedirect(reverse(self.start_urls[role]))
+            return HttpResponseRedirect(reverse(role.start_view))
 
-    class Start(StartMixin, OrgPermsMixin, SmartTemplateView):
-        def has_permission(self, request, *args, **kwargs):
-            return self.request.user.is_authenticated
-
-        def pre_process(self, request, *args, **kwargs):
-            return self.get_start_redirect()
-
-    class Choose(NoNavMixin, StartMixin, SpaMixin, SmartFormView):
+    class Choose(NoNavMixin, SpaMixin, SmartFormView):
         class Form(forms.Form):
             organization = forms.ModelChoiceField(queryset=Org.objects.none(), empty_label=None)
 
@@ -2293,9 +2281,9 @@ class OrgCRUDL(SmartCRUDL):
                 if user_orgs.count() == 1:
                     org = user_orgs[0]
                     switch_to_org(self.request, org)
-                    self.request.org = org
                     analytics.identify(user, self.request.branding, org)
-                    return self.get_start_redirect()
+
+                    return HttpResponseRedirect(reverse("orgs.org_start"))
 
                 elif user_orgs.count() == 0:
                     if user.is_staff:
@@ -2324,15 +2312,15 @@ class OrgCRUDL(SmartCRUDL):
             org = form.cleaned_data["organization"]
             switch_to_org(self.request, org)
             analytics.identify(self.request.user, self.request.branding, org)
-            self.request.org = org
-            return self.get_start_redirect()
+
+            return HttpResponseRedirect(reverse("orgs.org_start"))
 
     class CreateLogin(NoNavMixin, SmartUpdateView):
         title = ""
         form_class = OrgSignupForm
         fields = ("first_name", "last_name", "password")
         success_message = ""
-        success_url = "@msgs.msg_inbox"
+        success_url = "@orgs.org_start"
         submit_button_name = _("Create Login")
         permission = False
 
@@ -2460,7 +2448,7 @@ class OrgCRUDL(SmartCRUDL):
         success_message = ""
         title = ""
         form_class = JoinAcceptForm
-        success_url = "@msgs.msg_inbox"
+        success_url = "@orgs.org_start"
         submit_button_name = _("Join")
 
         def has_permission(self, request, *args, **kwargs):
@@ -2501,12 +2489,6 @@ class OrgCRUDL(SmartCRUDL):
                 self.invitation.save()
 
                 switch_to_org(self.request, org)
-
-        def get_success_url(self):  # pragma: needs cover
-            if self.invitation.user_group == "S":
-                return reverse("orgs.org_surveyor")
-
-            return super().get_success_url()
 
         @classmethod
         def derive_url_pattern(cls, path, action):
