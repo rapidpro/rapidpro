@@ -1374,18 +1374,22 @@ class OrgCRUDL(SmartCRUDL):
                 ),
             ]
 
-            if org:
-                menu.append(
-                    {
-                        "id": "settings",
-                        "name": _("Settings"),
-                        "icon": "home",
-                        "href": reverse("orgs.org_workspace"),
-                        "endpoint": f"{reverse('orgs.org_menu')}settings/",
-                        "bottom": True,
-                        "show_header": True,
-                    }
-                )
+            if not org or not self.has_org_perm("orgs.org_workspace"):
+                settings_view = "orgs.user_account"
+            else:
+                settings_view = "orgs.org_workspace"
+
+            menu.append(
+                {
+                    "id": "settings",
+                    "name": _("Settings"),
+                    "icon": "home",
+                    "href": reverse(settings_view),
+                    "endpoint": f"{reverse('orgs.org_menu')}settings/",
+                    "bottom": True,
+                    "show_header": True,
+                }
+            )
 
             if self.request.user.is_staff:
                 menu.append(
