@@ -846,8 +846,10 @@ class UserCRUDL(SmartCRUDL):
                 fields = ("first_name", "last_name", "email", "current_password", "new_password", "language")
 
         form_class = Form
-        permission = "orgs.org_profile"
         success_message = ""
+
+        def has_permission(self, request, *args, **kwargs):
+            return self.request.user.is_authenticated
 
         def derive_initial(self):
             initial = super().derive_initial()
@@ -871,21 +873,6 @@ class UserCRUDL(SmartCRUDL):
             obj.settings.language = self.form.cleaned_data["language"]
             obj.settings.save()
             return obj
-
-        def has_permission(self, request, *args, **kwargs):
-            user = self.request.user
-
-            if user.is_anonymous:
-                return False
-
-            if request.org:
-                if not user.is_authenticated:  # pragma: needs cover
-                    return False
-
-                if request.org.has_user(user):
-                    return True
-
-            return False  # pragma: needs cover
 
     class TwoFactorEnable(SpaMixin, InferUserMixin, SmartUpdateView):
         class Form(forms.ModelForm):

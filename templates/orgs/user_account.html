@@ -4,7 +4,7 @@
 {% block content %}
   {% include "formax.html" %}
   <div class="flex flex-row bg-gray-200 border border-gray-400 rounded-lg cursor-pointer items-center"
-       onclick="goto(event)"
+       onclick="goto(event, this)"
        href="{% if two_factor_enabled %}{% url 'orgs.user_two_factor_disable' %}{% else %}{% url 'orgs.user_two_factor_enable' %}{% endif %}">
     <div class="m-8 text-4xl text-gray-600 items-center">
       <temba-icon name="two_factor_{% if two_factor_enabled %}enabled{% else %}disabled{% endif %}">
