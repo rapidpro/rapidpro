@@ -6,7 +6,7 @@ from django.core.mail import EmailMultiAlternatives, get_connection as get_smtp_
 from django.core.validators import EmailValidator
 from django.template import loader
 from django.utils import timezone
-from textit.utils import get_nested_key
+from temba.utils import get_nested_key
 
 
 class TembaEmailValidator(EmailValidator):

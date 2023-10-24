@@ -73,6 +73,17 @@ def on_transaction_commit(func):
         transaction.on_commit(func)
 
 
+def get_nested_key(nested_dict, key, default=""):
+    keys = key.split(".")
+    value = nested_dict
+    while keys:
+        key = keys.pop(0)
+        value = value.get(key, default)
+        if not isinstance(value, dict):
+            break
+    return value
+
+
 _anon_user = None
 
 
