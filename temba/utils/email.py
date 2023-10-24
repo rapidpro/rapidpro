@@ -6,6 +6,7 @@ from django.core.mail import EmailMultiAlternatives, get_connection as get_smtp_
 from django.core.validators import EmailValidator
 from django.template import loader
 from django.utils import timezone
+from textit.utils import get_nested_key
 
 
 class TembaEmailValidator(EmailValidator):
@@ -101,7 +102,9 @@ def send_template_email(recipients, subject, template, context, branding):
     """
 
     # brands are allowed to give us a from address
-    from_email = branding.get("from_email", getattr(settings, "DEFAULT_FROM_EMAIL", "website@rapidpro.io"))
+    from_email = get_nested_key(
+        branding, "emails.notifications", getattr(settings, "DEFAULT_FROM_EMAIL", "website@rapidpro.io")
+    )
     recipient_list = [recipients] if isinstance(recipients, str) else recipients
 
     html_template = loader.get_template(template + ".html")

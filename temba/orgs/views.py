@@ -2693,7 +2693,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def pre_process(self, request, *args, **kwargs):
             # if our brand doesn't allow signups, then redirect to the homepage
-            if not request.branding.get("allow_signups", False):  # pragma: needs cover
+            if 'signups' not in request.branding.get("features", []):  # pragma: needs cover
                 return HttpResponseRedirect(reverse("public.public_index"))
 
             else:
