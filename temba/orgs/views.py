@@ -617,12 +617,29 @@ class ConfirmAccessView(Login):
 
 
 class InferOrgMixin:
+    """
+    Mixin for view whose object is the current org
+    """
+
     @classmethod
     def derive_url_pattern(cls, path, action):
         return r"^%s/%s/$" % (path, action)
 
     def get_object(self, *args, **kwargs):
         return self.request.org
+
+
+class InferUserMixin:
+    """
+    Mixin for view whose object is the current user
+    """
+
+    @classmethod
+    def derive_url_pattern(cls, path, action):
+        return r"^%s/%s/$" % (path, action)
+
+    def get_object(self, *args, **kwargs):
+        return self.request.user
 
 
 class UserCRUDL(SmartCRUDL):
@@ -777,8 +794,8 @@ class UserCRUDL(SmartCRUDL):
 
             return super().form_valid(form)
 
-    class Edit(SmartUpdateView):
-        class EditForm(forms.ModelForm):
+    class Edit(InferUserMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
             first_name = forms.CharField(
                 label=_("First Name"), widget=InputWidget(attrs={"placeholder": _("Required")})
             )
@@ -828,16 +845,11 @@ class UserCRUDL(SmartCRUDL):
                 model = User
                 fields = ("first_name", "last_name", "email", "current_password", "new_password", "language")
 
-        form_class = EditForm
-        permission = "orgs.org_profile"
+        form_class = Form
         success_message = ""
 
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/$" % (path, action)
-
-        def get_object(self, *args, **kwargs):
-            return self.request.user
+        def has_permission(self, request, *args, **kwargs):
+            return self.request.user.is_authenticated
 
         def derive_initial(self):
             initial = super().derive_initial()
@@ -862,31 +874,16 @@ class UserCRUDL(SmartCRUDL):
             obj.settings.save()
             return obj
 
-        def has_permission(self, request, *args, **kwargs):
-            user = self.request.user
-
-            if user.is_anonymous:
-                return False
-
-            if request.org:
-                if not user.is_authenticated:  # pragma: needs cover
-                    return False
-
-                if request.org.has_user(user):
-                    return True
-
-            return False  # pragma: needs cover
-
-    class TwoFactorEnable(SpaMixin, ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
-        class Form(forms.Form):
+    class TwoFactorEnable(SpaMixin, InferUserMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
             otp = forms.CharField(
-                label="The generated OTP",
+                label=_("The generated OTP"),
                 widget=InputWidget(attrs={"placeholder": _("6-digit code")}),
                 max_length=6,
                 required=True,
             )
-            password = forms.CharField(
-                label="Your current login password",
+            confirm_password = forms.CharField(
+                label=_("Your current login password"),
                 widget=InputWidget(attrs={"placeholder": _("Current password"), "password": True}),
                 required=True,
             )
@@ -902,19 +899,25 @@ class UserCRUDL(SmartCRUDL):
                     raise forms.ValidationError(_("OTP incorrect. Please try again."))
                 return data
 
-            def clean_password(self):
-                data = self.cleaned_data["password"]
+            def clean_confirm_password(self):
+                data = self.cleaned_data["confirm_password"]
                 if not self.user.check_password(data):
                     raise forms.ValidationError(_("Password incorrect."))
                 return data
 
+            class Meta:
+                model = User
+                fields = ("otp", "confirm_password")
+
         form_class = Form
-        success_url = "@orgs.user_two_factor_tokens"
-        success_message = _("Two-factor authentication enabled")
-        submit_button_name = _("Enable")
-        permission = "orgs.org_two_factor"
+        menu_path = "/settings/account"
         title = _("Enable Two-factor Authentication")
-        menu_path = "/settings/2fa"
+        submit_button_name = _("Enable")
+        success_message = ""
+        success_url = "@orgs.user_two_factor_tokens"
+
+        def has_permission(self, request, *args, **kwargs):
+            return self.request.user.is_authenticated
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -927,6 +930,7 @@ class UserCRUDL(SmartCRUDL):
             brand = self.request.branding["name"]
             user = self.request.user
             secret_url = pyotp.TOTP(user.settings.otp_secret).provisioning_uri(user.username, issuer_name=brand)
+
             context["secret_url"] = secret_url
             return context
 
@@ -936,9 +940,9 @@ class UserCRUDL(SmartCRUDL):
 
             return super().form_valid(form)
 
-    class TwoFactorDisable(SpaMixin, ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
-        class Form(forms.Form):
-            password = forms.CharField(
+    class TwoFactorDisable(SpaMixin, InferUserMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
+            confirm_password = forms.CharField(
                 label=" ",
                 widget=InputWidget(attrs={"placeholder": _("Current password"), "password": True}),
                 required=True,
@@ -949,19 +953,25 @@ class UserCRUDL(SmartCRUDL):
 
                 self.user = user
 
-            def clean_password(self):
-                data = self.cleaned_data["password"]
+            def clean_confirm_password(self):
+                data = self.cleaned_data["confirm_password"]
                 if not self.user.check_password(data):
                     raise forms.ValidationError(_("Password incorrect."))
                 return data
 
+            class Meta:
+                model = User
+                fields = ("confirm_password",)
+
         form_class = Form
-        success_url = "@orgs.user_two_factor_enable"
-        success_message = _("Two-factor authentication disabled")
-        submit_button_name = _("Disable")
-        permission = "orgs.org_two_factor"
+        menu_path = "/settings/account"
         title = _("Disable Two-factor Authentication")
-        menu_path = "/settings/2fa"
+        submit_button_name = _("Disable")
+        success_message = ""
+        success_url = "@orgs.user_account"
+
+        def has_permission(self, request, *args, **kwargs):
+            return self.request.user.is_authenticated
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -974,10 +984,9 @@ class UserCRUDL(SmartCRUDL):
 
             return super().form_valid(form)
 
-    class TwoFactorTokens(SpaMixin, RequireRecentAuthMixin, InferOrgMixin, OrgPermsMixin, SmartTemplateView):
-        permission = "orgs.org_two_factor"
+    class TwoFactorTokens(SpaMixin, RequireRecentAuthMixin, SmartTemplateView):
         title = _("Two-factor Authentication")
-        menu_path = "/settings/2fa"
+        menu_path = "/settings/account"
 
         def pre_process(self, request, *args, **kwargs):
             # if 2FA isn't enabled for this user, take them to the enable view instead
@@ -985,6 +994,9 @@ class UserCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse("orgs.user_two_factor_enable"))
 
             return super().pre_process(request, *args, **kwargs)
+
+        def has_permission(self, request, *args, **kwargs):
+            return self.request.user.is_authenticated
 
         def post(self, request, *args, **kwargs):
             BackupToken.generate_for_user(self.request.user)
@@ -1010,8 +1022,7 @@ class UserCRUDL(SmartCRUDL):
             return context
 
         def derive_formax_sections(self, formax, context):
-            if self.has_org_perm("orgs.org_profile"):
-                formax.add_section("org", reverse("orgs.user_edit"), icon="user")
+            formax.add_section("profile", reverse("orgs.user_edit"), icon="user")
 
 
 class MenuMixin(OrgPermsMixin):
@@ -1177,27 +1188,6 @@ class OrgCRUDL(SmartCRUDL):
                             name=_("Dashboard"),
                             icon="dashboard",
                             href="dashboard.dashboard_home",
-                        )
-                    )
-
-                if self.request.user.settings.two_factor_enabled:
-                    menu.append(
-                        self.create_menu_item(
-                            menu_id="2fa",
-                            name=_("Security"),
-                            icon="two_factor_enabled",
-                            href=reverse("orgs.user_two_factor_tokens"),
-                            perm="orgs.org_two_factor",
-                        )
-                    )
-                else:
-                    menu.append(
-                        self.create_menu_item(
-                            menu_id="2fa",
-                            name=_("Enable 2FA"),
-                            icon="two_factor_disabled",
-                            href=reverse("orgs.user_two_factor_enable"),
-                            perm="orgs.org_two_factor",
                         )
                     )
 

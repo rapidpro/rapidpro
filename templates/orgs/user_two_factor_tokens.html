@@ -7,14 +7,6 @@
       document.querySelector("form").submit();
     }
   </script>
-  <div class="mb-6">
-    {% blocktrans trimmed %}
-      Your account is currently secured with two-factor authentication.
-    {% endblocktrans %}
-    <div class="mt-4">
-      <div onclick="goto(event)" href="{% url 'orgs.user_two_factor_disable' %}" class="button-danger">{% trans "Disable" %}</div>
-    </div>
-  </div>
   <div class="title">{% trans "Backup Tokens" %}</div>
   <div class="mb-2">
     {% blocktrans trimmed %}
@@ -37,7 +29,7 @@
       You can generate new backup tokens but remember that the current tokens will be no longer be usable if you do this.
     {% endblocktrans %}
     <div class="mt-3">
-      <form action="{% url 'orgs.user_two_factor_tokens' %}" method="POST">
+      <form action="{% url 'orgs.user_two_factor_tokens' %}" method="post">
         {% csrf_token %}
         <input type="submit" value="{{ _("Regenerate Tokens") |escapejs }}" class="button-primary">
       </form>
