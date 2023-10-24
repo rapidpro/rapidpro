@@ -2581,12 +2581,20 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         menu = response.json()["results"]
         self.assertEqual(4, len(menu))
+        self.assertEqual("Workspace", menu[0]["name"])
+        self.assertEqual("space", menu[1]["type"])
+        self.assertEqual("Tickets", menu[2]["name"])
+        self.assertEqual("Settings", menu[3]["name"])
+        self.assertEqual("/user/account/", menu[3]["href"])
 
-        # customer support should only see the staff option
+        # customer support without an org will see settings as profile, and staff section
         self.login(self.customer_support)
         menu = self.client.get(menu_url).json()["results"]
-        self.assertEqual(2, len(menu))
-        self.assertEqual("Staff", menu[1]["name"])
+        self.assertEqual(3, len(menu))
+        self.assertEqual("space", menu[0]["type"])
+        self.assertEqual("Settings", menu[1]["name"])
+        self.assertEqual("/user/account/", menu[1]["href"])
+        self.assertEqual("Staff", menu[2]["name"])
 
         menu = self.client.get(f"{menu_url}staff/").json()["results"]
         self.assertEqual(2, len(menu))
