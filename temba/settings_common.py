@@ -275,8 +275,10 @@ LOGGING = {
 
 BRAND = {
     "name": "RapidPro",
+    "description": _("Visually build nationally scalable mobile applications anywhere in the world."),
     "hosts": ["rapidpro.io"],
     "domain": "app.rapidpro.io",
+    "link": "https://app.rapidpro.io",
     "emails": {"notifications": "support@rapidpro.io"},
     "logos": {"primary": "images/logo-dark.svg", "favico": "brands/rapidpro/rapidpro.ico"},
     "landing": {
