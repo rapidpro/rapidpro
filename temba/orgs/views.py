@@ -40,6 +40,7 @@ from django.shortcuts import resolve_url
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_str
+from django.utils.functional import cached_property
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -1116,6 +1117,31 @@ class MenuMixin(OrgPermsMixin):
         return JsonResponse({"results": self.get_menu()})
 
 
+class InvitationMixin:
+    @cached_property
+    def invitation(self, **kwargs):
+        return Invitation.objects.filter(secret=self.kwargs["secret"], is_active=True).first()
+
+    @classmethod
+    def derive_url_pattern(cls, path, action):
+        return r"^%s/%s/(?P<secret>\w+)/$" % (path, action)
+
+    def pre_process(self, request, *args, **kwargs):
+        if not self.invitation:
+            messages.info(request, _("Your invitation link is invalid. Please contact your workspace administrator."))
+            return HttpResponseRedirect(reverse("public.public_index"))
+
+        return super().pre_process(request, *args, **kwargs)
+
+    def get_object(self, **kwargs):
+        return self.invitation.org
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["invitation"] = self.invitation
+        return context
+
+
 class OrgCRUDL(SmartCRUDL):
     actions = (
         "signup",
@@ -1125,9 +1151,9 @@ class OrgCRUDL(SmartCRUDL):
         "edit",
         "edit_sub_org",
         "join",
+        "join_signup",
         "join_accept",
         "grant",
-        "create_login",
         "choose",
         "delete_child",
         "manage_accounts",
@@ -2315,38 +2341,56 @@ class OrgCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(reverse("orgs.org_start"))
 
-    class CreateLogin(NoNavMixin, SmartUpdateView):
-        title = ""
+    class Join(NoNavMixin, InvitationMixin, SmartTemplateView):
+        """
+        Invitation emails link here allowing users to join workspaces.
+        """
+
+        permission = False
+
+        def pre_process(self, request, *args, **kwargs):
+            resp = super().pre_process(request, *args, **kwargs)
+            if resp:
+                return resp
+
+            secret = self.kwargs["secret"]
+
+            # if user exists and is logged in then they just need to accept
+            user_exists = User.objects.filter(username=self.invitation.email).exists()
+            if user_exists and self.invitation.email == request.user.username:
+                return HttpResponseRedirect(reverse("orgs.org_join_accept", args=[secret]))
+
+            logout(request)
+
+            if not user_exists:
+                return HttpResponseRedirect(reverse("orgs.org_join_signup", args=[secret]))
+
+    class JoinSignup(NoNavMixin, InvitationMixin, SmartUpdateView):
+        """
+        Sign up form for new users to accept a workspace invitations.
+        """
+
         form_class = OrgSignupForm
         fields = ("first_name", "last_name", "password")
         success_message = ""
         success_url = "@orgs.org_start"
-        submit_button_name = _("Create Login")
+        submit_button_name = _("Sign Up")
         permission = False
 
         def pre_process(self, request, *args, **kwargs):
-            org = self.get_object()
-            if not org:
-                messages.info(
-                    request, _("Your invitation link is invalid. Please contact your workspace administrator.")
-                )
-                return HttpResponseRedirect(reverse("public.public_index"))
+            resp = super().pre_process(request, *args, **kwargs)
+            if resp:
+                return resp
 
-            invite = self.get_invitation()
-            secret = self.kwargs.get("secret")
-            has_user = User.objects.filter(username=invite.email).exists()
-            if has_user:
-                return HttpResponseRedirect(reverse("orgs.org_join_accept", args=[secret]))
+            # if user already exists, we shouldn't be here
+            if User.objects.filter(username=self.invitation.email).exists():
+                return HttpResponseRedirect(reverse("orgs.org_join", args=[self.kwargs["secret"]]))
 
             return None
 
-        def pre_save(self, obj):
-            obj = super().pre_save(obj)
-            self.invitation = self.get_invitation()
-            email = self.invitation.email
-
+        def save(self, obj):
             user = User.create(
-                email,
+                self.invitation.email,
                 self.form.cleaned_data["first_name"],
                 self.form.cleaned_data["last_name"],
                 password=self.form.cleaned_data["password"],
@@ -2357,97 +2401,23 @@ class OrgCRUDL(SmartCRUDL):
             user = authenticate(username=user.username, password=self.form.cleaned_data["password"])
             login(self.request, user)
 
-            role = OrgRole.from_code(self.invitation.user_group) or OrgRole.VIEWER
-            obj.add_user(user, role)
+            obj.add_user(user, self.invitation.role)
 
-            # make the invitation inactive
-            self.invitation.is_active = False
-            self.invitation.save()
+            self.invitation.release()
 
-            return obj
+    class JoinAccept(NoNavMixin, InvitationMixin, SmartUpdateView):
+        """
+        Simple join button for existing and logged in users to accept a workspace invitation.
+        """
 
-        def get_success_url(self):
-            if self.invitation.user_group == "S":
-                return reverse("orgs.org_surveyor")
-            return super().get_success_url()
-
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<secret>\w+)/$" % (path, action)
-
-        def get_invitation(self, **kwargs):
-            secret = self.kwargs.get("secret")
-            return Invitation.objects.filter(secret=secret, is_active=True).first()
-
-        def get_object(self, **kwargs):
-            invitation = self.get_invitation()
-            if invitation:
-                return invitation.org
-            return None  # pragma: needs cover
-
-        def derive_title(self):
-            org = self.get_object()
-            return _("Join %(name)s") % {"name": org.name}
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            context["secret"] = self.kwargs.get("secret")
-            context["org"] = self.get_object()
-            invitation = self.get_invitation()
-            context["email"] = invitation.email
-
-            return context
-
-    class Join(NoNavMixin, SmartTemplateView):
-        title = _("Sign in with your account to accept the invitation")
-        permission = False
-
-        def pre_process(self, request, *args, **kwargs):
-            secret = self.kwargs.get("secret")
-
-            invite = self.get_invitation()
-            if invite:
-                has_user = User.objects.filter(username=invite.email).exists()
-                if has_user and invite.email == request.user.username:
-                    return HttpResponseRedirect(reverse("orgs.org_join_accept", args=[secret]))
-
-                logout(request)
-                if not has_user:
-                    return HttpResponseRedirect(reverse("orgs.org_create_login", args=[secret]))
-
-            else:
-                messages.info(
-                    request, _("Your invitation link has expired. Please contact your workspace administrator.")
-                )
-                return HttpResponseRedirect(reverse("users.user_login"))
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            context["secret"] = self.kwargs.get("secret")
-            invitation = self.get_invitation()
-            context["email"] = invitation.email
-
-            return context
-
-        def get_invitation(self, **kwargs):  # pragma: needs cover
-            secret = self.kwargs.get("secret")
-            return Invitation.objects.filter(secret=secret, is_active=True).first()
-
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<secret>\w+)/$" % (path, action)
-
-    class JoinAccept(NoNavMixin, SmartUpdateView):
-        class JoinAcceptForm(forms.ModelForm):
+        class Form(forms.ModelForm):
             class Meta:
                 model = Org
                 fields = ()
 
         success_message = ""
         title = ""
-        form_class = JoinAcceptForm
+        form_class = Form
         success_url = "@orgs.org_start"
         submit_button_name = _("Join")
 
@@ -2455,59 +2425,23 @@ class OrgCRUDL(SmartCRUDL):
             return request.user.is_authenticated
 
         def pre_process(self, request, *args, **kwargs):
-            org = self.get_object()
-            invitation = self.get_invitation()
-            if not (invitation and org):
-                messages.info(
-                    request, _("Your invitation link has expired. Please contact your workspace administrator.")
-                )
-                return HttpResponseRedirect(reverse("public.public_index"))
+            resp = super().pre_process(request, *args, **kwargs)
+            if resp:
+                return resp
 
-            secret = self.kwargs.get("secret")
-
-            invitation_email = invitation.email
-            has_user = User.objects.filter(username=invitation_email).exists()
-            if has_user and invitation_email != request.user.username:
-                logout(request)
-                return HttpResponseRedirect(reverse("orgs.org_join", args=[secret]))
+            # if user doesn't already exist or we're logged in as a different user, we shouldn't be here
+            user_exists = User.objects.filter(username=self.invitation.email).exists()
+            if not user_exists or self.invitation.email != request.user.username:
+                return HttpResponseRedirect(reverse("orgs.org_join", args=[self.kwargs["secret"]]))
 
             return None
 
-        def derive_title(self):  # pragma: needs cover
-            org = self.get_object()
-            return _("Join %(name)s") % {"name": org.name}
+        def save(self, obj):
+            obj.add_user(self.request.user, self.invitation.role)
 
-        def save(self, org):  # pragma: needs cover
-            org = self.get_object()
-            self.invitation = self.get_invitation()
-            if org:
-                role = OrgRole.from_code(self.invitation.user_group) or OrgRole.VIEWER
-                org.add_user(self.request.user, role)
+            self.invitation.release()
 
-                # make the invitation inactive
-                self.invitation.is_active = False
-                self.invitation.save()
-
-                switch_to_org(self.request, org)
-
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<secret>\w+)/$" % (path, action)
-
-        def get_invitation(self, **kwargs):  # pragma: needs cover
-            secret = self.kwargs.get("secret")
-            return Invitation.objects.filter(secret=secret, is_active=True).first()
-
-        def get_object(self, **kwargs):  # pragma: needs cover
-            invitation = self.get_invitation()
-            if invitation:
-                return invitation.org
-
-        def get_context_data(self, **kwargs):  # pragma: needs cover
-            context = super().get_context_data(**kwargs)
-
-            context["org"] = self.get_object()
-            return context
+            switch_to_org(self.request, obj)
 
     class Surveyor(SmartFormView):
         class PasswordForm(forms.Form):

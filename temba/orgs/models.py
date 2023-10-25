@@ -1530,6 +1530,11 @@ class Invitation(SmartModel):
 
         send_template_email(to_email, subject, template, context, self.org.branding)
 
+    def release(self):
+        self.is_active = False
+        self.modified_on = timezone.now()
+        self.save(update_fields=("is_active", "modified_on"))
+
 
 class BackupToken(models.Model):
     """

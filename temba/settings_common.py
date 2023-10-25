@@ -356,7 +356,6 @@ PERMISSIONS = {
     "msgs.msg": ("archive", "export", "label", "menu"),
     "orgs.org": (
         "country",
-        "create_login",
         "create",
         "dashboard",
         "delete_child",
