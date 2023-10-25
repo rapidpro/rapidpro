@@ -1,6 +1,5 @@
 {% extends "smartmin/update.html" %}
-{% load smartmin %}
-{% load i18n %}
+{% load smartmin i18n %}
 
 {% block extra-style %}
   {{ block.super }}
@@ -14,13 +13,20 @@
     }
   </style>
 {% endblock extra-style %}
+{% block pre-form %}
+  <div class="mb-8">
+    {% blocktrans trimmed with org=invitation.org %}
+      Create a new login to join the <b>{{ org }}</b> workspace.
+    {% endblocktrans %}
+  </div>
+{% endblock pre-form %}
 {% block fields %}
   <div class="control-group">
     <temba-textinput type="text"
                      name="username"
                      maxlength="150"
-                     label="{% trans 'Email Address' %}"
-                     value="{{ email }}"
+                     label="{% trans "Email Address" %}"
+                     value="{{ invitation.email }}"
                      disabled
                      id="id_username">
     </temba-textinput>
@@ -31,14 +37,3 @@
     <div class="flex-grow">{% render_field 'last_name' %}</div>
   </div>
 {% endblock fields %}
-{% block extra-script %}
-  {{ block.super }}
-  <script type="text/javascript">
-    $(function() {
-      $(".formax-icon, .formax-summary").on('click', function() {
-        $(this).parents(".formax-section").toggleClass('open');
-        $(this).parents(".formax-section").siblings('formax-section').removeClass('open');
-      });
-    });
-  </script>
-{% endblock extra-script %}

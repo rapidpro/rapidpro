@@ -100,6 +100,33 @@ class OrgContextProcessorTest(TembaTest):
             list(perms)
 
 
+class InvitationTest(TembaTest):
+    @patch("temba.utils.email.send_temba_email")
+    def test_model(self, mock_send_temba_email):
+        invitation = Invitation.objects.create(
+            org=self.org,
+            user_group="E",
+            email="invitededitor@nyaruka.com",
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        self.assertEqual(OrgRole.EDITOR, invitation.role)
+
+        invitation.send()
+        email_args = mock_send_temba_email.call_args[0]  # all positional args
+
+        self.assertEqual(email_args[0], "RapidPro Invitation")
+        self.assertIn("https://app.rapidpro.io/org/join/%s/" % invitation.secret, email_args[1])
+        self.assertNotIn("{{", email_args[1])
+        self.assertIn("https://app.rapidpro.io/org/join/%s/" % invitation.secret, email_args[2])
+        self.assertNotIn("{{", email_args[2])
+
+        invitation.release()
+
+        self.assertFalse(invitation.is_active)
+
+
 class UserTest(TembaTest):
     def test_model(self):
         user = User.create("jim@rapidpro.io", "Jim", "McFlow", password="super")
@@ -1354,189 +1381,12 @@ class OrgTest(TembaTest):
                 response.context["form"].fields["invite_role"].choices,
             )
 
-    @patch("temba.utils.email.send_temba_email")
-    def test_join(self, mock_send_temba_email):
-        def create_invite(group, email):
-            return Invitation.objects.create(
-                org=self.org,
-                user_group=group,
-                email=email,
-                created_by=self.admin,
-                modified_by=self.admin,
-            )
-
-        editor_invitation = create_invite("E", "invitededitor@nyaruka.com")
-        editor_invitation.send()
-        email_args = mock_send_temba_email.call_args[0]  # all positional args
-
-        self.assertEqual(email_args[0], "RapidPro Invitation")
-        self.assertIn("https://app.rapidpro.io/org/join/%s/" % editor_invitation.secret, email_args[1])
-        self.assertNotIn("{{", email_args[1])
-        self.assertIn("https://app.rapidpro.io/org/join/%s/" % editor_invitation.secret, email_args[2])
-        self.assertNotIn("{{", email_args[2])
-
-        editor_join_url = reverse("orgs.org_join", args=[editor_invitation.secret])
-        self.client.logout()
-
-        # if no user is logged we redirect to the create_login page
-        response = self.client.get(editor_join_url)
-        self.assertEqual(302, response.status_code)
-        response = self.client.get(editor_join_url, follow=True)
-        self.assertEqual(
-            response.request["PATH_INFO"], reverse("orgs.org_create_login", args=[editor_invitation.secret])
-        )
-
-        # a user is already logged in
-        self.invited_editor = self.create_user("invitededitor@nyaruka.com")
-
-        # different user login
-        self.login(self.admin)
-
-        response = self.client.get(editor_join_url)
-        self.assertEqual(200, response.status_code)
-
-        # should be logged out to request login
-        self.assertEqual(0, len(self.client.session.keys()))
-
-        # login with a diffent user that the invited
-        self.login(self.admin)
-        response = self.client.get(reverse("orgs.org_join_accept", args=[editor_invitation.secret]), follow=True)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_join", args=[editor_invitation.secret]))
-
-        self.login(self.invited_editor)
-        response = self.client.get(editor_join_url)
-        self.assertEqual(302, response.status_code)
-        response = self.client.get(editor_join_url, follow=True)
-        self.assertEqual(
-            response.request["PATH_INFO"], reverse("orgs.org_join_accept", args=[editor_invitation.secret])
-        )
-
-        editor_join_accept_url = reverse("orgs.org_join_accept", args=[editor_invitation.secret])
-        self.login(self.invited_editor)
-
-        response = self.client.get(editor_join_accept_url)
-        self.assertEqual(200, response.status_code)
-
-        self.assertEqual(self.org.pk, response.context["org"].pk)
-        # we have a form without field except one 'loc'
-        self.assertEqual(1, len(response.context["form"].fields))
-
-        post_data = dict()
-        response = self.client.post(editor_join_accept_url, post_data, follow=True)
-        self.assertEqual(200, response.status_code)
-
-        self.assertEqual(OrgRole.EDITOR, self.org.get_user_role(self.invited_editor))
-        self.assertFalse(Invitation.objects.get(pk=editor_invitation.pk).is_active)
-
-        # test it for each role
-        for role in OrgRole:
-            invite = create_invite(role.code, f"user.{role.code}@nyaruka.com")
-            user = self.create_user(f"user.{role.code}@nyaruka.com")
-            self.login(user)
-            response = self.client.post(reverse("orgs.org_join_accept", args=[invite.secret]), follow=True)
-            self.assertEqual(200, response.status_code)
-            self.assertTrue(self.org.get_users(roles=[role]).filter(pk=user.pk).exists())
-
-        # try an expired invite
-        invite = create_invite("S", "invitedexpired@nyaruka.com")
-        invite.is_active = False
-        invite.save()
-        expired_user = self.create_user("invitedexpired@nyaruka.com")
-        self.login(expired_user)
-        response = self.client.post(reverse("orgs.org_join_accept", args=[invite.secret]), follow=True)
-        self.assertEqual(200, response.status_code)
-        self.assertFalse(self.org.get_users(roles=[OrgRole.SURVEYOR]).filter(id=expired_user.id).exists())
-
-        response = self.client.post(reverse("orgs.org_join", args=[invite.secret]))
-        self.assertEqual(302, response.status_code)
-
-        response = self.client.post(reverse("orgs.org_join", args=[invite.secret]), follow=True)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("users.user_login"))
-
-    def test_create_login(self):
-        admin_invitation = Invitation.objects.create(
-            org=self.org, user_group="A", email="norkans7@gmail.com", created_by=self.admin, modified_by=self.admin
-        )
-
-        admin_create_login_url = reverse("orgs.org_create_login", args=[admin_invitation.secret])
-        self.client.logout()
-
-        response = self.client.get(admin_create_login_url)
-        self.assertEqual(200, response.status_code)
-
-        self.assertEqual(self.org.pk, response.context["org"].pk)
-
-        # we have a form with 3 fields and one hidden 'loc'
-        self.assertEqual(4, len(response.context["form"].fields))
-        self.assertIn("first_name", response.context["form"].fields)
-        self.assertIn("last_name", response.context["form"].fields)
-        self.assertIn("password", response.context["form"].fields)
-
-        post_data = dict()
-        post_data["first_name"] = "Norbert"
-        post_data["last_name"] = "Kwizera"
-        post_data["password"] = "norbertkwizeranorbert"
-
-        response = self.client.post(admin_create_login_url, post_data, follow=True)
-        self.assertEqual(200, response.status_code)
-
-        new_invited_user = User.objects.get(email="norkans7@gmail.com")
-        self.assertEqual(OrgRole.ADMINISTRATOR, self.org.get_user_role(new_invited_user))
-        self.assertFalse(Invitation.objects.get(pk=admin_invitation.pk).is_active)
-
-        invitation = Invitation.objects.create(
-            org=self.org, user_group="E", email="norkans7@gmail.com", created_by=self.admin, modified_by=self.admin
-        )
-        create_login_url = reverse("orgs.org_create_login", args=[invitation.secret])
-
-        # we have a matching user so we redirect with the user logged in
-        response = self.client.get(create_login_url)
-        self.assertEqual(302, response.status_code)
-
-        response = self.client.get(create_login_url, follow=True)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_join_accept", args=[invitation.secret]))
-
-        invitation.is_active = False
-        invitation.save()
-
-        response = self.client.get(create_login_url)
-        self.assertEqual(302, response.status_code)
-        response = self.client.get(create_login_url, follow=True)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("public.public_index"))
-
-    def test_create_login_invalid_form(self):
-        admin_invitation = Invitation.objects.create(
-            org=self.org, user_group="A", email="user@example.com", created_by=self.admin, modified_by=self.admin
-        )
-
-        admin_create_login_url = reverse("orgs.org_create_login", args=[admin_invitation.secret])
-        self.client.logout()
-
-        response = self.client.post(
-            admin_create_login_url,
-            {
-                "first_name": f"Ni{'c' * 150}",
-                "last_name": f"Po{'t' * 150}ier",
-                "password": "just-a-password",
-            },
-        )
-        self.assertFormError(
-            response, "form", "first_name", "Ensure this value has at most 150 characters (it has 152)."
-        )
-        self.assertFormError(
-            response, "form", "last_name", "Ensure this value has at most 150 characters (it has 155)."
-        )
-
     def test_surveyor_invite(self):
         surveyor_invite = Invitation.objects.create(
             org=self.org, user_group="S", email="surveyor@gmail.com", created_by=self.admin, modified_by=self.admin
         )
 
-        admin_create_login_url = reverse("orgs.org_create_login", args=[surveyor_invite.secret])
+        admin_create_login_url = reverse("orgs.org_join_signup", args=[surveyor_invite.secret])
         self.client.logout()
 
         response = self.client.post(
@@ -2661,6 +2511,131 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # should have an extra menu options for workspaces and users
         self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 7)
+
+    def test_join(self):
+        # if invitation secret is invalid, redirect to root
+        response = self.client.get(reverse("orgs.org_join", args=["invalid"]))
+        self.assertRedirect(response, reverse("public.public_index"))
+
+        invitation = Invitation.objects.create(
+            org=self.org,
+            user_group="E",
+            email="edwin@nyaruka.com",
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        join_url = reverse("orgs.org_join", args=[invitation.secret])
+        join_signup_url = reverse("orgs.org_join_signup", args=[invitation.secret])
+        join_accept_url = reverse("orgs.org_join_accept", args=[invitation.secret])
+
+        # if no user exists then we redirect to the join signup page
+        response = self.client.get(join_url)
+        self.assertRedirect(response, join_signup_url)
+
+        user = self.create_user("edwin@nyaruka.com")
+        self.login(user)
+
+        response = self.client.get(join_url)
+        self.assertRedirect(response, join_accept_url)
+
+        # but only if they're the currently logged in user
+        self.login(self.admin)
+
+        response = self.client.get(join_url)
+        self.assertContains(response, "Sign in to join the <b>Nyaruka</b> workspace")
+        self.assertContains(response, f"/users/login/?next={join_accept_url}")
+
+        # should be logged out as the other user
+        self.assertEqual(0, len(self.client.session.keys()))
+
+    def test_join_signup(self):
+        # if invitation secret is invalid, redirect to root
+        response = self.client.get(reverse("orgs.org_join_signup", args=["invalid"]))
+        self.assertRedirect(response, reverse("public.public_index"))
+
+        invitation = Invitation.objects.create(
+            org=self.org,
+            user_group="A",
+            email="administrator@trileet.com",
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        join_signup_url = reverse("orgs.org_join_signup", args=[invitation.secret])
+        join_url = reverse("orgs.org_join", args=[invitation.secret])
+
+        # if user already exists then we redirect back to join
+        response = self.client.get(join_signup_url)
+        self.assertRedirect(response, join_url)
+
+        invitation = Invitation.objects.create(
+            org=self.org,
+            user_group="E",
+            email="edwin@nyaruka.com",
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        join_signup_url = reverse("orgs.org_join_signup", args=[invitation.secret])
+        join_url = reverse("orgs.org_join", args=[invitation.secret])
+
+        response = self.client.get(join_signup_url)
+        self.assertContains(response, "edwin@nyaruka.com")
+        self.assertEqual(["first_name", "last_name", "password", "loc"], list(response.context["form"].fields.keys()))
+
+        response = self.client.post(join_signup_url, {})
+        self.assertFormError(response, "form", "first_name", "This field is required.")
+        self.assertFormError(response, "form", "last_name", "This field is required.")
+        self.assertFormError(response, "form", "password", "This field is required.")
+
+        response = self.client.post(join_signup_url, {"first_name": "Ed", "last_name": "Edits", "password": "Flows123"})
+        self.assertRedirect(response, "/org/start/")
+
+        invitation.refresh_from_db()
+        self.assertFalse(invitation.is_active)
+
+    def test_join_accept(self):
+        # only authenticated users can access page
+        response = self.client.get(reverse("orgs.org_join_accept", args=["invalid"]))
+        self.assertLoginRedirect(response)
+
+        # if invitation secret is invalid, redirect to root
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.org_join_accept", args=["invalid"]))
+        self.assertRedirect(response, reverse("public.public_index"))
+
+        invitation = Invitation.objects.create(
+            org=self.org,
+            user_group="E",
+            email="edwin@nyaruka.com",
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        join_accept_url = reverse("orgs.org_join_accept", args=[invitation.secret])
+        join_url = reverse("orgs.org_join", args=[invitation.secret])
+
+        # if user doesn't exist then redirect back to join
+        response = self.client.get(join_accept_url)
+        self.assertRedirect(response, join_url)
+
+        user = self.create_user("edwin@nyaruka.com")
+
+        # if user exists but we're logged in as other user, also redirect
+        response = self.client.get(join_accept_url)
+        self.assertRedirect(response, join_url)
+
+        self.login(user)
+
+        response = self.client.get(join_accept_url)
+        self.assertContains(response, "You have been invited to join the <b>Nyaruka</b> workspace.")
+
+        response = self.client.post(join_accept_url)
+        self.assertRedirect(response, "/org/start/")
+
+        invitation.refresh_from_db()
+        self.assertFalse(invitation.is_active)
 
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")
