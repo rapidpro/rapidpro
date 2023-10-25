@@ -1,5 +1,5 @@
 {% extends "smartmin/form.html" %}
-{% load smartmin i18n %}
+{% load i18n %}
 
 {% block form-span %}
   span8
@@ -23,7 +23,7 @@
 {% endblock form-buttons %}
 {% block summary %}
   {% blocktrans trimmed with token=api_token %}
-    Your API Token is <b>{{ token }}</b>.
+    Your API token is <b>{{ token }}</b>.
   {% endblocktrans %}
 {% endblock summary %}
 {% block extra-script %}

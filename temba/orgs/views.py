@@ -656,6 +656,7 @@ class UserCRUDL(SmartCRUDL):
         "two_factor_disable",
         "two_factor_tokens",
         "account",
+        "token",
     )
 
     class Read(StaffOnlyMixin, ContentMenuMixin, SpaMixin, SmartReadView):
@@ -1025,6 +1026,15 @@ class UserCRUDL(SmartCRUDL):
         def derive_formax_sections(self, formax, context):
             formax.add_section("profile", reverse("orgs.user_edit"), icon="user")
 
+            if self.has_org_perm("orgs.user_token"):
+                formax.add_section("token", reverse("orgs.user_token"), icon="upload", nobutton=True)
+
+    class Token(InferUserMixin, OrgPermsMixin, SmartReadView):
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["api_token"] = self.request.user.get_api_token(self.request.org)
+            return context
+
 
 class MenuMixin(OrgPermsMixin):
     def create_divider(self):
@@ -1147,7 +1157,6 @@ class OrgCRUDL(SmartCRUDL):
         "signup",
         "start",
         "read",
-        "token",
         "edit",
         "edit_sub_org",
         "join",
@@ -2697,21 +2706,6 @@ class OrgCRUDL(SmartCRUDL):
 
             return super().pre_save(obj)
 
-    class Token(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class TokenForm(forms.ModelForm):
-            class Meta:
-                model = Org
-                fields = ("id",)
-
-        form_class = TokenForm
-        success_url = "@orgs.org_workspace"
-        success_message = ""
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["api_token"] = self.request.user.get_api_token(self.request.org)
-            return context
-
     class Prometheus(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class ToggleForm(forms.ModelForm):
             class Meta:
@@ -2774,9 +2768,6 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_smtp_server"):
                 formax.add_section("email", reverse("orgs.org_smtp_server"), icon="email")
-
-            if self.has_org_perm("orgs.org_token"):
-                formax.add_section("token", reverse("orgs.org_token"), icon="upload", nobutton=True)
 
             if self.has_org_perm("orgs.org_prometheus"):
                 formax.add_section("prometheus", reverse("orgs.org_prometheus"), icon="prometheus", nobutton=True)

@@ -391,11 +391,6 @@ class UserTest(TembaTest):
         response = self.client.post(backup_url, {"token": self.admin.backup_tokens.first()})
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
-    def test_account(self):
-        self.login(self.admin)
-        response = self.client.get(reverse("orgs.user_account"))
-        self.assertEqual(1, len(response.context["formax"].sections))
-
     def test_two_factor(self):
         self.assertFalse(self.admin.settings.two_factor_enabled)
 
@@ -3806,6 +3801,35 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_active)
+
+    def test_account(self):
+        self.login(self.agent)
+
+        response = self.client.get(reverse("orgs.user_account"))
+        self.assertEqual(1, len(response.context["formax"].sections))
+
+        self.login(self.admin)
+
+        response = self.client.get(reverse("orgs.user_account"))
+        self.assertEqual(2, len(response.context["formax"].sections))
+
+    def test_token(self):
+        token_url = reverse("orgs.user_token")
+
+        self.assertLoginRedirect(self.client.get(token_url))
+
+        self.login(self.user)
+
+        self.assertLoginRedirect(self.client.get(token_url))
+
+        self.login(self.agent)
+
+        self.assertLoginRedirect(self.client.get(token_url))
+
+        self.login(self.editor)
+
+        response = self.client.get(token_url)
+        self.assertContains(response, self.editor.get_api_token(self.org))
 
 
 class BulkExportTest(TembaTest):
