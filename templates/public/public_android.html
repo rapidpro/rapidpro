@@ -20,7 +20,7 @@
     {% if relayer_app.description %}<div class="latest-release-description">{{ relayer_app.description }}</div>{% endif %}
   {% else %}
     <p></p>
-    {% blocktrans trimmed with brand.support_email as email %}
+    {% blocktrans trimmed with brand.emails.support|default:brand.emails.notifications as email %}
       No Android app available yet. Please contact {{ email }} and report that.
     {% endblocktrans %}
   {% endif %}
