@@ -1,3 +1,9 @@
+v8.3.64 (2023-10-25)
+-------------------------
+ * Fix start views for agent users
+ * Allow agent users to access account settings page
+ * Move two factor views out of main menu and into the account view
+
 v8.3.63 (2023-10-23)
 -------------------------
  * Fix SendBroadcast action to work with localized compose
