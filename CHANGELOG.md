@@ -1,3 +1,7 @@
+v8.3.66 (2023-10-25)
+-------------------------
+ * Simplify brands
+
 v8.3.65 (2023-10-25)
 -------------------------
  * Fix and cleanup view for accepting invitations
