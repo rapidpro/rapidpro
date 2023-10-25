@@ -84,6 +84,23 @@ def get_nested_key(nested_dict, key, default=""):
     return value
 
 
+def set_nested_key(nested_dict, key, value):
+    keys = key.split(".")
+    level = nested_dict
+    while keys:
+        key = keys.pop(0)
+        if not keys:
+            level[key] = value
+        next_level = level.get(key)
+
+        # create our next level if it doesn't exist
+        if not next_level:
+            next_level = {}
+            level[key] = next_level
+
+        level = next_level
+
+
 _anon_user = None
 
 
