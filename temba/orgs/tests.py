@@ -3124,8 +3124,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(OrgRole.ADMINISTRATOR, new_org.get_user_role(self.admin))
 
         # should be now logged into that org
-        self.assertRedirect(response, "/msg/")
-        response = self.client.get("/msg/")
+        self.assertRedirect(response, "/org/start/")
+        response = self.client.get("/org/start/")
         self.assertEqual(str(new_org.id), response.headers["X-Temba-Org"])
 
     def test_create_child(self):
@@ -3328,12 +3328,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertLoginRedirect(self.client.get(choose_url))
 
-        # users with a single org are always redirected right away to a page in that org that they have access to
-        self.assertRedirect(self.requestView(choose_url, self.admin), "/msg/")
-        self.assertRedirect(self.requestView(choose_url, self.editor), "/msg/")
-        self.assertRedirect(self.requestView(choose_url, self.user), "/msg/")
-        self.assertRedirect(self.requestView(choose_url, self.agent), "/ticket/")
-        self.assertRedirect(self.requestView(choose_url, self.surveyor), "/org/surveyor/")
+        # users with a single org are always redirected to the start page automatically
+        self.assertRedirect(self.requestView(choose_url, self.admin), "/org/start/")
+        self.assertRedirect(self.requestView(choose_url, self.editor), "/org/start/")
+        self.assertRedirect(self.requestView(choose_url, self.user), "/org/start/")
+        self.assertRedirect(self.requestView(choose_url, self.agent), "/org/start/")
+        self.assertRedirect(self.requestView(choose_url, self.surveyor), "/org/start/")
 
         # users with no org are redirected back to the login page
         response = self.requestView(choose_url, self.non_org_user)
@@ -3361,7 +3361,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # user clicks org 2...
         response = self.client.post(choose_url, {"organization": self.org2.id})
-        self.assertRedirect(response, "/msg/")
+        self.assertRedirect(response, "/org/start/")
 
     def test_edit(self):
         edit_url = reverse("orgs.org_edit")

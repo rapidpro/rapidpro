@@ -344,17 +344,18 @@ class UserSettings(models.Model):
 
 
 class OrgRole(Enum):
-    ADMINISTRATOR = ("A", _("Administrator"), _("Administrators"), "Administrators")
-    EDITOR = ("E", _("Editor"), _("Editors"), "Editors")
-    VIEWER = ("V", _("Viewer"), _("Viewers"), "Viewers")
-    AGENT = ("T", _("Agent"), _("Agents"), "Agents")
-    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors")
+    ADMINISTRATOR = ("A", _("Administrator"), _("Administrators"), "Administrators", "msgs.msg_inbox")
+    EDITOR = ("E", _("Editor"), _("Editors"), "Editors", "msgs.msg_inbox")
+    VIEWER = ("V", _("Viewer"), _("Viewers"), "Viewers", "msgs.msg_inbox")
+    AGENT = ("T", _("Agent"), _("Agents"), "Agents", "tickets.ticket_list")
+    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors", "orgs.org_surveyor")
 
-    def __init__(self, code: str, display: str, display_plural: str, group_name: str):
+    def __init__(self, code: str, display: str, display_plural: str, group_name: str, start_view: str):
         self.code = code
         self.display = display
         self.display_plural = display_plural
         self.group_name = group_name
+        self.start_view = start_view
 
     @classmethod
     def from_code(cls, code: str):
