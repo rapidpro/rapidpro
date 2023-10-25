@@ -1,3 +1,7 @@
+v8.3.65 (2023-10-25)
+-------------------------
+ * Fix and cleanup view for accepting invitations
+
 v8.3.64 (2023-10-25)
 -------------------------
  * Fix start views for agent users
