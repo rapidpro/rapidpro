@@ -2485,7 +2485,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertListFetch(workspace_url, allow_viewers=True, allow_editors=True, allow_agents=False)
 
         # make sure we have the appropriate number of sections
-        self.assertEqual(7, len(response.context["formax"].sections))
+        self.assertEqual(6, len(response.context["formax"].sections))
         self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 5)
 
         # enable child workspaces and users
@@ -2501,7 +2501,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(12):
             response = self.client.get(workspace_url)
 
         # should have an extra menu options for workspaces and users

@@ -1,52 +1,35 @@
 {% extends "smartmin/form.html" %}
 {% load i18n %}
 
-{% block form-span %}
-  span8
-{% endblock form-span %}
-{% block fields %}
-  <div style="padding-bottom: 10px" class="field api-token">
-    <div class="flex">
-      <div class="token">
-        API Token: <span id="api_token">{{ api_token }}</span>
-      </div>
-      <a href="javascript:refreshToken()" class='api-token-refresh'>
-        <temba-icon name="retry">
-        </temba-icon>
-      </a>
+{% block summary %}
+  <div class="flex items-center">
+    <div class="flex-grow mr-4 api_token_container">
+      {% blocktrans trimmed with token=api_token %}
+        Your API token is <b>{{ token }}</b>.
+      {% endblocktrans %}
+    </div>
+    <div class="buttons">
+      <div onclick="goto(event)" href="{% url 'api.v2' %}" class="button-light">{% trans "API Docs" %}</div>
     </div>
   </div>
+{% endblock summary %}
+{% block fields %}
+  <div class="mb-2">{% trans "This is your personal access token for making calls to the REST API:" %}</div>
+  <div class="mb-2 api_token_container">
+    <b>{{ api_token }}</b>
+  </div>
+  <div onclick="regenerateToken()" class="button-primary">{% trans "Regenerate" %}</div>
 {% endblock fields %}
 {% block form-buttons %}
-  <a target="_blank" href="{% url 'api.v2' %}" class="button-light inline-block">{% trans "API Docs" %}</a>
-  <a target="_blank" href="{% url 'api.v2.explorer' %}" class="button-light ml-3 inline-block">{% trans "API Explorer" %}</a>
+  {# hide regular form buttons #}
 {% endblock form-buttons %}
-{% block summary %}
-  {% blocktrans trimmed with token=api_token %}
-    Your API token is <b>{{ token }}</b>.
-  {% endblocktrans %}
-{% endblock summary %}
 {% block extra-script %}
   {{ block.super }}
   <script type="text/javascript">
-    function refreshToken() {
+    function regenerateToken() {
       $.post("{% url 'api.apitoken_refresh' %}", function(data) {
-        $("#api_token").text(data['token']);
+        $(".api_token_container b").text(data['token']);
       });
     }
   </script>
 {% endblock extra-script %}
-{% block extra-style %}
-  <style type="text/css">
-    .api-token-refresh {
-      padding-left: 10px;
-      margin-top: 3px;
-      display: block;
-      color: #999;
-    }
-
-    .api-token-refresh:hover {
-      text-decoration: none;
-    }
-  </style>
-{% endblock extra-style %}
