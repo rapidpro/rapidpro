@@ -1,3 +1,9 @@
+v8.3.70 (2023-10-26)
+-------------------------
+ * Merge pull request #4930 from nyaruka/use-org-brand-domain
+ * Remove brand link
+ * Replace all brand link with brand domain use
+
 v8.3.69 (2023-10-26)
 -------------------------
  * Use org brand domain instead of link
