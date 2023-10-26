@@ -13,7 +13,7 @@
 {% endblock pre-form %}
 {% block form %}
   <div class="mt-4">
-    <form style="display:none;" method="POST" action="{{ claim_url }}" id="claim-form">
+    <form style="display:none;" method="post" action="{{ claim_url }}" id="claim-form">
       {% csrf_token %}
       <input type="text" name="number" id="number">
       <input type="text" name="verified_name" id="verified_name">
@@ -50,7 +50,7 @@
           type: "GET",
           url: "{{clear_session_token_url}}"
         });
-        location.replace("https://www.facebook.com/v17.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + "{{connect_whatsapp_url}}" + "&scope=business_management,whatsapp_business_management,whatsapp_business_messaging&response_type=token")
+        location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + "{{connect_whatsapp_url}}" + "&scope=business_management,whatsapp_business_management,whatsapp_business_messaging&response_type=token")
 
       });
 

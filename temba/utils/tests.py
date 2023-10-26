@@ -25,7 +25,18 @@ from temba.utils import json, uuid
 from temba.utils.compose import compose_serialize
 from temba.utils.templatetags.temba import format_datetime, icon
 
-from . import chunk_list, countries, format_number, languages, percentage, redact, sizeof_fmt, str_to_bool
+from . import (
+    chunk_list,
+    countries,
+    format_number,
+    get_nested_key,
+    languages,
+    percentage,
+    redact,
+    set_nested_key,
+    sizeof_fmt,
+    str_to_bool,
+)
 from .crons import clear_cron_stats, cron_task
 from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
@@ -135,6 +146,18 @@ class InitTest(TembaTest):
                 curr += 1
 
         self.assertEqual(curr, 100)
+
+    def test_nested_keys(self):
+        nested = {}
+
+        # set nested keys
+        set_nested_key(nested, "favorites.beer", "Turbo King")
+        self.assertEqual(nested, {"favorites": {"beer": "Turbo King"}})
+
+        # get nested keys
+        self.assertEqual("Turbo King", get_nested_key(nested, "favorites.beer"))
+        self.assertEqual("", get_nested_key(nested, "favorites.missing"))
+        self.assertEqual(None, get_nested_key(nested, "favorites.missing", None))
 
 
 class DatesTest(TembaTest):

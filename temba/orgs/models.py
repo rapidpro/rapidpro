@@ -1220,7 +1220,7 @@ class Org(SmartModel):
 
         # outside of the transaction as it's going to call out to mailroom for flow validation
         if sample_flows:
-            self.create_sample_flows(self.branding.get("link", ""))
+            self.create_sample_flows(f"https://{self.get_brand_domain()}")
 
     def get_delete_date(self, *, archive_type=Archive.TYPE_MSG):
         """
@@ -1457,7 +1457,7 @@ class OrgImport(SmartModel):
         self.save(update_fields=("status",))
         try:
             org = self.org
-            link = org.get_brand()["link"]
+            link = f"https://{org.get_brand_domain()}"
             data = json.loads(force_str(self.file.read()))
             org.import_app(data, self.created_by, link)
         except Exception as e:

@@ -6,5 +6,5 @@
   <ul>
     {% for flow in flows %}<li>{{ flow.name }}</li>{% endfor %}
   </ul>
-  <p>{% blocktrans with url=branding.link|add:target_url %}Download the Excel file here: {{ url }}{% endblocktrans %}</p>
+  <p>{% blocktrans with url="https://"|add:branding.domain|add:target_url %}Download the Excel file here: {{ url }}{% endblocktrans %}</p>
 {% endblock notification-body %}

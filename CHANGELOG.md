@@ -1,3 +1,22 @@
+v8.3.70 (2023-10-26)
+-------------------------
+ * Merge pull request #4930 from nyaruka/use-org-brand-domain
+ * Remove brand link
+ * Replace all brand link with brand domain use
+
+v8.3.69 (2023-10-26)
+-------------------------
+ * Use org brand domain instead of link
+ * Update to use Facebook API v18.0
+
+v8.3.67 (2023-10-26)
+-------------------------
+ * Update revisions url
+
+v8.3.66 (2023-10-25)
+-------------------------
+ * Simplify brands
+
 v8.3.65 (2023-10-25)
 -------------------------
  * Fix and cleanup view for accepting invitations

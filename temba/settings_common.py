@@ -274,22 +274,18 @@ LOGGING = {
 # -----------------------------------------------------------------------------------
 
 BRAND = {
-    "slug": "rapidpro",
     "name": "RapidPro",
+    "description": _("Visually build nationally scalable mobile applications anywhere in the world."),
     "hosts": ["rapidpro.io"],
-    "org": "UNICEF",
     "domain": "app.rapidpro.io",
-    "styles": [],
-    "email": "join@rapidpro.io",
-    "support_email": "support@rapidpro.io",
-    "link": "https://app.rapidpro.io",
+    "emails": {"notifications": "support@rapidpro.io"},
+    "logos": {"primary": "images/logo-dark.svg", "favico": "brands/rapidpro/rapidpro.ico"},
+    "landing": {
+        "hero": "brands/rapidpro/splash.jpg",
+    },
     "docs_link": "http://docs.rapidpro.io",
     "ticket_domain": "tickets.rapidpro.io",
-    "favico": "brands/rapidpro/rapidpro.ico",
-    "splash": "brands/rapidpro/splash.jpg",
-    "logo": "images/logo-dark.svg",
-    "allow_signups": True,
-    "title": _("Visually build nationally scalable mobile applications"),
+    "features": ["signups"],
 }
 
 FEATURES = {"locations", "surveyor"}

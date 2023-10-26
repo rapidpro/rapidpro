@@ -58,14 +58,14 @@ class WhatsAppType(ChannelType):
         headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
 
         # Subscribe to events
-        url = f"https://graph.facebook.com/v17.0/{waba_id}/subscribed_apps"
+        url = f"https://graph.facebook.com/v18.0/{waba_id}/subscribed_apps"
         resp = requests.post(url, headers=headers)
 
         if resp.status_code != 200:  # pragma: no cover
             raise ValidationError(_("Unable to subscribe to app to WABA with ID %s" % waba_id))
 
         # register numbers
-        url = f"https://graph.facebook.com/v17.0/{channel.address}/register"
+        url = f"https://graph.facebook.com/v18.0/{channel.address}/register"
         data = {"messaging_product": "whatsapp", "pin": wa_pin}
 
         resp = requests.post(url, data=data, headers=headers)
@@ -86,7 +86,7 @@ class WhatsAppType(ChannelType):
         start = timezone.now()
         try:
             template_data = []
-            url = f"https://graph.facebook.com/v17.0/{waba_id}/message_templates"
+            url = f"https://graph.facebook.com/v18.0/{waba_id}/message_templates"
 
             headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
             while url:
