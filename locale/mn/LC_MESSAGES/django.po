@@ -1003,8 +1003,8 @@ msgstr "FreshChat API баталгаажуулах токен"
 msgid "The API auth token- leave out the bearer"
 msgstr "The API баталгаажуулах токен- bearer-г орхи"
 
-msgid "If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send and receive messages on your short code."
-msgstr "Хэрэв та Филиппинд амьдардаг бол та богино код дээрээ мессеж илгээх, хүлээн авахын тулд {{brand.name}} - г Globe Labs -тэй нэгтгэх боломжтой."
+msgid "If you are based in the Phillipines, you can integrate {{ branding.name }} with Globe Labs to send and receive messages on your short code."
+msgstr "Хэрэв та Филиппинд амьдардаг бол та богино код дээрээ мессеж илгээх, хүлээн авахын тулд {{branding.name}} - г Globe Labs -тэй нэгтгэх боломжтой."
 
 msgid "To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your application configuration page."
 msgstr "Globe Labs холболтоо тохируулж дуусгахын тулд та програмын тохиргооны хуудсан дээрх SMS -ийн URI -д дараах мэдэгдлийг тохируулах хэрэгтэй."

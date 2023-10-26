@@ -2,7 +2,7 @@
 {% load i18n compress temba %}
 
 {% block pre-form %}
-  {% blocktrans trimmed with name=brand.name %}
+  {% blocktrans trimmed with name=branding.name %}
     You can connect a <a href="https://slack.com/app" target="_blank">Slack</a> Bot to your {{ name }} workspace to automate sending and receiving messages.
   {% endblocktrans %}
   {% blocktrans trimmed %}

@@ -15,12 +15,12 @@
   {% endblocktrans %}
   <ol class="steps card">
     <li>
-      {% blocktrans trimmed with brand=brand.name %}
+      {% blocktrans trimmed with brand=branding.name %}
         Install the {{ brand }} app into your Zendesk account from the <a href="{{ market_url }}">marketplace</a>.
       {% endblocktrans %}
     </li>
     <li>
-      {% blocktrans trimmed with brand=brand.name %}
+      {% blocktrans trimmed with brand=branding.name %}
         Go to <a href="{{ channels_url }}">channel integrations</a> where you will see a new {{ brand }} channel service.
       {% endblocktrans %}
     </li>

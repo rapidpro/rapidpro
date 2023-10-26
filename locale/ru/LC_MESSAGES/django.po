@@ -1020,7 +1020,7 @@ msgstr "Аутентификационный токен API FreshChat "
 msgid "The API auth token- leave out the bearer"
 msgstr "Аутентификационный токен API-не указывать носитель"
 
-msgid "If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send and receive messages on your short code."
+msgid "If you are based in the Phillipines, you can integrate {{ branding.name }} with Globe Labs to send and receive messages on your short code."
 msgstr ""
 
 msgid "To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your application configuration page."

@@ -13,7 +13,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
-          content="{% block page-description %}{{ brand.name }} lets you visually build interactive SMS applications and launch them anywhere in the world.{% endblock page-description %}">
+          content="{% block page-description %}{{ branding.name }} lets you visually build interactive SMS applications and launch them anywhere in the world.{% endblock page-description %}">
     <meta name="author" content="Nyaruka Ltd">
     <meta http-equiv="X-UA-Compatible" content="IE=10">
     <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
@@ -85,9 +85,6 @@
       {% endcompress %}
     {% endblock styles %}
     {% include "includes/frame_top.html" %}
-    {% for incl in brand.head_includes %}
-      {% include incl %}
-    {% endfor %}
   </head>
   {% block body %}
     <body class="bg-gradient" id="pageBody">

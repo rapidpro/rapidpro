@@ -18,11 +18,11 @@
       </div>
     </div>
     <div class="p-12">
-      {% blocktrans trimmed with brand.name as brand %}
+      {% blocktrans trimmed with branding.name as brand %}
         {{ brand }} can use your Android phone to send and receive messages on your behalf.
       {% endblocktrans %}
       <div class="mt-4">
-        {% blocktrans trimmed with brand.name as brand %}
+        {% blocktrans trimmed with branding.name as brand %}
           Due to restrictions Android has on applications that send SMS messages, we cannot distribute
           the {{ brand }} application through the Play Store. You will need to download the application manually
           and install it using the steps below.
@@ -52,7 +52,7 @@
               {% blocktrans trimmed %}
                 On your Android device, open your browser and download the app by entering the URL:
               {% endblocktrans %}
-              <div class="code inline-block">https://{{ brand.domain }}{% url "public.public_android" %}</div>
+              <div class="code inline-block">https://{{ branding.domain }}{% url "public.public_android" %}</div>
             </div>
           </div>
         </td>
@@ -66,7 +66,7 @@
         <td>
           <div class="py-4 px-8">
             <div class="subtitle">
-              {% blocktrans trimmed with brand.name as brand %}
+              {% blocktrans trimmed with branding.name as brand %}
                 Launch the {{ brand }} installer
               {% endblocktrans %}
             </div>
@@ -134,12 +134,12 @@
         <td>
           <div class="py-4 px-8">
             <div class="subtitle">
-              {% blocktrans trimmed with brand.name as brand %}
+              {% blocktrans trimmed with branding.name as brand %}
                 Open {{ brand }}
               {% endblocktrans %}
             </div>
             <div class="mt-2">
-              {% blocktrans trimmed with brand.name as brand %}
+              {% blocktrans trimmed with branding.name as brand %}
                 Once {{ brand }} has been installed, open the app drawer and tap on the {{ brand }} icon to start the app.
               {% endblocktrans %}
             </div>
@@ -156,7 +156,7 @@
           <div class="py-4 px-8">
             <div class="subtitle">{% trans "Enter Claim Code" %}</div>
             <div class="mt-2">
-              {% blocktrans trimmed with brand.name as brand %}
+              {% blocktrans trimmed with branding.name as brand %}
                 When you first open {{ brand }}, the app will register your device with Google and our servers.  Once that is
                 complete, it will display a claim code.  Enter that claim code in the form to the left and click
                 "Add Phone" to connect your device.
