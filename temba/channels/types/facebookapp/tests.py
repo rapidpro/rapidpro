@@ -74,7 +74,7 @@ class FacebookTypeTest(TembaTest):
         self.assertEqual(response.request["PATH_INFO"], reverse("channels.channel_read", args=[channel.uuid]))
 
         mock_get.assert_any_call(
-            "https://graph.facebook.com/v17.0/debug_token",
+            "https://graph.facebook.com/v18.0/debug_token",
             params={"input_token": token, "access_token": "FB_APP_ID|FB_APP_SECRET"},
         )
 
@@ -89,11 +89,11 @@ class FacebookTypeTest(TembaTest):
         )
 
         mock_get.assert_any_call(
-            "https://graph.facebook.com/v17.0/098765/accounts", params={"access_token": f"long-life-user-{token}"}
+            "https://graph.facebook.com/v18.0/098765/accounts", params={"access_token": f"long-life-user-{token}"}
         )
 
         mock_post.assert_any_call(
-            "https://graph.facebook.com/v17.0/123456/subscribed_apps",
+            "https://graph.facebook.com/v18.0/123456/subscribed_apps",
             data={
                 "subscribed_fields": "messages,message_deliveries,messaging_optins,messaging_optouts,messaging_postbacks,message_reads,messaging_referrals,messaging_handovers"
             },
@@ -174,7 +174,7 @@ class FacebookTypeTest(TembaTest):
         self.channel.release(self.admin)
 
         mock_delete.assert_called_once_with(
-            "https://graph.facebook.com/v17.0/12345/subscribed_apps", params={"access_token": "09876543"}
+            "https://graph.facebook.com/v18.0/12345/subscribed_apps", params={"access_token": "09876543"}
         )
 
     @override_settings(FACEBOOK_APPLICATION_ID="FB_APP_ID", FACEBOOK_APPLICATION_SECRET="FB_APP_SECRET")
@@ -245,11 +245,11 @@ class FacebookTypeTest(TembaTest):
             },
         )
         mock_get.assert_any_call(
-            "https://graph.facebook.com/v17.0/098765/accounts", params={"access_token": f"long-life-user-{token}"}
+            "https://graph.facebook.com/v18.0/098765/accounts", params={"access_token": f"long-life-user-{token}"}
         )
 
         mock_post.assert_any_call(
-            "https://graph.facebook.com/v17.0/12345/subscribed_apps",
+            "https://graph.facebook.com/v18.0/12345/subscribed_apps",
             data={
                 "subscribed_fields": "messages,message_deliveries,messaging_optins,messaging_optouts,messaging_postbacks,message_reads,messaging_referrals,messaging_handovers"
             },
@@ -265,7 +265,7 @@ class FacebookTypeTest(TembaTest):
             trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow, channel=self.channel)
 
             mock_post.assert_called_once_with(
-                "https://graph.facebook.com/v17.0/me/messenger_profile",
+                "https://graph.facebook.com/v18.0/me/messenger_profile",
                 json={"get_started": {"payload": "get_started"}},
                 headers={"Content-Type": "application/json"},
                 params={"access_token": "09876543"},
@@ -278,7 +278,7 @@ class FacebookTypeTest(TembaTest):
             trigger.archive(self.admin)
 
             mock_post.assert_called_once_with(
-                "https://graph.facebook.com/v17.0/me/messenger_profile",
+                "https://graph.facebook.com/v18.0/me/messenger_profile",
                 json={"fields": ["get_started"]},
                 headers={"Content-Type": "application/json"},
                 params={"access_token": "09876543"},
@@ -291,7 +291,7 @@ class FacebookTypeTest(TembaTest):
             trigger.restore(self.admin)
 
             mock_post.assert_called_once_with(
-                "https://graph.facebook.com/v17.0/me/messenger_profile",
+                "https://graph.facebook.com/v18.0/me/messenger_profile",
                 json={"get_started": {"payload": "get_started"}},
                 headers={"Content-Type": "application/json"},
                 params={"access_token": "09876543"},
