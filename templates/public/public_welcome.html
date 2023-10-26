@@ -43,7 +43,7 @@
 {% endblock messages %}
 {% block content %}
   {% if 'success' in request.GET.keys %}
-    {% blocktrans with name=brand.name %}
+    {% blocktrans with name=branding.name %}
     Your channel is now connected. You can now start flows through {{name}}.
     {% endblocktrans %}
   {% else %}
@@ -89,7 +89,7 @@
           <div class="title">
             <a href="{% url 'channels.channel_claim' %}">{% trans "Get Connected" %}</a>
           </div>
-          {% blocktrans with name=brand.name %}
+          {% blocktrans with name=branding.name %}
             No matter where you are in the world, it's easy to configure {{name}} to work on real phones without delay.
             Whether you want to use a Twilio number, a direct connection with your local carriers, or even the SIM card
             you already have, we've got you covered.
@@ -121,7 +121,7 @@
         <div class="title">
           <a href="{% url 'contacts.contact_list' %}">{% trans "Contacts" %}</a>
         </div>
-        {% blocktrans with name=brand.name %}
+        {% blocktrans with name=branding.name %}
           Before you do anything else in {{name}}, it is helpful to have a list of contacts. This will make it easy to send a message or survey out
           to a wide distribution list.
 
@@ -171,14 +171,14 @@
         <div class="title">
           <a href="{% url 'msgs.msg_inbox' %}">{% trans "Messages" %}</a>
         </div>
-        {% blocktrans with name=brand.name %}
+        {% blocktrans with name=branding.name %}
           If you use e-mail, reading and writing messages in {{name}} should already be familiar to you. Just like e-mail, you have an Inbox and it's easy to label
           messages so you can follow up with them later. {{name}} also allows you to schedule a message to be sent later or even as a reminder
           on a regular schedule.
 
         {% endblocktrans %}
         <div class="mt-2">
-          {% blocktrans with name=brand.name %}
+          {% blocktrans with name=branding.name %}
             For example you might have {{name}} send a message every Friday reminding people in the <i>Field Staff</i> group to complete their weekly report.
             If anybody joins the <i>Field Staff</i> group later, they will automatically start receiving the weekly reminder.
 
@@ -209,7 +209,7 @@
         {% endblock account-blurb %}
         <div class="mt-2">
           {% url 'api' as api_url %}
-          {% blocktrans with name=brand.name %}
+          {% blocktrans with name=branding.name %}
             {{name}} also offers a robust REST API to add SMS features to your own website. Have a look through the
             <a href="{{api_url}}">
               API documentation

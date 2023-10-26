@@ -1012,8 +1012,8 @@ msgstr "Token de autenticación de API FreshChat"
 msgid "The API auth token- leave out the bearer"
 msgstr "El token de autenticación de API: omita el bearer"
 
-msgid "If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send and receive messages on your short code."
-msgstr "Si reside en Filipinas, puede integrar {{brand.name}} con Globe Labs para enviar y recibir mensajes con su código corto."
+msgid "If you are based in the Phillipines, you can integrate {{ branding.name }} with Globe Labs to send and receive messages on your short code."
+msgstr "Si reside en Filipinas, puede integrar {{branding.name}} con Globe Labs para enviar y recibir mensajes con su código corto."
 
 msgid "To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your application configuration page."
 msgstr "Para terminar de configurar su conexión de Globe Labs, deberá configurar el siguiente URI de notificación para SMS en la página de configuración de su aplicación."

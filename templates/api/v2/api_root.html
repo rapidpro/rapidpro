@@ -2,7 +2,7 @@
 {% load rest_framework static smartmin %}
 
 {% block head-title %}
-  {{ brand.name }} API v2
+  {{ branding.name }} API v2
 {% endblock head-title %}
 {% block page-top %}
 {% endblock page-top %}
@@ -133,7 +133,7 @@
   {% block breadcrumbs %}
     <div class="breadcrumb">
       <div class="ml-1">
-        <a href="/">{{ brand.name }}</a>
+        <a href="/">{{ branding.name }}</a>
         <span class="divider">&rsaquo;</span>
       </div>
       {% for breadcrumb_name, breadcrumb_url in breadcrumblist %}
@@ -162,7 +162,7 @@
       <div class="flex mb-8">
         <div class="flex-grow page-title">
           {% if name == "Root" %}
-            {{ brand.name }} API v2
+            {{ branding.name }} API v2
           {% else %}
             {{ name }}
           {% endif %}

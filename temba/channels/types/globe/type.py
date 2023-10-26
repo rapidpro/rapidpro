@@ -20,7 +20,7 @@ class GlobeType(ChannelType):
     available_timezones = ["Asia/Manila"]
 
     claim_blurb = _(
-        "If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send and "
+        "If you are based in the Phillipines, you can integrate {{ branding.name }} with Globe Labs to send and "
         "receive messages on your short code."
     )
     claim_view = ClaimView

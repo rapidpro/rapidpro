@@ -32,7 +32,10 @@
         <div class="flex items-center">
           <div class="brand flex-grow">
             {% block logo %}
-              <img class="no-nav-logo" style="max-height:4em;margin: 1em 0;" src="{{ STATIC_URL }}{{ brand.logos.primary }}">
+              <img class="no-nav-logo"
+                   style="max-height:4em;
+                          margin: 1em 0"
+                   src="{{ STATIC_URL }}{{ branding.logos.primary }}">
             {% endblock logo %}
           </div>
           <div class="top-right">

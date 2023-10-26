@@ -2,13 +2,13 @@
 {% load smartmin i18n %}
 
 {% block page-title %}
-  {{ brand.name }} - API Explorer
+  {{ branding.name }} - API Explorer
 {% endblock page-title %}
 {% block content %}
   {% block breadcrumbs %}
     <ul class="breadcrumb">
       <li>
-        <a href="/">{{ brand.name }}</a>
+        <a href="/">{{ branding.name }}</a>
         <span class="divider">&rsaquo;</span>
         <a href="{% url 'api.v2' %}">API v2</a>
         <span class="divider">&rsaquo;</span>
@@ -17,9 +17,7 @@
         <a href="{% url 'api.v2.explorer' %}" class="active">{% trans "Explorer" %}</a>
       </li>
       <li style="flex-grow:1"></li>
-      <li style="color: #666">
-        API Token: {{ api_token }}
-      </li>
+      <li style="color: #666">API Token: {{ api_token }}</li>
     </ul>
   {% endblock breadcrumbs %}
   <div style="position: relative;" class="flex justify-between items-center pb-1 mb-4 px-8">
@@ -84,7 +82,7 @@
           <div class="request-header font-mono mb-4">
             <b class="font-bold">{{ endpoint.method }}</b>
             <div class="md:text-base md:inline whitespace-nowrap text-sm">
-              https://{{ brand.domain }}{{ endpoint.url }}.json<span class="query-display"></span>
+              https://{{ branding.domain }}{{ endpoint.url }}.json<span class="query-display"></span>
               <br />
             </div>
             <b class="font-bold">Authorization:</b>

@@ -6,7 +6,7 @@
 {% block content %}
   {% if relayer_app %}
     <p>
-      {% blocktrans trimmed with brand.name as brand %}
+      {% blocktrans trimmed with branding.name as brand %}
         To use an Android phone with your {{ brand }} workspace to send messages you need to download the {{ brand }} relayer app
       {% endblocktrans %}
     </p>
@@ -20,13 +20,13 @@
     {% if relayer_app.description %}<div class="latest-release-description">{{ relayer_app.description }}</div>{% endif %}
   {% else %}
     <p></p>
-    {% blocktrans trimmed with brand.emails.support|default:brand.emails.notifications as email %}
+    {% blocktrans trimmed with branding.emails.support|default:branding.emails.notifications as email %}
       No Android app available yet. Please contact {{ email }} and report that.
     {% endblocktrans %}
   {% endif %}
   {% if message_packs %}
     <p>
-      {% blocktrans with brand.name as brand %}
+      {% blocktrans with branding.name as brand %}
         To increase the capacity of messages your phone can send in an hour we recommend you install each of the following {{ brand }} message packs as well.
       {% endblocktrans %}
     </p>
