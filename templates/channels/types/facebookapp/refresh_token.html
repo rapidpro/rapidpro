@@ -40,6 +40,21 @@
   <script type="text/javascript">
     $(document).ready(function() {
       $(".connect-facebook").click(function(evt) {
+        {% if facebook_login_messenger_config_id %}
+        FB.login(function(response) {
+          if (response.status === 'connected') {
+            $("#fb-user-id").val(response.authResponse.userID);
+            $("#user-access-token").val(response.authResponse.accessToken);
+            $("#refresh-token-form").submit();
+          } else {
+            $("#fb-status").hide();
+            $("#fb-channel-error").show();
+          }
+
+        }, {
+          config_id: '{{ facebook_login_messenger_config_id }}'
+        });
+        {% else %}
         FB.login(function(response) {
           if (response.status === 'connected') {
             $("#fb-user-id").val(response.authResponse.userID);
@@ -53,6 +68,7 @@
         }, {
           scope: 'pages_messaging,pages_show_list,pages_manage_metadata,pages_read_engagement'
         });
+        {% endif %}
 
       })
     });

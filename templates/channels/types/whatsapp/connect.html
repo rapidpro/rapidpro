@@ -71,6 +71,26 @@
     // Facebook Login with JavaScript SDK
     function launchWhatsAppSignup() {
       // Launch Facebook login
+
+      {% if facebook_login_whatsapp_config_id %}
+      FB.login(function(response) {
+        if (response.authResponse) {
+          const accessToken = response.authResponse.accessToken;
+          if (accessToken) {
+            $("#user-access-token").val(accessToken);
+            $("#claim-form").submit();
+          }
+          //Use this token to call the debug_token API and get the shared WABA's ID
+        } else {
+          console.log('User cancelled login or did not fully authorize, redirect to the dialog auth');
+          location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&config_id={{ facebook_login_whatsapp_config_id }}&response_type=token&override_default_response_type=true")
+        }
+      }, {
+        config_id: '{{ facebook_login_whatsapp_config_id }}',
+        response_type: 'token',
+        override_default_response_type: true
+      });
+      {% else %}
       FB.login(function(response) {
         if (response.authResponse) {
           const accessToken = response.authResponse.accessToken;
@@ -90,6 +110,9 @@
           setup: {}
         }
       });
+      {% endif %}
+
+
     }
   </script>
 {% endblock extra-script %}

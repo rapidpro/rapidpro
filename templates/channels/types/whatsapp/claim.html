@@ -45,6 +45,16 @@
   {{ block.super }}
   <script type="text/javascript">
     $(document).ready(function() {
+      {% if facebook_login_whatsapp_config_id %}
+      $(".connect-facebook").click(function(evt) {
+        $.ajax({
+          type: "GET",
+          url: "{{clear_session_token_url}}"
+        });
+        location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + "{{connect_whatsapp_url}}" + "&config_id={{ facebook_login_whatsapp_config_id }}&response_type=token&override_default_response_type=true")
+
+      });
+      {% else %}
       $(".connect-facebook").click(function(evt) {
         $.ajax({
           type: "GET",
@@ -53,6 +63,7 @@
         location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + "{{connect_whatsapp_url}}" + "&scope=business_management,whatsapp_business_management,whatsapp_business_messaging&response_type=token")
 
       });
+      {% endif %}
 
 
       $("#fb-channel-options").on('click', ".fb-page-channel-option", function(e) {
