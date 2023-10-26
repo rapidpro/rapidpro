@@ -7,7 +7,11 @@
   <head>
     <title>
       {% block head-title %}
-        {{ title }}
+        {% if title %}
+          {{ title }}
+        {% else %}
+          {{ branding.name }}
+        {% endif %}
       {% endblock head-title %}
     </title>
     <meta charset="utf-8">
