@@ -1,3 +1,8 @@
+v8.3.69 (2023-10-26)
+-------------------------
+ * Use org brand domain instead of link
+ * Update to use Facebook API v18.0
+
 v8.3.67 (2023-10-26)
 -------------------------
  * Update revisions url
