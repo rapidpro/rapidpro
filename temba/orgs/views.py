@@ -1029,11 +1029,24 @@ class UserCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.user_token"):
                 formax.add_section("token", reverse("orgs.user_token"), icon="upload", nobutton=True)
 
-    class Token(InferUserMixin, OrgPermsMixin, SmartReadView):
+    class Token(InferUserMixin, OrgPermsMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
+            class Meta:
+                model = User
+                fields = ()
+
+        form_class = Form
+        submit_button_name = _("Regenerate")
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["api_token"] = self.request.user.get_api_token(self.request.org)
             return context
+
+        def form_valid(self, form):
+            APIToken.get_or_create(self.request.org, self.request.user, refresh=True)
+
+            return super().form_valid(form)
 
 
 class MenuMixin(OrgPermsMixin):

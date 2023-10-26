@@ -4,31 +4,15 @@ from uuid import UUID
 import iso8601
 from rest_framework import generics, mixins, status
 from rest_framework.response import Response
-from smartmin.views import SmartView
 
 from django.db import transaction
-from django.http import JsonResponse
-from django.views.generic import View
 
 from temba.api.support import InvalidQueryError
 from temba.contacts.models import URN
-from temba.orgs.views import OrgPermsMixin
 from temba.utils.models import TembaModel
 from temba.utils.views import NonAtomicMixin
 
-from .models import APIToken, BulkActionFailure
-
-
-class RefreshAPITokenView(OrgPermsMixin, SmartView, View):
-    """
-    Simple view that refreshes the API token for the user/org when POSTed to
-    """
-
-    permission = "api.apitoken_refresh"
-
-    def post(self, request, *args, **kwargs):
-        token = APIToken.get_or_create(request.org, request.user, refresh=True)
-        return JsonResponse({"token": token.key})
+from .models import BulkActionFailure
 
 
 class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):

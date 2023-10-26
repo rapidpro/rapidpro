@@ -1012,51 +1012,6 @@ class OrgTest(TembaTest):
 
         mock_async_start.assert_called_once()
 
-    def test_refresh_tokens(self):
-        self.login(self.admin)
-        settings_url = reverse("orgs.org_workspace")
-        response = self.client.get(settings_url)
-
-        # admin should have a token
-        token = APIToken.objects.get(user=self.admin)
-
-        # and it should be on the page
-        self.assertContains(response, token.key)
-
-        # let's refresh it
-        self.client.post(reverse("api.apitoken_refresh"))
-
-        # visit our account page again
-        response = self.client.get(settings_url)
-
-        # old token no longer there
-        self.assertNotContains(response, token.key)
-
-        # old token now inactive
-        token.refresh_from_db()
-        self.assertFalse(token.is_active)
-
-        # there is a new token for this user
-        new_token = APIToken.objects.get(user=self.admin, is_active=True)
-        self.assertNotEqual(new_token.key, token.key)
-        self.assertContains(response, new_token.key)
-
-        # can't refresh if logged in as viewer
-        self.login(self.user)
-        response = self.client.post(reverse("api.apitoken_refresh"))
-        self.assertLoginRedirect(response)
-
-        # or just not an org user
-        self.login(self.non_org_user)
-        response = self.client.post(reverse("api.apitoken_refresh"))
-        self.assertRedirect(response, reverse("orgs.org_choose"))
-
-        # but can see it as an editor
-        self.login(self.editor)
-        response = self.client.get(settings_url)
-        token = APIToken.objects.get(user=self.editor)
-        self.assertContains(response, token.key)
-
     @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
         url = reverse("orgs.org_manage_accounts")
@@ -3828,8 +3783,18 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.editor)
 
+        editor_token = self.editor.get_api_token(self.org)
+
         response = self.client.get(token_url)
-        self.assertContains(response, self.editor.get_api_token(self.org))
+        self.assertContains(response, editor_token)
+
+        # a post should refresh the token
+        response = self.client.post(token_url, {}, follow=True)
+        self.assertNotContains(response, editor_token)
+
+        new_token = self.editor.get_api_token(self.org)
+
+        self.assertContains(response, new_token)
 
 
 class BulkExportTest(TembaTest):

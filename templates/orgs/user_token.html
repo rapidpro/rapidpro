@@ -18,18 +18,4 @@
   <div class="mb-2 api_token_container">
     <b>{{ api_token }}</b>
   </div>
-  <div onclick="regenerateToken()" class="button-primary">{% trans "Regenerate" %}</div>
 {% endblock fields %}
-{% block form-buttons %}
-  {# hide regular form buttons #}
-{% endblock form-buttons %}
-{% block extra-script %}
-  {{ block.super }}
-  <script type="text/javascript">
-    function regenerateToken() {
-      $.post("{% url 'api.apitoken_refresh' %}", function(data) {
-        $(".api_token_container b").text(data['token']);
-      });
-    }
-  </script>
-{% endblock extra-script %}
