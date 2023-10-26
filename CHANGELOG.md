@@ -1,3 +1,7 @@
+v8.3.71 (2023-10-26)
+-------------------------
+ * Consistent brand references in templates
+
 v8.3.70 (2023-10-26)
 -------------------------
  * Merge pull request #4930 from nyaruka/use-org-brand-domain
