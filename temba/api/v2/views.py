@@ -1696,7 +1696,7 @@ class DefinitionsEndpoint(BaseEndpoint):
             include_fields_and_groups = True
 
         export = org.export_definitions(
-            self.request.branding["link"],
+            f"https://{org.get_brand_domain()}",
             components,
             include_fields=include_fields_and_groups,
             include_groups=include_fields_and_groups,
