@@ -1453,7 +1453,7 @@ class OrgCRUDL(SmartCRUDL):
             for flow in flows:
                 components.update(flow.triggers.filter(is_active=True, is_archived=False))
 
-            export = org.export_definitions(request.branding["link"], components)
+            export = org.export_definitions(f"https://{org.get_brand_domain()}", components)
             response = JsonResponse(export, json_dumps_params=dict(indent=2))
             response["Content-Disposition"] = "attachment; filename=%s.json" % slugify(org.name)
             return response
