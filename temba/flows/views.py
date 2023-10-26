@@ -908,6 +908,7 @@ class FlowCRUDL(SmartCRUDL):
 
             if facebook_channel:
                 features.append("facebook")
+                features.append("optins")
             if whatsapp_channel:
                 features.append("whatsapp")
             if org.get_integrations(IntegrationType.Category.AIRTIME):
@@ -920,9 +921,6 @@ class FlowCRUDL(SmartCRUDL):
                 features.append("resthook")
             if org.country_id:
                 features.append("locations")
-
-            if org.optins.filter(is_active=True).exists() or self.request.user.is_beta:  # pragma: no cover
-                features.append("optins")
 
             return features
 
