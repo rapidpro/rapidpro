@@ -52,7 +52,7 @@
               {% blocktrans trimmed %}
                 On your Android device, open your browser and download the app by entering the URL:
               {% endblocktrans %}
-              <div class="code inline-block">{{ brand.link }}{% url "public.public_android" %}</div>
+              <div class="code inline-block">https://{{ brand.domain }}{% url "public.public_android" %}</div>
             </div>
           </div>
         </td>

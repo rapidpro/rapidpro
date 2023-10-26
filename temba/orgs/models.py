@@ -1457,7 +1457,7 @@ class OrgImport(SmartModel):
         self.save(update_fields=("status",))
         try:
             org = self.org
-            link = org.get_brand()["link"]
+            link = f"https://{org.get_brand_domain()}"
             data = json.loads(force_str(self.file.read()))
             org.import_app(data, self.created_by, link)
         except Exception as e:

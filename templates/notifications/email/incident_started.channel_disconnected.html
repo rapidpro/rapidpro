@@ -3,8 +3,8 @@
 
 {% block notification-body %}
   <p>
-    {% blocktrans trimmed with url=branding.link|add:target_url %}
-    Your <a href="{{ url }}">Android channel</a> appears to be disconnected and hasn't been seen for some time.
+    {% blocktrans trimmed with url="https://"|add:branding.domain|add:target_url %}
+      Your <a href="{{ url }}">Android channel</a> appears to be disconnected and hasn't been seen for some time.
     {% endblocktrans %}
   </p>
 {% endblock notification-body %}

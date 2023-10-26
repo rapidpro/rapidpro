@@ -3,5 +3,5 @@
 
 {% block notification-body %}
   <p>{% trans "Your contact export is ready." %}</p>
-  <p>{% blocktrans with url=branding.link|add:target_url %}Download the Excel file here: {{ url }}{% endblocktrans %}</p>
+  <p>{% blocktrans with url="https://"|add:branding.domain|add:target_url %}Download the Excel file here: {{ url }}{% endblocktrans %}</p>
 {% endblock notification-body %}
