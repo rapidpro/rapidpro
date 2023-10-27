@@ -1,3 +1,10 @@
+v8.3.72 (2023-10-27)
+-------------------------
+ * Make sure the missing external ID we make for D360 channels is truncated to 64 characters
+ * Un-gate optins
+ * Add support for Facebook login for business configurations
+ * Move API token formax to Account section
+
 v8.3.71 (2023-10-26)
 -------------------------
  * Consistent brand references in templates
