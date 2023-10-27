@@ -282,11 +282,11 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         # change our channel to use a facebook scheme
         self.channel.schemes = [URN.FACEBOOK_SCHEME]
         self.channel.save()
-        assert_features({"facebook", "airtime", "classifier", "ticketer", "resthook"})
+        assert_features({"facebook", "optins", "airtime", "classifier", "ticketer", "resthook"})
 
         self.setUpLocations()
 
-        assert_features({"facebook", "airtime", "classifier", "ticketer", "resthook", "locations"})
+        assert_features({"facebook", "optins", "airtime", "classifier", "ticketer", "resthook", "locations"})
 
     def test_save_revision(self):
         self.login(self.admin)
