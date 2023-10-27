@@ -130,6 +130,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         context["connect_whatsapp_url"] = reverse("channels.types.whatsapp.connect")
         context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
 
+        context["facebook_login_whatsapp_config_id"] = settings.FACEBOOK_LOGIN_WHATSAPP_CONFIG_ID
+
         claim_error = None
         if context["form"].errors:
             claim_error = context["form"].errors["__all__"][0]
@@ -409,6 +411,8 @@ class Connect(ChannelTypeMixin, OrgPermsMixin, SmartFormView):
         context = super().get_context_data(**kwargs)
         context["connect_url"] = reverse("channels.types.whatsapp.connect")
         context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
+
+        context["facebook_login_whatsapp_config_id"] = settings.FACEBOOK_LOGIN_WHATSAPP_CONFIG_ID
 
         claim_error = None
         if context["form"].errors:

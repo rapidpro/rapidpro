@@ -65,9 +65,15 @@
   {{ block.super }}
   <script type="text/javascript">
     $(document).ready(function() {
+      {% if facebook_login_instagram_config_id %}
+      $(".connect-facebook").click(function(evt) {
+        location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&config_id={{ facebook_login_instagram_config_id }}&response_type=token&override_default_response_type=true")
+      });
+      {% else %}
       $(".connect-facebook").click(function(evt) {
         location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&scope=instagram_basic,instagram_manage_messages,pages_manage_metadata,pages_messaging,pages_read_engagement,pages_show_list&response_type=token")
       });
+      {% endif %}
 
       var hash = window.location.hash.substring(1)
       var result = hash.split('&').reduce(function(res, item) {

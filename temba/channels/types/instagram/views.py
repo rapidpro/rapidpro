@@ -134,6 +134,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         context["claim_url"] = reverse("channels.types.instagram.claim")
         context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
 
+        context["facebook_login_instagram_config_id"] = settings.FACEBOOK_LOGIN_INSTAGRAM_CONFIG_ID
+
         claim_error = None
         if context["form"].errors:
             claim_error = context["form"].errors["__all__"][0]
@@ -189,6 +191,8 @@ class RefreshToken(ChannelTypeMixin, ModalMixin, OrgObjPermsMixin, SmartModelAct
         app_secret = settings.FACEBOOK_APPLICATION_SECRET
 
         context["facebook_app_id"] = app_id
+
+        context["facebook_login_instagram_config_id"] = settings.FACEBOOK_LOGIN_INSTAGRAM_CONFIG_ID
 
         url = "https://graph.facebook.com/v18.0/debug_token"
         params = {
