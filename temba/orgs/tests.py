@@ -391,11 +391,6 @@ class UserTest(TembaTest):
         response = self.client.post(backup_url, {"token": self.admin.backup_tokens.first()})
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
-    def test_account(self):
-        self.login(self.admin)
-        response = self.client.get(reverse("orgs.user_account"))
-        self.assertEqual(1, len(response.context["formax"].sections))
-
     def test_two_factor(self):
         self.assertFalse(self.admin.settings.two_factor_enabled)
 
@@ -1016,51 +1011,6 @@ class OrgTest(TembaTest):
         )
 
         mock_async_start.assert_called_once()
-
-    def test_refresh_tokens(self):
-        self.login(self.admin)
-        settings_url = reverse("orgs.org_workspace")
-        response = self.client.get(settings_url)
-
-        # admin should have a token
-        token = APIToken.objects.get(user=self.admin)
-
-        # and it should be on the page
-        self.assertContains(response, token.key)
-
-        # let's refresh it
-        self.client.post(reverse("api.apitoken_refresh"))
-
-        # visit our account page again
-        response = self.client.get(settings_url)
-
-        # old token no longer there
-        self.assertNotContains(response, token.key)
-
-        # old token now inactive
-        token.refresh_from_db()
-        self.assertFalse(token.is_active)
-
-        # there is a new token for this user
-        new_token = APIToken.objects.get(user=self.admin, is_active=True)
-        self.assertNotEqual(new_token.key, token.key)
-        self.assertContains(response, new_token.key)
-
-        # can't refresh if logged in as viewer
-        self.login(self.user)
-        response = self.client.post(reverse("api.apitoken_refresh"))
-        self.assertLoginRedirect(response)
-
-        # or just not an org user
-        self.login(self.non_org_user)
-        response = self.client.post(reverse("api.apitoken_refresh"))
-        self.assertRedirect(response, reverse("orgs.org_choose"))
-
-        # but can see it as an editor
-        self.login(self.editor)
-        response = self.client.get(settings_url)
-        token = APIToken.objects.get(user=self.editor)
-        self.assertContains(response, token.key)
 
     @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
@@ -2490,7 +2440,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertListFetch(workspace_url, allow_viewers=True, allow_editors=True, allow_agents=False)
 
         # make sure we have the appropriate number of sections
-        self.assertEqual(7, len(response.context["formax"].sections))
+        self.assertEqual(6, len(response.context["formax"].sections))
         self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 5)
 
         # enable child workspaces and users
@@ -2506,7 +2456,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(12):
             response = self.client.get(workspace_url)
 
         # should have an extra menu options for workspaces and users
@@ -3806,6 +3756,45 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_active)
+
+    def test_account(self):
+        self.login(self.agent)
+
+        response = self.client.get(reverse("orgs.user_account"))
+        self.assertEqual(1, len(response.context["formax"].sections))
+
+        self.login(self.admin)
+
+        response = self.client.get(reverse("orgs.user_account"))
+        self.assertEqual(2, len(response.context["formax"].sections))
+
+    def test_token(self):
+        token_url = reverse("orgs.user_token")
+
+        self.assertLoginRedirect(self.client.get(token_url))
+
+        self.login(self.user)
+
+        self.assertLoginRedirect(self.client.get(token_url))
+
+        self.login(self.agent)
+
+        self.assertLoginRedirect(self.client.get(token_url))
+
+        self.login(self.editor)
+
+        editor_token = self.editor.get_api_token(self.org)
+
+        response = self.client.get(token_url)
+        self.assertContains(response, editor_token)
+
+        # a post should refresh the token
+        response = self.client.post(token_url, {}, follow=True)
+        self.assertNotContains(response, editor_token)
+
+        new_token = self.editor.get_api_token(self.org)
+
+        self.assertContains(response, new_token)
 
 
 class BulkExportTest(TembaTest):
