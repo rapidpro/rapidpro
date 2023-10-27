@@ -140,7 +140,7 @@ def update_local_templates(channel, templates_data):
             content=content,
             variable_count=variable_count,
             status=status,
-            external_id=template.get("id", missing_external_id),
+            external_id=template.get("id", missing_external_id[:64]),
             namespace=template.get("namespace", channel_namespace),
         )
 
