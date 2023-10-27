@@ -270,17 +270,39 @@ class WhatsAppUtilsTest(TembaTest):
                 "rejected_reason": "NONE",
                 "category": "ISSUE_RESOLUTION",
             },
+            {
+                "name": "this_is_template_has_a_very_long_name,_and_not_having_an_id,_we_generate_the_external_id_from_the_name_and_truncate_that_to_64_characters",
+                "components": [
+                    {
+                        "type": "BODY",
+                        "text": "This is template has a very long name, and not having an id, we generate the external_id from the name and truncate that to 64 characters",
+                    }
+                ],
+                "language": "en_US",
+                "status": "APPROVED",
+                "namespace": "xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx",
+                "rejected_reason": "NONE",
+                "category": "UTILITY",
+            },
         ]
 
         update_local_templates(channel, D3_templates_data)
 
-        self.assertEqual(4, Template.objects.filter(org=self.org).count())
-        self.assertEqual(6, TemplateTranslation.objects.filter(channel=channel).count())
+        self.assertEqual(5, Template.objects.filter(org=self.org).count())
+        self.assertEqual(7, TemplateTranslation.objects.filter(channel=channel).count())
         self.assertEqual(0, TemplateTranslation.objects.filter(channel=channel, namespace="").count())
         self.assertEqual(0, TemplateTranslation.objects.filter(channel=channel, namespace=None).count())
         self.assertEqual(
             sorted(
-                ["en/hello", "en_GB/hello", "fr/hello", "en/goodbye", "en/workout_activity", "kli/invalid_language"]
+                [
+                    "en/hello",
+                    "en_GB/hello",
+                    "fr/hello",
+                    "en/goodbye",
+                    "en_US/this_is_template_has_a_very_long_name,_and_not_having_an_i",
+                    "en/workout_activity",
+                    "kli/invalid_language",
+                ]
             ),
             sorted(list(TemplateTranslation.objects.filter(channel=channel).values_list("external_id", flat=True))),
         )
