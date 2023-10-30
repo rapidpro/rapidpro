@@ -1,3 +1,7 @@
+v8.3.73 (2023-10-30)
+-------------------------
+ * Add quick replies to broadcasts
+
 v8.3.72 (2023-10-27)
 -------------------------
  * Make sure the missing external ID we make for D360 channels is truncated to 64 characters
