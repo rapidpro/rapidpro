@@ -1,3 +1,7 @@
+v8.3.74 (2023-10-30)
+-------------------------
+ * Update temba-components with attachment rendering
+
 v8.3.73 (2023-10-30)
 -------------------------
  * Add quick replies to broadcasts
