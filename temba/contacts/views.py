@@ -990,7 +990,10 @@ class ContactCRUDL(SmartCRUDL):
                 )
 
         def get_bulk_actions(self):
-            return ("block", "archive") if self.group.is_smart else ("block", "unlabel")
+            bulk_actions = ("block", "archive") if self.group.is_smart else ("block", "unlabel")
+            if self.has_org_perm("contacts.contact_update"):
+                bulk_actions += ("send", "start-flow")
+            return bulk_actions
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
