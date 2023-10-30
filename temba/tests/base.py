@@ -456,7 +456,7 @@ class TembaTest(SmartminTest):
         )
 
     def create_translations(self, text="", attachments=[], lang="und"):
-        return {lang: {"text": text, "attachments": attachments, "quick_replies":[]}}
+        return {lang: {"text": text, "attachments": attachments, "quick_replies": []}}
 
     def create_broadcast(
         self,
