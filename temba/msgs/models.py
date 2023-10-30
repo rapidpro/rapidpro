@@ -282,7 +282,7 @@ class Broadcast(models.Model):
         """
 
         def trans(d):
-            return {"text": "", "attachments": []} | d  # ensure we always have text+attachments
+            return {"text": "", "attachments": [], "quick_replies": []} | d  # ensure we always have text+attachments
 
         if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
             if contact.language in self.translations:
