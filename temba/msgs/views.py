@@ -159,7 +159,9 @@ class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
 
 class ComposeForm(Form):
     compose = ComposeField(
-        widget=ComposeWidget(attrs={"chatbox": True, "attachments": True, "counter": True, "completion": True, "quickreplies": True}),
+        widget=ComposeWidget(
+            attrs={"chatbox": True, "attachments": True, "counter": True, "completion": True, "quickreplies": True}
+        ),
     )
 
     optin = TembaChoiceField(
