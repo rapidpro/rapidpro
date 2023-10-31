@@ -2137,7 +2137,7 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def get_success_url(self):
-            still_in_org = self.get_object().has_user(self.request.user)
+            still_in_org = self.get_object().has_user(self.request.user) or self.request.user.is_staff
 
             # if current user no longer belongs to this org, redirect to org chooser
             return reverse("orgs.org_manage_accounts") if still_in_org else reverse("orgs.org_choose")
