@@ -328,22 +328,24 @@ class TriggerCRUDL(SmartCRUDL):
 
             org_schemes = self.request.org.get_schemes(Channel.ROLE_RECEIVE)
 
-            add_section("trigger-keyword", "triggers.trigger_create_keyword", "flow")
+            add_section("trigger-keyword", "triggers.trigger_create_keyword", "trigger_keyword")
             add_section("trigger-register", "triggers.trigger_create_register", "group")
-            add_section("trigger-catchall", "triggers.trigger_create_catchall", "topic")
-            add_section("trigger-schedule", "triggers.trigger_create_schedule", "calendar")
-            add_section("trigger-inboundcall", "triggers.trigger_create_inbound_call", "incoming_call")
+            add_section("trigger-catchall", "triggers.trigger_create_catchall", "trigger_catch_all")
+            add_section("trigger-schedule", "triggers.trigger_create_schedule", "trigger_schedule")
+            add_section("trigger-inboundcall", "triggers.trigger_create_inbound_call", "trigger_inbound_call")
 
             if self.request.org.channels.filter(is_active=True, channel_type=AndroidType.code).exists():
-                add_section("trigger-missedcall", "triggers.trigger_create_missed_call", "missed_call")
+                add_section("trigger-missedcall", "triggers.trigger_create_missed_call", "trigger_missed_call")
 
             if ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION.intersection(org_schemes):
-                add_section("trigger-new-conversation", "triggers.trigger_create_new_conversation", "conversation")
+                add_section(
+                    "trigger-new-conversation", "triggers.trigger_create_new_conversation", "trigger_new_conversation"
+                )
 
             if ContactURN.SCHEMES_SUPPORTING_REFERRALS.intersection(org_schemes):
-                add_section("trigger-referral", "triggers.trigger_create_referral", "referral")
+                add_section("trigger-referral", "triggers.trigger_create_referral", "trigger_referral")
 
-            add_section("trigger-closed-ticket", "triggers.trigger_create_closed_ticket", "agent")
+            add_section("trigger-closed-ticket", "triggers.trigger_create_closed_ticket", "trigger_closed_ticket")
 
             if ContactURN.SCHEMES_SUPPORTING_OPTINS.intersection(org_schemes):
                 add_section("trigger-opt-in", "triggers.trigger_create_opt_in", "optin")
