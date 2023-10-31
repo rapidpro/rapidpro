@@ -1,3 +1,11 @@
+v8.3.75 (2023-10-31)
+-------------------------
+ * Remove register "trigger" type
+ * Add user settings fields for email verification
+ * Update trigger type icons
+ * Allow staff to add users
+ * Add send broadcast and start flow bulk actions to contact group page
+
 v8.3.74 (2023-10-30)
 -------------------------
  * Update temba-components with attachment rendering
