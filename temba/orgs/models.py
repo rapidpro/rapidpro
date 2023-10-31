@@ -206,6 +206,13 @@ class User(AuthUser):
         self.settings.last_auth_on = timezone.now()
         self.settings.save(update_fields=("last_auth_on",))
 
+    def record_email_verification_status(self, status: str):
+        if status not in [elt[0] for elt in UserSettings.STATUS_CHOICES]:
+            raise ValueError("Email verification Status '%s' not supported" % status)
+
+        self.settings.email_status = status
+        self.settings.save(update_fields=("email_status",))
+
     def enable_2fa(self):
         """
         Enables 2FA for this user

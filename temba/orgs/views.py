@@ -63,7 +63,7 @@ from temba.utils.views import (
     StaffOnlyMixin,
 )
 
-from .models import BackupToken, IntegrationType, Invitation, Org, OrgImport, OrgRole, User
+from .models import BackupToken, IntegrationType, Invitation, Org, OrgImport, OrgRole, User, UserSettings
 
 # session key for storing a two-factor enabled user's id once we've checked their password
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
@@ -657,6 +657,7 @@ class UserCRUDL(SmartCRUDL):
         "two_factor_tokens",
         "account",
         "token",
+        "verify_email",
     )
 
     class Read(StaffOnlyMixin, ContentMenuMixin, SpaMixin, SmartReadView):
@@ -875,6 +876,40 @@ class UserCRUDL(SmartCRUDL):
             obj.settings.language = self.form.cleaned_data["language"]
             obj.settings.save()
             return obj
+
+    class VerifyEmail(SpaMixin, SmartReadView):
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/(?P<secret>\w+)/$" % (path, action)
+
+        def get_object(self, *args, **kwargs):
+            return self.request.user
+
+        def has_permission(self, request, *args, **kwargs):
+            return request.user.is_authenticated
+
+        def pre_process(self, request, *args, **kwargs):
+            if not UserSettings.objects.filter(email_verification_secret=self.kwargs["secret"]).exists():
+                messages.info(self.request, _("Invalid verification link"))
+                return HttpResponseRedirect(reverse("orgs.user_account"))
+
+            # we're logged in as a matching user, mark that verified
+            if request.user.settings.email_verification_secret == self.kwargs["secret"]:
+                if request.user.settings.email_status == UserSettings.STATUS_VERIFIED:
+                    messages.success(self.request, _("Email %s already verified" % self.get_object().username))
+                else:
+                    self.get_object().record_email_verification_status(UserSettings.STATUS_VERIFIED)
+                    messages.success(self.request, _("Email %s verified succesfully" % self.get_object().username))
+                return HttpResponseRedirect(reverse("orgs.user_account"))
+
+            return super().pre_process(request, *args, **kwargs)
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            context["verification_secret"] = self.kwargs["secret"]
+
+            return context
 
     class TwoFactorEnable(SpaMixin, InferUserMixin, SmartUpdateView):
         class Form(forms.ModelForm):

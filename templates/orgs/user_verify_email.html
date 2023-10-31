@@ -1,0 +1,28 @@
+{% extends "smartmin/base.html" %}
+{% load smartmin i18n %}
+
+{% block title-text %}
+    {% trans "Email verification" %}
+{% endblock title-text %}
+{% block content %}
+    <div class="flex w-full mb-4">
+        <div class="flex-grow ml-1">
+            <temba-alert level="error" class="mt-4">
+                {% blocktrans trimmed %}
+                    You cannot verify an email while logged in from a different login account.
+                {% endblocktrans %}
+                <br />
+                {% blocktrans trimmed %}
+                    Login with the correct login account to verify its email.
+                {% endblocktrans %}
+            </temba-alert>
+        </div>
+    </div>
+    <div class="flex w-full mb-4">
+        <div class="flex-grow ml-1">
+            <a href="{% url 'users.user_login' %}?next={% url 'orgs.user_verify_email' verification_secret %}">
+                <button class="button-primary">Login with other account</button>
+            </a>
+        </div>
+    </div>
+{% endblock content %}

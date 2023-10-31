@@ -538,6 +538,55 @@ class UserTest(TembaTest):
         response = self.client.get(tokens_url)
         self.assertEqual(200, response.status_code)
 
+    def test_record_email_verification_status(self):
+        self.assertEqual(self.admin.settings.email_status, "U")
+
+        with self.assertRaises(ValueError):
+            self.admin.record_email_verification_status("invalid")
+
+        self.admin.record_email_verification_status("V")
+        self.assertEqual(self.admin.settings.email_status, "V")
+
+    def test_email_verification(self):
+        self.assertEqual(self.admin.settings.email_status, "U")
+        self.assertIsNone(self.admin.settings.email_verification_secret)
+
+        admin_settings = self.admin.settings
+
+        admin_settings.email_verification_secret = "SECRET"
+        admin_settings.save()
+
+        verify_email_url = reverse("orgs.user_verify_email", args=["SECRET"])
+
+        # try to access before logging in
+        response = self.client.get(verify_email_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(reverse("orgs.user_verify_email", args=["WRONG_SECRET"]), follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "Invalid verification link")
+
+        response = self.client.get(verify_email_url, follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "Email %s verified succesfully" % self.admin.username)
+
+        self.admin.settings.refresh_from_db()
+        self.assertEqual(self.admin.settings.email_status, "V")
+
+        response = self.client.get(verify_email_url, follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "Email %s already verified" % self.admin.username)
+
+        self.login(self.admin2)
+        self.assertEqual(self.admin2.settings.email_status, "U")
+
+        response = self.client.get(verify_email_url, follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "Login with other account")
+        self.assertEqual(self.admin2.settings.email_status, "U")
+
     @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
     def test_confirm_access(self):
         confirm_url = reverse("users.confirm_access") + "?next=/msg/"
