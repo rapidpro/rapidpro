@@ -6,7 +6,7 @@ from django import forms
 from django.db.models.functions import Upper
 from django.http import HttpResponseRedirect
 from django.urls import reverse
-from django.utils.translation import gettext_lazy as _, ngettext_lazy
+from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.channels.types.android import AndroidType
@@ -17,14 +17,7 @@ from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
 from temba.orgs.views import MenuMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.models import Schedule
-from temba.utils.fields import (
-    CompletionTextarea,
-    InputWidget,
-    SelectMultipleWidget,
-    SelectWidget,
-    TembaChoiceField,
-    TembaMultipleChoiceField,
-)
+from temba.utils.fields import SelectMultipleWidget, SelectWidget, TembaChoiceField, TembaMultipleChoiceField
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin
 
 from .models import Trigger
@@ -188,73 +181,11 @@ class BaseChannelTriggerForm(BaseTriggerForm):
         fields = ("flow", "channel", "groups", "exclude_groups")
 
 
-class RegisterTriggerForm(BaseTriggerForm):
-    """
-    Wizard form that creates keyword trigger which starts contacts in a newly created flow which adds them to a group
-    """
-
-    class AddNewGroupChoiceField(TembaChoiceField):
-        def clean(self, value):
-            if value.startswith("[_NEW_]"):  # pragma: needs cover
-                value = value[7:]
-
-                # we must get groups for this org only
-                group = ContactGroup.get_group_by_name(self.org, value)
-                if not group:
-                    group = ContactGroup.create_manual(self.org, self.user, name=value)
-                return group
-
-            return super().clean(value)
-
-    keyword = forms.CharField(
-        max_length=16,
-        required=True,
-        label=_("Join Keyword"),
-        help_text=_("The first word of the message"),
-        widget=InputWidget(),
-    )
-
-    action_join_group = AddNewGroupChoiceField(
-        ContactGroup.objects.none(),
-        required=True,
-        label=_("Group to Join"),
-        help_text=_("The group the contact will join when they send the above keyword"),
-        widget=SelectWidget(),
-    )
-
-    response = forms.CharField(
-        widget=CompletionTextarea(attrs={"placeholder": _("Hi @contact.name!")}),
-        required=False,
-        label=ngettext_lazy("Response", "Responses", 1),
-        help_text=_("The message to send in response after they join the group (optional)"),
-    )
-
-    def __init__(self, org, user, *args, **kwargs):
-        super().__init__(org, user, Trigger.TYPE_KEYWORD, *args, **kwargs)
-
-        # on this form flow becomes the flow to be triggered from the generated flow and is optional
-        self.fields["flow"].required = False
-
-        self.fields["action_join_group"].queryset = ContactGroup.get_groups(self.org, manual_only=True).order_by(
-            Upper("name")
-        )
-        self.fields["action_join_group"].user = user
-
-    def get_conflicts_kwargs(self, cleaned_data):
-        kwargs = super().get_conflicts_kwargs(cleaned_data)
-        kwargs["keywords"] = [cleaned_data["keyword"]] if cleaned_data["keyword"] else None
-        return kwargs
-
-    class Meta(BaseTriggerForm.Meta):
-        fields = ("keyword", "action_join_group", "response") + BaseTriggerForm.Meta.fields
-
-
 class TriggerCRUDL(SmartCRUDL):
     model = Trigger
     actions = (
         "create",
         "create_keyword",
-        "create_register",
         "create_catchall",
         "create_schedule",
         "create_inbound_call",
@@ -329,7 +260,6 @@ class TriggerCRUDL(SmartCRUDL):
             org_schemes = self.request.org.get_schemes(Channel.ROLE_RECEIVE)
 
             add_section("trigger-keyword", "triggers.trigger_create_keyword", "trigger_keyword")
-            add_section("trigger-register", "triggers.trigger_create_register", "group")
             add_section("trigger-catchall", "triggers.trigger_create_catchall", "trigger_catch_all")
             add_section("trigger-schedule", "triggers.trigger_create_schedule", "trigger_schedule")
             add_section("trigger-inboundcall", "triggers.trigger_create_inbound_call", "trigger_inbound_call")
@@ -365,9 +295,7 @@ class TriggerCRUDL(SmartCRUDL):
             return self.form_class or self.type.form
 
         def get_template_names(self):
-            if self.trigger_type:
-                return (f"triggers/types/{self.type.slug}/create.html",)
-            return super().get_template_names()
+            return (f"triggers/types/{self.type.slug}/create.html",)
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -405,35 +333,6 @@ class TriggerCRUDL(SmartCRUDL):
 
         def get_create_kwargs(self, user, cleaned_data):
             return {"keywords": cleaned_data["keywords"], "match_type": cleaned_data["match_type"]}
-
-    class CreateRegister(BaseCreate):
-        form_class = RegisterTriggerForm
-
-        def form_valid(self, form):
-            keyword = form.cleaned_data["keyword"]
-            join_group = form.cleaned_data["action_join_group"]
-            start_flow = form.cleaned_data["flow"]
-            send_msg = form.cleaned_data["response"]
-            groups = form.cleaned_data["groups"]
-            exclude_groups = form.cleaned_data["exclude_groups"]
-
-            org = self.request.org
-            register_flow = Flow.create_join_group(org, self.request.user, join_group, send_msg, start_flow)
-
-            Trigger.create(
-                org,
-                self.request.user,
-                Trigger.TYPE_KEYWORD,
-                register_flow,
-                groups=groups,
-                exclude_groups=exclude_groups,
-                keywords=[keyword],
-                match_type=Trigger.MATCH_ONLY_WORD,
-            )
-
-            response = self.render_to_response(self.get_context_data(form=form))
-            response["REDIRECT"] = self.get_success_url()
-            return response
 
     class CreateCatchall(BaseCreate):
         trigger_type = Trigger.TYPE_CATCH_ALL
