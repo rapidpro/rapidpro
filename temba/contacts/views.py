@@ -995,7 +995,9 @@ class ContactCRUDL(SmartCRUDL):
                 )
 
         def get_bulk_actions(self):
-            actions = ("block", "archive") if self.group.is_smart else ("block", "unlabel")
+            actions = ()
+            if self.has_org_perm("contacts.contact_update"):
+                actions += ("block", "archive") if self.group.is_smart else ("block", "unlabel")
             if self.has_org_perm("msgs.broadcast_create"):
                 actions += ("send",)
             if self.has_org_perm("flows.flow_start"):
