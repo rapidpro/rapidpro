@@ -365,7 +365,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.assertReadFetch(group1_url, allow_viewers=True, allow_editors=True)
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
-        self.assertEqual(["block", "unlabel"], list(response.context["actions"]))
+        self.assertEqual(["block", "unlabel", "send", "start-flow"], list(response.context["actions"]))
 
         self.assertContentMenu(
             group1_url,
@@ -376,13 +376,13 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
 
         self.assertEqual([frank], list(response.context["object_list"]))
-        self.assertEqual(["block", "archive"], list(response.context["actions"]))
+        self.assertEqual(["block", "archive", "send", "start-flow"], list(response.context["actions"]))
         self.assertContains(response, "age &gt; 40")
 
         # can access system group like any other except no options to edit or delete
         response = self.assertReadFetch(open_tickets_url, allow_viewers=True, allow_editors=True)
         self.assertEqual([], list(response.context["object_list"]))
-        self.assertEqual(["block", "archive"], list(response.context["actions"]))
+        self.assertEqual(["block", "archive", "send", "start-flow"], list(response.context["actions"]))
         self.assertContains(response, "tickets &gt; 0")
         self.assertContentMenu(open_tickets_url, self.admin, ["Export", "Usages"])
 
