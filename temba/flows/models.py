@@ -248,65 +248,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         return Flow.GOFLOW_TYPES.get(self.flow_type, "")
 
     @classmethod
-    def create_join_group(cls, org, user, group, response=None, start_flow=None):
-        """
-        Creates a special 'join group' flow
-        """
-        base_language = org.flow_languages[0]
-
-        name = Flow.get_unique_name(org, "Join %s" % group.name)
-        flow = Flow.create(org, user, name, base_language=base_language)
-        flow.version_number = "13.0.0"
-        flow.save(update_fields=("version_number",))
-
-        node_uuid = str(uuid4())
-        definition = {
-            "uuid": flow.uuid,
-            "name": flow.name,
-            "spec_version": flow.version_number,
-            "language": base_language,
-            "type": "messaging",
-            "localization": {},
-            "nodes": [
-                {
-                    "uuid": node_uuid,
-                    "actions": [
-                        {
-                            "type": "add_contact_groups",
-                            "uuid": str(uuid4()),
-                            "groups": [{"uuid": group.uuid, "name": group.name}],
-                        },
-                        {
-                            "type": "set_contact_name",
-                            "uuid": str(uuid4()),
-                            "name": "@(title(remove_first_word(input)))",
-                        },
-                    ],
-                    "exits": [{"uuid": str(uuid4())}],
-                }
-            ],
-            "_ui": {
-                "nodes": {node_uuid: {"type": "execute_actions", "position": {"left": 100, "top": 0}}},
-                "stickies": {},
-            },
-        }
-
-        if response:
-            definition["nodes"][0]["actions"].append({"type": "send_msg", "uuid": str(uuid4()), "text": response})
-
-        if start_flow:
-            definition["nodes"][0]["actions"].append(
-                {
-                    "type": "enter_flow",
-                    "uuid": str(uuid4()),
-                    "flow": {"uuid": start_flow.uuid, "name": start_flow.name},
-                }
-            )
-
-        flow.save_revision(user, definition)
-        return flow
-
-    @classmethod
     def import_flows(cls, org, user, export_json, dependency_mapping, same_site=False):
         """
         Import flows from our flow export file

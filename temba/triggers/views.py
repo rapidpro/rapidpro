@@ -17,12 +17,7 @@ from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
 from temba.orgs.views import MenuMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.models import Schedule
-from temba.utils.fields import (
-    SelectMultipleWidget,
-    SelectWidget,
-    TembaChoiceField,
-    TembaMultipleChoiceField,
-)
+from temba.utils.fields import SelectMultipleWidget, SelectWidget, TembaChoiceField, TembaMultipleChoiceField
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMixin, SpaMixin
 
 from .models import Trigger
@@ -300,9 +295,7 @@ class TriggerCRUDL(SmartCRUDL):
             return self.form_class or self.type.form
 
         def get_template_names(self):
-            if self.trigger_type:
-                return (f"triggers/types/{self.type.slug}/create.html",)
-            return super().get_template_names()
+            return (f"triggers/types/{self.type.slug}/create.html",)
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
