@@ -871,7 +871,12 @@ class ContactCRUDL(SmartCRUDL):
         menu_path = "/contact/active"
 
         def get_bulk_actions(self):
-            return ("block", "archive", "send", "start-flow") if self.has_org_perm("contacts.contact_update") else ()
+            actions = ("block", "archive") if self.has_org_perm("contacts.contact_update") else ()
+            if self.has_org_perm("msgs.broadcast_create"):
+                actions += ("send",)
+            if self.has_org_perm("flows.flow_start"):
+                actions += ("start-flow",)
+            return actions
 
         def build_content_menu(self, menu):
             search = self.request.GET.get("search")
@@ -990,10 +995,12 @@ class ContactCRUDL(SmartCRUDL):
                 )
 
         def get_bulk_actions(self):
-            bulk_actions = ("block", "archive") if self.group.is_smart else ("block", "unlabel")
-            if self.has_org_perm("contacts.contact_update"):
-                bulk_actions += ("send", "start-flow")
-            return bulk_actions
+            actions = ("block", "archive") if self.group.is_smart else ("block", "unlabel")
+            if self.has_org_perm("msgs.broadcast_create"):
+                actions += ("send",)
+            if self.has_org_perm("flows.flow_start"):
+                actions += ("start-flow",)
+            return actions
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
