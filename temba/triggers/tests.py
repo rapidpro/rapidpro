@@ -13,7 +13,7 @@ from temba.contacts.models import ContactGroup
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, TembaTest
+from temba.tests import CRUDLTestMixin, TembaTest, MigrationTest
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import Trigger
@@ -1811,3 +1811,40 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertListFetch(referral_url, allow_viewers=True, allow_editors=True, context_objects=[trigger4, trigger3])
         self.assertListFetch(tickets_url, allow_viewers=True, allow_editors=True, context_objects=[])
+
+
+class DeleteSchedulelessScheduleTriggersTest(MigrationTest):
+    app = "triggers"
+    migrate_from = "0036_alter_trigger_priority"
+    migrate_to = "0037_delete_scheduleless_schedules"
+
+    def setUpBeforeMigration(self, apps):
+        flow = self.create_flow("Test")
+        contact = self.create_contact("Bob", phone="+1234567890")
+        self.trigger1 = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keywords=["go"], match_type=Trigger.MATCH_FIRST_WORD
+        )
+        self.trigger2 = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_SCHEDULE,
+            flow,
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+            contacts=[contact],
+        )
+        self.trigger3 = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_SCHEDULE,
+            flow,
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
+            contacts=[contact],
+        )
+
+        self.trigger3.schedule = None
+        self.trigger3.save(update_fields=("schedule",))
+
+    def test_migration(self):
+        self.assertTrue(Trigger.objects.filter(id=self.trigger1.id).exists())
+        self.assertTrue(Trigger.objects.filter(id=self.trigger2.id).exists())
+        self.assertFalse(Trigger.objects.filter(id=self.trigger3.id).exists())  # should be deleted
