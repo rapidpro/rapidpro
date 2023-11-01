@@ -424,3 +424,11 @@ class Trigger(SmartModel):
     class Meta:
         verbose_name = _("Trigger")
         verbose_name_plural = _("Triggers")
+
+        constraints = [
+            # ensure that scheduled triggers have a schedule
+            models.CheckConstraint(
+                check=~Q(trigger_type="S") | Q(schedule__isnull=False),
+                name="triggers_scheduled_trigger_has_schedule",
+            ),
+        ]
