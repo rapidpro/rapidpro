@@ -456,14 +456,17 @@ class TembaTest(SmartminTest):
         )
 
     def create_translations(self, text="", attachments=[], lang="und", optin=None):
-        return {
+        translations = {
             lang: {
                 "text": text,
                 "attachments": attachments,
                 "quick_replies": [],
-                "optin": {"uuid": str(optin.uuid), "name": optin.name} if optin else None,
             }
         }
+
+        if optin:
+            translations[lang]["optin"] = {"uuid": str(optin.uuid), "name": optin.name} if optin else None
+        return translations
 
     def create_broadcast(
         self,
