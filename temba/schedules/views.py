@@ -13,9 +13,7 @@ from .models import Schedule
 
 
 class ScheduleFormMixin(forms.Form):
-    start_datetime = TembaDateTimeField(
-        label=_("Start Time"),
-    )
+    start_datetime = TembaDateTimeField(label=_("Start Time"))
     repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES, label=_("Repeat"), widget=SelectWidget())
     repeat_days_of_week = forms.MultipleChoiceField(
         choices=Schedule.REPEAT_DAYS_CHOICES,

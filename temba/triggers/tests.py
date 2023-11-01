@@ -13,7 +13,7 @@ from temba.contacts.models import ContactGroup
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, TembaTest, MigrationTest
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import Trigger
