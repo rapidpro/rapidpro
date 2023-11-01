@@ -51,7 +51,6 @@ from temba.utils.fields import (
     OmniboxChoice,
     OmniboxField,
     SelectWidget,
-    TembaChoiceField,
 )
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ContentMenuMixin, PostOnlyMixin, SpaMixin, StaffOnlyMixin
@@ -160,20 +159,13 @@ class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
 class ComposeForm(Form):
     compose = ComposeField(
         widget=ComposeWidget(
-            attrs={"chatbox": True, "attachments": True, "counter": True, "completion": True, "quickreplies": True}
-        ),
-    )
-
-    optin = TembaChoiceField(
-        OptIn.objects.none(),
-        label=_("Opt-In"),
-        help_text=_("The opt-in to use when sending"),
-        required=False,
-        widget=SelectWidget(
             attrs={
-                "placeholder": _("Select an opt-in to use for supported channels (optional)"),
-                "searchable": True,
-                "clearable": True,
+                "chatbox": True,
+                "attachments": True,
+                "counter": True,
+                "completion": True,
+                "quickreplies": True,
+                "optins": True,
             }
         ),
     )
@@ -213,7 +205,6 @@ class ComposeForm(Form):
     def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.org = org
-        self.fields["optin"].queryset = org.optins.all().order_by("name")
         isos = [iso for iso in org.flow_languages]
 
         if self.initial and "base_language" in self.initial:
@@ -380,7 +371,15 @@ class BroadcastCRUDL(SmartCRUDL):
 
             compose = form_dict["compose"].cleaned_data["compose"]
             translations = compose_deserialize(compose)
-            optin = form_dict["compose"].cleaned_data["optin"]
+            optin = None
+
+            # extract our optin if it is set
+            for value in compose.values():
+                if "optin" in value:
+                    optin = value.pop("optin", None)
+                    break
+            if optin:
+                optin = OptIn.objects.filter(org=org, uuid=optin.get("uuid")).first()
 
             recipients = form_dict["target"].cleaned_data["omnibox"]
 
@@ -431,8 +430,11 @@ class BroadcastCRUDL(SmartCRUDL):
                 return {"omnibox": omnibox}
 
             if step == "compose":
-                compose = compose_serialize(self.object.translations)
                 base_language = self.object.base_language
+
+                compose = compose_serialize(
+                    self.object.translations, base_language=self.object.base_language, optin=self.object.optin
+                )
 
                 # remove any languages not present on the org
                 langs = [k for k in compose.keys()]
@@ -457,7 +459,12 @@ class BroadcastCRUDL(SmartCRUDL):
 
             # update message
             compose = form_dict["compose"].cleaned_data["compose"]
-            optin = form_dict["compose"].cleaned_data["optin"]
+
+            # extract our optin if it is set
+            optin = compose[broadcast.base_language].pop("optin", None)
+            if optin:
+                optin = OptIn.objects.filter(org=broadcast.org, uuid=optin.get("uuid")).first()
+
             broadcast.translations = compose_deserialize(compose)
             broadcast.optin = optin
             broadcast.save()

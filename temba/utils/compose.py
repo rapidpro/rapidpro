@@ -4,7 +4,7 @@ import json
 from temba.msgs.models import Attachment, Media, Q
 
 
-def compose_serialize(translation=None, json_encode=False):
+def compose_serialize(translation=None, json_encode=False, *, base_language=None, optin=None):
     """
     Serializes attachments from db to compose widget for populating initial widget values
     """
@@ -13,6 +13,10 @@ def compose_serialize(translation=None, json_encode=False):
         return {}
 
     translation = copy.deepcopy(translation)
+
+    if base_language and optin:
+        translation[base_language]["optin"] = {"uuid": str(optin.uuid), "name": optin.name}
+
     for details in translation.values():
         if "attachments" in details:
             details["attachments"] = compose_serialize_attachments(details["attachments"])

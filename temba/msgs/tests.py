@@ -1945,7 +1945,6 @@ def get_broadcast_form_data(
     start_datetime="",
     repeat_period="",
     repeat_days_of_week="",
-    optin=None,
 ):
     payload = OrderedDict(
         [
@@ -1967,9 +1966,6 @@ def get_broadcast_form_data(
             ),
         ]
     )
-
-    if optin:
-        payload["compose"]["optin"] = optin if not optin.id else optin.id
 
     if send_when == ScheduleForm.SEND_NOW:
         payload["schedule"] = {"send_when": send_when, "repeat_period": Schedule.REPEAT_NEVER}
@@ -2054,12 +2050,11 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             get_broadcast_form_data(
                 self.org,
-                translations=self.create_translations(text),
+                translations=self.create_translations(text, optin=optin),
                 contacts=[self.joe],
                 start_datetime="2021-06-24 12:00",
                 repeat_period="W",
                 repeat_days_of_week=["M", "F"],
-                optin=optin,
             ),
         )
 
@@ -2067,7 +2062,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, Broadcast.objects.count())
         broadcast = Broadcast.objects.filter(translations__icontains=text).first()
         self.assertEqual("W", broadcast.schedule.repeat_period)
-        self.assertEqual("Alerts", broadcast.optin.name)
+        self.assertEqual(optin, broadcast.optin)
 
         # send a broadcast right away
         response = self.process_wizard(
@@ -2086,7 +2081,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, Broadcast.objects.filter(schedule=None).count())
 
     def test_update(self):
-        updated_text = self.create_translations("Updated broadcast")
+        optin = self.create_optin("Daily Polls")
+        updated_text = self.create_translations("Updated broadcast", optin=optin)
 
         broadcast = self.create_broadcast(
             self.admin,
@@ -2115,7 +2111,32 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(302, response.status_code)
 
         broadcast.refresh_from_db()
+
+        # our optin won't be present in the translation
+        del updated_text["und"]["optin"]
         self.assertEqual(updated_text["und"], broadcast.get_translation(self.joe))
+
+        # but should be on the broadcast itself
+        self.assertEqual(optin, broadcast.optin)
+
+        # now lets unset the broadcast
+        response = self.process_wizard(
+            "update",
+            update_url,
+            get_broadcast_form_data(
+                self.org,
+                translations=updated_text,
+                contacts=[self.joe],
+                start_datetime="2021-06-24 12:00",
+                repeat_period="W",
+                repeat_days_of_week=["M", "F"],
+            ),
+        )
+        self.assertEqual(302, response.status_code)
+        broadcast.refresh_from_db()
+
+        # optin should be gone now
+        self.assertEqual(None, broadcast.optin)
 
     def test_localization(self):
         # create a broadcast without a language

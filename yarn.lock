@@ -70,10 +70,10 @@
     react "^16.8.6"
     react-dom "^16.8.6"
 
-"@nyaruka/temba-components@0.63.3":
-  version "0.63.3"
-  resolved "https://registry.yarnpkg.com/@nyaruka/temba-components/-/temba-components-0.63.3.tgz#d7f61ff367160a8ab5ab056e9ad8e1cd813d0b2b"
-  integrity sha512-ASNJu6v1ZEFzh6z4wcgVcqkXHnEWcEoCNBovKM4TMOc0zTJhwjICSKO8u6jWTInXWp9gpSSXj4wtHdmiSwXpPQ==
+"@nyaruka/temba-components@0.64.0":
+  version "0.64.0"
+  resolved "https://registry.yarnpkg.com/@nyaruka/temba-components/-/temba-components-0.64.0.tgz#8fe32def083d24991db6347f05abad5aa2209164"
+  integrity sha512-miYX1tKaA4N2b6nzvnxnFolGVJK4c2ReqX0SBmq5p9T0stUmt+vD7PGPb4EVcNfeVsKra7MiYt5AC0/hMnmGIA==
   dependencies:
     "@lit/localize" "^0.11.4"
     color-hash "^2.0.2"
