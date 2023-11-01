@@ -333,6 +333,16 @@ class UserSettings(models.Model):
     Custom fields for users
     """
 
+    STATUS_UNVERIFIED = "U"
+    STATUS_VERIFIED = "V"
+    STATUS_FAILING = "F"
+
+    STATUS_CHOICES = (
+        (STATUS_UNVERIFIED, _("Unverified")),
+        (STATUS_VERIFIED, _("Verified")),
+        (STATUS_FAILING, _("Failing")),
+    )
+
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="usersettings")
     language = models.CharField(max_length=8, choices=settings.LANGUAGES, default=settings.DEFAULT_LANGUAGE)
     team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
@@ -341,6 +351,8 @@ class UserSettings(models.Model):
     last_auth_on = models.DateTimeField(null=True)
     external_id = models.CharField(max_length=128, null=True)
     verification_token = models.CharField(max_length=64, null=True)
+    email_status = models.CharField(max_length=1, default=STATUS_UNVERIFIED, choices=STATUS_CHOICES)
+    email_verification_secret = models.CharField(max_length=64, null=True)
 
 
 class OrgRole(Enum):

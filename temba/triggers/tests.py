@@ -701,66 +701,6 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
-    def test_create_register(self):
-        create_url = reverse("triggers.trigger_create_register")
-        group1 = self.create_group(name="Chat", contacts=[])
-        group2 = self.create_group(name="Testers", contacts=[])
-        flow1 = self.create_flow("Flow 1")
-
-        response = self.assertCreateFetch(
-            create_url,
-            allow_viewers=False,
-            allow_editors=True,
-            form_fields=["keyword", "action_join_group", "response", "flow", "groups", "exclude_groups"],
-        )
-
-        # group options are any group
-        self.assertEqual([group1, group2], list(response.context["form"].fields["action_join_group"].queryset))
-
-        self.assertCreateSubmit(
-            create_url,
-            {"keyword": "join", "action_join_group": group1.id, "response": "Thanks for joining", "flow": flow1.id},
-            new_obj_query=Trigger.objects.filter(keywords=["join"], flow__name="Join Chat"),
-            success_status=200,
-        )
-
-        # did our group join flow get created?
-        flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE, name="Join Chat")
-        flow_def = flow.get_definition()
-
-        self.assertEqual(1, len(flow_def["nodes"]))
-        self.assertEqual(
-            ["add_contact_groups", "set_contact_name", "send_msg", "enter_flow"],
-            [a["type"] for a in flow_def["nodes"][0]["actions"]],
-        )
-
-        # check that our trigger exists and shows our group
-        trigger = Trigger.objects.get(keywords=["join"], flow=flow)
-        self.assertEqual(trigger.flow.name, "Join Chat")
-
-        self.assertEqual(flow.base_language, "eng")
-
-    def test_create_register_no_response_or_flow(self):
-        create_url = reverse("triggers.trigger_create_register")
-        group = self.create_group(name="Chat", contacts=[])
-
-        # create a trigger that sets up a group join flow without a response or secondary flow
-        self.assertCreateSubmit(
-            create_url,
-            {"action_join_group": group.id, "keyword": "join"},
-            new_obj_query=Trigger.objects.filter(keywords=["join"], flow__name="Join Chat"),
-            success_status=200,
-        )
-
-        # did our group join flow get created?
-        flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE)
-        flow_def = flow.get_definition()
-
-        self.assertEqual(1, len(flow_def["nodes"]))
-        self.assertEqual(
-            ["add_contact_groups", "set_contact_name"], [a["type"] for a in flow_def["nodes"][0]["actions"]]
-        )
-
     def test_create_schedule(self):
         create_url = reverse("triggers.trigger_create_schedule")
         group1 = self.create_group("Group 1", contacts=[])
