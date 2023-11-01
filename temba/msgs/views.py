@@ -375,6 +375,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             compose = form_dict["compose"].cleaned_data["compose"]
             translations = compose_deserialize(compose)
+            optin = None
 
             # extract our optin if it is set
             for value in compose.values():

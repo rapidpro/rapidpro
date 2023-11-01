@@ -455,8 +455,15 @@ class TembaTest(SmartminTest):
             log_uuids=[l.uuid for l in logs or []],
         )
 
-    def create_translations(self, text="", attachments=[], lang="und"):
-        return {lang: {"text": text, "attachments": attachments, "quick_replies": []}}
+    def create_translations(self, text="", attachments=[], lang="und", optin=None):
+        return {
+            lang: {
+                "text": text,
+                "attachments": attachments,
+                "quick_replies": [],
+                "optin": {"uuid": str(optin.uuid), "name": optin.name} if optin else None,
+            }
+        }
 
     def create_broadcast(
         self,
