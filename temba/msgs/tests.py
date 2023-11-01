@@ -2062,7 +2062,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, Broadcast.objects.count())
         broadcast = Broadcast.objects.filter(translations__icontains=text).first()
         self.assertEqual("W", broadcast.schedule.repeat_period)
-        self.assertEqual("Alerts", broadcast.optin.name)
+        self.assertEqual(optin, broadcast.optin)
 
         # send a broadcast right away
         response = self.process_wizard(
@@ -2081,7 +2081,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, Broadcast.objects.filter(schedule=None).count())
 
     def test_update(self):
-        updated_text = self.create_translations("Updated broadcast")
+        optin = self.create_optin("Daily Polls")
+        updated_text = self.create_translations("Updated broadcast", optin=optin)
 
         broadcast = self.create_broadcast(
             self.admin,
@@ -2110,7 +2111,13 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(302, response.status_code)
 
         broadcast.refresh_from_db()
+
+        # our optin won't be present in the translation
+        del updated_text["und"]["optin"]
         self.assertEqual(updated_text["und"], broadcast.get_translation(self.joe))
+
+        # but should be on the broadcast itself
+        self.assertEqual(optin, broadcast.optin)
 
     def test_localization(self):
         # create a broadcast without a language
