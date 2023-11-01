@@ -19,10 +19,22 @@
   </div>
 {% endblock fields %}
 {% block summary %}
-  {% blocktrans with email=user.username %}
-    Your email address is <b>{{email}}</b>.
-
-  {% endblocktrans %}
+  <div class="flex items-center">
+    <div class="flex-grow mr-4 api_token_container">
+      {% blocktrans with email=user.username %}
+      Your email address is <b>{{email}}</b>
+      {% endblocktrans %}
+    </div>
+    <div class="buttons">
+      {% if user.settings.email_status == 'V' %}
+        <temba-label>
+          Verified
+        </temba-label>
+      {% else %}
+        <div onclick="goto(event)" href="{% url 'orgs.user_send_verification_email' %}" class="button-light">{% trans "Verify Email" %}</div>
+      {% endif %}
+    </div>
+  </div>
 {% endblock summary %}
 {% block extra-script %}
   <script type="text/javascript">

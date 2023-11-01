@@ -658,6 +658,7 @@ class UserCRUDL(SmartCRUDL):
         "account",
         "token",
         "verify_email",
+        "send_verification_email",
     )
 
     class Read(StaffOnlyMixin, ContentMenuMixin, SpaMixin, SmartReadView):
@@ -877,7 +878,35 @@ class UserCRUDL(SmartCRUDL):
             obj.settings.save()
             return obj
 
+    class SendVerificationEmail(SpaMixin, InferUserMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
+            class Meta:
+                model = User
+                fields = ()
+
+        form_class = Form
+        submit_button_name = _("Send Verification Email")
+        menu_path = "/settings/account"
+        success_url = "@orgs.user_account"
+        success_message = _("Verification email sent")
+
+        def has_permission(self, request, *args, **kwargs):
+            return request.user.is_authenticated
+
+        def pre_process(self, request, *args, **kwargs):
+            if request.user.settings.email_status == UserSettings.STATUS_VERIFIED:
+                messages.success(self.request, _("Email %s already verified" % self.get_object().username))
+                return HttpResponseRedirect(reverse("orgs.user_account"))
+
+            return super().pre_process(request, *args, **kwargs)
+
+        def form_valid(self, form):
+            self.get_object().send_verification()
+            return super().form_valid(form)
+
     class VerifyEmail(NoNavMixin, SmartReadView):
+        menu_path = "/settings/account"
+
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/(?P<secret>\w+)/$" % (path, action)

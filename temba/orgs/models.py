@@ -213,6 +213,40 @@ class User(AuthUser):
         self.settings.email_status = status
         self.settings.save(update_fields=("email_status",))
 
+    def send_verification(self):
+        """
+        Sends this user a verification email
+        """
+        from .tasks import send_user_verification_email_task
+
+        send_user_verification_email_task(self.id)
+
+    def send_verification_email(self):
+        if self.settings.email_status == UserSettings.STATUS_VERIFIED:
+            return
+
+        verification_secret = self.settings.email_verification_secret
+        if not verification_secret:
+            verification_secret = generate_secret(64)
+
+            self.settings.email_verification_secret = verification_secret
+            self.settings.save(update_fields=("email_verification_secret",))
+
+        # no=op if we do not know the email
+        if not self.email:  # pragma: needs cover
+            return
+
+        org = self.get_orgs().first()
+
+        subject = _("%(name)s Email Verification") % org.branding
+        template = "orgs/email/email_verification"
+        to_email = self.email
+
+        context = dict(org=org, now=timezone.now(), branding=org.branding, secret=verification_secret)
+        context["subject"] = subject
+
+        send_template_email(to_email, subject, template, context, org.branding)
+
     def enable_2fa(self):
         """
         Enables 2FA for this user

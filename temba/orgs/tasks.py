@@ -13,7 +13,7 @@ from temba.msgs.models import ExportMessagesTask
 from temba.msgs.tasks import export_messages_task
 from temba.utils.crons import cron_task
 
-from .models import Invitation, Org, OrgImport
+from .models import Invitation, Org, OrgImport, User
 
 
 @shared_task
@@ -26,6 +26,12 @@ def start_org_import_task(import_id):
 def send_invitation_email_task(invitation_id):
     invitation = Invitation.objects.get(pk=invitation_id)
     invitation.send_email()
+
+
+@shared_task
+def send_user_verification_email_task(user_id):
+    user = User.objects.get(pk=user_id)
+    user.send_verification_email()
 
 
 @shared_task
