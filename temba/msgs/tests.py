@@ -2119,6 +2119,25 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         # but should be on the broadcast itself
         self.assertEqual(optin, broadcast.optin)
 
+        # now lets unset the broadcast
+        response = self.process_wizard(
+            "update",
+            update_url,
+            get_broadcast_form_data(
+                self.org,
+                translations=updated_text,
+                contacts=[self.joe],
+                start_datetime="2021-06-24 12:00",
+                repeat_period="W",
+                repeat_days_of_week=["M", "F"],
+            ),
+        )
+        self.assertEqual(302, response.status_code)
+        broadcast.refresh_from_db()
+
+        # optin should be gone now
+        self.assertEqual(None, broadcast.optin)
+
     def test_localization(self):
         # create a broadcast without a language
         broadcast = self.create_broadcast(
