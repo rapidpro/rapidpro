@@ -2303,8 +2303,11 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             org = self.request.org
 
-            if not org and user.is_staff:
-                return HttpResponseRedirect(reverse("orgs.org_manage"))
+            if not org:
+                if user.is_staff:
+                    return HttpResponseRedirect(reverse("orgs.org_manage"))
+
+                return HttpResponseRedirect(reverse("orgs.org_choose"))
 
             role = org.get_user_role(user)
             return HttpResponseRedirect(reverse(role.start_view))

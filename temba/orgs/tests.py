@@ -3239,6 +3239,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # now try as customer support
         self.assertRedirect(self.requestView(start_url, self.customer_support), "/org/manage/")
 
+        # if org isn't set, we redirect instead to choose view
+        self.client.logout()
+        self.org2.add_user(self.admin, OrgRole.ADMINISTRATOR)
+        self.login(self.admin)
+        self.assertRedirect(self.client.get(start_url), "/org/choose/")
+
     def test_choose(self):
         choose_url = reverse("orgs.org_choose")
 
