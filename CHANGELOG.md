@@ -1,3 +1,7 @@
+v8.3.77 (2023-11-01)
+-------------------------
+ * Move optins inside compose widget
+
 v8.3.76 (2023-11-01)
 -------------------------
  * Fix org start view when org isn't set
