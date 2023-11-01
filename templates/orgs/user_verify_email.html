@@ -7,22 +7,38 @@
 {% block content %}
     <div class="flex w-full mb-4">
         <div class="flex-grow ml-1">
-            <temba-alert level="error" class="mt-4">
-                {% blocktrans trimmed %}
-                    You cannot verify an email while logged in from a different login account.
-                {% endblocktrans %}
-                <br />
-                {% blocktrans trimmed %}
-                    Login with the correct login account to verify its email.
-                {% endblocktrans %}
-            </temba-alert>
-        </div>
-    </div>
-    <div class="flex w-full mb-4">
-        <div class="flex-grow ml-1">
-            <a href="{% url 'users.user_login' %}?next={% url 'orgs.user_verify_email' verification_secret %}">
-                <button class="button-primary">Login with other account</button>
-            </a>
+            {% if verify_alert == "invalid" %}
+                <temba-alert level="error" class="mt-4">
+                    {% blocktrans trimmed %}
+                        Invalid email verification link
+                    {% endblocktrans %}
+                </temba-alert>
+            {% elif verify_alert == "mismatch" %}
+                <temba-alert level="error" class="mt-4">
+                    {% blocktrans trimmed %}
+                        Mismatching email verification link
+                    {% endblocktrans %}
+                </temba-alert>
+            {% elif verify_alert == "success" %}
+                <temba-alert level="success" class="mt-4">
+                    {% blocktrans trimmed with email=user_by_secret.username %}
+                        Email <b>{{ email }}</b> verified successfully
+                    {% endblocktrans %}
+                </temba-alert>
+            {% elif verify_alert == "verified" %}
+                <temba-alert level="success" class="mt-4">
+                    {% blocktrans trimmed with email=user_by_secret.username %}
+                        Email <b>{{ email }}</b> already verified
+                    {% endblocktrans %}
+                </temba-alert>
+            {% endif %}
         </div>
     </div>
 {% endblock content %}
+{% block extra-script %}
+    <script type="text/javascript">
+      setTimeout(function() {
+        window.location.href = "{{redirect_url}}";
+      }, 3000);
+    </script>
+{% endblock extra-script %}

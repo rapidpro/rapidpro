@@ -207,9 +207,9 @@ class User(AuthUser):
         self.settings.save(update_fields=("last_auth_on",))
 
     def record_email_verification_status(self, status: str):
-        if status not in [elt[0] for elt in UserSettings.STATUS_CHOICES]:
-            raise ValueError("Email verification Status '%s' not supported" % status)
-
+        """
+        Records the email status for this user
+        """
         self.settings.email_status = status
         self.settings.save(update_fields=("email_status",))
 
