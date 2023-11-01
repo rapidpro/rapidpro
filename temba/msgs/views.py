@@ -261,7 +261,7 @@ class ScheduleForm(ScheduleFormMixin):
         return super().clean()
 
     class Meta:
-        fields = [f for f in ScheduleFormMixin.Meta.fields] + ["send_when"]
+        fields = ScheduleFormMixin.Meta.fields + ("send_when",)
 
 
 class TargetForm(Form):
@@ -270,11 +270,7 @@ class TargetForm(Form):
         required=True,
         help_text=_("The contacts to send the message to."),
         widget=OmniboxChoice(
-            attrs={
-                "placeholder": _("Search for contacts or groups"),
-                "groups": True,
-                "contacts": True,
-            }
+            attrs={"placeholder": _("Search for contacts or groups"), "groups": True, "contacts": True}
         ),
     )
 
