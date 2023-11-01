@@ -1,3 +1,9 @@
+v8.3.76 (2023-11-01)
+-------------------------
+ * Fix org start view when org isn't set
+ * Add data migration to remove scheduled triggers without a schedule and constraint to prevent new ones
+ * Fix not showing non-field errors on wizard forms
+
 v8.3.75 (2023-10-31)
 -------------------------
  * Remove register "trigger" type
