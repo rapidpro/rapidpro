@@ -1,3 +1,7 @@
+v8.3.78 (2023-11-02)
+-------------------------
+ * Update scheduled broadcast to send now
+
 v8.3.77 (2023-11-01)
 -------------------------
  * Move optins inside compose widget
