@@ -2119,7 +2119,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         # but should be on the broadcast itself
         self.assertEqual(optin, broadcast.optin)
 
-        # now lets unset the broadcast
+        # now lets unset the optin from the broadcast
         response = self.process_wizard(
             "update",
             update_url,
@@ -2137,6 +2137,22 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # optin should be gone now
         self.assertEqual(None, broadcast.optin)
+
+        # now update the scheduled broadcast to send now
+        response = self.process_wizard(
+            "update",
+            update_url,
+            get_broadcast_form_data(
+                self.org, translations=updated_text, contacts=[self.joe], send_when=ScheduleForm.SEND_NOW
+            ),
+        )
+
+        # when a scheduled broadcast is updated to send now, it'll redirect to broadcast list
+        self.assertRedirect(response, reverse("msgs.broadcast_list"))
+        broadcast.refresh_from_db()
+
+        # shouldn't have a schedule now
+        self.assertEqual(None, broadcast.schedule)
 
     def test_localization(self):
         # create a broadcast without a language
