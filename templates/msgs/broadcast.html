@@ -14,13 +14,21 @@
           {% blocktrans trimmed %}
             Sent
           {% endblocktrans %}
-          <div style="margin-left:0.2rem">{{ broadcast.created_on|duration }}</div>
+          <div style="margin-left:0.2rem">{{ broadcast.modified_on|duration }}</div>
         {% endif %}
       </div>
     </div>
     <div class="flex flex-row p-4">
       <div class="flex-grow">
-        <div class="text">{{ translation.text }}<br/>{% for reply in translation.quick_replies %}<temba-label class="mr-2 mt-2" backgroundcolor="#fafafa">{{reply}}</temba-label>{% endfor %}</div>
+        <div class="text">
+          {{ translation.text }}
+          <br />
+          {% for reply in translation.quick_replies %}
+            <temba-label class="mr-2 mt-2" backgroundcolor="#fafafa">
+              {{ reply }}
+            </temba-label>
+          {% endfor %}
+        </div>
       </div>
       <div class="attachments  ml-2 flex-wrap">
         {% for attachment in translation.attachments %}
@@ -28,7 +36,6 @@
         {% endfor %}
       </div>
     </div>
-
     {% if not broadcast.schedule %}
       <div class="flex flex-row px-4 py-2 bg-gray-100 text-sm schedule text-center">
         <div class="inline-block align-bottom text-gray-700 flex">

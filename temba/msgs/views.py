@@ -340,6 +340,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 super()
                 .get_queryset(**kwargs)
                 .filter(is_active=True)
+                .exclude(schedule__next_fire=None)
                 .select_related("org", "schedule")
                 .prefetch_related("groups", "contacts")
             )
@@ -475,14 +476,22 @@ class BroadcastCRUDL(SmartCRUDL):
 
             # finally, update schedule
             schedule_form = form_dict["schedule"]
-            start_time = schedule_form.cleaned_data["start_datetime"]
-            repeat_period = schedule_form.cleaned_data["repeat_period"]
-            repeat_days_of_week = schedule_form.cleaned_data["repeat_days_of_week"]
-            schedule.update_schedule(
-                self.request.user, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week
-            )
+            send_when = schedule_form.cleaned_data["send_when"]
 
-            broadcast.save()
+            if send_when == ScheduleForm.SEND_LATER:
+                start_time = schedule_form.cleaned_data["start_datetime"]
+                repeat_period = schedule_form.cleaned_data["repeat_period"]
+                repeat_days_of_week = schedule_form.cleaned_data["repeat_days_of_week"]
+                schedule.update_schedule(
+                    self.request.user, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week
+                )
+                broadcast.save()
+            else:
+                broadcast.schedule = None
+                broadcast.save()
+                schedule.delete()
+                self.object.send_async()
+                return HttpResponseRedirect(reverse("msgs.broadcast_list"))
 
             return HttpResponseRedirect(self.get_success_url())
 
