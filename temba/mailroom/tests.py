@@ -645,7 +645,6 @@ class MailroomQueueTest(TembaTest):
                     "org_id": self.org.id,
                     "created_by_id": self.admin.id,
                     "flow_id": flow.id,
-                    "flow_type": "M",
                     "contact_ids": [jim.id],
                     "group_ids": [bobs.id],
                     "urns": ["tel:+1234567890", "twitter:bobby"],
