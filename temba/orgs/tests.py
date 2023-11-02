@@ -3868,6 +3868,26 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.admin2.settings.refresh_from_db()
         self.assertEqual(self.admin2.settings.email_status, "U")
 
+    @override_settings(SEND_EMAILS=True)
+    def test_send_verification_email(self):
+        send_verification_email_url = reverse("orgs.user_send_verification_email")
+
+        # try to access before logging in
+        response = self.client.get(send_verification_email_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(send_verification_email_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(["loc"], list(response.context["form"].fields.keys()))
+
+        response = self.client.post(send_verification_email_url, {}, follow=True)
+        self.assertEqual(200, response.status_code)
+
+        # and one email sent
+        self.assertEqual(1, len(mail.outbox))
+
 
 class BulkExportTest(TembaTest):
     def test_import_validation(self):
