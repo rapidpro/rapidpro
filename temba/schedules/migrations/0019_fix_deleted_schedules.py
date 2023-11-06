@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def fix_deleted_schedules(apps, schema_editor):
+def fix_deleted_schedules(apps, schema_editor):  # pragma: no cover
     Schedule = apps.get_model("schedules", "Schedule")
 
     ghost_schedules = Schedule.objects.filter(is_active=True, broadcast__is_active=False)
@@ -14,7 +14,7 @@ def fix_deleted_schedules(apps, schema_editor):
         print(f"Deleted {num_schedules} schedules with deleted broadcasts")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
