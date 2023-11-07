@@ -1,3 +1,8 @@
+v8.3.81 (2023-11-07)
+-------------------------
+ * Add data migration to backfill Notification.medium
+ * Add data migration to actually delete inactive schedules
+
 v8.3.80 (2023-11-07)
 -------------------------
  * Fix constraint on Trigger to allow deleting of schedules
