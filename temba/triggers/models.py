@@ -418,8 +418,8 @@ class Trigger(SmartModel):
         if self.schedule:
             self.schedule.delete()
 
-    def __str__(self):
-        return f'Trigger[type={self.trigger_type}, flow="{self.flow.name}"]'
+    def __repr__(self):
+        return f"<Trigger: type={self.trigger_type} flow={self.flow.name}>"
 
     class Meta:
         verbose_name = _("Trigger")
@@ -428,7 +428,7 @@ class Trigger(SmartModel):
         constraints = [
             # ensure that scheduled triggers have a schedule
             models.CheckConstraint(
-                check=~Q(trigger_type="S") | Q(schedule__isnull=False),
+                check=~Q(trigger_type="S") | Q(schedule__isnull=False) | Q(is_active=False),
                 name="triggers_scheduled_trigger_has_schedule",
             ),
         ]
