@@ -68,19 +68,20 @@ class Schedule(models.Model):
     # what days of the week this will repeat on (only for weekly repeats) One of MTWRFSU
     repeat_days_of_week = models.CharField(null=True, max_length=7)
 
-    next_fire = models.DateTimeField(null=True)
+    next_fire = models.DateTimeField()
     last_fire = models.DateTimeField(null=True)
+    is_paused = models.BooleanField(default=False)
 
     # TODO remove - schedules are always attached to something which has this information
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(null=True)
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="schedules_schedule_creations"
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="schedules_schedule_creations", null=True
     )
-    created_on = models.DateTimeField(default=timezone.now)
+    created_on = models.DateTimeField(null=True)
     modified_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="schedules_schedule_modifications"
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="schedules_schedule_modifications", null=True
     )
-    modified_on = models.DateTimeField(default=timezone.now)
+    modified_on = models.DateTimeField(null=True)
 
     @classmethod
     def create_schedule(cls, org, user, start_time, repeat_period, repeat_days_of_week=None, now=None):
@@ -211,14 +212,10 @@ class Schedule(models.Model):
         self.save(update_fields=("is_active", "modified_by", "modified_on"))
 
     def __repr__(self):  # pragma: no cover
-        return f'<Schedule: id={self.id} repeat="{self.get_display()}"  next={str(self.next_fire)}>'
+        return f'<Schedule: id={self.id} repeat="{self.get_display()}" next={str(self.next_fire)}>'
 
     class Meta:
         indexes = [
             # used by mailroom for fetching schedules that need to be fired
-            Index(
-                name="schedules_next_fire_active",
-                fields=["next_fire"],
-                condition=Q(is_active=True, next_fire__isnull=False),
-            )
+            Index(name="schedules_due", fields=["next_fire"], condition=Q(is_paused=False))
         ]
