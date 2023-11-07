@@ -364,10 +364,10 @@ class ScheduleCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertIsNone(schedule.next_fire)
 
 
-class DeleteEndedSchedulesTest(MigrationTest):
+class DeleteInactiveSchedulesTest(MigrationTest):
     app = "schedules"
-    migrate_from = "0019_fix_deleted_schedules"
-    migrate_to = "0020_delete_ended"
+    migrate_from = "0020_delete_ended"
+    migrate_to = "0021_delete_inactive"
 
     def setUpBeforeMigration(self, apps):
         group = self.create_group("Testers")
