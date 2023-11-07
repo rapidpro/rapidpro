@@ -373,59 +373,64 @@ class DeleteInactiveSchedulesTest(MigrationTest):
         group = self.create_group("Testers")
         flow = self.create_flow("Test")
 
-        # create scheduled broadcast with future
+        # create active scheduled broadcast
         self.schedule1 = Schedule.create_schedule(
             self.org, self.editor, timezone.now() + timedelta(hours=1), Schedule.REPEAT_NEVER
         )
         self.bcast1 = self.create_broadcast(self.admin, {"eng": "Hi"}, groups=[group], schedule=self.schedule1)
 
-        # create scheduled broadcast with no future
+        # create inactive scheduled broadcast
         self.schedule2 = Schedule.create_schedule(self.org, self.editor, timezone.now(), Schedule.REPEAT_NEVER)
         self.bcast2 = self.create_broadcast(self.admin, {"eng": "Hi"}, groups=[group], schedule=self.schedule2)
 
         self.schedule2.next_fire = None
-        self.schedule2.save(update_fields=("next_fire",))
+        self.schedule2.is_active = False
+        self.schedule2.save(update_fields=("next_fire", "is_active"))
 
-        # create scheduled trigger with future
+        self.bcast2.is_active = False
+        self.bcast2.save(update_fields=("is_active",))
+
+        # create active scheduled trigger
         self.schedule3 = Schedule.create_schedule(
             self.org, self.editor, timezone.now() + timedelta(hours=1), Schedule.REPEAT_NEVER
         )
         self.trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_SCHEDULE, flow=flow, schedule=self.schedule3)
 
-        # create scheduled trigger with no future
+        # create inactive scheduled trigger
         self.schedule4 = Schedule.create_schedule(self.org, self.editor, timezone.now(), Schedule.REPEAT_NEVER)
         self.trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_SCHEDULE, flow=flow, schedule=self.schedule4)
 
         self.schedule4.next_fire = None
-        self.schedule4.save(update_fields=("next_fire",))
+        self.schedule4.is_active = False
+        self.schedule4.save(update_fields=("next_fire", "is_active"))
 
-        # create orphaned schedule
+        self.trigger2.is_active = False
+        self.trigger2.save(update_fields=("is_active",))
+
+        # create inactive orphaned schedule
         self.schedule5 = Schedule.create_schedule(
             self.org, self.editor, timezone.now() + timedelta(hours=1), Schedule.REPEAT_NEVER
         )
 
+        self.schedule5.next_fire = None
+        self.schedule5.is_active = False
+        self.schedule5.save(update_fields=("next_fire", "is_active"))
+
     def test_migration(self):
         self.schedule1.refresh_from_db()
-        self.schedule2.refresh_from_db()
-        self.schedule3.refresh_from_db()
-        self.schedule4.refresh_from_db()
-        self.schedule5.refresh_from_db()
-
         self.bcast1.refresh_from_db()
-        self.bcast2.refresh_from_db()
-        self.trigger1.refresh_from_db()
-        self.trigger2.refresh_from_db()
-
         self.assertTrue(self.schedule1.is_active)
         self.assertTrue(self.bcast1.is_active)
 
-        self.assertFalse(self.schedule2.is_active)
+        self.assertFalse(Schedule.objects.filter(id=self.schedule2.id).exists())
         self.assertFalse(self.bcast2.is_active)
 
+        self.schedule3.refresh_from_db()
+        self.trigger1.refresh_from_db()
         self.assertTrue(self.schedule3.is_active)
         self.assertTrue(self.trigger1.is_active)
 
-        self.assertFalse(self.schedule4.is_active)
+        self.assertFalse(Schedule.objects.filter(id=self.schedule4.id).exists())
         self.assertFalse(self.trigger2.is_active)
 
-        self.assertFalse(self.schedule5.is_active)
+        self.assertFalse(Schedule.objects.filter(id=self.schedule5.id).exists())

@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def delete_ended_or_orpaned(apps, schema_editor):
+def delete_ended_or_orpaned(apps, schema_editor):  # pragma: no cover
     Schedule = apps.get_model("schedules", "Schedule")
 
     num_broadcasts, num_triggers, num_orphans = 0, 0, 0
@@ -39,7 +39,7 @@ def delete_ended_or_orpaned(apps, schema_editor):
         )
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
