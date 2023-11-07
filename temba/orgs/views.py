@@ -895,7 +895,11 @@ class UserCRUDL(SmartCRUDL):
             return UserSettings.objects.filter(email_verification_secret=self.kwargs["secret"]).first()
 
         def pre_process(self, request, *args, **kwargs):
-            if request.GET.get("verify") and self.user_settings and self.user_settings.user == self.request.user:
+            if (
+                self.user_settings
+                and self.user_settings.user == self.request.user
+                and self.user_settings.email_status != UserSettings.STATUS_VERIFIED
+            ):
                 self.get_object().record_email_verification_status(UserSettings.STATUS_VERIFIED)
                 return HttpResponseRedirect(reverse("orgs.user_account"))
             return super().pre_process(request, *args, **kwargs)
@@ -920,7 +924,7 @@ class UserCRUDL(SmartCRUDL):
                 verify_alert = "success"
                 if self.user_settings.email_status == UserSettings.STATUS_VERIFIED:
                     verify_alert = "verified"
-                redirect_url = f'{reverse("orgs.user_verify_email", args=(self.kwargs["secret"],))}?verify=1'
+                redirect_url = f'{reverse("orgs.user_verify_email", args=(self.kwargs["secret"],))}'
 
             context["redirect_url"] = redirect_url
             context["user_settings"] = self.user_settings

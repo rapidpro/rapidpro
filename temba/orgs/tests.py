@@ -565,15 +565,7 @@ class UserTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "Invalid email verification link")
 
-        response = self.client.get(verify_email_url)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(response.context["verify_alert"], "success")
-        self.assertContains(response, "verified successfully")
-
-        self.admin.settings.refresh_from_db()
-        self.assertEqual(self.admin.settings.email_status, "U")
-
-        response = self.client.get(verify_email_url + "?verify=1", follow=True)
+        response = self.client.get(verify_email_url, follow=True)
         self.assertEqual(200, response.status_code)
         self.assertEqual(reverse("orgs.user_account"), response.request["PATH_INFO"])
 
