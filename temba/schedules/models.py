@@ -3,8 +3,8 @@ import logging
 from datetime import time, timedelta
 
 from dateutil.relativedelta import relativedelta
-from smartmin.models import SmartModel
 
+from django.conf import settings
 from django.contrib.humanize.templatetags.humanize import ordinal
 from django.db import models
 from django.db.models import Index, Q
@@ -15,7 +15,7 @@ from django.utils.translation import gettext_lazy as _
 logger = logging.getLogger(__name__)
 
 
-class Schedule(SmartModel):
+class Schedule(models.Model):
     """
     Describes a point in the future to execute some action. These are used to schedule Broadcasts
     as a single event or with a specified interval for recurrence.
@@ -70,6 +70,17 @@ class Schedule(SmartModel):
 
     next_fire = models.DateTimeField(null=True)
     last_fire = models.DateTimeField(null=True)
+
+    # TODO remove - schedules are always attached to something which has this information
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="schedules_schedule_creations"
+    )
+    created_on = models.DateTimeField(default=timezone.now)
+    modified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="schedules_schedule_modifications"
+    )
+    modified_on = models.DateTimeField(default=timezone.now)
 
     @classmethod
     def create_schedule(cls, org, user, start_time, repeat_period, repeat_days_of_week=None, now=None):
