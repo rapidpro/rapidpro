@@ -11,7 +11,7 @@ from temba.contacts.models import ContactImport, ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import OrgRole
-from temba.tests import CRUDLTestMixin, TembaTest, matchers
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers
 
 from .incidents.builtin import OrgFlaggedIncidentType
 from .models import Incident, Notification
@@ -405,3 +405,21 @@ class NotificationTest(TembaTest):
         self.assertEqual(2, Notification.get_unseen_count(self.org, self.editor))
         self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
         self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
+
+
+class BackfillMediumTest(MigrationTest):
+    app = "notifications"
+    migrate_from = "0013_notification_medium"
+    migrate_to = "0014_backfill_medium"
+
+    def setUpBeforeMigration(self, apps):
+        self.org.suspend()
+        self.org.unsuspend()
+
+        Notification.objects.update(medium=None)
+
+        self.org.suspend()
+        self.org.unsuspend()
+
+    def test_migration(self):
+        self.assertEqual(0, Notification.objects.filter(medium=None).count())
