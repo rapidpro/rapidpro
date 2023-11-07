@@ -49,12 +49,12 @@ class TriggerTest(TembaTest):
         catchall2 = Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow, channel=self.channel)
 
         self.assertEqual("Keyword[join] → Test Flow", keyword1.name)
-        self.assertEqual('Trigger[type=K, flow="Test Flow"]', str(keyword1))
+        self.assertEqual("<Trigger: type=K flow=Test Flow>", repr(keyword1))
         self.assertEqual(2, keyword1.priority)
         self.assertEqual(3, keyword2.priority)
 
         self.assertEqual("Catch All → Test Flow", catchall1.name)
-        self.assertEqual('Trigger[type=C, flow="Test Flow"]', str(catchall1))
+        self.assertEqual("<Trigger: type=C flow=Test Flow>", repr(catchall1))
         self.assertEqual(0, catchall1.priority)
         self.assertEqual(4, catchall2.priority)
 
