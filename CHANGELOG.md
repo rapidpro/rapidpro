@@ -1,3 +1,8 @@
+v8.3.79 (2023-11-07)
+-------------------------
+ * Add data migration to delete ended and orphaned schedules
+ * Remove no longer used flow_type field on queued flow starts
+
 v8.3.78 (2023-11-02)
 -------------------------
  * Update scheduled broadcast to send now
