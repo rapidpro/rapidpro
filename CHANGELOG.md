@@ -1,3 +1,8 @@
+v8.3.80 (2023-11-07)
+-------------------------
+ * Fix constraint on Trigger to allow deleting of schedules
+ * Add medium field Notification to let us model notifications which should be email only
+
 v8.3.79 (2023-11-07)
 -------------------------
  * Add data migration to delete ended and orphaned schedules
