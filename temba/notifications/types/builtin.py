@@ -22,6 +22,7 @@ class ExportFinishedNotificationType(NotificationType):
             cls.slug,
             scope=export.get_notification_scope(),
             users=[export.created_by],
+            medium=Notification.MEDIUM_UI + Notification.MEDIUM_EMAIL,
             email_status=Notification.EMAIL_STATUS_PENDING,
             **{export.notification_export_type + "_export": export},
         )
@@ -81,6 +82,7 @@ class IncidentStartedNotificationType(NotificationType):
             cls.slug,
             scope=incident.type.get_notification_scope(incident),
             users=incident.org.get_admins(),
+            medium=Notification.MEDIUM_UI + Notification.MEDIUM_EMAIL,
             email_status=Notification.EMAIL_STATUS_PENDING,
             incident=incident,
         )
