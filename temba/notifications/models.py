@@ -156,6 +156,9 @@ class Notification(models.Model):
     A user specific notification
     """
 
+    MEDIUM_UI = "U"
+    MEDIUM_EMAIL = "E"
+
     EMAIL_STATUS_PENDING = "P"
     EMAIL_STATUS_SENT = "S"
     EMAIL_STATUS_NONE = "N"
@@ -168,6 +171,7 @@ class Notification(models.Model):
     id = models.BigAutoField(primary_key=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="notifications")
     notification_type = models.CharField(max_length=16)
+    medium = models.CharField(max_length=2, null=True)
 
     # The scope is what we maintain uniqueness of unseen notifications for within an org. For some notification types,
     # user can only have one unseen of that type per org, and so this will be an empty string. For other notification
@@ -255,7 +259,7 @@ class Notification(models.Model):
 
     class Meta:
         indexes = [
-            # used to list org specific notifications for a user
+            # used to list org specific notifications for a user in the UI
             models.Index(fields=["org", "user", "-created_on", "-id"]),
             # used to find notifications with pending email sends
             models.Index(name="notifications_email_pending", fields=["created_on"], condition=Q(email_status="P")),
