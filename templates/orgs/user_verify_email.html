@@ -1,11 +1,11 @@
-{% extends "smartmin/base.html" %}
+{% extends "no_nav.html" %}
 {% load smartmin i18n %}
 
 {% block title-text %}
     {% trans "Email verification" %}
 {% endblock title-text %}
 {% block content %}
-    <div class="flex w-full mb-4">
+    <div class="flex w-full h-56 items-center mb-4">
         <div class="flex-grow ml-1">
             {% if verify_alert == "invalid" %}
                 <temba-alert level="error" class="mt-4">
@@ -25,12 +25,6 @@
                         Email <b>{{ email }}</b> verified successfully
                     {% endblocktrans %}
                 </temba-alert>
-            {% elif verify_alert == "verified" %}
-                <temba-alert level="success" class="mt-4">
-                    {% blocktrans trimmed with email=user_by_secret.username %}
-                        Email <b>{{ email }}</b> already verified
-                    {% endblocktrans %}
-                </temba-alert>
             {% endif %}
         </div>
     </div>
@@ -42,3 +36,12 @@
       }, 3000);
     </script>
 {% endblock extra-script %}
+{% block styles %}
+    {{ block.super }}
+    <style type="text/css">
+      .content-card {
+        width: 28em;
+        min-height: 25em;
+      }
+    </style>
+{% endblock styles %}

@@ -564,18 +564,23 @@ class UserTest(TembaTest):
         response = self.client.get(reverse("orgs.user_verify_email", args=["WRONG_SECRET"]), follow=True)
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "Invalid email verification link")
+        self.assertEqual(reverse("users.login"), response.context["redirect_url"])
 
         response = self.client.get(verify_email_url, follow=True)
         self.assertEqual(200, response.status_code)
-        self.assertEqual(reverse("orgs.user_account"), response.request["PATH_INFO"])
+        self.assertContains(response, "verified successfully")
+        self.assertEqual(response.context["verify_alert"], "success")
+        self.assertEqual(reverse("orgs.user_account"), response.context["redirect_url"])
 
         self.admin.settings.refresh_from_db()
         self.assertEqual(self.admin.settings.email_status, "V")
 
+        # use the same link again
         response = self.client.get(verify_email_url)
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.context["verify_alert"], "verified")
-        self.assertContains(response, "already verified")
+        self.assertContains(response, "verified successfully")
+        self.assertEqual(response.context["verify_alert"], "success")
+        self.assertEqual(reverse("orgs.user_account"), response.context["redirect_url"])
 
         self.login(self.admin2)
         self.assertEqual(self.admin2.settings.email_status, "U")
@@ -585,6 +590,7 @@ class UserTest(TembaTest):
         self.assertContains(response, "Mismatching email verification link")
         self.assertEqual(response.context["verify_alert"], "mismatch")
         self.assertEqual(self.admin2.settings.email_status, "U")
+        self.assertEqual(f'{reverse("users.login")}?next={verify_email_url}', response.context["redirect_url"])
 
     @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
     def test_confirm_access(self):
