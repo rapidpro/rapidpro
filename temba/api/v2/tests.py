@@ -1141,7 +1141,7 @@ class EndpointsTest(APITest):
             self.admin,
             {"eng": {"text": "Scheduled"}},
             contacts=[self.joe],
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+            schedule=Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
         Broadcast.create(self.org2, self.admin2, {"eng": {"text": "Different org..."}}, contacts=[self.hans])
 

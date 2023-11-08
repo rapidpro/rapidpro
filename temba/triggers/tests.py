@@ -469,7 +469,7 @@ class TriggerTest(TembaTest):
             flow,
             channel=channel,
             groups=[group],
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
+            schedule=Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_MONTHLY),
         )
 
         trigger.release(self.admin)
@@ -1385,7 +1385,6 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         schedule = Schedule.create_schedule(
             self.org,
-            self.admin,
             start_time=tz.localize(datetime(2021, 6, 24, 12, 0, 0, 0)),
             repeat_period=Schedule.REPEAT_WEEKLY,
             repeat_days_of_week="MF",

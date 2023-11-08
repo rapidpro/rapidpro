@@ -340,7 +340,6 @@ class BroadcastCRUDL(SmartCRUDL):
                 super()
                 .get_queryset(**kwargs)
                 .filter(is_active=True)
-                .exclude(schedule__next_fire=None)
                 .select_related("org", "schedule")
                 .prefetch_related("groups", "contacts")
             )
@@ -393,7 +392,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 repeat_period = schedule_form.cleaned_data["repeat_period"]
                 repeat_days_of_week = schedule_form.cleaned_data["repeat_days_of_week"]
                 schedule = Schedule.create_schedule(
-                    org, user, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week
+                    org, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week
                 )
 
             self.object = Broadcast.create(

@@ -18,13 +18,13 @@ class ScheduleTest(TembaTest):
         self.joe = self.create_contact("Joe Blow", phone="123")
 
     def test_get_repeat_days_display(self):
-        sched = Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_WEEKLY, "M")
+        sched = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_WEEKLY, "M")
         self.assertEqual(sched.get_repeat_days_display(), ["Monday"])
 
-        sched = Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_WEEKLY, "TRFSU")
+        sched = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_WEEKLY, "TRFSU")
         self.assertEqual(sched.get_repeat_days_display(), ["Tuesday", "Thursday", "Friday", "Saturday", "Sunday"])
 
-        sched = Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_WEEKLY, "MTWRFSU")
+        sched = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_WEEKLY, "MTWRFSU")
         self.assertEqual(
             sched.get_repeat_days_display(),
             ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
@@ -177,7 +177,6 @@ class ScheduleTest(TembaTest):
 
             sched = Schedule.create_schedule(
                 self.org,
-                self.admin,
                 trigger_date,
                 tc["repeat_period"],
                 repeat_days_of_week=tc.get("repeat_days_of_week"),
@@ -223,7 +222,7 @@ class ScheduleTest(TembaTest):
         media_attachments.append({"content_type": media.content_type, "url": media.url})
         compose_deserialize_attachments(media_attachments)
 
-        sched = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
+        sched = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY)
 
         # our view asserts that our schedule is connected to a broadcast
         self.create_broadcast(

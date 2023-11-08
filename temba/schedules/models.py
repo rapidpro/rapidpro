@@ -71,7 +71,7 @@ class Schedule(models.Model):
     next_fire = models.DateTimeField()
     last_fire = models.DateTimeField(null=True)
 
-    # TODO remove - schedules are always attached to something which has this information
+    # TODO drop
     is_active = models.BooleanField(null=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="schedules_schedule_creations", null=True
@@ -83,10 +83,10 @@ class Schedule(models.Model):
     modified_on = models.DateTimeField(null=True)
 
     @classmethod
-    def create_schedule(cls, org, user, start_time, repeat_period, repeat_days_of_week=None, now=None):
+    def create_schedule(cls, org, start_time, repeat_period, repeat_days_of_week=None, now=None):
         assert not repeat_days_of_week or set(repeat_days_of_week).issubset(cls.DAYS_OF_WEEK_OFFSET)
 
-        schedule = cls(repeat_period=repeat_period, created_by=user, modified_by=user, org=org)
+        schedule = cls(org=org, repeat_period=repeat_period)
         schedule.update_schedule(start_time, repeat_period, repeat_days_of_week, now=now)
         return schedule
 
