@@ -130,10 +130,6 @@ class Schedule(models.Model):
 
             self.save()
 
-    def get_broadcast(self):
-        if hasattr(self, "broadcast"):
-            return self.broadcast
-
     def calculate_next_fire(self, now):
         """
         Get the next point in the future when our schedule should fire again. Note this should only be called to find

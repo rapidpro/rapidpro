@@ -43,9 +43,9 @@ class ScheduleFormMixin(forms.Form):
         cleaned_data = super().clean()
 
         if self.is_valid():
+            start_datetime = cleaned_data["start_datetime"]
             repeat_period = cleaned_data["repeat_period"]
             repeat_days_of_week = cleaned_data.get("repeat_days_of_week")
-            start_datetime = cleaned_data.get("start_datetime")
 
             if repeat_period == Schedule.REPEAT_WEEKLY and not repeat_days_of_week:
                 self.add_error("repeat_days_of_week", _("Must specify at least one day of the week."))

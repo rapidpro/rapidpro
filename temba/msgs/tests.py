@@ -1978,6 +1978,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
     def test_create(self):
+        create_url = reverse("msgs.broadcast_create")
+
         text = "I hope you are having a great day"
         media = Media.from_upload(
             self.org,
@@ -1986,7 +1988,6 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             process=False,
         )
 
-        create_url = reverse("msgs.broadcast_create")
         self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=("omnibox",))
         self.login(self.admin)
 
@@ -2038,6 +2039,23 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             get_broadcast_form_data(self.org, translations=self.create_translations(text), contacts=[self.joe]),
         )
         self.assertFormError(response.context["form"], None, ["Select when you would like the broadcast to be sent"])
+
+        # start time in past and no repeat
+        response = self.process_wizard(
+            "create",
+            create_url,
+            get_broadcast_form_data(
+                self.org,
+                translations=self.create_translations(text),
+                contacts=[self.joe],
+                start_datetime="2021-06-24 12:00Z",
+                repeat_period="O",
+                repeat_days_of_week=[],
+            ),
+        )
+        self.assertFormError(
+            response.context["form"], "start_datetime", ["Must specify a start time that is in the future."]
+        )
 
         optin = OptIn.create(self.org, self.admin, "Alerts")
 

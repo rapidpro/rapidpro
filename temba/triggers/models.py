@@ -415,12 +415,6 @@ class Trigger(SmartModel):
         if schedule:
             schedule.delete()
 
-    def delete(self):
-        super().delete()
-
-        if self.schedule:
-            self.schedule.delete()
-
     def __repr__(self):
         return f"<Trigger: type={self.trigger_type} flow={self.flow.name}>"
 
