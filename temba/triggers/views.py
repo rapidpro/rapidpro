@@ -443,7 +443,7 @@ class TriggerCRUDL(SmartCRUDL):
         permission = "triggers.trigger_list"
         fields = ("name",)
         default_template = "triggers/trigger_list.html"
-        search_fields = ("keywords__0__iexact", "flow__name__icontains", "channel__name__icontains")
+        search_fields = ("keywords__icontains", "flow__name__icontains", "channel__name__icontains")
 
         def get_queryset(self, *args, **kwargs):
             qs = super().get_queryset(*args, **kwargs)

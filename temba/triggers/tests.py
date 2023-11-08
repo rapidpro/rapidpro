@@ -1490,7 +1490,12 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keywords=["test"], match_type=Trigger.MATCH_ONLY_WORD
         )
         trigger3 = Trigger.create(
-            self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keywords=["start"], match_type=Trigger.MATCH_ONLY_WORD
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow1,
+            keywords=["start", "begin"],
+            match_type=Trigger.MATCH_ONLY_WORD,
         )
         trigger4 = Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow1, channel=channel)
 
@@ -1524,6 +1529,11 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # can search by keyword
         self.assertListFetch(
             list_url + "?search=Start", allow_viewers=True, allow_editors=True, context_objects=[trigger3]
+        )
+
+        # can search by keyword
+        self.assertListFetch(
+            list_url + "?search=begin", allow_viewers=True, allow_editors=True, context_objects=[trigger3]
         )
 
         # or flow name
