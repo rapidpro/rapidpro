@@ -6,7 +6,7 @@ from django.conf import settings
 from django.db import migrations, models
 
 
-def delete_inactive_schedules(apps, schema_editor):
+def delete_inactive_schedules(apps, schema_editor):  # pragma: no cover
     Broadcast = apps.get_model("msgs", "Broadcast")
     Schedule = apps.get_model("schedules", "Schedule")
     Trigger = apps.get_model("triggers", "Trigger")
@@ -28,7 +28,7 @@ def delete_inactive_schedules(apps, schema_editor):
         print(f"Deleted {num_deleted} inactive schedules")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

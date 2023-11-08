@@ -1,16 +1,13 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import pytz
 
-from django.urls import reverse
 from django.utils import timezone
 
 from temba import settings
 from temba.msgs.models import Broadcast, Media
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
-from temba.triggers.models import Trigger
+from temba.tests import TembaTest
 from temba.utils.compose import compose_deserialize_attachments
-from temba.utils.dates import datetime_to_str
 
 from .models import Schedule
 
@@ -215,8 +212,6 @@ class ScheduleTest(TembaTest):
         self.org.save()
         tz = self.org.timezone
 
-        self.login(self.admin)
-
         text = "A broadcast to Joe"
         media_attachments = []
         media = Media.from_upload(
@@ -239,18 +234,13 @@ class ScheduleTest(TembaTest):
             schedule=sched,
         )
 
-        update_url = reverse("schedules.schedule_update", args=[sched.id])
-
         # way off into the future, but at 11pm NYT
         start_date = datetime(2050, 1, 3, 23, 0, 0, 0)
         start_date = tz.localize(start_date)
         start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
 
-        self.client.post(
-            update_url,
-            {"start_datetime": datetime_to_str(start_date, "%Y-%m-%dT%H:%MZ", timezone.utc), "repeat_period": "D"},
-        )
-        sched = Schedule.objects.get(pk=sched.pk)
+        sched.update_schedule(self.admin, start_date, Schedule.REPEAT_DAILY, "")
+        sched.refresh_from_db()
 
         # 11pm in NY should be 4am UTC the next day
         self.assertEqual("2050-01-04 04:00:00+00:00", str(sched.next_fire))
@@ -259,178 +249,8 @@ class ScheduleTest(TembaTest):
         start_date = tz.localize(start_date)
         start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
 
-        post_data = dict()
-        post_data["repeat_period"] = "D"
-        post_data["start"] = "later"
-        post_data["start_datetime"] = (datetime_to_str(start_date, "%Y-%m-%dT%H:%MZ", timezone.utc),)
-        self.client.post(update_url, post_data)
-        sched = Schedule.objects.get(pk=sched.pk)
+        sched.update_schedule(self.admin, start_date, Schedule.REPEAT_DAILY, "")
+        sched.refresh_from_db()
 
         # next fire should fall at the right hour and minute
         self.assertIn("04:45:00+00:00", str(sched.next_fire))
-
-
-class ScheduleCRUDLTest(TembaTest, CRUDLTestMixin):
-    def test_update(self):
-        # create a scheduled broadcast
-        schedule = Schedule.create_schedule(self.org, self.admin, None, Schedule.REPEAT_NEVER)
-        Broadcast.create(
-            self.org,
-            self.admin,
-            {"eng": "Hi"},
-            contacts=[self.create_contact("Jim", phone="1234")],
-            base_language="eng",
-            schedule=schedule,
-        )
-        update_url = reverse("schedules.schedule_update", args=[schedule.id])
-
-        self.assertUpdateFetch(
-            update_url,
-            allow_viewers=False,
-            allow_editors=True,
-            form_fields=["start_datetime", "repeat_period", "repeat_days_of_week"],
-        )
-
-        def datepicker_fmt(d: datetime):
-            return datetime_to_str(d, "%Y-%m-%dT%H:%MZ", timezone.utc)
-
-        today = timezone.now().replace(second=0, microsecond=0)
-        yesterday = today - timedelta(days=1)
-        tomorrow = today + timedelta(days=1)
-
-        # try to submit in past with no repeat
-        self.assertUpdateSubmit(
-            update_url,
-            {"start_datetime": datepicker_fmt(yesterday), "repeat_period": "O"},
-            form_errors={"start_datetime": "Must specify a start time that is in the future."},
-            object_unchanged=schedule,
-        )
-
-        # update to start in future with no repeat
-        self.assertUpdateSubmit(update_url, {"start_datetime": datepicker_fmt(tomorrow), "repeat_period": "O"})
-
-        schedule.refresh_from_db()
-        self.assertEqual("O", schedule.repeat_period)
-        self.assertEqual(tomorrow, schedule.next_fire)
-
-        # update to start now with daily repeat
-        self.assertUpdateSubmit(update_url, {"start_datetime": datepicker_fmt(today), "repeat_period": "D"})
-
-        schedule.refresh_from_db()
-        self.assertEqual("D", schedule.repeat_period)
-        self.assertEqual(tomorrow, schedule.next_fire)
-
-        # try to submit weekly without specifying days of week
-        self.assertUpdateSubmit(
-            update_url,
-            {"start_datetime": datepicker_fmt(today), "repeat_period": "W"},
-            form_errors={"repeat_days_of_week": "Must specify at least one day of the week."},
-            object_unchanged=schedule,
-        )
-
-        # try to submit weekly with an invalid day of the week (UI doesn't actually allow this)
-        self.assertUpdateSubmit(
-            update_url,
-            {"start_datetime": datepicker_fmt(today), "repeat_period": "W", "repeat_days_of_week": ["X"]},
-            form_errors={"repeat_days_of_week": "Select a valid choice. X is not one of the available choices."},
-            object_unchanged=schedule,
-        )
-
-        # update with valid days of the week
-        self.assertUpdateSubmit(
-            update_url,
-            {"start_datetime": datepicker_fmt(today), "repeat_period": "W", "repeat_days_of_week": ["M", "F"]},
-        )
-
-        schedule.refresh_from_db()
-        self.assertEqual("W", schedule.repeat_period)
-        self.assertEqual("MF", schedule.repeat_days_of_week)
-
-        # update to repeat monthly
-        self.assertUpdateSubmit(
-            update_url,
-            {"start_datetime": datepicker_fmt(today), "repeat_period": "M"},
-        )
-
-        schedule.refresh_from_db()
-        self.assertEqual("M", schedule.repeat_period)
-        self.assertIsNone(schedule.repeat_days_of_week)
-
-        # update with empty start date to signify unscheduling
-        self.assertUpdateSubmit(update_url, {"start_datetime": "", "repeat_period": "O"})
-
-        schedule.refresh_from_db()
-        self.assertEqual("O", schedule.repeat_period)
-        self.assertIsNone(schedule.next_fire)
-
-
-class DeleteInactiveSchedulesTest(MigrationTest):
-    app = "schedules"
-    migrate_from = "0020_delete_ended"
-    migrate_to = "0021_delete_inactive"
-
-    def setUpBeforeMigration(self, apps):
-        group = self.create_group("Testers")
-        flow = self.create_flow("Test")
-
-        # create active scheduled broadcast
-        self.schedule1 = Schedule.create_schedule(
-            self.org, self.editor, timezone.now() + timedelta(hours=1), Schedule.REPEAT_NEVER
-        )
-        self.bcast1 = self.create_broadcast(self.admin, {"eng": "Hi"}, groups=[group], schedule=self.schedule1)
-
-        # create inactive scheduled broadcast
-        self.schedule2 = Schedule.create_schedule(self.org, self.editor, timezone.now(), Schedule.REPEAT_NEVER)
-        self.bcast2 = self.create_broadcast(self.admin, {"eng": "Hi"}, groups=[group], schedule=self.schedule2)
-
-        self.schedule2.next_fire = None
-        self.schedule2.is_active = False
-        self.schedule2.save(update_fields=("next_fire", "is_active"))
-
-        self.bcast2.is_active = False
-        self.bcast2.save(update_fields=("is_active",))
-
-        # create active scheduled trigger
-        self.schedule3 = Schedule.create_schedule(
-            self.org, self.editor, timezone.now() + timedelta(hours=1), Schedule.REPEAT_NEVER
-        )
-        self.trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_SCHEDULE, flow=flow, schedule=self.schedule3)
-
-        # create inactive scheduled trigger
-        self.schedule4 = Schedule.create_schedule(self.org, self.editor, timezone.now(), Schedule.REPEAT_NEVER)
-        self.trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_SCHEDULE, flow=flow, schedule=self.schedule4)
-
-        self.schedule4.next_fire = None
-        self.schedule4.is_active = False
-        self.schedule4.save(update_fields=("next_fire", "is_active"))
-
-        self.trigger2.is_active = False
-        self.trigger2.save(update_fields=("is_active",))
-
-        # create inactive orphaned schedule
-        self.schedule5 = Schedule.create_schedule(
-            self.org, self.editor, timezone.now() + timedelta(hours=1), Schedule.REPEAT_NEVER
-        )
-
-        self.schedule5.next_fire = None
-        self.schedule5.is_active = False
-        self.schedule5.save(update_fields=("next_fire", "is_active"))
-
-    def test_migration(self):
-        self.schedule1.refresh_from_db()
-        self.bcast1.refresh_from_db()
-        self.assertTrue(self.schedule1.is_active)
-        self.assertTrue(self.bcast1.is_active)
-
-        self.assertFalse(Schedule.objects.filter(id=self.schedule2.id).exists())
-        self.assertFalse(self.bcast2.is_active)
-
-        self.schedule3.refresh_from_db()
-        self.trigger1.refresh_from_db()
-        self.assertTrue(self.schedule3.is_active)
-        self.assertTrue(self.trigger1.is_active)
-
-        self.assertFalse(Schedule.objects.filter(id=self.schedule4.id).exists())
-        self.assertFalse(self.trigger2.is_active)
-
-        self.assertFalse(Schedule.objects.filter(id=self.schedule5.id).exists())

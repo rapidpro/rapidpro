@@ -16,11 +16,6 @@ class Migration(migrations.Migration):
             model_name="schedule",
             name="schedules_next_fire_active",
         ),
-        migrations.AddField(
-            model_name="schedule",
-            name="is_paused",
-            field=models.BooleanField(default=False),
-        ),
         migrations.AlterField(
             model_name="schedule",
             name="created_by",
@@ -63,6 +58,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="schedule",
-            index=models.Index(condition=models.Q(("is_paused", False)), fields=["next_fire"], name="schedules_due"),
+            index=models.Index(fields=["next_fire"], name="schedules_due"),
         ),
     ]

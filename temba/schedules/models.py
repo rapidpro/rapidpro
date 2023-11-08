@@ -7,7 +7,7 @@ from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.contrib.humanize.templatetags.humanize import ordinal
 from django.db import models
-from django.db.models import Index, Q
+from django.db.models import Index
 from django.utils import timezone
 from django.utils.timesince import timeuntil
 from django.utils.translation import gettext_lazy as _
@@ -70,7 +70,6 @@ class Schedule(models.Model):
 
     next_fire = models.DateTimeField()
     last_fire = models.DateTimeField(null=True)
-    is_paused = models.BooleanField(default=False)
 
     # TODO remove - schedules are always attached to something which has this information
     is_active = models.BooleanField(null=True)
@@ -91,16 +90,11 @@ class Schedule(models.Model):
         schedule.update_schedule(user, start_time, repeat_period, repeat_days_of_week, now=now)
         return schedule
 
-    def update_schedule(self, user, start_time, repeat_period, repeat_days_of_week, now=None):
+    def update_schedule(self, user, start_time, repeat_period: str, repeat_days_of_week: str, now=None):
         if not now:
             now = timezone.now()
 
         tz = self.org.timezone
-
-        # no start time means we aren't repeating anymore
-        if not start_time:
-            repeat_period = Schedule.REPEAT_NEVER
-
         self.repeat_period = repeat_period
 
         if repeat_period == Schedule.REPEAT_NEVER:
@@ -109,7 +103,7 @@ class Schedule(models.Model):
             self.repeat_day_of_month = None
             self.repeat_days_of_week = None
 
-            self.next_fire = start_time if start_time and start_time > now else None
+            self.next_fire = start_time
             self.save()
 
         else:
@@ -217,5 +211,5 @@ class Schedule(models.Model):
     class Meta:
         indexes = [
             # used by mailroom for fetching schedules that need to be fired
-            Index(name="schedules_due", fields=["next_fire"], condition=Q(is_paused=False))
+            Index(name="schedules_due", fields=["next_fire"])
         ]
