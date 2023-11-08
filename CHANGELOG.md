@@ -1,3 +1,11 @@
+v8.3.82 (2023-11-08)
+-------------------------
+ * Ensure that schedules are actually deleted when a broadcast or trigger is soft deleted
+ * Fix trigger list keyword search
+ * Make Notifications.medium non-null and use to filter notifications on API endpoint
+ * Make deprecated fields o schedule nullable
+ * Remove unused ScheduleCRUDL
+
 v8.3.81 (2023-11-07)
 -------------------------
  * Add data migration to backfill Notification.medium
