@@ -1588,7 +1588,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         broadcast3 = Broadcast.create(self.channel.org, self.admin, {"eng": "Pending broadcast"}, contacts=[contact4])
         broadcast4 = Broadcast.create(self.channel.org, self.admin, {"eng": "Scheduled broadcast"}, contacts=[contact4])
 
-        broadcast4.schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
+        broadcast4.schedule = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY)
         broadcast4.save(update_fields=("schedule",))
 
         response = self.assertListFetch(
@@ -1808,7 +1808,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(1, ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today))
 
     def test_model(self):
-        schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY)
+        schedule = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_MONTHLY)
         broadcast1 = Broadcast.create(
             self.org,
             self.user,
@@ -1840,12 +1840,9 @@ class BroadcastTest(TembaTest):
 
         self.assertEqual(2, Broadcast.objects.count())
         self.assertEqual(2, Msg.objects.count())
-        self.assertEqual(1, Schedule.objects.count())
+        self.assertEqual(0, Schedule.objects.count())  # schedule actually deleted
 
         # schedule should also be inactive
-        schedule.refresh_from_db()
-        self.assertFalse(schedule.is_active)
-
         broadcast1.delete(self.admin, soft=False)
         broadcast2.delete(self.admin, soft=False)
 
@@ -1905,7 +1902,7 @@ class BroadcastTest(TembaTest):
             base_language="eng",
             groups=[self.joe_and_frank],
             contacts=[self.kevin, self.lucy],
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
+            schedule=Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_MONTHLY),
         )
 
         self.org.set_flow_languages(self.admin, ["kin"])
@@ -1981,6 +1978,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
     def test_create(self):
+        create_url = reverse("msgs.broadcast_create")
+
         text = "I hope you are having a great day"
         media = Media.from_upload(
             self.org,
@@ -1989,7 +1988,6 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             process=False,
         )
 
-        create_url = reverse("msgs.broadcast_create")
         self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=("omnibox",))
         self.login(self.admin)
 
@@ -2042,6 +2040,23 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertFormError(response.context["form"], None, ["Select when you would like the broadcast to be sent"])
 
+        # start time in past and no repeat
+        response = self.process_wizard(
+            "create",
+            create_url,
+            get_broadcast_form_data(
+                self.org,
+                translations=self.create_translations(text),
+                contacts=[self.joe],
+                start_datetime="2021-06-24 12:00Z",
+                repeat_period="O",
+                repeat_days_of_week=[],
+            ),
+        )
+        self.assertFormError(
+            response.context["form"], "start_datetime", ["Must specify a start time that is in the future."]
+        )
+
         optin = OptIn.create(self.org, self.admin, "Alerts")
 
         # successful broadcast schedule
@@ -2089,7 +2104,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             "Please update this broadcast when you get a chance.",
             groups=[self.joe_and_frank],
             contacts=[self.joe],
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+            schedule=Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
         update_url = reverse("msgs.broadcast_update", args=[broadcast.id])
 
@@ -2161,7 +2176,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             "This should end up as the language und",
             groups=[self.joe_and_frank],
             contacts=[self.joe],
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+            schedule=Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
         update_url = reverse("msgs.broadcast_update", args=[broadcast.id])
 
@@ -2369,13 +2384,13 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             self.admin,
             "good morning",
             contacts=[self.joe],
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+            schedule=Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
         bc2 = self.create_broadcast(
             self.admin,
             "good evening",
             contacts=[self.frank],
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+            schedule=Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
         self.create_broadcast(self.admin, "not_scheduled", groups=[self.joe_and_frank])
 
@@ -2383,7 +2398,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             self.admin,
             "good afternoon",
             contacts=[self.frank],
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY),
+            schedule=Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
 
         self.assertListFetch(scheduled_url, allow_viewers=True, allow_editors=True, context_objects=[bc3, bc2, bc1])
@@ -2394,7 +2409,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertListFetch(scheduled_url, allow_viewers=True, allow_editors=True, context_objects=[bc2, bc1])
 
     def test_scheduled_read(self):
-        schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), "D", repeat_days_of_week="MWF")
+        schedule = Schedule.create_schedule(self.org, timezone.now(), "D", repeat_days_of_week="MWF")
         broadcast = self.create_broadcast(
             self.admin,
             "Daily reminder",
@@ -2446,7 +2461,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_scheduled_delete(self):
         self.login(self.editor)
-        schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), "D", repeat_days_of_week="MWF")
+        schedule = Schedule.create_schedule(self.org, timezone.now(), "D", repeat_days_of_week="MWF")
         broadcast = self.create_broadcast(
             self.admin,
             "Daily reminder",
@@ -2464,10 +2479,11 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertDeleteSubmit(delete_url, object_deactivated=broadcast, success_status=200)
         self.assertEqual("/broadcast/scheduled/", response["Temba-Success"])
 
-        broadcast = Broadcast.objects.get(id=broadcast.id)
-        schedule = Schedule.objects.get(id=schedule.id)
+        broadcast.refresh_from_db()
 
         self.assertFalse(broadcast.is_active)
+        self.assertIsNone(broadcast.schedule)
+        self.assertEqual(0, Schedule.objects.count())
 
 
 class LabelTest(TembaTest):
@@ -2742,7 +2758,7 @@ class SystemLabelTest(TembaTest):
             self.user,
             {"eng": "Broadcast 2"},
             contacts=[contact1, contact2],
-            schedule=Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_DAILY),
+            schedule=Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
         ivr_flow = self.create_flow("IVR", flow_type=Flow.TYPE_VOICE)
         call1 = self.create_incoming_call(ivr_flow, contact1)
@@ -2777,7 +2793,7 @@ class SystemLabelTest(TembaTest):
             self.user,
             {"eng": "Broadcast 3"},
             contacts=[contact1],
-            schedule=Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_DAILY),
+            schedule=Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
 
         self.assertEqual(

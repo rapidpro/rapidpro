@@ -346,7 +346,7 @@ class TriggerCRUDL(SmartCRUDL):
             repeat_days_of_week = cleaned_data["repeat_days_of_week"]
 
             schedule = Schedule.create_schedule(
-                self.request.org, user, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week
+                self.request.org, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week
             )
 
             return {"schedule": schedule, "contacts": cleaned_data["contacts"]}
@@ -419,7 +419,6 @@ class TriggerCRUDL(SmartCRUDL):
                 self.object.flow = voice_flow or msg_flow
             elif self.object.trigger_type == Trigger.TYPE_SCHEDULE:
                 self.object.schedule.update_schedule(
-                    self.request.user,
                     form.cleaned_data["start_datetime"],
                     form.cleaned_data["repeat_period"],
                     form.cleaned_data.get("repeat_days_of_week"),

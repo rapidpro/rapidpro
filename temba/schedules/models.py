@@ -7,7 +7,7 @@ from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.contrib.humanize.templatetags.humanize import ordinal
 from django.db import models
-from django.db.models import Index, Q
+from django.db.models import Index
 from django.utils import timezone
 from django.utils.timesince import timeuntil
 from django.utils.translation import gettext_lazy as _
@@ -68,38 +68,33 @@ class Schedule(models.Model):
     # what days of the week this will repeat on (only for weekly repeats) One of MTWRFSU
     repeat_days_of_week = models.CharField(null=True, max_length=7)
 
-    next_fire = models.DateTimeField(null=True)
+    next_fire = models.DateTimeField()
     last_fire = models.DateTimeField(null=True)
 
-    # TODO remove - schedules are always attached to something which has this information
-    is_active = models.BooleanField(default=True)
+    # TODO drop
+    is_active = models.BooleanField(null=True)
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="schedules_schedule_creations"
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="schedules_schedule_creations", null=True
     )
-    created_on = models.DateTimeField(default=timezone.now)
+    created_on = models.DateTimeField(null=True)
     modified_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="schedules_schedule_modifications"
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="schedules_schedule_modifications", null=True
     )
-    modified_on = models.DateTimeField(default=timezone.now)
+    modified_on = models.DateTimeField(null=True)
 
     @classmethod
-    def create_schedule(cls, org, user, start_time, repeat_period, repeat_days_of_week=None, now=None):
+    def create_schedule(cls, org, start_time, repeat_period, repeat_days_of_week=None, now=None):
         assert not repeat_days_of_week or set(repeat_days_of_week).issubset(cls.DAYS_OF_WEEK_OFFSET)
 
-        schedule = cls(repeat_period=repeat_period, created_by=user, modified_by=user, org=org)
-        schedule.update_schedule(user, start_time, repeat_period, repeat_days_of_week, now=now)
+        schedule = cls(org=org, repeat_period=repeat_period)
+        schedule.update_schedule(start_time, repeat_period, repeat_days_of_week, now=now)
         return schedule
 
-    def update_schedule(self, user, start_time, repeat_period, repeat_days_of_week, now=None):
+    def update_schedule(self, start_time, repeat_period: str, repeat_days_of_week: str, now=None):
         if not now:
             now = timezone.now()
 
         tz = self.org.timezone
-
-        # no start time means we aren't repeating anymore
-        if not start_time:
-            repeat_period = Schedule.REPEAT_NEVER
-
         self.repeat_period = repeat_period
 
         if repeat_period == Schedule.REPEAT_NEVER:
@@ -108,7 +103,7 @@ class Schedule(models.Model):
             self.repeat_day_of_month = None
             self.repeat_days_of_week = None
 
-            self.next_fire = start_time if start_time and start_time > now else None
+            self.next_fire = start_time
             self.save()
 
         else:
@@ -133,13 +128,7 @@ class Schedule(models.Model):
             else:
                 self.next_fire = start_time
 
-            self.modified_by = user
-            self.modified_on = timezone.now()
             self.save()
-
-    def get_broadcast(self):
-        if hasattr(self, "broadcast"):
-            return self.broadcast
 
     def calculate_next_fire(self, now):
         """
@@ -205,20 +194,11 @@ class Schedule(models.Model):
         """
         return Schedule.DAYS_OF_WEEK_OFFSET[d.weekday()]
 
-    def release(self, user):
-        self.is_active = False
-        self.modified_by = user
-        self.save(update_fields=("is_active", "modified_by", "modified_on"))
-
     def __repr__(self):  # pragma: no cover
-        return f'<Schedule: id={self.id} repeat="{self.get_display()}"  next={str(self.next_fire)}>'
+        return f'<Schedule: id={self.id} repeat="{self.get_display()}" next={str(self.next_fire)}>'
 
     class Meta:
         indexes = [
             # used by mailroom for fetching schedules that need to be fired
-            Index(
-                name="schedules_next_fire_active",
-                fields=["next_fire"],
-                condition=Q(is_active=True, next_fire__isnull=False),
-            )
+            Index(name="schedules_due", fields=["next_fire"])
         ]

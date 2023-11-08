@@ -405,18 +405,15 @@ class Trigger(SmartModel):
         Releases this trigger
         """
 
+        schedule = self.schedule
+
+        self.schedule = None
         self.is_active = False
         self.modified_by = user
-        self.save(update_fields=("is_active", "modified_by", "modified_on"))
+        self.save(update_fields=("schedule", "is_active", "modified_by", "modified_on"))
 
-        if self.schedule:
-            self.schedule.release(user)
-
-    def delete(self):
-        super().delete()
-
-        if self.schedule:
-            self.schedule.delete()
+        if schedule:
+            schedule.delete()
 
     def __repr__(self):
         return f"<Trigger: type={self.trigger_type} flow={self.flow.name}>"
