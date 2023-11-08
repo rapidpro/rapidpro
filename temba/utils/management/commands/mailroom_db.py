@@ -71,9 +71,10 @@ class Command(BaseCommand):
         self._sql(f"CREATE USER {db_user} PASSWORD 'temba'")
         self._sql(f"ALTER ROLE {db_user} WITH SUPERUSER")
 
-        # always use test db as our db
+        # always use test db as our db and override mailroom location
         settings.DATABASES["default"]["NAME"] = db_name
         settings.DATABASES["default"]["USER"] = db_user
+        settings.MAILROOM_URL = "http://host.docker.internal:8090"
 
         self._log("Running migrations...\n")
 
