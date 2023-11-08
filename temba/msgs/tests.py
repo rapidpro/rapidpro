@@ -2496,7 +2496,6 @@ class LabelTest(TembaTest):
     def test_create(self):
         label1 = Label.create(self.org, self.user, "Spam")
         self.assertEqual("Spam", label1.name)
-        self.assertIsNone(label1.folder)
 
         # don't allow invalid name
         self.assertRaises(AssertionError, Label.create, self.org, self.user, '"Hi"')

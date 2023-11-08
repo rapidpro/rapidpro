@@ -4,7 +4,6 @@ from datetime import time, timedelta
 
 from dateutil.relativedelta import relativedelta
 
-from django.conf import settings
 from django.contrib.humanize.templatetags.humanize import ordinal
 from django.db import models
 from django.db.models import Index
@@ -70,17 +69,6 @@ class Schedule(models.Model):
 
     next_fire = models.DateTimeField()
     last_fire = models.DateTimeField(null=True)
-
-    # TODO drop
-    is_active = models.BooleanField(null=True)
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="schedules_schedule_creations", null=True
-    )
-    created_on = models.DateTimeField(null=True)
-    modified_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="schedules_schedule_modifications", null=True
-    )
-    modified_on = models.DateTimeField(null=True)
 
     @classmethod
     def create_schedule(cls, org, start_time, repeat_period, repeat_days_of_week=None, now=None):

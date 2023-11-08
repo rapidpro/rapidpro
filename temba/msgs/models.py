@@ -929,10 +929,6 @@ class Label(TembaModel, DependencyMixin):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs_labels")
 
-    # TODO drop
-    label_type = models.CharField(max_length=1, null=True)
-    folder = models.ForeignKey("Label", on_delete=models.PROTECT, null=True, related_name="children")
-
     @classmethod
     def create(cls, org, user, name: str):
         assert cls.is_valid_name(name), f"'{name}' is not a valid label name"
