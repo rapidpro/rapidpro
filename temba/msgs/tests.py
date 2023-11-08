@@ -1840,12 +1840,9 @@ class BroadcastTest(TembaTest):
 
         self.assertEqual(2, Broadcast.objects.count())
         self.assertEqual(2, Msg.objects.count())
-        self.assertEqual(1, Schedule.objects.count())
+        self.assertEqual(0, Schedule.objects.count())  # schedule actually deleted
 
         # schedule should also be inactive
-        schedule.refresh_from_db()
-        self.assertFalse(schedule.is_active)
-
         broadcast1.delete(self.admin, soft=False)
         broadcast2.delete(self.admin, soft=False)
 
@@ -2464,10 +2461,11 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertDeleteSubmit(delete_url, object_deactivated=broadcast, success_status=200)
         self.assertEqual("/broadcast/scheduled/", response["Temba-Success"])
 
-        broadcast = Broadcast.objects.get(id=broadcast.id)
-        schedule = Schedule.objects.get(id=schedule.id)
+        broadcast.refresh_from_db()
 
         self.assertFalse(broadcast.is_active)
+        self.assertIsNone(broadcast.schedule)
+        self.assertEqual(0, Schedule.objects.count())
 
 
 class LabelTest(TembaTest):

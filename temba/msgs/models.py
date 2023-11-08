@@ -296,14 +296,15 @@ class Broadcast(models.Model):
     def delete(self, user, *, soft: bool):
         if soft:
             assert self.schedule, "can only soft delete scheduled broadcasts"
+            schedule = self.schedule
 
-            self.schedule.is_active = False
-            self.schedule.save(update_fields=("is_active",))
-
+            self.schedule = None
             self.modified_by = user
             self.modified_on = timezone.now()
             self.is_active = False
-            self.save(update_fields=("modified_by", "modified_on", "is_active"))
+            self.save(update_fields=("schedule", "modified_by", "modified_on", "is_active"))
+
+            schedule.delete()
         else:
             for child in self.children.all():
                 child.delete(user, soft=False)

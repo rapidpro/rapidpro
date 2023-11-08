@@ -87,10 +87,10 @@ class Schedule(models.Model):
         assert not repeat_days_of_week or set(repeat_days_of_week).issubset(cls.DAYS_OF_WEEK_OFFSET)
 
         schedule = cls(repeat_period=repeat_period, created_by=user, modified_by=user, org=org)
-        schedule.update_schedule(user, start_time, repeat_period, repeat_days_of_week, now=now)
+        schedule.update_schedule(start_time, repeat_period, repeat_days_of_week, now=now)
         return schedule
 
-    def update_schedule(self, user, start_time, repeat_period: str, repeat_days_of_week: str, now=None):
+    def update_schedule(self, start_time, repeat_period: str, repeat_days_of_week: str, now=None):
         if not now:
             now = timezone.now()
 
@@ -128,8 +128,6 @@ class Schedule(models.Model):
             else:
                 self.next_fire = start_time
 
-            self.modified_by = user
-            self.modified_on = timezone.now()
             self.save()
 
     def get_broadcast(self):
@@ -199,11 +197,6 @@ class Schedule(models.Model):
         Converts a datetime to a day of the week code (M..U)
         """
         return Schedule.DAYS_OF_WEEK_OFFSET[d.weekday()]
-
-    def release(self, user):
-        self.is_active = False
-        self.modified_by = user
-        self.save(update_fields=("is_active", "modified_by", "modified_on"))
 
     def __repr__(self):  # pragma: no cover
         return f'<Schedule: id={self.id} repeat="{self.get_display()}" next={str(self.next_fire)}>'

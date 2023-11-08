@@ -476,9 +476,9 @@ class TriggerTest(TembaTest):
 
         trigger.refresh_from_db()
         self.assertFalse(trigger.is_active)
+        self.assertIsNone(trigger.schedule)
 
-        trigger.schedule.refresh_from_db()
-        self.assertFalse(trigger.schedule.is_active)
+        self.assertEqual(0, Schedule.objects.count())
 
         # flow, channel and group are unaffected
         flow.refresh_from_db()

@@ -239,7 +239,7 @@ class ScheduleTest(TembaTest):
         start_date = tz.localize(start_date)
         start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
 
-        sched.update_schedule(self.admin, start_date, Schedule.REPEAT_DAILY, "")
+        sched.update_schedule(start_date, Schedule.REPEAT_DAILY, "")
         sched.refresh_from_db()
 
         # 11pm in NY should be 4am UTC the next day
@@ -249,7 +249,7 @@ class ScheduleTest(TembaTest):
         start_date = tz.localize(start_date)
         start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
 
-        sched.update_schedule(self.admin, start_date, Schedule.REPEAT_DAILY, "")
+        sched.update_schedule(start_date, Schedule.REPEAT_DAILY, "")
         sched.refresh_from_db()
 
         # next fire should fall at the right hour and minute
