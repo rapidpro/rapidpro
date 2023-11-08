@@ -877,9 +877,7 @@ class UserCRUDL(SmartCRUDL):
             obj.settings.save()
             return obj
 
-    class VerifyEmail(SpaMixin, SmartReadView):
-        menu_path = "/settings/account"
-
+    class VerifyEmail(NoNavMixin, SmartReadView):
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/(?P<secret>\w+)/$" % (path, action)
@@ -891,41 +889,33 @@ class UserCRUDL(SmartCRUDL):
             return request.user.is_authenticated
 
         @cached_property
-        def user_by_secret(self, **kwargs):
-            user_by_secret = None
+        def email_user(self, **kwargs):
             user_settings = UserSettings.objects.filter(email_verification_secret=self.kwargs["secret"]).first()
-            if user_settings:
-                user_by_secret = user_settings.user
-            return user_by_secret
+            return user_settings.user if user_settings else None
 
         def pre_process(self, request, *args, **kwargs):
-            if (
-                self.user_by_secret
-                and self.user_by_secret == self.request.user
-                and self.user_by_secret.settings.email_status != UserSettings.STATUS_VERIFIED
-            ):
-                self.get_object().record_email_verification_status(UserSettings.STATUS_VERIFIED)
+            is_verified = self.request.user.settings.email_status == UserSettings.STATUS_VERIFIED
+
+            if self.email_user == self.request.user and not is_verified:
+                self.request.user.set_email_status(UserSettings.STATUS_VERIFIED)
+
             return super().pre_process(request, *args, **kwargs)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
-            redirect_url = reverse("users.login")
-            verify_alert = "invalid"
+            verify_url = reverse("orgs.user_verify_email", args=(self.kwargs["secret"],))
 
-            if not self.user_by_secret:
-                redirect_url = reverse("users.login")
-
-            if self.user_by_secret and self.user_by_secret != self.request.user:
-                verify_alert = "mismatch"
-                redirect_url += f'?next={reverse("orgs.user_verify_email", args=(self.kwargs["secret"],))}'
-            elif self.user_by_secret == self.request.user:
-                verify_alert = "success"
-                redirect_url = reverse("orgs.user_account")
+            if self.email_user:
+                if self.email_user == self.request.user:
+                    redirect_url = reverse("orgs.org_start")
+                else:
+                    redirect_url = f'{reverse("users.login")}?next={verify_url}'
+            else:
+                redirect_url = None
 
             context["redirect_url"] = redirect_url
-            context["user_by_secret"] = self.user_by_secret
-            context["verify_alert"] = verify_alert
+            context["email_user"] = self.email_user
 
             return context
 

@@ -206,7 +206,7 @@ class User(AuthUser):
         self.settings.last_auth_on = timezone.now()
         self.settings.save(update_fields=("last_auth_on",))
 
-    def record_email_verification_status(self, status: str):
+    def set_email_status(self, status: str):
         """
         Records the email status for this user
         """

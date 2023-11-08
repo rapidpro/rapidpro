@@ -1,40 +1,33 @@
-{% extends "no_nav.html" %}
-{% load smartmin i18n %}
+{% extends "smartmin/read.html" %}
+{% load i18n %}
 
-{% block title-text %}
-    {% trans "Email verification" %}
-{% endblock title-text %}
 {% block content %}
     <div class="flex w-full h-56 items-center mb-4">
         <div class="flex-grow ml-1">
-            {% if verify_alert == "invalid" %}
+            {% if not email_user %}
                 <temba-alert level="error" class="mt-4">
-                    {% blocktrans trimmed %}
-                        Invalid email verification link
-                    {% endblocktrans %}
+                    {% trans "This email verification link is invalid." %}
                 </temba-alert>
-            {% elif verify_alert == "mismatch" %}
+            {% elif email_user != request.user %}
                 <temba-alert level="error" class="mt-4">
-                    {% blocktrans trimmed %}
-                        Mismatching email verification link
-                    {% endblocktrans %}
+                    {% trans "This email verification link is for a different user. Please login as that user." %}
                 </temba-alert>
-            {% elif verify_alert == "success" %}
+            {% else %}
                 <temba-alert level="success" class="mt-4">
-                    {% blocktrans trimmed with email=user_by_secret.username %}
-                        Email <b>{{ email }}</b> verified successfully
-                    {% endblocktrans %}
+                    {% trans "Your email address has been verified successfully!" %}
                 </temba-alert>
             {% endif %}
         </div>
     </div>
 {% endblock content %}
 {% block extra-script %}
-    <script type="text/javascript">
-      setTimeout(function() {
-        window.location.href = "{{redirect_url}}";
-      }, 3000);
-    </script>
+    {% if redirect_url %}
+        <script type="text/javascript">
+          setTimeout(function() {
+            window.location.href = "{{ redirect_url }}";
+          }, 3000);
+        </script>
+    {% endif %}
 {% endblock extra-script %}
 {% block styles %}
     {{ block.super }}

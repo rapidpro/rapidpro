@@ -538,59 +538,11 @@ class UserTest(TembaTest):
         response = self.client.get(tokens_url)
         self.assertEqual(200, response.status_code)
 
-    def test_record_email_verification_status(self):
+    def test_set_email_status(self):
         self.assertEqual(self.admin.settings.email_status, "U")
 
-        self.admin.record_email_verification_status("V")
+        self.admin.set_email_status("V")
         self.assertEqual(self.admin.settings.email_status, "V")
-
-    def test_email_verification(self):
-        self.assertEqual(self.admin.settings.email_status, "U")
-        self.assertIsNone(self.admin.settings.email_verification_secret)
-
-        admin_settings = self.admin.settings
-
-        admin_settings.email_verification_secret = "SECRET"
-        admin_settings.save()
-
-        verify_email_url = reverse("orgs.user_verify_email", args=["SECRET"])
-
-        # try to access before logging in
-        response = self.client.get(verify_email_url)
-        self.assertLoginRedirect(response)
-
-        self.login(self.admin)
-
-        response = self.client.get(reverse("orgs.user_verify_email", args=["WRONG_SECRET"]), follow=True)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Invalid email verification link")
-        self.assertEqual(reverse("users.login"), response.context["redirect_url"])
-
-        response = self.client.get(verify_email_url, follow=True)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "verified successfully")
-        self.assertEqual(response.context["verify_alert"], "success")
-        self.assertEqual(reverse("orgs.user_account"), response.context["redirect_url"])
-
-        self.admin.settings.refresh_from_db()
-        self.assertEqual(self.admin.settings.email_status, "V")
-
-        # use the same link again
-        response = self.client.get(verify_email_url)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "verified successfully")
-        self.assertEqual(response.context["verify_alert"], "success")
-        self.assertEqual(reverse("orgs.user_account"), response.context["redirect_url"])
-
-        self.login(self.admin2)
-        self.assertEqual(self.admin2.settings.email_status, "U")
-
-        response = self.client.get(verify_email_url)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Mismatching email verification link")
-        self.assertEqual(response.context["verify_alert"], "mismatch")
-        self.assertEqual(self.admin2.settings.email_status, "U")
-        self.assertEqual(f'{reverse("users.login")}?next={verify_email_url}', response.context["redirect_url"])
 
     @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
     def test_confirm_access(self):
@@ -3855,6 +3807,52 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         new_token = self.editor.get_api_token(self.org)
 
         self.assertContains(response, new_token)
+
+    def test_verify_email(self):
+        self.assertEqual(self.admin.settings.email_status, "U")
+        self.assertIsNone(self.admin.settings.email_verification_secret)
+
+        self.admin.settings.email_verification_secret = "SECRET"
+        self.admin.settings.save(update_fields=("email_verification_secret",))
+
+        verify_url = reverse("orgs.user_verify_email", args=["SECRET"])
+
+        # try to access before logging in
+        response = self.client.get(verify_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(reverse("orgs.user_verify_email", args=["WRONG_SECRET"]), follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "This email verification link is invalid.")
+        self.assertIsNone(response.context["redirect_url"])
+
+        response = self.client.get(verify_url, follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "verified successfully")
+        self.assertEqual(reverse("orgs.org_start"), response.context["redirect_url"])
+
+        self.admin.settings.refresh_from_db()
+        self.assertEqual(self.admin.settings.email_status, "V")
+
+        # use the same link again
+        response = self.client.get(verify_url)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "verified successfully")
+        self.assertEqual(reverse("orgs.org_start"), response.context["redirect_url"])
+
+        self.login(self.admin2)
+        self.assertEqual(self.admin2.settings.email_status, "U")
+
+        response = self.client.get(verify_url)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "This email verification link is for a different user.")
+
+        # don't verify user but redirect them to login page
+        self.admin2.settings.refresh_from_db()
+        self.assertEqual(self.admin2.settings.email_status, "U")
+        self.assertEqual(f'{reverse("users.login")}?next={verify_url}', response.context["redirect_url"])
 
 
 class BulkExportTest(TembaTest):
