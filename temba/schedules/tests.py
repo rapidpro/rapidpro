@@ -6,7 +6,8 @@ from django.utils import timezone
 
 from temba import settings
 from temba.msgs.models import Broadcast, Media
-from temba.tests import TembaTest
+from temba.tests import MigrationTest, TembaTest
+from temba.triggers.models import Trigger
 from temba.utils.compose import compose_deserialize_attachments
 
 from .models import Schedule
@@ -253,3 +254,30 @@ class ScheduleTest(TembaTest):
 
         # next fire should fall at the right hour and minute
         self.assertIn("04:45:00+00:00", str(sched.next_fire))
+
+
+class PauseArchivedTriggersTest(MigrationTest):
+    app = "schedules"
+    migrate_from = "0024_remove_schedule_schedules_due_schedule_is_paused_and_more"
+    migrate_to = "0025_pause_archived_triggers"
+
+    def setUpBeforeMigration(self, apps):
+        flow = self.create_flow("Test")
+        self.schedule1 = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY)
+        self.schedule2 = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY)
+        self.schedule3 = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY)  # no trigger
+
+        Trigger.create(self.org, self.admin, Trigger.TYPE_SCHEDULE, flow, schedule=self.schedule1)
+
+        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_SCHEDULE, flow, schedule=self.schedule2)
+        trigger2.is_archived = True
+        trigger2.save(update_fields=("is_archived",))
+
+    def test_migration(self):
+        self.schedule1.refresh_from_db()
+        self.schedule2.refresh_from_db()
+        self.schedule3.refresh_from_db()
+
+        self.assertFalse(self.schedule1.is_paused)
+        self.assertTrue(self.schedule2.is_paused)
+        self.assertFalse(self.schedule3.is_paused)
