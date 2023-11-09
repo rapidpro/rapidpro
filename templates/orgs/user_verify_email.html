@@ -2,39 +2,32 @@
 {% load i18n %}
 
 {% block content %}
-    <div class="flex w-full h-56 items-center mb-4">
-        <div class="flex-grow ml-1">
-            {% if not email_user %}
-                <temba-alert level="error" class="mt-4">
-                    {% trans "This email verification link is invalid." %}
-                </temba-alert>
-            {% elif email_user != request.user %}
-                <temba-alert level="error" class="mt-4">
-                    {% trans "This email verification link is for a different user. Please login as that user." %}
-                </temba-alert>
-            {% else %}
-                <temba-alert level="success" class="mt-4">
-                    {% trans "Your email address has been verified successfully!" %}
-                </temba-alert>
-            {% endif %}
-        </div>
+    <div class="w-full mb-4">
+        {% if not email_user %}
+            <div class="mb-8">{% trans "This email verification link is invalid." %}</div>
+        {% elif email_user != request.user %}
+            <div class="mb-8">{% trans "This email verification link is for a different user. Please login as that user." %}</div>
+            <div class="text-center">
+                <a class="button-primary"
+                   href="{% url 'users.user_login' %}?next={% url 'orgs.user_verify_email' email_secret %}">{% trans "Login" %}</a>
+            </div>
+        {% else %}
+            <div class="mb-8">
+                {% blocktrans trimmed with email=request.user.email %}
+                    Your email address <b>{{ email }}</b> has been verified successfully!
+                {% endblocktrans %}
+            </div>
+            <div class="text-center">
+                <a class="button-primary" href={% url 'orgs.org_start' %}>{% trans "Continue" %}</a>
+            </div>
+        {% endif %}
     </div>
 {% endblock content %}
-{% block extra-script %}
-    {% if redirect_url %}
-        <script type="text/javascript">
-          setTimeout(function() {
-            window.location.href = "{{ redirect_url }}";
-          }, 3000);
-        </script>
-    {% endif %}
-{% endblock extra-script %}
 {% block styles %}
     {{ block.super }}
     <style type="text/css">
       .content-card {
         width: 28em;
-        min-height: 25em;
       }
     </style>
 {% endblock styles %}

@@ -903,20 +903,8 @@ class UserCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-
-            verify_url = reverse("orgs.user_verify_email", args=(self.kwargs["secret"],))
-
-            if self.email_user:
-                if self.email_user == self.request.user:
-                    redirect_url = reverse("orgs.org_start")
-                else:
-                    redirect_url = f'{reverse("users.login")}?next={verify_url}'
-            else:
-                redirect_url = None
-
-            context["redirect_url"] = redirect_url
             context["email_user"] = self.email_user
-
+            context["email_secret"] = self.kwargs["secret"]
             return context
 
     class TwoFactorEnable(SpaMixin, InferUserMixin, SmartUpdateView):

@@ -3823,15 +3823,14 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
 
-        response = self.client.get(reverse("orgs.user_verify_email", args=["WRONG_SECRET"]), follow=True)
+        response = self.client.get(reverse("orgs.user_verify_email", args=["WRONG_SECRET"]))
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "This email verification link is invalid.")
-        self.assertIsNone(response.context["redirect_url"])
 
         response = self.client.get(verify_url, follow=True)
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "verified successfully")
-        self.assertEqual(reverse("orgs.org_start"), response.context["redirect_url"])
+        self.assertContains(response, reverse("orgs.org_start"))
 
         self.admin.settings.refresh_from_db()
         self.assertEqual(self.admin.settings.email_status, "V")
@@ -3840,19 +3839,20 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(verify_url)
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "verified successfully")
-        self.assertEqual(reverse("orgs.org_start"), response.context["redirect_url"])
+        self.assertContains(response, reverse("orgs.org_start"))
 
         self.login(self.admin2)
         self.assertEqual(self.admin2.settings.email_status, "U")
 
+        # user is told to login as that user
         response = self.client.get(verify_url)
         self.assertEqual(200, response.status_code)
         self.assertContains(response, "This email verification link is for a different user.")
+        self.assertContains(response, reverse("users.user_login"))
 
-        # don't verify user but redirect them to login page
+        # and isn't verified
         self.admin2.settings.refresh_from_db()
         self.assertEqual(self.admin2.settings.email_status, "U")
-        self.assertEqual(f'{reverse("users.login")}?next={verify_url}', response.context["redirect_url"])
 
 
 class BulkExportTest(TembaTest):
