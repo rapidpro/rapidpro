@@ -1,3 +1,10 @@
+v8.3.83 (2023-11-09)
+-------------------------
+ * Fix login redirection to next param
+ * Drop no longer used fields on Schedule and Label
+ * Overrride mailroom URL in mailroom_db command
+ * Add view to verify email
+
 v8.3.82 (2023-11-08)
 -------------------------
  * Ensure that schedules are actually deleted when a broadcast or trigger is soft deleted
