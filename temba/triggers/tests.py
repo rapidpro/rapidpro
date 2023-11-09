@@ -47,6 +47,13 @@ class TriggerTest(TembaTest):
         )
         catchall1 = Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow)
         catchall2 = Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow, channel=self.channel)
+        schedule1 = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_SCHEDULE,
+            flow,
+            schedule=Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY),
+        )
 
         self.assertEqual("Keyword[join] → Test Flow", keyword1.name)
         self.assertEqual("<Trigger: type=K flow=Test Flow>", repr(keyword1))
@@ -58,8 +65,30 @@ class TriggerTest(TembaTest):
         self.assertEqual(0, catchall1.priority)
         self.assertEqual(4, catchall2.priority)
 
+        self.assertEqual("Schedule → Test Flow", schedule1.name)
+
         self.assertEqual(Folder.TICKETS, Folder.from_slug("tickets"))
         self.assertIsNone(Folder.from_slug("xx"))
+
+        keyword1.archive(self.editor)
+        schedule1.archive(self.editor)
+
+        keyword1.refresh_from_db()
+        schedule1.refresh_from_db()
+
+        self.assertTrue(keyword1.is_archived)
+        self.assertTrue(schedule1.is_archived)
+        self.assertTrue(schedule1.schedule.is_paused)
+
+        keyword1.restore(self.editor)
+        schedule1.restore(self.editor)
+
+        keyword1.refresh_from_db()
+        schedule1.refresh_from_db()
+
+        self.assertFalse(keyword1.is_archived)
+        self.assertFalse(schedule1.is_archived)
+        self.assertFalse(schedule1.schedule.is_paused)
 
     def test_archive_conflicts(self):
         flow = self.create_flow("Test")

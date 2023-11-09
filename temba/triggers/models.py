@@ -186,6 +186,9 @@ class Trigger(SmartModel):
         self.is_archived = True
         self.save(update_fields=("modified_by", "modified_on", "is_archived"))
 
+        if self.schedule:
+            self.schedule.pause()
+
         if self.channel:
             self.channel.type.deactivate_trigger(self)
 
@@ -193,6 +196,9 @@ class Trigger(SmartModel):
         self.modified_by = user
         self.is_archived = False
         self.save(update_fields=("modified_by", "modified_on", "is_archived"))
+
+        if self.schedule:
+            self.schedule.resume()
 
         # archive any conflicts
         for conflict in self._get_conflicts():
