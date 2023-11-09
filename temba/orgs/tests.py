@@ -3889,7 +3889,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         # and one email sent
         self.assertEqual(1, len(mail.outbox))
 
-        self.admin.record_email_verification_status("V")
+        self.admin.set_email_status("V")
 
         response = self.client.post(send_verification_email_url, {}, follow=True)
         self.assertEqual(200, response.status_code)
