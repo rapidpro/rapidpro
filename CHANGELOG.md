@@ -1,3 +1,7 @@
+v8.3.84 (2023-11-09)
+-------------------------
+ * Allow schedules to be paused when triggers are archived
+
 v8.3.83 (2023-11-09)
 -------------------------
  * Fix login redirection to next param
