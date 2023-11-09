@@ -9,7 +9,7 @@
   {% blocktrans trimmed %}
     Please sign in with your email address and password.
   {% endblocktrans %}
-  <form method="POST" action="/users/login/" id="login-form">
+  <form method="POST" id="login-form">
     {% csrf_token %}
     {% for field, errors in form.errors.items %}
       {% if field == '__all__' %}
