@@ -63,7 +63,7 @@ from temba.utils.views import (
     StaffOnlyMixin,
 )
 
-from .models import BackupToken, IntegrationType, Invitation, Org, OrgImport, OrgRole, User
+from .models import BackupToken, IntegrationType, Invitation, Org, OrgImport, OrgRole, User, UserSettings
 
 # session key for storing a two-factor enabled user's id once we've checked their password
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
@@ -657,6 +657,7 @@ class UserCRUDL(SmartCRUDL):
         "two_factor_tokens",
         "account",
         "token",
+        "verify_email",
     )
 
     class Read(StaffOnlyMixin, ContentMenuMixin, SpaMixin, SmartReadView):
@@ -875,6 +876,36 @@ class UserCRUDL(SmartCRUDL):
             obj.settings.language = self.form.cleaned_data["language"]
             obj.settings.save()
             return obj
+
+    class VerifyEmail(NoNavMixin, SmartReadView):
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/(?P<secret>\w+)/$" % (path, action)
+
+        def get_object(self, *args, **kwargs):
+            return self.request.user
+
+        def has_permission(self, request, *args, **kwargs):
+            return request.user.is_authenticated
+
+        @cached_property
+        def email_user(self, **kwargs):
+            user_settings = UserSettings.objects.filter(email_verification_secret=self.kwargs["secret"]).first()
+            return user_settings.user if user_settings else None
+
+        def pre_process(self, request, *args, **kwargs):
+            is_verified = self.request.user.settings.email_status == UserSettings.STATUS_VERIFIED
+
+            if self.email_user == self.request.user and not is_verified:
+                self.request.user.set_email_status(UserSettings.STATUS_VERIFIED)
+
+            return super().pre_process(request, *args, **kwargs)
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["email_user"] = self.email_user
+            context["email_secret"] = self.kwargs["secret"]
+            return context
 
     class TwoFactorEnable(SpaMixin, InferUserMixin, SmartUpdateView):
         class Form(forms.ModelForm):

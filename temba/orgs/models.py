@@ -206,6 +206,13 @@ class User(AuthUser):
         self.settings.last_auth_on = timezone.now()
         self.settings.save(update_fields=("last_auth_on",))
 
+    def set_email_status(self, status: str):
+        """
+        Records the email status for this user
+        """
+        self.settings.email_status = status
+        self.settings.save(update_fields=("email_status",))
+
     def enable_2fa(self):
         """
         Enables 2FA for this user
@@ -352,7 +359,7 @@ class UserSettings(models.Model):
     external_id = models.CharField(max_length=128, null=True)
     verification_token = models.CharField(max_length=64, null=True)
     email_status = models.CharField(max_length=1, default=STATUS_UNVERIFIED, choices=STATUS_CHOICES)
-    email_verification_secret = models.CharField(max_length=64, null=True)
+    email_verification_secret = models.CharField(max_length=64, null=True, db_index=True)
 
 
 class OrgRole(Enum):
