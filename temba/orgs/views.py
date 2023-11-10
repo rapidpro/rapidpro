@@ -896,7 +896,6 @@ class UserCRUDL(SmartCRUDL):
 
         def pre_process(self, request, *args, **kwargs):
             if request.user.settings.email_status == UserSettings.STATUS_VERIFIED:
-                messages.success(self.request, _("Email %s already verified" % self.get_object().username))
                 return HttpResponseRedirect(reverse("orgs.user_account"))
 
             return super().pre_process(request, *args, **kwargs)

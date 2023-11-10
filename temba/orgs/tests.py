@@ -3892,7 +3892,6 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.post(send_verification_email_url, {}, follow=True)
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Email %s already verified" % self.admin.username)
 
         # no new email sent
         self.assertEqual(1, len(mail.outbox))
