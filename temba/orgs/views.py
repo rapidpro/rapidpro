@@ -58,6 +58,7 @@ from temba.utils.views import (
     ContentMenuMixin,
     NonAtomicMixin,
     NoNavMixin,
+    PostOnlyMixin,
     RequireRecentAuthMixin,
     SpaMixin,
     StaffOnlyMixin,
@@ -878,7 +879,7 @@ class UserCRUDL(SmartCRUDL):
             obj.settings.save()
             return obj
 
-    class SendVerificationEmail(SpaMixin, InferUserMixin, SmartUpdateView):
+    class SendVerificationEmail(SpaMixin, PostOnlyMixin, InferUserMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             class Meta:
                 model = User
@@ -905,8 +906,6 @@ class UserCRUDL(SmartCRUDL):
             return super().form_valid(form)
 
     class VerifyEmail(NoNavMixin, SmartReadView):
-        menu_path = "/settings/account"
-
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/(?P<secret>\w+)/$" % (path, action)

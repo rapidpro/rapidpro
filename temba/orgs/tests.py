@@ -3879,8 +3879,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.login(self.admin)
 
         response = self.client.get(send_verification_email_url)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(["loc"], list(response.context["form"].fields.keys()))
+        self.assertEqual(405, response.status_code)
 
         response = self.client.post(send_verification_email_url, {}, follow=True)
         self.assertEqual(200, response.status_code)
