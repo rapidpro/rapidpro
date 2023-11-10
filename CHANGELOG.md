@@ -1,3 +1,7 @@
+v8.3.85 (2023-11-10)
+-------------------------
+ * Data migration to pause schedules of existing archived triggers
+
 v8.3.84 (2023-11-09)
 -------------------------
  * Allow schedules to be paused when triggers are archived
