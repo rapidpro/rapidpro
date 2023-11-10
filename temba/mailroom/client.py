@@ -154,23 +154,16 @@ class MailroomClient:
 
         return self._request("flow/clone", payload)
 
-    def flow_preview_start(self, org_id: int, flow_id: int, include: Inclusions, exclude: Exclusions) -> StartPreview:
+    def flow_start_preview(self, org_id: int, flow_id: int, include: Inclusions, exclude: Exclusions) -> StartPreview:
         payload = {
             "org_id": org_id,
             "flow_id": flow_id,
             "include": asdict(include),
             "exclude": asdict(exclude),
-            "sample_size": 3,  # TODO remove when mailroom updated
         }
 
-        response = self._request("flow/preview_start", payload, encode_json=True)
+        response = self._request("flow/start_preview", payload, encode_json=True)
         return StartPreview(query=response["query"], total=response["total"])
-
-    def msg_preview_broadcast(self, org_id: int, include: Inclusions, exclude: Exclusions) -> BroadcastPreview:
-        payload = {"org_id": org_id, "include": asdict(include), "exclude": asdict(exclude), "sample_size": 3}
-
-        response = self._request("msg/preview_broadcast", payload, encode_json=True)
-        return BroadcastPreview(query=response["query"], total=response["total"])
 
     def msg_send(self, org_id: int, user_id: int, contact_id: int, text: str, attachments: list[str], ticket_id: int):
         payload = {
@@ -188,6 +181,38 @@ class MailroomClient:
         payload = {"org_id": org_id, "msg_ids": msg_ids}
 
         return self._request("msg/resend", payload)
+
+    def msg_broadcast_preview(self, org_id: int, include: Inclusions, exclude: Exclusions) -> BroadcastPreview:
+        payload = {"org_id": org_id, "include": asdict(include), "exclude": asdict(exclude)}
+
+        response = self._request("msg/broadcast_preview", payload, encode_json=True)
+        return BroadcastPreview(query=response["query"], total=response["total"])
+
+    def msg_broadcast(
+        self,
+        org_id: int,
+        user_id: int,
+        translations: dict,
+        base_language: str,
+        group_ids: list,
+        contact_ids: list,
+        urns: list,
+        query: str,
+        optin_id: int,
+    ):
+        payload = {
+            "org_id": org_id,
+            "user_id": user_id,
+            "translations": translations,
+            "base_language": base_language,
+            "group_ids": group_ids,
+            "contact_ids": contact_ids,
+            "urns": urns,
+            "query": query,
+            "optin_id": optin_id,
+        }
+
+        return self._request("msg/broadcast", payload, encode_json=True)
 
     def po_export(self, org_id: int, flow_ids: list, language: str):
         payload = {"org_id": org_id, "flow_ids": flow_ids, "language": language}

@@ -68,13 +68,13 @@ def search_contacts(
 
 def preview_broadcast(org, include: mailroom.Inclusions, exclude: mailroom.Exclusions) -> mailroom.BroadcastPreview:
     try:
-        return mailroom.get_client().msg_preview_broadcast(org.id, include=include, exclude=exclude)
+        return mailroom.get_client().msg_broadcast_preview(org.id, include=include, exclude=exclude)
     except mailroom.MailroomException as e:
         raise SearchException.from_mailroom_exception(e)
 
 
 def preview_start(org, flow, include: mailroom.Inclusions, exclude: mailroom.Exclusions) -> mailroom.StartPreview:
     try:
-        return mailroom.get_client().flow_preview_start(org.id, flow.id, include=include, exclude=exclude)
+        return mailroom.get_client().flow_start_preview(org.id, flow.id, include=include, exclude=exclude)
     except mailroom.MailroomException as e:
         raise SearchException.from_mailroom_exception(e)
