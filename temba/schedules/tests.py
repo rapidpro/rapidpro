@@ -19,13 +19,13 @@ class ScheduleTest(TembaTest):
         self.joe = self.create_contact("Joe Blow", phone="123")
 
     def test_get_repeat_days_display(self):
-        sched = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_WEEKLY, "M")
+        sched = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_WEEKLY, "M")
         self.assertEqual(sched.get_repeat_days_display(), ["Monday"])
 
-        sched = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_WEEKLY, "TRFSU")
+        sched = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_WEEKLY, "TRFSU")
         self.assertEqual(sched.get_repeat_days_display(), ["Tuesday", "Thursday", "Friday", "Saturday", "Sunday"])
 
-        sched = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_WEEKLY, "MTWRFSU")
+        sched = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_WEEKLY, "MTWRFSU")
         self.assertEqual(
             sched.get_repeat_days_display(),
             ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
@@ -176,12 +176,8 @@ class ScheduleTest(TembaTest):
             trigger_date = tz.localize(tc["trigger_date"])
             now = tz.localize(tc["now"])
 
-            sched = Schedule.create_schedule(
-                self.org,
-                trigger_date,
-                tc["repeat_period"],
-                repeat_days_of_week=tc.get("repeat_days_of_week"),
-                now=now,
+            sched = Schedule.create(
+                self.org, trigger_date, tc["repeat_period"], repeat_days_of_week=tc.get("repeat_days_of_week"), now=now
             )
 
             first = tc.get("first")
@@ -223,7 +219,7 @@ class ScheduleTest(TembaTest):
         media_attachments.append({"content_type": media.content_type, "url": media.url})
         compose_deserialize_attachments(media_attachments)
 
-        sched = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY)
+        sched = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
 
         # our view asserts that our schedule is connected to a broadcast
         self.create_broadcast(
@@ -263,9 +259,9 @@ class PauseArchivedTriggersTest(MigrationTest):
 
     def setUpBeforeMigration(self, apps):
         flow = self.create_flow("Test")
-        self.schedule1 = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY)
-        self.schedule2 = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY)
-        self.schedule3 = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY)  # no trigger
+        self.schedule1 = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
+        self.schedule2 = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
+        self.schedule3 = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)  # no trigger
 
         Trigger.create(self.org, self.admin, Trigger.TYPE_SCHEDULE, flow, schedule=self.schedule1)
 

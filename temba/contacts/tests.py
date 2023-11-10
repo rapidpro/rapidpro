@@ -614,7 +614,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             self.admin,
             "Hi again",
             contacts=[contact1, contact2],
-            schedule=Schedule.create_schedule(self.org, timezone.now() + timedelta(days=3), Schedule.REPEAT_DAILY),
+            schedule=Schedule.create(self.org, timezone.now() + timedelta(days=3), Schedule.REPEAT_DAILY),
         )
         self.create_broadcast(self.admin, "Bye", contacts=[contact1, contact2])  # not scheduled
 
@@ -625,7 +625,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             self.admin,
             trigger_type=Trigger.TYPE_SCHEDULE,
             flow=trigger1_flow,
-            schedule=Schedule.create_schedule(self.org, timezone.now() + timedelta(days=4), Schedule.REPEAT_WEEKLY),
+            schedule=Schedule.create(self.org, timezone.now() + timedelta(days=4), Schedule.REPEAT_WEEKLY),
         )
         trigger1.contacts.add(contact1, contact2)
 
@@ -636,7 +636,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             self.admin,
             trigger_type=Trigger.TYPE_SCHEDULE,
             flow=trigger2_flow,
-            schedule=Schedule.create_schedule(self.org, timezone.now() + timedelta(days=6), Schedule.REPEAT_MONTHLY),
+            schedule=Schedule.create(self.org, timezone.now() + timedelta(days=6), Schedule.REPEAT_MONTHLY),
         )
         trigger2.groups.add(farmers)
 
@@ -646,7 +646,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             self.admin,
             trigger_type=Trigger.TYPE_SCHEDULE,
             flow=self.create_flow("Favorites 3"),
-            schedule=Schedule.create_schedule(self.org, timezone.now() + timedelta(days=4), Schedule.REPEAT_WEEKLY),
+            schedule=Schedule.create(self.org, timezone.now() + timedelta(days=4), Schedule.REPEAT_WEEKLY),
         )
         trigger3.contacts.add(contact1, contact2)
         trigger3.exclude_groups.add(farmers)
@@ -1133,7 +1133,7 @@ class ContactGroupTest(TembaTest):
         campaign.save()
 
         # create scheduled and regular broadcasts which send to both groups
-        schedule = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY)
+        schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
         bcast1 = self.create_broadcast(self.admin, "Hi", groups=[group1, group2], schedule=schedule)
         bcast2 = self.create_broadcast(self.admin, "Hi", groups=[group1, group2])
         bcast2.send_async()
@@ -1445,7 +1445,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         group3 = self.create_group("Group 3", contacts=[])
         flow2 = self.create_flow("Flow 2")
         flow2.group_dependencies.add(group3)
-        schedule1 = Schedule.create_schedule(self.org, timezone.now() + timedelta(days=3), Schedule.REPEAT_DAILY)
+        schedule1 = Schedule.create(self.org, timezone.now() + timedelta(days=3), Schedule.REPEAT_DAILY)
         trigger1 = Trigger.create(
             self.org,
             self.admin,
@@ -1702,7 +1702,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         contact2 = self.create_contact("Billy", urns=["twitter:billy"])
 
         # create scheduled and regular broadcasts which send to both contacts
-        schedule = Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY)
+        schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
         bcast1 = self.create_broadcast(self.admin, "Test", contacts=[contact, contact2], schedule=schedule)
         bcast2 = self.create_broadcast(self.admin, "Test", contacts=[contact, contact2])
 
@@ -2596,7 +2596,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(0, self.joe.get_scheduled_broadcasts().count())
 
         schedule_time = timezone.now() + timedelta(days=2)
-        broadcast.schedule = Schedule.create_schedule(self.org, schedule_time, Schedule.REPEAT_NEVER)
+        broadcast.schedule = Schedule.create(self.org, schedule_time, Schedule.REPEAT_NEVER)
         broadcast.save(update_fields=("schedule",))
 
         self.assertEqual(self.joe.get_scheduled_broadcasts().count(), 1)

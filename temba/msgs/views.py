@@ -391,9 +391,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 start_time = schedule_form.cleaned_data["start_datetime"]
                 repeat_period = schedule_form.cleaned_data["repeat_period"]
                 repeat_days_of_week = schedule_form.cleaned_data["repeat_days_of_week"]
-                schedule = Schedule.create_schedule(
-                    org, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week
-                )
+                schedule = Schedule.create(org, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week)
 
             self.object = Broadcast.create(
                 org,

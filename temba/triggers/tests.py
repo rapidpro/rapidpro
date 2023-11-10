@@ -52,7 +52,7 @@ class TriggerTest(TembaTest):
             self.admin,
             Trigger.TYPE_SCHEDULE,
             flow,
-            schedule=Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_DAILY),
+            schedule=Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
 
         self.assertEqual("Keyword[join] → Test Flow", keyword1.name)
@@ -498,7 +498,7 @@ class TriggerTest(TembaTest):
             flow,
             channel=channel,
             groups=[group],
-            schedule=Schedule.create_schedule(self.org, timezone.now(), Schedule.REPEAT_MONTHLY),
+            schedule=Schedule.create(self.org, timezone.now(), Schedule.REPEAT_MONTHLY),
         )
 
         trigger.release(self.admin)
@@ -1412,7 +1412,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         contact2 = self.create_contact("Bob", phone="+250788987652")
         tz = self.org.timezone
 
-        schedule = Schedule.create_schedule(
+        schedule = Schedule.create(
             self.org,
             start_time=tz.localize(datetime(2021, 6, 24, 12, 0, 0, 0)),
             repeat_period=Schedule.REPEAT_WEEKLY,

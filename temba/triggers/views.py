@@ -345,7 +345,7 @@ class TriggerCRUDL(SmartCRUDL):
             repeat_period = cleaned_data["repeat_period"]
             repeat_days_of_week = cleaned_data["repeat_days_of_week"]
 
-            schedule = Schedule.create_schedule(
+            schedule = Schedule.create(
                 self.request.org, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week
             )
 

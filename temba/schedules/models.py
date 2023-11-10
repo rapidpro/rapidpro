@@ -73,7 +73,7 @@ class Schedule(models.Model):
     next_fire = models.DateTimeField()
 
     @classmethod
-    def create_schedule(cls, org, start_time, repeat_period, repeat_days_of_week=None, now=None):
+    def create(cls, org, start_time, repeat_period, repeat_days_of_week=None, now=None):
         assert not repeat_days_of_week or set(repeat_days_of_week).issubset(cls.DAYS_OF_WEEK_OFFSET)
 
         schedule = cls(org=org, repeat_period=repeat_period)

@@ -2072,7 +2072,7 @@ class OrgDeleteTest(TembaTest):
                 contacts=contacts,
                 groups=groups,
                 org=org,
-                schedule=Schedule.create_schedule(org, timezone.now(), Schedule.REPEAT_DAILY),
+                schedule=Schedule.create(org, timezone.now(), Schedule.REPEAT_DAILY),
             )
         )
         add(self.create_broadcast(user, "Reminder", contacts=contacts, groups=groups, org=org, parent=scheduled))
