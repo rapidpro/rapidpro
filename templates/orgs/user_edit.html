@@ -24,11 +24,6 @@
       {% blocktrans with email=user.username %}
       Your email address is <b>{{email}}</b>
       {% endblocktrans %}
-      {% if user.settings.email_status == 'V' %}
-        <temba-label icon="icon.org_verified" class="mr-2">
-          {% trans "Verified" %}
-        </temba-label>
-      {% endif %}
     </div>
     <div class="buttons">
       {% if user.settings.email_status != 'V' %}
