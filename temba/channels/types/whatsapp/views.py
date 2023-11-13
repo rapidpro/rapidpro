@@ -29,6 +29,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         currency = forms.CharField()
         message_template_namespace = forms.CharField()
 
+        def clean(self):
+            self.cleaned_data["address"] = self.cleaned_data["phone_number_id"]
+            return super().clean()
+
     form_class = Form
 
     def pre_process(self, request, *args, **kwargs):
@@ -166,18 +170,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             "wa_message_template_namespace": message_template_namespace,
             "wa_pin": pin,
         }
-
-        # don't add the same number twice to the same account
-        existing = Channel.objects.filter(
-            is_active=True, address=phone_number_id, schemes__overlap=list(self.channel_type.schemes)
-        ).first()
-        if existing:  # pragma: needs cover
-            if existing.org == self.request.org:
-                form._errors["__all__"] = form.error_class([_("Number is already connected to this workspace")])
-                return self.form_invalid(form)
-
-            form._errors["__all__"] = form.error_class([_("Number is already connected to another workspace")])
-            return self.form_invalid(form)
 
         # assign system user to WABA
         url = f"https://graph.facebook.com/v18.0/{waba_id}/assigned_users"

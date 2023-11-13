@@ -26,9 +26,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             normalized = URN.normalize_number(self.cleaned_data["number"], country)
             if not URN.validate(URN.from_parts(URN.TEL_SCHEME, normalized), country):
                 raise forms.ValidationError(_("Please enter a valid phone number"))
-            self.cleaned_data["number"] = normalized
-
-            return self.cleaned_data
+            self.cleaned_data["address"] = normalized
+            return super().clean()
 
     form_class = Form
 
@@ -45,7 +44,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             data["country"],
             self.channel_type,
             name="WhatsApp: %s" % data["number"],
-            address=data["number"],
+            address=data["address"],
             config=config,
             tps=45,
         )

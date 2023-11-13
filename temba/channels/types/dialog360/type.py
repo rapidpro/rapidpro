@@ -23,6 +23,8 @@ class Dialog360Type(ChannelType):
     name = "360Dialog WhatsApp"
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    unique_addresses = True
+
     courier_url = r"^d3c/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
     schemes = [URN.WHATSAPP_SCHEME]
 
