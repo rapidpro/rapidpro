@@ -1859,7 +1859,7 @@ class BroadcastTest(TembaTest):
         contact2 = self.create_contact("Bob", phone="+1234567222")
         doctors = self.create_group("Doctors", contacts=[contact1, contact2])
 
-        mr_mocks.msg_preview_broadcast(query='group = "Doctors" AND status = "active"', total=100)
+        mr_mocks.msg_broadcast_preview(query='group = "Doctors" AND status = "active"', total=100)
 
         query, total = Broadcast.preview(
             self.org,
@@ -2245,7 +2245,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_contact("Ann", phone="+16302222222", fields={"age": 40})
         self.create_contact("Bob", phone="+16303333333", fields={"age": 33})
 
-        mr_mocks.msg_preview_broadcast(query='age > 30 AND status = "active"', total=100)
+        mr_mocks.msg_broadcast_preview(query='age > 30 AND status = "active"', total=100)
 
         preview_url = reverse("msgs.broadcast_preview")
 
@@ -2273,7 +2273,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         # suspended orgs should block
         self.org.is_suspended = True
         self.org.save()
-        mr_mocks.msg_preview_broadcast(query="age > 30", total=2)
+        mr_mocks.msg_broadcast_preview(query="age > 30", total=2)
         response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
         self.assertEqual(
             [
@@ -2286,7 +2286,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.is_suspended = False
         self.org.is_flagged = True
         self.org.save()
-        mr_mocks.msg_preview_broadcast(query="age > 30", total=2)
+        mr_mocks.msg_broadcast_preview(query="age > 30", total=2)
         response = self.client.post(preview_url, {"query": "age > 30"}, content_type="application/json")
         self.assertEqual(
             [
@@ -2300,7 +2300,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # if we release our send channel we can't send a broadcast
         self.channel.release(self.admin)
-        mr_mocks.msg_preview_broadcast(query='age > 30 AND status = "active"', total=100)
+        mr_mocks.msg_broadcast_preview(query='age > 30 AND status = "active"', total=100)
 
         response = self.client.post(
             preview_url, {"query": "age > 30", "exclusions": {"non_active": True}}, content_type="application/json"

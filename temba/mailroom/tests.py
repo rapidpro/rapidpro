@@ -77,11 +77,11 @@ class MailroomClientTest(TembaTest):
         self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
         self.assertEqual({"flow": flow_def, "language": "spa"}, json.loads(call[1]["data"]))
 
-    def test_flow_preview_start(self):
+    def test_flow_start_preview(self):
         with patch("requests.post") as mock_post:
             mock_resp = {"query": 'group = "Farmers" AND status = "active"', "total": 2345}
             mock_post.return_value = MockResponse(200, json.dumps(mock_resp))
-            preview = get_client().flow_preview_start(
+            preview = get_client().flow_start_preview(
                 self.org.id,
                 flow_id=12,
                 include=Inclusions(
@@ -95,7 +95,7 @@ class MailroomClientTest(TembaTest):
 
         call = mock_post.call_args
 
-        self.assertEqual(("http://localhost:8090/mr/flow/preview_start",), call[0])
+        self.assertEqual(("http://localhost:8090/mr/flow/start_preview",), call[0])
         self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
         self.assertEqual(
             {
@@ -112,16 +112,15 @@ class MailroomClientTest(TembaTest):
                     "started_previously": False,
                     "not_seen_since_days": 30,
                 },
-                "sample_size": 3,
             },
             json.loads(call[1]["data"]),
         )
 
-    def test_msg_preview_broadcast(self):
+    def test_msg_broadcast_preview(self):
         with patch("requests.post") as mock_post:
             mock_resp = {"query": 'group = "Farmers" AND status = "active"', "total": 2345}
             mock_post.return_value = MockResponse(200, json.dumps(mock_resp))
-            preview = get_client().msg_preview_broadcast(
+            preview = get_client().msg_broadcast_preview(
                 self.org.id,
                 include=Inclusions(
                     group_uuids=["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
@@ -134,7 +133,7 @@ class MailroomClientTest(TembaTest):
 
         call = mock_post.call_args
 
-        self.assertEqual(("http://localhost:8090/mr/msg/preview_broadcast",), call[0])
+        self.assertEqual(("http://localhost:8090/mr/msg/broadcast_preview",), call[0])
         self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
         self.assertEqual(
             {
@@ -150,7 +149,42 @@ class MailroomClientTest(TembaTest):
                     "started_previously": False,
                     "not_seen_since_days": 30,
                 },
-                "sample_size": 3,
+            },
+            json.loads(call[1]["data"]),
+        )
+
+    def test_msg_broadcast(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, json.dumps({"id": 123}))
+            resp = get_client().msg_broadcast(
+                self.org.id,
+                self.admin.id,
+                {"eng": {"text": "Hello"}},
+                "eng",
+                [12, 23],
+                [123, 234],
+                ["tel:1234"],
+                "age > 20",
+                567,
+            )
+
+            self.assertEqual({"id": 123}, resp)
+
+        call = mock_post.call_args
+
+        self.assertEqual(("http://localhost:8090/mr/msg/broadcast",), call[0])
+        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
+        self.assertEqual(
+            {
+                "org_id": self.org.id,
+                "user_id": self.admin.id,
+                "translations": {"eng": {"text": "Hello"}},
+                "base_language": "eng",
+                "group_ids": [12, 23],
+                "contact_ids": [123, 234],
+                "urns": ["tel:1234"],
+                "query": "age > 20",
+                "optin_id": 567,
             },
             json.loads(call[1]["data"]),
         )
