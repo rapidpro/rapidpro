@@ -252,10 +252,10 @@ class ScheduleTest(TembaTest):
         self.assertIn("04:45:00+00:00", str(sched.next_fire))
 
 
-class PauseArchivedTriggersTest(MigrationTest):
+class DeleteForInactiveTriggersTest(MigrationTest):
     app = "schedules"
-    migrate_from = "0024_remove_schedule_schedules_due_schedule_is_paused_and_more"
-    migrate_to = "0025_pause_archived_triggers"
+    migrate_from = "0025_pause_archived_triggers"
+    migrate_to = "0026_delete_for_inactive_triggers"
 
     def setUpBeforeMigration(self, apps):
         flow = self.create_flow("Test")
@@ -263,17 +263,19 @@ class PauseArchivedTriggersTest(MigrationTest):
         self.schedule2 = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
         self.schedule3 = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)  # no trigger
 
-        Trigger.create(self.org, self.admin, Trigger.TYPE_SCHEDULE, flow, schedule=self.schedule1)
+        self.trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_SCHEDULE, flow, schedule=self.schedule1)
 
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_SCHEDULE, flow, schedule=self.schedule2)
-        trigger2.is_archived = True
-        trigger2.save(update_fields=("is_archived",))
+        self.trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_SCHEDULE, flow, schedule=self.schedule2)
+        self.trigger2.is_active = False
+        self.trigger2.save(update_fields=("is_active",))
 
     def test_migration(self):
-        self.schedule1.refresh_from_db()
-        self.schedule2.refresh_from_db()
-        self.schedule3.refresh_from_db()
+        self.assertTrue(Schedule.objects.filter(id=self.schedule1.id).exists())
+        self.assertFalse(Schedule.objects.filter(id=self.schedule2.id).exists())
+        self.assertTrue(Schedule.objects.filter(id=self.schedule3.id).exists())
 
-        self.assertFalse(self.schedule1.is_paused)
-        self.assertTrue(self.schedule2.is_paused)
-        self.assertFalse(self.schedule3.is_paused)
+        self.trigger1.refresh_from_db()
+        self.trigger2.refresh_from_db()
+
+        self.assertEqual(self.schedule1, self.trigger1.schedule)
+        self.assertIsNone(self.trigger2.schedule)
