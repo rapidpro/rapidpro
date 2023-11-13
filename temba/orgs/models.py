@@ -1420,6 +1420,7 @@ class Org(SmartModel):
             "allowed_languages": self.flow_languages,
             "default_country": self.default_country_code,
             "redaction_policy": "urns" if self.is_anon else "none",
+            "input_collation": self.input_collation,
         }
 
     def __repr__(self):
