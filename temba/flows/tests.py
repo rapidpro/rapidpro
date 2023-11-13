@@ -5249,6 +5249,7 @@ class SimulationTest(TembaTest):
                             "allowed_languages": ["eng", "kin"],
                             "default_country": "RW",
                             "redaction_policy": "none",
+                            "input_collation": "default",
                         },
                         "user": {"email": "admin@nyaruka.com", "name": "Andy"},
                     },
@@ -5440,6 +5441,7 @@ class AssetServerTest(TembaTest):
                     "allowed_languages": ["eng", "kin"],
                     "default_country": "RW",
                     "redaction_policy": "none",
+                    "input_collation": "default",
                 },
             )
 
