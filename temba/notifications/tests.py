@@ -11,7 +11,7 @@ from temba.contacts.models import ContactImport, ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import OrgRole
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers
+from temba.tests import CRUDLTestMixin, TembaTest, matchers
 
 from .incidents.builtin import OrgFlaggedIncidentType
 from .models import Incident, Notification
@@ -374,11 +374,14 @@ class NotificationTest(TembaTest):
             org=self.org, mappings={}, num_records=5, created_by=self.editor, modified_by=self.editor
         )
         Notification.create_all(
-            imp.org, "import:finished", scope=f"contact:{imp.id}", users=[self.editor], contact_import=imp
+            imp.org, "import:finished", scope=f"contact:{imp.id}", users=[self.editor], contact_import=imp, medium="UE"
         )
-        Notification.create_all(self.org, "tickets:opened", scope="", users=[self.agent, self.editor])
-        Notification.create_all(self.org, "tickets:activity", scope="", users=[self.agent, self.editor])
-        Notification.create_all(self.org2, "tickets:activity", scope="", users=[self.editor])  # different org
+        Notification.create_all(self.org, "tickets:opened", scope="", users=[self.agent, self.editor], medium="UE")
+        Notification.create_all(self.org, "tickets:activity", scope="", users=[self.agent, self.editor], medium="UE")
+        Notification.create_all(self.org, "tickets:reply", scope="12", users=[self.editor], medium="E")  # email only
+        Notification.create_all(
+            self.org2, "tickets:activity", scope="", users=[self.editor], medium="UE"
+        )  # different org
 
         self.assertEqual(2, Notification.get_unseen_count(self.org, self.agent))
         self.assertEqual(3, Notification.get_unseen_count(self.org, self.editor))
@@ -405,21 +408,3 @@ class NotificationTest(TembaTest):
         self.assertEqual(2, Notification.get_unseen_count(self.org, self.editor))
         self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
         self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
-
-
-class BackfillMediumTest(MigrationTest):
-    app = "notifications"
-    migrate_from = "0013_notification_medium"
-    migrate_to = "0014_backfill_medium"
-
-    def setUpBeforeMigration(self, apps):
-        self.org.suspend()
-        self.org.unsuspend()
-
-        Notification.objects.update(medium=None)
-
-        self.org.suspend()
-        self.org.unsuspend()
-
-    def test_migration(self):
-        self.assertEqual(0, Notification.objects.filter(medium=None).count())
