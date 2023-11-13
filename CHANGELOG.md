@@ -1,3 +1,9 @@
+v8.3.87 (2023-11-13)
+-------------------------
+ * Data migration to delete schedules attached to deleted triggers
+ * Simulator should use workspace collation setting
+ * Don't include email only notifications in unseen count for UI
+
 v8.3.86 (2023-11-13)
 -------------------------
  * Update mailroom endpoint names
