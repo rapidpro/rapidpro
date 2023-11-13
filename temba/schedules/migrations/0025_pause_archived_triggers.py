@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def pause_schedules_of_archived_triggers(apps, schema_editor):
+def pause_schedules_of_archived_triggers(apps, schema_editor):  # pragma: no cover
     Schedule = apps.get_model("schedules", "Schedule")
 
     num_updated = 0
@@ -22,7 +22,7 @@ def pause_schedules_of_archived_triggers(apps, schema_editor):
         print(f"Paused {num_updated} schedules attached to archived triggers")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
