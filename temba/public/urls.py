@@ -7,7 +7,6 @@ from temba.settings import DEBUG
 from .sitemaps import PublicViewSitemap, VideoSitemap
 from .views import (
     Android,
-    Blog,
     DemoGenerateCoupon,
     DemoOrderStatus,
     IndexView,
@@ -24,7 +23,6 @@ sitemaps = {"public": PublicViewSitemap, "video": VideoSitemap}
 urlpatterns = [
     re_path(r"^$", IndexView.as_view(), {}, "public.public_index"),
     re_path(r"^sitemap\.xml$", sitemap, {"sitemaps": sitemaps}, name="public.sitemaps"),
-    re_path(r"^blog/$", Blog.as_view(), {}, "public.public_blog"),
     re_path(r"^welcome/$", Welcome.as_view(), {}, "public.public_welcome"),
     re_path(r"^android/$", Android.as_view(), {}, "public.public_android"),
     re_path(r"^public/welcome/$", WelcomeRedirect.as_view(), {}, "public.public_welcome_redirect"),

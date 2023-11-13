@@ -2,7 +2,6 @@ from urllib.parse import parse_qs, urlencode
 
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView
 
-from django.conf import settings
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -158,11 +157,6 @@ class LeadCRUDL(SmartCRUDL):
             obj.created_by = anon
             obj.modified_by = anon
             return obj
-
-
-class Blog(RedirectView):
-    # whitelabels don't have blogs, so we don't use the brand domain here
-    url = "http://blog." + settings.HOSTNAME
 
 
 class DemoGenerateCoupon(View):
