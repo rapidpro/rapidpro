@@ -1,3 +1,7 @@
+v8.3.86 (2023-11-13)
+-------------------------
+ * Update mailroom endpoint names
+
 v8.3.85 (2023-11-10)
 -------------------------
  * Data migration to pause schedules of existing archived triggers
