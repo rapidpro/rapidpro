@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def backfill_medium(apps, schema_editor):
+def backfill_medium(apps, schema_editor):  # pragma: no cover
     Notification = apps.get_model("notifications", "Notification")
 
     num_updated = 0
@@ -21,7 +21,7 @@ def backfill_medium(apps, schema_editor):
         print(f"Backfilled medium on {num_updated} notifications")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
