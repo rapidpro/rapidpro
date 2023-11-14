@@ -1,8 +1,6 @@
 from smartmin.views import SmartFormView
 
 from django import forms
-from django.core.exceptions import ValidationError
-from django.db.models.query import Q
 from django.utils.translation import gettext_lazy as _
 
 from ...models import Channel
@@ -19,20 +17,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         secret = forms.CharField(label=_("Secret"), required=True, help_text=_("Secret of the bot."))
 
         def clean(self):
-            cleaned_data = super().clean()
+            channel_id = self.cleaned_data.get("channel_id")
+            self.cleaned_data.get("access_token")
+            self.cleaned_data.get("secret")
 
-            channel_id = cleaned_data.get("channel_id")
-            access_token = cleaned_data.get("access_token")
-            secret = cleaned_data.get("secret")
+            self.cleaned_data["address"] = channel_id
 
-            existing = Channel.objects.filter(
-                Q(config__channel_id=channel_id) | Q(config__secret=secret) | Q(config__auth_token=access_token),
-                channel_type=self.channel_type.code,
-                address=channel_id,
-                is_active=True,
-            ).exists()
-            if existing:
-                raise ValidationError(_("A channel with this configuration already exists."))
+            return super().clean()
 
     form_class = Form
 

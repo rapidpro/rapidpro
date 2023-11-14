@@ -20,6 +20,8 @@ class TwilioWhatsappType(ChannelType):
     name = "Twilio WhatsApp"
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    unique_addresses = True
+
     courier_url = r"^twa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
     schemes = [URN.WHATSAPP_SCHEME]
     redact_request_keys = (

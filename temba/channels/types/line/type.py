@@ -15,6 +15,8 @@ class LineType(ChannelType):
     name = "LINE"
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    unique_addresses = True
+
     courier_url = r"^ln/(?P<uuid>[a-z0-9\-]+)/receive$"
     schemes = [URN.LINE_SCHEME]
 

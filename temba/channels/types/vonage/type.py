@@ -61,6 +61,8 @@ class VonageType(ChannelType):
     name = "Vonage"
     category = ChannelType.Category.PHONE
 
+    unique_addresses = True
+
     courier_url = r"^nx/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
     schemes = [URN.TEL_SCHEME]
 

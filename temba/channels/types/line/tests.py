@@ -45,7 +45,7 @@ class LineTypeTest(TembaTest):
         self.assertEqual(channel.config, {"auth_token": "abcdef123456", "secret": "123456", "channel_id": "123456789"})
 
         response = self.client.post(url, payload, follow=True)
-        self.assertContains(response, "A channel with this configuration already exists.")
+        self.assertContains(response, "This channel is already connected in this workspace.")
 
     def test_get_error_ref_url(self):
         self.assertEqual(

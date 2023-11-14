@@ -28,21 +28,25 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             required=True, label=_("FreshChat API Auth Token"), help_text=_("The API auth token- leave out the bearer")
         )
 
+        def clean(self):
+            self.cleaned_data["address"] = self.cleaned_data["agent_id"]
+            return super().clean()
+
     form_class = Form
 
     def form_valid(self, form):
         title = form.cleaned_data.get("title")
-        agent_id = form.cleaned_data.get("agent_id")
+        address = form.cleaned_data.get("address")
         auth_token = form.cleaned_data.get("auth_token")
         webhook_key = form.cleaned_data.get("webhook_key")
         config = {
-            Channel.CONFIG_USERNAME: agent_id,
+            Channel.CONFIG_USERNAME: address,
             Channel.CONFIG_AUTH_TOKEN: auth_token,
             Channel.CONFIG_SECRET: webhook_key,
         }
 
         self.object = Channel.create(
-            self.request.org, self.request.user, None, self.channel_type, address=agent_id, name=title, config=config
+            self.request.org, self.request.user, None, self.channel_type, address=address, name=title, config=config
         )
 
         return super().form_valid(form)

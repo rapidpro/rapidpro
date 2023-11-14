@@ -21,6 +21,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         username = forms.CharField(label=_("Username"), help_text=_("The username for your API account"))
         password = forms.CharField(label=_("Password"), help_text=_("The password for your API account"))
 
+        def clean(self):
+            self.cleaned_data["address"] = self.cleaned_data["service_id"]
+            return super().clean()
+
     form_class = Form
     template_name = "channels/channel_claim_form.html"
 
@@ -33,8 +37,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             user=self.request.user,
             country=data["country"],
             channel_type=self.channel_type,
-            name=data["service_id"],
-            address=data["service_id"],
+            name=data["address"],
+            address=data["address"],
             config=config,
             schemes=[URN.TEL_SCHEME],
         )

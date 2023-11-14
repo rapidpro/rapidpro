@@ -43,18 +43,12 @@ class SlackTypeTest(TembaTest):
         mock_api_call.side_effect = slack_sdk.errors.SlackApiError("", "")
         response = self.client.post(url, {"user_token": "invalid"})
         self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            "Your user token is invalid, please check and try again",
-            response.context["form"].errors["user_token"][0],
-        )
+        self.assertFormError(response, "form", "user_token", "Your user token is invalid, please check and try again")
 
         mock_api_call.side_effect = slack_sdk.errors.SlackApiError("", "")
         response = self.client.post(url, {"bot_token": "invalid"})
         self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            "Your bot user token is invalid, please check and try again",
-            response.context["form"].errors["bot_token"][0],
-        ),
+        self.assertFormError(response, "form", None, "Your bot user token is invalid, please check and try again")
 
         # test to claim a channel with a bot token that already exists for another workspace.
         auth_test = {
@@ -79,10 +73,7 @@ class SlackTypeTest(TembaTest):
                 "verification_token": "123456789:ABCDEFabcdef-1a2b3c4d",
             },
         )
-        self.assertEqual(
-            "A slack channel for this bot already exists in another workspace.",
-            response.context["form"].errors["bot_token"][0],
-        )
+        self.assertFormError(response, "form", None, "This channel is already connected in another workspace.")
 
         # test claim a channel with success
         auth_test = {
@@ -134,10 +125,7 @@ class SlackTypeTest(TembaTest):
                 "verification_token": "VTK0123456789ABCDEFabcdef-1a2b3c4d",
             },
         )
-        self.assertEqual(
-            "A slack channel for this bot already exists in this workspace.",
-            response.context["form"].errors["bot_token"][0],
-        )
+        self.assertFormError(response, "form", None, "This channel is already connected in this workspace.")
 
         # make sure we our slack channel satisfies as a send channel
         send_channel = self.org.get_send_channel()
