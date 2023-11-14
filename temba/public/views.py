@@ -20,7 +20,7 @@ class IndexView(NoNavMixin, SmartTemplateView):
     template_name = "public/public_index.html"
 
     def derive_title(self):
-        return f"{self.request.branding['name']} - {self.request.branding['description']}"
+        return f"{self.request.branding['name']}"
 
     def pre_process(self, request, *args, **kwargs):
         response = super().pre_process(request, *args, **kwargs)
