@@ -1,3 +1,9 @@
+v8.3.88 (2023-11-14)
+-------------------------
+ * Expose org.input_collation on languages formax
+ * Remove blog redirect pattern and sitemap
+ * Add unique_address to channel type and use that to validate channel is unique before claiming it
+
 v8.3.87 (2023-11-13)
 -------------------------
  * Data migration to delete schedules attached to deleted triggers
