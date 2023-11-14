@@ -1493,6 +1493,7 @@ class ContactFieldCRUDL(SmartCRUDL):
     class List(ContentMenuMixin, SpaMixin, OrgPermsMixin, SmartListView):
         menu_path = "/contact/fields"
         title = _("Fields")
+        default_order = "name"
 
         def build_content_menu(self, menu):
             menu.add_modax(

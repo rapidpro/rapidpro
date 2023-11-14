@@ -36,6 +36,7 @@ media/recordings
 media/test_orgs
 media/tmp
 media/attachments
+media/blog
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
