@@ -3579,7 +3579,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             allow_viewers=False,
             allow_editors=False,
             allow_org2=True,  # is same URL across orgs
-            form_fields=["primary_lang", "other_langs"],
+            form_fields=["primary_lang", "other_langs", "input_collation"],
         )
 
         # initial should do a match on code only
@@ -3591,14 +3591,17 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             langs_url,
             {},
             object_unchanged=self.org,
-            form_errors={"primary_lang": "This field is required."},
+            form_errors={"primary_lang": "This field is required.", "input_collation": "This field is required."},
         )
 
         # give the org a primary language
-        self.assertUpdateSubmit(langs_url, {"primary_lang": '{"name":"French", "value":"fra"}'})
+        self.assertUpdateSubmit(
+            langs_url, {"primary_lang": '{"name":"French", "value":"fra"}', "input_collation": "confusables"}
+        )
 
         self.org.refresh_from_db()
         self.assertEqual(["fra"], self.org.flow_languages)
+        self.assertEqual("confusables", self.org.input_collation)
 
         # summary now includes this
         response = self.requestView(settings_url, self.admin)
@@ -3611,6 +3614,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             {
                 "primary_lang": '{"name":"French", "value":"fra"}',
                 "other_langs": ['{"name":"Haitian", "value":"hat"}', '{"name":"Hausa", "value":"hau"}'],
+                "input_collation": "confusables",
             },
         )
 

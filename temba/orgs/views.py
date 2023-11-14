@@ -2897,13 +2897,21 @@ class OrgCRUDL(SmartCRUDL):
                 ),
             )
 
+            input_collation = forms.ChoiceField(
+                required=True,
+                choices=Org.COLLATION_CHOICES,
+                label=_("Input Matching"),
+                help_text=_("How text is matched against trigger keywords and flow split tests."),
+                widget=SelectWidget(),
+            )
+
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.org = org
 
             class Meta:
                 model = Org
-                fields = ("primary_lang", "other_langs")
+                fields = ("primary_lang", "other_langs", "input_collation")
 
         success_message = ""
         form_class = Form
