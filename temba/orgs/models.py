@@ -437,18 +437,25 @@ class Org(SmartModel):
         (DATE_FORMAT_MONTH_FIRST, "MM-DD-YYYY"),
         (DATE_FORMAT_YEAR_FIRST, "YYYY-MM-DD"),
     )
-
     DATE_FORMATS_PYTHON = {
         DATE_FORMAT_DAY_FIRST: "%d-%m-%Y",
         DATE_FORMAT_MONTH_FIRST: "%m-%d-%Y",
         DATE_FORMAT_YEAR_FIRST: "%Y-%m-%d",
     }
-
     DATE_FORMATS_ENGINE = {
         DATE_FORMAT_DAY_FIRST: "DD-MM-YYYY",
         DATE_FORMAT_MONTH_FIRST: "MM-DD-YYYY",
         DATE_FORMAT_YEAR_FIRST: "YYYY-MM-DD",
     }
+
+    COLLATION_DEFAULT = "default"
+    COLLATION_CONFUSABLES = "confusables"
+    COLLATION_ARABIC_VARIANTS = "arabic_variants"
+    COLLATION_CHOICES = (
+        (COLLATION_DEFAULT, _("Case insensitive (e.g. A = a)")),
+        (COLLATION_CONFUSABLES, _("Visually similiar characters (e.g. 𝓐 = A = a = ⍺)")),
+        (COLLATION_ARABIC_VARIANTS, _("Arabic, Farsi and Pashto equivalents (e.g. ي = ی = ۍ)")),
+    )
 
     CONFIG_VERIFIED = "verified"
     CONFIG_SMTP_SERVER = "smtp_server"
@@ -515,7 +522,7 @@ class Org(SmartModel):
     )
     country = models.ForeignKey("locations.AdminBoundary", null=True, on_delete=models.PROTECT)
     flow_languages = ArrayField(models.CharField(max_length=3), default=list, validators=[ArrayMinLengthValidator(1)])
-    input_collation = models.CharField(max_length=32, default="default")
+    input_collation = models.CharField(max_length=32, choices=COLLATION_CHOICES, default=COLLATION_DEFAULT)
 
     config = models.JSONField(default=dict)
     slug = models.SlugField(
