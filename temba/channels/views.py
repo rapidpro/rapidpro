@@ -87,10 +87,10 @@ class ClaimViewMixin(ChannelTypeMixin, OrgPermsMixin, ComponentFormMixin):
                     params={"limit": limit},
                 )
 
-            if not self.cleaned_data["address"]:
-                raise forms.ValidationError(_("Cannot add a channel without specifying an address"))
-
             if self.channel_type.unique_addresses:
+                if not self.cleaned_data["address"]:
+                    raise forms.ValidationError(_("Cannot add a channel without specifying an address"))
+
                 # don't add the same channel address twice
                 existing = Channel.objects.filter(
                     is_active=True,
