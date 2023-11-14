@@ -88,8 +88,7 @@ class ClaimViewMixin(ChannelTypeMixin, OrgPermsMixin, ComponentFormMixin):
                 )
 
             if self.channel_type.unique_addresses:
-                if not self.cleaned_data.get("address"):
-                    raise forms.ValidationError(_("Cannot add a channel without specifying an address"))
+                assert self.cleaned_data.get("address"), "channel type should specify an address in Form.clean method"
 
                 # don't add the same channel address twice
                 existing = Channel.objects.filter(
@@ -99,8 +98,8 @@ class ClaimViewMixin(ChannelTypeMixin, OrgPermsMixin, ComponentFormMixin):
                 ).first()
                 if existing:
                     if existing.org == self.request.org:
-                        raise forms.ValidationError(_("Channel address is already connected to this workspace"))
-                    raise forms.ValidationError(_("Channel address is already connected to another workspace"))
+                        raise forms.ValidationError(_("This channel is already connected in this workspace."))
+                    raise forms.ValidationError(_("This channel is already connected in another workspace."))
 
             return super().clean()
 

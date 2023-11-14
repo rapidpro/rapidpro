@@ -253,7 +253,7 @@ class InstagramTypeTest(TembaTest):
         post_data["page_name"] = name
 
         response = self.client.post(url, post_data, follow=True)
-        self.assertContains(response, "Channel address is already connected to this workspace")
+        self.assertContains(response, "This channel is already connected in this workspace.")
 
         mock_get.side_effect = [
             MockResponse(200, json.dumps({"data": {"user_id": "098765", "expired_at": 100}})),
@@ -292,7 +292,7 @@ class InstagramTypeTest(TembaTest):
         post_data["page_name"] = name
 
         response = self.client.post(url, post_data, follow=True)
-        self.assertContains(response, "Channel address is already connected to another workspace")
+        self.assertContains(response, "This channel is already connected in another workspace.")
 
         mock_get.side_effect = [
             MockResponse(200, json.dumps({"data": {"user_id": "098765", "expired_at": 100}})),
@@ -328,8 +328,8 @@ class InstagramTypeTest(TembaTest):
         post_data["page_id"] = "123456"
         post_data["page_name"] = name
 
-        response = self.client.post(url, post_data, follow=True)
-        self.assertContains(response, "Cannot add a channel without specifying an address")
+        with self.assertRaises(AssertionError):
+            response = self.client.post(url, post_data, follow=True)
 
     @patch("requests.delete")
     def test_release(self, mock_delete):
