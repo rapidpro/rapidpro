@@ -17,7 +17,7 @@ class MtargetTypeTest(TembaTest):
         post_data = response.context["form"].initial
 
         post_data["country"] = "FR"
-        post_data["service_id"] = "151515"
+        post_data["address"] = "151515"
         post_data["username"] = "user1"
         post_data["password"] = "pass1"
 

@@ -10,7 +10,7 @@ from ...views import ClaimViewMixin
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         title = forms.CharField(label=_("Notification Title"))
-        key = forms.CharField(
+        address = forms.CharField(
             label=_("FCM Key"), help_text=_("The key provided on the the Firebase Console when you created your app.")
         )
         send_notification = forms.CharField(
@@ -19,10 +19,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             help_text=_("Check if you want this channel to send notifications " "to contacts."),
             widget=forms.CheckboxInput(),
         )
-
-        def clean(self):
-            self.cleaned_data["address"] = self.cleaned_data["key"]
-            return super().clean()
 
     form_class = Form
 

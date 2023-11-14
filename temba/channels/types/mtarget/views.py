@@ -17,13 +17,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             label=_("Country"),
             help_text=_("The country this channel will be used in"),
         )
-        service_id = forms.CharField(label=_("Service ID"), help_text=_("The service ID as provided by Mtarget"))
+        address = forms.CharField(label=_("Service ID"), help_text=_("The service ID as provided by Mtarget"))
         username = forms.CharField(label=_("Username"), help_text=_("The username for your API account"))
         password = forms.CharField(label=_("Password"), help_text=_("The password for your API account"))
-
-        def clean(self):
-            self.cleaned_data["address"] = self.cleaned_data["service_id"]
-            return super().clean()
 
     form_class = Form
     template_name = "channels/channel_claim_form.html"

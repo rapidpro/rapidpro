@@ -42,7 +42,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(200, response.status_code)
         post_data = response.context["form"].initial
 
-        post_data["number"] = "1234"
+        post_data["address"] = "1234"
         post_data["username"] = "temba"
         post_data["password"] = "tembapasswd"
         post_data["country"] = "RW"
@@ -58,7 +58,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
         self.assertFormError(response, "form", None, ["Please enter a valid phone number"])
 
         # valid number
-        post_data["number"] = "0788123123"
+        post_data["address"] = "0788123123"
 
         # try once with an error
         with patch("requests.post") as mock_post:
@@ -194,7 +194,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(200, response.status_code)
         post_data = response.context["form"].initial
 
-        post_data["number"] = "0788123123"
+        post_data["address"] = "0788123123"
         post_data["username"] = "temba"
         post_data["password"] = "tembapasswd"
         post_data["country"] = "RW"
@@ -328,7 +328,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(200, response.status_code)
         post_data = response.context["form"].initial
 
-        post_data["number"] = "0788123123"
+        post_data["address"] = "0788123123"
         post_data["username"] = "temba"
         post_data["password"] = "tembapasswd"
         post_data["country"] = "RW"

@@ -21,16 +21,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             label=_("FreshChat Webhook Public Key"),
             help_text=_("Webhook Public Key used to verify signatures"),
         )
-        agent_id = forms.CharField(
+        address = forms.CharField(
             required=True, label=_("FreshChat Agent ID"), help_text=_("The UUID of the Agent you want RP to Use.")
         )
         auth_token = forms.CharField(
             required=True, label=_("FreshChat API Auth Token"), help_text=_("The API auth token- leave out the bearer")
         )
-
-        def clean(self):
-            self.cleaned_data["address"] = self.cleaned_data["agent_id"]
-            return super().clean()
 
     form_class = Form
 

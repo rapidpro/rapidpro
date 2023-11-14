@@ -34,7 +34,7 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(200, response.status_code)
         post_data = response.context["form"].initial
 
-        post_data["number"] = "1234"
+        post_data["address"] = "1234"
         post_data["country"] = "RW"
         post_data["api_key"] = "123456789"
 
@@ -43,7 +43,7 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
         self.assertFormError(response, "form", None, ["Please enter a valid phone number"])
 
         # valid number
-        post_data["number"] = "0788123123"
+        post_data["address"] = "0788123123"
 
         # then success
         with patch("socket.gethostbyname", return_value="123.123.123.123"), patch("requests.post") as mock_post:
