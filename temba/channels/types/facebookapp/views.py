@@ -94,13 +94,14 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
                 self.cleaned_data["page_access_token"] = page_access_token
                 self.cleaned_data["name"] = truncate(name, Channel._meta.get_field("name").max_length)
+                self.cleaned_data["address"] = page_id
 
             except Exception:
                 raise forms.ValidationError(
                     _("Sorry your Facebook channel could not be connected. Please try again"), code="invalid"
                 )
 
-            return self.cleaned_data
+            return super().clean()
 
     form_class = Form
 
@@ -119,7 +120,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         return context
 
     def form_valid(self, form):
-        page_id = form.cleaned_data["page_id"]
+        page_id = form.cleaned_data["address"]
         page_access_token = form.cleaned_data["page_access_token"]
         name = form.cleaned_data["name"]
 
@@ -127,6 +128,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_AUTH_TOKEN: page_access_token,
             Channel.CONFIG_PAGE_NAME: name,
         }
+
         self.object = Channel.create(
             self.request.org, self.request.user, None, self.channel_type, name=name, address=page_id, config=config
         )

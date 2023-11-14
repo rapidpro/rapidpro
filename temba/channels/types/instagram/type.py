@@ -19,6 +19,8 @@ class InstagramType(ChannelType):
     name = "Instagram"
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    unique_addresses = True
+
     courier_url = r"^ig/receive"
     schemes = [URN.INSTAGRAM_SCHEME]
     redact_values = (settings.FACEBOOK_APPLICATION_SECRET, settings.FACEBOOK_WEBHOOK_SECRET)

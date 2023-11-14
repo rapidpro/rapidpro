@@ -26,6 +26,8 @@ class WhatsAppType(ChannelType):
     category = ChannelType.Category.SOCIAL_MEDIA
     beta_only = True
 
+    unique_addresses = True
+
     courier_url = r"^wac/receive"
     schemes = [URN.WHATSAPP_SCHEME]
     redact_values = (settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN,)

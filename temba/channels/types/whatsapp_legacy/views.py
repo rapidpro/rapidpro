@@ -57,7 +57,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             normalized = URN.normalize_number(self.cleaned_data["number"], country)
             if not URN.validate(URN.from_parts(URN.TEL_SCHEME, normalized), country):
                 raise forms.ValidationError(_("Please enter a valid phone number"))
-            self.cleaned_data["number"] = normalized
+            self.cleaned_data["address"] = normalized
 
             try:
                 resp = requests.post(
@@ -74,16 +74,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 raise forms.ValidationError(
                     _("Unable to check WhatsApp enterprise account, please check username and password")
                 )
-
-            # validate we don't add the same number twice
-            existing = Channel.objects.filter(
-                is_active=True, address=self.cleaned_data["number"], schemes__overlap=list(self.channel_type.schemes)
-            ).first()
-            if existing:  # pragma: needs cover
-                if existing.org == self.request.org:
-                    raise forms.ValidationError(_("Number is already connected to this workspace"))
-
-                raise forms.ValidationError(_("Number is already connected to another workspace"))
 
             # check we can access their facebook templates
             from .type import TEMPLATE_LIST_URL
@@ -108,7 +98,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                             + "the whatsapp_business_management permission is enabled"
                         )
                     )
-            return self.cleaned_data
+            return super().clean()
 
     form_class = Form
 
@@ -141,8 +131,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             self.request.user,
             data["country"],
             self.channel_type,
-            name="WhatsApp: %s" % data["number"],
-            address=data["number"],
+            name="WhatsApp: %s" % data["address"],
+            address=data["address"],
             config=config,
             tps=45,
         )

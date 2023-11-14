@@ -86,6 +86,21 @@ class ClaimViewMixin(ChannelTypeMixin, OrgPermsMixin, ComponentFormMixin):
                     ),
                     params={"limit": limit},
                 )
+
+            if self.channel_type.unique_addresses:
+                assert self.cleaned_data.get("address"), "channel type should specify an address in Form.clean method"
+
+                # don't add the same channel address twice
+                existing = Channel.objects.filter(
+                    is_active=True,
+                    address=self.cleaned_data["address"],
+                    schemes__overlap=list(self.channel_type.schemes),
+                ).first()
+                if existing:
+                    if existing.org == self.request.org:
+                        raise forms.ValidationError(_("This channel is already connected in this workspace."))
+                    raise forms.ValidationError(_("This channel is already connected in another workspace."))
+
             return super().clean()
 
     def get_template_names(self):

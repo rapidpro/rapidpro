@@ -119,13 +119,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                     raise Exception("Failed to get IG user")
 
                 response_json = response.json()
-                self.cleaned_data["ig_user_id"] = response_json.get("instagram_business_account").get("id")
+                self.cleaned_data["address"] = response_json.get("instagram_business_account").get("id")
 
             except Exception as e:
                 logger.error(f"Unable to connect Instagram channel with error: {str(e)}", exc_info=True)
                 raise forms.ValidationError(_("Sorry your Instagram channel could not be connected. Please try again"))
 
-            return self.cleaned_data
+            return super().clean()
 
     form_class = Form
 
@@ -146,7 +146,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         page_id = form.cleaned_data["page_id"]
         page_access_token = form.cleaned_data["page_access_token"]
         name = form.cleaned_data["name"]
-        ig_user_id = form.cleaned_data["ig_user_id"]
+        ig_user_id = form.cleaned_data["address"]
 
         config = {
             Channel.CONFIG_AUTH_TOKEN: page_access_token,

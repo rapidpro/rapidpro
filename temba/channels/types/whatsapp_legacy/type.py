@@ -34,6 +34,8 @@ class WhatsAppLegacyType(ChannelType):
     category = ChannelType.Category.SOCIAL_MEDIA
     beta_only = True
 
+    unique_addresses = True
+
     courier_url = r"^wa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
     schemes = [URN.WHATSAPP_SCHEME]
 

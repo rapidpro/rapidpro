@@ -20,6 +20,8 @@ class FacebookAppType(ChannelType):
     name = "Facebook"
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    unique_addresses = True
+
     courier_url = r"^fba/receive"
     schemes = [URN.FACEBOOK_SCHEME]
     redact_values = (settings.FACEBOOK_APPLICATION_SECRET, settings.FACEBOOK_WEBHOOK_SECRET)
