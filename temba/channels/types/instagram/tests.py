@@ -294,6 +294,43 @@ class InstagramTypeTest(TembaTest):
         response = self.client.post(url, post_data, follow=True)
         self.assertContains(response, "Channel address is already connected to another workspace")
 
+        mock_get.side_effect = [
+            MockResponse(200, json.dumps({"data": {"user_id": "098765", "expired_at": 100}})),
+            MockResponse(200, json.dumps({"access_token": f"long-life-user-{self.token}"})),
+            MockResponse(
+                200,
+                json.dumps(
+                    {
+                        "data": [
+                            {
+                                "name": name,
+                                "id": "123456",
+                                "access_token": self.long_life_page_token,
+                            }
+                        ]
+                    }
+                ),
+            ),
+            MockResponse(
+                200,
+                json.dumps({"instagram_business_account": {"id": ""}, "id": "998776"}),
+            ),
+        ]
+
+        # can fetch the claim page
+        response = self.client.get(url)
+        self.assertContains(response, "Connect Instagram")
+        self.assertEqual(response.context["facebook_app_id"], "FB_APP_ID")
+        self.assertEqual(response.context["claim_url"], url)
+
+        post_data = response.context["form"].initial
+        post_data["user_access_token"] = self.token
+        post_data["page_id"] = "123456"
+        post_data["page_name"] = name
+
+        response = self.client.post(url, post_data, follow=True)
+        self.assertContains(response, "Cannot add a channel without specifying an address")
+
     @patch("requests.delete")
     def test_release(self, mock_delete):
         mock_delete.return_value = MockResponse(200, json.dumps({"success": True}))
