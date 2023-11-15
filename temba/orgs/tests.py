@@ -4508,6 +4508,21 @@ class BulkExportTest(TembaTest):
         response = self.client.get("%s?archived=1" % reverse("orgs.org_export"))
         self.assertNotContains(response, "Register Patient")
 
+    def test_prevent_flow_type_changes(self):
+        flow1 = self.get_flow("favorites")
+        flow1.name = "Background"
+        flow1.save(update_fields=("name",))
+
+        flow2 = self.get_flow("background")  # contains a flow called Background
+
+        flow1.refresh_from_db()
+        flow2.refresh_from_db()
+
+        self.assertNotEqual(flow1, flow2)
+        self.assertEqual("M", flow1.flow_type)
+        self.assertEqual("B", flow2.flow_type)
+        self.assertEqual("Background 2", flow2.name)
+
 
 class BackupTokenTest(TembaTest):
     def test_model(self):
