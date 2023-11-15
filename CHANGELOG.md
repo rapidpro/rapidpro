@@ -1,3 +1,8 @@
+v8.3.89 (2023-11-15)
+-------------------------
+ * Don't allow oeverwriting of flows with a different type during imports
+ * Enforce unique addresses for more channel types
+
 v8.3.88 (2023-11-14)
 -------------------------
  * Expose org.input_collation on languages formax
