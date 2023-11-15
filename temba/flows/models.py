@@ -275,9 +275,9 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             if same_site:
                 flow = org.flows.filter(is_active=True, uuid=flow_uuid).first()
 
-            # if it's not of our world, let's try by name
+            # if it's not of our world, let's try by name and type
             if not flow:
-                flow = org.flows.filter(is_active=True, name__iexact=flow_name).first()
+                flow = org.flows.filter(is_active=True, name__iexact=flow_name, flow_type=flow_type).first()
 
             if flow:
                 flow.name = Flow.get_unique_name(org, flow_name, ignore=flow)
