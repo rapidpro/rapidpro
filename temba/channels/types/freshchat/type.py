@@ -15,6 +15,8 @@ class FreshChatType(ChannelType):
     name = "FreshChat"
     category = ChannelType.Category.API
 
+    unique_addresses = True
+
     courier_url = r"^fc/(?P<uuid>[a-z0-9\-]+)/receive$"
     schemes = [URN.FRESHCHAT_SCHEME]
 

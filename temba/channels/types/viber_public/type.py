@@ -18,6 +18,8 @@ class ViberPublicType(ChannelType):
     name = "Viber"
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    unique_addresses = True
+
     courier_url = r"^vp/(?P<uuid>[a-z0-9\-]+)/receive$"
     schemes = [URN.VIBER_SCHEME]
 

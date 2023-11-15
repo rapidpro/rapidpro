@@ -23,6 +23,8 @@ class TwilioType(ChannelType):
     name = "Twilio"
     category = ChannelType.Category.PHONE
 
+    unique_addresses = True
+
     courier_url = r"^t/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
     schemes = [URN.TEL_SCHEME]
     redact_request_keys = (

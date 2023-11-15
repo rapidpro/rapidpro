@@ -19,6 +19,8 @@ class SlackType(ChannelType):
     name = "Slack"
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    unique_addresses = True
+
     courier_url = r"^sl/(?P<uuid>[a-z0-9\-]+)/receive$"
     schemes = [URN.SLACK_SCHEME]
 

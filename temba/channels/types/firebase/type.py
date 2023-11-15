@@ -15,6 +15,8 @@ class FirebaseCloudMessagingType(ChannelType):
     name = "Firebase Cloud Messaging"
     category = ChannelType.Category.API
 
+    unique_addresses = True
+
     courier_url = r"^fcm/(?P<uuid>[a-z0-9\-]+)/(?P<action>register|receive)$"
     schemes = [URN.FCM_SCHEME]
 

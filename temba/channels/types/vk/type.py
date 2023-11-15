@@ -20,6 +20,8 @@ class VKType(ChannelType):
     name = "VK"
     category = ChannelType.Category.SOCIAL_MEDIA
 
+    unique_addresses = True
+
     courier_url = r"^vk/(?P<uuid>[a-z0-9\-]+)/receive"
     schemes = [URN.VK_SCHEME]
 

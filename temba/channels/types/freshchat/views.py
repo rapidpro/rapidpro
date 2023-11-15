@@ -21,7 +21,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             label=_("FreshChat Webhook Public Key"),
             help_text=_("Webhook Public Key used to verify signatures"),
         )
-        agent_id = forms.CharField(
+        address = forms.CharField(
             required=True, label=_("FreshChat Agent ID"), help_text=_("The UUID of the Agent you want RP to Use.")
         )
         auth_token = forms.CharField(
@@ -32,17 +32,17 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
     def form_valid(self, form):
         title = form.cleaned_data.get("title")
-        agent_id = form.cleaned_data.get("agent_id")
+        address = form.cleaned_data.get("address")
         auth_token = form.cleaned_data.get("auth_token")
         webhook_key = form.cleaned_data.get("webhook_key")
         config = {
-            Channel.CONFIG_USERNAME: agent_id,
+            Channel.CONFIG_USERNAME: address,
             Channel.CONFIG_AUTH_TOKEN: auth_token,
             Channel.CONFIG_SECRET: webhook_key,
         }
 
         self.object = Channel.create(
-            self.request.org, self.request.user, None, self.channel_type, address=agent_id, name=title, config=config
+            self.request.org, self.request.user, None, self.channel_type, address=address, name=title, config=config
         )
 
         return super().form_valid(form)
