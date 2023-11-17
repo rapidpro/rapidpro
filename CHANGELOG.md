@@ -1,3 +1,7 @@
+v8.3.90 (2023-11-17)
+-------------------------
+ * Add pillow dependency
+
 v8.3.89 (2023-11-15)
 -------------------------
  * Don't allow oeverwriting of flows with a different type during imports
