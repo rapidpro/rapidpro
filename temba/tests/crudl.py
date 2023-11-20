@@ -352,12 +352,20 @@ class ObjectNotCreated(BaseCheck):
 class ObjectUnchanged(BaseCheck):
     def __init__(self, obj):
         self.obj = obj
-        self.obj_state = model_to_dict(obj)
+        self.obj_state = self.obj_as_dict(obj)
 
     def check(self, test_cls, response, msg_prefix):
         self.obj.refresh_from_db()
 
-        test_cls.assertEqual(self.obj_state, model_to_dict(self.obj), msg=f"{msg_prefix}: object state changed")
+        test_cls.assertEqual(self.obj_state, self.obj_as_dict(self.obj), msg=f"{msg_prefix}: object state changed")
+
+    def obj_as_dict(self, obj) -> dict:
+        d = model_to_dict(obj)
+        for k, v in d.items():
+            # don't consider list ordering as significant
+            if isinstance(v, list):
+                d[k] = list(sorted(v, key=lambda x: str(x)))
+        return d
 
 
 class ObjectDeleted(BaseCheck):
