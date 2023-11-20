@@ -1,10 +1,10 @@
 import itertools
 from enum import Enum
 
-from rest_framework import generics, status, views
+from rest_framework import generics, status
 from rest_framework.pagination import CursorPagination
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartFormView, SmartTemplateView
@@ -39,6 +39,7 @@ from ..support import (
     APITokenAuthentication,
     CreatedOnCursorPagination,
     DateJoinedCursorPagination,
+    DocumentationRenderer,
     InvalidQueryError,
     ModifiedOnCursorPagination,
     OrgUserRateThrottle,
@@ -94,160 +95,13 @@ from .serializers import (
 )
 
 
-class RootView(views.APIView):
-    """
-    We provide a RESTful JSON API for you to interact with your data from outside applications. The following endpoints
-    are available:
-
-     * [/api/v2/archives](/api/v2/archives) - to list archives of messages and runs
-     * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
-     * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send broadcasts
-     * [/api/v2/campaigns](/api/v2/campaigns) - to list, create, or update campaigns
-     * [/api/v2/campaign_events](/api/v2/campaign_events) - to list, create, update or delete campaign events
-     * [/api/v2/channels](/api/v2/channels) - to list channels
-     * [/api/v2/channel_events](/api/v2/channel_events) - to list channel events
-     * [/api/v2/classifiers](/api/v2/classifiers) - to list classifiers
-     * [/api/v2/contacts](/api/v2/contacts) - to list, create, update or delete contacts
-     * [/api/v2/contact_actions](/api/v2/contact_actions) - to perform bulk contact actions
-     * [/api/v2/fields](/api/v2/fields) - to list, create or update contact fields
-     * [/api/v2/flow_starts](/api/v2/flow_starts) - to list flow starts and start contacts in flows
-     * [/api/v2/flows](/api/v2/flows) - to list flows
-     * [/api/v2/globals](/api/v2/globals) - to list globals
-     * [/api/v2/groups](/api/v2/groups) - to list, create, update or delete contact groups
-     * [/api/v2/labels](/api/v2/labels) - to list, create, update or delete message labels
-     * [/api/v2/media](/api/v2/media) - to upload media for messages
-     * [/api/v2/messages](/api/v2/messages) - to list and send messages
-     * [/api/v2/message_actions](/api/v2/message_actions) - to perform bulk message actions
-     * [/api/v2/runs](/api/v2/runs) - to list flow runs
-     * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
-     * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
-     * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
-     * [/api/v2/templates](/api/v2/templates) - to list current WhatsApp templates on your account
-     * [/api/v2/tickets](/api/v2/tickets) - to list tickets
-     * [/api/v2/ticket_actions](/api/v2/ticket_actions) - to perform bulk ticket actions
-     * [/api/v2/topics](/api/v2/topics) - to list and create topics
-     * [/api/v2/users](/api/v2/users) - to list user logins
-     * [/api/v2/workspace](/api/v2/workspace) - to view your workspace
-
-    To use the endpoint simply append _.json_ to the URL. For example [/api/v2/flows](/api/v2/flows) will return the
-    documentation for that endpoint but a request to [/api/v2/flows.json](/api/v2/flows.json) will return a JSON list of
-    flow resources.
-
-    You may wish to use the [API Explorer](/api/v2/explorer) to interactively experiment with the API.
-
-    ## Verbs
-
-    All endpoints follow standard REST conventions. You can list a set of resources by making a `GET` request to the
-    endpoint, create or update resources by making a `POST` request, or delete a resource with a `DELETE` request.
-
-    ## Status Codes
-
-    The success or failure of requests is represented by status codes as well as a message in the response body:
-
-     * **200**: A list or update request was successful.
-     * **201**: A resource was successfully created (only returned for `POST` requests).
-     * **204**: An empty response - used for both successful `DELETE` requests and `POST` requests that update multiple
-                resources.
-     * **400**: The request failed due to invalid parameters. Do not retry with the same values, and the body of the
-                response will contain details.
-     * **403**: You do not have permission to access this resource.
-     * **404**: The resource was not found (returned by `POST` and `DELETE` methods).
-     * **429**: You have exceeded the rate limit for this endpoint (see below).
-
-    ## Rate Limiting
-
-    All endpoints are subject to rate limiting. If you exceed the number of allowed requests in a given time window, you
-    will get a response with status code 429. The response will also include a header called 'Retry-After' which will
-    specify the number of seconds that you should wait for before making further requests.
-
-    The rate limit for all endpoints is 2,500 requests per hour. It is important to honor the Retry-After header when
-    encountering 429 responses as the limit is subject to change without notice.
-
-    ## Date Values
-
-    Many endpoints either return datetime values or can take datatime parameters. The values returned will always be in
-    UTC, in the following format: `YYYY-MM-DDThh:mm:ss.ssssssZ`, where `ssssss` is the number of microseconds and
-    `Z` denotes the UTC timezone.
-
-    When passing datetime values as parameters, you should use this same format, e.g. `2016-10-13T11:54:32.525277Z`.
-
-    ## URN Values
-
-    We use URNs (Uniform Resource Names) to describe the different ways of communicating with a contact. These can be
-    phone numbers, Twitter handles etc. For example a contact might have URNs like:
-
-     * **tel:+250788123123**
-     * **twitter:jack**
-     * **mailto:jack@example.com**
-
-    Phone numbers should always be given in full [E164 format](http://en.wikipedia.org/wiki/E.164).
-
-    ## Translatable Values
-
-    Some endpoints return or accept text fields that may be translated into different languages. These should be objects
-    with ISO-639-3 language codes as keys, e.g. `{"eng": "Hello", "fra": "Bonjour"}`
-
-    ## Authentication
-
-    You must authenticate all calls by including an `Authorization` header with your API token. If you are logged in,
-    your token will be visible at the top of this page. The Authorization header should look like:
-
-        Authorization: Token YOUR_API_TOKEN
-
-    For security reasons, all calls must be made using HTTPS.
-
-    ## Clients
-
-    There is an official [Python client library](https://github.com/rapidpro/rapidpro-python) which we recommend for all
-    Python users of the API.
-    """
-
-    authentication_classes = (APISessionAuthentication, APITokenAuthentication)
-    permission_classes = (SSLPermission, IsAuthenticated)
-
-    def get(self, request, *args, **kwargs):
-        return Response(
-            {
-                "archives": reverse("api.v2.archives", request=request),
-                "boundaries": reverse("api.v2.boundaries", request=request),
-                "broadcasts": reverse("api.v2.broadcasts", request=request),
-                "campaigns": reverse("api.v2.campaigns", request=request),
-                "campaign_events": reverse("api.v2.campaign_events", request=request),
-                "channels": reverse("api.v2.channels", request=request),
-                "channel_events": reverse("api.v2.channel_events", request=request),
-                "classifiers": reverse("api.v2.classifiers", request=request),
-                "contacts": reverse("api.v2.contacts", request=request),
-                "contact_actions": reverse("api.v2.contact_actions", request=request),
-                "fields": reverse("api.v2.fields", request=request),
-                "flow_starts": reverse("api.v2.flow_starts", request=request),
-                "flows": reverse("api.v2.flows", request=request),
-                "globals": reverse("api.v2.globals", request=request),
-                "groups": reverse("api.v2.groups", request=request),
-                "labels": reverse("api.v2.labels", request=request),
-                "media": reverse("api.v2.media", request=request),
-                "messages": reverse("api.v2.messages", request=request),
-                "message_actions": reverse("api.v2.message_actions", request=request),
-                "resthooks": reverse("api.v2.resthooks", request=request),
-                "resthook_events": reverse("api.v2.resthook_events", request=request),
-                "resthook_subscribers": reverse("api.v2.resthook_subscribers", request=request),
-                "runs": reverse("api.v2.runs", request=request),
-                "templates": reverse("api.v2.templates", request=request),
-                "tickets": reverse("api.v2.tickets", request=request),
-                "ticket_actions": reverse("api.v2.ticket_actions", request=request),
-                "topics": reverse("api.v2.topics", request=request),
-                "users": reverse("api.v2.users", request=request),
-                "workspace": reverse("api.v2.workspace", request=request),
-            }
-        )
-
-
 class ExplorerView(OrgPermsMixin, SmartTemplateView):
     """
     Explorer view which lets users experiment with endpoints against their own data
     """
 
     permission = "api.apitoken_explorer"
-    template_name = "api/v2/api_explorer.html"
+    template_name = "api/v2/explorer.html"
     title = _("API Explorer")
 
     def get_context_data(self, **kwargs):
@@ -351,6 +205,10 @@ class AuthenticateView(SmartFormView):
             return HttpResponse(status=403)
 
 
+class DocumentationRenderer(DocumentationRenderer):
+    template = "api/v2/docs.html"
+
+
 class BaseEndpoint(BaseAPIView):
     """
     Base class of all our API V2 endpoints
@@ -358,8 +216,158 @@ class BaseEndpoint(BaseAPIView):
 
     authentication_classes = (APISessionAuthentication, APITokenAuthentication, APIBasicAuthentication)
     permission_classes = (SSLPermission, APIPermission)
+    renderer_classes = (DocumentationRenderer, JSONRenderer)
     throttle_classes = (OrgUserRateThrottle,)
     throttle_scope = "v2"
+
+
+class RootView(BaseEndpoint):
+    """
+    We provide a RESTful JSON API for you to interact with your data from outside applications. The following endpoints
+    are available:
+
+     * [/api/v2/archives](/api/v2/archives) - to list archives of messages and runs
+     * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
+     * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send broadcasts
+     * [/api/v2/campaigns](/api/v2/campaigns) - to list, create, or update campaigns
+     * [/api/v2/campaign_events](/api/v2/campaign_events) - to list, create, update or delete campaign events
+     * [/api/v2/channels](/api/v2/channels) - to list channels
+     * [/api/v2/channel_events](/api/v2/channel_events) - to list channel events
+     * [/api/v2/classifiers](/api/v2/classifiers) - to list classifiers
+     * [/api/v2/contacts](/api/v2/contacts) - to list, create, update or delete contacts
+     * [/api/v2/contact_actions](/api/v2/contact_actions) - to perform bulk contact actions
+     * [/api/v2/fields](/api/v2/fields) - to list, create or update contact fields
+     * [/api/v2/flow_starts](/api/v2/flow_starts) - to list flow starts and start contacts in flows
+     * [/api/v2/flows](/api/v2/flows) - to list flows
+     * [/api/v2/globals](/api/v2/globals) - to list globals
+     * [/api/v2/groups](/api/v2/groups) - to list, create, update or delete contact groups
+     * [/api/v2/labels](/api/v2/labels) - to list, create, update or delete message labels
+     * [/api/v2/media](/api/v2/media) - to upload media for messages
+     * [/api/v2/messages](/api/v2/messages) - to list and send messages
+     * [/api/v2/message_actions](/api/v2/message_actions) - to perform bulk message actions
+     * [/api/v2/runs](/api/v2/runs) - to list flow runs
+     * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
+     * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
+     * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
+     * [/api/v2/templates](/api/v2/templates) - to list current WhatsApp templates on your account
+     * [/api/v2/tickets](/api/v2/tickets) - to list tickets
+     * [/api/v2/ticket_actions](/api/v2/ticket_actions) - to perform bulk ticket actions
+     * [/api/v2/topics](/api/v2/topics) - to list and create topics
+     * [/api/v2/users](/api/v2/users) - to list user logins
+     * [/api/v2/workspace](/api/v2/workspace) - to view your workspace
+
+    To use the endpoint simply append _.json_ to the URL. For example [/api/v2/flows](/api/v2/flows) will return the
+    documentation for that endpoint but a request to [/api/v2/flows.json](/api/v2/flows.json) will return a JSON list of
+    flow resources.
+
+    You may wish to use the [API Explorer](/api/v2/explorer) to interactively experiment with the API.
+
+    ## Verbs
+
+    All endpoints follow standard REST conventions. You can list a set of resources by making a `GET` request to the
+    endpoint, create or update resources by making a `POST` request, or delete a resource with a `DELETE` request.
+
+    ## Status Codes
+
+    The success or failure of requests is represented by status codes as well as a message in the response body:
+
+     * **200**: A list or update request was successful.
+     * **201**: A resource was successfully created (only returned for `POST` requests).
+     * **204**: An empty response - used for both successful `DELETE` requests and `POST` requests that update multiple
+                resources.
+     * **400**: The request failed due to invalid parameters. Do not retry with the same values, and the body of the
+                response will contain details.
+     * **403**: You do not have permission to access this resource.
+     * **404**: The resource was not found (returned by `POST` and `DELETE` methods).
+     * **429**: You have exceeded the rate limit for this endpoint (see below).
+
+    ## Rate Limiting
+
+    All endpoints are subject to rate limiting. If you exceed the number of allowed requests in a given time window, you
+    will get a response with status code 429. The response will also include a header called 'Retry-After' which will
+    specify the number of seconds that you should wait for before making further requests.
+
+    The rate limit for all endpoints is 2,500 requests per hour. It is important to honor the Retry-After header when
+    encountering 429 responses as the limit is subject to change without notice.
+
+    ## Date Values
+
+    Many endpoints either return datetime values or can take datatime parameters. The values returned will always be in
+    UTC, in the following format: `YYYY-MM-DDThh:mm:ss.ssssssZ`, where `ssssss` is the number of microseconds and
+    `Z` denotes the UTC timezone.
+
+    When passing datetime values as parameters, you should use this same format, e.g. `2016-10-13T11:54:32.525277Z`.
+
+    ## URN Values
+
+    We use URNs (Uniform Resource Names) to describe the different ways of communicating with a contact. These can be
+    phone numbers, Twitter handles etc. For example a contact might have URNs like:
+
+     * **tel:+250788123123**
+     * **twitter:jack**
+     * **mailto:jack@example.com**
+
+    Phone numbers should always be given in full [E164 format](http://en.wikipedia.org/wiki/E.164).
+
+    ## Translatable Values
+
+    Some endpoints return or accept text fields that may be translated into different languages. These should be objects
+    with ISO-639-3 language codes as keys, e.g. `{"eng": "Hello", "fra": "Bonjour"}`
+
+    ## Authentication
+
+    You must authenticate all calls by including an `Authorization` header with your API token. The Authorization header
+    should look like:
+
+        Authorization: Token YOUR_API_TOKEN
+
+    For security reasons, all calls must be made using HTTPS.
+
+    ## Clients
+
+    There is an official [Python client library](https://github.com/rapidpro/rapidpro-python) which we recommend for all
+    Python users of the API.
+    """
+
+    permission_classes = (SSLPermission,)
+
+    def get_view_name(self):
+        return self.request.branding["name"] + " API v2"
+
+    def get(self, request, *args, **kwargs):
+        return Response(
+            {
+                "archives": reverse("api.v2.archives", request=request),
+                "boundaries": reverse("api.v2.boundaries", request=request),
+                "broadcasts": reverse("api.v2.broadcasts", request=request),
+                "campaigns": reverse("api.v2.campaigns", request=request),
+                "campaign_events": reverse("api.v2.campaign_events", request=request),
+                "channels": reverse("api.v2.channels", request=request),
+                "channel_events": reverse("api.v2.channel_events", request=request),
+                "classifiers": reverse("api.v2.classifiers", request=request),
+                "contacts": reverse("api.v2.contacts", request=request),
+                "contact_actions": reverse("api.v2.contact_actions", request=request),
+                "fields": reverse("api.v2.fields", request=request),
+                "flow_starts": reverse("api.v2.flow_starts", request=request),
+                "flows": reverse("api.v2.flows", request=request),
+                "globals": reverse("api.v2.globals", request=request),
+                "groups": reverse("api.v2.groups", request=request),
+                "labels": reverse("api.v2.labels", request=request),
+                "media": reverse("api.v2.media", request=request),
+                "messages": reverse("api.v2.messages", request=request),
+                "message_actions": reverse("api.v2.message_actions", request=request),
+                "resthooks": reverse("api.v2.resthooks", request=request),
+                "resthook_events": reverse("api.v2.resthook_events", request=request),
+                "resthook_subscribers": reverse("api.v2.resthook_subscribers", request=request),
+                "runs": reverse("api.v2.runs", request=request),
+                "templates": reverse("api.v2.templates", request=request),
+                "tickets": reverse("api.v2.tickets", request=request),
+                "ticket_actions": reverse("api.v2.ticket_actions", request=request),
+                "topics": reverse("api.v2.topics", request=request),
+                "users": reverse("api.v2.users", request=request),
+                "workspace": reverse("api.v2.workspace", request=request),
+            }
+        )
 
 
 # ============================================================

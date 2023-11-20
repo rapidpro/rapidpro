@@ -1,8 +1,8 @@
 {% extends "no_nav.html" %}
-{% load rest_framework static smartmin %}
+{% load rest_framework static smartmin i18n %}
 
 {% block head-title %}
-  {{ branding.name }} API v2
+  {{ name }}
 {% endblock head-title %}
 {% block page-top %}
 {% endblock page-top %}
@@ -118,57 +118,17 @@
     strong {
       font-weight: bold;
     }
-
-    .breadcrumb {
-      display: flex;
-      flex-wrap: wrap;
-    }
-
-    .token {
-      white-space: nowrap;
-    }
   </style>
 {% endblock extra-style %}
 {% block content %}
-  {% block breadcrumbs %}
-    <div class="breadcrumb">
-      <div class="ml-1">
-        <a href="/">{{ branding.name }}</a>
-        <span class="divider">&rsaquo;</span>
-      </div>
-      {% for breadcrumb_name, breadcrumb_url in breadcrumblist %}
-        <div class="mx-1">
-          <a href="{{ breadcrumb_url }}" {% if forloop.last %}class="active"{% endif %}>
-            {% if forloop.first %}
-              API v2
-            {% else %}
-              {{ breadcrumb_name }}
-            {% endif %}
-          </a>
-          {% if not forloop.last %}<span class="divider">&rsaquo;</span>{% endif %}
-        </div>
-      {% endfor %}
-      <li class="mr-4" style="flex-grow:1"></li>
-      {% if api_token %}
-        <li class="token" style="color: #666">API Token: {{ api_token }}</li>
-      {% else %}
-        <li class="pull-right">Log in to get your API Token</li>
-      {% endif %}
-    </div>
-  {% endblock breadcrumbs %}
-  <!-- Content -->
   <div id="content" class="px-8 pb-8">
     <div class="content-main">
       <div class="flex mb-8">
-        <div class="flex-grow page-title">
-          {% if name == "Root" %}
-            {{ branding.name }} API v2
-          {% else %}
-            {{ name }}
-          {% endif %}
+        <div class="flex-grow page-title">{{ name }}</div>
+        <div>
+          {% block api-menu %}
+          {% endblock api-menu %}
         </div>
-        <temba-button href='{% url "api.v2.explorer" %}' name="API Explorer">
-        </temba-button>
       </div>
       {{ description }}
     </div>
