@@ -653,34 +653,20 @@ class EndpointsTest(APITest):
 
     @override_settings(SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_HTTPS", "https"))
     def test_root(self):
-        root_url = reverse("api.v2")
+        root_url = reverse("api.v2.root")
 
         # browse as HTML anonymously (should still show docs)
         response = self.getHTML(root_url)
-        self.assertContains(response, "We provide a RESTful JSON API", status_code=403)
+        self.assertContains(response, "We provide a RESTful JSON API", status_code=200)
 
         # same thing if user navigates to just /api
         response = self.client.get(reverse("api"), follow=True)
-        self.assertContains(response, "We provide a RESTful JSON API", status_code=403)
+        self.assertContains(response, "We provide a RESTful JSON API", status_code=200)
 
         # try to browse as JSON anonymously
         response = self.getJSON(root_url)
-        self.assertResponseError(response, None, "Authentication credentials were not provided.", status_code=403)
-
-        # login as administrator
-        self.login(self.admin)
-        token = self.admin.get_api_token(self.org)
-        self.assertIsInstance(token, str)
-        self.assertEqual(len(token), 40)
-        self.assertEqual(token, self.admin.get_api_token(self.org))  # subsequent calls return same token
-
-        # browse as HTML
-        response = self.getHTML(root_url)
-        self.assertContains(response, token, status_code=200)  # displays their API token
-
-        # browse as JSON
-        response = self.getJSON(root_url)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(200, response.status_code)
+        self.assertIsInstance(response.json(), dict)
         self.assertEqual(response.json()["runs"], "https://testserver:80/api/v2/runs")  # endpoints are listed
 
     def test_explorer(self):

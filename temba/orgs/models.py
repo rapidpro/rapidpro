@@ -282,9 +282,13 @@ class User(AuthUser):
         return UserSettings.objects.get_or_create(user=self)[0]
 
     def get_api_token(self, org) -> str:
-        from temba.api.models import get_or_create_api_token
+        from temba.api.models import APIToken
 
-        return get_or_create_api_token(org, self)
+        try:
+            token = APIToken.get_or_create(org, self)
+            return token.key
+        except ValueError:
+            return None
 
     def recover_password(self, branding: dict):
         """

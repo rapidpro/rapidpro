@@ -41,7 +41,7 @@ from .views import (
 )
 
 urlpatterns = [
-    re_path(r"^$", RootView.as_view(), name="api.v2"),
+    re_path(r"^$", RootView.as_view(), name="api.v2.root"),
     re_path(r"^explorer/$", ExplorerView.as_view(), name="api.v2.explorer"),
     re_path(r"^authenticate$", AuthenticateView.as_view(), name="api.v2.authenticate"),
     # ========== endpoints A-Z ===========
