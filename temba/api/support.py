@@ -136,7 +136,7 @@ class DocumentationRenderer(BrowsableAPIRenderer):
     instead have a separate API explorer page. This render then just displays the endpoint docs.
     """
 
-    template = "api/v2/docs.html"
+    template = "api/docs.html"
 
     def get_context(self, data, accepted_media_type, renderer_context):
         view = renderer_context["view"]

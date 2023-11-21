@@ -296,17 +296,3 @@ class APIToken(models.Model):
 
     def __str__(self):
         return self.key
-
-
-def get_or_create_api_token(org, user):
-    """
-    Gets or creates an API token for this user. If user doen't have access to the API, this returns None.
-    """
-
-    try:
-        token = APIToken.get_or_create(org, user)
-        return token.key
-    except ValueError:
-        pass
-
-    return None

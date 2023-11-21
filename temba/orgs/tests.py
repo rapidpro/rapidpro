@@ -131,13 +131,15 @@ class UserTest(TembaTest):
     def test_model(self):
         user = User.create("jim@rapidpro.io", "Jim", "McFlow", password="super")
         self.org.add_user(user, OrgRole.EDITOR)
-        self.org2.add_user(user, OrgRole.EDITOR)
+        self.org2.add_user(user, OrgRole.AGENT)
 
         self.assertEqual("Jim McFlow", user.name)
         self.assertFalse(user.is_alpha)
         self.assertFalse(user.is_beta)
         self.assertEqual({"email": "jim@rapidpro.io", "name": "Jim McFlow"}, user.as_engine_ref())
         self.assertEqual([self.org, self.org2], list(user.get_orgs().order_by("id")))
+        self.assertEqual(40, len(user.get_api_token(self.org)))
+        self.assertIsNone(user.get_api_token(self.org2))  # can't generate API token as agent
 
         user.last_name = ""
         user.save(update_fields=("last_name",))
