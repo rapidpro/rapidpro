@@ -5,124 +5,120 @@
   {{ branding.name }} - API Explorer
 {% endblock page-title %}
 {% block content %}
-  {% block breadcrumbs %}
-    <ul class="breadcrumb">
-      <li>
-        <a href="/">{{ branding.name }}</a>
-        <span class="divider">&rsaquo;</span>
-        <a href="{% url 'api.v2.root' %}">API v2</a>
-        <span class="divider">&rsaquo;</span>
-      </li>
-      <li class="mr-4 ml-1">
-        <a href="{% url 'api.v2.explorer' %}" class="active">{% trans "Explorer" %}</a>
-      </li>
-      <li style="flex-grow:1"></li>
-      <li style="color: #666">API Token: {{ api_token }}</li>
-    </ul>
-  {% endblock breadcrumbs %}
-  <div style="position: relative;" class="flex justify-between items-center pb-1 mb-4 px-8">
-    <h1 class="page-title leading-tight">API Explorer</h1>
-    <div class="bg-white px-4 py-2 border-primary border text-primary font-medium rounded-lg">All operations work against live data</div>
-  </div>
-  {% for endpoint in endpoints %}
-    <div class="card hover-box">
-      <div onclick="handleToggle(event)"
-           data-slug="{{ endpoint.slug }}"
-           data-method="{{ endpoint.method }}"
-           class="cursor-pointer endpoint-title">
-        <div class="md:hidden endpoint-description my-2">{{ endpoint.title }}</div>
-        <div class="flex items-center">
-          <div class="method-{{ endpoint.method|lower }} endpoint-method font-mono rounded-lg">{{ endpoint.method }}</div>
-          <div class="endpoint-url flex-grow font-mono">{{ endpoint.url }}.json</div>
-          <div class="md:block endpoint-description hidden">{{ endpoint.title }}</div>
-        </div>
-      </div>
-      <div class="endpoint-{{ endpoint.method|lower }} endpoint bg-white border-t">
-        {% if endpoint.params %}
-          <div class="title my-4">{% trans "Query String Parameters" %}</div>
-          <table>
-            <div class="tbody">
-              {% for item in endpoint.params %}
-                <tr>
-                  <td class="{% if item.required %}field-required{% endif %} field text-right font-medium text-gray-600 px-4 py-2">{{ item.name }}</td>
-                  <td class="font-light">
-                    {{ item.help }}
-                    {% if item.required %}
-                      (required)
-                    {% else %}
-                      (optional)
-                    {% endif %}
-                  </td>
-                </tr>
-              {% endfor %}
-            </div>
-          </table>
-        {% endif %}
-        {% if endpoint.fields %}
-          <div class="title my-4">{% trans "Post Body Fields" %}</div>
-          <table>
-            <div class="tbody">
-              {% for item in endpoint.fields %}
-                <tr>
-                  <td class="{% if item.required %}field-required{% endif %} field text-right font-medium text-gray-600 px-4 py-2">{{ item.name }}</td>
-                  <td class="font-light">
-                    {{ item.help }}
-                    {% if item.required %}
-                      (required)
-                    {% else %}
-                      (optional)
-                    {% endif %}
-                  </td>
-                </tr>
-              {% endfor %}
-            </div>
-          </table>
-        {% endif %}
-        <div class="request-form rounded-lg border p-6 bg-gray-100">
-          <div class="request-header font-mono mb-4">
-            <b class="font-bold">{{ endpoint.method }}</b>
-            <div class="md:text-base md:inline whitespace-nowrap text-sm">
-              https://{{ branding.domain }}{{ endpoint.url }}.json<span class="query-display"></span>
-              <br />
-            </div>
-            <b class="font-bold">Authorization:</b>
-            <div class="md:text-base md:inline whitespace-nowrap text-sm">Token {{ api_token }}</div>
-          </div>
-          {% if endpoint.params %}
-            <div class="md:flex form-group items-center">
-              <label class="md:text-right control-label self-start pt-4 w-56 pr-6">{% trans "Query String" %}</label>
-              <div class="flex-grow">
-                <textarea oninput="handleQueryInput(event)"
-                          rows="1"
-                          class="textinput p-2 rounded request-query"
-                          id="request-query-{{ endpoint.slug }}">{{ endpoint.example.query }}</textarea>
-              </div>
-            </div>
-          {% endif %}
-          {% if endpoint.fields %}
-            <div class="md:flex form-group items-center">
-              <label class="md:text-right control-label self-start pt-4 w-56 pr-6">{% trans "Post Body" %}</label>
-              <div class="flex-grow">
-                <textarea rows="5" class="textinput p-2 rounded request-body" id="request-body-{{ endpoint.slug }}">{{ endpoint.example.body }}</textarea>
-              </div>
-            </div>
-          {% endif %}
-        </div>
-        <div class="request-buttons flex justify-between items-center mt-4 h-12">
-          <div class="pull-left">
-            <a href="{{ endpoint.url }}">{% trans "View Full Documentation" %}</a>
-          </div>
-          {% if api_token %}
-            <div onclick="javascript:handleRequest('{{ endpoint.slug }}', '{{ endpoint.method }}', '{{ endpoint.url }}.json')"
-                 class="button-primary">{{ endpoint.method|upper }}</div>
-          {% else %}
-            <span>{% trans "Log in to use the Explorer" %}</span>
-          {% endif %}
-        </div>
-        <pre style="margin-bottom:0;" class="prettyprint result mb-0 mt-4 p-4" id="result-{{ endpoint.slug }}"></pre>
+  <div class="px-8 pb-8">
+    <div class="flex mb-4">
+      <div class="flex-grow page-title">API Explorer</div>
+      <div>
+        <a class="button-light ml-4" href="{% url "api.v2.root" %}">{% trans "Documentation" %}</a>
       </div>
     </div>
-  {% endfor %}
+    <div class="mb-4">
+      <temba-alert level="warning">
+        {% blocktrans trimmed with org=user_org.name %}
+          All operations work against real data in the <b>{{ org }}</b> workspace.
+        {% endblocktrans %}
+      </temba-alert>
+    </div>
+    {% for endpoint in endpoints %}
+      <div class="card hover-box">
+        <div onclick="handleToggle(event)"
+             data-slug="{{ endpoint.slug }}"
+             data-method="{{ endpoint.method }}"
+             class="cursor-pointer endpoint-title">
+          <div class="md:hidden endpoint-description my-2">{{ endpoint.title }}</div>
+          <div class="flex items-center">
+            <div class="method-{{ endpoint.method|lower }} endpoint-method font-mono rounded-lg">{{ endpoint.method }}</div>
+            <div class="endpoint-url flex-grow font-mono">{{ endpoint.url }}.json</div>
+            <div class="md:block endpoint-description hidden">{{ endpoint.title }}</div>
+          </div>
+        </div>
+        <div class="endpoint-{{ endpoint.method|lower }} endpoint bg-white border-t">
+          {% if endpoint.params %}
+            <div class="title my-4">{% trans "Query String Parameters" %}</div>
+            <table>
+              <div class="tbody">
+                {% for item in endpoint.params %}
+                  <tr>
+                    <td class="{% if item.required %}field-required{% endif %} field text-right font-medium text-gray-600 px-4 py-2">{{ item.name }}</td>
+                    <td class="font-light">
+                      {{ item.help }}
+                      {% if item.required %}
+                        (required)
+                      {% else %}
+                        (optional)
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </div>
+            </table>
+          {% endif %}
+          {% if endpoint.fields %}
+            <div class="title my-4">{% trans "Post Body Fields" %}</div>
+            <table>
+              <div class="tbody">
+                {% for item in endpoint.fields %}
+                  <tr>
+                    <td class="{% if item.required %}field-required{% endif %} field text-right font-medium text-gray-600 px-4 py-2">{{ item.name }}</td>
+                    <td class="font-light">
+                      {{ item.help }}
+                      {% if item.required %}
+                        (required)
+                      {% else %}
+                        (optional)
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </div>
+            </table>
+          {% endif %}
+          <div class="request-form rounded-lg border p-6 bg-gray-100">
+            <div class="request-header font-mono mb-4">
+              <b class="font-bold">{{ endpoint.method }}</b>
+              <div class="md:text-base md:inline whitespace-nowrap text-sm">
+                https://{{ branding.domain }}{{ endpoint.url }}.json<span class="query-display"></span>
+                <br />
+              </div>
+              <b class="font-bold">Authorization:</b>
+              <div class="md:text-base md:inline whitespace-nowrap text-sm">Token {{ api_token }}</div>
+            </div>
+            {% if endpoint.params %}
+              <div class="md:flex form-group items-center">
+                <label class="md:text-right control-label self-start pt-4 w-56 pr-6">{% trans "Query String" %}</label>
+                <div class="flex-grow">
+                  <textarea oninput="handleQueryInput(event)"
+                            rows="1"
+                            class="textinput p-2 rounded request-query"
+                            id="request-query-{{ endpoint.slug }}">{{ endpoint.example.query }}</textarea>
+                </div>
+              </div>
+            {% endif %}
+            {% if endpoint.fields %}
+              <div class="md:flex form-group items-center">
+                <label class="md:text-right control-label self-start pt-4 w-56 pr-6">{% trans "Post Body" %}</label>
+                <div class="flex-grow">
+                  <textarea rows="5" class="textinput p-2 rounded request-body" id="request-body-{{ endpoint.slug }}">{{ endpoint.example.body }}</textarea>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+          <div class="request-buttons flex justify-between items-center mt-4 h-12">
+            <div class="pull-left">
+              <a href="{{ endpoint.url }}">{% trans "View Full Documentation" %}</a>
+            </div>
+            {% if api_token %}
+              <div onclick="javascript:handleRequest('{{ endpoint.slug }}', '{{ endpoint.method }}', '{{ endpoint.url }}.json')"
+                   class="button-primary">{{ endpoint.method|upper }}</div>
+            {% else %}
+              <span>{% trans "Log in to use the Explorer" %}</span>
+            {% endif %}
+          </div>
+          <pre style="margin-bottom:0;" class="prettyprint result mb-0 mt-4 p-4" id="result-{{ endpoint.slug }}"></pre>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
 {% endblock content %}
 {% block extra-script %}
   {{ block.super }}
@@ -208,7 +204,6 @@
 
     .card {
       padding: 0;
-      margin: 1em 2em;
     }
 
     .page-content {
