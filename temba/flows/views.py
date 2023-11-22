@@ -1518,9 +1518,9 @@ class FlowCRUDL(SmartCRUDL):
             if "trigger" in json_dict:
                 payload["trigger"] = json_dict["trigger"]
 
-                # ivr flows need a connection in their trigger
+                # ivr flows need a call in their trigger
                 if flow.flow_type == Flow.TYPE_VOICE:
-                    payload["trigger"]["connection"] = {
+                    payload["trigger"]["call"] = {
                         "channel": {"uuid": channel_uuid, "name": channel_name},
                         "urn": "tel:+12065551212",
                     }
