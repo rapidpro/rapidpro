@@ -1,3 +1,7 @@
+v8.3.93 (2023-11-23)
+-------------------------
+ * Fix IVR simulation
+
 v8.3.92 (2023-11-22)
 -------------------------
  * Tweak appearance of API explorer
