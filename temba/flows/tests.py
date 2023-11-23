@@ -5238,7 +5238,7 @@ class SimulationTest(TembaTest):
                 # since this is an IVR flow, the session trigger will have a connection
                 self.assertEqual(
                     {
-                        "connection": {
+                        "call": {
                             "channel": {"uuid": "440099cf-200c-4d45-a8e7-4a564f4a0e8b", "name": "Test Channel"},
                             "urn": "tel:+12065551212",
                         },
