@@ -57,12 +57,14 @@ class TemplateTranslation(models.Model):
     STATUS_PENDING = "P"
     STATUS_REJECTED = "R"
     STATUS_UNSUPPORTED_LANGUAGE = "U"
+    STATUS_UNSUPPORTED_COMPONENTS = "X"
 
     STATUS_CHOICES = (
         (STATUS_APPROVED, "approved"),
         (STATUS_PENDING, "pending"),
         (STATUS_REJECTED, "rejected"),
         (STATUS_UNSUPPORTED_LANGUAGE, "unsupported_language"),
+        (STATUS_UNSUPPORTED_COMPONENTS, "unsupported_components"),
     )
 
     # the template this maps to
@@ -72,7 +74,13 @@ class TemplateTranslation(models.Model):
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="template_translations")
 
     # the content of this template
-    content = models.TextField(null=False)
+    content = models.TextField(null=True)
+
+    # the components JSON of this template
+    components = models.JSONField(default=list)
+
+    # the parameters JSON for this template
+    params = models.JSONField(default=dict)
 
     # how many variables this template contains
     variable_count = models.IntegerField()

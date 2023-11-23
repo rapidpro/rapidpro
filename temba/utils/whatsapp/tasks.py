@@ -1,6 +1,7 @@
 import logging
 import re
 import time
+from collections import defaultdict
 
 import requests
 from celery import shared_task
@@ -89,6 +90,36 @@ def _calculate_variable_count(content):
     return count
 
 
+def _extract_template_params(components):
+    params = defaultdict(list)
+
+    for component in components:
+        component_type = component["type"].lower()
+
+        if component_type == "header":
+            if component.get("format", "text").upper() == "TEXT":
+                for match in VARIABLE_RE.findall(component["text"]):
+                    params[component_type].append({"type": "text"})
+            else:
+                params[component_type].append({"type": component["format"].lower()})
+        if component_type == "body":
+            for match in VARIABLE_RE.findall(component["text"]):
+                params[component_type].append({"type": "text"})
+        if component_type == "buttons":
+            buttons = component["buttons"]
+            for button in buttons:
+                if button["type"].lower() in ["quick_reply", "phone_number"]:
+                    params[component_type].append({"type": ""})
+                if button["type"].lower() == "url":
+                    matches = VARIABLE_RE.findall(button["url"])
+                    if not matches:
+                        params[component_type].append({"type": ""})
+                    for match in matches:
+                        params[component_type].append({"type": "text"})
+
+    return params
+
+
 def update_local_templates(channel, templates_data):
     channel_namespace = channel.config.get("fb_namespace", "")
     # run through all our templates making sure they are present in our DB
@@ -103,10 +134,14 @@ def update_local_templates(channel, templates_data):
 
         status = STATUS_MAPPING[template_status]
 
+        components = template["components"]
+
+        params = _extract_template_params(components)
+
         content_parts = []
 
         all_supported = True
-        for component in template["components"]:
+        for component in components:
             if component["type"] not in ["HEADER", "BODY", "FOOTER"]:
                 continue
 
@@ -118,9 +153,6 @@ def update_local_templates(channel, templates_data):
 
             content_parts.append(component["text"])
 
-        if not content_parts or not all_supported:
-            continue
-
         content = "\n\n".join(content_parts)
         variable_count = _calculate_variable_count(content)
 
@@ -130,6 +162,9 @@ def update_local_templates(channel, templates_data):
         if language is None:
             status = TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE
             language = template["language"]
+
+        if not content_parts or not all_supported:
+            status = TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
 
         missing_external_id = f"{template['language']}/{template['name']}"
         translation = TemplateTranslation.get_or_create(
@@ -143,6 +178,9 @@ def update_local_templates(channel, templates_data):
             external_id=template.get("id", missing_external_id[:64]),
             namespace=template.get("namespace", channel_namespace),
         )
+        translation.components = components
+        translation.params = params
+        translation.save()
 
         seen.append(translation)
 
