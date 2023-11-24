@@ -2034,6 +2034,14 @@ class OrgDeleteTest(TembaTest):
                 TemplateTranslation.STATUS_APPROVED,
                 "1234",
                 "foo_namespace",
+                [
+                    {
+                        "type": "BODY",
+                        "text": "Hello {{1}}",
+                        "example": {"body_text": [["Bob"]]},
+                    },
+                ],
+                {"body": [{"type": "text"}]},
             )
         )
         add(template_trans1.template)

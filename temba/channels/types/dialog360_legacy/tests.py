@@ -203,6 +203,14 @@ class Dialog360LegacyTypeTest(CRUDLTestMixin, TembaTest):
             TemplateTranslation.STATUS_APPROVED,
             "1234",
             "foo_namespace",
+            [
+                {
+                    "type": "BODY",
+                    "text": "Hello {{1}}",
+                    "example": {"body_text": [["Bob"]]},
+                },
+            ],
+            {"body": [{"type": "text"}]},
         )
 
         sync_url = reverse("channels.types.dialog360_legacy.sync_logs", args=[channel.uuid])

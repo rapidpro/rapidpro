@@ -422,6 +422,8 @@ class Command(BaseCommand):
                     tt["status"],
                     tt["external_id"],
                     tt["namespace"],
+                    tt["components"],
+                    tt["params"],
                 )
 
         self._log(self.style.SUCCESS("OK") + "\n")

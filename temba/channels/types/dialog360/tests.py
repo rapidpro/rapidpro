@@ -202,6 +202,14 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
             TemplateTranslation.STATUS_APPROVED,
             "1234",
             "foo_namespace",
+            [
+                {
+                    "type": "BODY",
+                    "text": "Hello {{1}}",
+                    "example": {"body_text": [["Bob"]]},
+                },
+            ],
+            {"body": [{"type": "text"}]},
         )
 
         sync_url = reverse("channels.types.dialog360.sync_logs", args=[channel.uuid])
