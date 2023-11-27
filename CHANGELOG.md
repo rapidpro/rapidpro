@@ -1,3 +1,8 @@
+v8.3.95 (2023-11-27)
+-------------------------
+ * Add TemplateTranslation.locale and .external_locale to replace language and country
+ * Support saving components and params to message templates
+
 v8.3.94 (2023-11-23)
 -------------------------
  * Update temba-components
