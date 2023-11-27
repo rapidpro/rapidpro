@@ -2658,6 +2658,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             TemplateTranslation.STATUS_REJECTED,
             "id1",
             "foo_namespace",
+            [
+                {
+                    "type": "BODY",
+                    "text": "good boy",
+                }
+            ],
+            {},
         )
 
         # will be warned again

@@ -5127,6 +5127,14 @@ class EndpointsTest(APITest):
             TemplateTranslation.STATUS_APPROVED,
             "1234",
             "foo_namespace",
+            [
+                {
+                    "type": "BODY",
+                    "text": "Hi {{1}}",
+                    "example": {"body_text": [["Bob"]]},
+                },
+            ],
+            {"body": [{"type": "text"}]},
         )
         TemplateTranslation.get_or_create(
             self.channel,
@@ -5138,6 +5146,14 @@ class EndpointsTest(APITest):
             TemplateTranslation.STATUS_PENDING,
             "5678",
             "foo_namespace",
+            [
+                {
+                    "type": "BODY",
+                    "text": "Bonjour {{1}}",
+                    "example": {"body_text": [["Bob"]]},
+                },
+            ],
+            {"body": [{"type": "text"}]},
         )
         tt = TemplateTranslation.get_or_create(
             self.channel,
@@ -5149,6 +5165,14 @@ class EndpointsTest(APITest):
             TemplateTranslation.STATUS_APPROVED,
             "9012",
             "foo_namespace",
+            [
+                {
+                    "type": "BODY",
+                    "text": "This is a template translation for a deleted channel {{1}}",
+                    "example": {"body_text": [["Bob"]]},
+                },
+            ],
+            {"body": [{"type": "text"}]},
         )
         tt.is_active = False
         tt.save()
@@ -5164,6 +5188,14 @@ class EndpointsTest(APITest):
             TemplateTranslation.STATUS_APPROVED,
             "1234",
             "bar_namespace",
+            [
+                {
+                    "type": "BODY",
+                    "text": "Goodbye {{1}}",
+                    "example": {"body_text": [["Bob"]]},
+                },
+            ],
+            {"body": [{"type": "text"}]},
         )
         TemplateTranslation.get_or_create(
             self.org2channel,
@@ -5175,6 +5207,14 @@ class EndpointsTest(APITest):
             TemplateTranslation.STATUS_PENDING,
             "5678",
             "bar_namespace",
+            [
+                {
+                    "type": "BODY",
+                    "text": "Salut {{1}}",
+                    "example": {"body_text": [["Bob"]]},
+                },
+            ],
+            {"body": [{"type": "text"}]},
         )
 
         # no filtering

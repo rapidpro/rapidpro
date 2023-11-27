@@ -6,10 +6,42 @@ from .models import Template, TemplateTranslation
 class TemplateTest(TembaTest):
     def test_templates(self):
         tt1 = TemplateTranslation.get_or_create(
-            self.channel, "hello", "eng", "US", "Hello {{1}}", 1, TemplateTranslation.STATUS_PENDING, "1234", ""
+            self.channel,
+            "hello",
+            "eng",
+            "US",
+            "Hello {{1}}",
+            1,
+            TemplateTranslation.STATUS_PENDING,
+            "1234",
+            "",
+            [
+                {
+                    "type": "BODY",
+                    "text": "Hello {{1}}",
+                    "example": {"body_text": [["Bob"]]},
+                },
+            ],
+            {"body": [{"type": "text"}]},
         )
         tt2 = TemplateTranslation.get_or_create(
-            self.channel, "hello", "fra", "FR", "Bonjour {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678", ""
+            self.channel,
+            "hello",
+            "fra",
+            "FR",
+            "Bonjour {{1}}",
+            1,
+            TemplateTranslation.STATUS_PENDING,
+            "5678",
+            "",
+            [
+                {
+                    "type": "BODY",
+                    "text": "Bonjour {{1}}",
+                    "example": {"body_text": [["Bob"]]},
+                },
+            ],
+            {"body": [{"type": "text"}]},
         )
 
         self.assertEqual(tt1.template, tt2.template)
@@ -25,6 +57,14 @@ class TemplateTest(TembaTest):
             TemplateTranslation.STATUS_PENDING,
             "5678",
             "foo_namespace",
+            [
+                {
+                    "type": "BODY",
+                    "text": "Salut {{1}}",
+                    "example": {"body_text": [["Bob"]]},
+                },
+            ],
+            {"body": [{"type": "text"}]},
         )
 
         self.assertTrue(tt3.template.modified_on > modified_on)

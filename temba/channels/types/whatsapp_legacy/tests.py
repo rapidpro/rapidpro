@@ -539,6 +539,14 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             TemplateTranslation.STATUS_APPROVED,
             "1234",
             "foo_namespace",
+            [
+                {
+                    "type": "BODY",
+                    "text": "Hello {{1}}",
+                    "example": {"body_text": [["Bob"]]},
+                },
+            ],
+            {"body": [{"type": "text"}]},
         )
 
         foo = TemplateTranslation.get_or_create(
@@ -551,6 +559,14 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             TemplateTranslation.STATUS_APPROVED,
             "1235",
             "foo_namespace",
+            [
+                {
+                    "type": "BODY",
+                    "text": "Goodbye {{1}}",
+                    "example": {"body_text": [["Bob"]]},
+                },
+            ],
+            {"body": [{"type": "text"}]},
         )
 
         sync_url = reverse("channels.types.whatsapp_legacy.sync_logs", args=[channel.uuid])

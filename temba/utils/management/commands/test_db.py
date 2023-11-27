@@ -353,6 +353,14 @@ class Command(BaseCommand):
                         TemplateTranslation.STATUS_APPROVED,
                         "1234",
                         "",
+                        [
+                            {
+                                "type": "BODY",
+                                "text": "Hello {{1}}",
+                                "example": {"body_text": [["Bob"]]},
+                            },
+                        ],
+                        {"body": [{"type": "text"}]},
                     )
                     TemplateTranslation.get_or_create(
                         channel,
@@ -364,9 +372,33 @@ class Command(BaseCommand):
                         TemplateTranslation.STATUS_APPROVED,
                         "5678",
                         "",
+                        [
+                            {
+                                "type": "BODY",
+                                "text": "Bonjour {{1}}",
+                                "example": {"body_text": [["Bob"]]},
+                            },
+                        ],
+                        {"body": [{"type": "text"}]},
                     )
                     TemplateTranslation.get_or_create(
-                        channel, "bye", "eng", "US", "See ya {{1}}", 1, TemplateTranslation.STATUS_PENDING, "6789", ""
+                        channel,
+                        "bye",
+                        "eng",
+                        "US",
+                        "See ya {{1}}",
+                        1,
+                        TemplateTranslation.STATUS_PENDING,
+                        "6789",
+                        "",
+                        [
+                            {
+                                "type": "BODY",
+                                "text": "See ya {{1}}",
+                                "example": {"body_text": [["Bob"]]},
+                            },
+                        ],
+                        {"body": [{"type": "text"}]},
                     )
 
             self._log(self.style.SUCCESS("OK") + "\n")

@@ -57,12 +57,14 @@ class TemplateTranslation(models.Model):
     STATUS_PENDING = "P"
     STATUS_REJECTED = "R"
     STATUS_UNSUPPORTED_LANGUAGE = "U"
+    STATUS_UNSUPPORTED_COMPONENTS = "X"
 
     STATUS_CHOICES = (
         (STATUS_APPROVED, "approved"),
         (STATUS_PENDING, "pending"),
         (STATUS_REJECTED, "rejected"),
         (STATUS_UNSUPPORTED_LANGUAGE, "unsupported_language"),
+        (STATUS_UNSUPPORTED_COMPONENTS, "unsupported_components"),
     )
 
     # the template this maps to
@@ -72,7 +74,13 @@ class TemplateTranslation(models.Model):
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="template_translations")
 
     # the content of this template
-    content = models.TextField(null=False)
+    content = models.TextField(null=True)
+
+    # the components JSON of this template
+    components = models.JSONField(default=list)
+
+    # the parameters JSON for this template
+    params = models.JSONField(default=dict)
 
     # how many variables this template contains
     variable_count = models.IntegerField()
@@ -109,7 +117,20 @@ class TemplateTranslation(models.Model):
         TemplateTranslation.objects.filter(channel=channel, id__in=ids, is_active=False).update(is_active=True)
 
     @classmethod
-    def get_or_create(cls, channel, name, language, country, content, variable_count, status, external_id, namespace):
+    def get_or_create(
+        cls,
+        channel,
+        name,
+        language,
+        country,
+        content,
+        variable_count,
+        status,
+        external_id,
+        namespace,
+        components,
+        params,
+    ):
         existing = TemplateTranslation.objects.filter(channel=channel, external_id=external_id).first()
 
         if not existing:
@@ -127,6 +148,8 @@ class TemplateTranslation(models.Model):
                 channel=channel,
                 content=content,
                 variable_count=variable_count,
+                components=components,
+                params=params,
                 status=status,
                 language=language,
                 country=country,
@@ -140,6 +163,8 @@ class TemplateTranslation(models.Model):
                 or existing.content != content
                 or existing.country != country
                 or existing.language != language
+                or existing.components != components
+                or existing.params != params
             ):
                 existing.status = status
                 existing.content = content
@@ -148,6 +173,8 @@ class TemplateTranslation(models.Model):
                 existing.language = language
                 existing.country = country
                 existing.namespace = namespace
+                existing.components = components
+                existing.params = params
                 existing.save(
                     update_fields=[
                         "status",
@@ -157,6 +184,8 @@ class TemplateTranslation(models.Model):
                         "is_active",
                         "variable_count",
                         "namespace",
+                        "components",
+                        "params",
                     ]
                 )
 
