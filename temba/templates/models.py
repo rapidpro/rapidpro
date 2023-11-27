@@ -67,41 +67,25 @@ class TemplateTranslation(models.Model):
         (STATUS_UNSUPPORTED_COMPONENTS, "unsupported_components"),
     )
 
-    # the template this maps to
     template = models.ForeignKey(Template, on_delete=models.PROTECT, related_name="translations")
-
-    # the channel that synced this template
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="template_translations")
 
-    # the content of this template
+    namespace = models.CharField(max_length=36, default="")
+    locale = models.CharField(null=True, max_length=6)  # e.g. eng-US
     content = models.TextField(null=True)
-
-    # the components JSON of this template
     components = models.JSONField(default=list)
-
-    # the parameters JSON for this template
     params = models.JSONField(default=dict)
-
-    # how many variables this template contains
     variable_count = models.IntegerField()
-
-    # the current status of this channel template
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, null=False)
 
-    # the language for this template (ISO639-3 or Facebook code)
-    language = models.CharField(max_length=6)
-
-    # the country code for this template
-    country = CountryField(null=True, blank=True)
-
-    # the namespace for this template
-    namespace = models.CharField(max_length=36, default="")
-
-    # the external id for this channel template
     external_id = models.CharField(null=True, max_length=64)
+    external_locale = models.CharField(null=True, max_length=6)  # e.g. en_US
 
-    # whether this channel template is active
     is_active = models.BooleanField(default=True)
+
+    # TODO replace with locale and external_locale
+    language = models.CharField(max_length=6)
+    country = CountryField(null=True, blank=True)
 
     @classmethod
     def trim(cls, channel, existing):
@@ -121,17 +105,20 @@ class TemplateTranslation(models.Model):
         cls,
         channel,
         name,
+        *,
         language,
         country,
         content,
         variable_count,
         status,
         external_id,
+        external_locale,
         namespace,
         components,
         params,
     ):
         existing = TemplateTranslation.objects.filter(channel=channel, external_id=external_id).first()
+        locale = f"{language}-{country}" if country else language
 
         if not existing:
             template = Template.objects.filter(org=channel.org, name=name).first()
@@ -146,15 +133,18 @@ class TemplateTranslation(models.Model):
             existing = TemplateTranslation.objects.create(
                 template=template,
                 channel=channel,
+                namespace=namespace,
+                locale=locale,
                 content=content,
                 variable_count=variable_count,
                 components=components,
                 params=params,
                 status=status,
+                external_id=external_id,
+                external_locale=external_locale,
+                # deprecated
                 language=language,
                 country=country,
-                external_id=external_id,
-                namespace=namespace,
             )
 
         else:
@@ -166,26 +156,30 @@ class TemplateTranslation(models.Model):
                 or existing.components != components
                 or existing.params != params
             ):
+                existing.namespace = namespace
+                existing.locale = locale
                 existing.status = status
                 existing.content = content
                 existing.variable_count = variable_count
                 existing.is_active = True
                 existing.language = language
                 existing.country = country
-                existing.namespace = namespace
                 existing.components = components
                 existing.params = params
+                existing.external_locale = external_locale
                 existing.save(
                     update_fields=[
+                        "namespace",
+                        "locale",
                         "status",
                         "language",
                         "content",
                         "country",
                         "is_active",
                         "variable_count",
-                        "namespace",
                         "components",
                         "params",
+                        "external_locale",
                     ]
                 )
 

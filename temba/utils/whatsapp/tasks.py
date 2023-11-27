@@ -163,13 +163,14 @@ def update_local_templates(channel, templates_data):
 
         missing_external_id = f"{template['language']}/{template['name']}"
         translation = TemplateTranslation.get_or_create(
-            channel=channel,
-            name=template["name"],
+            channel,
+            template["name"],
             language=language,
             country=country,
             content=content,
             variable_count=variable_count,
             status=status,
+            external_locale=template["language"],
             external_id=template.get("id", missing_external_id[:64]),
             namespace=template.get("namespace", channel_namespace),
             components=components,

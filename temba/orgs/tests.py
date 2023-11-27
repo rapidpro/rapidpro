@@ -2027,21 +2027,22 @@ class OrgDeleteTest(TembaTest):
             TemplateTranslation.get_or_create(
                 channels[0],
                 "hello",
-                "eng",
-                "US",
-                "Hello {{1}}",
-                1,
-                TemplateTranslation.STATUS_APPROVED,
-                "1234",
-                "foo_namespace",
-                [
+                language="eng",
+                country="US",
+                content="Hello {{1}}",
+                variable_count=1,
+                status=TemplateTranslation.STATUS_APPROVED,
+                external_id="1234",
+                external_locale="en_US",
+                namespace="foo_namespace",
+                components=[
                     {
                         "type": "BODY",
                         "text": "Hello {{1}}",
                         "example": {"body_text": [["Bob"]]},
                     },
                 ],
-                {"body": [{"type": "text"}]},
+                params={"body": [{"type": "text"}]},
             )
         )
         add(template_trans1.template)

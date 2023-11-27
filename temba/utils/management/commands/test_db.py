@@ -346,59 +346,62 @@ class Command(BaseCommand):
                     TemplateTranslation.get_or_create(
                         channel,
                         "hello",
-                        "eng",
-                        "US",
-                        "Hello {{1}}",
-                        1,
-                        TemplateTranslation.STATUS_APPROVED,
-                        "1234",
-                        "",
-                        [
+                        language="eng",
+                        country="US",
+                        content="Hello {{1}}",
+                        variable_count=1,
+                        status=TemplateTranslation.STATUS_APPROVED,
+                        external_id="1234",
+                        external_locale="en_US",
+                        namespace="",
+                        components=[
                             {
                                 "type": "BODY",
                                 "text": "Hello {{1}}",
                                 "example": {"body_text": [["Bob"]]},
                             },
                         ],
-                        {"body": [{"type": "text"}]},
+                        params={"body": [{"type": "text"}]},
                     )
                     TemplateTranslation.get_or_create(
                         channel,
                         "hello",
-                        "fra",
-                        "FR",
-                        "Bonjour {{1}}",
-                        1,
-                        TemplateTranslation.STATUS_APPROVED,
-                        "5678",
-                        "",
-                        [
+                        language="fra",
+                        country="FR",
+                        content="Bonjour {{1}}",
+                        variable_count=1,
+                        status=TemplateTranslation.STATUS_APPROVED,
+                        external_id="5678",
+                        external_locale="fr_FR",
+                        namespace="",
+                        components=[
                             {
                                 "type": "BODY",
                                 "text": "Bonjour {{1}}",
                                 "example": {"body_text": [["Bob"]]},
                             },
                         ],
-                        {"body": [{"type": "text"}]},
+                        params={"body": [{"type": "text"}]},
                     )
                     TemplateTranslation.get_or_create(
                         channel,
                         "bye",
-                        "eng",
-                        "US",
-                        "See ya {{1}}",
-                        1,
-                        TemplateTranslation.STATUS_PENDING,
-                        "6789",
-                        "",
-                        [
+                        language="eng",
+                        country="US",
+                        content="See ya {{1}}",
+                        variable_count=1,
+                        status=TemplateTranslation.STATUS_PENDING,
+                        external_id="6789",
+                        external_locale="en_US",
+                        namespace="",
+                        components=[
                             {
                                 "type": "BODY",
                                 "text": "See ya {{1}}",
                                 "example": {"body_text": [["Bob"]]},
                             },
                         ],
-                        {"body": [{"type": "text"}]},
+                        params={"body": [{"type": "text"}]},
                     )
 
             self._log(self.style.SUCCESS("OK") + "\n")

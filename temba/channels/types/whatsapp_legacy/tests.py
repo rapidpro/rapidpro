@@ -532,41 +532,43 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
         TemplateTranslation.get_or_create(
             channel,
             "hello",
-            "eng",
-            "US",
-            "Hello {{1}}",
-            1,
-            TemplateTranslation.STATUS_APPROVED,
-            "1234",
-            "foo_namespace",
-            [
+            language="eng",
+            country="US",
+            content="Hello {{1}}",
+            variable_count=1,
+            status=TemplateTranslation.STATUS_APPROVED,
+            external_id="1234",
+            external_locale="en_US",
+            namespace="foo_namespace",
+            components=[
                 {
                     "type": "BODY",
                     "text": "Hello {{1}}",
                     "example": {"body_text": [["Bob"]]},
                 },
             ],
-            {"body": [{"type": "text"}]},
+            params={"body": [{"type": "text"}]},
         )
 
         foo = TemplateTranslation.get_or_create(
             channel,
             "hi",
-            "eng",
-            "US",
-            "Goodbye {{1}}",
-            1,
-            TemplateTranslation.STATUS_APPROVED,
-            "1235",
-            "foo_namespace",
-            [
+            language="eng",
+            country="US",
+            content="Goodbye {{1}}",
+            variable_count=1,
+            status=TemplateTranslation.STATUS_APPROVED,
+            external_id="1235",
+            external_locale="en_US",
+            namespace="foo_namespace",
+            components=[
                 {
                     "type": "BODY",
                     "text": "Goodbye {{1}}",
                     "example": {"body_text": [["Bob"]]},
                 },
             ],
-            {"body": [{"type": "text"}]},
+            params={"body": [{"type": "text"}]},
         )
 
         sync_url = reverse("channels.types.whatsapp_legacy.sync_logs", args=[channel.uuid])

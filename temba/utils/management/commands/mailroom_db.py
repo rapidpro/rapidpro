@@ -415,15 +415,16 @@ class Command(BaseCommand):
                 TemplateTranslation.get_or_create(
                     channel,
                     t["name"],
-                    tt["language"],
-                    tt["country"],
-                    tt["content"],
-                    tt["variable_count"],
-                    tt["status"],
-                    tt["external_id"],
-                    tt["namespace"],
-                    tt["components"],
-                    tt["params"],
+                    language=tt["language"],
+                    country=tt["country"],
+                    content=tt["content"],
+                    variable_count=tt["variable_count"],
+                    status=tt["status"],
+                    external_id=tt["external_id"],
+                    external_locale=tt["external_locale"],
+                    namespace=tt["namespace"],
+                    components=tt["components"],
+                    params=tt["params"],
                 )
 
         self._log(self.style.SUCCESS("OK") + "\n")

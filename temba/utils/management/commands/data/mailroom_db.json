@@ -352,6 +352,7 @@
               "namespace": "2d40b45c_25cd_4965_9019_f05d0124c5fa",
               "status": "A",
               "external_id": "eng1",
+              "external_locale": "en_US",
               "components": {
                 "type": "BODY",
                 "text": "Hi {{1}}, are you still experiencing problems with {{2}}?",
@@ -384,6 +385,7 @@
               "namespace": "ea9cd1b3_b018_4ffe_bb0e_7cb898e527ae",
               "status": "P",
               "external_id": "fra1",
+              "external_locale": "fr",
               "components": {
                 "type": "BODY",
                 "text": "Bonjour {{1}}, a tu des problems avec {{2}}?",
@@ -422,6 +424,7 @@
               "namespace": "",
               "status": "A",
               "external_id": "fra2",
+              "external_locale": "fr",
               "components": {
                 "type": "BODY",
                 "text": "Salut!"
