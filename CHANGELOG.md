@@ -1,3 +1,7 @@
+v8.3.96 (2023-11-27)
+-------------------------
+ * Migration to backfill TemplateTranslation.locale and external_locale
+
 v8.3.95 (2023-11-27)
 -------------------------
  * Add TemplateTranslation.locale and .external_locale to replace language and country
