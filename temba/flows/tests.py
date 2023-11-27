@@ -2651,20 +2651,21 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         TemplateTranslation.get_or_create(
             self.channel,
             "affirmation",
-            "eng",
-            "US",
-            "good boy",
-            0,
-            TemplateTranslation.STATUS_REJECTED,
-            "id1",
-            "foo_namespace",
-            [
+            language="eng",
+            country="US",
+            content="good boy",
+            variable_count=0,
+            status=TemplateTranslation.STATUS_REJECTED,
+            external_id="id1",
+            external_locale="en_US",
+            namespace="foo_namespace",
+            components=[
                 {
                     "type": "BODY",
                     "text": "good boy",
                 }
             ],
-            {},
+            params={},
         )
 
         # will be warned again

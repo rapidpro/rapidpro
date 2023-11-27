@@ -8,40 +8,42 @@ class TemplateTest(TembaTest):
         tt1 = TemplateTranslation.get_or_create(
             self.channel,
             "hello",
-            "eng",
-            "US",
-            "Hello {{1}}",
-            1,
-            TemplateTranslation.STATUS_PENDING,
-            "1234",
-            "",
-            [
+            language="eng",
+            country="US",
+            content="Hello {{1}}",
+            variable_count=1,
+            status=TemplateTranslation.STATUS_PENDING,
+            external_id="1234",
+            external_locale="en_US",
+            namespace="",
+            components=[
                 {
                     "type": "BODY",
                     "text": "Hello {{1}}",
                     "example": {"body_text": [["Bob"]]},
                 },
             ],
-            {"body": [{"type": "text"}]},
+            params={"body": [{"type": "text"}]},
         )
         tt2 = TemplateTranslation.get_or_create(
             self.channel,
             "hello",
-            "fra",
-            "FR",
-            "Bonjour {{1}}",
-            1,
-            TemplateTranslation.STATUS_PENDING,
-            "5678",
-            "",
-            [
+            language="fra",
+            country="FR",
+            content="Bonjour {{1}}",
+            variable_count=1,
+            status=TemplateTranslation.STATUS_PENDING,
+            external_id="5678",
+            external_locale="fr_FR",
+            namespace="",
+            components=[
                 {
                     "type": "BODY",
                     "text": "Bonjour {{1}}",
                     "example": {"body_text": [["Bob"]]},
                 },
             ],
-            {"body": [{"type": "text"}]},
+            params={"body": [{"type": "text"}]},
         )
 
         self.assertEqual(tt1.template, tt2.template)
@@ -50,21 +52,22 @@ class TemplateTest(TembaTest):
         tt3 = TemplateTranslation.get_or_create(
             self.channel,
             "hello",
-            "fra",
-            "FR",
-            "Salut {{1}}",
-            1,
-            TemplateTranslation.STATUS_PENDING,
-            "5678",
-            "foo_namespace",
-            [
+            language="fra",
+            country="FR",
+            content="Salut {{1}}",
+            variable_count=1,
+            status=TemplateTranslation.STATUS_PENDING,
+            external_id="5678",
+            external_locale="fr_FR",
+            namespace="foo_namespace",
+            components=[
                 {
                     "type": "BODY",
                     "text": "Salut {{1}}",
                     "example": {"body_text": [["Bob"]]},
                 },
             ],
-            {"body": [{"type": "text"}]},
+            params={"body": [{"type": "text"}]},
         )
 
         self.assertTrue(tt3.template.modified_on > modified_on)

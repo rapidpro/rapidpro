@@ -5120,59 +5120,62 @@ class EndpointsTest(APITest):
         TemplateTranslation.get_or_create(
             self.channel,
             "hello",
-            "eng",
-            "US",
-            "Hi {{1}}",
-            1,
-            TemplateTranslation.STATUS_APPROVED,
-            "1234",
-            "foo_namespace",
-            [
+            language="eng",
+            country="US",
+            content="Hi {{1}}",
+            variable_count=1,
+            status=TemplateTranslation.STATUS_APPROVED,
+            external_id="1234",
+            external_locale="en_US",
+            namespace="foo_namespace",
+            components=[
                 {
                     "type": "BODY",
                     "text": "Hi {{1}}",
                     "example": {"body_text": [["Bob"]]},
                 },
             ],
-            {"body": [{"type": "text"}]},
+            params={"body": [{"type": "text"}]},
         )
         TemplateTranslation.get_or_create(
             self.channel,
             "hello",
-            "fra",
-            "FR",
-            "Bonjour {{1}}",
-            1,
-            TemplateTranslation.STATUS_PENDING,
-            "5678",
-            "foo_namespace",
-            [
+            language="fra",
+            country="FR",
+            content="Bonjour {{1}}",
+            variable_count=1,
+            status=TemplateTranslation.STATUS_PENDING,
+            external_id="5678",
+            external_locale="fr_FR",
+            namespace="foo_namespace",
+            components=[
                 {
                     "type": "BODY",
                     "text": "Bonjour {{1}}",
                     "example": {"body_text": [["Bob"]]},
                 },
             ],
-            {"body": [{"type": "text"}]},
+            params={"body": [{"type": "text"}]},
         )
         tt = TemplateTranslation.get_or_create(
             self.channel,
             "hello",
-            "afr",
-            "ZA",
-            "This is a template translation for a deleted channel {{1}}",
-            1,
-            TemplateTranslation.STATUS_APPROVED,
-            "9012",
-            "foo_namespace",
-            [
+            language="afr",
+            country="ZA",
+            content="This is a template translation for a deleted channel {{1}}",
+            variable_count=1,
+            status=TemplateTranslation.STATUS_APPROVED,
+            external_id="9012",
+            external_locale="af_ZA",
+            namespace="foo_namespace",
+            components=[
                 {
                     "type": "BODY",
                     "text": "This is a template translation for a deleted channel {{1}}",
                     "example": {"body_text": [["Bob"]]},
                 },
             ],
-            {"body": [{"type": "text"}]},
+            params={"body": [{"type": "text"}]},
         )
         tt.is_active = False
         tt.save()
@@ -5181,40 +5184,42 @@ class EndpointsTest(APITest):
         TemplateTranslation.get_or_create(
             self.org2channel,
             "goodbye",
-            "eng",
-            "US",
-            "Goodbye {{1}}",
-            1,
-            TemplateTranslation.STATUS_APPROVED,
-            "1234",
-            "bar_namespace",
-            [
+            language="eng",
+            country="US",
+            content="Goodbye {{1}}",
+            variable_count=1,
+            status=TemplateTranslation.STATUS_APPROVED,
+            external_id="1234",
+            external_locale="en_US",
+            namespace="bar_namespace",
+            components=[
                 {
                     "type": "BODY",
                     "text": "Goodbye {{1}}",
                     "example": {"body_text": [["Bob"]]},
                 },
             ],
-            {"body": [{"type": "text"}]},
+            params={"body": [{"type": "text"}]},
         )
         TemplateTranslation.get_or_create(
             self.org2channel,
             "goodbye",
-            "fra",
-            "FR",
-            "Salut {{1}}",
-            1,
-            TemplateTranslation.STATUS_PENDING,
-            "5678",
-            "bar_namespace",
-            [
+            language="fra",
+            country="FR",
+            content="Salut {{1}}",
+            variable_count=1,
+            status=TemplateTranslation.STATUS_PENDING,
+            external_id="5678",
+            external_locale="fr_FR",
+            namespace="bar_namespace",
+            components=[
                 {
                     "type": "BODY",
                     "text": "Salut {{1}}",
                     "example": {"body_text": [["Bob"]]},
                 },
             ],
-            {"body": [{"type": "text"}]},
+            params={"body": [{"type": "text"}]},
         )
 
         # no filtering
