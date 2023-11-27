@@ -274,7 +274,7 @@ class WhatsAppUtilsTest(TembaTest):
             {
                 "header": [{"type": "image"}],
                 "body": [{"type": "text"}, {"type": "text"}],
-                "buttons": [{"button.3": [{"type": "text"}]}],
+                "button.3": [{"type": "text"}],
             },
             ct.params,
         )

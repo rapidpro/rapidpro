@@ -107,19 +107,11 @@ def _extract_template_params(components):
                 params[component_type].append({"type": "text"})
         if component_type == "buttons":
             buttons = component["buttons"]
-            buttons_dict = {}
             for idx, button in enumerate(buttons):
-                button_vars = []
                 if button["type"].lower() == "url":
                     matches = VARIABLE_RE.findall(button["url"])
                     for match in matches:
-                        button_vars.append({"type": "text"})
-                if button_vars:
-                    buttons_dict[f"button.{idx}"] = button_vars
-
-            if buttons_dict:
-                params[component_type].append(buttons_dict)
-
+                        params[f"button.{idx}"].append({"type": "text"})
     return params
 
 
