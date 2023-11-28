@@ -1,3 +1,9 @@
+v8.3.97 (2023-11-28)
+-------------------------
+ * Stop reading from TemplateTranslation.language and country
+ * Undocument the templates API endpoint and add locale field to translations
+ * Fix syncing OTP utility templates
+
 v8.3.96 (2023-11-27)
 -------------------------
  * Migration to backfill TemplateTranslation.locale and external_locale
