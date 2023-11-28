@@ -167,13 +167,25 @@ class WhatsAppUtilsTest(TembaTest):
                 "category": "UTILITY",
                 "id": "9020",
             },
+            {
+                "category": "UTILITY",
+                "components": [
+                    {"add_security_recommendation": "True", "type": "'BODY'"},
+                    {"type": "'FOOTER'"},
+                    {"buttons": "[{'otp_type': 'COPY_CODE', 'text': 'copy', 'type': 'OTP'}]", "type": "'BUTTONS'"},
+                ],
+                "language": "fr",
+                "name": "login",
+                "status": "approved",
+                "id": "9030",
+            },
         ]
 
         update_local_templates(channel, WA_templates_data)
 
-        self.assertEqual(8, Template.objects.filter(org=self.org).count())
-        self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel).count())
-        self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel, namespace="foo_namespace").count())
+        self.assertEqual(9, Template.objects.filter(org=self.org).count())
+        self.assertEqual(11, TemplateTranslation.objects.filter(channel=channel).count())
+        self.assertEqual(11, TemplateTranslation.objects.filter(channel=channel, namespace="foo_namespace").count())
 
         ct = TemplateTranslation.objects.get(template__name="goodbye", is_active=True)
         self.assertEqual(2, ct.variable_count)
@@ -226,6 +238,20 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
             [{"type": "RANDOM", "text": "Bonjour {{1}}"}],
+            ct.components,
+        )
+        self.assertEqual({}, ct.params)
+
+        ct = TemplateTranslation.objects.get(template__name="login", is_active=True)
+        self.assertEqual("fra", ct.language)
+        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS, ct.status)
+        self.assertEqual("foo_namespace", ct.namespace)
+        self.assertEqual(
+            [
+                {"add_security_recommendation": "True", "type": "'BODY'"},
+                {"type": "'FOOTER'"},
+                {"buttons": "[{'otp_type': 'COPY_CODE', 'text': 'copy', 'type': 'OTP'}]", "type": "'BUTTONS'"},
+            ],
             ct.components,
         )
         self.assertEqual({}, ct.params)
@@ -439,12 +465,25 @@ class WhatsAppUtilsTest(TembaTest):
                 "rejected_reason": "NONE",
                 "category": "UTILITY",
             },
+            {
+                "category": "UTILITY",
+                "components": [
+                    {"add_security_recommendation": "True", "type": "'BODY'"},
+                    {"type": "'FOOTER'"},
+                    {"buttons": "[{'otp_type': 'COPY_CODE', 'text': 'copy', 'type': 'OTP'}]", "type": "'BUTTONS'"},
+                ],
+                "language": "fr",
+                "name": "login",
+                "namespace": "xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx",
+                "rejected_reason": "NONE",
+                "status": "approved",
+            },
         ]
 
         update_local_templates(channel, D3_templates_data)
 
-        self.assertEqual(9, Template.objects.filter(org=self.org).count())
-        self.assertEqual(11, TemplateTranslation.objects.filter(channel=channel).count())
+        self.assertEqual(10, Template.objects.filter(org=self.org).count())
+        self.assertEqual(12, TemplateTranslation.objects.filter(channel=channel).count())
         self.assertEqual(0, TemplateTranslation.objects.filter(channel=channel, namespace="").count())
         self.assertEqual(0, TemplateTranslation.objects.filter(channel=channel, namespace=None).count())
         self.assertEqual(
@@ -461,6 +500,7 @@ class WhatsAppUtilsTest(TembaTest):
                     "en/missing_text_component",
                     "en/workout_activity_with_unsuported_variablet",
                     "fr/invalid_component",
+                    "fr/login",
                 ]
             ),
             sorted(list(TemplateTranslation.objects.filter(channel=channel).values_list("external_id", flat=True))),
