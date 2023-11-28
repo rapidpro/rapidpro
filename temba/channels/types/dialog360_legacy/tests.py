@@ -196,8 +196,7 @@ class Dialog360LegacyTypeTest(CRUDLTestMixin, TembaTest):
         TemplateTranslation.get_or_create(
             channel,
             "hello",
-            language="eng",
-            country="US",
+            locale="eng-US",
             content="Hello {{1}}",
             variable_count=1,
             status=TemplateTranslation.STATUS_APPROVED,

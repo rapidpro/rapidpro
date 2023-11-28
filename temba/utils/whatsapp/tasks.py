@@ -14,11 +14,17 @@ from temba.contacts.models import URN, Contact, ContactURN
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
 from temba.utils import chunk_list
+from temba.utils.languages import alpha2_to_alpha3
 
 from . import update_api_version
-from .constants import LANGUAGE_MAPPING, STATUS_MAPPING
 
 logger = logging.getLogger(__name__)
+
+STATUS_MAPPING = dict(
+    PENDING=TemplateTranslation.STATUS_PENDING,
+    APPROVED=TemplateTranslation.STATUS_APPROVED,
+    REJECTED=TemplateTranslation.STATUS_REJECTED,
+)
 
 
 @shared_task
@@ -150,13 +156,6 @@ def update_local_templates(channel, templates_data):
         content = "\n\n".join(content_parts)
         variable_count = _calculate_variable_count(content)
 
-        language, country = LANGUAGE_MAPPING.get(template["language"], (None, None))
-
-        # its a (non fatal) error if we see a language we don't know
-        if language is None:
-            status = TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE
-            language = template["language"]
-
         if not content_parts or not all_supported:
             status = TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
 
@@ -164,8 +163,7 @@ def update_local_templates(channel, templates_data):
         translation = TemplateTranslation.get_or_create(
             channel,
             template["name"],
-            language=language,
-            country=country,
+            locale=parse_whatsapp_language(template["language"]),
             content=content,
             variable_count=variable_count,
             status=status,
@@ -180,6 +178,18 @@ def update_local_templates(channel, templates_data):
 
     # trim any translations we didn't see
     TemplateTranslation.trim(channel, seen)
+
+
+def parse_whatsapp_language(lang) -> str:
+    """
+    Converts a WhatsApp language code which can be alpha2 ('en') or alpha2_country ('en_US') or alpha3 ('fil')
+    to our locale format ('eng' or 'eng-US').
+    """
+    language, country = lang.split("_") if "_" in lang else [lang, None]
+    if len(language) == 2:
+        language = alpha2_to_alpha3(language)
+
+    return f"{language}-{country}" if country else language
 
 
 @shared_task

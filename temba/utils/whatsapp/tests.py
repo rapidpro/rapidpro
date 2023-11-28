@@ -15,10 +15,15 @@ from temba.tests import TembaTest
 from temba.tests.requests import MockResponse
 
 from . import update_api_version
-from .tasks import _calculate_variable_count, update_local_templates
+from .tasks import _calculate_variable_count, parse_whatsapp_language, update_local_templates
 
 
 class WhatsAppUtilsTest(TembaTest):
+    def test_parse_whatsapp_language(self):
+        self.assertEqual("eng", parse_whatsapp_language("en"))
+        self.assertEqual("eng-US", parse_whatsapp_language("en_US"))
+        self.assertEqual("fil", parse_whatsapp_language("fil"))
+
     def test_calculate_variable_count(self):
         self.assertEqual(2, _calculate_variable_count("Hi {{1}} how are you? {{2}}"))
         self.assertEqual(2, _calculate_variable_count("Hi {{1}} how are you? {{2}} {{1}}"))
@@ -120,14 +125,6 @@ class WhatsAppUtilsTest(TembaTest):
                 "id": "9012",
             },
             {
-                "name": "invalid_language",
-                "components": [{"type": "BODY", "text": "This is an unknown language, it will be ignored"}],
-                "language": "kli",
-                "status": "APPROVED",
-                "category": "ISSUE_RESOLUTION",
-                "id": "9018",
-            },
-            {
                 "name": "order_template",
                 "components": [
                     {
@@ -183,14 +180,14 @@ class WhatsAppUtilsTest(TembaTest):
 
         update_local_templates(channel, WA_templates_data)
 
-        self.assertEqual(9, Template.objects.filter(org=self.org).count())
-        self.assertEqual(11, TemplateTranslation.objects.filter(channel=channel).count())
-        self.assertEqual(11, TemplateTranslation.objects.filter(channel=channel, namespace="foo_namespace").count())
+        self.assertEqual(8, Template.objects.filter(org=self.org).count())
+        self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel).count())
+        self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel, namespace="foo_namespace").count())
 
         ct = TemplateTranslation.objects.get(template__name="goodbye", is_active=True)
         self.assertEqual(2, ct.variable_count)
         self.assertEqual("Goodbye {{1}}, see you on {{2}}. See you later {{1}}", ct.content)
-        self.assertEqual("eng", ct.language)
+        self.assertEqual("eng", ct.locale)
         self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
         self.assertEqual("goodbye (eng) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
         self.assertEqual("foo_namespace", ct.namespace)
@@ -205,7 +202,7 @@ class WhatsAppUtilsTest(TembaTest):
             "Workout challenge week extra points!\n\nHey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.\n\nRemember to drink water.",
             ct.content,
         )
-        self.assertEqual("eng", ct.language)
+        self.assertEqual("eng", ct.locale)
         self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
@@ -221,19 +218,8 @@ class WhatsAppUtilsTest(TembaTest):
         )
         self.assertEqual({"body": [{"type": "text"}, {"type": "text"}, {"type": "text"}]}, ct.params)
 
-        # assert that a template translation was created despite it being in an unknown language
-        ct = TemplateTranslation.objects.get(template__name="invalid_language", is_active=True)
-        self.assertEqual("kli", ct.language)
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE, ct.status)
-        self.assertEqual("foo_namespace", ct.namespace)
-        self.assertEqual(
-            [{"type": "BODY", "text": "This is an unknown language, it will be ignored"}],
-            ct.components,
-        )
-        self.assertEqual({}, ct.params)
-
         ct = TemplateTranslation.objects.get(template__name="invalid_component", is_active=True)
-        self.assertEqual("fra", ct.language)
+        self.assertEqual("fra", ct.locale)
         self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
@@ -243,7 +229,7 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual({}, ct.params)
 
         ct = TemplateTranslation.objects.get(template__name="login", is_active=True)
-        self.assertEqual("fra", ct.language)
+        self.assertEqual("fra", ct.locale)
         self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
@@ -257,7 +243,7 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual({}, ct.params)
 
         ct = TemplateTranslation.objects.get(template__name="order_template", is_active=True)
-        self.assertEqual("eng", ct.language)
+        self.assertEqual("eng", ct.locale)
         self.assertEqual(TemplateTranslation.STATUS_APPROVED, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(

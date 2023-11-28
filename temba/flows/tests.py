@@ -2651,8 +2651,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         TemplateTranslation.get_or_create(
             self.channel,
             "affirmation",
-            language="eng",
-            country="US",
+            locale="eng-US",
             content="good boy",
             variable_count=0,
             status=TemplateTranslation.STATUS_REJECTED,
