@@ -151,8 +151,7 @@ class TemplateTranslation(models.Model):
             if (
                 existing.status != status
                 or existing.content != content
-                or existing.country != country
-                or existing.language != language
+                or existing.locale != locale
                 or existing.components != components
                 or existing.params != params
             ):
@@ -162,24 +161,26 @@ class TemplateTranslation(models.Model):
                 existing.content = content
                 existing.variable_count = variable_count
                 existing.is_active = True
-                existing.language = language
-                existing.country = country
                 existing.components = components
                 existing.params = params
                 existing.external_locale = external_locale
+                # deprecated
+                existing.language = language
+                existing.country = country
                 existing.save(
                     update_fields=[
                         "namespace",
                         "locale",
                         "status",
-                        "language",
                         "content",
-                        "country",
                         "is_active",
                         "variable_count",
                         "components",
                         "params",
                         "external_locale",
+                        # deprecated
+                        "language",
+                        "country",
                     ]
                 )
 
@@ -189,4 +190,4 @@ class TemplateTranslation(models.Model):
         return existing
 
     def __str__(self):
-        return f"{self.template.name} ({self.language} [{self.country}]) {self.status}: {self.content}"
+        return f"{self.template.name} ({self.locale}) {self.status}: {self.content}"
