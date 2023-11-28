@@ -192,7 +192,7 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual("Goodbye {{1}}, see you on {{2}}. See you later {{1}}", ct.content)
         self.assertEqual("eng", ct.language)
         self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
-        self.assertEqual("goodbye (eng []) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
+        self.assertEqual("goodbye (eng) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
             [{"type": "BODY", "text": "Goodbye {{1}}, see you on {{2}}. See you later {{1}}"}], ct.components
