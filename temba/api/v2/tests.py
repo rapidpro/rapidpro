@@ -5117,7 +5117,7 @@ class EndpointsTest(APITest):
         self.assertDeleteNotAllowed(endpoint_url)
 
         # create some templates
-        TemplateTranslation.get_or_create(
+        tpl1 = TemplateTranslation.get_or_create(
             self.channel,
             "hello",
             language="eng",
@@ -5136,7 +5136,7 @@ class EndpointsTest(APITest):
                 },
             ],
             params={"body": [{"type": "text"}]},
-        )
+        ).template
         TemplateTranslation.get_or_create(
             self.channel,
             "hello",
@@ -5180,6 +5180,27 @@ class EndpointsTest(APITest):
         tt.is_active = False
         tt.save()
 
+        tpl2 = TemplateTranslation.get_or_create(
+            self.channel,
+            "goodbye",
+            language="eng",
+            country="US",
+            content="Goodbye {{1}}",
+            variable_count=1,
+            status=TemplateTranslation.STATUS_PENDING,
+            external_id="6789",
+            external_locale="en_US",
+            namespace="foo_namespace",
+            components=[
+                {
+                    "type": "BODY",
+                    "text": "Goodbye {{1}}",
+                    "example": {"body_text": [["Bob"]]},
+                },
+            ],
+            params={"body": [{"type": "text"}]},
+        ).template
+
         # templates on other org to test filtering
         TemplateTranslation.get_or_create(
             self.org2channel,
@@ -5222,17 +5243,38 @@ class EndpointsTest(APITest):
             params={"body": [{"type": "text"}]},
         )
 
+        tpl1.refresh_from_db()
+        tpl2.refresh_from_db()
+
         # no filtering
         self.assertGet(
             endpoint_url,
             [self.user, self.editor],
             results=[
                 {
-                    "name": "hello",
-                    "uuid": str(tt.template.uuid),
+                    "name": "goodbye",
+                    "uuid": str(tpl2.uuid),
                     "translations": [
                         {
                             "language": "eng",
+                            "locale": "eng-US",
+                            "content": "Goodbye {{1}}",
+                            "namespace": "foo_namespace",
+                            "variable_count": 1,
+                            "status": "pending",
+                            "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
+                        },
+                    ],
+                    "created_on": format_datetime(tpl2.created_on),
+                    "modified_on": format_datetime(tpl2.modified_on),
+                },
+                {
+                    "name": "hello",
+                    "uuid": str(tpl1.uuid),
+                    "translations": [
+                        {
+                            "language": "eng",
+                            "locale": "eng-US",
                             "content": "Hi {{1}}",
                             "namespace": "foo_namespace",
                             "variable_count": 1,
@@ -5241,6 +5283,7 @@ class EndpointsTest(APITest):
                         },
                         {
                             "language": "fra",
+                            "locale": "fra-FR",
                             "content": "Bonjour {{1}}",
                             "namespace": "foo_namespace",
                             "variable_count": 1,
@@ -5248,9 +5291,9 @@ class EndpointsTest(APITest):
                             "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
                         },
                     ],
-                    "created_on": format_datetime(tt.template.created_on),
-                    "modified_on": format_datetime(tt.template.modified_on),
-                }
+                    "created_on": format_datetime(tpl1.created_on),
+                    "modified_on": format_datetime(tpl1.modified_on),
+                },
             ],
             num_queries=NUM_BASE_REQUEST_QUERIES + 3,
         )

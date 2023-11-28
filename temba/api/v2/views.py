@@ -149,7 +149,6 @@ class ExplorerView(OrgPermsMixin, SmartTemplateView):
             ResthookSubscribersEndpoint.get_write_explorer(),
             ResthookSubscribersEndpoint.get_delete_explorer(),
             RunsEndpoint.get_read_explorer(),
-            TemplatesEndpoint.get_read_explorer(),
             TicketsEndpoint.get_read_explorer(),
             TicketActionsEndpoint.get_write_explorer(),
             TopicsEndpoint.get_read_explorer(),
@@ -249,7 +248,6 @@ class RootView(BaseEndpoint):
      * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
      * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
-     * [/api/v2/templates](/api/v2/templates) - to list current WhatsApp templates on your account
      * [/api/v2/tickets](/api/v2/tickets) - to list tickets
      * [/api/v2/ticket_actions](/api/v2/ticket_actions) - to perform bulk ticket actions
      * [/api/v2/topics](/api/v2/topics) - to list and create topics
@@ -3426,58 +3424,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
 
 class TemplatesEndpoint(ListAPIMixin, BaseEndpoint):
     """
-    This endpoint allows you to fetch the WhatsApp templates that have been synced. Each template contains a
-    dictionary of the languages it has been translated to along with the content of the template for that
-    language and the status of that translation.
-
-    ## Listing Templates
-
-    A `GET` request returns the templates for your organization.
-
-    Each template has the following attributes:
-
-     * **name** - the name of the template
-     * **translations** - a dictionary of the translations of the template with the key being an ISO639-3 code
-
-     Each translation contains the following attributes:
-
-     * **language** - the ISO639-3 code for the language of this translation
-     * **content** - the content of the translation
-     * **variable_count** - the count of variables in this template
-     * **status** - the status of this translation, either `approved`, `pending`, `rejected` or `unsupported_language`
-
-    Example:
-
-        GET /api/v2/templates.json
-
-    Response is the list of templates for your organization:
-
-        {
-            "next": "http://example.com/api/v2/templates.json?cursor=cD0yMDE1LTExLTExKzExJTNBM40NjQlMkIwMCUzRv",
-            "previous": null,
-            "results": [
-            {
-                "name": "welcome_message",
-                "uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
-                "translations": [
-                    {
-                        "language": "eng",
-                        "content": "Hi {{1}}, your appointment is coming up on {{2}}",
-                        "variable_count": 2,
-                        "status": "active",
-                    },
-                    {
-                        "language": "fra",
-                        "content": "Bonjour {{1}}, votre rendez-vous est à venir {{2}}",
-                        "variable_count": 2,
-                        "status": "pending",
-                    }
-                ],
-                "created_on": "2013-08-19T19:11:21.082Z",
-                "modified_on": "2013-08-19T19:11:21.082Z"
-            },
-            ...
-        }
+    Undocumented endpoint to fetch WhatsApp templates with their translations.
     """
 
     model = Template
@@ -3487,20 +3434,10 @@ class TemplatesEndpoint(ListAPIMixin, BaseEndpoint):
     def filter_queryset(self, queryset):
         org = self.request.org
         queryset = org.templates.exclude(translations=None).prefetch_related(
-            Prefetch("translations", TemplateTranslation.objects.filter(is_active=True))
+            Prefetch("translations", TemplateTranslation.objects.filter(is_active=True).order_by("locale")),
+            Prefetch("translations__channel", Channel.objects.only("uuid", "name")),
         )
         return self.filter_before_after(queryset, "modified_on")
-
-    @classmethod
-    def get_read_explorer(cls):
-        return {
-            "method": "GET",
-            "title": "List Templates",
-            "url": reverse("api.v2.templates"),
-            "slug": "templates-list",
-            "params": [],
-            "example": {},
-        }
 
 
 class TicketersEndpoint(ListAPIMixin, BaseEndpoint):
