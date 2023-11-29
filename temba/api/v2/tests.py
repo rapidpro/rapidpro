@@ -5120,8 +5120,7 @@ class EndpointsTest(APITest):
         tpl1 = TemplateTranslation.get_or_create(
             self.channel,
             "hello",
-            language="eng",
-            country="US",
+            locale="eng-US",
             content="Hi {{1}}",
             variable_count=1,
             status=TemplateTranslation.STATUS_APPROVED,
@@ -5140,8 +5139,7 @@ class EndpointsTest(APITest):
         TemplateTranslation.get_or_create(
             self.channel,
             "hello",
-            language="fra",
-            country="FR",
+            locale="fra-FR",
             content="Bonjour {{1}}",
             variable_count=1,
             status=TemplateTranslation.STATUS_PENDING,
@@ -5160,8 +5158,7 @@ class EndpointsTest(APITest):
         tt = TemplateTranslation.get_or_create(
             self.channel,
             "hello",
-            language="afr",
-            country="ZA",
+            locale="afr-ZA",
             content="This is a template translation for a deleted channel {{1}}",
             variable_count=1,
             status=TemplateTranslation.STATUS_APPROVED,
@@ -5183,8 +5180,7 @@ class EndpointsTest(APITest):
         tpl2 = TemplateTranslation.get_or_create(
             self.channel,
             "goodbye",
-            language="eng",
-            country="US",
+            locale="eng-US",
             content="Goodbye {{1}}",
             variable_count=1,
             status=TemplateTranslation.STATUS_PENDING,
@@ -5205,8 +5201,7 @@ class EndpointsTest(APITest):
         TemplateTranslation.get_or_create(
             self.org2channel,
             "goodbye",
-            language="eng",
-            country="US",
+            locale="eng-US",
             content="Goodbye {{1}}",
             variable_count=1,
             status=TemplateTranslation.STATUS_APPROVED,
@@ -5225,8 +5220,7 @@ class EndpointsTest(APITest):
         TemplateTranslation.get_or_create(
             self.org2channel,
             "goodbye",
-            language="fra",
-            country="FR",
+            locale="fra-FR",
             content="Salut {{1}}",
             variable_count=1,
             status=TemplateTranslation.STATUS_PENDING,

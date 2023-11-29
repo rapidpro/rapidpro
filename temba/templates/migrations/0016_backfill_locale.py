@@ -78,7 +78,7 @@ LANGUAGE_MAPPING = dict(
 )
 
 
-def backfill_template_locale(apps, schema_editor):
+def backfill_template_locale(apps, schema_editor):  # pragma: no cover
     TemplateTranslation = apps.get_model("templates", "TemplateTranslation")
 
     locale_mapping = {v: k for k, v in LANGUAGE_MAPPING.items()}
@@ -95,7 +95,7 @@ def backfill_template_locale(apps, schema_editor):
         print(f"Updated locale on {num_updated} template translations")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

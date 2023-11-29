@@ -2027,8 +2027,7 @@ class OrgDeleteTest(TembaTest):
             TemplateTranslation.get_or_create(
                 channels[0],
                 "hello",
-                language="eng",
-                country="US",
+                locale="eng-US",
                 content="Hello {{1}}",
                 variable_count=1,
                 status=TemplateTranslation.STATUS_APPROVED,

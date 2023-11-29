@@ -346,8 +346,7 @@ class Command(BaseCommand):
                     TemplateTranslation.get_or_create(
                         channel,
                         "hello",
-                        language="eng",
-                        country="US",
+                        locale="eng-US",
                         content="Hello {{1}}",
                         variable_count=1,
                         status=TemplateTranslation.STATUS_APPROVED,
@@ -366,8 +365,7 @@ class Command(BaseCommand):
                     TemplateTranslation.get_or_create(
                         channel,
                         "hello",
-                        language="fra",
-                        country="FR",
+                        locale="fra-FR",
                         content="Bonjour {{1}}",
                         variable_count=1,
                         status=TemplateTranslation.STATUS_APPROVED,
@@ -386,8 +384,7 @@ class Command(BaseCommand):
                     TemplateTranslation.get_or_create(
                         channel,
                         "bye",
-                        language="eng",
-                        country="US",
+                        locale="eng-US",
                         content="See ya {{1}}",
                         variable_count=1,
                         status=TemplateTranslation.STATUS_PENDING,

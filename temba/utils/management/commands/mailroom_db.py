@@ -415,8 +415,7 @@ class Command(BaseCommand):
                 TemplateTranslation.get_or_create(
                     channel,
                     t["name"],
-                    language=tt["language"],
-                    country=tt["country"],
+                    locale=tt["locale"],
                     content=tt["content"],
                     variable_count=tt["variable_count"],
                     status=tt["status"],

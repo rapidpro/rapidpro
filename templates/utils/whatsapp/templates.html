@@ -18,8 +18,7 @@
       {% endifchanged %}
       <div max-width="100%" class="flex translation">
         <div width="70%" class="flex p-4 content">{{ translation.content }}</div>
-        <div class="flex-1 p-4 language">{{ translation.language }}</div>
-        <div class="flex-1 p-4 country">{{ translation.country }}</div>
+        <div class="flex-1 p-4 locale">{{ translation.locale }}</div>
         <div class="tr-{{ translation.get_status_display }} flex p-4 status">{{ translation.get_status_display }}</div>
       </div>
     {% empty %}
@@ -49,12 +48,7 @@
       border-bottom: 1px solid #e6e6e6;
     }
 
-    .translation .language {
-      font-family: monospace;
-      color: #666;
-    }
-
-    .translation .country {
+    .translation .locale {
       font-family: monospace;
       color: #666;
     }

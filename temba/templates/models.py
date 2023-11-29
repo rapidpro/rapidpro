@@ -56,14 +56,12 @@ class TemplateTranslation(models.Model):
     STATUS_APPROVED = "A"
     STATUS_PENDING = "P"
     STATUS_REJECTED = "R"
-    STATUS_UNSUPPORTED_LANGUAGE = "U"
     STATUS_UNSUPPORTED_COMPONENTS = "X"
 
     STATUS_CHOICES = (
         (STATUS_APPROVED, "approved"),
         (STATUS_PENDING, "pending"),
         (STATUS_REJECTED, "rejected"),
-        (STATUS_UNSUPPORTED_LANGUAGE, "unsupported_language"),
         (STATUS_UNSUPPORTED_COMPONENTS, "unsupported_components"),
     )
 
@@ -106,8 +104,7 @@ class TemplateTranslation(models.Model):
         channel,
         name,
         *,
-        language,
-        country,
+        locale,
         content,
         variable_count,
         status,
@@ -118,7 +115,6 @@ class TemplateTranslation(models.Model):
         params,
     ):
         existing = TemplateTranslation.objects.filter(channel=channel, external_id=external_id).first()
-        locale = f"{language}-{country}" if country else language
 
         if not existing:
             template = Template.objects.filter(org=channel.org, name=name).first()
@@ -142,9 +138,6 @@ class TemplateTranslation(models.Model):
                 status=status,
                 external_id=external_id,
                 external_locale=external_locale,
-                # deprecated
-                language=language,
-                country=country,
             )
 
         else:
@@ -164,9 +157,6 @@ class TemplateTranslation(models.Model):
                 existing.components = components
                 existing.params = params
                 existing.external_locale = external_locale
-                # deprecated
-                existing.language = language
-                existing.country = country
                 existing.save(
                     update_fields=[
                         "namespace",
@@ -178,9 +168,6 @@ class TemplateTranslation(models.Model):
                         "components",
                         "params",
                         "external_locale",
-                        # deprecated
-                        "language",
-                        "country",
                     ]
                 )
 

@@ -532,8 +532,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
         TemplateTranslation.get_or_create(
             channel,
             "hello",
-            language="eng",
-            country="US",
+            locale="eng-US",
             content="Hello {{1}}",
             variable_count=1,
             status=TemplateTranslation.STATUS_APPROVED,
@@ -553,8 +552,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
         foo = TemplateTranslation.get_or_create(
             channel,
             "hi",
-            language="eng",
-            country="US",
+            locale="eng-US",
             content="Goodbye {{1}}",
             variable_count=1,
             status=TemplateTranslation.STATUS_APPROVED,
