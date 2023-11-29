@@ -1,7 +1,5 @@
 import uuid
 
-from django_countries.fields import CountryField
-
 from django.db import models
 from django.utils import timezone
 
@@ -80,10 +78,6 @@ class TemplateTranslation(models.Model):
     external_locale = models.CharField(null=True, max_length=6)  # e.g. en_US
 
     is_active = models.BooleanField(default=True)
-
-    # TODO replace with locale and external_locale
-    language = models.CharField(max_length=6)
-    country = CountryField(null=True, blank=True)
 
     @classmethod
     def trim(cls, channel, existing):
