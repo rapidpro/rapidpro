@@ -167,9 +167,9 @@ class WhatsAppUtilsTest(TembaTest):
             {
                 "category": "UTILITY",
                 "components": [
-                    {"add_security_recommendation": "True", "type": "'BODY'"},
-                    {"type": "'FOOTER'"},
-                    {"buttons": "[{'otp_type': 'COPY_CODE', 'text': 'copy', 'type': 'OTP'}]", "type": "'BUTTONS'"},
+                    {"add_security_recommendation": "True", "type": "BODY"},
+                    {"type": "FOOTER"},
+                    {"buttons": [{"otp_type": "COPY_CODE", "text": "copy", "type": "OTP"}], "type": "BUTTONS"},
                 ],
                 "language": "fr",
                 "name": "login",
@@ -234,9 +234,9 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
             [
-                {"add_security_recommendation": "True", "type": "'BODY'"},
-                {"type": "'FOOTER'"},
-                {"buttons": "[{'otp_type': 'COPY_CODE', 'text': 'copy', 'type': 'OTP'}]", "type": "'BUTTONS'"},
+                {"add_security_recommendation": "True", "type": "BODY"},
+                {"type": "FOOTER"},
+                {"buttons": [{"otp_type": "COPY_CODE", "text": "copy", "type": "OTP"}], "type": "BUTTONS"},
             ],
             ct.components,
         )
@@ -454,9 +454,9 @@ class WhatsAppUtilsTest(TembaTest):
             {
                 "category": "UTILITY",
                 "components": [
-                    {"add_security_recommendation": "True", "type": "'BODY'"},
-                    {"type": "'FOOTER'"},
-                    {"buttons": "[{'otp_type': 'COPY_CODE', 'text': 'copy', 'type': 'OTP'}]", "type": "'BUTTONS'"},
+                    {"add_security_recommendation": "True", "type": "BODY"},
+                    {"type": "FOOTER"},
+                    {"buttons": [{"otp_type": "COPY_CODE", "text": "copy", "type": "OTP"}], "type": "BUTTONS"},
                 ],
                 "language": "fr",
                 "name": "login",
