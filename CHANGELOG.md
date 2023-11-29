@@ -1,3 +1,8 @@
+v8.3.99 (2023-11-29)
+-------------------------
+ * Fix syncing OTP utility templates
+ * Drop unused TemplateTranslate.language and country fields
+
 v8.3.98 (2023-11-29)
 -------------------------
  * Fix mailroom DB templates components structure
