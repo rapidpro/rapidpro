@@ -1,3 +1,9 @@
+v8.3.98 (2023-11-29)
+-------------------------
+ * Fix mailroom DB templates components structure
+ * Bump cryptography from 41.0.4 to 41.0.6
+ * Stop writing TemplateTranslation.language and country and remove unsupported language as a possibility
+
 v8.3.97 (2023-11-28)
 -------------------------
  * Stop reading from TemplateTranslation.language and country
