@@ -104,18 +104,18 @@ def _extract_template_params(components):
 
         if component_type == "header":
             if component.get("format", "text").upper() == "TEXT":
-                for match in VARIABLE_RE.findall(component.get("text")):
+                for match in VARIABLE_RE.findall(component.get("text", "")):
                     params[component_type].append({"type": "text"})
             else:
                 params[component_type].append({"type": component["format"].lower()})
         if component_type == "body":
-            for match in VARIABLE_RE.findall(component.get("text")):
+            for match in VARIABLE_RE.findall(component.get("text", "")):
                 params[component_type].append({"type": "text"})
         if component_type == "buttons":
             buttons = component["buttons"]
             for idx, button in enumerate(buttons):
                 if button["type"].lower() == "url":
-                    for match in VARIABLE_RE.findall(button.get("url")):
+                    for match in VARIABLE_RE.findall(button.get("url", "")):
                         params[f"button.{idx}"].append({"type": "text"})
     return params
 
@@ -137,7 +137,6 @@ def update_local_templates(channel, templates_data):
         components = template["components"]
 
         params = _extract_template_params(components)
-
         content_parts = []
 
         all_supported = True
