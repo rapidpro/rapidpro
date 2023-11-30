@@ -49,6 +49,7 @@ from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
+from temba.orgs.tasks import send_user_verification_email
 from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address
 from temba.utils.fields import ArbitraryJsonChoiceField, CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
@@ -58,6 +59,7 @@ from temba.utils.views import (
     ContentMenuMixin,
     NonAtomicMixin,
     NoNavMixin,
+    PostOnlyMixin,
     RequireRecentAuthMixin,
     SpaMixin,
     StaffOnlyMixin,
@@ -658,6 +660,7 @@ class UserCRUDL(SmartCRUDL):
         "account",
         "token",
         "verify_email",
+        "send_verification_email",
     )
 
     class Read(StaffOnlyMixin, ContentMenuMixin, SpaMixin, SmartReadView):
@@ -876,6 +879,31 @@ class UserCRUDL(SmartCRUDL):
             obj.settings.language = self.form.cleaned_data["language"]
             obj.settings.save()
             return obj
+
+    class SendVerificationEmail(SpaMixin, PostOnlyMixin, InferUserMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
+            class Meta:
+                model = User
+                fields = ()
+
+        form_class = Form
+        submit_button_name = _("Send Verification Email")
+        menu_path = "/settings/account"
+        success_url = "@orgs.user_account"
+        success_message = _("Verification email sent")
+
+        def has_permission(self, request, *args, **kwargs):
+            return request.user.is_authenticated
+
+        def pre_process(self, request, *args, **kwargs):
+            if request.user.settings.email_status == UserSettings.STATUS_VERIFIED:
+                return HttpResponseRedirect(reverse("orgs.user_account"))
+
+            return super().pre_process(request, *args, **kwargs)
+
+        def form_valid(self, form):
+            send_user_verification_email.delay(self.get_object().id)
+            return super().form_valid(form)
 
     class VerifyEmail(NoNavMixin, SmartReadView):
         @classmethod

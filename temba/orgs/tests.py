@@ -52,7 +52,7 @@ from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .context_processors import RolePermsWrapper
 from .models import BackupToken, Invitation, Org, OrgImport, OrgMembership, OrgRole, User
-from .tasks import delete_released_orgs, resume_failed_tasks
+from .tasks import delete_released_orgs, resume_failed_tasks, send_user_verification_email
 
 
 class OrgRoleTest(TembaTest):
@@ -3867,6 +3867,40 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         # and isn't verified
         self.admin2.settings.refresh_from_db()
         self.assertEqual(self.admin2.settings.email_status, "U")
+
+    @override_settings(SEND_EMAILS=True)
+    def test_send_verification_email(self):
+        send_verification_email_url = reverse("orgs.user_send_verification_email")
+
+        # try to access before logging in
+        response = self.client.get(send_verification_email_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(send_verification_email_url)
+        self.assertEqual(405, response.status_code)
+
+        response = self.client.post(send_verification_email_url, {}, follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "Verification email sent")
+
+        # and one email sent
+        self.assertEqual(1, len(mail.outbox))
+
+        self.admin.set_email_status("V")
+
+        response = self.client.post(send_verification_email_url, {}, follow=True)
+        self.assertEqual(200, response.status_code)
+
+        # no new email sent
+        self.assertEqual(1, len(mail.outbox))
+
+        # even the method will not send the email for verified status
+        send_user_verification_email.delay(self.admin.pk)
+
+        # no new email sent
+        self.assertEqual(1, len(mail.outbox))
 
 
 class BulkExportTest(TembaTest):
