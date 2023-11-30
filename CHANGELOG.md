@@ -1,7 +1,3 @@
-v8.3.100 (2023-11-30)
--------------------------
- * Remove erroneous comment (testing new auto-versioning)
-
 v8.3.99 (2023-11-29)
 -------------------------
  * Fix syncing OTP utility templates
