@@ -49,6 +49,7 @@ from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
+from temba.orgs.tasks import send_user_verification_email
 from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address
 from temba.utils.fields import ArbitraryJsonChoiceField, CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
@@ -901,7 +902,7 @@ class UserCRUDL(SmartCRUDL):
             return super().pre_process(request, *args, **kwargs)
 
         def form_valid(self, form):
-            self.get_object().send_verification()
+            send_user_verification_email.delay(self.get_object().id)
             return super().form_valid(form)
 
     class VerifyEmail(NoNavMixin, SmartReadView):

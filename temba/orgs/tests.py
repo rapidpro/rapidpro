@@ -52,7 +52,7 @@ from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .context_processors import RolePermsWrapper
 from .models import BackupToken, Invitation, Org, OrgImport, OrgMembership, OrgRole, User
-from .tasks import delete_released_orgs, resume_failed_tasks
+from .tasks import delete_released_orgs, resume_failed_tasks, send_user_verification_email
 
 
 class OrgRoleTest(TembaTest):
@@ -3897,7 +3897,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, len(mail.outbox))
 
         # even the method will not send the email for verified status
-        self.admin.send_verification_email()
+        send_user_verification_email.delay(self.admin.pk)
 
         # no new email sent
         self.assertEqual(1, len(mail.outbox))

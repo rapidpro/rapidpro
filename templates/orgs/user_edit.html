@@ -21,8 +21,8 @@
 {% block summary %}
   <div class="flex items-center">
     <div class="flex-grow mr-4 api_token_container">
-      {% blocktrans with email=user.username %}
-      Your email address is <b>{{email}}</b>
+      {% blocktrans trimmed with email=user.username %}
+        Your email address is <b>{{ email }}</b>
       {% endblocktrans %}
     </div>
     <div class="buttons">
