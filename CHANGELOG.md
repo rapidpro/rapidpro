@@ -1,3 +1,8 @@
+v8.3.103 (2023-12-05)
+-------------------------
+ * Data migration to fix bad last seen on values
+ * Add support for user to start the email verification and send themselves the verification link
+
 v8.3.102 (2023-11-30)
 -------------------------
  * Testing auto-versioning again
