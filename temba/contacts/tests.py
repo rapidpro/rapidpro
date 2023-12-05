@@ -30,7 +30,7 @@ from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modi
 from temba.msgs.models import Broadcast, Msg, SystemLabel
 from temba.orgs.models import Org, OrgRole
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, ESMockWithScroll, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticket, TicketCount, Ticketer
@@ -5390,3 +5390,62 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
         self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
+
+
+class FixBadLastSeenOnTest(MigrationTest):
+    app = "contacts"
+    migrate_from = "0179_remove_contacturn_auth"
+    migrate_to = "0180_fix_bad_last_seen_on"
+
+    def setUpBeforeMigration(self, apps):
+        # contact with last seen in future, no messages
+        self.contact1 = self.create_contact(
+            "C", phone="1001", last_seen_on=datetime(2032, 1, 1, 12, 30, 0, 0, timezone.utc)
+        )
+
+        # contact with last seen in future, has messages
+        self.contact2 = self.create_contact(
+            "C", phone="1002", last_seen_on=datetime(2032, 1, 1, 12, 30, 0, 0, timezone.utc)
+        )
+        self.create_incoming_msg(
+            self.contact2, "it me", self.channel, created_on=datetime(2022, 1, 1, 12, 30, 0, 0, timezone.utc)
+        )
+
+        # contacts with valid last seen
+        self.contact3 = self.create_contact(
+            "C", phone="1003", last_seen_on=datetime(2023, 1, 1, 12, 30, 0, 0, timezone.utc)
+        )
+        self.contact4 = self.create_contact(
+            "C", phone="1004", last_seen_on=datetime(2015, 1, 1, 12, 30, 0, 0, timezone.utc)
+        )
+
+        # contact with last seen too far in past, no messages
+        self.contact5 = self.create_contact(
+            "C", phone="1005", last_seen_on=datetime(2009, 1, 1, 12, 30, 0, 0, timezone.utc)
+        )
+
+        # contact with last seen too far in past, has messages
+        self.contact6 = self.create_contact(
+            "C", phone="1006", last_seen_on=datetime(2008, 1, 1, 12, 30, 0, 0, timezone.utc)
+        )
+        self.create_incoming_msg(
+            self.contact6, "it me", self.channel, created_on=datetime(2021, 1, 1, 12, 30, 0, 0, timezone.utc)
+        )
+
+        # contact with last seen that's clearly a misparsing of seconds as millis
+        self.contact7 = self.create_contact(
+            "C", phone="1007", last_seen_on=datetime(1970, 1, 20, 8, 36, 16, 200000, timezone.utc)
+        )
+
+    def test_migration(self):
+        def assert_last_seen_on(c, expected):
+            c.refresh_from_db()
+            self.assertEqual(expected, c.last_seen_on)
+
+        assert_last_seen_on(self.contact1, None)
+        assert_last_seen_on(self.contact2, datetime(2022, 1, 1, 12, 30, 0, 0, timezone.utc))  # from msg
+        assert_last_seen_on(self.contact3, datetime(2023, 1, 1, 12, 30, 0, 0, timezone.utc))  # unchanged
+        assert_last_seen_on(self.contact4, datetime(2015, 1, 1, 12, 30, 0, 0, timezone.utc))  # unchanged
+        assert_last_seen_on(self.contact5, None)
+        assert_last_seen_on(self.contact6, datetime(2021, 1, 1, 12, 30, 0, 0, timezone.utc))  # from msg
+        assert_last_seen_on(self.contact7, datetime(2023, 1, 1, 12, 30, 0, 0, timezone.utc))  # ts correction
