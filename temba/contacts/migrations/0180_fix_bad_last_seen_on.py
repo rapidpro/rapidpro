@@ -30,7 +30,8 @@ def fix_bad_last_seen_on(apps, schema_editor):
 
         if corrected and earliest_allowed < corrected < timezone.now():
             contact.last_seen_on = corrected
-            contact.save(update_fields=("last_seen_on",))
+            contact.modified_on = timezone.now()
+            contact.save(update_fields=("last_seen_on", "modified_on"))
             num_fixed += 1
             print(f" > contact {contact.uuid} {i+1}/{num_total}: {current.isoformat()} -> {corrected.isoformat()} ")
         else:
@@ -39,14 +40,16 @@ def fix_bad_last_seen_on(apps, schema_editor):
 
             if corrected:
                 contact.last_seen_on = corrected
-                contact.save(update_fields=("last_seen_on",))
+                contact.modified_on = timezone.now()
+                contact.save(update_fields=("last_seen_on", "modified_on"))
                 num_fixed += 1
                 print(
                     f" > contact {contact.uuid} {i+1}/{num_total}: {current.isoformat()} -> {corrected.isoformat()} (from message)"
                 )
             else:
                 contact.last_seen_on = None
-                contact.save(update_fields=("last_seen_on",))
+                contact.modified_on = timezone.now()
+                contact.save(update_fields=("last_seen_on", "modified_on"))
                 num_cleared += 1
                 print(f" > contact {contact.uuid} {i+1}/{num_total}: {current.isoformat()} -> NULL")
 
