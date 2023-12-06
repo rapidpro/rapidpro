@@ -713,6 +713,9 @@ class OrgTest(TembaTest):
             )
 
     def test_get_owner(self):
+        self.org.created_by = self.user
+        self.org.save(update_fields=("created_by",))
+
         # admins take priority
         self.assertEqual(self.admin, self.org.get_owner())
 
