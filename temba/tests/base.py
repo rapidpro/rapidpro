@@ -68,8 +68,8 @@ class TembaTest(SmartminTest):
             name="Nyaruka",
             timezone=pytz.timezone("Africa/Kigali"),
             flow_languages=["eng", "kin"],
-            created_by=self.user,
-            modified_by=self.user,
+            created_by=self.admin,
+            modified_by=self.admin,
         )
         self.org.initialize()
         self.org.add_user(self.admin, OrgRole.ADMINISTRATOR)
