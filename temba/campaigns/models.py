@@ -1,6 +1,7 @@
 from smartmin.models import SmartModel
 
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _, ngettext
 
@@ -555,3 +556,10 @@ class EventFire(models.Model):
 
     class Meta:
         ordering = ("scheduled",)
+
+        constraints = [
+            # used to prevent adding duplicate fires for the same event and contact
+            models.UniqueConstraint(
+                name="eventfires_unfired_unique", fields=("event_id", "contact_id"), condition=Q(fired=None)
+            )
+        ]

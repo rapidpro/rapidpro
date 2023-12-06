@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def migrate_base_to_und(apps, schema_editor):
+def migrate_base_to_und(apps, schema_editor):  # pragma: no cover
     CampaignEvent = apps.get_model("campaigns", "CampaignEvent")
 
     num_updated = 0
@@ -17,7 +17,7 @@ def migrate_base_to_und(apps, schema_editor):
         print(f"Updated {num_updated} campaign events")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
