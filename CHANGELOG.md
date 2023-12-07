@@ -1,3 +1,9 @@
+v8.3.104 (2023-12-07)
+-------------------------
+ * Remove duplication between channel read and chart views
+ * Cleanup indexes in channels app
+ * Remove unhelpful index on eventfire and move other into Django model
+
 v8.3.103 (2023-12-05)
 -------------------------
  * Data migration to fix bad last seen on values
