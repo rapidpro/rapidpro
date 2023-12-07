@@ -540,12 +540,6 @@ class UserTest(TembaTest):
         response = self.client.get(tokens_url)
         self.assertEqual(200, response.status_code)
 
-    def test_set_email_status(self):
-        self.assertEqual(self.admin.settings.email_status, "U")
-
-        self.admin.set_email_status("V")
-        self.assertEqual(self.admin.settings.email_status, "V")
-
     @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
     def test_confirm_access(self):
         confirm_url = reverse("users.confirm_access") + "?next=/msg/"
@@ -904,33 +898,6 @@ class OrgTest(TembaTest):
         self.assertIn(f"app.rapidpro.io/users/user/recover/{token_obj.token}/", email_args[2])
         self.assertNotIn("{{", email_args[2])
         self.assertEqual(email_args[4], ["existing@nyaruka.com"])
-
-    def test_user_update(self):
-        update_url = reverse("orgs.user_edit")
-
-        # no access if anonymous
-        response = self.client.get(update_url)
-        self.assertLoginRedirect(response)
-
-        self.login(self.admin)
-
-        # change the user language
-        response = self.client.post(
-            update_url,
-            {
-                "language": "pt-br",
-                "first_name": "Admin",
-                "last_name": "User",
-                "email": "administrator@temba.com",
-                "current_password": "Qwerty123",
-            },
-            HTTP_X_FORMAX=True,
-        )
-        self.assertEqual(200, response.status_code)
-
-        # check that our user settings have changed
-        del self.admin.settings  # clear cached_property
-        self.assertEqual("pt-br", self.admin.settings.language)
 
     @patch("temba.flows.models.FlowStart.async_start")
     @mock_mailroom
@@ -3797,6 +3764,77 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("orgs.user_account"))
         self.assertEqual(2, len(response.context["formax"].sections))
 
+    def test_edit(self):
+        edit_url = reverse("orgs.user_edit")
+
+        # no access if anonymous
+        response = self.client.get(edit_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        self.admin.settings.email_status = "V"  # mark user email as verified
+        self.admin.settings.save()
+
+        # try to submit without required fields
+        response = self.client.post(edit_url, {"language": "en-us"})
+        self.assertEqual(200, response.status_code)
+        self.assertFormError(response, "form", "email", "This field is required.")
+        self.assertFormError(response, "form", "first_name", "This field is required.")
+        self.assertFormError(response, "form", "last_name", "This field is required.")
+
+        # change the name and language
+        response = self.client.post(
+            edit_url,
+            {
+                "language": "pt-br",
+                "first_name": "Admin",
+                "last_name": "User",
+                "email": "admin@nyaruka.com",
+                "current_password": "",
+            },
+        )
+        self.assertEqual(302, response.status_code)
+
+        self.admin.refresh_from_db()
+        self.assertEqual("Admin User", self.admin.name)
+        self.assertTrue("V", self.admin.settings.email_status)  # unchanged
+
+        del self.admin.settings  # clear cached_property
+        self.assertEqual("pt-br", self.admin.settings.language)
+
+        self.admin.settings.language = "en-us"
+        self.admin.settings.save()
+
+        # try to change email without entering password
+        response = self.client.post(
+            edit_url,
+            {
+                "language": "en-us",
+                "first_name": "Admin",
+                "last_name": "User",
+                "email": "admin@trileet.com",
+                "current_password": "",
+            },
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertFormError(response, "form", "current_password", "Please enter your password to save changes.")
+
+        response = self.client.post(
+            edit_url,
+            {
+                "language": "en-us",
+                "first_name": "Admin",
+                "last_name": "User",
+                "email": "admin@trileet.com",
+                "current_password": "Qwerty123",
+            },
+        )
+        self.assertEqual(302, response.status_code)
+
+        del self.admin.settings  # clear cached_property
+        self.assertEqual("U", self.admin.settings.email_status)  # because email changed
+
     def test_token(self):
         token_url = reverse("orgs.user_token")
 
@@ -3891,7 +3929,8 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         # and one email sent
         self.assertEqual(1, len(mail.outbox))
 
-        self.admin.set_email_status("V")
+        self.admin.settings.email_status = "V"
+        self.admin.settings.save(update_fields=("email_status",))
 
         response = self.client.post(send_verification_email_url, {}, follow=True)
         self.assertEqual(200, response.status_code)
