@@ -1,3 +1,7 @@
+v8.3.105 (2023-12-07)
+-------------------------
+ * Email changes should reset email status to unverified
+
 v8.3.104 (2023-12-07)
 -------------------------
  * Remove duplication between channel read and chart views
