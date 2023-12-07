@@ -536,18 +536,10 @@ class ChannelCRUDL(SmartCRUDL):
                 if unsent_msgs:
                     context["unsent_msgs_count"] = unsent_msgs.count()
 
-            msg_in = []
-            msg_out = []
-            ivr_in = []
-            ivr_out = []
-
-            context["has_messages"] = len(msg_in) or len(msg_out) or len(ivr_in) or len(ivr_out)
             message_stats_table = []
 
             # we'll show totals for every month since this channel was started
             month_start = channel.created_on.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-            # calculate our summary table for last 12 months
 
             # get our totals grouped by month
             monthly_totals = list(
@@ -661,46 +653,6 @@ class ChannelCRUDL(SmartCRUDL):
                     elif daily_count["count_type"] == ChannelCount.OUTGOING_IVR_TYPE:
                         ivr_out.append(point)
                 current = current + timedelta(days=1)
-
-            # we'll show totals for every month since this channel was started
-            month_start = channel.created_on.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-            # get our totals grouped by month
-            monthly_totals = list(
-                ChannelCount.objects.filter(channel=channel, day__gte=month_start)
-                .filter(
-                    count_type__in=[
-                        ChannelCount.INCOMING_MSG_TYPE,
-                        ChannelCount.OUTGOING_MSG_TYPE,
-                        ChannelCount.INCOMING_IVR_TYPE,
-                        ChannelCount.OUTGOING_IVR_TYPE,
-                    ]
-                )
-                .extra({"month": "date_trunc('month', day)"})
-                .values("month", "count_type")
-                .order_by("month", "count_type")
-                .annotate(count_sum=Sum("count"))
-            )
-
-            # calculate our summary table for last 12 months
-            now = timezone.now()
-            while month_start < now:
-                msg_in = 0
-                msg_out = 0
-                ivr_in = 0
-                ivr_out = 0
-
-                while monthly_totals and monthly_totals[0]["month"] == month_start:
-                    monthly_total = monthly_totals.pop(0)
-                    if monthly_total["count_type"] == ChannelCount.INCOMING_MSG_TYPE:
-                        msg_in = monthly_total["count_sum"]
-                    elif monthly_total["count_type"] == ChannelCount.OUTGOING_MSG_TYPE:
-                        msg_out = monthly_total["count_sum"]
-                    elif monthly_total["count_type"] == ChannelCount.INCOMING_IVR_TYPE:
-                        ivr_in = monthly_total["count_sum"]
-                    elif monthly_total["count_type"] == ChannelCount.OUTGOING_IVR_TYPE:
-                        ivr_out = monthly_total["count_sum"]
-                month_start = (month_start + timedelta(days=32)).replace(day=1)
 
             return JsonResponse(
                 {"start_date": start_date, "end_date": end_date, "series": message_stats},
