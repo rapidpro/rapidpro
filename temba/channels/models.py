@@ -17,7 +17,7 @@ from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.storage import storages
 from django.db import models
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template import Engine
@@ -740,6 +740,14 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     class Meta:
         ordering = ("-last_seen", "-pk")
 
+        indexes = [
+            models.Index(
+                name="channels_android_last_seen",
+                fields=("last_seen",),
+                condition=Q(channel_type="A", is_active=True, last_seen__isnull=False),
+            ),
+        ]
+
 
 class ChannelCount(SquashableModel):
     """
@@ -808,7 +816,9 @@ class ChannelCount(SquashableModel):
         return sql, params
 
     class Meta:
-        index_together = ["channel", "count_type", "day"]
+        indexes = [
+            models.Index(fields=("channel", "count_type", "day", "is_squashed")),
+        ]
 
 
 class ChannelEvent(models.Model):
