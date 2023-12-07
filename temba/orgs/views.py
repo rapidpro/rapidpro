@@ -865,9 +865,8 @@ class UserCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             obj = super().pre_save(obj)
 
-            # keep our username and email in sync and record if email is changing
+            # keep our username and email in sync
             obj.username = obj.email
-            obj._email_changed = obj.email != User.objects.get(id=obj.id).email
 
             if self.form.cleaned_data["new_password"]:
                 obj.set_password(self.form.cleaned_data["new_password"])
@@ -877,13 +876,8 @@ class UserCRUDL(SmartCRUDL):
         def post_save(self, obj):
             # save the user settings as well
             obj = super().post_save(obj)
-
-            if obj._email_changed:
-                obj.settings.email_status = UserSettings.STATUS_UNVERIFIED
-
             obj.settings.language = self.form.cleaned_data["language"]
-            obj.settings.save(update_fields=("language", "email_status"))
-
+            obj.settings.save()
             return obj
 
     class SendVerificationEmail(SpaMixin, PostOnlyMixin, InferUserMixin, SmartUpdateView):
@@ -931,8 +925,7 @@ class UserCRUDL(SmartCRUDL):
             is_verified = self.request.user.settings.email_status == UserSettings.STATUS_VERIFIED
 
             if self.email_user == self.request.user and not is_verified:
-                self.request.user.settings.email_status = UserSettings.STATUS_VERIFIED
-                self.request.user.settings.save(update_fields=("email_status",))
+                self.request.user.set_email_status(UserSettings.STATUS_VERIFIED)
 
             return super().pre_process(request, *args, **kwargs)
 

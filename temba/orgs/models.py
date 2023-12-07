@@ -206,6 +206,13 @@ class User(AuthUser):
         self.settings.last_auth_on = timezone.now()
         self.settings.save(update_fields=("last_auth_on",))
 
+    def set_email_status(self, status: str):
+        """
+        Records the email status for this user
+        """
+        self.settings.email_status = status
+        self.settings.save(update_fields=("email_status",))
+
     def enable_2fa(self):
         """
         Enables 2FA for this user
