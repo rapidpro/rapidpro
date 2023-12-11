@@ -1,8 +1,7 @@
 import logging
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone as tzone
 
-import pytz
 from celery import shared_task
 from django_redis import get_redis_connection
 
@@ -77,7 +76,7 @@ def trim_flow_revisions():
     if not last_trim:
         last_trim = 0
 
-    last_trim = datetime.utcfromtimestamp(int(last_trim)).astimezone(pytz.utc)
+    last_trim = datetime.utcfromtimestamp(int(last_trim)).astimezone(tzone.utc)
     count = FlowRevision.trim(last_trim)
 
     r.set(FlowRevision.LAST_TRIM_KEY, int(timezone.now().timestamp()))

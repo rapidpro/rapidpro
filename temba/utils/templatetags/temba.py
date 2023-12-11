@@ -1,8 +1,7 @@
 import json
-from datetime import timedelta
+from datetime import timedelta, timezone as tzone
 
 import iso8601
-import pytz
 
 from django.template.defaultfilters import register
 from django.urls import reverse
@@ -170,10 +169,10 @@ def day(date):
 @register.simple_tag(takes_context=True)
 def short_datetime(context, dtime):
     if dtime.tzinfo is None:
-        dtime = dtime.replace(tzinfo=pytz.utc)
+        dtime = dtime.replace(tzinfo=tzone.utc)
 
     org_format = "D"
-    tz = pytz.UTC
+    tz = tzone.utc
     org = context["user_org"]
     if org:
         org_format = org.date_format
@@ -211,9 +210,9 @@ def short_datetime(context, dtime):
 @register.simple_tag(takes_context=True)
 def format_datetime(context, dt, seconds: bool = False):
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=pytz.utc)
+        dt = dt.replace(tzinfo=tzone.utc)
 
-    tz = pytz.UTC
+    tz = tzone.utc
     org = context.get("user_org")
     if org:
         tz = org.timezone

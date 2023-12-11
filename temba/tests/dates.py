@@ -53,7 +53,7 @@ def parse_datetime(org, date_str):
 
     # set our timezone if we have one
     if org.timezone and parsed:
-        parsed = org.timezone.localize(parsed)
+        parsed = parsed.replace(tzinfo=org.timezone)
 
     # if we've been parsed into something Postgres can't store (offset is > 12 hours) then throw it away
     if parsed and abs(parsed.utcoffset().total_seconds()) > MAX_UTC_OFFSET:  # pragma: no cover

@@ -1,6 +1,5 @@
 from datetime import timedelta
-
-import pytz
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -1019,7 +1018,7 @@ class CampaignTest(TembaTest):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         new_org = Org.objects.create(
-            name="Temba New", timezone=pytz.timezone("Africa/Kigali"), created_by=self.user, modified_by=self.user
+            name="Temba New", timezone=ZoneInfo("Africa/Kigali"), created_by=self.user, modified_by=self.user
         )
 
         self.assertRaises(
@@ -1078,7 +1077,7 @@ class CampaignTest(TembaTest):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         new_org = Org.objects.create(
-            name="Temba New", timezone=pytz.timezone("Africa/Kigali"), created_by=self.user, modified_by=self.user
+            name="Temba New", timezone=ZoneInfo("Africa/Kigali"), created_by=self.user, modified_by=self.user
         )
 
         with self.assertRaises(AssertionError):

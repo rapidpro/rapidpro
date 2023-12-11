@@ -1,6 +1,6 @@
 import logging
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone as tzone
 from decimal import Decimal
 from itertools import chain
 from pathlib import Path
@@ -9,7 +9,6 @@ from typing import Any
 import iso8601
 import phonenumbers
 import pyexcel
-import pytz
 import regex
 import xlrd
 from django_redis import get_redis_connection
@@ -2449,7 +2448,7 @@ class ContactImport(SmartModel):
         if isinstance(value, datetime):
             # make naive datetime timezone-aware
             if not value.tzinfo and tz:
-                value = tz.localize(value) if tz else pytz.utc.localize(value)
+                value = value.replace(tzinfo=tz) if tz else value.replace(tzinfo=tzone.utc)
 
             return value.isoformat()
         elif isinstance(value, date):

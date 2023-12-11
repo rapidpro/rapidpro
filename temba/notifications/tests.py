@@ -1,6 +1,4 @@
-from datetime import date, datetime
-
-import pytz
+from datetime import date, datetime, timezone as tzone
 
 from django.core import mail
 from django.test import override_settings
@@ -87,7 +85,7 @@ class IncidentTest(TembaTest):
             org=self.org,
             incident_type="webhooks:unhealthy",
             scope="",
-            started_on=datetime(2021, 11, 12, 14, 23, 30, 123456, tzinfo=pytz.UTC),
+            started_on=datetime(2021, 11, 12, 14, 23, 30, 123456, tzinfo=tzone.utc),
         )
 
         self.assertEqual(
