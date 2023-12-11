@@ -1453,6 +1453,15 @@ class FlowCategoryCount(SquashableModel):
     def __str__(self):
         return "%s: %s" % (self.category_name, self.count)
 
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=("flow", "node_uuid", "result_key", "result_name", "category_name"),
+                condition=Q(is_squashed=False),
+                name="flowcategorycounts_unsquashed",
+            ),
+        ]
+
 
 class FlowPathCount(SquashableModel):
     """
@@ -1497,7 +1506,13 @@ class FlowPathCount(SquashableModel):
         return {"%s:%s" % (t[0], t[1]): t[2] for t in totals}
 
     class Meta:
-        index_together = ["flow", "from_uuid", "to_uuid", "period"]
+        indexes = [
+            models.Index(
+                fields=("flow", "from_uuid", "to_uuid", "period"),
+                condition=Q(is_squashed=False),
+                name="flowpathcounts_unsquashed",
+            ),
+        ]
 
 
 class FlowNodeCount(SquashableModel):
@@ -1533,6 +1548,13 @@ class FlowNodeCount(SquashableModel):
     def get_totals(cls, flow):
         totals = list(cls.objects.filter(flow=flow).values_list("node_uuid").annotate(replies=Sum("count")))
         return {str(t[0]): t[1] for t in totals if t[1]}
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=("flow", "node_uuid"), condition=Q(is_squashed=False), name="flownodecounts_unsquashed"
+            ),
+        ]
 
 
 class FlowRunStatusCount(SquashableModel):
