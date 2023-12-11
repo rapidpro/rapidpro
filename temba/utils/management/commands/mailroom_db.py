@@ -1,8 +1,8 @@
 import json
 import subprocess
 import time
+from zoneinfo import ZoneInfo
 
-import pytz
 from django_redis import get_redis_connection
 
 from django.conf import settings
@@ -164,7 +164,7 @@ class Command(BaseCommand):
         org = Org.objects.create(
             uuid=spec["uuid"],
             name=spec["name"],
-            timezone=pytz.timezone("America/Los_Angeles"),
+            timezone=ZoneInfo("America/Los_Angeles"),
             flow_languages=spec["languages"],
             country=country,
             created_on=timezone.now(),

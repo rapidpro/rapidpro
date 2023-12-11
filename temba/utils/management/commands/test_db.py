@@ -6,10 +6,10 @@ import subprocess
 import sys
 import time
 import uuid
+import zoneinfo
 from collections import defaultdict
 from datetime import timedelta
 
-import pytz
 from django_redis import get_redis_connection
 
 from django.contrib.auth.models import Group
@@ -275,7 +275,7 @@ class Command(BaseCommand):
             orgs.append(
                 Org.objects.create(
                     name=org_names[o % len(org_names)],
-                    timezone=self.random.choice(pytz.all_timezones),
+                    timezone=self.random.choice(zoneinfo.available_timezones()),
                     country=country,
                     created_on=self.db_begins_on,
                     created_by=superuser,

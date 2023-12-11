@@ -1,7 +1,6 @@
 import logging
-from datetime import timedelta
+from datetime import timedelta, timezone as tzone
 
-import pytz
 from celery import shared_task
 
 from django.conf import settings
@@ -134,7 +133,7 @@ def track_org_channel_counts(now=None):
     more than one message received or sent in the previous day. This helps track engagement of orgs.
     """
     now = now or timezone.now()
-    yesterday = (now.astimezone(pytz.utc) - timedelta(days=1)).date()
+    yesterday = (now.astimezone(tzone.utc) - timedelta(days=1)).date()
 
     stats = [
         dict(key="temba.msg_incoming", count_type=ChannelCount.INCOMING_MSG_TYPE),

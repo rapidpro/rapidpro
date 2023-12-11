@@ -1,7 +1,5 @@
-from datetime import datetime
+from datetime import datetime, timezone as tzone
 from unittest.mock import patch
-
-import pytz
 
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
@@ -1414,7 +1412,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         schedule = Schedule.create(
             self.org,
-            start_time=tz.localize(datetime(2021, 6, 24, 12, 0, 0, 0)),
+            start_time=datetime(2021, 6, 24, 12, 0, 0, 0).replace(tzinfo=tz),
             repeat_period=Schedule.REPEAT_WEEKLY,
             repeat_days_of_week="MF",
         )
@@ -1429,8 +1427,8 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             schedule=schedule,
         )
 
-        next_fire = trigger.schedule.calculate_next_fire(datetime(2021, 6, 23, 12, 0, 0, 0, pytz.UTC))  # Wed 23rd
-        self.assertEqual(tz.localize(datetime(2021, 6, 25, 12, 0, 0, 0)), next_fire)  # Fri 25th
+        next_fire = trigger.schedule.calculate_next_fire(datetime(2021, 6, 23, 12, 0, 0, 0, tzone.utc))  # Wed 23rd
+        self.assertEqual(datetime(2021, 6, 25, 12, 0, 0, 0).replace(tzinfo=tz), next_fire)  # Fri 25th
 
         update_url = reverse("triggers.trigger_update", args=[trigger.id])
 
@@ -1499,8 +1497,8 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({group1}, set(trigger.exclude_groups.all()))
         self.assertEqual({contact2}, set(trigger.contacts.all()))
 
-        next_fire = trigger.schedule.calculate_next_fire(datetime(2021, 6, 23, 12, 0, 0, 0, pytz.UTC))  # Wed 23rd
-        self.assertEqual(tz.localize(datetime(2021, 6, 24, 12, 0, 0, 0)), next_fire)  # Thu 24th
+        next_fire = trigger.schedule.calculate_next_fire(datetime(2021, 6, 23, 12, 0, 0, 0, tzone.utc))  # Wed 23rd
+        self.assertEqual(datetime(2021, 6, 24, 12, 0, 0, 0).replace(tzinfo=tz), next_fire)  # Thu 24th
 
     @patch("temba.channels.types.facebook_legacy.FacebookLegacyType.deactivate_trigger")
     @patch("temba.channels.types.facebook_legacy.FacebookLegacyType.activate_trigger")

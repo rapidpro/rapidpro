@@ -1,11 +1,11 @@
 import io
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone as tzone
 from decimal import Decimal
 from unittest.mock import PropertyMock, call, patch
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import iso8601
-import pytz
 import xlrd
 from openpyxl import load_workbook
 
@@ -3226,7 +3226,7 @@ class ContactFieldTest(TembaTest):
             "Be\02n Haggerty",
             phone="+12067799294",
             fields={"first": "On\02e", "third": "20/12/2015 08:30"},
-            last_seen_on=datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
+            last_seen_on=datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=tzone.utc),
         )
 
         flow = self.get_flow("color_v13")
@@ -3333,7 +3333,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "Active",
                         contact.created_on,
-                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
+                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=tzone.utc),
                         "",
                         "+12067799294",
                         "",
@@ -3401,7 +3401,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "Active",
                         contact.created_on,
-                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
+                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=tzone.utc),
                         "",
                         "+12067799294",
                         "",
@@ -3467,7 +3467,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "Active",
                         contact.created_on,
-                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
+                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=tzone.utc),
                         "",
                         "+12067799294",
                         "+12062233445",
@@ -3562,7 +3562,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "Active",
                         contact.created_on,
-                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
+                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=tzone.utc),
                         "",
                         "+12067799294",
                         "+12062233445",
@@ -3731,7 +3731,7 @@ class ContactFieldTest(TembaTest):
                             "",
                             "Active",
                             contact.created_on,
-                            datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
+                            datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=tzone.utc),
                             "",
                             "+12067799294",
                             "+12062233445",
@@ -3789,7 +3789,7 @@ class ContactFieldTest(TembaTest):
                         "",
                         "Active",
                         contact.created_on,
-                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=pytz.UTC),
+                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=tzone.utc),
                         "20-12-2015 08:30",
                         "",
                         "One",
@@ -5094,7 +5094,7 @@ class ContactImportTest(TembaTest):
 
     def test_parse_value(self):
         imp = self.create_contact_import("media/test_imports/simple.xlsx")
-        kgl = pytz.timezone("Africa/Kigali")
+        kgl = ZoneInfo("Africa/Kigali")
 
         tests = [
             ("", ""),
@@ -5103,7 +5103,7 @@ class ContactImportTest(TembaTest):
             (123.456, "123.456"),
             (date(2020, 9, 18), "2020-09-18"),
             (datetime(2020, 9, 18, 15, 45, 30, 0), "2020-09-18T15:45:30+02:00"),
-            (kgl.localize(datetime(2020, 9, 18, 15, 45, 30, 0)), "2020-09-18T15:45:30+02:00"),
+            (datetime(2020, 9, 18, 15, 45, 30, 0).replace(tzinfo=kgl), "2020-09-18T15:45:30+02:00"),
         ]
         for test in tests:
             self.assertEqual(test[1], imp._parse_value(test[0], tz=kgl))

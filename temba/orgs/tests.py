@@ -1,10 +1,10 @@
 import io
 import smtplib
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone as tzone
 from unittest.mock import patch
 from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
 
-import pytz
 from smartmin.users.models import FailedLogin, RecoveryToken
 
 from django.conf import settings
@@ -601,7 +601,7 @@ class UserTest(TembaTest):
         # one of our users should belong to a bunch of orgs
         for i in range(5):
             org = Org.objects.create(
-                name=f"Org {i}", timezone=pytz.timezone("Africa/Kigali"), created_by=self.user, modified_by=self.user
+                name=f"Org {i}", timezone=ZoneInfo("Africa/Kigali"), created_by=self.user, modified_by=self.user
             )
             org.add_user(self.admin, OrgRole.ADMINISTRATOR)
 
@@ -639,7 +639,7 @@ class UserTest(TembaTest):
 
 class OrgTest(TembaTest):
     def test_create(self):
-        new_org = Org.create(self.admin, "Cool Stuff", pytz.timezone("Africa/Kigali"))
+        new_org = Org.create(self.admin, "Cool Stuff", ZoneInfo("Africa/Kigali"))
         self.assertEqual("Cool Stuff", new_org.name)
         self.assertEqual(self.admin, new_org.created_by)
         self.assertEqual("en-us", new_org.language)
@@ -650,7 +650,7 @@ class OrgTest(TembaTest):
         self.assertEqual('<Org: name="Cool Stuff">', repr(new_org))
 
         # if timezone is US, should get MMDDYYYY dates
-        new_org = Org.create(self.admin, "Cool Stuff", pytz.timezone("America/Los_Angeles"))
+        new_org = Org.create(self.admin, "Cool Stuff", ZoneInfo("America/Los_Angeles"))
         self.assertEqual("M", new_org.date_format)
         self.assertEqual(str(new_org.timezone), "America/Los_Angeles")
 
@@ -1947,8 +1947,8 @@ class OrgDeleteTest(TembaTest):
                 current_flow=flow1,
                 status=FlowSession.STATUS_WAITING,
                 output_url="http://sessions.com/123.json",
-                wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
-                wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC),
+                wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, tzone.utc),
+                wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, tzone.utc),
                 wait_resume_on_expire=False,
             )
         )
@@ -2326,7 +2326,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # add a sub org
         self.child = Org.objects.create(
             name="Child Workspace",
-            timezone=pytz.timezone("US/Pacific"),
+            timezone=ZoneInfo("US/Pacific"),
             flow_languages=["eng"],
             created_by=self.admin,
             modified_by=self.admin,
@@ -2346,7 +2346,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # add a sub org
         self.child = Org.objects.create(
             name="Child Workspace",
-            timezone=pytz.timezone("US/Pacific"),
+            timezone=ZoneInfo("US/Pacific"),
             flow_languages=["eng"],
             created_by=self.admin,
             modified_by=self.admin,
@@ -2435,7 +2435,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.child_org = Org.objects.create(
             name="Child Org",
-            timezone=pytz.timezone("Africa/Kigali"),
+            timezone=ZoneInfo("Africa/Kigali"),
             country=self.org.country,
             created_by=self.user,
             modified_by=self.user,
@@ -2783,7 +2783,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # should have a new org
         org = Org.objects.get(name="AlexCom")
-        self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
+        self.assertEqual(org.timezone, ZoneInfo("Africa/Kigali"))
 
         # of which our user is an administrator and can generate an API token
         self.assertIn(user, org.get_admins())
@@ -2888,7 +2888,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # should have a new org
         org = Org.objects.get(name="Relieves World")
-        self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
+        self.assertEqual(org.timezone, ZoneInfo("Africa/Kigali"))
         self.assertEqual(str(org), "Relieves World")
 
         # of which our user is an administrator, and can generate an API token
@@ -3236,12 +3236,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create an inactive org which should never appear as an option
         org3 = Org.objects.create(
-            name="Deactivated", timezone=pytz.UTC, created_by=self.user, modified_by=self.user, is_active=False
+            name="Deactivated", timezone=tzone.utc, created_by=self.user, modified_by=self.user, is_active=False
         )
         org3.add_user(self.editor, OrgRole.EDITOR)
 
         # and another org that none of our users belong to
-        org4 = Org.objects.create(name="Other", timezone=pytz.UTC, created_by=self.user, modified_by=self.user)
+        org4 = Org.objects.create(name="Other", timezone=tzone.utc, created_by=self.user, modified_by=self.user)
 
         self.assertLoginRedirect(self.client.get(choose_url))
 

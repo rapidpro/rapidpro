@@ -1,9 +1,8 @@
 import json
 from collections import OrderedDict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone as tzone
 from unittest.mock import patch
 
-import pytz
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -434,20 +433,20 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         self.joe.name = "Jo\02e Blow"
         self.joe.save(update_fields=("name",))
 
-        self.org.created_on = datetime(2017, 1, 1, 9, tzinfo=pytz.UTC)
+        self.org.created_on = datetime(2017, 1, 1, 9, tzinfo=tzone.utc)
         self.org.save()
 
         flow = self.create_flow("Color Flow")
 
-        msg1 = self.create_incoming_msg(self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
+        msg1 = self.create_incoming_msg(self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=tzone.utc))
         msg2 = self.create_incoming_msg(
-            self.frank, "hello 2", created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC), flow=flow
+            self.frank, "hello 2", created_on=datetime(2017, 1, 2, 10, tzinfo=tzone.utc), flow=flow
         )
-        msg3 = self.create_incoming_msg(self.joe, "hello 3", created_on=datetime(2017, 1, 3, 10, tzinfo=pytz.UTC))
+        msg3 = self.create_incoming_msg(self.joe, "hello 3", created_on=datetime(2017, 1, 3, 10, tzinfo=tzone.utc))
 
         # inbound message that looks like a surveyor message
         msg4 = self.create_incoming_msg(
-            self.joe, "hello 4", surveyor=True, created_on=datetime(2017, 1, 4, 10, tzinfo=pytz.UTC)
+            self.joe, "hello 4", surveyor=True, created_on=datetime(2017, 1, 4, 10, tzinfo=tzone.utc)
         )
 
         # inbound message with media attached, such as an ivr recording
@@ -455,21 +454,21 @@ class MsgTest(TembaTest, CRUDLTestMixin):
             self.joe,
             "Media message",
             attachments=["audio:http://rapidpro.io/audio/sound.mp3"],
-            created_on=datetime(2017, 1, 5, 10, tzinfo=pytz.UTC),
+            created_on=datetime(2017, 1, 5, 10, tzinfo=tzone.utc),
         )
 
         # create some outbound messages with different statuses
         msg6 = self.create_outgoing_msg(
-            self.joe, "Hey out 6", status=Msg.STATUS_SENT, created_on=datetime(2017, 1, 6, 10, tzinfo=pytz.UTC)
+            self.joe, "Hey out 6", status=Msg.STATUS_SENT, created_on=datetime(2017, 1, 6, 10, tzinfo=tzone.utc)
         )
         msg7 = self.create_outgoing_msg(
-            self.joe, "Hey out 7", status=Msg.STATUS_DELIVERED, created_on=datetime(2017, 1, 7, 10, tzinfo=pytz.UTC)
+            self.joe, "Hey out 7", status=Msg.STATUS_DELIVERED, created_on=datetime(2017, 1, 7, 10, tzinfo=tzone.utc)
         )
         msg8 = self.create_outgoing_msg(
-            self.joe, "Hey out 8", status=Msg.STATUS_ERRORED, created_on=datetime(2017, 1, 8, 10, tzinfo=pytz.UTC)
+            self.joe, "Hey out 8", status=Msg.STATUS_ERRORED, created_on=datetime(2017, 1, 8, 10, tzinfo=tzone.utc)
         )
         msg9 = self.create_outgoing_msg(
-            self.joe, "Hey out 9", status=Msg.STATUS_FAILED, created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC)
+            self.joe, "Hey out 9", status=Msg.STATUS_FAILED, created_on=datetime(2017, 1, 9, 10, tzinfo=tzone.utc)
         )
 
         self.assertEqual(msg5.get_attachments(), [Attachment("audio", "http://rapidpro.io/audio/sound.mp3")])
@@ -798,23 +797,23 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         telegram = self.create_channel("TG", "Telegram", "765432")
 
         # messages can't be older than org
-        self.org.created_on = datetime(2016, 1, 2, 10, tzinfo=pytz.UTC)
+        self.org.created_on = datetime(2016, 1, 2, 10, tzinfo=tzone.utc)
         self.org.save(update_fields=("created_on",))
 
         flow = self.create_flow("Color Flow")
         msg1 = self.create_incoming_msg(
-            self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC), flow=flow
+            self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=tzone.utc), flow=flow
         )
         msg2 = self.create_incoming_msg(
-            bob, "hello 2", created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC), channel=telegram
+            bob, "hello 2", created_on=datetime(2017, 1, 2, 10, tzinfo=tzone.utc), channel=telegram
         )
         msg3 = self.create_incoming_msg(
-            bob, "hello 3", created_on=datetime(2017, 1, 3, 10, tzinfo=pytz.UTC), channel=telegram
+            bob, "hello 3", created_on=datetime(2017, 1, 3, 10, tzinfo=tzone.utc), channel=telegram
         )
 
         # inbound message that looks like a surveyor message
         msg4 = self.create_incoming_msg(
-            self.joe, "hello 4", surveyor=True, created_on=datetime(2017, 1, 4, 10, tzinfo=pytz.UTC)
+            self.joe, "hello 4", surveyor=True, created_on=datetime(2017, 1, 4, 10, tzinfo=tzone.utc)
         )
 
         # inbound message with media attached, such as an ivr recording
@@ -822,25 +821,25 @@ class MsgTest(TembaTest, CRUDLTestMixin):
             self.joe,
             "Media message",
             attachments=["audio:http://rapidpro.io/audio/sound.mp3"],
-            created_on=datetime(2017, 1, 5, 10, tzinfo=pytz.UTC),
+            created_on=datetime(2017, 1, 5, 10, tzinfo=tzone.utc),
         )
 
         # create some outbound messages with different statuses
         msg6 = self.create_outgoing_msg(
-            self.joe, "Hey out 6", status=Msg.STATUS_SENT, created_on=datetime(2017, 1, 6, 10, tzinfo=pytz.UTC)
+            self.joe, "Hey out 6", status=Msg.STATUS_SENT, created_on=datetime(2017, 1, 6, 10, tzinfo=tzone.utc)
         )
         msg7 = self.create_outgoing_msg(
             bob,
             "Hey out 7",
             status=Msg.STATUS_DELIVERED,
-            created_on=datetime(2017, 1, 7, 10, tzinfo=pytz.UTC),
+            created_on=datetime(2017, 1, 7, 10, tzinfo=tzone.utc),
             channel=telegram,
         )
         msg8 = self.create_outgoing_msg(
-            self.joe, "Hey out 8", status=Msg.STATUS_ERRORED, created_on=datetime(2017, 1, 8, 10, tzinfo=pytz.UTC)
+            self.joe, "Hey out 8", status=Msg.STATUS_ERRORED, created_on=datetime(2017, 1, 8, 10, tzinfo=tzone.utc)
         )
         msg9 = self.create_outgoing_msg(
-            self.joe, "Hey out 9", status=Msg.STATUS_FAILED, created_on=datetime(2017, 1, 9, 10, tzinfo=pytz.UTC)
+            self.joe, "Hey out 9", status=Msg.STATUS_FAILED, created_on=datetime(2017, 1, 9, 10, tzinfo=tzone.utc)
         )
 
         self.assertEqual(msg5.get_attachments(), [Attachment("audio", "http://rapidpro.io/audio/sound.mp3")])

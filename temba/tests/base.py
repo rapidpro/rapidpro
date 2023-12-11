@@ -4,8 +4,8 @@ from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
-import pytz
 from django_redis import get_redis_connection
 from smartmin.tests import SmartminTest
 
@@ -66,7 +66,7 @@ class TembaTest(SmartminTest):
 
         self.org = Org.objects.create(
             name="Nyaruka",
-            timezone=pytz.timezone("Africa/Kigali"),
+            timezone=ZoneInfo("Africa/Kigali"),
             flow_languages=["eng", "kin"],
             created_by=self.admin,
             modified_by=self.admin,
@@ -82,7 +82,7 @@ class TembaTest(SmartminTest):
         self.admin2 = self.create_user("administrator@trileet.com")
         self.org2 = Org.objects.create(
             name="Trileet Inc.",
-            timezone=pytz.timezone("US/Pacific"),
+            timezone=ZoneInfo("US/Pacific"),
             flow_languages=["eng"],
             created_by=self.admin2,
             modified_by=self.admin2,

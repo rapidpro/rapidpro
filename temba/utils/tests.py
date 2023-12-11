@@ -1,11 +1,11 @@
 import datetime
 import io
 from collections import OrderedDict
-from datetime import date
+from datetime import date, timezone as tzone
 from decimal import Decimal
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
-import pytz
 from celery.app.task import Task
 from django_redis import get_redis_connection
 
@@ -162,23 +162,23 @@ class InitTest(TembaTest):
 
 class DatesTest(TembaTest):
     def test_datetime_to_timestamp(self):
-        d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_456, tzinfo=pytz.utc)
+        d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_456, tzinfo=tzone.utc)
         self.assertEqual(datetime_to_timestamp(d1), 1_388_631_845_123_456)  # from http://unixtimestamp.50x.eu
         self.assertEqual(timestamp_to_datetime(1_388_631_845_123_456), d1)
 
-        tz = pytz.timezone("Africa/Kigali")
-        d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_456))
+        tz = ZoneInfo("Africa/Kigali")
+        d2 = datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_456).replace(tzinfo=tz)
         self.assertEqual(datetime_to_timestamp(d2), 1_388_624_645_123_456)
-        self.assertEqual(timestamp_to_datetime(1_388_624_645_123_456), d2.astimezone(pytz.utc))
+        self.assertEqual(timestamp_to_datetime(1_388_624_645_123_456), d2.astimezone(tzone.utc))
 
     def test_datetime_to_str(self):
-        tz = pytz.timezone("Africa/Kigali")
-        d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, 6))
+        tz = ZoneInfo("Africa/Kigali")
+        d2 = datetime.datetime(2014, 1, 2, 3, 4, 5, 6).replace(tzinfo=tz)
 
         self.assertIsNone(datetime_to_str(None, "%Y-%m-%d %H:%M", tz=tz))
         self.assertEqual(datetime_to_str(d2, "%Y-%m-%d %H:%M", tz=tz), "2014-01-02 03:04")
-        self.assertEqual(datetime_to_str(d2, "%Y/%m/%d %H:%M", tz=pytz.UTC), "2014/01/02 01:04")
-        self.assertEqual(datetime_to_str(date(2023, 8, 16), "%Y/%m/%d %H:%M", tz=pytz.UTC), "2023/08/16 00:00")
+        self.assertEqual(datetime_to_str(d2, "%Y/%m/%d %H:%M", tz=tzone.utc), "2014/01/02 01:04")
+        self.assertEqual(datetime_to_str(date(2023, 8, 16), "%Y/%m/%d %H:%M", tz=tzone.utc), "2023/08/16 00:00")
 
     def test_date_range(self):
         self.assertEqual(
@@ -201,16 +201,16 @@ class TimezonesTest(TembaTest):
         field = TimeZoneFormField(help_text="Test field")
 
         self.assertEqual(field.choices[0], ("Pacific/Midway", "(GMT-1100) Pacific/Midway"))
-        self.assertEqual(field.coerce("Africa/Kigali"), pytz.timezone("Africa/Kigali"))
+        self.assertEqual(field.coerce("Africa/Kigali"), ZoneInfo("Africa/Kigali"))
 
     def test_timezone_country_code(self):
-        self.assertEqual("RW", timezone_to_country_code(pytz.timezone("Africa/Kigali")))
-        self.assertEqual("US", timezone_to_country_code(pytz.timezone("America/Chicago")))
-        self.assertEqual("US", timezone_to_country_code(pytz.timezone("US/Pacific")))
+        self.assertEqual("RW", timezone_to_country_code(ZoneInfo("Africa/Kigali")))
+        self.assertEqual("US", timezone_to_country_code(ZoneInfo("America/Chicago")))
+        self.assertEqual("US", timezone_to_country_code(ZoneInfo("US/Pacific")))
 
         # GMT and UTC give empty
-        self.assertEqual("", timezone_to_country_code(pytz.timezone("GMT")))
-        self.assertEqual("", timezone_to_country_code(pytz.timezone("UTC")))
+        self.assertEqual("", timezone_to_country_code(ZoneInfo("GMT")))
+        self.assertEqual("", timezone_to_country_code(ZoneInfo("UTC")))
 
 
 class TemplateTagTest(TembaTest):
@@ -232,7 +232,7 @@ class TemplateTagTest(TembaTest):
         self.assertEqual("", icon(None))
 
     def test_format_datetime(self):
-        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
+        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, tzone.utc)):
             self.org.date_format = "D"
             self.org.save()
 
@@ -241,7 +241,7 @@ class TemplateTagTest(TembaTest):
             self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
             self.assertEqual("20-07-2012 17:05:30", format_datetime(dict(), test_date, seconds=True))
 
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 30, 0).replace(tzinfo=pytz.utc)
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 30, 0).replace(tzinfo=tzone.utc)
             self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
             self.assertEqual("20-07-2012 17:05:30", format_datetime(dict(), test_date, seconds=True))
 
@@ -251,7 +251,7 @@ class TemplateTagTest(TembaTest):
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
             self.assertEqual("20-07-2012 19:05", format_datetime(context, test_date))
 
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
             self.assertEqual("20-07-2012 19:05", format_datetime(context, test_date))
 
             # the org has month first configured
@@ -262,7 +262,7 @@ class TemplateTagTest(TembaTest):
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
             self.assertEqual("07-20-2012 19:05", format_datetime(context, test_date))
 
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
             self.assertEqual("07-20-2012 19:05", format_datetime(context, test_date))
 
             # the org has year first configured
@@ -273,11 +273,11 @@ class TemplateTagTest(TembaTest):
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
             self.assertEqual("2012-07-20 19:05", format_datetime(context, test_date))
 
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
             self.assertEqual("2012-07-20 19:05", format_datetime(context, test_date))
 
     def test_short_datetime(self):
-        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
+        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, tzone.utc)):
             self.org.date_format = "D"
             self.org.save()
 
@@ -302,7 +302,7 @@ class TemplateTagTest(TembaTest):
             self.assertEqual("2 " + test_date.strftime("%b"), short_datetime(context, test_date))
 
             # but a different year is different
-            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
             self.assertEqual("20/7/12", short_datetime(context, jan_2))
 
             # the org has month first configured
@@ -323,7 +323,7 @@ class TemplateTagTest(TembaTest):
             self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
 
             # but a different year is different
-            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
             self.assertEqual("7/20/12", short_datetime(context, jan_2))
 
             # the org has year first configured
@@ -349,7 +349,7 @@ class TemplateTagTest(TembaTest):
             self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
 
             # but a different year is different
-            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
             self.assertEqual("2012/7/20", short_datetime(context, jan_2))
 
     def test_delta(self):
@@ -791,7 +791,7 @@ class JSONTest(TestCase):
         self.assertEqual(OrderedDict({"one": 1, "two": Decimal("0.2")}), json.loads('{"one": 1, "two": 0.2}'))
         self.assertEqual(
             '{"dt": "2018-08-27T20:41:28.123Z"}',
-            json.dumps({"dt": datetime.datetime(2018, 8, 27, 20, 41, 28, 123000, tzinfo=pytz.UTC)}),
+            json.dumps({"dt": datetime.datetime(2018, 8, 27, 20, 41, 28, 123000, tzinfo=tzone.utc)}),
         )
 
 

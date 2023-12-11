@@ -1,8 +1,6 @@
 import io
-from datetime import datetime
+from datetime import datetime, timezone as tzone
 from unittest.mock import patch
-
-import pytz
 
 from temba.tests import TembaTest
 from temba.tests.s3 import MockEventStream, MockS3Client
@@ -65,11 +63,11 @@ class SelectTest(TembaTest):
         )
         self.assertEqual(
             "SELECT s.* FROM s3object s WHERE CAST(s.created_on AS TIMESTAMP) > CAST('2021-09-28T18:27:30.123456+00:00' AS TIMESTAMP)",
-            compile_select(where={"created_on__gt": datetime(2021, 9, 28, 18, 27, 30, 123456, pytz.UTC)}),
+            compile_select(where={"created_on__gt": datetime(2021, 9, 28, 18, 27, 30, 123456, tzone.utc)}),
         )
         self.assertEqual(
             "SELECT s.* FROM s3object s WHERE CAST(s.modified_on AS TIMESTAMP) <= CAST('2021-09-28T18:27:30.123456+00:00' AS TIMESTAMP)",
-            compile_select(where={"modified_on__lte": datetime(2021, 9, 28, 18, 27, 30, 123456, pytz.UTC)}),
+            compile_select(where={"modified_on__lte": datetime(2021, 9, 28, 18, 27, 30, 123456, tzone.utc)}),
         )
         self.assertEqual(
             "SELECT s.* FROM s3object s WHERE s.flow.uuid IN ('1234', '2345')",

@@ -1,6 +1,5 @@
-from datetime import datetime
+from datetime import datetime, timezone as tzone
 
-import pytz
 from pyfcm import FCMNotification
 
 from django.conf import settings
@@ -135,7 +134,7 @@ def update_message(msg, cmd):
     Updates a message according to the provided client command
     """
 
-    date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
+    date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=tzone.utc)
     keyword = cmd["cmd"]
     handled = False
 

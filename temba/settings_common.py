@@ -84,7 +84,6 @@ AWS_SECRET_ACCESS_KEY = "aws_secret_access_key"
 USE_TZ = True
 TIME_ZONE = "GMT"
 USER_TIME_ZONE = "Africa/Kigali"
-USE_DEPRECATED_PYTZ = True
 
 LANGUAGE_CODE = "en-us"
 
