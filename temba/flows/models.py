@@ -2019,6 +2019,9 @@ class FlowStartCount(SquashableModel):
         for start in starts:
             start.run_count = counts_by_start.get(start.id, 0)
 
+    class Meta:
+        indexes = [models.Index(fields=("start",), condition=Q(is_squashed=False), name="flowstartcounts_unsquashed")]
+
 
 class FlowLabel(TembaModel):
     """

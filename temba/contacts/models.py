@@ -1835,6 +1835,11 @@ class ContactGroupCount(SquashableModel):
         # insert updated count, returning it
         return ContactGroupCount.objects.create(group=group, count=count)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=("group",), condition=Q(is_squashed=False), name="contactgroupcounts_unsquashed")
+        ]
+
 
 class ExportContactsTask(BaseExport):
     analytics_key = "contact_export"
