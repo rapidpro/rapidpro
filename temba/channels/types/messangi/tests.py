@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import pytz
+from zoneinfo import ZoneInfo
 
 from django.urls import reverse
 
@@ -22,7 +22,7 @@ class MessangiTypeTest(TembaTest):
         self.assertNotContains(response, url)
 
         # but if we are in the proper time zone
-        self.org.timezone = pytz.timezone("America/Jamaica")
+        self.org.timezone = ZoneInfo("America/Jamaica")
         self.org.save()
 
         response = self.client.get(reverse("channels.channel_claim"))

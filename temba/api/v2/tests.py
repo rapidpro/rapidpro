@@ -1,13 +1,12 @@
 import base64
 import time
 from collections import OrderedDict
-from datetime import datetime
+from datetime import datetime, timezone as tzone
 from decimal import Decimal
 from unittest.mock import call, patch
 from urllib.parse import quote_plus
 
 import iso8601
-import pytz
 from rest_framework import serializers
 from rest_framework.test import APIClient
 
@@ -702,7 +701,7 @@ class EndpointsTest(APITest):
         actual_ids = list(FlowRun.objects.order_by("-pk").values_list("pk", flat=True))
 
         # give them all the same modified_on
-        FlowRun.objects.all().update(modified_on=datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC))
+        FlowRun.objects.all().update(modified_on=datetime(2015, 9, 15, 0, 0, 0, 0, tzone.utc))
 
         returned_ids = []
 
@@ -2076,7 +2075,7 @@ class EndpointsTest(APITest):
 
         survey = self.create_flow("Survey")
         contact4.modified_on = timezone.now()
-        contact4.last_seen_on = datetime(2020, 8, 12, 13, 30, 45, 123456, pytz.UTC)
+        contact4.last_seen_on = datetime(2020, 8, 12, 13, 30, 45, 123456, tzone.utc)
         contact4.current_flow = survey
         contact4.save(update_fields=("modified_on", "last_seen_on", "current_flow"))
 
@@ -5361,7 +5360,7 @@ class EndpointsTest(APITest):
         flow = self.create_flow("Support")
 
         ticket1 = self.create_ticket(
-            mailgun, ann, "Help", opened_by=self.admin, closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
+            mailgun, ann, "Help", opened_by=self.admin, closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, tzone.utc)
         )
         ticket2 = self.create_ticket(mailgun, bob, "Really", opened_in=flow)
         ticket3 = self.create_ticket(mailgun, bob, "Pleeeease help", assignee=self.agent)
@@ -5445,7 +5444,7 @@ class EndpointsTest(APITest):
             mailgun,
             self.joe,
             "Help",
-            closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC),
+            closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, tzone.utc),
         )
         ticket2 = self.create_ticket(mailgun, self.joe, "Help")
         self.create_ticket(mailgun, self.frank, "Pleeeease help")

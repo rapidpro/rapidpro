@@ -1,7 +1,6 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone as tzone
 from unittest.mock import patch
 
-import pytz
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -692,7 +691,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         age = self.create_field("age", "Age", value_type=ContactField.TYPE_NUMBER)
 
         # messages can't be older than org
-        self.org.created_on = datetime(2016, 1, 2, 10, tzinfo=pytz.UTC)
+        self.org.created_on = datetime(2016, 1, 2, 10, tzinfo=tzone.utc)
         self.org.save(update_fields=("created_on",))
 
         ticketer = Ticketer.create(self.org, self.admin, "internal", "Internal", {})

@@ -1,6 +1,6 @@
 import calendar
 import logging
-from datetime import time, timedelta
+from datetime import time, timedelta, timezone as tzone
 
 from dateutil.relativedelta import relativedelta
 
@@ -99,7 +99,7 @@ class Schedule(models.Model):
         else:
             # our start time needs to be in the org timezone so that we always fire at the
             # appropriate hour regardless of timezone / dst changes
-            start_time = tz.normalize(start_time.astimezone(tz))
+            start_time = start_time.astimezone(tz)
 
             self.repeat_hour_of_day = start_time.hour
             self.repeat_minute_of_hour = start_time.minute
@@ -132,18 +132,18 @@ class Schedule(models.Model):
 
         # start from the trigger date
         next_fire = now.astimezone(tz)
-        next_fire = tz.normalize(next_fire.replace(hour=hour, minute=minute, second=0, microsecond=0))
+        next_fire = next_fire.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
         # if monthly, set to the day of the month scheduled and move forward until we are in the future
         if self.repeat_period == Schedule.REPEAT_MONTHLY:
             while True:
                 (weekday, days) = calendar.monthrange(next_fire.year, next_fire.month)
                 day_of_month = min(days, self.repeat_day_of_month)
-                next_fire = tz.normalize(next_fire.replace(day=day_of_month, hour=hour, minute=minute))
+                next_fire = next_fire.replace(day=day_of_month, hour=hour, minute=minute)
                 if next_fire > now:
                     break
 
-                next_fire = tz.normalize(next_fire + relativedelta(months=1))
+                next_fire = (next_fire.astimezone(tzone.utc) + relativedelta(months=1)).astimezone(tz)
 
             return next_fire
 
@@ -152,13 +152,21 @@ class Schedule(models.Model):
             assert self.repeat_days_of_week != "" and self.repeat_days_of_week is not None
 
             while next_fire <= now or self._day_of_week(next_fire) not in self.repeat_days_of_week:
-                next_fire = tz.normalize(tz.normalize(next_fire + timedelta(days=1)).replace(hour=hour, minute=minute))
+                next_fire = (
+                    (next_fire.astimezone(tzone.utc) + timedelta(days=1))
+                    .astimezone(tz)
+                    .replace(hour=hour, minute=minute)
+                )
 
             return next_fire
 
         elif self.repeat_period == Schedule.REPEAT_DAILY:
             while next_fire <= now:
-                next_fire = tz.normalize(tz.normalize(next_fire + timedelta(days=1)).replace(hour=hour, minute=minute))
+                next_fire = (
+                    (next_fire.astimezone(tzone.utc) + timedelta(days=1))
+                    .astimezone(tz)
+                    .replace(hour=hour, minute=minute)
+                )
 
             return next_fire
 

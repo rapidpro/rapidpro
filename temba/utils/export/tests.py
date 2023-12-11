@@ -1,8 +1,8 @@
 import os
 from datetime import datetime
 from unittest.mock import PropertyMock, patch
+from zoneinfo import ZoneInfo
 
-import pytz
 from openpyxl import load_workbook
 
 from temba.contacts.models import ExportContactsTask
@@ -28,7 +28,7 @@ class ExportTest(TembaTest):
         self.assertEqual(True, prepare_value(True))
         self.assertEqual(False, prepare_value(False))
 
-        dt = pytz.timezone("Africa/Nairobi").localize(datetime(2017, 2, 7, 15, 41, 23, 123_456))
+        dt = datetime(2017, 2, 7, 15, 41, 23, 123_456).replace(tzinfo=ZoneInfo("Africa/Nairobi"))
         self.assertEqual(datetime(2017, 2, 7, 14, 41, 23, 0), prepare_value(dt, self.org.timezone))
 
         with self.assertRaises(ValueError):

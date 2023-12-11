@@ -1,10 +1,9 @@
 import decimal
 import io
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone as tzone
 from unittest.mock import patch
 
-import pytz
 from django_redis import get_redis_connection
 from openpyxl import load_workbook
 
@@ -1441,8 +1440,8 @@ class FlowTest(TembaTest, CRUDLTestMixin):
             current_flow=flow1,
             status=FlowSession.STATUS_WAITING,
             output_url="http://sessions.com/123.json",
-            wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
-            wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC),
+            wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, tzone.utc),
+            wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, tzone.utc),
             wait_resume_on_expire=False,
         )
 
@@ -1454,7 +1453,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
             current_flow=flow1,
             status=FlowSession.STATUS_COMPLETED,
             output_url="http://sessions.com/234.json",
-            wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
+            wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, tzone.utc),
             wait_expires_on=None,
             wait_resume_on_expire=False,
             ended_on=timezone.now(),
@@ -1468,8 +1467,8 @@ class FlowTest(TembaTest, CRUDLTestMixin):
             current_flow=flow2,
             status=FlowSession.STATUS_WAITING,
             output_url="http://sessions.com/345.json",
-            wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, pytz.UTC),
-            wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC),
+            wait_started_on=datetime(2022, 1, 1, 0, 0, 0, 0, tzone.utc),
+            wait_expires_on=datetime(2022, 1, 2, 0, 0, 0, 0, tzone.utc),
             wait_resume_on_expire=False,
         )
 
@@ -1481,13 +1480,13 @@ class FlowTest(TembaTest, CRUDLTestMixin):
 
         # new session expiration should be wait_started_on + 1 hour
         session1.refresh_from_db()
-        self.assertEqual(datetime(2022, 1, 1, 2, 0, 0, 0, pytz.UTC), session1.wait_expires_on)
+        self.assertEqual(datetime(2022, 1, 1, 2, 0, 0, 0, tzone.utc), session1.wait_expires_on)
 
         # other sessions should be unchanged
         session2.refresh_from_db()
         session3.refresh_from_db()
         self.assertIsNone(session2.wait_expires_on)
-        self.assertEqual(datetime(2022, 1, 2, 0, 0, 0, 0, pytz.UTC), session3.wait_expires_on)
+        self.assertEqual(datetime(2022, 1, 2, 0, 0, 0, 0, tzone.utc), session3.wait_expires_on)
 
 
 class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -3792,17 +3791,17 @@ class FlowSessionTest(TembaTest):
 
         # end run1 and run4's sessions in the past
         run1.status = FlowRun.STATUS_COMPLETED
-        run1.exited_on = datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
+        run1.exited_on = datetime(2015, 9, 15, 0, 0, 0, 0, tzone.utc)
         run1.save(update_fields=("status", "exited_on"))
         run1.session.status = FlowSession.STATUS_COMPLETED
-        run1.session.ended_on = datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
+        run1.session.ended_on = datetime(2015, 9, 15, 0, 0, 0, 0, tzone.utc)
         run1.session.save(update_fields=("status", "ended_on"))
 
         run4.status = FlowRun.STATUS_INTERRUPTED
-        run4.exited_on = datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
+        run4.exited_on = datetime(2015, 9, 15, 0, 0, 0, 0, tzone.utc)
         run4.save(update_fields=("status", "exited_on"))
         run4.session.status = FlowSession.STATUS_INTERRUPTED
-        run4.session.ended_on = datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)
+        run4.session.ended_on = datetime(2015, 9, 15, 0, 0, 0, 0, tzone.utc)
         run4.session.save(update_fields=("status", "ended_on"))
 
         # end run2's session now

@@ -1,6 +1,5 @@
-from datetime import datetime
-
-import pytz
+from datetime import datetime, timezone as tzone
+from zoneinfo import ZoneInfo
 
 from django.utils import timezone
 
@@ -32,7 +31,7 @@ class ScheduleTest(TembaTest):
         )
 
     def test_schedules(self):
-        default_tz = pytz.timezone("Africa/Kigali")
+        default_tz = ZoneInfo("Africa/Kigali")
 
         tcs = [
             dict(
@@ -58,7 +57,7 @@ class ScheduleTest(TembaTest):
                 trigger_date=datetime(2019, 2, 10, hour=10),
                 now=datetime(2019, 1, 1, hour=9),
                 repeat_period=Schedule.REPEAT_MONTHLY,
-                tz=pytz.timezone("America/Los_Angeles"),
+                tz=ZoneInfo("America/Los_Angeles"),
                 first=datetime(2019, 2, 10, hour=10),
                 next=[
                     datetime(2019, 3, 10, hour=10),
@@ -79,7 +78,7 @@ class ScheduleTest(TembaTest):
                 now=datetime(2019, 1, 1, hour=9),
                 repeat_period=Schedule.REPEAT_WEEKLY,
                 repeat_days_of_week="S",
-                tz=pytz.timezone("America/Los_Angeles"),
+                tz=ZoneInfo("America/Los_Angeles"),
                 first=datetime(2019, 3, 2, hour=10),
                 next=[datetime(2019, 3, 9, hour=10), datetime(2019, 3, 16, hour=10)],
                 display="each week on Saturday",
@@ -90,7 +89,7 @@ class ScheduleTest(TembaTest):
                 now=datetime(2019, 11, 1, hour=9),
                 repeat_period=Schedule.REPEAT_WEEKLY,
                 repeat_days_of_week="S",
-                tz=pytz.timezone("America/Los_Angeles"),
+                tz=ZoneInfo("America/Los_Angeles"),
                 first=datetime(2019, 11, 2, hour=10),
                 next=[datetime(2019, 11, 9, hour=10), datetime(2019, 11, 16, hour=10)],
                 display="each week on Saturday",
@@ -100,7 +99,7 @@ class ScheduleTest(TembaTest):
                 trigger_date=datetime(2019, 3, 8, hour=10),
                 now=datetime(2019, 1, 1, hour=9),
                 repeat_period=Schedule.REPEAT_DAILY,
-                tz=pytz.timezone("America/Los_Angeles"),
+                tz=ZoneInfo("America/Los_Angeles"),
                 first=datetime(2019, 3, 8, hour=10),
                 next=[datetime(2019, 3, 9, hour=10), datetime(2019, 3, 10, hour=10), datetime(2019, 3, 11, hour=10)],
                 display="each day at 10:00",
@@ -110,7 +109,7 @@ class ScheduleTest(TembaTest):
                 trigger_date=datetime(2019, 11, 2, hour=10),
                 now=datetime(2019, 1, 1, hour=9),
                 repeat_period=Schedule.REPEAT_DAILY,
-                tz=pytz.timezone("America/Los_Angeles"),
+                tz=ZoneInfo("America/Los_Angeles"),
                 first=datetime(2019, 11, 2, hour=10),
                 next=[datetime(2019, 11, 3, hour=10), datetime(2019, 11, 4, hour=10), datetime(2019, 11, 5, hour=10)],
                 display="each day at 10:00",
@@ -173,15 +172,15 @@ class ScheduleTest(TembaTest):
             self.org.timezone = tz
 
             label = tc["label"]
-            trigger_date = tz.localize(tc["trigger_date"])
-            now = tz.localize(tc["now"])
+            trigger_date = tc["trigger_date"].replace(tzinfo=tz)
+            now = tc["now"].replace(tzinfo=tz)
 
             sched = Schedule.create(
                 self.org, trigger_date, tc["repeat_period"], repeat_days_of_week=tc.get("repeat_days_of_week"), now=now
             )
 
             first = tc.get("first")
-            first = tz.localize(first) if first else None
+            first = first.replace(tzinfo=tz) if first else None
 
             self.assertEqual(tc["repeat_period"], sched.repeat_period, label)
             self.assertEqual(tc.get("repeat_days_of_week"), sched.repeat_days_of_week, label)
@@ -198,13 +197,13 @@ class ScheduleTest(TembaTest):
             next_fire = sched.next_fire
             for next in tc["next"]:
                 next_fire = sched.calculate_next_fire(next_fire)
-                expected_next = tz.localize(next) if next else None
+                expected_next = next.replace(tzinfo=tz) if next else None
                 self.assertEqual(expected_next, next_fire, f"{label}: {expected_next} != {next_fire}")
 
             self.assertEqual(tc["display"], sched.get_display(), f"display mismatch for {label}")
 
     def test_update_near_day_boundary(self):
-        self.org.timezone = pytz.timezone("US/Eastern")
+        self.org.timezone = ZoneInfo("US/Eastern")
         self.org.save()
         tz = self.org.timezone
 
@@ -232,8 +231,8 @@ class ScheduleTest(TembaTest):
 
         # way off into the future, but at 11pm NYT
         start_date = datetime(2050, 1, 3, 23, 0, 0, 0)
-        start_date = tz.localize(start_date)
-        start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
+        start_date = start_date.replace(tzinfo=tz)
+        start_date = start_date.astimezone(tzone.utc)
 
         sched.update_schedule(start_date, Schedule.REPEAT_DAILY, "")
         sched.refresh_from_db()
@@ -242,8 +241,8 @@ class ScheduleTest(TembaTest):
         self.assertEqual("2050-01-04 04:00:00+00:00", str(sched.next_fire))
 
         start_date = datetime(2050, 1, 3, 23, 45, 0, 0)
-        start_date = tz.localize(start_date)
-        start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
+        start_date = start_date.replace(tzinfo=tz)
+        start_date = start_date.astimezone(tzone.utc)
 
         sched.update_schedule(start_date, Schedule.REPEAT_DAILY, "")
         sched.refresh_from_db()
