@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 
-def fix_bad_last_seen_on(apps, schema_editor):
+def fix_bad_last_seen_on(apps, schema_editor):  # pragma: no cover
     Contact = apps.get_model("contacts", "Contact")
 
     earliest_allowed = datetime(2010, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
@@ -57,7 +57,7 @@ def fix_bad_last_seen_on(apps, schema_editor):
         print(f"Fixed: {num_fixed} cleared: {num_cleared}")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
