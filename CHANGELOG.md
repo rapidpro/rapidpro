@@ -1,3 +1,9 @@
+v8.3.106 (2023-12-11)
+-------------------------
+ * Cleanup indexes for FlowStartCount, SystemLabelCount and ContactGroupCount
+ * Use datetime timezone aliased as tzone
+ * Update django timezone field to 6.1.0
+
 v8.3.105 (2023-12-07)
 -------------------------
  * Email changes should reset email status to unverified
