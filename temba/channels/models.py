@@ -949,7 +949,9 @@ class ChannelLog(models.Model):
     @classmethod
     def _anonymize_value(cls, original: str, urn, redact_keys=()) -> str:
         # if log doesn't have an associated URN then we don't know what to anonymize, so redact completely
-        if not urn and original:
+        if not original:
+            return ""
+        if not urn:
             return original[:10] + cls.REDACT_MASK
 
         if redact_keys:
