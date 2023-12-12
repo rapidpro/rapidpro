@@ -19,7 +19,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, models, transaction
 from django.db.models import Count, F, Max, Q, Sum, Value
-from django.db.models.functions import Concat, Lower
+from django.db.models.functions import Concat, Lower, Upper
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -1324,8 +1324,15 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
     class Meta:
         indexes = [
-            # used for getting the oldest modified_on per org in mailroom
+            # for API endpoint access
+            models.Index(name="contacts_by_org", fields=("org", "-modified_on", "-id"), condition=Q(is_active=True)),
+            models.Index(
+                name="contacts_by_org_deleted", fields=("org", "-modified_on", "-id"), condition=Q(is_active=False)
+            ),
+            # for getting the last modified_on during smart group population
             models.Index(name="contacts_contact_org_modified", fields=["org", "-modified_on"]),
+            # for indexing modified contacts
+            models.Index(name="contacts_modified", fields=("modified_on",)),
         ]
 
 
@@ -1468,6 +1475,9 @@ class ContactURN(models.Model):
     class Meta:
         unique_together = ("identity", "org")
         ordering = ("-priority", "id")
+        indexes = [
+            models.Index("org", Upper("path"), "contact", name="contacturns_by_path"),
+        ]
         constraints = [
             models.CheckConstraint(check=~(Q(scheme="") | Q(path="")), name="non_empty_scheme_and_path"),
             models.CheckConstraint(
