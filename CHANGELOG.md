@@ -1,3 +1,7 @@
+v8.3.108 (2023-12-12)
+-------------------------
+ * Move all remaining flowrun and flowsession indexes onto their models
+
 v8.3.107 (2023-12-12)
 -------------------------
  * Fix channel log display when missing URN
