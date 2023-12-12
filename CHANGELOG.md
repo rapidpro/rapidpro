@@ -1,3 +1,10 @@
+v8.3.107 (2023-12-12)
+-------------------------
+ * Fix channel log display when missing URN
+ * Queued message treatment, flow editor fix
+ * Update poetry deps
+ * Move more indexes onto models and remove unnecessary one
+
 v8.3.106 (2023-12-11)
 -------------------------
  * Cleanup indexes for FlowStartCount, SystemLabelCount and ContactGroupCount
