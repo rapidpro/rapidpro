@@ -1065,6 +1065,16 @@ class FlowSession(models.Model):
 
     class Meta:
         indexes = [
+            # for finding the waiting session for a contact
+            models.Index(name="flowsessions_contact_waiting", fields=("contact_id",), condition=Q(status="W")),
+            # for finding wait timeouts to be resumed
+            models.Index(
+                name="flowsessions_timed_out",
+                fields=("timeout_on",),
+                condition=Q(timeout_on__isnull=False, status="W"),
+            ),
+            # for trimming ended sessions
+            models.Index(name="flowsessions_ended", fields=("ended_on",), condition=Q(ended_on__isnull=False)),
             models.Index(
                 name="flows_session_message_expires",
                 fields=("wait_expires_on",),
@@ -1229,12 +1239,25 @@ class FlowRun(models.Model):
 
     class Meta:
         indexes = [
+            # for API endpoint access
+            models.Index(name="flowruns_api_by_flow", fields=("flow", "-modified_on", "-id")),
+            models.Index(
+                name="flowruns_api_responded_by_flow",
+                fields=("flow", "-modified_on", "-id"),
+                condition=Q(responded=True),
+            ),
+            models.Index(name="flowruns_api_by_org", fields=("org", "-modified_on", "-id")),
+            models.Index(
+                name="flowruns_api_responded_by_org", fields=("org", "-modified_on", "-id"), condition=Q(responded=True)
+            ),
+            # for finding and messaging all contacts at a given node
             models.Index(
                 name="flows_flowrun_contacts_at_node",
                 fields=("org", "current_node_uuid"),
                 condition=Q(status__in=("A", "W")),
                 include=("contact",),
             ),
+            # for indexing contacts with their flow history
             models.Index(name="flows_flowrun_contact_inc_flow", fields=("contact",), include=("flow",)),
         ]
         constraints = [
