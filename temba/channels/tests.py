@@ -2140,6 +2140,43 @@ Content-Type: application/json
             # when we can't identify the contact, request, and response body
             self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
 
+    def test_channellog_anonymous_org_missing_urn(self):
+        contact = self.create_contact("Nic Pottier")
+        channel = self.create_channel("TG", "Test TG Channel", "234567")
+        log = ChannelLog.objects.create(
+            channel=channel,
+            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
+            is_error=False,
+            http_logs=[
+                {
+                    "url": "https://api.telegram.org/65474/sendMessage",
+                    "status_code": 400,
+                    "request": "POST /65474/sendMessage HTTP/1.1\r\nHost: api.telegram.org\r\nUser-Agent: Courier/1.2.159\r\nContent-Length: 231\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nchat_id=3&reply_markup=%7B%22resize_keyboard%22%3Atrue%2C%22one_time_keyboard%22%3Atrue%2C%22keyboard%22%3A%5B%5B%7B%22text%22%3A%22blackjack%22%7D%2C%7B%22text%22%3A%22balance%22%7D%5D%5D%7D&text=Your+balance+is+now+%246.00.",
+                    "elapsed_ms": 0,
+                    "retries": 0,
+                    "created_on": "2022-01-01T00:00:00Z",
+                }
+            ],
+        )
+        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel, logs=[log])
+
+        self.login(self.admin)
+
+        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
+        response = self.client.get(read_url)
+        self.assertEqual(200, response.status_code)
+
+        # but for anon org we see redaction...
+        with self.anonymous(self.org):
+            response = self.client.get(read_url)
+            self.assertEqual(200, response.status_code)
+
+            # even as customer support
+            self.login(self.customer_support, choose_org=self.org)
+
+            response = self.client.get(read_url)
+            self.assertEqual(200, response.status_code)
+
 
 class FacebookWhitelistTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
