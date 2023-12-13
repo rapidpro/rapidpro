@@ -19,7 +19,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, models, transaction
 from django.db.models import Count, F, Max, Q, Sum, Value
-from django.db.models.functions import Concat, Lower, Upper
+from django.db.models.functions import Concat, Lower
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -1475,9 +1475,6 @@ class ContactURN(models.Model):
     class Meta:
         unique_together = ("identity", "org")
         ordering = ("-priority", "id")
-        indexes = [
-            models.Index("org", Upper("path"), "contact", name="contacturns_by_path"),
-        ]
         constraints = [
             models.CheckConstraint(check=~(Q(scheme="") | Q(path="")), name="non_empty_scheme_and_path"),
             models.CheckConstraint(
