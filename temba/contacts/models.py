@@ -1324,8 +1324,15 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
     class Meta:
         indexes = [
-            # used for getting the oldest modified_on per org in mailroom
+            # for API endpoint access
+            models.Index(name="contacts_by_org", fields=("org", "-modified_on", "-id"), condition=Q(is_active=True)),
+            models.Index(
+                name="contacts_by_org_deleted", fields=("org", "-modified_on", "-id"), condition=Q(is_active=False)
+            ),
+            # for getting the last modified_on during smart group population
             models.Index(name="contacts_contact_org_modified", fields=["org", "-modified_on"]),
+            # for indexing modified contacts
+            models.Index(name="contacts_modified", fields=("modified_on",)),
         ]
 
 
