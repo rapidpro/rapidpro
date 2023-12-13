@@ -1,3 +1,7 @@
+v8.3.110 (2023-12-13)
+-------------------------
+ * Add index to help fetching scheduled event fires and another to find template translations by channel+external id
+
 v8.3.109 (2023-12-13)
 -------------------------
  * Move last indexews from SQL file into Django models and drop unused
