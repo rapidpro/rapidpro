@@ -1,3 +1,7 @@
+v8.3.109 (2023-12-13)
+-------------------------
+ * Move last indexews from SQL file into Django models and drop unused
+
 v8.3.108 (2023-12-12)
 -------------------------
  * Move all remaining flowrun and flowsession indexes onto their models
