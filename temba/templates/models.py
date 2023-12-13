@@ -172,3 +172,6 @@ class TemplateTranslation(models.Model):
 
     def __str__(self):
         return f"{self.template.name} ({self.locale}) {self.status}: {self.content}"
+
+    class Meta:
+        indexes = [models.Index(name="templatetranslations_by_ext", fields=("channel", "external_id"))]

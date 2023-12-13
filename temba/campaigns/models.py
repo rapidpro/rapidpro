@@ -556,7 +556,9 @@ class EventFire(models.Model):
 
     class Meta:
         ordering = ("scheduled",)
-
+        indexes = [
+            models.Index(name="eventfires_unfired", fields=("scheduled",), condition=Q(fired=None)),
+        ]
         constraints = [
             # used to prevent adding duplicate fires for the same event and contact
             models.UniqueConstraint(
