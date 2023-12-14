@@ -1,3 +1,7 @@
+v8.3.111 (2023-12-14)
+-------------------------
+ * Introduce footer
+
 v8.3.110 (2023-12-13)
 -------------------------
  * Add index to help fetching scheduled event fires and another to find template translations by channel+external id
