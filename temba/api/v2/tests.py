@@ -39,7 +39,6 @@ from temba.tickets.models import Ticketer, Topic
 from temba.tickets.types.mailgun import MailgunType
 from temba.tickets.types.zendesk import ZendeskType
 from temba.triggers.models import Trigger
-from temba.utils import json
 
 from ..tests import APITestMixin
 from . import fields
@@ -49,85 +48,6 @@ NUM_BASE_REQUEST_QUERIES = 5  # number of db queries required for any API reques
 
 
 class APITest(APITestMixin, TembaTest):
-    def getHTML(self, url, query=None):
-        if query:
-            url += "?" + query
-
-        return self.client.get(url, HTTP_X_FORWARDED_HTTPS="https")
-
-    def getJSON(self, url, query=None, raw_url=False, readonly_models: set = None):
-        if not raw_url:
-            url += ".json"
-            if query:
-                url += "?" + query
-
-        with self.mockReadOnly(assert_models=readonly_models):
-            response = self.client.get(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS="https")
-
-        # this will fail if our response isn't valid json
-        response.json()
-
-        return response
-
-    def postJSON(self, url, query, data, **kwargs):
-        url += ".json"
-        if query:
-            url = url + "?" + query
-
-        return self.client.post(
-            url, json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS="https", **kwargs
-        )
-
-    def deleteJSON(self, url, query=None):
-        url += ".json"
-        if query:
-            url = url + "?" + query
-
-        return self.client.delete(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS="https")
-
-    def assertEndpointAccess(self, url, query=None, *, viewer_get: int, admin_get: int, agent_get: int):
-        self.client.logout()
-
-        # 403 if not authenticated but can read docs
-        response = self.getHTML(url, query)
-        self.assertContains(response, "RapidPro", status_code=403)
-
-        # same for non-org user
-        self.login(self.non_org_user)
-        response = self.getHTML(url, query)
-        self.assertContains(response, "RapidPro", status_code=403)
-
-        # check GET HTML as viewer
-        self.login(self.user)
-        response = self.getHTML(url, query)
-        self.assertEqual(response.status_code, viewer_get, f"expected {viewer_get} for GET as viewer")
-
-        # check GET JSON as viewer
-        response = self.getJSON(url, query)
-        self.assertEqual(response.status_code, viewer_get, f"expected {viewer_get} for GET as viewer")
-
-        # check POST JSON as viewer (never allowed)
-        response = self.postJSON(url, "", {})
-        self.assertIn(response.status_code, [403, 405])
-
-        # check DELETE JSON as viewer (never allowed)
-        response = self.deleteJSON(url, "id=123")
-        self.assertIn(response.status_code, [403, 405])
-
-        # check GET JSON as agent
-        self.login(self.agent)
-        response = self.getJSON(url, query)
-        self.assertEqual(response.status_code, agent_get, f"expected {agent_get} for GET as agent")
-
-        # check GET JSON as admin
-        self.login(self.admin)
-        response = self.getJSON(url, query)
-        self.assertEqual(response.status_code, admin_get, f"expected {admin_get} for GET as admin")
-
-        # 405 for OPTIONS requests
-        response = self.client.options(url, HTTP_X_FORWARDED_HTTPS="https")
-        self.assertEqual(response.status_code, 405)
-
     def upload_media(self, user, filename: str):
         self.login(user)
 
@@ -655,7 +575,7 @@ class EndpointsTest(APITest):
         root_url = reverse("api.v2.root")
 
         # browse as HTML anonymously (should still show docs)
-        response = self.getHTML(root_url)
+        response = self.client.get(root_url)
         self.assertContains(response, "We provide a RESTful JSON API", status_code=200)
 
         # same thing if user navigates to just /api
@@ -663,10 +583,10 @@ class EndpointsTest(APITest):
         self.assertContains(response, "We provide a RESTful JSON API", status_code=200)
 
         # try to browse as JSON anonymously
-        response = self.getJSON(root_url)
+        response = self.client.get(root_url + ".json")
         self.assertEqual(200, response.status_code)
         self.assertIsInstance(response.json(), dict)
-        self.assertEqual(response.json()["runs"], "https://testserver:80/api/v2/runs")  # endpoints are listed
+        self.assertEqual(response.json()["runs"], "http://testserver/api/v2/runs")  # endpoints are listed
 
     def test_explorer(self):
         explorer_url = reverse("api.v2.explorer")
@@ -689,7 +609,7 @@ class EndpointsTest(APITest):
         self.assertEqual(200, response.status_code)
 
     def test_pagination(self):
-        runs_url = reverse("api.v2.runs") + ".json"
+        endpoint_url = reverse("api.v2.runs") + ".json"
         self.login(self.admin)
 
         # create 1255 test runs (5 full pages of 250 items + 1 partial with 5 items)
@@ -706,18 +626,24 @@ class EndpointsTest(APITest):
         returned_ids = []
 
         # fetch all full pages
-        resp_json = None
-        for p in range(5):
-            response = self.getJSON(runs_url if p == 0 else resp_json["next"], raw_url=True)
-            resp_json = response.json()
+        with self.mockReadOnly():
+            resp_json = None
+            for p in range(5):
+                response = self.client.get(
+                    endpoint_url if p == 0 else resp_json["next"], content_type="application/json"
+                )
+                self.assertEqual(200, response.status_code)
 
-            self.assertEqual(len(resp_json["results"]), 250)
-            self.assertIsNotNone(resp_json["next"])
+                resp_json = response.json()
 
-            returned_ids += [r["id"] for r in response.json()["results"]]
+                self.assertEqual(len(resp_json["results"]), 250)
+                self.assertIsNotNone(resp_json["next"])
+
+                returned_ids += [r["id"] for r in response.json()["results"]]
 
         # fetch final partial page
-        response = self.getJSON(resp_json["next"], raw_url=True)
+        with self.mockReadOnly():
+            response = self.client.get(resp_json["next"], content_type="application/json")
 
         resp_json = response.json()
         self.assertEqual(len(resp_json["results"]), 5)
@@ -731,7 +657,7 @@ class EndpointsTest(APITest):
         auth_url = reverse("api.v2.authenticate")
 
         # fetch as HTML
-        response = self.getHTML(auth_url)
+        response = self.client.get(auth_url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(list(response.context["form"].fields.keys()), ["username", "password", "role", "loc"])
 
@@ -1330,9 +1256,11 @@ class EndpointsTest(APITest):
         )
 
     def test_campaigns(self):
-        campaigns_url = reverse("api.v2.campaigns")
+        endpoint_url = reverse("api.v2.campaigns") + ".json"
 
-        self.assertEndpointAccess(campaigns_url, viewer_get=200, admin_get=200, agent_get=403)
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotPermitted(endpoint_url, [None, self.user, self.agent])
+        self.assertDeleteNotAllowed(endpoint_url)
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         other_group = self.create_group("Others", [])
@@ -1344,36 +1272,43 @@ class EndpointsTest(APITest):
         spam = Campaign.create(self.org2, self.admin2, "Spam", spammers)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
-            response = self.getJSON(campaigns_url, readonly_models={Campaign})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertResultsByUUID(response, [campaign2, campaign1])
-        self.assertEqual(
-            resp_json["results"][0],
-            {
-                "uuid": str(campaign2.uuid),
-                "name": "Reminders #2",
-                "archived": False,
-                "group": {"uuid": reporters.uuid, "name": "Reporters"},
-                "created_on": format_datetime(campaign2.created_on),
-            },
+        response = self.assertGet(
+            endpoint_url,
+            [self.user, self.editor, self.admin],
+            results=[
+                {
+                    "uuid": str(campaign2.uuid),
+                    "name": "Reminders #2",
+                    "archived": False,
+                    "group": {"uuid": reporters.uuid, "name": "Reporters"},
+                    "created_on": format_datetime(campaign2.created_on),
+                },
+                {
+                    "uuid": str(campaign1.uuid),
+                    "name": "Reminders #1",
+                    "archived": False,
+                    "group": {"uuid": reporters.uuid, "name": "Reporters"},
+                    "created_on": format_datetime(campaign1.created_on),
+                },
+            ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 2,
         )
 
         # filter by UUID
-        response = self.getJSON(campaigns_url, "uuid=%s" % campaign1.uuid)
-        self.assertResultsByUUID(response, [campaign1])
+        self.assertGet(endpoint_url + f"?uuid={campaign1.uuid}", [self.editor], results=[campaign1])
 
         # try to create empty campaign
-        response = self.postJSON(campaigns_url, None, {})
-        self.assertResponseError(response, "name", "This field is required.")
-        self.assertResponseError(response, "group", "This field is required.")
+        self.assertPost(
+            endpoint_url,
+            self.editor,
+            {},
+            errors={"name": "This field is required.", "group": "This field is required."},
+        )
 
         # create new campaign
-        response = self.postJSON(campaigns_url, None, {"name": "Reminders #3", "group": reporters.uuid})
-        self.assertEqual(response.status_code, 201)
+        response = self.assertPost(
+            endpoint_url, self.editor, {"name": "Reminders #3", "group": reporters.uuid}, status=201
+        )
 
         campaign3 = Campaign.objects.get(name="Reminders #3")
         self.assertEqual(
@@ -1388,62 +1323,68 @@ class EndpointsTest(APITest):
         )
 
         # try to create another campaign with same name
-        response = self.postJSON(campaigns_url, None, {"name": "Reminders #3", "group": reporters.uuid})
-        self.assertResponseError(response, "name", "This field must be unique.")
+        self.assertPost(
+            endpoint_url,
+            self.editor,
+            {"name": "Reminders #3", "group": reporters.uuid},
+            errors={"name": "This field must be unique."},
+        )
 
         # it's fine if a campaign in another org has that name
-        response = self.postJSON(campaigns_url, None, {"name": "Spam", "group": reporters.uuid})
-        self.assertEqual(response.status_code, 201)
+        self.assertPost(endpoint_url, self.editor, {"name": "Spam", "group": reporters.uuid}, status=201)
 
         # try to create a campaign with name that's too long
-        response = self.postJSON(campaigns_url, None, {"name": "x" * 65, "group": reporters.uuid})
-        self.assertResponseError(response, "name", "Ensure this field has no more than 64 characters.")
+        self.assertPost(
+            endpoint_url,
+            self.editor,
+            {"name": "x" * 65, "group": reporters.uuid},
+            errors={"name": "Ensure this field has no more than 64 characters."},
+        )
 
         # update campaign by UUID
-        response = self.postJSON(
-            campaigns_url, "uuid=%s" % campaign3.uuid, {"name": "Reminders III", "group": other_group.uuid}
+        self.assertPost(
+            endpoint_url + f"?uuid={campaign3.uuid}", self.editor, {"name": "Reminders III", "group": other_group.uuid}
         )
-        self.assertEqual(response.status_code, 200)
 
         campaign3.refresh_from_db()
         self.assertEqual(campaign3.name, "Reminders III")
         self.assertEqual(campaign3.group, other_group)
 
         # can't update campaign in other org
-        response = self.postJSON(campaigns_url, "uuid=%s" % spam.uuid, {"name": "Won't work", "group": spammers.uuid})
-        self.assert404(response)
+        self.assertPost(
+            endpoint_url + f"?uuid={spam.uuid}", self.editor, {"name": "Won't work", "group": spammers.uuid}, status=404
+        )
 
-    def test_campaigns_does_not_update_inactive_archived(self):
-        campaigns_url = reverse("api.v2.campaigns")
+        # can't update deleted campaign
+        campaign1.is_active = False
+        campaign1.save(update_fields=("is_active",))
 
-        reporters = self.create_group("Reporters", [self.joe, self.frank])
-        campaign = Campaign.create(self.org, self.admin, "Reminders #1", reporters)
-
-        campaign.is_active = False
-        campaign.save(update_fields=("is_active",))
+        self.assertPost(
+            endpoint_url + f"?uuid={campaign1.uuid}",
+            self.editor,
+            {"name": "Won't work", "group": spammers.uuid},
+            status=404,
+        )
 
         # can't update inactive or archived campaign
-        self.login(self.admin)
-        response = self.postJSON(
-            campaigns_url, "uuid=%s" % campaign.uuid, data={"name": "Reminders III", "group": reporters.uuid}
-        )
-        self.assertEqual(response.status_code, 404)
+        campaign1.is_active = True
+        campaign1.is_archived = True
+        campaign1.save(update_fields=("is_active", "is_archived"))
 
-        campaign.is_active = True
-        campaign.is_archived = True
-        campaign.save(update_fields=("is_active", "is_archived"))
-
-        # can't update inactive or archived campaign
-        response = self.postJSON(
-            campaigns_url, "uuid=%s" % campaign.uuid, data={"name": "Reminders III", "group": reporters.uuid}
+        self.assertPost(
+            endpoint_url + f"?uuid={campaign1.uuid}",
+            self.editor,
+            {"name": "Won't work", "group": spammers.uuid},
+            status=404,
         )
-        self.assertEqual(response.status_code, 404)
 
     @mock_mailroom
     def test_campaign_events(self, mr_mocks):
-        events_url = reverse("api.v2.campaign_events")
+        endpoint_url = reverse("api.v2.campaign_events") + ".json"
 
-        self.assertEndpointAccess(events_url, viewer_get=200, admin_get=200, agent_get=403)
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotPermitted(endpoint_url, [None, self.user, self.agent])
+        self.assertDeleteNotPermitted(endpoint_url, [None, self.user, self.agent])
 
         flow = self.create_flow("Test Flow")
         reporters = self.create_group("Reporters", [self.joe, self.frank])
@@ -1486,16 +1427,10 @@ class EndpointsTest(APITest):
         )
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
-            response = self.getJSON(events_url, readonly_models={CampaignEvent})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertResultsByUUID(response, [event3, event2, event1])
-        self.assertEqual(
-            resp_json["results"],
-            [
+        self.assertGet(
+            endpoint_url,
+            [self.user, self.editor, self.admin],
+            results=[
                 {
                     "uuid": str(event3.uuid),
                     "campaign": {"uuid": str(campaign3.uuid), "name": "Alerts"},
@@ -1530,36 +1465,39 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(event1.created_on),
                 },
             ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 4,
         )
 
         # filter by UUID
-        response = self.getJSON(events_url, "uuid=%s" % event1.uuid)
-        self.assertResultsByUUID(response, [event1])
+        self.assertGet(endpoint_url + f"?uuid={event1.uuid}", [self.editor], results=[event1])
 
         # filter by campaign name
-        response = self.getJSON(events_url, "campaign=Reminders")
-        self.assertResultsByUUID(response, [event1])
+        self.assertGet(endpoint_url + "?campaign=Reminders", [self.editor], results=[event1])
 
         # filter by campaign UUID
-        response = self.getJSON(events_url, "campaign=%s" % campaign1.uuid)
-        self.assertResultsByUUID(response, [event1])
+        self.assertGet(endpoint_url + f"?campaign={campaign1.uuid}", [self.editor], results=[event1])
 
         # filter by invalid campaign
-        response = self.getJSON(events_url, "campaign=invalid")
-        self.assertResultsByUUID(response, [])
+        self.assertGet(endpoint_url + "?campaign=Invalid", [self.editor], results=[])
 
         # try to create empty campaign event
-        response = self.postJSON(events_url, None, {})
-        self.assertResponseError(response, "campaign", "This field is required.")
-        self.assertResponseError(response, "relative_to", "This field is required.")
-        self.assertResponseError(response, "offset", "This field is required.")
-        self.assertResponseError(response, "unit", "This field is required.")
-        self.assertResponseError(response, "delivery_hour", "This field is required.")
+        self.assertPost(
+            endpoint_url,
+            self.editor,
+            {},
+            errors={
+                "campaign": "This field is required.",
+                "relative_to": "This field is required.",
+                "offset": "This field is required.",
+                "unit": "This field is required.",
+                "delivery_hour": "This field is required.",
+            },
+        )
 
         # try again with some invalid values
-        response = self.postJSON(
-            events_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.editor,
             {
                 "campaign": str(campaign1.uuid),
                 "relative_to": "registration",
@@ -1568,15 +1506,17 @@ class EndpointsTest(APITest):
                 "delivery_hour": 25,
                 "message": {"kin": "Muraho"},
             },
+            errors={
+                "unit": '"epocs" is not a valid choice.',
+                "delivery_hour": "Ensure this value is less than or equal to 23.",
+                "message": "Message text in default flow language is required.",
+            },
         )
-        self.assertResponseError(response, "unit", '"epocs" is not a valid choice.')
-        self.assertResponseError(response, "delivery_hour", "Ensure this value is less than or equal to 23.")
-        self.assertResponseError(response, "message", "Message text in default flow language is required.")
 
         # provide valid values for those fields.. but not a message or flow
-        response = self.postJSON(
-            events_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.editor,
             {
                 "campaign": str(campaign1.uuid),
                 "relative_to": "registration",
@@ -1584,13 +1524,15 @@ class EndpointsTest(APITest):
                 "unit": "weeks",
                 "delivery_hour": -1,
             },
+            errors={
+                "non_field_errors": "Flow or a message text required.",
+            },
         )
-        self.assertResponseError(response, "non_field_errors", "Flow or a message text required.")
 
         # create a message event
-        response = self.postJSON(
-            events_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.editor,
             {
                 "campaign": str(campaign1.uuid),
                 "relative_to": "registration",
@@ -1599,8 +1541,8 @@ class EndpointsTest(APITest):
                 "delivery_hour": -1,
                 "message": "You are @fields.age",
             },
+            status=201,
         )
-        self.assertEqual(response.status_code, 201)
 
         event1 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
         self.assertEqual(event1.event_type, CampaignEvent.TYPE_MESSAGE)
@@ -1611,10 +1553,10 @@ class EndpointsTest(APITest):
         self.assertEqual(event1.message, {"eng": "You are @fields.age"})
         self.assertIsNotNone(event1.flow)
 
-        # a message event with an empty message
-        response = self.postJSON(
-            events_url,
-            None,
+        # try to create a message event with an empty message
+        self.assertPost(
+            endpoint_url,
+            self.editor,
             {
                 "campaign": str(campaign1.uuid),
                 "relative_to": "registration",
@@ -1623,14 +1565,12 @@ class EndpointsTest(APITest):
                 "delivery_hour": -1,
                 "message": "",
             },
+            errors={("message", "eng"): "This field may not be blank."},
         )
 
-        # we should have failed validation for sending an empty message
-        self.assertResponseError(response, ("message", "eng"), "This field may not be blank.")
-
-        response = self.postJSON(
-            events_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.editor,
             {
                 "campaign": str(campaign1.uuid),
                 "relative_to": "created_on",
@@ -1639,8 +1579,8 @@ class EndpointsTest(APITest):
                 "delivery_hour": -1,
                 "message": "Nice unit of work @fields.code",
             },
+            status=201,
         )
-        self.assertEqual(response.status_code, 201)
 
         event1 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
         self.assertEqual(event1.event_type, CampaignEvent.TYPE_MESSAGE)
@@ -1652,19 +1592,19 @@ class EndpointsTest(APITest):
         self.assertIsNotNone(event1.flow)
 
         # create a flow event
-        response = self.postJSON(
-            events_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.editor,
             {
                 "campaign": str(campaign1.uuid),
                 "relative_to": "registration",
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "flow": flow.uuid,
+                "flow": str(flow.uuid),
             },
+            status=201,
         )
-        self.assertEqual(response.status_code, 201)
 
         event2 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_FLOW)
@@ -1687,9 +1627,9 @@ class EndpointsTest(APITest):
         )
 
         # update the message event to be a flow event
-        response = self.postJSON(
-            events_url,
-            "uuid=%s" % event1.uuid,
+        self.assertPost(
+            endpoint_url + f"?uuid={event1.uuid}",
+            self.editor,
             {
                 "campaign": str(campaign1.uuid),
                 "relative_to": "registration",
@@ -1699,7 +1639,6 @@ class EndpointsTest(APITest):
                 "flow": str(flow.uuid),
             },
         )
-        self.assertEqual(response.status_code, 200)
 
         event1 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
 
@@ -1708,9 +1647,9 @@ class EndpointsTest(APITest):
         self.assertEqual(event1.flow, flow)
 
         # and update the flow event to be a message event
-        response = self.postJSON(
-            events_url,
-            "uuid=%s" % event2.uuid,
+        self.assertPost(
+            endpoint_url + f"?uuid={event2.uuid}",
+            self.editor,
             {
                 "campaign": str(campaign1.uuid),
                 "relative_to": "registration",
@@ -1720,16 +1659,15 @@ class EndpointsTest(APITest):
                 "message": {"eng": "OK @(format_urn(urns.tel))", "fra": "D'accord"},
             },
         )
-        self.assertEqual(response.status_code, 200)
 
         event2 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
         self.assertEqual(event2.message, {"eng": "OK @(format_urn(urns.tel))", "fra": "D'accord"})
 
         # and update update it's message again
-        response = self.postJSON(
-            events_url,
-            "uuid=%s" % event2.uuid,
+        self.assertPost(
+            endpoint_url + f"?uuid={event2.uuid}",
+            self.editor,
             {
                 "campaign": str(campaign1.uuid),
                 "relative_to": "registration",
@@ -1739,159 +1677,52 @@ class EndpointsTest(APITest):
                 "message": {"eng": "OK", "fra": "D'accord", "kin": "Sawa"},
             },
         )
-        self.assertEqual(response.status_code, 200)
 
         event2 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
         self.assertEqual(event2.message, {"eng": "OK", "fra": "D'accord", "kin": "Sawa"})
 
         # try to change an existing event's campaign
-        response = self.postJSON(
-            events_url,
-            "uuid=%s" % event1.uuid,
+        self.assertPost(
+            endpoint_url + f"?uuid={event1.uuid}",
+            self.editor,
             {
                 "campaign": str(campaign2.uuid),
                 "relative_to": "registration",
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "flow": flow.uuid,
+                "message": {"eng": "OK", "fra": "D'accord", "kin": "Sawa"},
             },
+            errors={"campaign": "Cannot change campaign for existing events"},
         )
-        self.assertResponseError(response, "campaign", "Cannot change campaign for existing events")
 
         # try an empty delete request
-        response = self.deleteJSON(events_url, "")
-        self.assertResponseError(response, None, "URL must contain one of the following parameters: uuid")
+        self.assertDelete(
+            endpoint_url, self.editor, errors={None: "URL must contain one of the following parameters: uuid"}
+        )
 
         # delete an event by UUID
-        response = self.deleteJSON(events_url, "uuid=%s" % event1.uuid)
-        self.assertEqual(response.status_code, 204)
+        self.assertDelete(endpoint_url + f"?uuid={event1.uuid}", self.editor)
 
         self.assertFalse(CampaignEvent.objects.filter(id=event1.id, is_active=True).exists())
 
-    def test_campaignevents_cant_modify_on_inactive_campaign(self):
-        events_url = reverse("api.v2.campaign_events")
+        # can't make changes to events on archived campaigns
+        campaign1.archive(self.admin)
 
-        self.login(self.admin)
-
-        reporters = self.create_group("Reporters", [self.joe, self.frank])
-        registration = self.create_field("registration", "Registration", value_type=ContactField.TYPE_DATETIME)
-        campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
-        event1 = CampaignEvent.create_message_event(
-            self.org,
-            self.admin,
-            campaign1,
-            registration,
-            1,
-            CampaignEvent.UNIT_DAYS,
-            "Don't forget to brush your teeth",
-        )
-
-        campaign1.is_active = False
-        campaign1.save(update_fields=("is_active",))
-
-        # fetch campaign event on inactive campaign
-        response = self.getJSON(events_url, "uuid=%s" % event1.uuid)
-        self.assertEqual(len(response.json()["results"]), 1)
-
-        # creating a new flow event on the inactive campaign does not work
-        response = self.postJSON(
-            events_url,
-            None,
+        self.assertPost(
+            endpoint_url + f"?uuid={event2.uuid}",
+            self.editor,
             {
                 "campaign": str(campaign1.uuid),
                 "relative_to": "registration",
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": "Nice job",
+                "message": {"eng": "OK", "fra": "D'accord", "kin": "Sawa"},
             },
+            errors={"campaign": f"No such object: {campaign1.uuid}"},
         )
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), {"campaign": [f"No such object: {campaign1.uuid}"]})
-
-        # updating a flow event on the inactive campaign does not work
-        response = self.postJSON(
-            events_url,
-            f"uuid={event1.uuid}",
-            {
-                "campaign": str(campaign1.uuid),
-                "relative_to": "registration",
-                "offset": 15,
-                "unit": "weeks",
-                "delivery_hour": -1,
-                "message": "Nice job",
-            },
-        )
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), {"campaign": [f"No such object: {campaign1.uuid}"]})
-
-        # we can delete an event on the inactive campaign
-        response = self.deleteJSON(events_url, f"uuid={event1.uuid}")
-        self.assertEqual(response.status_code, 204)
-
-    def test_campaignevents_on_archived_campaign(self):
-        events_url = reverse("api.v2.campaign_events")
-
-        self.login(self.admin)
-
-        reporters = self.create_group("Reporters", [self.joe, self.frank])
-        registration = self.create_field("registration", "Registration", value_type=ContactField.TYPE_DATETIME)
-        campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
-        event1 = CampaignEvent.create_message_event(
-            self.org,
-            self.admin,
-            campaign1,
-            registration,
-            1,
-            CampaignEvent.UNIT_DAYS,
-            "Don't forget to brush your teeth",
-        )
-
-        campaign1.is_active = True
-        campaign1.is_archived = True
-        campaign1.save(update_fields=("is_active", "is_archived"))
-
-        # creating a new flow event on the archived campaign does not work
-        response = self.postJSON(
-            events_url,
-            None,
-            {
-                "campaign": str(campaign1.uuid),
-                "relative_to": "registration",
-                "offset": 15,
-                "unit": "weeks",
-                "delivery_hour": -1,
-                "message": "Nice job",
-            },
-        )
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), {"campaign": [f"No such object: {campaign1.uuid}"]})
-
-        # updating a flow event on the inactive campaign does not work
-        response = self.postJSON(
-            events_url,
-            f"uuid={event1.uuid}",
-            {
-                "campaign": str(campaign1.uuid),
-                "relative_to": "registration",
-                "offset": 15,
-                "unit": "weeks",
-                "delivery_hour": -1,
-                "message": "Nice job",
-            },
-        )
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), {"campaign": [f"No such object: {campaign1.uuid}"]})
-
-        # fetch campaign event on archived campaign
-        response = self.getJSON(events_url, f"uuid={event1.uuid}")
-        self.assertEqual(len(response.json()["results"]), 1)
-
-        # we can delete an event on the archived campaign
-        response = self.deleteJSON(events_url, f"uuid={event1.uuid}")
-        self.assertEqual(response.status_code, 204)
 
     def test_channels(self):
         endpoint_url = reverse("api.v2.channels") + ".json"
@@ -1947,9 +1778,11 @@ class EndpointsTest(APITest):
         self.assertGet(endpoint_url + "?address=billy_bob", [self.admin], results=[self.twitter])
 
     def test_channel_events(self):
-        events_url = reverse("api.v2.channel_events")
+        endpoint_url = reverse("api.v2.channel_events") + ".json"
 
-        self.assertEndpointAccess(events_url, viewer_get=200, admin_get=200, agent_get=403)
+        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertPostNotAllowed(endpoint_url)
+        self.assertDeleteNotAllowed(endpoint_url)
 
         call1 = self.create_channel_event(self.channel, "tel:0788123123", ChannelEvent.TYPE_CALL_IN_MISSED)
         call2 = self.create_channel_event(
@@ -1961,13 +1794,14 @@ class EndpointsTest(APITest):
         )
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
-            response = self.getJSON(events_url, readonly_models={ChannelEvent})
+        response = self.assertGet(
+            endpoint_url,
+            [self.user, self.editor, self.admin],
+            results=[call4, call3, call2, call1],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 3,
+        )
 
         resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertResultsById(response, [call4, call3, call2, call1])
         self.assertEqual(
             resp_json["results"][0],
             {
@@ -1982,24 +1816,21 @@ class EndpointsTest(APITest):
         )
 
         # filter by id
-        response = self.getJSON(events_url, "id=%d" % call1.pk)
-        self.assertResultsById(response, [call1])
+        self.assertGet(endpoint_url + f"?id={call1.id}", [self.editor], results=[call1])
 
         # filter by contact
-        response = self.getJSON(events_url, "contact=%s" % self.joe.uuid)
-        self.assertResultsById(response, [call4, call1])
+        self.assertGet(endpoint_url + f"?contact={self.joe.uuid}", [self.editor], results=[call4, call1])
 
         # filter by invalid contact
-        response = self.getJSON(events_url, "contact=invalid")
-        self.assertResultsById(response, [])
+        self.assertGet(endpoint_url + "?contact=invalid", [self.editor], results=[])
 
-        # filter by before
-        response = self.getJSON(events_url, "before=%s" % format_datetime(call3.created_on))
-        self.assertResultsById(response, [call3, call2, call1])
-
-        # filter by after
-        response = self.getJSON(events_url, "after=%s" % format_datetime(call2.created_on))
-        self.assertResultsById(response, [call4, call3, call2])
+        # filter by before / after
+        self.assertGet(
+            endpoint_url + f"?before={format_datetime(call3.created_on)}", [self.editor], results=[call3, call2, call1]
+        )
+        self.assertGet(
+            endpoint_url + f"?after={format_datetime(call2.created_on)}", [self.editor], results=[call4, call3, call2]
+        )
 
     def test_classifiers(self):
         endpoint_url = reverse("api.v2.classifiers") + ".json"
@@ -2631,114 +2462,75 @@ class EndpointsTest(APITest):
         )
 
     def test_contacts_prevent_null_chars(self):
-        contacts_url = reverse("api.v2.contacts")
+        endpoint_url = reverse("api.v2.contacts") + ".json"
 
         self.create_field("string_field", "String")
         self.create_field("number_field", "Number", value_type=ContactField.TYPE_NUMBER)
 
         # test create with a null chars \u0000
         self.login(self.admin)
-        response = self.postJSON(
-            contacts_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.editor,
             {
                 "name": "Jean",
-                "language": "fra",
                 "urns": ["tel:+250783333334"],
-                "groups": [],
                 "fields": {"string_field": "crayons on the wall \u0000, pudding on the wall \x00, yeah \0"},
             },
+            errors={("fields", "string_field"): "Null characters are not allowed."},
         )
-        response_json = response.json()
-        self.assertTrue("string_field" in response_json["fields"])
-        self.assertEqual(response_json["fields"]["string_field"], ["Null characters are not allowed."])
-
-        # test create with a null chars \u0000
-        response = self.postJSON(
-            contacts_url,
-            None,
-            {
-                "name": "Jean",
-                "language": "fra",
-                "urns": ["tel:+250783333334"],
-                "groups": [],
-                "fields": {"number_field": "123\u0000"},
-            },
-        )
-
-        response_json = response.json()
-        self.assertTrue("number_field" in response_json["fields"])
-        self.assertEqual(response_json["fields"]["number_field"], ["Null characters are not allowed."])
 
     @mock_mailroom
     def test_contacts_update_datetime_field(self, mr_mocks):
-        contacts_url = reverse("api.v2.contacts")
+        endpoint_url = reverse("api.v2.contacts") + ".json"
 
-        self.create_field("tag_activated_at", "Tag activation", ContactField.TYPE_DATETIME)
+        self.create_field("activated_at", "Tag activation", ContactField.TYPE_DATETIME)
 
         # update contact with valid date format for the org - DD-MM-YYYY
-        self.login(self.admin)
-        response = self.postJSON(
-            contacts_url, "uuid=%s" % self.joe.uuid, {"fields": {"tag_activated_at": "31-12-2017"}}
+        response = self.assertPost(
+            endpoint_url + f"?uuid={self.joe.uuid}", self.editor, {"fields": {"activated_at": "31-12-2017"}}
         )
-        self.assertEqual(response.status_code, 200)
-        resp_json = response.json()
-
-        self.assertIsNotNone(resp_json["fields"]["tag_activated_at"])
+        self.assertIsNotNone(response.json()["fields"]["activated_at"])
 
         # update contact with valid ISO8601 timestamp value with timezone
-        response = self.postJSON(
-            contacts_url, "uuid=%s" % self.joe.uuid, {"fields": {"tag_activated_at": "2017-11-11T11:12:13Z"}}
+        response = self.assertPost(
+            endpoint_url + f"?uuid={self.joe.uuid}", self.editor, {"fields": {"activated_at": "2017-11-11T11:12:13Z"}}
         )
-        self.assertEqual(response.status_code, 200)
-        resp_json = response.json()
-
-        self.assertEqual(resp_json["fields"]["tag_activated_at"], "2017-11-11T13:12:13+02:00")
+        self.assertEqual(response.json()["fields"]["activated_at"], "2017-11-11T13:12:13+02:00")
 
         # update contact with valid ISO8601 timestamp value, 'T' replaced with space
-        response = self.postJSON(
-            contacts_url, "uuid=%s" % self.joe.uuid, {"fields": {"tag_activated_at": "2017-11-11 11:12:13Z"}}
+        response = self.assertPost(
+            endpoint_url + f"?uuid={self.joe.uuid}", self.editor, {"fields": {"activated_at": "2017-11-11 11:12:13Z"}}
         )
-        self.assertEqual(response.status_code, 200)
-        resp_json = response.json()
-
-        self.assertEqual(resp_json["fields"]["tag_activated_at"], "2017-11-11T13:12:13+02:00")
+        self.assertEqual(response.json()["fields"]["activated_at"], "2017-11-11T13:12:13+02:00")
 
         # update contact with invalid ISO8601 timestamp value without timezone
-        response = self.postJSON(
-            contacts_url, "uuid=%s" % self.joe.uuid, {"fields": {"tag_activated_at": "2017-11-11T11:12:13"}}
+        response = self.assertPost(
+            endpoint_url + f"?uuid={self.joe.uuid}", self.editor, {"fields": {"activated_at": "2017-11-11T11:12:13"}}
         )
-        self.assertEqual(response.status_code, 200)
-        resp_json = response.json()
-
-        self.assertIsNone(resp_json["fields"]["tag_activated_at"])
+        self.assertIsNone(response.json()["fields"]["activated_at"])
 
         # update contact with invalid date format for the org - MM-DD-YYYY
-        response = self.postJSON(
-            contacts_url, "uuid=%s" % self.joe.uuid, {"fields": {"tag_activated_at": "12-31-2017"}}
+        response = self.assertPost(
+            endpoint_url + f"?uuid={self.joe.uuid}", self.editor, {"fields": {"activated_at": "12-31-2017"}}
         )
-        self.assertEqual(response.status_code, 200)
-        resp_json = response.json()
-
-        self.assertIsNone(resp_json["fields"]["tag_activated_at"])
+        self.assertIsNone(response.json()["fields"]["activated_at"])
 
         # update contact with invalid timestamp value
-        response = self.postJSON(contacts_url, "uuid=%s" % self.joe.uuid, {"fields": {"tag_activated_at": "el123a41"}})
-        self.assertEqual(response.status_code, 200)
-        resp_json = response.json()
-
-        self.assertIsNone(resp_json["fields"]["tag_activated_at"])
+        response = self.assertPost(
+            endpoint_url + f"?uuid={self.joe.uuid}", self.editor, {"fields": {"activated_at": "el123a41"}}
+        )
+        self.assertIsNone(response.json()["fields"]["activated_at"])
 
     @mock_mailroom
     def test_contacts_anonymous_org(self, mr_mocks):
-        contacts_url = reverse("api.v2.contacts")
+        endpoint_url = reverse("api.v2.contacts") + ".json"
 
         group = ContactGroup.get_or_create(self.org, self.admin, "Customers")
 
-        self.login(self.admin)
-        response = self.postJSON(
-            contacts_url,
-            None,
+        self.assertPost(
+            endpoint_url,
+            self.editor,
             {
                 "name": "Jean",
                 "language": "fra",
@@ -2746,32 +2538,41 @@ class EndpointsTest(APITest):
                 "groups": [group.uuid],
                 "fields": {},
             },
+            status=201,
         )
-        self.assertEqual(response.status_code, 201)
 
         jean = Contact.objects.filter(name="Jean", language="fra").get()
 
         with self.anonymous(self.org):
             # can't update via URN
-            response = self.postJSON(contacts_url, "urn=%s" % "tel:+250785555555", {})
-            self.assertEqual(response.status_code, 400)
-            self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
+            self.assertPost(
+                endpoint_url + "?urn=tel:+250785555555",
+                self.editor,
+                {},
+                errors={None: "URN lookups not allowed for anonymous organizations"},
+                status=400,
+            )
 
             # can't update contact URNs
-            response = self.postJSON(contacts_url, "uuid=%s" % jean.uuid, {"urns": ["tel:+250786666666"]})
-            self.assertEqual(response.status_code, 400)
-            self.assertResponseError(response, "urns", "Updating URNs not allowed for anonymous organizations")
+            self.assertPost(
+                endpoint_url + f"?uuid={jean.uuid}",
+                self.editor,
+                {"urns": ["tel:+250786666666"]},
+                errors={"urns": "Updating URNs not allowed for anonymous organizations"},
+                status=400,
+            )
 
             # output shouldn't include URNs
-            response = self.getJSON(contacts_url, "uuid=%s" % jean.uuid)
-            self.assertEqual(response.status_code, 200)
+            response = self.assertGet(endpoint_url + f"?uuid={jean.uuid}", [self.admin], results=[jean])
             self.assertEqual(response.json()["results"][0]["urns"], ["tel:********", "twitter:********"])
 
             # but can create with URNs
-            response = self.postJSON(
-                contacts_url, None, {"name": "Xavier", "urns": ["tel:+250-78-7777777", "twitter:XAVIER"]}
+            response = self.assertPost(
+                endpoint_url,
+                self.admin,
+                {"name": "Xavier", "urns": ["tel:+250-78-7777777", "twitter:XAVIER"]},
+                status=201,
             )
-            self.assertEqual(response.status_code, 201)
 
             # TODO should UUID be masked in response??
             xavier = Contact.objects.get(name="Xavier")
@@ -2780,31 +2581,11 @@ class EndpointsTest(APITest):
             )
 
             # can't filter by URN
-            response = self.getJSON(contacts_url, "urn=%s" % quote_plus("tel:+250-78-8000004"))
-            self.assertEqual(response.status_code, 400)
-            self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
-
-    @mock_mailroom
-    def test_contact_create_with_urns(self, mr_mocks):
-        contacts_url = reverse("api.v2.contacts")
-
-        # one of the URNs will already exist in an orphaned state
-        ContactURN.get_or_create(self.org, None, "tel:+250783333335")
-
-        # test create with a null chars \u0000
-        self.login(self.admin)
-        response = self.postJSON(
-            contacts_url,
-            None,
-            {"name": "Jean", "urns": ["tel:+250783333334", "tel:+250783333335", "tel:+250783333336"]},
-        )
-        self.assertEqual(201, response.status_code)
-
-        # check URNs are in the specified order
-        contact = Contact.objects.get(name="Jean")
-        self.assertEqual(
-            ["tel:+250783333334", "tel:+250783333335", "tel:+250783333336"], [u.identity for u in contact.get_urns()]
-        )
+            self.assertGet(
+                endpoint_url + f"?urn={quote_plus('tel:+250-78-8000004')}",
+                [self.admin],
+                errors={None: "URN lookups not allowed for anonymous organizations"},
+            )
 
     @mock_mailroom
     def test_contact_actions(self, mr_mocks):
@@ -3812,9 +3593,11 @@ class EndpointsTest(APITest):
     @override_settings(ORG_LIMIT_DEFAULTS={"groups": 10})
     @mock_mailroom
     def test_groups(self, mr_mocks):
-        groups_url = reverse("api.v2.groups")
+        endpoint_url = reverse("api.v2.groups") + ".json"
 
-        self.assertEndpointAccess(groups_url, viewer_get=200, admin_get=200, agent_get=200)
+        self.assertGetNotPermitted(endpoint_url, [None])
+        self.assertPostNotPermitted(endpoint_url, [None, self.user, self.agent])
+        self.assertDeleteNotPermitted(endpoint_url, [None, self.user, self.agent])
 
         self.create_field("isdeveloper", "Is developer")
         open_tickets = self.org.groups.get(name="Open Tickets")
@@ -3832,15 +3615,10 @@ class EndpointsTest(APITest):
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
-            response = self.getJSON(groups_url, readonly_models={ContactGroup})
-
-        resp_json = response.json()
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(resp_json["next"], None)
-        self.assertEqual(
-            resp_json["results"],
-            [
+        self.assertGet(
+            endpoint_url,
+            [self.user, self.editor],
+            results=[
                 {
                     "uuid": dynamic.uuid,
                     "name": "Big Group",
@@ -3874,27 +3652,27 @@ class EndpointsTest(APITest):
                     "count": 0,
                 },
             ],
+            num_queries=NUM_BASE_REQUEST_QUERIES + 2,
         )
 
         # filter by UUID
-        response = self.getJSON(groups_url, "uuid=%s" % customers.uuid)
-        self.assertResultsByUUID(response, [customers])
+        self.assertGet(endpoint_url + f"?uuid={customers.uuid}", [self.editor], results=[customers])
 
         # filter by name
-        response = self.getJSON(groups_url, "name=developers")
-        self.assertResultsByUUID(response, [developers])
+        self.assertGet(endpoint_url + "?name=developers", [self.editor], results=[developers])
 
         # try to filter by both
-        response = self.getJSON(groups_url, "uuid=%s&name=developers" % developers.uuid)
-        self.assertResponseError(response, None, "You may only specify one of the uuid, name parameters")
+        self.assertGet(
+            endpoint_url + f"?uuid={customers.uuid}&name=developers",
+            [self.editor],
+            errors={None: "You may only specify one of the uuid, name parameters"},
+        )
 
         # try to create empty group
-        response = self.postJSON(groups_url, None, {})
-        self.assertResponseError(response, "name", "This field is required.")
+        self.assertPost(endpoint_url, self.admin, {}, errors={"name": "This field is required."})
 
         # create new group
-        response = self.postJSON(groups_url, None, {"name": "Reporters"})
-        self.assertEqual(response.status_code, 201)
+        response = self.assertPost(endpoint_url, self.admin, {"name": "Reporters"}, status=201)
 
         reporters = ContactGroup.objects.get(name="Reporters")
         self.assertEqual(
@@ -3910,120 +3688,119 @@ class EndpointsTest(APITest):
         )
 
         # try to create another group with same name
-        response = self.postJSON(groups_url, None, {"name": "reporters"})
-        self.assertResponseError(response, "name", "This field must be unique.")
+        self.assertPost(endpoint_url, self.admin, {"name": "reporters"}, errors={"name": "This field must be unique."})
 
         # try to create another group with same name as a system group..
-        response = self.postJSON(groups_url, "uuid=%s" % reporters.uuid, {"name": "blocked"})
-        self.assertResponseError(response, "name", "This field must be unique.")
+        self.assertPost(endpoint_url, self.admin, {"name": "blocked"}, errors={"name": "This field must be unique."})
 
         # it's fine if a group in another org has that name
-        response = self.postJSON(groups_url, None, {"name": "Spammers"})
-        self.assertEqual(response.status_code, 201)
+        self.assertPost(endpoint_url, self.admin, {"name": "Spammers"}, status=201)
 
         # try to create a group with invalid name
-        response = self.postJSON(groups_url, None, {"name": '"People"'})
-        self.assertResponseError(response, "name", 'Cannot contain the character: "')
+        self.assertPost(
+            endpoint_url, self.admin, {"name": '"People"'}, errors={"name": 'Cannot contain the character: "'}
+        )
 
         # try to create a group with name that's too long
-        response = self.postJSON(groups_url, None, {"name": "x" * 65})
-        self.assertResponseError(response, "name", "Ensure this field has no more than 64 characters.")
+        self.assertPost(
+            endpoint_url,
+            self.admin,
+            {"name": "x" * 65},
+            errors={"name": "Ensure this field has no more than 64 characters."},
+        )
 
         # update group by UUID
-        response = self.postJSON(groups_url, "uuid=%s" % reporters.uuid, {"name": "U-Reporters"})
-        self.assertEqual(response.status_code, 200)
+        self.assertPost(endpoint_url + f"?uuid={reporters.uuid}", self.admin, {"name": "U-Reporters"})
 
         reporters.refresh_from_db()
         self.assertEqual(reporters.name, "U-Reporters")
 
         # can't update a system group
-        response = self.postJSON(groups_url, "uuid=%s" % open_tickets.uuid, {"name": "Won't work"})
-        self.assertResponseError(response, None, "Cannot modify system object.", status_code=403)
+        self.assertPost(
+            endpoint_url + f"?uuid={open_tickets.uuid}",
+            self.admin,
+            {"name": "Won't work"},
+            errors={None: "Cannot modify system object."},
+            status=403,
+        )
         self.assertTrue(self.org.groups.filter(name="Open Tickets").exists())
 
         # can't update a group from other org
-        response = self.postJSON(groups_url, "uuid=%s" % spammers.uuid, {"name": "Won't work"})
-        self.assert404(response)
+        self.assertPost(endpoint_url + f"?uuid={spammers.uuid}", self.admin, {"name": "Won't work"}, status=404)
 
         # try an empty delete request
-        response = self.deleteJSON(groups_url, None)
-        self.assertResponseError(response, None, "URL must contain one of the following parameters: uuid")
+        self.assertDelete(
+            endpoint_url, self.admin, errors={None: "URL must contain one of the following parameters: uuid"}
+        )
 
         # delete a group by UUID
-        response = self.deleteJSON(groups_url, "uuid=%s" % reporters.uuid)
-        self.assertEqual(response.status_code, 204)
+        self.assertDelete(endpoint_url + f"?uuid={reporters.uuid}", self.admin, status=204)
 
         reporters.refresh_from_db()
         self.assertFalse(reporters.is_active)
 
         # can't delete a system group
-        response = self.deleteJSON(groups_url, "uuid=%s" % open_tickets.uuid)
-        self.assertResponseError(response, None, "Cannot delete system object.", status_code=403)
+        self.assertDelete(
+            endpoint_url + f"?uuid={open_tickets.uuid}",
+            self.admin,
+            errors={None: "Cannot delete system object."},
+            status=403,
+        )
         self.assertTrue(self.org.groups.filter(name="Open Tickets").exists())
 
-        # can't delete a group in another org
-        response = self.deleteJSON(groups_url, "uuid=%s" % spammers.uuid)
-        self.assert404(response)
+        # can't delete a group with a trigger dependency
+        trigger = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            self.create_flow("Test"),
+            keywords=["block_group"],
+            match_type=Trigger.MATCH_FIRST_WORD,
+        )
+        trigger.groups.add(customers)
 
+        self.assertDelete(
+            endpoint_url + f"?uuid={customers.uuid}",
+            self.admin,
+            errors={None: "Group is being used by triggers which must be archived first."},
+            status=400,
+        )
+
+        # or a campaign dependency
+        trigger.groups.clear()
+        campaign = Campaign.create(self.org, self.admin, "Reminders", customers)
+
+        self.assertDelete(
+            endpoint_url + f"?uuid={customers.uuid}",
+            self.admin,
+            errors={None: "Group is being used by campaigns which must be archived first."},
+            status=400,
+        )
+
+        # can't delete a group in another org
+        self.assertDelete(endpoint_url + f"?uuid={spammers.uuid}", self.admin, status=404)
+
+        campaign.delete()
         for group in ContactGroup.objects.filter(is_system=False):
             group.release(self.admin)
 
         for i in range(10):
             ContactGroup.create_manual(self.org2, self.admin2, "group%d" % i)
 
-        response = self.postJSON(groups_url, None, {"name": "Reporters"})
-        self.assertEqual(response.status_code, 201)
+        self.assertPost(endpoint_url, self.admin, {"name": "Reporters"}, status=201)
 
         ContactGroup.objects.filter(is_system=False, is_active=True).delete()
 
         for i in range(10):
             ContactGroup.create_manual(self.org, self.admin, "group%d" % i)
 
-        response = self.postJSON(groups_url, None, {"name": "Reporters"})
-        self.assertResponseError(
-            response, None, "Cannot create object because workspace has reached limit of 10.", status_code=409
-        )
-
-        group1 = ContactGroup.objects.filter(org=self.org, name="group1").first()
-        response = self.deleteJSON(groups_url, "uuid=%s" % group1.uuid)
-        self.assertEqual(response.status_code, 204)
-
-    def test_groups_cant_delete_with_trigger_dependency(self):
-        groups_url = reverse("api.v2.groups")
-
-        self.login(self.admin)
-
-        flow = self.get_flow("dependencies")
-        cats = ContactGroup.objects.get(name="Cat Facts")
-
-        trigger = Trigger.create(
-            self.org,
+        self.assertPost(
+            endpoint_url,
             self.admin,
-            Trigger.TYPE_KEYWORD,
-            flow,
-            keywords=["block_group"],
-            match_type=Trigger.MATCH_FIRST_WORD,
+            {"name": "Reporters"},
+            errors={None: "Cannot create object because workspace has reached limit of 10."},
+            status=409,
         )
-        trigger.groups.add(cats)
-
-        response = self.deleteJSON(groups_url, "uuid=%s" % cats.uuid)
-
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), {"detail": "Group is being used by triggers which must be archived first."})
-
-    def test_groups_cant_delete_with_campaign_dependency(self):
-        groups_url = reverse("api.v2.groups")
-
-        self.login(self.admin)
-
-        customers = self.create_group("Customers", [self.frank])
-
-        self.client.post(reverse("campaigns.campaign_create"), {"name": "Don't forget to ...", "group": customers.id})
-
-        response = self.deleteJSON(groups_url, f"uuid={customers.uuid}")
-
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), {"detail": "Group is being used by campaigns which must be archived first."})
 
     def test_labels(self):
         endpoint_url = reverse("api.v2.labels") + ".json"
