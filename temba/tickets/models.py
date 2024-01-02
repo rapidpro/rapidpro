@@ -191,12 +191,6 @@ class Ticket(models.Model):
     topic = models.ForeignKey(Topic, on_delete=models.PROTECT, related_name="tickets")
     body = models.TextField()
 
-    # the external id of the ticket
-    external_id = models.CharField(null=True, max_length=255)
-
-    # any configuration attributes for this ticket
-    config = models.JSONField(null=True)
-
     # the status of this ticket and who it's currently assigned to
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
     assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
@@ -215,6 +209,8 @@ class Ticket(models.Model):
 
     # TODO to be removed
     ticketer = models.ForeignKey(Ticketer, on_delete=models.PROTECT, related_name="tickets", null=True)
+    external_id = models.CharField(null=True, max_length=255)
+    config = models.JSONField(null=True)
 
     def assign(self, user: User, *, assignee: User):
         self.bulk_assign(self.org, user, [self], assignee=assignee)
@@ -271,12 +267,6 @@ class Ticket(models.Model):
             ),
             # used by message handling to find open tickets for contact
             models.Index(name="tickets_contact_open", fields=["contact", "-opened_on"], condition=Q(status="O")),
-            # used by ticket handlers in mailroom to find tickets from their external IDs
-            models.Index(
-                name="tickets_ticketer_external_id",
-                fields=["ticketer", "external_id"],
-                condition=Q(external_id__isnull=False),
-            ),
             # used by API tickets endpoint hence the ordering, and general fetching by org or contact
             models.Index(name="tickets_api_by_org", fields=["org", "-modified_on", "-id"]),
             models.Index(name="tickets_api_by_contact", fields=["contact", "-modified_on", "-id"]),
