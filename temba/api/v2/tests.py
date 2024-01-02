@@ -893,6 +893,19 @@ class EndpointsTest(APITest):
         # only for monthlies
         self.assertGet(endpoint_url + "?period=monthly", [self.editor], results=[archive4, archive2])
 
+        # test access from a user with no org
+        self.login(self.non_org_user)
+        response = self.client.get(endpoint_url)
+        self.assertEqual(403, response.status_code)
+
+        # test fetching docs
+        response = self.client.get(reverse("api.v2.archives"))
+        self.assertContains(response, "This endpoint allows you to list", status_code=403)
+
+        self.login(self.editor)
+        response = self.client.get(reverse("api.v2.archives"))
+        self.assertContains(response, "This endpoint allows you to list", status_code=200)
+
     def test_boundaries(self):
         endpoint_url = reverse("api.v2.boundaries") + ".json"
 
