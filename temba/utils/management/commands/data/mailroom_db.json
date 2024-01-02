@@ -437,43 +437,6 @@
           ]
         }
       ],
-      "ticketers": [
-        {
-          "uuid": "f9c9447f-a291-4f3c-8c79-c089bbd4e713",
-          "name": "Mailgun (IT Support)",
-          "ticketer_type": "mailgun",
-          "config": {
-            "domain": "tickets.rapidpro.io",
-            "api_key": "sesame",
-            "to_address": "bob@acme.com",
-            "brand_name": "RapidPro",
-            "url_base": "https://app.rapidpro.io"
-          }
-        },
-        {
-          "uuid": "4ee6d4f3-f92b-439b-9718-8da90c05490b",
-          "name": "Zendesk (Nyaruka)",
-          "ticketer_type": "zendesk",
-          "config": {
-            "subdomain": "nyaruka",
-            "oauth_token": "754845822",
-            "secret": "sesame",
-            "push_id": "1234-abcd",
-            "push_token": "523562"
-          }
-        },
-        {
-          "uuid": "6c50665f-b4ff-4e37-9625-bc464fe6a999",
-          "name": "Rocket.Chat",
-          "ticketer_type": "rocketchat",
-          "config": {
-            "base_url": "https://temba.rocket.chat/apps/public/1234",
-            "secret": "123456789",
-            "admin_auth_token": "1234",
-            "admin_user_id": "ADMIN346"
-          }
-        }
-      ],
       "topics": [
         {
           "uuid": "9ef2ff21-064a-41f1-8560-ccc990b4f937",
@@ -564,7 +527,6 @@
       ],
       "campaigns": [],
       "templates": [],
-      "ticketers": [],
       "topics": [],
       "teams": []
     }

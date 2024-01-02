@@ -417,7 +417,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         )
 
         # if there's an open ticket already, don't show open ticket option
-        self.create_ticket(self.org.ticketers.get(), joe, "Help")
+        self.create_ticket(joe, "Help")
         self.assertContentMenu(read_url, self.editor, ["Start Flow", "-", "Edit"])
 
         # login as viewer
@@ -1686,7 +1686,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         urn = old_contact.get_urn()
         self.create_channel_event(self.channel, urn.identity, ChannelEvent.TYPE_CALL_IN_MISSED)
 
-        self.create_ticket(self.org.ticketers.get(), old_contact, "Hi")
+        self.create_ticket(old_contact, "Hi")
 
         ivr_flow = self.get_flow("ivr")
         msg_flow = self.get_flow("favorites_v13")
@@ -1741,9 +1741,9 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.create_incoming_call(msg_flow, contact)
 
         # give contact an open and a closed ticket
-        self.create_ticket(self.org.ticketers.get(), contact, "Hi")
-        self.create_ticket(self.org.ticketers.get(), contact, "Hi", closed_on=timezone.now())
-        bcast_ticket = self.create_ticket(self.org.ticketers.get(), contact, "Hi All")
+        self.create_ticket(contact, "Hi")
+        self.create_ticket(contact, "Hi", closed_on=timezone.now())
+        bcast_ticket = self.create_ticket(contact, "Hi All")
         bcast2.ticket = bcast_ticket
         bcast2.save()
 
@@ -2291,9 +2291,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
 
         # two tickets for joe
-        ticketer = Ticketer.create(self.org, self.user, "internal", "Internal", {})
-        self.create_ticket(ticketer, self.joe, "Question 1", opened_on=timezone.now(), closed_on=timezone.now())
-        ticket = self.create_ticket(ticketer, self.joe, "Question 2")
+        self.create_ticket(self.joe, "Question 1", opened_on=timezone.now(), closed_on=timezone.now())
+        ticket = self.create_ticket(self.joe, "Question 2")
 
         # create missed incoming and outgoing calls
         self.create_channel_event(

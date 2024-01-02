@@ -20,7 +20,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
 from temba.orgs.models import Org, OrgRole, User
 from temba.templates.models import Template, TemplateTranslation
-from temba.tickets.models import Team, Ticketer, Topic
+from temba.tickets.models import Team, Topic
 
 SPECS_FILE = "temba/utils/management/commands/data/mailroom_db.json"
 
@@ -187,7 +187,6 @@ class Command(BaseCommand):
         self.create_campaigns(spec, org, superuser)
         self.create_templates(spec, org, superuser)
         self.create_classifiers(spec, org, superuser)
-        self.create_ticketers(spec, org, superuser)
         self.create_topics(spec, org, superuser)
         self.create_teams(spec, org, superuser)
         self.create_users(spec, org)
@@ -232,22 +231,6 @@ class Command(BaseCommand):
                 classifier.intents.create(
                     name=intent["name"], external_id=intent["external_id"], created_on=timezone.now()
                 )
-
-        self._log(self.style.SUCCESS("OK") + "\n")
-
-    def create_ticketers(self, spec, org, user):
-        self._log(f"Creating {len(spec['ticketers'])} ticketers... ")
-
-        for t in spec["ticketers"]:
-            Ticketer.objects.create(
-                org=org,
-                name=t["name"],
-                config=t["config"],
-                ticketer_type=t["ticketer_type"],
-                uuid=t["uuid"],
-                created_by=user,
-                modified_by=user,
-            )
 
         self._log(self.style.SUCCESS("OK") + "\n")
 

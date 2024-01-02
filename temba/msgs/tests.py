@@ -1382,7 +1382,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         # create a message which references a flow and a ticket
         flow = self.create_flow("Flow")
         contact = self.create_contact("Ann", phone="+250788000001")
-        ticket = self.create_ticket(self.org.ticketers.get(), contact, "Help")
+        ticket = self.create_ticket(contact, "Help")
         msg = self.create_outgoing_msg(contact, "Hi", flow=flow, ticket=ticket)
 
         # both Msg.flow and Msg.ticket are unconstrained so we shuld be able to delete these
