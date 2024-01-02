@@ -220,7 +220,6 @@ class Event:
                 "topic": _topic(ticket.topic) if ticket.topic else None,
                 "status": ticket.status,
                 "body": ticket.body,
-                "ticketer": {"uuid": str(ticket.ticketer.uuid), "name": ticket.ticketer.name},
             },
             "created_on": get_event_time(obj).isoformat(),
             "created_by": _user(obj.created_by) if obj.created_by else None,

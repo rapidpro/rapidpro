@@ -5166,7 +5166,6 @@ class EndpointsTest(APITest):
             results=[
                 {
                     "uuid": str(ticket3.uuid),
-                    "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "assignee": {"email": "agent@nyaruka.com", "name": "Agnes"},
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
@@ -5180,7 +5179,6 @@ class EndpointsTest(APITest):
                 },
                 {
                     "uuid": str(ticket2.uuid),
-                    "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "assignee": None,
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
@@ -5194,7 +5192,6 @@ class EndpointsTest(APITest):
                 },
                 {
                     "uuid": str(ticket1.uuid),
-                    "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "assignee": None,
                     "contact": {"uuid": str(ann.uuid), "name": "Ann"},
                     "status": "closed",
@@ -5207,7 +5204,7 @@ class EndpointsTest(APITest):
                     "closed_on": "2021-01-01T12:30:45.123456Z",
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 7,
+            num_queries=NUM_BASE_REQUEST_QUERIES + 6,
         )
 
         # filter by contact uuid (not there)
