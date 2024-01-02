@@ -1,3 +1,7 @@
+v8.3.114 (2024-01-02)
+-------------------------
+ * Stop exposing ticket ticketer on endpoints
+
 v8.3.113 (2024-01-02)
 -------------------------
  * Update temba-components
