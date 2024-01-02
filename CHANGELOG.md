@@ -1,3 +1,8 @@
+v8.3.115 (2024-01-02)
+-------------------------
+ * Update to latest flow editor
+ * Drop index on ticket.external_id
+
 v8.3.114 (2024-01-02)
 -------------------------
  * Stop exposing ticket ticketer on endpoints
