@@ -1,3 +1,8 @@
+v8.3.113 (2024-01-02)
+-------------------------
+ * Update temba-components
+ * Finish cleaning up API v2 tests to use APITestMixin
+
 v8.3.112 (2023-12-14)
 -------------------------
  * ContactChat with less padding
