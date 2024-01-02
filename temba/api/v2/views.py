@@ -3533,7 +3533,6 @@ class TicketsEndpoint(ListAPIMixin, BaseEndpoint):
             queryset = queryset.filter(uuid=uuid)
 
         queryset = queryset.prefetch_related(
-            Prefetch("ticketer", queryset=Ticketer.objects.only("uuid", "name")),
             Prefetch("topic", queryset=Topic.objects.only("uuid", "name")),
             Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
             Prefetch("assignee", queryset=User.objects.only("email", "first_name", "last_name")),

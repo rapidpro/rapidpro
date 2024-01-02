@@ -1209,7 +1209,6 @@ class EventTest(TembaTest):
                     "status": "O",
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Where my shoes?",
-                    "ticketer": {"uuid": str(ticketer.uuid), "name": "Email (bob@acme.com)"},
                 },
                 "created_on": matchers.ISODate(),
                 "created_by": {
@@ -1240,7 +1239,6 @@ class EventTest(TembaTest):
                     "status": "O",
                     "topic": {"uuid": str(self.org.default_ticket_topic.uuid), "name": "General"},
                     "body": "Where my shoes?",
-                    "ticketer": {"uuid": str(ticketer.uuid), "name": "Email (bob@acme.com)"},
                 },
                 "created_on": matchers.ISODate(),
                 "created_by": None,

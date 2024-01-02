@@ -1611,7 +1611,6 @@ class TicketerReadSerializer(ReadSerializer):
 class TicketReadSerializer(ReadSerializer):
     STATUSES = {Ticket.STATUS_OPEN: "open", Ticket.STATUS_CLOSED: "closed"}
 
-    ticketer = fields.TicketerField()
     contact = fields.ContactField()
     status = serializers.SerializerMethodField()
     topic = fields.TopicField()
@@ -1629,7 +1628,6 @@ class TicketReadSerializer(ReadSerializer):
         model = Ticket
         fields = (
             "uuid",
-            "ticketer",
             "contact",
             "status",
             "topic",
