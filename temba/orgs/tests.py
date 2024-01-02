@@ -43,8 +43,7 @@ from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
-from temba.tickets.models import ExportTicketsTask, Ticketer
-from temba.tickets.types.mailgun import MailgunType
+from temba.tickets.models import ExportTicketsTask
 from temba.triggers.models import Trigger
 from temba.utils import json, languages
 from temba.utils.uuid import uuid4
@@ -2077,11 +2076,10 @@ class OrgDeleteTest(TembaTest):
         add(FlowStartCount.objects.create(start=start1, count=1))
 
     def _create_ticket_content(self, org, user, contacts, flows, add):
-        ticket1 = add(self.create_ticket(org.ticketers.get(), contacts[0], "Help"))
+        ticket1 = add(self.create_ticket(contacts[0], "Help"))
         ticket1.events.create(org=org, contact=contacts[0], event_type="N", note="spam", created_by=user)
 
-        ticketer = add(Ticketer.create(org, user, MailgunType.slug, "Email (bob)", {}))
-        add(self.create_ticket(ticketer, contacts[0], "Help", opened_in=flows[0]))
+        add(self.create_ticket(contacts[0], "Help", opened_in=flows[0]))
 
     def _create_export_content(self, org, user, flows, groups, fields, labels, add):
         results = add(

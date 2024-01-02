@@ -16,7 +16,7 @@ from temba.mailroom.client import ContactSpec, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
-from temba.tickets.models import Ticketer, TicketEvent
+from temba.tickets.models import TicketEvent
 from temba.utils import json
 
 from . import BroadcastPreview, Exclusions, Inclusions, StartPreview, modifiers, queue_interrupt
@@ -1182,9 +1182,8 @@ class EventTest(TembaTest):
         )
 
     def test_from_ticket_event(self):
-        ticketer = Ticketer.create(self.org, self.user, "mailgun", "Email (bob@acme.com)", {})
         contact = self.create_contact("Jim", phone="0979111111")
-        ticket = self.create_ticket(ticketer, contact, "Where my shoes?")
+        ticket = self.create_ticket(contact, "Where my shoes?")
 
         # event with a user
         event1 = TicketEvent.objects.create(

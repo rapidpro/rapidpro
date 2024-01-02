@@ -713,7 +713,6 @@ class TembaTest(SmartminTest):
 
     def create_ticket(
         self,
-        ticketer,
         contact,
         body: str,
         topic=None,
@@ -728,10 +727,9 @@ class TembaTest(SmartminTest):
             opened_on = timezone.now()
 
         ticket = Ticket.objects.create(
-            org=ticketer.org,
-            ticketer=ticketer,
+            org=contact.org,
             contact=contact,
-            topic=topic or ticketer.org.default_ticket_topic,
+            topic=topic or contact.org.default_ticket_topic,
             body=body,
             status=Ticket.STATUS_CLOSED if closed_on else Ticket.STATUS_OPEN,
             assignee=assignee,
