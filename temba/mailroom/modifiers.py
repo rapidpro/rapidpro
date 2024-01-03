@@ -15,12 +15,6 @@ class GroupRef:
 
 
 @dataclass(frozen=True)
-class TicketerRef:
-    uuid: str
-    name: str
-
-
-@dataclass(frozen=True)
 class TopicRef:
     uuid: str
     name: str

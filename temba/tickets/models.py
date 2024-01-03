@@ -24,80 +24,14 @@ from temba.utils.uuid import uuid4
 logger = logging.getLogger(__name__)
 
 
-class TicketerType(metaclass=ABCMeta):
-    """
-    TicketerType is our abstract base type for ticketers.
-    """
-
-    # the verbose name for this ticketer type
-    name = None
-
-    # the short code for this ticketer type (< 16 chars, lowercase)
-    slug = None
-
-    def get_urls(self):
-        """
-        Returns all the URLs this ticketer exposes to Django, the URL should be relative.
-        """
-        return []
-
-
 class Ticketer(TembaModel, DependencyMixin):
     """
-    A service that can open and close tickets
+    TODO drop
     """
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticketers")
     ticketer_type = models.CharField(max_length=16)
     config = models.JSONField()
-
-    @classmethod
-    def create(cls, org, user, ticketer_type: str, name: str, config: dict):
-        return cls.objects.create(
-            uuid=uuid4(),
-            ticketer_type=ticketer_type,
-            name=name,
-            config=config,
-            org=org,
-            created_by=user,
-            modified_by=user,
-        )
-
-    @classmethod
-    def get_types(cls):
-        """
-        Returns the possible types available for ticketers
-        """
-        from .types import TYPES
-
-        return TYPES.values()
-
-    @property
-    def type(self):  # pragma: no cover
-        """
-        Returns the type instance
-        """
-        from .types import TYPES
-
-        return TYPES[self.ticketer_type]
-
-    def release(self, user):
-        """
-        Releases this, closing all associated tickets in the process
-        """
-
-        assert not (self.is_system and self.org.is_active), "can't release system ticketers"
-
-        super().release(user)
-
-        open_tickets = self.tickets.filter(status=Ticket.STATUS_OPEN)
-        if open_tickets.exists():
-            Ticket.bulk_close(self.org, user, open_tickets, force=True)
-
-        self.is_active = False
-        self.name = self._deleted_name()
-        self.modified_by = user
-        self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
 
 
 class Topic(TembaModel, DependencyMixin):
