@@ -24,16 +24,6 @@ from temba.utils.uuid import uuid4
 logger = logging.getLogger(__name__)
 
 
-class Ticketer(TembaModel, DependencyMixin):
-    """
-    TODO drop
-    """
-
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticketers")
-    ticketer_type = models.CharField(max_length=16)
-    config = models.JSONField()
-
-
 class Topic(TembaModel, DependencyMixin):
     """
     The topic of a ticket which controls who can access that ticket.
