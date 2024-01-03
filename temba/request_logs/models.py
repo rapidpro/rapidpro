@@ -30,7 +30,6 @@ class HTTPLog(models.Model):
     WEBHOOK_CALLED = "webhook_called"
     INTENTS_SYNCED = "intents_synced"
     CLASSIFIER_CALLED = "classifier_called"
-    TICKETER_CALLED = "ticketer_called"
     AIRTIME_TRANSFERRED = "airtime_transferred"
     WHATSAPP_TEMPLATES_SYNCED = "whatsapp_templates_synced"
     WHATSAPP_TOKENS_SYNCED = "whatsapp_tokens_synced"
@@ -42,7 +41,6 @@ class HTTPLog(models.Model):
         (WEBHOOK_CALLED, "Webhook Called"),
         (INTENTS_SYNCED, _("Intents Synced")),
         (CLASSIFIER_CALLED, _("Classifier Called")),
-        (TICKETER_CALLED, _("Ticketing Service Called")),
         (AIRTIME_TRANSFERRED, _("Airtime Transferred")),
         (WHATSAPP_TEMPLATES_SYNCED, _("WhatsApp Templates Synced")),
         (WHATSAPP_TOKENS_SYNCED, _("WhatsApp Tokens Synced")),
