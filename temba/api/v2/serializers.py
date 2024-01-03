@@ -24,7 +24,7 @@ from temba.mailroom import modifiers
 from temba.msgs.models import Broadcast, Label, Media, Msg, OptIn
 from temba.orgs.models import Org, OrgRole
 from temba.templates.models import Template
-from temba.tickets.models import Ticket, Ticketer, Topic
+from temba.tickets.models import Ticket, Topic
 from temba.utils import json, on_transaction_commit
 from temba.utils.fields import NameValidator
 
@@ -1594,18 +1594,6 @@ class TemplateReadSerializer(ReadSerializer):
     class Meta:
         model = Template
         fields = ("uuid", "name", "translations", "created_on", "modified_on")
-
-
-class TicketerReadSerializer(ReadSerializer):
-    type = serializers.SerializerMethodField()
-    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
-
-    def get_type(self, obj):
-        return obj.ticketer_type
-
-    class Meta:
-        model = Ticketer
-        fields = ("uuid", "name", "type", "created_on")
 
 
 class TicketReadSerializer(ReadSerializer):

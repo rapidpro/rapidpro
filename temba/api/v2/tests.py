@@ -35,9 +35,7 @@ from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
 from temba.tests import TembaTest, matchers, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
-from temba.tickets.models import Ticketer, Topic
-from temba.tickets.types.mailgun import MailgunType
-from temba.tickets.types.zendesk import ZendeskType
+from temba.tickets.models import Topic
 from temba.triggers.models import Trigger
 
 from ..tests import APITestMixin
@@ -5080,59 +5078,6 @@ class EndpointsTest(APITest):
             ],
             num_queries=NUM_BASE_REQUEST_QUERIES + 3,
         )
-
-    def test_ticketers(self):
-        endpoint_url = reverse("api.v2.ticketers") + ".json"
-
-        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
-        self.assertPostNotAllowed(endpoint_url)
-        self.assertDeleteNotAllowed(endpoint_url)
-
-        t1 = self.org.ticketers.get()  # the internal ticketer
-
-        # create some additional ticketers
-        t2 = Ticketer.create(self.org, self.admin, MailgunType.slug, "bob@acme.com", {})
-        t3 = Ticketer.create(self.org, self.admin, MailgunType.slug, "jim@acme.com", {})
-
-        t4 = Ticketer.create(self.org, self.admin, MailgunType.slug, "deleted", {})
-        t4.is_active = False
-        t4.save()
-
-        # on another org
-        Ticketer.create(self.org2, self.admin, ZendeskType.slug, "zendesk", {})
-
-        # no filtering
-        self.assertGet(
-            endpoint_url,
-            [self.user, self.editor],
-            results=[
-                {
-                    "uuid": str(t3.uuid),
-                    "name": "jim@acme.com",
-                    "type": "mailgun",
-                    "created_on": format_datetime(t3.created_on),
-                },
-                {
-                    "uuid": str(t2.uuid),
-                    "name": "bob@acme.com",
-                    "type": "mailgun",
-                    "created_on": format_datetime(t2.created_on),
-                },
-                {
-                    "uuid": str(t1.uuid),
-                    "name": "RapidPro Tickets",
-                    "type": "internal",
-                    "created_on": format_datetime(t1.created_on),
-                },
-            ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 1,
-        )
-
-        # filter by uuid (not there)
-        self.assertGet(endpoint_url + "?uuid=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", [self.admin], results=[])
-
-        # filter by uuid present
-        self.assertGet(endpoint_url + f"?uuid={t2.uuid}", [self.admin], results=[t2])
 
     @patch("temba.mailroom.client.MailroomClient.ticket_close")
     @patch("temba.mailroom.client.MailroomClient.ticket_reopen")

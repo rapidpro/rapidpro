@@ -28,7 +28,7 @@ from temba.msgs.models import Broadcast, Label, LabelCount, Media, Msg, OptIn, S
 from temba.orgs.models import OrgMembership, OrgRole, User
 from temba.orgs.views import OrgPermsMixin
 from temba.templates.models import Template, TemplateTranslation
-from temba.tickets.models import Ticket, TicketCount, Ticketer, Topic
+from temba.tickets.models import Ticket, TicketCount, Topic
 from temba.utils import str_to_bool
 from temba.utils.uuid import is_uuid
 
@@ -85,7 +85,6 @@ from .serializers import (
     ResthookSubscriberWriteSerializer,
     TemplateReadSerializer,
     TicketBulkActionSerializer,
-    TicketerReadSerializer,
     TicketReadSerializer,
     TopicReadSerializer,
     TopicWriteSerializer,
@@ -3438,29 +3437,6 @@ class TemplatesEndpoint(ListAPIMixin, BaseEndpoint):
             Prefetch("translations__channel", Channel.objects.only("uuid", "name")),
         )
         return self.filter_before_after(queryset, "modified_on")
-
-
-class TicketersEndpoint(ListAPIMixin, BaseEndpoint):
-    """
-    Deprecated... ticketers won't be a thing
-    """
-
-    model = Ticketer
-    serializer_class = TicketerReadSerializer
-    pagination_class = CreatedOnCursorPagination
-
-    def filter_queryset(self, queryset):
-        params = self.request.query_params
-        org = self.request.org
-
-        queryset = queryset.filter(org=org, is_active=True)
-
-        # filter by uuid (optional)
-        uuid = params.get("uuid")
-        if uuid:
-            queryset = queryset.filter(uuid=uuid)
-
-        return self.filter_before_after(queryset, "created_on")
 
 
 class TicketsEndpoint(ListAPIMixin, BaseEndpoint):
