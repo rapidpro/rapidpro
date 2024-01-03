@@ -10,7 +10,6 @@ from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
 from temba.tests import CRUDLTestMixin, TembaTest
 from temba.tickets.models import Ticketer
-from temba.tickets.types.mailgun import MailgunType
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import HTTPLog
@@ -155,10 +154,23 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(404, response.status_code)
 
     def test_ticketer(self):
-        t1 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Email (bob@acme.com)", {})
-        t2 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Old Email", {})
-        t2.is_active = False
-        t2.save()
+        t1 = Ticketer.objects.create(
+            ticketer_type="mailgun",
+            name="Email (bob@acme.com)",
+            config={},
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+        t2 = Ticketer.objects.create(
+            ticketer_type="mailgun",
+            name="Old Email",
+            config={},
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
+            is_active=False,
+        )
 
         # create some logs
         l1 = HTTPLog.objects.create(

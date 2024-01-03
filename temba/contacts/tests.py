@@ -33,7 +33,7 @@ from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
-from temba.tickets.models import Ticket, TicketCount, Ticketer
+from temba.tickets.models import Ticket, TicketCount
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_timestamp
@@ -701,13 +701,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
     @mock_mailroom
     def test_open_ticket(self, mr_mocks):
         contact = self.create_contact("Joe", phone="+593979000111")
-        internal = self.org.ticketers.get()
         general = self.org.default_ticket_topic
-
-        # create deleted ticketer
-        deleted_ticketer = Ticketer.create(self.org, self.admin, "mailgun", "Deleted", config={})
-        deleted_ticketer.release(self.admin)
-
         open_url = reverse("contacts.contact_open_ticket", args=[contact.id])
 
         self.assertUpdateFetch(
@@ -717,44 +711,22 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # try to submit with empty body
         self.assertUpdateSubmit(
             open_url,
-            {"ticketer": internal.id, "topic": general.id, "body": "", "assignee": ""},
+            {"topic": general.id, "body": "", "assignee": ""},
             form_errors={"body": "This field is required."},
             object_unchanged=contact,
         )
 
         # can submit with no assignee
-        response = self.assertUpdateSubmit(
-            open_url, {"ticketer": internal.id, "topic": general.id, "body": "Help", "assignee": ""}
-        )
+        response = self.assertUpdateSubmit(open_url, {"topic": general.id, "body": "Help", "assignee": ""})
 
         # should have new ticket
         ticket = contact.tickets.get()
-        self.assertEqual(internal, ticket.ticketer)
         self.assertEqual(general, ticket.topic)
         self.assertEqual("Help", ticket.body)
         self.assertIsNone(ticket.assignee)
 
         # and we're redirected to that ticket
         self.assertRedirect(response, f"/ticket/all/open/{ticket.uuid}/")
-
-        # create external ticketer
-        zendesk = Ticketer.create(self.org, self.admin, "zendesk", "Zendesk", config={})
-
-        # now ticketer is an option on the form
-        self.assertUpdateFetch(
-            open_url, allow_viewers=False, allow_editors=True, form_fields=("ticketer", "topic", "body", "assignee")
-        )
-
-        self.assertUpdateSubmit(
-            open_url, {"ticketer": zendesk.id, "topic": general.id, "body": "Help again", "assignee": self.agent.id}
-        )
-
-        # should have new ticket
-        ticket = contact.tickets.order_by("id").last()
-        self.assertEqual(zendesk, ticket.ticketer)
-        self.assertEqual(general, ticket.topic)
-        self.assertEqual("Help again", ticket.body)
-        self.assertEqual(self.agent, ticket.assignee)
 
     @mock_mailroom
     def test_interrupt(self, mr_mocks):
@@ -1661,9 +1633,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
     def test_open_ticket(self, mock_contact_modify):
         mock_contact_modify.return_value = {self.joe.id: {"contact": {}, "events": []}}
 
-        ticket = self.joe.open_ticket(
-            self.admin, self.org.ticketers.get(), self.org.default_ticket_topic, "Looks sus", assignee=self.agent
-        )
+        ticket = self.joe.open_ticket(self.admin, self.org.default_ticket_topic, "Looks sus", assignee=self.agent)
 
         self.assertEqual(self.org.default_ticket_topic, ticket.topic)
         self.assertEqual("Looks sus", ticket.body)
