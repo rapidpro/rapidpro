@@ -27,7 +27,7 @@ from temba.globals.models import Global
 from temba.msgs.models import Label, OptIn
 from temba.orgs.models import DependencyMixin, Org, User
 from temba.templates.models import Template
-from temba.tickets.models import Ticketer, Topic
+from temba.tickets.models import Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
 from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, delete_in_batches
@@ -182,7 +182,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
     optin_dependencies = models.ManyToManyField(OptIn, related_name="dependent_flows")
     template_dependencies = models.ManyToManyField(Template, related_name="dependent_flows")
-    ticketer_dependencies = models.ManyToManyField(Ticketer, related_name="dependent_flows")
     topic_dependencies = models.ManyToManyField(Topic, related_name="dependent_flows")
     user_dependencies = models.ManyToManyField(User, related_name="dependent_flows")
 
@@ -529,7 +528,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             "classifier": self.org.classifiers.filter(is_active=True),
             "flow": self.org.flows.filter(is_active=True),
             "template": self.org.templates.all(),
-            "ticketer": self.org.ticketers.filter(is_active=True),
         }
         for dep_type, org_objs in dep_types.items():
             for ref in deps_of_type(dep_type):
@@ -877,8 +875,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             "label": Label.get_active_for_org(self.org).filter(uuid__in=identifiers["label"]),
             "optin": OptIn.get_active_for_org(self.org).filter(uuid__in=identifiers["optin"]),
             "template": self.org.templates.filter(uuid__in=identifiers["template"]),
-            "ticketer": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["ticketer"]),
-            "topic": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["topic"]),
+            "topic": self.org.topics.filter(is_active=True, uuid__in=identifiers["topic"]),
             "user": self.org.users.filter(is_active=True, email__in=identifiers["user"]),
         }
 
@@ -925,7 +922,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         self.group_dependencies.clear()
         self.label_dependencies.clear()
         self.template_dependencies.clear()
-        self.ticketer_dependencies.clear()
         self.topic_dependencies.clear()
         self.user_dependencies.clear()
 

@@ -27,7 +27,6 @@ from temba.tests import CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_
 from temba.tests.base import get_contact_search
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
-from temba.tickets.models import Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.uuid import uuid4
@@ -258,34 +257,31 @@ class FlowTest(TembaTest, CRUDLTestMixin):
             response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
             self.assertEqual(features, set(json.loads(response.context["feature_filters"])))
 
-        # every org has a ticketer now...
-        assert_features({"ticketer"})
-
         # add a resthook
         Resthook.objects.create(org=flow.org, created_by=self.admin, modified_by=self.admin)
-        assert_features({"ticketer", "resthook"})
+        assert_features({"resthook"})
 
         # add an NLP classifier
         Classifier.objects.create(org=flow.org, config="", created_by=self.admin, modified_by=self.admin)
-        assert_features({"classifier", "ticketer", "resthook"})
+        assert_features({"classifier", "resthook"})
 
         # add a DT One integration
         DTOneType().connect(flow.org, self.admin, "login", "token")
-        assert_features({"airtime", "classifier", "ticketer", "resthook"})
+        assert_features({"airtime", "classifier", "resthook"})
 
         # change our channel to use a whatsapp scheme
         self.channel.schemes = [URN.WHATSAPP_SCHEME]
         self.channel.save()
-        assert_features({"whatsapp", "airtime", "classifier", "ticketer", "resthook"})
+        assert_features({"whatsapp", "airtime", "classifier", "resthook"})
 
         # change our channel to use a facebook scheme
         self.channel.schemes = [URN.FACEBOOK_SCHEME]
         self.channel.save()
-        assert_features({"facebook", "optins", "airtime", "classifier", "ticketer", "resthook"})
+        assert_features({"facebook", "optins", "airtime", "classifier", "resthook"})
 
         self.setUpLocations()
 
-        assert_features({"facebook", "optins", "airtime", "classifier", "ticketer", "resthook", "locations"})
+        assert_features({"facebook", "optins", "airtime", "classifier", "resthook", "locations"})
 
     def test_save_revision(self):
         self.login(self.admin)
@@ -1184,11 +1180,6 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         # create channel to be matched by name
         channel = self.create_channel("TG", "RapidPro Test", "12345324635")
 
-        # create ticketer to be matched by UUID
-        ticketer = Ticketer.create(self.org, self.admin, "zendesk", "Zendesk Tickets", {})
-        ticketer.uuid = "6ceb51cd-1d19-4f28-a9c3-2e244a9e2959"
-        ticketer.save(update_fields=("uuid",))
-
         flow = self.get_flow("dependencies_v13")
         flow_def = flow.get_definition()
 
@@ -1205,12 +1196,6 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         # reference to channel changed to match existing channel by name
         self.assertEqual(
             {"uuid": str(channel.uuid), "name": "RapidPro Test"}, flow_def["nodes"][0]["actions"][4]["channel"]
-        )
-
-        # reference to ticketer unchanged because it matched existing ticketer by UUID
-        self.assertEqual(
-            {"uuid": "6ceb51cd-1d19-4f28-a9c3-2e244a9e2959", "name": "Zendesk"},
-            flow_def["nodes"][8]["actions"][0]["ticketer"],
         )
 
         # reference to classifier unchanged since it doesn't exist

@@ -44,7 +44,7 @@ from temba.orgs.views import (
     OrgObjPermsMixin,
     OrgPermsMixin,
 )
-from temba.tickets.models import Ticket, Ticketer, Topic
+from temba.tickets.models import Ticket, Topic
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.fields import (
@@ -1145,9 +1145,6 @@ class ContactCRUDL(SmartCRUDL):
         """
 
         class Form(forms.Form):
-            ticketer = forms.ModelChoiceField(
-                queryset=Ticketer.objects.none(), label=_("Ticket Service"), required=True
-            )
             topic = forms.ModelChoiceField(queryset=Topic.objects.none(), label=_("Topic"), required=True)
             body = forms.CharField(label=_("Body"), widget=forms.Textarea, required=True)
             assignee = forms.ModelChoiceField(
@@ -1161,7 +1158,6 @@ class ContactCRUDL(SmartCRUDL):
             def __init__(self, instance, org, **kwargs):
                 super().__init__(**kwargs)
 
-                self.fields["ticketer"].queryset = org.ticketers.filter(is_active=True).order_by("id")
                 self.fields["topic"].queryset = org.topics.filter(is_active=True).order_by("name")
                 self.fields["assignee"].queryset = Ticket.get_allowed_assignees(org).order_by("email")
 
@@ -1174,14 +1170,9 @@ class ContactCRUDL(SmartCRUDL):
             kwargs["org"] = self.request.org
             return kwargs
 
-        def derive_exclude(self):
-            # don't show ticketer select if they don't have external ticketers
-            return ["ticketer"] if self.request.org.ticketers.filter(is_active=True).count() == 1 else []
-
         def save(self, obj):
             self.ticket = obj.open_ticket(
                 self.request.user,
-                self.form.cleaned_data.get("ticketer") or self.request.org.ticketers.filter(is_active=True).first(),
                 self.form.cleaned_data["topic"],
                 self.form.cleaned_data["body"],
                 assignee=self.form.cleaned_data.get("assignee"),

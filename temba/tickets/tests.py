@@ -31,13 +31,11 @@ from .types.mailgun import MailgunType
 
 class TicketTest(TembaTest):
     def test_model(self):
-        ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
         topic = Topic.create(self.org, self.admin, "Sales")
         contact = self.create_contact("Bob", urns=["twitter:bobby"])
 
         ticket = Ticket.objects.create(
             org=self.org,
-            ticketer=ticketer,
             contact=contact,
             topic=self.org.default_ticket_topic,
             body="Where are my cookies?",
@@ -1025,26 +1023,6 @@ class TicketerTest(TembaTest):
 
         # will have asked mailroom to close the ticket
         mock_ticket_close.assert_called_once_with(self.org.id, self.user.id, [ticket.id], force=True)
-
-        # reactivate
-        ticketer.is_active = True
-        ticketer.save()
-
-        # add a dependency and try again
-        flow = self.create_flow("Deps")
-        flow.ticketer_dependencies.add(ticketer)
-
-        self.assertFalse(flow.has_issues)
-
-        ticketer.release(self.editor)
-        ticketer.refresh_from_db()
-
-        self.assertFalse(ticketer.is_active)
-        self.assertEqual(self.editor, ticketer.modified_by)
-        self.assertNotIn(ticketer, flow.ticketer_dependencies.all())
-
-        flow.refresh_from_db()
-        self.assertTrue(flow.has_issues)
 
 
 class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):

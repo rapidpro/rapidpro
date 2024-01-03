@@ -2897,7 +2897,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         system_fields = set(org.fields.filter(is_system=True).values_list("key", flat=True))
         system_groups = set(org.groups.filter(is_system=True).values_list("name", flat=True))
         sample_flows = set(org.flows.values_list("name", flat=True))
-        internal_ticketer = org.ticketers.get()
 
         self.assertEqual({"created_on", "id", "language", "last_seen_on", "name"}, system_fields)
         self.assertEqual({"Active", "Archived", "Blocked", "Stopped", "Open Tickets"}, system_groups)
@@ -2905,7 +2904,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             {"Sample Flow - Order Status Checker", "Sample Flow - Satisfaction Survey", "Sample Flow - Simple Poll"},
             sample_flows,
         )
-        self.assertEqual("RapidPro Tickets", internal_ticketer.name)
 
         # should now be able to go to channels page
         response = self.client.get(reverse("channels.channel_claim"))

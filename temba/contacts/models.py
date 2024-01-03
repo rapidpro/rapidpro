@@ -1063,12 +1063,11 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
             on_transaction_commit(lambda: release_contacts.delay(user.id, [c.id for c in contacts]))
 
-    def open_ticket(self, user, ticketer, topic, body: str, assignee=None):
+    def open_ticket(self, user, topic, body: str, assignee=None):
         """
         Opens a new ticket for this contact.
         """
         mod = modifiers.Ticket(
-            ticketer=modifiers.TicketerRef(uuid=str(ticketer.uuid), name=ticketer.name),
             topic=modifiers.TopicRef(uuid=str(topic.uuid), name=topic.name),
             body=body,
             assignee=modifiers.UserRef(email=assignee.email, name=assignee.name) if assignee else None,
