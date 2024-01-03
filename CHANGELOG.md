@@ -1,3 +1,7 @@
+v8.3.120 (2024-01-03)
+-------------------------
+ * Allow ticket body to be optional
+
 v8.3.119 (2024-01-03)
 -------------------------
  * Drop ticketer model
