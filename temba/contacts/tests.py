@@ -708,14 +708,6 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             open_url, allow_viewers=False, allow_editors=True, form_fields=("topic", "body", "assignee")
         )
 
-        # try to submit with empty body
-        self.assertUpdateSubmit(
-            open_url,
-            {"topic": general.id, "body": "", "assignee": ""},
-            form_errors={"body": "This field is required."},
-            object_unchanged=contact,
-        )
-
         # can submit with no assignee
         response = self.assertUpdateSubmit(open_url, {"topic": general.id, "body": "Help", "assignee": ""})
 
