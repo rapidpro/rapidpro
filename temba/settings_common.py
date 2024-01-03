@@ -838,12 +838,6 @@ CLASSIFIER_TYPES = [
     "temba.classifiers.types.bothub.BothubType",
 ]
 
-TICKETER_TYPES = [
-    "temba.tickets.types.internal.InternalType",
-    "temba.tickets.types.mailgun.MailgunType",
-    "temba.tickets.types.zendesk.ZendeskType",
-]
-
 CHANNEL_TYPES = [
     "temba.channels.types.africastalking.AfricasTalkingType",
     "temba.channels.types.arabiacell.ArabiaCellType",

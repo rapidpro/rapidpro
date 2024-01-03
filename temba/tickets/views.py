@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from smartmin.views import SmartCRUDL, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
+from smartmin.views import SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
 from django.conf import settings
@@ -14,7 +14,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.views import DependencyDeleteModal, MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
@@ -29,7 +29,6 @@ from .models import (
     MineFolder,
     Ticket,
     TicketCount,
-    Ticketer,
     TicketFolder,
     Topic,
     TopicFolder,
@@ -486,16 +485,3 @@ class TicketCRUDL(SmartCRUDL):
             response = self.render_modal_response(form)
             response["REDIRECT"] = self.get_success_url()
             return response
-
-
-class TicketerCRUDL(SmartCRUDL):
-    model = Ticketer
-    actions = ("read", "delete")
-
-    class Read(OrgObjPermsMixin, SmartReadView):
-        slug_url_kwarg = "uuid"
-
-    class Delete(DependencyDeleteModal):
-        cancel_url = "@orgs.org_workspace"
-        success_url = "@orgs.org_workspace"
-        success_message = _("Your ticketing service has been deleted.")

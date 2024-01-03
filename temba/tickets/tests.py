@@ -20,24 +20,20 @@ from .models import (
     TicketCount,
     TicketDailyCount,
     TicketDailyTiming,
-    Ticketer,
     TicketEvent,
     Topic,
     export_ticket_stats,
 )
 from .tasks import squash_ticket_counts
-from .types.mailgun import MailgunType
 
 
 class TicketTest(TembaTest):
     def test_model(self):
-        ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
         topic = Topic.create(self.org, self.admin, "Sales")
         contact = self.create_contact("Bob", urns=["twitter:bobby"])
 
         ticket = Ticket.objects.create(
             org=self.org,
-            ticketer=ticketer,
             contact=contact,
             topic=self.org.default_ticket_topic,
             body="Where are my cookies?",
@@ -686,7 +682,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.created_on = datetime(2016, 1, 2, 10, tzinfo=tzone.utc)
         self.org.save(update_fields=("created_on",))
 
-        Ticketer.create(self.org, self.admin, "internal", "Internal", {})
         topic = Topic.create(self.org, self.admin, "AFC Richmond")
         assignee = self.admin
         today = timezone.now().astimezone(self.org.timezone).date()
@@ -1004,82 +999,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/ticket_exports/{task.uuid}.xlsx"
         workbook = load_workbook(filename=filename)
         return workbook.worksheets
-
-
-class TicketerTest(TembaTest):
-    @patch("temba.mailroom.client.MailroomClient.ticket_close")
-    def test_release(self, mock_ticket_close):
-        ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
-
-        contact = self.create_contact("Bob", urns=["twitter:bobby"])
-
-        ticket = self.create_ticket(contact, "Where are my cookies?")
-        ticket.ticketer = ticketer
-        ticket.save(update_fields=("ticketer",))
-
-        # release it
-        ticketer.release(self.user)
-        ticketer.refresh_from_db()
-        self.assertFalse(ticketer.is_active)
-        self.assertEqual(self.user, ticketer.modified_by)
-
-        # will have asked mailroom to close the ticket
-        mock_ticket_close.assert_called_once_with(self.org.id, self.user.id, [ticket.id], force=True)
-
-        # reactivate
-        ticketer.is_active = True
-        ticketer.save()
-
-        # add a dependency and try again
-        flow = self.create_flow("Deps")
-        flow.ticketer_dependencies.add(ticketer)
-
-        self.assertFalse(flow.has_issues)
-
-        ticketer.release(self.editor)
-        ticketer.refresh_from_db()
-
-        self.assertFalse(ticketer.is_active)
-        self.assertEqual(self.editor, ticketer.modified_by)
-        self.assertNotIn(ticketer, flow.ticketer_dependencies.all())
-
-        flow.refresh_from_db()
-        self.assertTrue(flow.has_issues)
-
-
-class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
-    @patch("temba.mailroom.client.MailroomClient.ticket_close")
-    def test_delete(self, mock_ticket_close):
-        ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
-
-        delete_url = reverse("tickets.ticketer_delete", args=[ticketer.uuid])
-
-        # fetch delete modal
-        response = self.assertDeleteFetch(delete_url)
-        self.assertContains(response, "You are about to delete")
-
-        # submit to delete it
-        response = self.assertDeleteSubmit(delete_url, object_deactivated=ticketer, success_status=200)
-        self.assertEqual("/org/workspace/", response["Temba-Success"])
-
-        # reactivate
-        ticketer.is_active = True
-        ticketer.save()
-
-        # add a dependency and try again
-        flow = self.create_flow("Color Flow")
-        flow.ticketer_dependencies.add(ticketer)
-        self.assertFalse(flow.has_issues)
-
-        response = self.assertDeleteFetch(delete_url)
-        self.assertContains(response, "is used by the following items but can still be deleted:")
-        self.assertContains(response, "Color Flow")
-
-        self.assertDeleteSubmit(delete_url, object_deactivated=ticketer, success_status=200)
-
-        flow.refresh_from_db()
-        self.assertTrue(flow.has_issues)
-        self.assertNotIn(ticketer, flow.ticketer_dependencies.all())
 
 
 class TopicTest(TembaTest):

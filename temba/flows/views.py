@@ -915,8 +915,6 @@ class FlowCRUDL(SmartCRUDL):
                 features.append("airtime")
             if org.classifiers.filter(is_active=True).exists():
                 features.append("classifier")
-            if org.ticketers.filter(is_active=True).exists():
-                features.append("ticketer")
             if org.get_resthooks():
                 features.append("resthook")
             if org.country_id:

@@ -1233,12 +1233,11 @@ class Org(SmartModel):
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.contacts.models import ContactField, ContactGroup
-        from temba.tickets.models import Ticketer, Topic
+        from temba.tickets.models import Topic
 
         with transaction.atomic():
             ContactGroup.create_system_groups(self)
             ContactField.create_system_fields(self)
-            Ticketer.create_internal_ticketer(self, self.branding)
             Topic.create_default_topic(self)
 
         # outside of the transaction as it's going to call out to mailroom for flow validation
@@ -1373,10 +1372,6 @@ class Org(SmartModel):
         for classifier in self.classifiers.all():
             classifier.release(user)
             classifier.delete()
-
-        for ticketer in self.ticketers.all():
-            ticketer.release(user)
-            ticketer.delete()
 
         for flow in self.flows.all():
             flow.delete()
