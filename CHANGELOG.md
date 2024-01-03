@@ -1,3 +1,7 @@
+v8.3.119 (2024-01-03)
+-------------------------
+ * Drop ticketer model
+
 v8.3.118 (2024-01-03)
 -------------------------
  * Remove view of http logs by ticketer
