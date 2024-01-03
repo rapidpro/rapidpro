@@ -1146,7 +1146,11 @@ class ContactCRUDL(SmartCRUDL):
 
         class Form(forms.Form):
             topic = forms.ModelChoiceField(queryset=Topic.objects.none(), label=_("Topic"), required=True)
-            body = forms.CharField(label=_("Body"), widget=forms.Textarea, required=True)
+            body = forms.CharField(
+                label=_("Body"),
+                widget=InputWidget(attrs={"textarea": True, "placeholder": _("Optional")}),
+                required=False,
+            )
             assignee = forms.ModelChoiceField(
                 queryset=User.objects.none(),
                 label=_("Assignee"),
@@ -1174,7 +1178,7 @@ class ContactCRUDL(SmartCRUDL):
             self.ticket = obj.open_ticket(
                 self.request.user,
                 self.form.cleaned_data["topic"],
-                self.form.cleaned_data["body"],
+                self.form.cleaned_data.get("body"),
                 assignee=self.form.cleaned_data.get("assignee"),
             )
 
