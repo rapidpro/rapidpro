@@ -9,7 +9,6 @@ from django.utils import timezone
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
 from temba.tests import CRUDLTestMixin, TembaTest
-from temba.tickets.models import Ticketer
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import HTTPLog
@@ -151,56 +150,6 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # can't list logs for deleted classifier
         response = self.requestView(reverse("request_logs.httplog_classifier", args=[c2.uuid]), self.admin)
-        self.assertEqual(404, response.status_code)
-
-    def test_ticketer(self):
-        t1 = Ticketer.objects.create(
-            ticketer_type="mailgun",
-            name="Email (bob@acme.com)",
-            config={},
-            org=self.org,
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-        t2 = Ticketer.objects.create(
-            ticketer_type="mailgun",
-            name="Old Email",
-            config={},
-            org=self.org,
-            created_by=self.admin,
-            modified_by=self.admin,
-            is_active=False,
-        )
-
-        # create some logs
-        l1 = HTTPLog.objects.create(
-            ticketer=t1,
-            url="http://org1.bar/zap",
-            request="GET /zap\nHost: org1.bar\n\n",
-            response=" OK 200",
-            is_error=False,
-            log_type=HTTPLog.TICKETER_CALLED,
-            request_time=10,
-            org=self.org,
-        )
-
-        list_url = reverse("request_logs.httplog_ticketer", args=[t1.uuid])
-        log_url = reverse("request_logs.httplog_read", args=[l1.id])
-
-        response = self.assertListFetch(
-            list_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[l1]
-        )
-        self.assertContains(response, "Ticketing Service Called")
-        self.assertContains(response, log_url)
-
-        # view the individual log item
-        response = self.assertReadFetch(log_url, allow_viewers=False, allow_editors=False, context_object=l1)
-        self.assertContains(response, "200")
-        self.assertContains(response, "org1.bar")
-        self.assertNotContains(response, "org2.bar")
-
-        # can't list logs for deleted ticketer
-        response = self.requestView(reverse("request_logs.httplog_ticketer", args=[t2.uuid]), self.admin)
         self.assertEqual(404, response.status_code)
 
     def test_http_log(self):

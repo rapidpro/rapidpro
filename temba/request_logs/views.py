@@ -6,7 +6,6 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.classifiers.models import Classifier
 from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
-from temba.tickets.models import Ticketer
 from temba.utils.views import ContentMenuMixin, SpaMixin
 
 from .models import HTTPLog
@@ -14,7 +13,7 @@ from .models import HTTPLog
 
 class BaseObjLogsView(SpaMixin, OrgObjPermsMixin, SmartListView):
     """
-    Base list view for logs associated with an object (e.g. ticketer, classifier)
+    Base list view for logs associated with an object, e.g. classifier
     """
 
     paginate_by = 50
@@ -53,7 +52,7 @@ class BaseObjLogsView(SpaMixin, OrgObjPermsMixin, SmartListView):
 
 class HTTPLogCRUDL(SmartCRUDL):
     model = HTTPLog
-    actions = ("webhooks", "classifier", "ticketer", "read")
+    actions = ("webhooks", "classifier", "read")
 
     class Webhooks(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartListView):
         title = _("Webhooks")
@@ -75,14 +74,6 @@ class HTTPLogCRUDL(SmartCRUDL):
 
         def get_source(self, uuid):
             return Classifier.objects.filter(uuid=uuid, is_active=True)
-
-    class Ticketer(BaseObjLogsView):
-        source_field = "ticketer"
-        source_url = "@tickets.ticket_list"
-        title = _("Recent Ticketing Service Events")
-
-        def get_source(self, uuid):
-            return Ticketer.objects.filter(uuid=uuid, is_active=True)
 
     class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         fields = ("description", "created_on")
