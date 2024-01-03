@@ -121,11 +121,6 @@ class Ticket(models.Model):
     # when this ticket last had activity which includes messages being sent and received, and is used for ordering
     last_activity_on = models.DateTimeField(default=timezone.now)
 
-    # TODO to be removed
-    ticketer = models.ForeignKey(Ticketer, on_delete=models.PROTECT, related_name="tickets", null=True)
-    external_id = models.CharField(null=True, max_length=255)
-    config = models.JSONField(null=True)
-
     def assign(self, user: User, *, assignee: User):
         self.bulk_assign(self.org, user, [self], assignee=assignee)
 

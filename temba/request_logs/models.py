@@ -12,7 +12,6 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.flows.models import Flow
 from temba.orgs.models import Org
-from temba.tickets.models import Ticketer
 from temba.utils import redact
 from temba.utils.http import HttpLog
 
@@ -70,18 +69,15 @@ class HTTPLog(models.Model):
     classifier = models.ForeignKey(
         Classifier, related_name="http_logs", on_delete=models.PROTECT, db_index=False, null=True
     )
-    ticketer = models.ForeignKey(
-        Ticketer, related_name="http_logs", on_delete=models.PROTECT, db_index=False, null=True
-    )
     airtime_transfer = models.ForeignKey(AirtimeTransfer, related_name="http_logs", on_delete=models.PROTECT, null=True)
     channel = models.ForeignKey(Channel, related_name="http_logs", on_delete=models.PROTECT, null=True)
 
     @classmethod
-    def from_response(cls, log_type, response, created_on, ended_on, classifier=None, channel=None, ticketer=None):
+    def from_response(cls, log_type, response, created_on, ended_on, classifier=None, channel=None):
         """
         Creates a new HTTPLog from an HTTP response
         """
-        org = (classifier or channel or ticketer).org
+        org = (classifier or channel).org
         http_log = HttpLog.from_response(response, created_on, ended_on)
         is_error = http_log.status_code >= 400
 
@@ -96,17 +92,16 @@ class HTTPLog(models.Model):
             request_time=http_log.elapsed_ms,
             classifier=classifier,
             channel=channel,
-            ticketer=ticketer,
         )
 
     @classmethod
-    def from_exception(cls, log_type, exception, created_on, classifier=None, channel=None, ticketer=None):
+    def from_exception(cls, log_type, exception, created_on, classifier=None, channel=None):
         """
         Creates a new HTTPLog from a request exception (typically a timeout)
         """
         assert isinstance(exception, requests.RequestException)
 
-        org = (classifier or channel or ticketer).org
+        org = (classifier or channel).org
         http_log = HttpLog.from_request(exception.request, created_on, timezone.now())
 
         return cls.objects.create(
@@ -120,7 +115,6 @@ class HTTPLog(models.Model):
             request_time=http_log.elapsed_ms,
             channel=channel,
             classifier=classifier,
-            ticketer=ticketer,
         )
 
     def _get_redact_secrets(self) -> tuple:
@@ -152,6 +146,4 @@ class HTTPLog(models.Model):
             Index(fields=("classifier", "-created_on")),
             # for webhook log view
             Index(name="httplog_org_flows_only", fields=("org", "-created_on"), condition=Q(flow__isnull=False)),
-            # for ticketer specific log view
-            Index(fields=("ticketer", "-created_on")),
         )
