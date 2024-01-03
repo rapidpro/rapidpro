@@ -1,3 +1,8 @@
+v8.3.116 (2024-01-03)
+-------------------------
+ * Fix editor routing edge case
+ * Remove ticketers API endpoint
+
 v8.3.115 (2024-01-02)
 -------------------------
  * Update to latest flow editor
