@@ -1,3 +1,8 @@
+v8.3.118 (2024-01-03)
+-------------------------
+ * Remove view of http logs by ticketer
+ * Drop Ticket.ticketer and HTTPLog.ticketer
+
 v8.3.117 (2024-01-03)
 -------------------------
  * Remove ticketer types
