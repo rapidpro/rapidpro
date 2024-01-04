@@ -5,6 +5,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     dependencies = [
+        ("flows", "0327_remove_flow_ticketer_dependencies"),
         ("tickets", "0055_remove_ticket_config_remove_ticket_external_id_and_more"),
     ]
 
