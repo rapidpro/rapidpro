@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("flows", "0327_remove_flow_ticketer_dependencies"),
     ]

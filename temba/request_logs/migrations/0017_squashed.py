@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("orgs", "0133_squashed"),
         ("flows", "0329_squashed"),

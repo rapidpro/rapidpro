@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("campaigns", "0055_eventfire_eventfires_unfired"),
     ]

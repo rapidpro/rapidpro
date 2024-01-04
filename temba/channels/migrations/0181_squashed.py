@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("channels", "0180_squashed"),
         ("msgs", "0253_squashed"),

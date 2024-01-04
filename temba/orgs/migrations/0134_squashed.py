@@ -5,7 +5,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("locations", "0030_squashed"),
         ("tickets", "0057_squashed"),
