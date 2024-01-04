@@ -62,10 +62,10 @@
   dependencies:
     "@lit-labs/ssr-dom-shim" "^1.0.0"
 
-"@nyaruka/flow-editor@1.26.2":
-  version "1.26.2"
-  resolved "https://registry.yarnpkg.com/@nyaruka/flow-editor/-/flow-editor-1.26.2.tgz#60bca9bbbcddb9c8fdea3cb5cf761f92b79b72a8"
-  integrity sha512-5Q37zuWVJC9emq+Wb9DlcTdpKpHta95QnZfRAkcSB45wYGsCCpq1Q35ulXq4/pJv4Z4zyNFVY3JR+YhWluMGKg==
+"@nyaruka/flow-editor@1.26.3":
+  version "1.26.3"
+  resolved "https://registry.yarnpkg.com/@nyaruka/flow-editor/-/flow-editor-1.26.3.tgz#b4cccc5f82e848c0ddef580518cfc39f2266b2de"
+  integrity sha512-gWR/NY6Z6zNsfxKweuyX6E6CNS+Kyj3oZ/7cQkdc6QS2HJSoWlSkEZTqMBZm1YFN70t8aCW6wHkRmUxHeltyaw==
   dependencies:
     react "^16.8.6"
     react-dom "^16.8.6"
