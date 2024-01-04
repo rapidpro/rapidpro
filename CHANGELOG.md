@@ -1,3 +1,7 @@
+v8.3.122 (2024-01-04)
+-------------------------
+ * Update to latest editor
+
 v8.3.121 (2024-01-04)
 -------------------------
  * Update to latest floweditor with open ticket changes
