@@ -1,3 +1,7 @@
+v8.3.121 (2024-01-04)
+-------------------------
+ * Update to latest floweditor with open ticket changes
+
 v8.3.120 (2024-01-03)
 -------------------------
  * Allow ticket body to be optional
