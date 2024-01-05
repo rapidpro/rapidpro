@@ -5,8 +5,7 @@ from django.utils import timezone
 
 from temba import settings
 from temba.msgs.models import Broadcast, Media
-from temba.tests import MigrationTest, TembaTest
-from temba.triggers.models import Trigger
+from temba.tests import TembaTest
 from temba.utils.compose import compose_deserialize_attachments
 
 from .models import Schedule
@@ -249,32 +248,3 @@ class ScheduleTest(TembaTest):
 
         # next fire should fall at the right hour and minute
         self.assertIn("04:45:00+00:00", str(sched.next_fire))
-
-
-class DeleteForInactiveTriggersTest(MigrationTest):
-    app = "schedules"
-    migrate_from = "0025_pause_archived_triggers"
-    migrate_to = "0026_delete_for_inactive_triggers"
-
-    def setUpBeforeMigration(self, apps):
-        flow = self.create_flow("Test")
-        self.schedule1 = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
-        self.schedule2 = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
-        self.schedule3 = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)  # no trigger
-
-        self.trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_SCHEDULE, flow, schedule=self.schedule1)
-
-        self.trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_SCHEDULE, flow, schedule=self.schedule2)
-        self.trigger2.is_active = False
-        self.trigger2.save(update_fields=("is_active",))
-
-    def test_migration(self):
-        self.assertTrue(Schedule.objects.filter(id=self.schedule1.id).exists())
-        self.assertFalse(Schedule.objects.filter(id=self.schedule2.id).exists())
-        self.assertTrue(Schedule.objects.filter(id=self.schedule3.id).exists())
-
-        self.trigger1.refresh_from_db()
-        self.trigger2.refresh_from_db()
-
-        self.assertEqual(self.schedule1, self.trigger1.schedule)
-        self.assertIsNone(self.trigger2.schedule)
