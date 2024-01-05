@@ -1,3 +1,7 @@
+v8.3.123 (2024-01-05)
+-------------------------
+ * Add empty versions of squashed migrations
+
 v8.3.122 (2024-01-04)
 -------------------------
  * Update to latest editor
