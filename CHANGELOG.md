@@ -1,3 +1,8 @@
+v9.0.0 (2024-01-05)
+-------------------------
+ * Test against mailroom v9
+ * Replace dummy migrations with real squashed migrations
+
 v8.3.123 (2024-01-05)
 -------------------------
  * Add empty versions of squashed migrations
