@@ -10,11 +10,11 @@ TextIt is a hosted service for visually building interactive messaging applicati
 
 The set of versions that make up the latest stable release are:
 
- * [RapidPro 8.2.0](https://github.com/rapidpro/rapidpro/releases/tag/v8.2.0)
- * [Mailroom 8.2.0](https://github.com/rapidpro/mailroom/releases/tag/v8.2.0)
- * [Courier 8.2.1](https://github.com/nyaruka/courier/releases/tag/v8.2.1)
- * [Indexer 8.2.0](https://github.com/nyaruka/rp-indexer/releases/tag/v8.2.0)
- * [Archiver 8.2.0](https://github.com/nyaruka/rp-archiver/releases/tag/v8.2.0)
+ * [RapidPro 9.0.0](https://github.com/rapidpro/rapidpro/releases/tag/v9.0.0)
+ * [Mailroom 9.0.1](https://github.com/rapidpro/mailroom/releases/tag/v9.0.1)
+ * [Courier 9.0.1](https://github.com/nyaruka/courier/releases/tag/v9.0.1)
+ * [Indexer 9.0.0](https://github.com/nyaruka/rp-indexer/releases/tag/v9.0.0)
+ * [Archiver 9.0.0](https://github.com/nyaruka/rp-archiver/releases/tag/v9.0.0)
 
 ### Versioning
 
