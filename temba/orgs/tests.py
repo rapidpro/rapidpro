@@ -2360,7 +2360,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # agents should only see tickets and settings
         self.login(self.agent)
 
-        with self.assertNumQueries(10):
+        with self.assertNumQueries(11):
             response = self.client.get(menu_url)
 
         menu = response.json()["results"]
@@ -2444,7 +2444,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             response = self.client.get(workspace_url)
 
         # should have an extra menu options for workspaces and users
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 7)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 8)
 
     def test_join(self):
         # if invitation secret is invalid, redirect to root
