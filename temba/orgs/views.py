@@ -1502,8 +1502,7 @@ class OrgCRUDL(SmartCRUDL):
                 ),
             ]
 
-            notifications = Notification.objects.filter(org=org, user=self.request.user)
-            if notifications:
+            if org and not self.request.user.is_staff:
                 menu.append(
                     self.create_menu_item(
                         menu_id="notifications",
@@ -1511,7 +1510,9 @@ class OrgCRUDL(SmartCRUDL):
                         icon="notification",
                         bottom=True,
                         popup=True,
-                        bubble="tomato" if notifications.filter(is_seen=False).exists() else None,
+                        bubble="tomato"
+                        if Notification.objects.filter(org=org, user=self.request.user).filter(is_seen=False).exists()
+                        else None,
                         items=[
                             self.create_list(
                                 "notifications", "/api/internal/notifications.json", "temba-notification-list"
