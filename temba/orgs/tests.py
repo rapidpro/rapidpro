@@ -2355,7 +2355,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         menu_url = reverse("orgs.org_menu")
 
         self.assertMenu(menu_url, 9, ["Workspace/Child Workspace"])
-        self.assertMenu(f"{menu_url}settings/", 5)
+        self.assertMenu(f"{menu_url}settings/", 6)
 
         # agents should only see tickets and settings
         self.login(self.agent)
@@ -2425,7 +2425,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # make sure we have the appropriate number of sections
         self.assertEqual(6, len(response.context["formax"].sections))
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 5)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 6)
 
         # enable child workspaces and users
         self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS]
