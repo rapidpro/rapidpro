@@ -3,6 +3,7 @@ from smartmin.views import SmartCRUDL, SmartListView
 from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.views import OrgPermsMixin
+from temba.utils.views import SpaMixin
 
 from .models import Incident, Notification
 
@@ -32,10 +33,10 @@ class IncidentCRUDL(SmartCRUDL):
     model = Incident
     actions = ("list",)
 
-    class List(OrgPermsMixin, NotificationTargetMixin, SmartListView):
+    class List(OrgPermsMixin, SpaMixin, NotificationTargetMixin, SmartListView):
         default_order = "-started_on"
         title = _("Incidents")
-        menu_path = "/settings/workspace"
+        menu_path = "/settings/incidents"
         notification_type = "incident:started"
         notification_scope = None  # clear all incident started notifications
 
