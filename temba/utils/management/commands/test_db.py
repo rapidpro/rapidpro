@@ -269,13 +269,14 @@ class Command(BaseCommand):
 
         org_names = ["%s %s" % (o1, o2) for o2 in ORG_NAMES[1] for o1 in ORG_NAMES[0]]
         self.random.shuffle(org_names)
+        timezones = list(zoneinfo.available_timezones())
 
         orgs = []
         for o in range(num_total):
             orgs.append(
                 Org.objects.create(
                     name=org_names[o % len(org_names)],
-                    timezone=self.random.choice(zoneinfo.available_timezones()),
+                    timezone=self.random.choice(timezones),
                     country=country,
                     created_on=self.db_begins_on,
                     created_by=superuser,
