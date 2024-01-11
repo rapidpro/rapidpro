@@ -1502,7 +1502,6 @@ class OrgCRUDL(SmartCRUDL):
             ]
 
             if org:
-
                 unseen_bubble = None
                 if self.request.user.notifications.filter(org=org, is_seen=False).exists():
                     unseen_bubble = "tomato"
