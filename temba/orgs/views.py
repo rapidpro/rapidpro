@@ -1125,6 +1125,9 @@ class MenuMixin(OrgPermsMixin):
     def create_section(self, name, items=()):  # pragma: no cover
         return {"id": slugify(name), "name": name, "type": "section", "items": items}
 
+    def create_list(self, name, href, type):
+        return {"id": name, "href": href, "type": type}
+
     # TODO: Decide whether we want to keep this at all
     def create_modax_button(self, name, href, icon=None, on_submit=None):  # pragma: no cover
         menu_item = {"id": slugify(name), "name": name, "type": "modax-button"}
@@ -1161,6 +1164,7 @@ class MenuMixin(OrgPermsMixin):
         popup=False,
         event=False,
         posterize=False,
+        bubble=None,
     ):
         if perm and not self.has_org_perm(perm):  # pragma: no cover
             return
@@ -1171,6 +1175,9 @@ class MenuMixin(OrgPermsMixin):
         menu_item["popup"] = popup
         menu_item["avatar"] = avatar
         menu_item["posterize"] = posterize
+
+        if bubble:
+            menu_item["bubble"] = bubble
 
         if icon:
             menu_item["icon"] = icon
@@ -1327,6 +1334,11 @@ class OrgCRUDL(SmartCRUDL):
 
                 menu.append(self.create_menu_item(name=_("Resthooks"), icon="resthooks", href="orgs.org_resthooks"))
 
+                if self.has_org_perm("notifications.incident_list"):
+                    menu.append(
+                        self.create_menu_item(name=_("Incidents"), icon="incidents", href="notifications.incident_list")
+                    )
+
                 if self.has_org_perm("channels.channel_read"):
                     from temba.channels.views import get_channel_read_url
 
@@ -1433,6 +1445,7 @@ class OrgCRUDL(SmartCRUDL):
                                 href=f"{reverse('users.user_logout')}?next={reverse('users.user_login')}",
                             ),
                             *other_org_items,
+                            self.create_space(),
                         ],
                     )
                 ]
@@ -1487,6 +1500,27 @@ class OrgCRUDL(SmartCRUDL):
                     href="tickets.ticket_list",
                 ),
             ]
+
+            if org:
+                unseen_bubble = None
+                if self.request.user.notifications.filter(org=org, is_seen=False).exists():
+                    unseen_bubble = "tomato"
+
+                menu.append(
+                    self.create_menu_item(
+                        menu_id="notifications",
+                        name=_("Notifications"),
+                        icon="notification",
+                        bottom=True,
+                        popup=True,
+                        bubble=unseen_bubble,
+                        items=[
+                            self.create_list(
+                                "notifications", "/api/internal/notifications.json", "temba-notification-list"
+                            )
+                        ],
+                    )
+                )
 
             if not org or not self.has_org_perm("orgs.org_workspace"):
                 settings_view = "orgs.user_account"

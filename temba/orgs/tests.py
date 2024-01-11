@@ -2354,22 +2354,23 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.child.add_user(self.admin, OrgRole.ADMINISTRATOR)
         menu_url = reverse("orgs.org_menu")
 
-        self.assertMenu(menu_url, 9, ["Workspace/Child Workspace"])
-        self.assertMenu(f"{menu_url}settings/", 5)
+        self.assertMenu(menu_url, 10, ["Workspace/Child Workspace"])
+        self.assertMenu(f"{menu_url}settings/", 6)
 
         # agents should only see tickets and settings
         self.login(self.agent)
 
-        with self.assertNumQueries(10):
+        with self.assertNumQueries(11):
             response = self.client.get(menu_url)
 
         menu = response.json()["results"]
-        self.assertEqual(4, len(menu))
+        self.assertEqual(5, len(menu))
         self.assertEqual("Workspace", menu[0]["name"])
         self.assertEqual("space", menu[1]["type"])
         self.assertEqual("Tickets", menu[2]["name"])
-        self.assertEqual("Settings", menu[3]["name"])
-        self.assertEqual("/user/account/", menu[3]["href"])
+        self.assertEqual("Notifications", menu[3]["name"])
+        self.assertEqual("Settings", menu[4]["name"])
+        self.assertEqual("/user/account/", menu[4]["href"])
 
         # customer support without an org will see settings as profile, and staff section
         self.login(self.customer_support)
@@ -2388,7 +2389,17 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # if our org has new orgs but not child orgs, we should have a New Workspace button in the menu
         self.org.features = [Org.FEATURE_NEW_ORGS]
         self.org.save()
-        self.assertMenu(menu_url, 9, ["Workspace/New Workspace"])
+        self.assertMenu(menu_url, 10, ["Workspace/New Workspace"])
+
+        # confirm no notifications
+        self.login(self.admin)
+        menu = self.client.get(menu_url).json()["results"]
+        self.assertEqual(None, menu[8].get("bubble"))
+
+        # flag our org to create a notification
+        self.org.flag()
+        menu = self.client.get(menu_url).json()["results"]
+        self.assertEqual("tomato", menu[8]["bubble"])
 
     def test_read(self):
         read_url = reverse("orgs.org_read", args=[self.org.id])
@@ -2425,7 +2436,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # make sure we have the appropriate number of sections
         self.assertEqual(6, len(response.context["formax"].sections))
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 5)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 6)
 
         # enable child workspaces and users
         self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS]
@@ -2444,7 +2455,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             response = self.client.get(workspace_url)
 
         # should have an extra menu options for workspaces and users
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 7)
+        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 8)
 
     def test_join(self):
         # if invitation secret is invalid, redirect to root
