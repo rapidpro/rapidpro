@@ -49,7 +49,6 @@ from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.notifications.models import Notification
 from temba.orgs.tasks import send_user_verification_email
 from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address
@@ -1502,7 +1501,12 @@ class OrgCRUDL(SmartCRUDL):
                 ),
             ]
 
-            if org and not self.request.user.is_staff:
+            if org:
+
+                unseen_bubble = None
+                if self.request.user.notifications.filter(org=org, is_seen=False).exists():
+                    unseen_bubble = "tomato"
+
                 menu.append(
                     self.create_menu_item(
                         menu_id="notifications",
@@ -1510,9 +1514,7 @@ class OrgCRUDL(SmartCRUDL):
                         icon="notification",
                         bottom=True,
                         popup=True,
-                        bubble="tomato"
-                        if Notification.objects.filter(org=org, user=self.request.user).filter(is_seen=False).exists()
-                        else None,
+                        bubble=unseen_bubble,
                         items=[
                             self.create_list(
                                 "notifications", "/api/internal/notifications.json", "temba-notification-list"
