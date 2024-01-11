@@ -1,3 +1,7 @@
+v9.1.2 (2024-01-11)
+-------------------------
+ * Fix issue with completion input focus
+
 v9.1.1 (2024-01-11)
 -------------------------
  * Update notification text
