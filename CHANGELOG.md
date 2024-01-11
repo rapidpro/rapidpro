@@ -1,3 +1,9 @@
+v9.1.0 (2024-01-11)
+-------------------------
+ * Add notifications to UI
+ * Fix test_db command
+ * Update stable versions in README
+
 v9.0.0 (2024-01-05)
 -------------------------
  * Test against mailroom v9
