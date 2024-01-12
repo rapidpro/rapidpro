@@ -1,3 +1,7 @@
+v9.1.4 (2024-01-12)
+-------------------------
+ * Add skeleton temba chat channel type
+
 v9.1.3 (2024-01-12)
 -------------------------
  * Add notification for flow exports
