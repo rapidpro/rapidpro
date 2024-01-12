@@ -1,3 +1,7 @@
+v9.1.3 (2024-01-12)
+-------------------------
+ * Add notification for flow exports
+
 v9.1.2 (2024-01-11)
 -------------------------
  * Fix issue with completion input focus
