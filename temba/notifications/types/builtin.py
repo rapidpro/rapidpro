@@ -44,7 +44,10 @@ class ExportFinishedNotificationType(NotificationType):
 
     def as_json(self, notification) -> dict:
         json = super().as_json(notification)
-        json["export"] = {"type": notification.export.notification_export_type}
+        json["export"] = {
+            "type": notification.export.notification_export_type,
+            "num_records": notification.export.num_records,
+        }
         return json
 
 

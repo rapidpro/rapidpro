@@ -3240,7 +3240,7 @@ class ContactFieldTest(TembaTest):
             task = ExportContactsTask.objects.all().order_by("-id").first()
             filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
             workbook = load_workbook(filename=filename)
-            return workbook.worksheets
+            return workbook.worksheets, task
 
         def assertImportExportedFile(query=""):
             # test an export can be imported back
@@ -3252,7 +3252,9 @@ class ContactFieldTest(TembaTest):
 
         # no group specified, so will default to 'Active'
         with self.assertNumQueries(39):
-            export = request_export()
+            export, task = request_export()
+            self.assertEqual(2, task.num_records)
+            self.assertEqual("C", task.status)
             self.assertExcelSheet(
                 export[0],
                 [
@@ -3320,7 +3322,9 @@ class ContactFieldTest(TembaTest):
         self.contactfield_2.priority = 15
         self.contactfield_2.save()
         with self.assertNumQueries(39):
-            export = request_export()
+            export, task = request_export()
+            self.assertEqual(2, task.num_records)
+            self.assertEqual("C", task.status)
             self.assertExcelSheet(
                 export[0],
                 [
@@ -3384,7 +3388,9 @@ class ContactFieldTest(TembaTest):
 
         # but should have additional Twitter and phone columns
         with self.assertNumQueries(39):
-            export = request_export()
+            export, task = request_export()
+            self.assertEqual(4, task.num_records)
+            self.assertEqual("C", task.status)
             self.assertExcelSheet(
                 export[0],
                 [
@@ -3480,8 +3486,9 @@ class ContactFieldTest(TembaTest):
 
         # export a specified group of contacts (only Ben and Adam are in the group)
         with self.assertNumQueries(40):
+            export, task = request_export("?g=%s" % group.uuid)
             self.assertExcelSheet(
-                request_export("?g=%s" % group.uuid)[0],
+                export[0],
                 [
                     [
                         "Contact UUID",
@@ -3543,8 +3550,9 @@ class ContactFieldTest(TembaTest):
         contact5 = self.create_contact("George", urns=["tel:+1234567777"], status=Contact.STATUS_STOPPED)
 
         # export a specified status group of contacts (Stopped)
+        export, task = request_export("?g=%s" % self.org.groups.get(name="Stopped").uuid)
         self.assertExcelSheet(
-            request_export("?g=%s" % self.org.groups.get(name="Stopped").uuid)[0],
+            export[0],
             [
                 [
                     "Contact UUID",
@@ -3598,8 +3606,9 @@ class ContactFieldTest(TembaTest):
 
                 with ESMockWithScroll(data=mock_es_data):
                     with self.assertNumQueries(42):
+                        export, task = request_export("?s=name+has+adam+or+name+has+deng")
                         self.assertExcelSheet(
-                            request_export("?s=name+has+adam+or+name+has+deng")[0],
+                            export[0],
                             [
                                 [
                                     "Contact UUID",
@@ -3666,8 +3675,9 @@ class ContactFieldTest(TembaTest):
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
             with self.assertNumQueries(41):
+                export, task = request_export("?g=%s&s=Hagg" % group.uuid)
                 self.assertExcelSheet(
-                    request_export("?g=%s&s=Hagg" % group.uuid)[0],
+                    export[0],
                     [
                         [
                             "Contact UUID",
@@ -3711,8 +3721,9 @@ class ContactFieldTest(TembaTest):
 
         # now try with an anonymous org
         with self.anonymous(self.org):
+            export, task = request_export()
             self.assertExcelSheet(
-                request_export()[0],
+                export[0],
                 [
                     [
                         "ID",

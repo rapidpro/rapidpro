@@ -1950,7 +1950,7 @@ class ExportContactsTask(BaseExport):
             "Contact", [f["label"] for f in fields] + [g["label"] for g in group_fields], self.org.timezone
         )
 
-        total_exported_contacts = 0
+        num_records = 0
         start = time.time()
 
         # write out contacts in batches to limit memory usage
@@ -1981,19 +1981,19 @@ class ExportContactsTask(BaseExport):
 
                 # write this contact's values
                 exporter.write_row(values + group_values)
-                total_exported_contacts += 1
+                num_records += 1
 
                 # output some status information every 10,000 contacts
-                if total_exported_contacts % ExportContactsTask.LOG_PROGRESS_PER_ROWS == 0:
+                if num_records % ExportContactsTask.LOG_PROGRESS_PER_ROWS == 0:
                     elapsed = time.time() - start
-                    predicted = elapsed // (total_exported_contacts / len(contact_ids))
+                    predicted = elapsed // (num_records / len(contact_ids))
 
                     logger.info(
                         "Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)"
                         % (
                             self.org.name,
-                            total_exported_contacts * 100 // len(contact_ids),
-                            "{:,}".format(total_exported_contacts),
+                            num_records * 100 // len(contact_ids),
+                            "{:,}".format(num_records),
                             "{:,}".format(len(contact_ids)),
                             time.time() - start,
                             predicted,
@@ -2003,7 +2003,7 @@ class ExportContactsTask(BaseExport):
                     self.modified_on = timezone.now()
                     self.save(update_fields=["modified_on"])
 
-        return exporter.save_file()
+        return *exporter.save_file(), num_records
 
     def get_field_value(self, field: dict, contact: Contact):
         if field["key"] == "name":
