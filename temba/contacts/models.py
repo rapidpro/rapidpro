@@ -1346,6 +1346,7 @@ class ContactURN(models.Model):
         URN.VIBER_SCHEME,
         URN.TELEGRAM_SCHEME,
         URN.INSTAGRAM_SCHEME,
+        URN.WEBCHAT_SCHEME,
     }
     SCHEMES_SUPPORTING_REFERRALS = {URN.FACEBOOK_SCHEME}  # schemes that support "referral" triggers
     SCHEMES_SUPPORTING_OPTINS = {URN.FACEBOOK_SCHEME}  # schemes that support opt-in/opt-out triggers
