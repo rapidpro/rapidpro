@@ -1,3 +1,8 @@
+v9.1.5 (2024-01-15)
+-------------------------
+ * Allow webchat channels to have new convo triggers
+ * Finished exports should record number of items exported
+
 v9.1.4 (2024-01-12)
 -------------------------
  * Add skeleton temba chat channel type
