@@ -559,6 +559,7 @@ class ExportTicketsTask(BaseItemWithContactExport):
         )
 
         exporter = MultiSheetExporter("Tickets", headers, self.org.timezone)
+        num_records = 0
 
         # add tickets to the export in batches of 1k to limit memory usage
         for batch_ids in chunk_list(ticket_ids, 1000):
@@ -583,10 +584,12 @@ class ExportTicketsTask(BaseItemWithContactExport):
 
                 exporter.write_row(values)
 
+            num_records += len(tickets)
+
             self.modified_on = timezone.now()
             self.save(update_fields=("modified_on",))
 
-        return exporter.save_file()
+        return *exporter.save_file(), num_records
 
 
 @register_asset_store

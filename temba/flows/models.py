@@ -1712,6 +1712,7 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
         book.current_msgs_sheet = None
 
         start_date, end_date = self._get_date_range()
+        num_records = 0
 
         for batch in self._get_run_batches(start_date, end_date, flows, responded_only):
             self._write_runs(
@@ -1723,13 +1724,15 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
                 result_fields,
             )
 
+            num_records += len(batch)
+
             self.modified_on = timezone.now()
             self.save(update_fields=("modified_on",))
 
         temp = NamedTemporaryFile(delete=True)
         book.finalize(to_file=temp)
         temp.flush()
-        return temp, "xlsx"
+        return temp, "xlsx", num_records
 
     def _get_run_batches(self, start_date, end_date, flows, responded_only: bool):
         logger.info(f"Results export #{self.id} for org #{self.org.id}: fetching runs from archives to export...")

@@ -1149,11 +1149,14 @@ class ExportMessagesTask(BaseItemWithContactExport):
         book.current_msgs_sheet = self._add_msgs_sheet(book)
 
         start_date, end_date = self._get_date_range()
+        num_records = 0
 
         logger.info(f"starting msgs export #{self.id} for org #{self.org.id}")
 
         for batch in self._get_msg_batches(self.system_label, self.label, start_date, end_date):
             self._write_msgs(book, batch)
+
+            num_records += len(batch)
 
             # update modified_on so we can see if an export hangs
             self.modified_on = timezone.now()
@@ -1162,7 +1165,7 @@ class ExportMessagesTask(BaseItemWithContactExport):
         temp = NamedTemporaryFile(delete=True, suffix=".xlsx", mode="wb+")
         book.finalize(to_file=temp)
         temp.flush()
-        return temp, "xlsx"
+        return temp, "xlsx", num_records
 
     def _get_msg_batches(self, system_label, label, start_date, end_date):
         from temba.archives.models import Archive

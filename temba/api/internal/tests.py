@@ -40,7 +40,7 @@ class EndpointsTest(APITestMixin, TembaTest):
                     "created_on": matchers.ISODate(),
                     "target_url": f"/assets/download/contact_export/{export.id}/",
                     "is_seen": False,
-                    "export": {"type": "contact"},
+                    "export": {"type": "contact", "num_records": None},
                 },
             ],
         )

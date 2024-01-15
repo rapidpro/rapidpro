@@ -57,11 +57,9 @@ class BaseExport(TembaUUIDMixin, SmartModel):
     # log progress after this number of exported objects have been exported
     LOG_PROGRESS_PER_ROWS = 10000
 
-    org = models.ForeignKey(
-        "orgs.Org", on_delete=models.PROTECT, related_name="%(class)ss", help_text=_("The organization of the user.")
-    )
-
+    org = models.ForeignKey("orgs.Org", on_delete=models.PROTECT, related_name="%(class)ss")
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
+    num_records = models.IntegerField(null=True)
 
     def perform(self):
         """
@@ -77,7 +75,7 @@ class BaseExport(TembaUUIDMixin, SmartModel):
 
             start = time.time()
 
-            temp_file, extension = self.write_export()
+            temp_file, extension, num_records = self.write_export()
 
             get_asset_store(model=self.__class__).save(self.id, File(temp_file), extension)
 
@@ -95,7 +93,7 @@ class BaseExport(TembaUUIDMixin, SmartModel):
 
             raise e  # log the error to sentry
         else:
-            self.update_status(self.STATUS_COMPLETE)
+            self.update_status(self.STATUS_COMPLETE, num_records)
             elapsed = time.time() - start
             print(f"Completed {self.analytics_key} with ID {self.id} in {elapsed:.1f} seconds")
             analytics.track(self.created_by, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed))
@@ -106,13 +104,14 @@ class BaseExport(TembaUUIDMixin, SmartModel):
 
     def write_export(self):  # pragma: no cover
         """
-        Should return a file handle for a temporary file and the file extension
+        Should return 1) file handle for a temporary file, 2) file extension, 3) count of items exported
         """
         pass
 
-    def update_status(self, status):
+    def update_status(self, status: str, num_records: int = None):
         self.status = status
-        self.save(update_fields=("status", "modified_on"))
+        self.num_records = num_records
+        self.save(update_fields=("status", "num_records", "modified_on"))
 
     @classmethod
     def get_unfinished(cls):
