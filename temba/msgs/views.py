@@ -14,7 +14,6 @@ from smartmin.views import (
 )
 
 from django import forms
-from django.conf import settings
 from django.contrib import messages
 from django.db.models.functions.text import Lower
 from django.forms import Form
@@ -809,19 +808,7 @@ class MsgCRUDL(SmartCRUDL):
 
                 on_transaction_commit(lambda: export_messages_task.delay(export.id))
 
-                if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):  # pragma: needs cover
-                    messages.info(
-                        self.request,
-                        _("We are preparing your export. We will e-mail you at %s when " "it is ready.")
-                        % self.request.user.username,
-                    )
-
-                else:
-                    dl_url = reverse("assets.download", kwargs=dict(type="message_export", pk=export.pk))
-                    messages.info(
-                        self.request,
-                        _("Export complete, you can find it here: %s (production users " "will get an email)") % dl_url,
-                    )
+                messages.info(self.request, self.success_message)
 
             messages.success(self.request, self.derive_success_message())
 

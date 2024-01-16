@@ -634,19 +634,10 @@ class ContactCRUDL(SmartCRUDL):
                 # schedule the export job
                 on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
 
-                if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):  # pragma: no cover
-                    messages.info(
-                        self.request,
-                        _("We are preparing your export. We will e-mail you at %s when it is ready.")
-                        % self.request.user.username,
-                    )
+                messages.info(
+                    self.request, _("We are preparing your export and you will get a notification when it is ready.")
+                )
 
-                else:
-                    dl_url = reverse("assets.download", kwargs=dict(type="contact_export", pk=export.pk))
-                    messages.info(
-                        self.request,
-                        _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
-                    )
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(redirect or reverse("contacts.contact_list"))
             else:  # pragma: no cover
