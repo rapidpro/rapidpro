@@ -22,6 +22,7 @@ from django.contrib.auth.models import Group, Permission, User as AuthUser
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.validators import ArrayMinLengthValidator
 from django.core.files import File
+from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models import Prefetch
 from django.urls import reverse
@@ -33,7 +34,6 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.archives.models import Archive
-from temba.assets.models import get_asset_store
 from temba.locations.models import AdminBoundary
 from temba.utils import json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_str
@@ -1581,6 +1581,7 @@ class BackupToken(models.Model):
 
 class ExportType:
     slug: str
+    storage_folder: str
 
     def write(self, export) -> tuple:  # pragma: no cover
         """
@@ -1636,7 +1637,9 @@ class Export(TembaUUIDMixin, models.Model):
         try:
             temp_file, extension, num_records = self.type.write(self)
 
-            get_asset_store(model=self.__class__).save(self.id, File(temp_file), extension)
+            # save file to storage
+            directory = os.path.join(settings.STORAGE_ROOT_DIR, str(self.org.id), self.type.storage_folder)
+            default_storage.save(f"{directory}/{self.uuid}.{extension}", File(temp_file))
 
             # remove temporary file
             if hasattr(temp_file, "delete"):
@@ -1724,7 +1727,7 @@ class Export(TembaUUIDMixin, models.Model):
             urn_scheme = URN.to_parts(urn)[0]
             urn_path = URN.format(urn, international=False, formatted=False)
         else:
-            urn_scheme, urn_path = None, None
+            urn_scheme, urn_path = None, None  # pragma: no cover
 
         cols = [str(contact.uuid), contact.name, urn_scheme]
         if self.org.is_anon:

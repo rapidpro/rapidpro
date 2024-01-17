@@ -248,7 +248,7 @@ class Notification(models.Model):
     @cached_property
     def export_obj(self):
         # TODO remove once everything is an orgs.Export
-        return self.contact_export or self.message_export or self.results_export or self.export
+        return self.contact_export or self.message_export or self.results_export or self.ticket_export or self.export
 
     @property
     def type(self):

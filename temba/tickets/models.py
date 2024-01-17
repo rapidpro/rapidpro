@@ -541,7 +541,12 @@ class ExportTicketsTask(BaseItemWithContactExport):
 
 
 class TicketExport(ExportType):
+    """
+    Export of tickets
+    """
+
     slug = "ticket"
+    storage_folder = "ticket_exports"
 
     @classmethod
     def create(cls, org, user, start_date, end_date, with_fields=(), with_groups=()):
