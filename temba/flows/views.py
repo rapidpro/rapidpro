@@ -1255,20 +1255,7 @@ class FlowCRUDL(SmartCRUDL):
                     dict(flows=", ".join([f.uuid for f in flows])),
                 )
 
-                if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):  # pragma: needs cover
-                    messages.info(
-                        self.request,
-                        _("We are preparing your export. We will e-mail you at %s when it is ready.")
-                        % self.request.user.username,
-                    )
-
-                else:
-                    export = ExportFlowResultsTask.objects.get(id=export.id)
-                    dl_url = reverse("assets.download", kwargs=dict(type="results_export", pk=export.id))
-                    messages.info(
-                        self.request,
-                        _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
-                    )
+                messages.info(self.request, self.success_message)
 
             response = self.render_modal_response(form)
             response["REDIRECT"] = self.get_success_url()

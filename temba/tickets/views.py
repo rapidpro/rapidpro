@@ -3,7 +3,6 @@ from datetime import timedelta
 from smartmin.views import SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
-from django.conf import settings
 from django.contrib import messages
 from django.db.models.aggregates import Max
 from django.http import Http404, JsonResponse
@@ -469,18 +468,7 @@ class TicketCRUDL(SmartCRUDL):
                 # schedule the export job
                 on_transaction_commit(lambda: export_tickets_task.delay(export.pk))
 
-                # display progress info message to user
-                if not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):  # pragma: no cover
-                    messages.info(
-                        self.request,
-                        f"We are preparing your export. We will e-mail you at {self.request.user.username} when it is ready.",
-                    )
-                else:
-                    dl_url = reverse("assets.download", kwargs=dict(type="ticket_export", pk=export.pk))
-                    messages.info(
-                        self.request,
-                        f"Export complete, you can find it here: {dl_url} (production users will get an email)",
-                    )
+                messages.info(self.request, self.success_message)
 
             response = self.render_modal_response(form)
             response["REDIRECT"] = self.get_success_url()
