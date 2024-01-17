@@ -13,6 +13,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
+from temba.orgs.models import Export
 from temba.orgs.views import MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
@@ -24,17 +25,16 @@ from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
 
 from .models import (
     AllFolder,
-    ExportTicketsTask,
     MineFolder,
     Ticket,
     TicketCount,
+    TicketExport,
     TicketFolder,
     Topic,
     TopicFolder,
     UnassignedFolder,
     export_ticket_stats,
 )
-from .tasks import export_tickets_task
 
 
 class NoteForm(forms.ModelForm):
@@ -449,24 +449,22 @@ class TicketCRUDL(SmartCRUDL):
             user = self.request.user
 
             # is there already an export taking place?
-            existing = ExportTicketsTask.get_recent_unfinished(org)
-            if existing:
+            if Export.has_recent_unfinished(org, TicketExport.slug):
                 messages.info(
                     self.request,
-                    f"There is already an export in progress, started by {existing.created_by.username}. "
-                    f"You must wait for that export to complete before starting another.",
+                    "There is already an export in progress. You must wait for that export to complete before starting another.",
                 )
             else:
                 start_date = form.cleaned_data["start_date"]
                 end_date = form.cleaned_data["end_date"]
                 with_fields = form.cleaned_data["with_fields"]
                 with_groups = form.cleaned_data["with_groups"]
-                export = ExportTicketsTask.create(
+                export = TicketExport.create(
                     org, user, start_date, end_date, with_fields=with_fields, with_groups=with_groups
                 )
 
                 # schedule the export job
-                on_transaction_commit(lambda: export_tickets_task.delay(export.pk))
+                on_transaction_commit(lambda: export.start())
 
                 messages.info(self.request, self.success_message)
 

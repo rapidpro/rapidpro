@@ -16,13 +16,21 @@ from temba.utils.crons import cron_task
 from temba.utils.email import send_template_email
 from temba.utils.text import generate_secret
 
-from .models import Invitation, Org, OrgImport, User, UserSettings
+from .models import Export, Invitation, Org, OrgImport, User, UserSettings
 
 
 @shared_task
 def start_org_import_task(import_id):
     org_import = OrgImport.objects.get(id=import_id)
     org_import.start()
+
+
+@shared_task
+def perform_export(export_id):
+    """
+    Perform an export
+    """
+    Export.objects.select_related("org", "created_by").get(id=export_id).perform()
 
 
 @shared_task

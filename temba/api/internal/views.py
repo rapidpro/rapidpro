@@ -30,5 +30,7 @@ class NotificationsEndpoint(ListAPIMixin, BaseEndpoint):
             super()
             .get_queryset()
             .filter(org=self.request.org, user=self.request.user, medium__contains=Notification.MEDIUM_UI)
-            .prefetch_related("contact_import", "contact_export", "message_export", "results_export", "incident")
+            .prefetch_related(
+                "contact_import", "contact_export", "message_export", "results_export", "export", "incident"
+            )
         )
