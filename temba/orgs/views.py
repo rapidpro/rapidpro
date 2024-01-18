@@ -49,7 +49,7 @@ from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
-from temba.notifications.models import Notification
+from temba.notifications.mixins import NotificationTargetMixin
 from temba.orgs.tasks import send_user_verification_email
 from temba.utils import analytics, get_anonymous_user, json, languages, str_to_bool
 from temba.utils.email import is_valid_address
@@ -3116,7 +3116,7 @@ class ExportCRUDL(SmartCRUDL):
     model = Export
     actions = ("download",)
 
-    class Download(SpaMixin, OrgObjPermsMixin, SmartReadView):
+    class Download(SpaMixin, NotificationTargetMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         menu_path = "/settings/workspace"
         title = _("Download Export")
@@ -3136,14 +3136,7 @@ class ExportCRUDL(SmartCRUDL):
 
                 return response
 
-            response = super().get(request, *args, **kwargs)
-
-            # we can't import NotificationTargetMixin so this code is duplicated from there..
-            notification_type, scope = self.get_notification_scope()
-            if request.org and notification_type and request.user.is_authenticated:
-                Notification.mark_seen(request.org, notification_type, scope=scope, user=request.user)
-
-            return response
+            return super().get(request, *args, **kwargs)
 
         def get_notification_scope(self) -> tuple[str, str]:
             return "export:finished", self.get_object().get_notification_scope()

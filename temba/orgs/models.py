@@ -1583,7 +1583,6 @@ class BackupToken(models.Model):
 
 class ExportType:
     slug: str
-    storage_folder: str
 
     def write(self, export) -> tuple:  # pragma: no cover
         """
@@ -1642,7 +1641,7 @@ class Export(TembaUUIDMixin, models.Model):
             temp_file, extension, num_records = self.type.write(self)
 
             # save file to storage
-            directory = os.path.join(settings.STORAGE_ROOT_DIR, str(self.org.id), self.type.storage_folder)
+            directory = os.path.join(settings.STORAGE_ROOT_DIR, str(self.org.id), self.type.slug + "_exports")
             path = f"{directory}/{self.uuid}.{extension}"
             default_storage.save(path, File(temp_file))
 
