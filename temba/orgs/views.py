@@ -49,8 +49,9 @@ from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
+from temba.notifications.models import Notification
 from temba.orgs.tasks import send_user_verification_email
-from temba.utils import analytics, get_anonymous_user, json, languages
+from temba.utils import analytics, get_anonymous_user, json, languages, str_to_bool
 from temba.utils.email import is_valid_address
 from temba.utils.fields import ArbitraryJsonChoiceField, CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.timezones import TimeZoneFormField
@@ -65,7 +66,7 @@ from temba.utils.views import (
     StaffOnlyMixin,
 )
 
-from .models import BackupToken, IntegrationType, Invitation, Org, OrgImport, OrgRole, User, UserSettings
+from .models import BackupToken, Export, IntegrationType, Invitation, Org, OrgImport, OrgRole, User, UserSettings
 
 # session key for storing a two-factor enabled user's id once we've checked their password
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
@@ -3109,3 +3110,40 @@ class OrgImportCRUDL(SmartCRUDL):
 
         def derive_title(self):
             return _("Import Flows and Campaigns")
+
+
+class ExportCRUDL(SmartCRUDL):
+    model = Export
+    actions = ("download",)
+
+    class Download(SpaMixin, OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = "uuid"
+        menu_path = "/settings/workspace"
+        title = _("Download Export")
+
+        def get(self, request, *args, **kwargs):
+            if str_to_bool(request.GET.get("raw", 0)):
+                export = self.get_object()
+
+                url, filename, mime_type = export.get_raw_access()
+
+                if url.startswith("http"):  # pragma: needs cover
+                    response = HttpResponseRedirect(url)
+                else:
+                    asset_file = open("." + url, "rb")
+                    response = HttpResponse(asset_file, content_type=mime_type)
+                    response["Content-Disposition"] = "attachment; filename=%s" % filename
+
+                return response
+
+            response = super().get(request, *args, **kwargs)
+
+            # we can't import NotificationTargetMixin so this code is duplicated from there..
+            notification_type, scope = self.get_notification_scope()
+            if request.org and notification_type and request.user.is_authenticated:
+                Notification.mark_seen(request.org, notification_type, scope=scope, user=request.user)
+
+            return response
+
+        def get_notification_scope(self) -> tuple[str, str]:
+            return "export:finished", self.get_object().get_notification_scope()

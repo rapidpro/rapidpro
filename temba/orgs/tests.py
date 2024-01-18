@@ -4632,3 +4632,36 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
+
+
+class ExportCRUDLTest(TembaTest):
+    def test_download(self):
+        export = TicketExport.create(
+            self.org, self.admin, start_date=date.today() - timedelta(days=7), end_date=date.today(), with_fields=()
+        )
+        export.perform()
+
+        download_url = export.get_download_url()
+
+        self.assertEqual(f"/export/download/{export.uuid}/", download_url)
+        self.assertEqual(
+            (
+                f"/media/test_orgs/{self.org.id}/ticket_exports/{export.uuid}.xlsx",
+                f"ticket_{export.id}_nyaruka.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
+            export.get_raw_access(),
+        )
+
+        response = self.client.get(download_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.editor)
+        response = self.client.get(download_url)
+        self.assertContains(response, download_url + "?raw=1")
+
+        response = self.client.get(download_url + "?raw=1")
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", response.headers["content-type"]
+        )

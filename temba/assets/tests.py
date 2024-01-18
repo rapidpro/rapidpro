@@ -8,7 +8,7 @@ from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask, SystemLabel
 from temba.orgs.models import OrgRole
 from temba.tests import TembaTest
-from temba.tickets.models import TicketExport
+from temba.tickets.models import ExportTicketsTask
 
 from .checks import storage
 
@@ -87,7 +87,9 @@ class AssetTest(TembaTest):
         self.assertContains(response, "Your download should start automatically", status_code=200)
 
         # create ticket export and check that we can access it
-        ticket_export = TicketExport.create(self.org, self.admin, start_date=date.today(), end_date=date.today())
+        ticket_export = ExportTicketsTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, start_date=date.today(), end_date=date.today()
+        )
         ticket_export.perform()
 
         response = self.client.get(reverse("assets.download", kwargs=dict(type="ticket_export", pk=ticket_export.id)))

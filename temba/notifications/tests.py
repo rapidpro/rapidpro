@@ -271,7 +271,7 @@ class NotificationTest(TembaTest):
             expected_json={
                 "type": "export:finished",
                 "created_on": matchers.ISODate(),
-                "target_url": f"/assets/download/ticket_export/{export.id}/",
+                "target_url": f"/export/download/{export.uuid}/",
                 "is_seen": False,
                 "export": {"type": "ticket", "num_records": 0},
             },
