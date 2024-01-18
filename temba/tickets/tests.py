@@ -619,7 +619,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "already an export in progress")
 
         # ok mark that export as finished and try again
-        blocking_export.update_status(Export.STATUS_COMPLETE)
+        blocking_export.status = Export.STATUS_COMPLETE
+        blocking_export.save(update_fields=("status",))
 
         response = self.client.post(export_url, {"start_date": "2022-06-28", "end_date": "2022-09-28"})
         self.assertModalResponse(response, redirect="/ticket/")

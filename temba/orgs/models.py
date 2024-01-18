@@ -34,6 +34,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.archives.models import Archive
+from temba.assets.models import get_asset_store
 from temba.locations.models import AdminBoundary
 from temba.utils import json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_str
@@ -1609,6 +1610,8 @@ class Export(TembaUUIDMixin, models.Model):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="exports")
     export_type = models.CharField(max_length=20)
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
+    num_records = models.IntegerField(null=True)
+    path = models.CharField(null=True, max_length=2048)
 
     # date range (optional depending on type)
     start_date = models.DateField(null=True)
@@ -1620,7 +1623,6 @@ class Export(TembaUUIDMixin, models.Model):
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="exports")
     created_on = models.DateTimeField(default=timezone.now)
     modified_on = models.DateTimeField(default=timezone.now)
-    num_records = models.IntegerField(null=True)
 
     def start(self):
         from .tasks import perform_export
@@ -1632,14 +1634,16 @@ class Export(TembaUUIDMixin, models.Model):
 
         assert self.status != self.STATUS_PROCESSING, "can't start an export that's already processing"
 
-        self.update_status(self.STATUS_PROCESSING)
+        self.status = self.STATUS_PROCESSING
+        self.save(update_fields=("status", "modified_on"))
 
         try:
             temp_file, extension, num_records = self.type.write(self)
 
             # save file to storage
             directory = os.path.join(settings.STORAGE_ROOT_DIR, str(self.org.id), self.type.storage_folder)
-            default_storage.save(f"{directory}/{self.uuid}.{extension}", File(temp_file))
+            path = f"{directory}/{self.uuid}.{extension}"
+            default_storage.save(path, File(temp_file))
 
             # remove temporary file
             if hasattr(temp_file, "delete"):
@@ -1649,16 +1653,16 @@ class Export(TembaUUIDMixin, models.Model):
                 os.unlink(temp_file.name)
 
         except Exception as e:  # pragma: no cover
-            self.update_status(self.STATUS_FAILED)
+            self.status = self.STATUS_FAILED
+            self.save(update_fields=("status", "modified_on"))
             raise e
         else:
-            self.update_status(self.STATUS_COMPLETE, num_records)
-            ExportFinishedNotificationType.create(self)
+            self.status = self.STATUS_COMPLETE
+            self.num_records = num_records
+            self.path = path
+            self.save(update_fields=("status", "num_records", "path", "modified_on"))
 
-    def update_status(self, status: str, num_records: int = None):
-        self.status = status
-        self.num_records = num_records
-        self.save(update_fields=("status", "num_records", "modified_on"))
+            ExportFinishedNotificationType.create(self)
 
     @classmethod
     def get_unfinished(cls, export_type: str):
@@ -1752,6 +1756,10 @@ class Export(TembaUUIDMixin, models.Model):
     @property
     def type(self):
         return self._get_types()[self.export_type]
+
+    def get_download_url(self) -> str:
+        asset_store = get_asset_store(model=self.__class__)
+        return asset_store.get_asset_url(self.id)
 
     @property
     def notification_export_type(self):
