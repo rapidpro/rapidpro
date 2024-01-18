@@ -4643,13 +4643,13 @@ class ExportCRUDLTest(TembaTest):
 
         self.assertEqual(1, self.admin.notifications.filter(notification_type="export:finished", is_seen=False).count())
 
-        download_url = export.get_download_url()
+        download_url = reverse("orgs.export_download", kwargs={"uuid": export.uuid})
 
         self.assertEqual(f"/export/download/{export.uuid}/", download_url)
         self.assertEqual(
             (
                 f"/media/test_orgs/{self.org.id}/ticket_exports/{export.uuid}.xlsx",
-                f"ticket_{export.id}_nyaruka.xlsx",
+                f"tickets_{datetime.today().strftime(r'%Y%m%d')}.xlsx",
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             ),
             export.get_raw_access(),

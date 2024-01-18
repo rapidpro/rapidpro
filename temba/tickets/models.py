@@ -566,6 +566,7 @@ class TicketExport(ExportType):
     """
 
     slug = "ticket"
+    download_prefix = "tickets"
 
     @classmethod
     def create(cls, org, user, start_date, end_date, with_fields=(), with_groups=()):
