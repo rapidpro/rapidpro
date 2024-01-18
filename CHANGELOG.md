@@ -1,3 +1,8 @@
+v9.1.6 (2024-01-18)
+-------------------------
+ * Add new generic orgs.Export model and replace ExportTicketsTask
+ * Simplify messaging when export is started
+
 v9.1.5 (2024-01-15)
 -------------------------
  * Allow webchat channels to have new convo triggers
