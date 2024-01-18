@@ -1,3 +1,7 @@
+v9.1.11 (2024-01-18)
+-------------------------
+ * Some cleanup to new exports framework
+
 v9.1.10 (2024-01-18)
 -------------------------
  * Add skeleton staff only mailgun channel type
