@@ -1,3 +1,8 @@
+v9.1.10 (2024-01-18)
+-------------------------
+ * Add skeleton staff only mailgun channel type
+ * Add export download view
+
 v9.1.7 (2024-01-18)
 -------------------------
  * Update temba-components
