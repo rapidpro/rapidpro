@@ -873,6 +873,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.m3tech.M3TechType",
     "temba.channels.types.macrokiosk.MacrokioskType",
     "temba.channels.types.mblox.MbloxType",
+    "temba.channels.types.mailgun.MailgunType",
     "temba.channels.types.messagebird.MessageBirdType",
     "temba.channels.types.messangi.MessangiType",
     "temba.channels.types.mtn.MtnType",
