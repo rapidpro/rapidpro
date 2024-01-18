@@ -43,7 +43,7 @@ from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
-from temba.tickets.models import ExportTicketsTask
+from temba.tickets.models import TicketExport
 from temba.triggers.models import Trigger
 from temba.utils import json, languages
 from temba.utils.uuid import uuid4
@@ -2106,7 +2106,7 @@ class OrgDeleteTest(TembaTest):
         ExportFinishedNotificationType.create(messages)
 
         tickets = add(
-            ExportTicketsTask.create(
+            TicketExport.create(
                 org, user, start_date=date.today(), end_date=date.today(), with_groups=groups, with_fields=fields
             )
         )

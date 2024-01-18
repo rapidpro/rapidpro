@@ -12,7 +12,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import ContactImport, ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask
-from temba.orgs.models import Org
+from temba.orgs.models import Export, Org
 from temba.tickets.models import ExportTicketsTask
 from temba.utils.email import send_template_email
 from temba.utils.models import SquashableModel
@@ -195,6 +195,7 @@ class Notification(models.Model):
     ticket_export = models.ForeignKey(
         ExportTicketsTask, null=True, on_delete=models.PROTECT, related_name="notifications"
     )
+    export = models.ForeignKey(Export, null=True, on_delete=models.PROTECT, related_name="notifications")
 
     contact_import = models.ForeignKey(ContactImport, null=True, on_delete=models.PROTECT, related_name="notifications")
 
@@ -245,8 +246,9 @@ class Notification(models.Model):
         return NotificationCount.get_total(org, user)
 
     @cached_property
-    def export(self):
-        return self.contact_export or self.message_export or self.results_export or self.ticket_export
+    def export_obj(self):
+        # TODO remove once everything is an orgs.Export
+        return self.contact_export or self.message_export or self.results_export or self.ticket_export or self.export
 
     @property
     def type(self):
