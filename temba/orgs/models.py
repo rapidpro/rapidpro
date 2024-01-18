@@ -1,5 +1,6 @@
 import itertools
 import logging
+import mimetypes
 import os
 from abc import ABCMeta
 from collections import defaultdict
@@ -15,6 +16,7 @@ import pytz
 from packaging.version import Version
 from smartmin.models import SmartModel
 from smartmin.users.models import FailedLogin, RecoveryToken
+from storages.backends.s3boto3 import S3Boto3Storage
 from timezone_field import TimeZoneField
 
 from django.conf import settings
@@ -34,7 +36,6 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.archives.models import Archive
-from temba.assets.models import get_asset_store
 from temba.locations.models import AdminBoundary
 from temba.utils import json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_str
@@ -1758,8 +1759,27 @@ class Export(TembaUUIDMixin, models.Model):
         return self._get_types()[self.export_type]
 
     def get_download_url(self) -> str:
-        asset_store = get_asset_store(model=self.__class__)
-        return asset_store.get_asset_url(self.id)
+        return reverse("orgs.export_download", kwargs={"uuid": self.uuid})
+
+    def get_raw_access(self) -> tuple[str]:
+        """
+        Gets a tuple of 1) raw storage URL, 2) a friendly filename and 3) its MIME type
+        """
+
+        # create a more friendly download filename
+        _, extension = self.path.rsplit(".", 1)
+        filename = f"{self.type.slug}_{self.id}_{slugify(self.org.name)}.{extension}"
+
+        if isinstance(default_storage, S3Boto3Storage):  # pragma: needs cover
+            url = default_storage.url(
+                self.path,
+                parameters=dict(ResponseContentDisposition=f"attachment;filename={filename}"),
+                http_method="GET",
+            )
+        else:
+            url = default_storage.url(self.path)
+
+        return url, filename, mimetypes.guess_type(self.path)[0]
 
     @property
     def notification_export_type(self):

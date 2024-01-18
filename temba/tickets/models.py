@@ -5,6 +5,7 @@ from datetime import date
 import openpyxl
 
 from django.conf import settings
+from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.db.models import Q, Sum
 from django.db.models.functions import Lower
@@ -539,6 +540,25 @@ class ExportTicketsTask(BaseItemWithContactExport):
     TODO migrate to orgs.Export and drop.
     """
 
+    analytics_key = "ticket_export"
+    notification_export_type = "ticket"
+
+    def write_export(self):  # pragma: no cover
+        # only used in tests
+        temp = NamedTemporaryFile(delete=True, suffix=".xlsx", mode="wb+")
+        temp.write(b"TEST")
+        temp.flush()
+        return temp, "xlsx", 3
+
+
+@register_asset_store
+class TicketExportAssetStore(BaseExportAssetStore):
+    model = ExportTicketsTask
+    key = "ticket_export"
+    directory = "ticket_exports"
+    permission = "tickets.ticket_export"
+    extensions = ("xlsx",)
+
 
 class TicketExport(ExportType):
     """
@@ -603,12 +623,3 @@ class TicketExport(ExportType):
             export.save(update_fields=("modified_on",))
 
         return *exporter.save_file(), num_records
-
-
-@register_asset_store
-class TicketExportAssetStore(BaseExportAssetStore):
-    model = Export
-    key = "ticket_export"
-    directory = "ticket_exports"
-    permission = "tickets.ticket_export"
-    extensions = ("xlsx",)
