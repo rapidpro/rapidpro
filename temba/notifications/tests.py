@@ -10,6 +10,7 @@ from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import OrgRole
 from temba.tests import CRUDLTestMixin, TembaTest, matchers
+from temba.tickets.models import TicketExport
 
 from .incidents.builtin import OrgFlaggedIncidentType
 from .models import Incident, Notification
@@ -255,6 +256,34 @@ class NotificationTest(TembaTest):
         self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
         self.assertIn("Test Flow 1", mail.outbox[0].body)
         self.assertIn("Test Flow 2", mail.outbox[0].body)
+
+    def test_export_finished(self):
+        export = TicketExport.create(self.org, self.editor, start_date=date.today(), end_date=date.today())
+        export.perform()
+
+        ExportFinishedNotificationType.create(export)
+
+        self.assertFalse(self.editor.notifications.get(export=export).is_seen)
+
+        # we only notify the user that started the export
+        self.assert_notifications(
+            after=export.created_on,
+            expected_json={
+                "type": "export:finished",
+                "created_on": matchers.ISODate(),
+                "target_url": f"/assets/download/ticket_export/{export.id}/",
+                "is_seen": False,
+                "export": {"type": "ticket", "num_records": 0},
+            },
+            expected_users={self.editor},
+            email=True,
+        )
+
+        send_notification_emails()
+
+        self.assertEqual(1, len(mail.outbox))
+        self.assertEqual("[Nyaruka] Your ticket export is ready", mail.outbox[0].subject)
+        self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
 
     def test_import_finished(self):
         imp = ContactImport.objects.create(
