@@ -4641,13 +4641,15 @@ class ExportCRUDLTest(TembaTest):
         )
         export.perform()
 
-        download_url = export.get_download_url()
+        self.assertEqual(1, self.admin.notifications.filter(notification_type="export:finished", is_seen=False).count())
+
+        download_url = reverse("orgs.export_download", kwargs={"uuid": export.uuid})
 
         self.assertEqual(f"/export/download/{export.uuid}/", download_url)
         self.assertEqual(
             (
                 f"/media/test_orgs/{self.org.id}/ticket_exports/{export.uuid}.xlsx",
-                f"ticket_{export.id}_nyaruka.xlsx",
+                f"tickets_{datetime.today().strftime(r'%Y%m%d')}.xlsx",
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             ),
             export.get_raw_access(),
@@ -4656,9 +4658,19 @@ class ExportCRUDLTest(TembaTest):
         response = self.client.get(download_url)
         self.assertLoginRedirect(response)
 
+        # user who didn't create the export and access it...
         self.login(self.editor)
         response = self.client.get(download_url)
         self.assertContains(response, download_url + "?raw=1")
+
+        # which doesn't affect admin's notification
+        self.assertEqual(1, self.admin.notifications.filter(notification_type="export:finished", is_seen=False).count())
+
+        # but them accessing it will
+        self.login(self.admin)
+        response = self.client.get(download_url)
+
+        self.assertEqual(0, self.admin.notifications.filter(notification_type="export:finished", is_seen=False).count())
 
         response = self.client.get(download_url + "?raw=1")
         self.assertEqual(200, response.status_code)

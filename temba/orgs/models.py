@@ -1583,7 +1583,7 @@ class BackupToken(models.Model):
 
 class ExportType:
     slug: str
-    storage_folder: str
+    download_prefix: str
 
     def write(self, export) -> tuple:  # pragma: no cover
         """
@@ -1642,7 +1642,7 @@ class Export(TembaUUIDMixin, models.Model):
             temp_file, extension, num_records = self.type.write(self)
 
             # save file to storage
-            directory = os.path.join(settings.STORAGE_ROOT_DIR, str(self.org.id), self.type.storage_folder)
+            directory = os.path.join(settings.STORAGE_ROOT_DIR, str(self.org.id), self.type.slug + "_exports")
             path = f"{directory}/{self.uuid}.{extension}"
             default_storage.save(path, File(temp_file))
 
@@ -1758,17 +1758,12 @@ class Export(TembaUUIDMixin, models.Model):
     def type(self):
         return self._get_types()[self.export_type]
 
-    def get_download_url(self) -> str:
-        return reverse("orgs.export_download", kwargs={"uuid": self.uuid})
-
     def get_raw_access(self) -> tuple[str]:
         """
         Gets a tuple of 1) raw storage URL, 2) a friendly filename and 3) its MIME type
         """
 
-        # create a more friendly download filename
-        _, extension = self.path.rsplit(".", 1)
-        filename = f"{self.type.slug}_{self.id}_{slugify(self.org.name)}.{extension}"
+        filename = self._get_download_filename()
 
         if isinstance(default_storage, S3Boto3Storage):  # pragma: needs cover
             url = default_storage.url(
@@ -1780,6 +1775,14 @@ class Export(TembaUUIDMixin, models.Model):
             url = default_storage.url(self.path)
 
         return url, filename, mimetypes.guess_type(self.path)[0]
+
+    def _get_download_filename(self):
+        """
+        Create a more user friendly filename for download
+        """
+        _, extension = self.path.rsplit(".", 1)
+        date_str = datetime.today().strftime(r"%Y%m%d")
+        return f"{self.type.download_prefix}_{date_str}.{extension}"
 
     @property
     def notification_export_type(self):
