@@ -1,11 +1,13 @@
 from datetime import date
+from unittest.mock import patch
 
+from django.core.files.temp import NamedTemporaryFile
 from django.test import override_settings
 from django.urls import reverse
 
 from temba.contacts.models import ExportContactsTask
 from temba.flows.models import ExportFlowResultsTask
-from temba.msgs.models import ExportMessagesTask, SystemLabel
+from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import OrgRole
 from temba.tests import TembaTest
 from temba.tickets.models import ExportTicketsTask
@@ -13,14 +15,21 @@ from temba.tickets.models import ExportTicketsTask
 from .checks import storage
 
 
+def mock_write_export():
+    temp = NamedTemporaryFile(delete=True, suffix=".xlsx", mode="wb+")
+    temp.write(b"TEST")
+    temp.flush()
+    return temp, "xlsx", 3
+
+
 class AssetTest(TembaTest):
     def tearDown(self):
         self.clear_storage()
 
     def test_download(self):
-        # create a message export
-        message_export_task = ExportMessagesTask.create(
-            self.org, self.admin, start_date=date.today(), end_date=date.today(), system_label=SystemLabel.TYPE_INBOX
+        # create a legacy message export
+        message_export_task = ExportMessagesTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, start_date=date.today(), end_date=date.today()
         )
 
         response = self.client.get(
@@ -43,7 +52,9 @@ class AssetTest(TembaTest):
         self.assertContains(response, "File not found", status_code=200)
 
         # create asset and request again with correct type
-        message_export_task.perform()
+        with patch("temba.msgs.models.ExportMessagesTask.write_export") as mock_write:
+            mock_write.side_effect = mock_write_export
+            message_export_task.perform()
 
         response = self.client.get(
             reverse("assets.download", kwargs=dict(type="message_export", pk=message_export_task.pk))
@@ -56,41 +67,47 @@ class AssetTest(TembaTest):
         )
         self.assertEqual(response.status_code, 200)
 
-        # create contact export and check that we can access it
-        contact_export_task = ExportContactsTask.create(self.org, self.admin)
-        contact_export_task.perform()
+        # create legacy contact export and check that we can access it
+        contact_export_task = ExportContactsTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin
+        )
+
+        with patch("temba.contacts.models.ExportContactsTask.write_export") as mock_write:
+            mock_write.side_effect = mock_write_export
+            contact_export_task.perform()
 
         response = self.client.get(
             reverse("assets.download", kwargs=dict(type="contact_export", pk=contact_export_task.pk))
         )
         self.assertContains(response, "Your download should start automatically", status_code=200)
 
-        # create flow results export and check that we can access it
+        # create legacy flow results export and check that we can access it
         flow = self.create_flow("Test")
-        results_export_task = ExportFlowResultsTask.create(
-            self.org,
-            self.admin,
+        results_export_task = ExportFlowResultsTask.objects.create(
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
             start_date=date.today(),
             end_date=date.today(),
-            flows=[flow],
-            with_fields=(),
-            with_groups=(),
-            responded_only=False,
-            extra_urns=(),
         )
         results_export_task.flows.add(flow)
-        results_export_task.perform()
+
+        with patch("temba.flows.models.ExportFlowResultsTask.write_export") as mock_write:
+            mock_write.side_effect = mock_write_export
+            results_export_task.perform()
 
         response = self.client.get(
             reverse("assets.download", kwargs=dict(type="results_export", pk=results_export_task.pk))
         )
         self.assertContains(response, "Your download should start automatically", status_code=200)
 
-        # create ticket export and check that we can access it
+        # create a legacy ticket export and check that we can access it
         ticket_export = ExportTicketsTask.objects.create(
             org=self.org, created_by=self.admin, modified_by=self.admin, start_date=date.today(), end_date=date.today()
         )
-        ticket_export.perform()
+        with patch("temba.tickets.models.ExportTicketsTask.write_export") as mock_write:
+            mock_write.side_effect = mock_write_export
+            ticket_export.perform()
 
         response = self.client.get(reverse("assets.download", kwargs=dict(type="ticket_export", pk=ticket_export.id)))
         self.assertContains(response, "Your download should start automatically", status_code=200)
@@ -112,9 +129,9 @@ class AssetTest(TembaTest):
         self.assertEqual(self.org, request.org)
 
     def test_stream(self):
-        # create a message export
-        message_export_task = ExportMessagesTask.create(
-            self.org, self.admin, start_date=date.today(), end_date=date.today(), system_label=SystemLabel.TYPE_INBOX
+        # create a legacy message export
+        message_export_task = ExportMessagesTask.objects.create(
+            org=self.org, created_by=self.admin, modified_by=self.admin, start_date=date.today(), end_date=date.today()
         )
 
         # try as anon
@@ -136,7 +153,9 @@ class AssetTest(TembaTest):
         self.assertEqual(response.status_code, 404)
 
         # create asset and request again
-        message_export_task.perform()
+        with patch("temba.msgs.models.ExportMessagesTask.write_export") as mock_write:
+            mock_write.side_effect = mock_write_export
+            message_export_task.perform()
 
         response = self.client.get(
             reverse("assets.stream", kwargs=dict(type="message_export", pk=message_export_task.pk))
