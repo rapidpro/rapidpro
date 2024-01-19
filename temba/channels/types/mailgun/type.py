@@ -25,17 +25,19 @@ class MailgunType(ChannelType):
 
     config_ui = ConfigUI(
         blurb=_(
-            "To finish configuring this channel, you'll need to add the following webhook to your domain for the "
-            "Delivered Messages event type."
+            "To finish configuring this channel, you'll need to add a route for received messages that forwards them."
         ),
         endpoints=[
             ConfigUI.Endpoint(
                 courier="receive",
-                label=_("Delivery URL"),
-                help=_("Webhook URL for the Delivered Messages event type."),
+                label=_("Receive URL"),
+                help=_("The URL to forward new emails to."),
             ),
         ],
     )
+
+    CONFIG_DEFAULT_SUBJECT = "default_subject"
+    CONFIG_SIGNING_KEY = "signing_key"
 
     def is_available_to(self, org, user):
         return user.is_staff, user.is_staff

@@ -21,11 +21,24 @@ class MailgunTypeTest(TembaTest):
 
         response = self.client.get(claim_url)
         self.assertEqual(200, response.status_code)
+        self.assertEqual({"subject": "Chat with Nyaruka"}, response.context["form"].initial)
 
-        response = self.client.post(claim_url, {"address": "acme.com", "sending_key": "0123456789"}, follow=True)
+        response = self.client.post(
+            claim_url,
+            {
+                "address": "acme.com",
+                "subject": "Chat with me",
+                "sending_key": "0123456789",
+                "signing_key": "9876543210",
+            },
+            follow=True,
+        )
         self.assertEqual(200, response.status_code)
 
         channel = Channel.objects.get(channel_type="MLG")
         self.assertEqual("Mailgun: acme.com", channel.name)
         self.assertEqual("acme.com", channel.address)
-        self.assertEqual({"auth_token": "0123456789"}, channel.config)
+        self.assertEqual(
+            {"auth_token": "0123456789", "default_subject": "Chat with me", "signing_key": "9876543210"},
+            channel.config,
+        )
