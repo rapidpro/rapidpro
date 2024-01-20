@@ -9,7 +9,7 @@ from ...views import ClaimViewMixin
 
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
-        from_addr = forms.EmailField(label=_("From Address"), help_text=_("The from address messages will come from."))
+        address = forms.EmailField(label=_("Email Address"), help_text=_("The email address."))
         subject = forms.CharField(label=_("Subject"), help_text=_("The default subject for new emails."))
         sending_key = forms.CharField(
             label=_("Sending API key"),
@@ -30,19 +30,17 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         from .type import MailgunType
 
-        from_addr = form.cleaned_data["from_addr"]
-        _, domain = from_addr.split("@", 1)
+        address = form.cleaned_data["address"]
 
         self.object = Channel.create(
             self.request.org,
             self.request.user,
             None,
             self.channel_type,
-            name=f"Mailgun: {domain}",
-            address=domain,
+            name=address,
+            address=address,
             config={
                 Channel.CONFIG_AUTH_TOKEN: form.cleaned_data["sending_key"],
-                MailgunType.CONFIG_FROM_ADDRESS: from_addr,
                 MailgunType.CONFIG_DEFAULT_SUBJECT: form.cleaned_data["subject"],
                 MailgunType.CONFIG_SIGNING_KEY: form.cleaned_data["signing_key"],
             },

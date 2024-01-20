@@ -36,7 +36,6 @@ class MailgunType(ChannelType):
         ],
     )
 
-    CONFIG_FROM_ADDRESS = "from_address"
     CONFIG_DEFAULT_SUBJECT = "default_subject"
     CONFIG_SIGNING_KEY = "signing_key"
 
