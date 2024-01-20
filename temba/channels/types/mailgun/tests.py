@@ -26,7 +26,7 @@ class MailgunTypeTest(TembaTest):
         response = self.client.post(
             claim_url,
             {
-                "address": "acme.com",
+                "from_addr": "bob@acme.com",
                 "subject": "Chat with me",
                 "sending_key": "0123456789",
                 "signing_key": "9876543210",
@@ -39,6 +39,11 @@ class MailgunTypeTest(TembaTest):
         self.assertEqual("Mailgun: acme.com", channel.name)
         self.assertEqual("acme.com", channel.address)
         self.assertEqual(
-            {"auth_token": "0123456789", "default_subject": "Chat with me", "signing_key": "9876543210"},
+            {
+                "auth_token": "0123456789",
+                "from_address": "bob@acme.com",
+                "default_subject": "Chat with me",
+                "signing_key": "9876543210",
+            },
             channel.config,
         )
