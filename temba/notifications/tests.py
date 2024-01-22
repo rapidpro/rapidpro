@@ -5,7 +5,7 @@ from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.contacts.models import ContactImport, ExportContactsTask
+from temba.contacts.models import ContactExport, ContactImport
 from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import OrgRole
@@ -147,12 +147,12 @@ class NotificationTest(TembaTest):
         self.assertEqual(expected_users, actual_users)
 
     def test_contact_export_finished(self):
-        export = ExportContactsTask.create(self.org, self.editor)
+        export = ContactExport.create(self.org, self.editor)
         export.perform()
 
         ExportFinishedNotificationType.create(export)
 
-        self.assertFalse(self.editor.notifications.get(contact_export=export).is_seen)
+        self.assertFalse(self.editor.notifications.get(export=export).is_seen)
 
         # we only notify the user that started the export
         self.assert_notifications(
@@ -160,7 +160,7 @@ class NotificationTest(TembaTest):
             expected_json={
                 "type": "export:finished",
                 "created_on": matchers.ISODate(),
-                "target_url": f"/assets/download/contact_export/{export.id}/",
+                "target_url": f"/export/download/{export.uuid}/",
                 "is_seen": False,
                 "export": {"type": "contact", "num_records": 0},
             },
@@ -181,9 +181,9 @@ class NotificationTest(TembaTest):
 
         # if a user visits the export download page, their notification for that export is now read
         self.login(self.editor)
-        self.client.get(export.get_download_url())
+        self.client.get(reverse("orgs.export_download", args=[export.uuid]))
 
-        self.assertTrue(self.editor.notifications.get(contact_export=export).is_seen)
+        self.assertTrue(self.editor.notifications.get(export=export).is_seen)
 
     def test_message_export_finished(self):
         export = ExportMessagesTask.create(
@@ -284,6 +284,12 @@ class NotificationTest(TembaTest):
         self.assertEqual(1, len(mail.outbox))
         self.assertEqual("[Nyaruka] Your ticket export is ready", mail.outbox[0].subject)
         self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
+
+        # if a user visits the export download page, their notification for that export is now read
+        self.login(self.editor)
+        self.client.get(reverse("orgs.export_download", args=[export.uuid]))
+
+        self.assertTrue(self.editor.notifications.get(export=export).is_seen)
 
     def test_import_finished(self):
         imp = ContactImport.objects.create(

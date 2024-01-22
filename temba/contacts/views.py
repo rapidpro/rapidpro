@@ -35,7 +35,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.mailroom.events import Event
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.models import User
+from temba.orgs.models import Export, User
 from temba.orgs.views import (
     DependencyDeleteModal,
     DependencyUsagesModal,
@@ -62,16 +62,15 @@ from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMi
 from .models import (
     URN,
     Contact,
+    ContactExport,
     ContactField,
     ContactGroup,
     ContactGroupCount,
     ContactImport,
     ContactURN,
-    ExportContactsTask,
 )
 from .search import SearchException, parse_query, search_contacts
 from .search.omnibox import omnibox_query, omnibox_results_to_dict
-from .tasks import export_contacts_task
 
 logger = logging.getLogger(__name__)
 
@@ -607,13 +606,12 @@ class ContactCRUDL(SmartCRUDL):
             group_uuid, search, redirect = self.derive_params()
 
             # is there already an export taking place?
-            existing = ExportContactsTask.get_recent_unfinished(org)
+            existing = Export.has_recent_unfinished(org, ContactExport.slug)
             if existing:
                 messages.info(
                     self.request,
                     _(
-                        "There is already an export in progress, started by %s. You must wait "
-                        "for that export to complete before starting another." % existing.created_by.username
+                        "There is already an export in progress. You must wait for that export to complete before starting another."
                     ),
                 )
             else:
@@ -622,17 +620,19 @@ class ContactCRUDL(SmartCRUDL):
                 group = org.groups.filter(uuid=group_uuid).first() if group_uuid else None
 
                 previous_export = (
-                    ExportContactsTask.objects.filter(org=org, created_by=user).order_by("-modified_on").first()
+                    Export.objects.filter(org=org, export_type=ContactExport.slug, created_by=user)
+                    .order_by("-modified_on")
+                    .first()
                 )
                 if previous_export and previous_export.created_on < timezone.now() - timedelta(
                     hours=24
                 ):  # pragma: needs cover
                     analytics.track(self.request.user, "temba.contact_exported")
 
-                export = ExportContactsTask.create(org, user, group, search, group_memberships)
+                export = ContactExport.create(org, user, group=group, search=search, with_groups=group_memberships)
 
                 # schedule the export job
-                on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
+                on_transaction_commit(lambda: export.start())
 
                 messages.info(
                     self.request, _("We are preparing your export and you will get a notification when it is ready.")

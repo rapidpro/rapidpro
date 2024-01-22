@@ -6,8 +6,7 @@ from celery import shared_task
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from temba.contacts.models import URN, ContactURN, ExportContactsTask
-from temba.contacts.tasks import export_contacts_task
+from temba.contacts.models import URN, ContactExport, ContactURN
 from temba.flows.models import ExportFlowResultsTask
 from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import ExportMessagesTask
@@ -79,11 +78,11 @@ def resume_failed_tasks():
     now = timezone.now()
     window = now - timedelta(hours=1)
 
-    contact_exports = ExportContactsTask.objects.filter(modified_on__lte=window).exclude(
-        status__in=[ExportContactsTask.STATUS_COMPLETE, ExportContactsTask.STATUS_FAILED]
+    contact_exports = Export.objects.filter(export_type=ContactExport.slug, modified_on__lte=window).exclude(
+        status__in=[Export.STATUS_COMPLETE, Export.STATUS_FAILED]
     )
     for contact_export in contact_exports:
-        export_contacts_task.delay(contact_export.pk)
+        perform_export.delay(contact_export.pk)
 
     flow_results_exports = ExportFlowResultsTask.objects.filter(modified_on__lte=window).exclude(
         status__in=[ExportFlowResultsTask.STATUS_COMPLETE, ExportFlowResultsTask.STATUS_FAILED]

@@ -1,7 +1,7 @@
 from django.urls import reverse
 
 from temba.api.tests import APITestMixin
-from temba.contacts.models import ExportContactsTask
+from temba.contacts.models import ContactExport
 from temba.notifications.types import ExportFinishedNotificationType
 from temba.tests import TembaTest, matchers
 
@@ -14,7 +14,7 @@ class EndpointsTest(APITestMixin, TembaTest):
         self.assertDeleteNotAllowed(endpoint_url)
 
         # simulate an export finishing
-        export = ExportContactsTask.create(self.org, self.admin)
+        export = ContactExport.create(self.org, self.admin)
         ExportFinishedNotificationType.create(export)
 
         # and org being suspended
@@ -38,7 +38,7 @@ class EndpointsTest(APITestMixin, TembaTest):
                 {
                     "type": "export:finished",
                     "created_on": matchers.ISODate(),
-                    "target_url": f"/assets/download/contact_export/{export.id}/",
+                    "target_url": f"/export/download/{export.uuid}/",
                     "is_seen": False,
                     "export": {"type": "contact", "num_records": None},
                 },
