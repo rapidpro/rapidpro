@@ -6,7 +6,7 @@ from celery import shared_task
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from temba.contacts.models import URN, ContactExport, ContactURN
+from temba.contacts.models import URN, ContactURN
 from temba.flows.models import ExportFlowResultsTask
 from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import ExportMessagesTask
@@ -74,15 +74,15 @@ def normalize_contact_tels_task(org_id):
 
 
 @cron_task(lock_timeout=7200)
-def resume_failed_tasks():
+def restart_stalled_exports():
     now = timezone.now()
     window = now - timedelta(hours=1)
 
-    contact_exports = Export.objects.filter(export_type=ContactExport.slug, modified_on__lte=window).exclude(
+    exports = Export.objects.filter(modified_on__lte=window).exclude(
         status__in=[Export.STATUS_COMPLETE, Export.STATUS_FAILED]
     )
-    for contact_export in contact_exports:
-        perform_export.delay(contact_export.pk)
+    for export in exports:
+        perform_export.delay(export.pk)
 
     flow_results_exports = ExportFlowResultsTask.objects.filter(modified_on__lte=window).exclude(
         status__in=[ExportFlowResultsTask.STATUS_COMPLETE, ExportFlowResultsTask.STATUS_FAILED]

@@ -51,7 +51,7 @@ from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .context_processors import RolePermsWrapper
 from .models import BackupToken, Export, Invitation, Org, OrgImport, OrgMembership, OrgRole, User
-from .tasks import delete_released_orgs, resume_failed_tasks, send_user_verification_email
+from .tasks import delete_released_orgs, restart_stalled_exports, send_user_verification_email
 
 
 class OrgRoleTest(TembaTest):
@@ -1808,7 +1808,9 @@ class OrgTest(TembaTest):
     @patch("temba.msgs.tasks.export_messages_task.delay")
     @patch("temba.flows.tasks.export_flow_results_task.delay")
     @patch("temba.orgs.tasks.perform_export.delay")
-    def test_resume_failed_task(self, mock_org_export_task, mock_export_flow_results_task, mock_export_messages_task):
+    def test_restart_stalled_exports(
+        self, mock_org_export_task, mock_export_flow_results_task, mock_export_messages_task
+    ):
         mock_org_export_task.return_value = None
         mock_export_flow_results_task.return_value = None
         mock_export_messages_task.return_value = None
@@ -1843,7 +1845,7 @@ class OrgTest(TembaTest):
         ExportFlowResultsTask.objects.all().update(modified_on=two_hours_ago)
         Export.objects.filter(export_type=ContactExport.slug).update(modified_on=two_hours_ago)
 
-        resume_failed_tasks()
+        restart_stalled_exports()
 
         mock_org_export_task.assert_called_once()
         mock_export_flow_results_task.assert_called_once()
