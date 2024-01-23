@@ -1,3 +1,7 @@
+v9.1.12 (2024-01-23)
+-------------------------
+ * Tweak mailgun channel claiming
+
 v9.1.11 (2024-01-18)
 -------------------------
  * Some cleanup to new exports framework
