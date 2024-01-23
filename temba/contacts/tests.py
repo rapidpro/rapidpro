@@ -28,7 +28,7 @@ from temba.ivr.models import Call
 from temba.locations.models import AdminBoundary
 from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modifiers
 from temba.msgs.models import Broadcast, Msg, SystemLabel
-from temba.orgs.models import Org, OrgRole
+from temba.orgs.models import Export, Org, OrgRole
 from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
@@ -43,13 +43,13 @@ from temba.utils.views import TEMBA_MENU_SELECTION
 from .models import (
     URN,
     Contact,
+    ContactExport,
     ContactField,
     ContactGroup,
     ContactGroupCount,
     ContactImport,
     ContactImportBatch,
     ContactURN,
-    ExportContactsTask,
 )
 from .tasks import check_elasticsearch_lag, squash_group_counts
 from .templatetags.contacts import contact_field, msg_status_badge
@@ -3217,13 +3217,14 @@ class ContactFieldTest(TembaTest):
         group2.save()
 
         # create a dummy export task so that we won't be able to export
-        blocking_export = ExportContactsTask.create(self.org, self.admin)
+        blocking_export = ContactExport.create(self.org, self.admin)
 
         response = self.client.post(export_url, {}, follow=True)
         self.assertContains(response, "already an export in progress")
 
         # ok, mark that one as finished and try again
-        blocking_export.update_status(ExportContactsTask.STATUS_COMPLETE)
+        blocking_export.status = Export.STATUS_COMPLETE
+        blocking_export.save(update_fields=("status",))
 
         # make sure we can't redirect to places we shouldn't
         with self.mockReadOnly():
@@ -3235,9 +3236,9 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, None, "line:12345")
 
         def request_export(query=""):
-            with self.mockReadOnly(assert_models={Contact, ContactURN, ContactField}):
+            with self.mockReadOnly(assert_models={Contact, ContactURN, ContactField, ContactGroup}):
                 self.client.post(export_url + query, {"group_memberships": (group.id,)})
-            task = ExportContactsTask.objects.all().order_by("-id").first()
+            task = Export.objects.filter(export_type=ContactExport.slug).order_by("-id").first()
             filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
             workbook = load_workbook(filename=filename)
             return workbook.worksheets, task
@@ -3246,12 +3247,12 @@ class ContactFieldTest(TembaTest):
             # test an export can be imported back
             with self.mockReadOnly():
                 self.client.post(export_url + query, {"group_memberships": (group.id,)})
-            task = ExportContactsTask.objects.all().order_by("-id").first()
+            task = Export.objects.filter(export_type=ContactExport.slug).order_by("-id").first()
             path = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
             self.create_contact_import(path)
 
         # no group specified, so will default to 'Active'
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(35):
             export, task = request_export()
             self.assertEqual(2, task.num_records)
             self.assertEqual("C", task.status)
@@ -3313,15 +3314,13 @@ class ContactFieldTest(TembaTest):
         assertImportExportedFile()
 
         # check that notifications were created
-        export = ExportContactsTask.objects.order_by("id").last()
-        self.assertEqual(
-            1, self.admin.notifications.filter(notification_type="export:finished", contact_export=export).count()
-        )
+        export = Export.objects.filter(export_type=ContactExport.slug).order_by("id").last()
+        self.assertEqual(1, self.admin.notifications.filter(notification_type="export:finished", export=export).count())
 
         # change the order of the fields
         self.contactfield_2.priority = 15
         self.contactfield_2.save()
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(35):
             export, task = request_export()
             self.assertEqual(2, task.num_records)
             self.assertEqual("C", task.status)
@@ -3387,7 +3386,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, "tel:+12062233445")
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(39):
+        with self.assertNumQueries(35):
             export, task = request_export()
             self.assertEqual(4, task.num_records)
             self.assertEqual("C", task.status)
@@ -3485,7 +3484,7 @@ class ContactFieldTest(TembaTest):
         assertImportExportedFile()
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(36):
             export, task = request_export("?g=%s" % group.uuid)
             self.assertExcelSheet(
                 export[0],
@@ -3599,13 +3598,13 @@ class ContactFieldTest(TembaTest):
         ]
         with self.assertLogs("temba.contacts.models", level="INFO") as captured_logger:
             with patch(
-                "temba.contacts.models.ExportContactsTask.LOG_PROGRESS_PER_ROWS", new_callable=PropertyMock
+                "temba.orgs.models.Export.LOG_PROGRESS_PER_ROWS", new_callable=PropertyMock
             ) as log_info_threshold:
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 1
 
                 with ESMockWithScroll(data=mock_es_data):
-                    with self.assertNumQueries(42):
+                    with self.assertNumQueries(38):
                         export, task = request_export("?s=name+has+adam+or+name+has+deng")
                         self.assertExcelSheet(
                             export[0],
@@ -3674,7 +3673,7 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(41):
+            with self.assertNumQueries(37):
                 export, task = request_export("?g=%s&s=Hagg" % group.uuid)
                 self.assertExcelSheet(
                     export[0],

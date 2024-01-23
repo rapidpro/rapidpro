@@ -86,7 +86,7 @@ class BaseExport(TembaUUIDMixin, SmartModel):
             else:  # pragma: no cover
                 os.unlink(temp_file.name)
 
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             logger.error(f"Unable to perform export: {str(e)}", exc_info=True)
             self.update_status(self.STATUS_FAILED)
             print(f"Failed to complete {self.analytics_key} with ID {self.id}")

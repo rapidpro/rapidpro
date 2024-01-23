@@ -8,7 +8,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.contacts.models import Contact, ContactField, ContactURN
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN
 from temba.orgs.models import Export
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
@@ -756,7 +756,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response, "form", None, "End date can't be before start date.")
 
         # check requesting export for last 90 days
-        with self.mockReadOnly(assert_models={Ticket, ContactURN}):
+        with self.mockReadOnly(assert_models={Ticket, ContactURN, ContactGroup, ContactField}):
             with self.assertNumQueries(29):
                 export = self._request_export(start_date=today - timedelta(days=90), end_date=today)
 
@@ -825,7 +825,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # check requesting export for last 7 days
-        with self.mockReadOnly(assert_models={Ticket, ContactURN}):
+        with self.mockReadOnly(assert_models={Ticket, ContactURN, ContactGroup, ContactField}):
             export = self._request_export(start_date=today - timedelta(days=7), end_date=today)
 
         self.assertExcelSheet(
@@ -859,7 +859,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # check requesting with contact fields and groups
-        with self.mockReadOnly(assert_models={Ticket, ContactURN}):
+        with self.mockReadOnly(assert_models={Ticket, ContactURN, ContactGroup, ContactField}):
             export = self._request_export(
                 start_date=today - timedelta(days=7), end_date=today, with_fields=(age, gender), with_groups=(testers,)
             )
@@ -901,7 +901,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         with self.anonymous(self.org):
-            with self.mockReadOnly(assert_models={Ticket, ContactURN}):
+            with self.mockReadOnly(assert_models={Ticket, ContactURN, ContactGroup, ContactField}):
                 export = self._request_export(start_date=today - timedelta(days=90), end_date=today)
             self.assertExcelSheet(
                 export[0],

@@ -11,7 +11,7 @@ from django.utils import timezone
 from temba.utils import chunk_list
 from temba.utils.crons import cron_task
 
-from .models import Contact, ContactGroup, ContactGroupCount, ContactImport, ExportContactsTask
+from .models import Contact, ContactGroup, ContactGroupCount, ContactImport
 from .search import elastic
 
 logger = logging.getLogger(__name__)
@@ -36,14 +36,6 @@ def import_contacts_task(import_id):
     Import contacts from a spreadsheet
     """
     ContactImport.objects.select_related("org", "created_by").get(id=import_id).start()
-
-
-@shared_task
-def export_contacts_task(task_id):
-    """
-    Export contacts to a file and e-mail a link to the user
-    """
-    ExportContactsTask.objects.select_related("org", "created_by").get(id=task_id).perform()
 
 
 @shared_task
