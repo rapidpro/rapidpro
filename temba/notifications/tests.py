@@ -421,7 +421,7 @@ class NotificationTest(TembaTest):
         self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
         self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
 
-        Notification.mark_seen(self.org, "tickets:activity", scope="", user=self.agent)
+        Notification.mark_seen(self.org, self.agent, "tickets:activity", scope="")
 
         self.assertEqual(1, Notification.get_unseen_count(self.org, self.agent))
         self.assertEqual(3, Notification.get_unseen_count(self.org, self.editor))
@@ -439,5 +439,12 @@ class NotificationTest(TembaTest):
 
         self.assertEqual(1, Notification.get_unseen_count(self.org, self.agent))
         self.assertEqual(2, Notification.get_unseen_count(self.org, self.editor))
+        self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
+        self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
+
+        Notification.mark_seen(self.org, self.editor)
+
+        self.assertEqual(1, Notification.get_unseen_count(self.org, self.agent))
+        self.assertEqual(0, Notification.get_unseen_count(self.org, self.editor))
         self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
         self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
