@@ -3116,10 +3116,10 @@ class ExportCRUDL(SmartCRUDL):
     model = Export
     actions = ("download",)
 
-    class Download(SpaMixin, NotificationTargetMixin, OrgObjPermsMixin, SmartReadView):
+    class Download(SpaMixin, ContentMenuMixin, NotificationTargetMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         menu_path = "/settings/workspace"
-        title = _("Download Export")
+        title = _("Export")
 
         def get(self, request, *args, **kwargs):
             if str_to_bool(request.GET.get("raw", 0)):
@@ -3137,6 +3137,22 @@ class ExportCRUDL(SmartCRUDL):
                 return response
 
             return super().get(request, *args, **kwargs)
+
+        def build_content_menu(self, menu):
+            menu.add_link(
+                _("Download"),
+                reverse("orgs.export_download", kwargs={"uuid": self.get_object().uuid}) + "?raw=1",
+                as_button=True,
+            )
+
+        def get_template_names(self):
+            return [self.object.type.download_template]
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["extension"] = self.object.path.rsplit(".", 1)[1]
+            context.update(**self.object.type.get_download_context(self.object))
+            return context
 
         def get_notification_scope(self) -> tuple[str, str]:
             return "export:finished", self.get_object().get_notification_scope()

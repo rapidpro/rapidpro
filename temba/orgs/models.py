@@ -1583,13 +1583,18 @@ class BackupToken(models.Model):
 
 class ExportType:
     slug: str
+    name: str
     download_prefix: str
+    download_template = "orgs/export_download.html"
 
     def write(self, export) -> tuple:  # pragma: no cover
         """
         Should return tuple of 1) temporary file handle, 2) file extension, 3) count of items exported
         """
         pass
+
+    def get_download_context(self, export) -> dict:  # pragma: no cover
+        return {}
 
 
 class Export(TembaUUIDMixin, models.Model):
