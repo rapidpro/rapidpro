@@ -8,10 +8,14 @@
         <th>{% trans "Type" %}</th>
         <td>{{ object.type.name }} ({{ extension }})</td>
       </tr>
+      <tr>
+        <th>{% trans "Created On" %}</th>
+        <td>{{ object.created_on|datetime }}</td>
+      </tr>
       {% if object.start_date or object.end_date %}
         <tr>
           <th>{% trans "Date range" %}</th>
-          <td>{{ object.start_date|day }} - {{ object.end_date|day }}</td>
+          <td>{{ object.start_date|day }} &rarr; {{ object.end_date|day }}</td>
         </tr>
       {% endif %}
       {% block "extra-fields" %}
