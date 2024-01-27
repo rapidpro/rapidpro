@@ -30,8 +30,15 @@
 {% block extra-script %}
   {{ block.super }}
   <script type="text/javascript">
-    // temporary workaround to make inline temba-dates
     onSpload(function() {
+      document.querySelector("temba-content-menu").addEventListener("temba-selection", function(event) {
+        var item = event.detail.item;
+        if (item.id === "export_download") {
+          location.href = "{% url "orgs.export_download" object.uuid %}?raw=1"
+        }
+      });
+
+      // temporary workaround to make inline temba-dates
       document.querySelectorAll('temba-date').forEach((e) => {
         e.shadowRoot.querySelector('.date').setAttribute('style', 'display:inline-block; overflow: visible');
       });

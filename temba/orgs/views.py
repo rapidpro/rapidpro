@@ -3139,11 +3139,7 @@ class ExportCRUDL(SmartCRUDL):
             return super().get(request, *args, **kwargs)
 
         def build_content_menu(self, menu):
-            menu.add_link(
-                _("Download"),
-                reverse("orgs.export_download", kwargs={"uuid": self.get_object().uuid}) + "?raw=1",
-                as_button=True,
-            )
+            menu.add_js("export_download", _("Download"), as_button=True)
 
         def get_template_names(self):
             return [self.object.type.download_template]
