@@ -1583,13 +1583,28 @@ class BackupToken(models.Model):
 
 class ExportType:
     slug: str
+    name: str
     download_prefix: str
+    download_template = "orgs/export_download.html"
+
+    @classmethod
+    def has_recent_unfinished(cls, org) -> bool:
+        """
+        Checks for unfinished exports created in the last 4 hours for this org
+        """
+
+        day_ago = timezone.now() - timedelta(hours=4)
+
+        return Export.get_unfinished(org, cls.slug).filter(created_on__gt=day_ago).order_by("created_on").exists()
 
     def write(self, export) -> tuple:  # pragma: no cover
         """
         Should return tuple of 1) temporary file handle, 2) file extension, 3) count of items exported
         """
         pass
+
+    def get_download_context(self, export) -> dict:  # pragma: no cover
+        return {}
 
 
 class Export(TembaUUIDMixin, models.Model):
@@ -1669,21 +1684,13 @@ class Export(TembaUUIDMixin, models.Model):
             ExportFinishedNotificationType.create(self)
 
     @classmethod
-    def get_unfinished(cls, export_type: str):
+    def get_unfinished(cls, org, export_type: str):
         """
         Returns all unfinished exports
         """
-        return cls.objects.filter(export_type=export_type, status__in=(cls.STATUS_PENDING, cls.STATUS_PROCESSING))
-
-    @classmethod
-    def has_recent_unfinished(cls, org, export_type: str) -> bool:
-        """
-        Checks for unfinished exports created in the last 4 hours for this org
-        """
-
-        day_ago = timezone.now() - timedelta(hours=4)
-
-        return cls.get_unfinished(export_type).filter(org=org, created_on__gt=day_ago).order_by("created_on").exists()
+        return cls.objects.filter(
+            org=org, export_type=export_type, status__in=(cls.STATUS_PENDING, cls.STATUS_PROCESSING)
+        )
 
     def get_date_range(self) -> tuple:
         """

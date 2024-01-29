@@ -2,37 +2,46 @@
 {% load i18n %}
 
 {% block content %}
-  <div id="pjax">
-    {% block pjax %}
-      <div class="lp-frame">
-        <div class="right">
-          <div class="flex w-full mb-4">
-            <div class="flex-grow ml-1">
-              {% if not file_error %}
-                <div class="mb-12">
-                  {% blocktrans trimmed %}
-                    Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.
-                  {% endblocktrans %}
-                </div>
-                <a href="{% url "orgs.export_download" object.uuid %}?raw=1" class="button-primary">{% trans "Download Now" %}</a>
-              {% else %}
-                <temba-alert level="warning">
-                  {{ file_error }}
-                </temba-alert>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-      </div>
-    {% endblock pjax %}
+  <div class="flex-grow">
+    <table class="list lined">
+      <tr>
+        <th>{% trans "Type" %}</th>
+        <td>{{ object.type.name }} ({{ extension }})</td>
+      </tr>
+      <tr>
+        <th>{% trans "Created On" %}</th>
+        <td>{{ object.created_on|datetime }}</td>
+      </tr>
+      {% if object.start_date or object.end_date %}
+        <tr>
+          <th>{% trans "Date range" %}</th>
+          <td>{{ object.start_date|day }} &rarr; {{ object.end_date|day }}</td>
+        </tr>
+      {% endif %}
+      {% block "extra-fields" %}
+      {% endblock "extra-fields" %}
+      <tr>
+        <th>{% trans "Number of records" %}</th>
+        <td>{{ object.num_records }}</td>
+      </tr>
+    </table>
   </div>
 {% endblock content %}
 {% block extra-script %}
-  {% if not file_error %}
-    <script type="text/javascript">
-      $(document).ready(function() {
-        window.location.href = "{% url "orgs.export_download" object.uuid %}?raw=1";
+  {{ block.super }}
+  <script type="text/javascript">
+    onSpload(function() {
+      document.querySelector("temba-content-menu").addEventListener("temba-selection", function(event) {
+        var item = event.detail.item;
+        if (item.id === "export_download") {
+          location.href = "{% url "orgs.export_download" object.uuid %}?raw=1"
+        }
       });
-    </script>
-  {% endif %}
+
+      // temporary workaround to make inline temba-dates
+      document.querySelectorAll('temba-date').forEach((e) => {
+        e.shadowRoot.querySelector('.date').setAttribute('style', 'display:inline-block; overflow: visible');
+      });
+    });
+  </script>
 {% endblock extra-script %}

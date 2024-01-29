@@ -558,6 +558,7 @@ class TicketExport(ExportType):
     """
 
     slug = "ticket"
+    name = _("Tickets")
     download_prefix = "tickets"
 
     @classmethod

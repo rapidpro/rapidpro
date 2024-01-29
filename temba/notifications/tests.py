@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone as tzone
+from datetime import date, datetime, timedelta, timezone as tzone
 
 from django.core import mail
 from django.test import override_settings
@@ -9,7 +9,7 @@ from temba.contacts.models import ContactExport, ContactImport
 from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import OrgRole
-from temba.tests import CRUDLTestMixin, TembaTest, matchers
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers
 from temba.tickets.models import TicketExport
 
 from .incidents.builtin import OrgFlaggedIncidentType
@@ -448,3 +448,40 @@ class NotificationTest(TembaTest):
         self.assertEqual(0, Notification.get_unseen_count(self.org, self.editor))
         self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
         self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
+
+
+class MarkOldAsSeenTest(MigrationTest):
+    app = "notifications"
+    migrate_from = "0019_notification_export"
+    migrate_to = "0020_mark_old_notifications_seen"
+
+    def setUpBeforeMigration(self, apps):
+        # create incident notification
+        self.org.suspend()
+        self.org.unsuspend()
+
+        # make it look 30 days old
+        self.notification1 = Notification.objects.last()
+        self.notification1.created_on = timezone.now() - timedelta(days=30)
+        self.notification1.save(update_fields=("created_on",))
+
+        self.org.suspend()
+        self.org.unsuspend()
+
+        self.notification2 = Notification.objects.last()
+
+        self.org.suspend()
+        self.org.unsuspend()
+
+        self.notification3 = Notification.objects.last()
+        self.notification3.is_seen = True
+        self.notification3.save(update_fields=("is_seen",))
+
+    def test_migration(self):
+        self.notification1.refresh_from_db()
+        self.notification2.refresh_from_db()
+        self.notification3.refresh_from_db()
+
+        self.assertTrue(self.notification1.is_seen)  # updated
+        self.assertFalse(self.notification2.is_seen)
+        self.assertTrue(self.notification3.is_seen)  # unchanged

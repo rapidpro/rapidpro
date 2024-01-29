@@ -1,0 +1,15 @@
+{% extends "orgs/export_download.html" %}
+{% load i18n %}
+
+{% block "extra-fields" %}
+  <tr>
+    <th>{% trans "Group" %}</th>
+    <td>
+      {% if group.group_type == "M" or group.group_type == "S" %}
+        <a href="{% url "contacts.contact_filter" group.uuid %}">{{ group.name }}</a>
+      {% else %}
+        {{ group.name }}
+      {% endif %}
+    </td>
+  </tr>
+{% endblock "extra-fields" %}
