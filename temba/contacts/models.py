@@ -1875,7 +1875,9 @@ class ContactExport(ExportType):
     """
 
     slug = "contact"
+    name = _("Contacts")
     download_prefix = "contacts"
+    download_template = "contacts/export_download.html"
 
     @classmethod
     def create(cls, org, user, group=None, search=None, with_groups=()):
@@ -1956,15 +1958,17 @@ class ContactExport(ExportType):
 
         return fields, scheme_counts, group_fields
 
+    def get_group(self, export):
+        group_id = export.config.get("group_id")
+        if group_id:
+            return export.org.groups.filter(id=group_id).get()
+        else:
+            return export.org.active_contacts_group
+
     def write(self, export):
         fields, scheme_counts, group_fields = self.get_export_fields_and_schemes(export)
-        group_id = export.config.get("group_id")
+        group = self.get_group(export)
         search = export.config.get("search")
-
-        if group_id:
-            group = export.org.groups.filter(id=group_id).get()
-        else:
-            group = export.org.active_contacts_group
 
         include_group_memberships = bool(len(group_fields) > 0)
 
@@ -2065,6 +2069,9 @@ class ContactExport(ExportType):
                 return ""
         else:
             return contact.get_field_display(field["field"])
+
+    def get_download_context(self, export) -> dict:
+        return {"group": self.get_group(export)}
 
 
 def get_import_upload_path(instance: Any, filename: str):

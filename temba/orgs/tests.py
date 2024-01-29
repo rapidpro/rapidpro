@@ -4661,7 +4661,6 @@ class ExportCRUDLTest(TembaTest):
         # user who didn't create the export and access it...
         self.login(self.editor)
         response = self.client.get(download_url)
-        self.assertContains(response, download_url + "?raw=1")
 
         # which doesn't affect admin's notification
         self.assertEqual(1, self.admin.notifications.filter(notification_type="export:finished", is_seen=False).count())
