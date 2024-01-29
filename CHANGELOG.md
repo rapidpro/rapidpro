@@ -1,3 +1,11 @@
+v9.1.13 (2024-01-29)
+-------------------------
+ * Simplify how we check for existing running exports
+ * Dta migration to mark old notifications as seen
+ * Improve export download page
+ * Allow marking all notifications as read by DELETE request to notifications endpoint
+ * Use orgs.Export for contact exports
+
 v9.1.12 (2024-01-23)
 -------------------------
  * Tweak mailgun channel claiming
