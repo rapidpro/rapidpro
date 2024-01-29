@@ -18,6 +18,6 @@ class NotificationTargetMixin:
 
         notification_type, scope = self.get_notification_scope()
         if request.org and notification_type and request.user.is_authenticated:
-            Notification.mark_seen(request.org, notification_type, scope=scope, user=request.user)
+            Notification.mark_seen(request.org, request.user, notification_type, scope=scope)
 
         return response

@@ -1,3 +1,6 @@
+from rest_framework import status
+from rest_framework.response import Response
+
 from temba.notifications.models import Notification
 
 from ..models import APIPermission, SSLPermission
@@ -34,3 +37,8 @@ class NotificationsEndpoint(ListAPIMixin, BaseEndpoint):
                 "contact_import", "contact_export", "message_export", "results_export", "export", "incident"
             )
         )
+
+    def delete(self, request, *args, **kwargs):
+        Notification.mark_seen(self.request.org, self.request.user)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
