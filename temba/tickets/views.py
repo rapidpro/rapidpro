@@ -13,7 +13,6 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.models import Export
 from temba.orgs.views import MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
@@ -449,7 +448,7 @@ class TicketCRUDL(SmartCRUDL):
             user = self.request.user
 
             # is there already an export taking place?
-            if Export.has_recent_unfinished(org, TicketExport.slug):
+            if TicketExport.has_recent_unfinished(org):
                 messages.info(
                     self.request,
                     "There is already an export in progress. You must wait for that export to complete before starting another.",
