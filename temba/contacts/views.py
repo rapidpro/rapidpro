@@ -606,8 +606,7 @@ class ContactCRUDL(SmartCRUDL):
             group_uuid, search, redirect = self.derive_params()
 
             # is there already an export taking place?
-            existing = Export.has_recent_unfinished(org, ContactExport.slug)
-            if existing:
+            if ContactExport.has_recent_unfinished(org):
                 messages.info(
                     self.request,
                     _(
