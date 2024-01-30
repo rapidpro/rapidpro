@@ -1,3 +1,7 @@
+v9.1.14 (2024-01-30)
+-------------------------
+ * Remove using readonly DB connection for fetching groups and fields
+
 v9.1.13 (2024-01-29)
 -------------------------
  * Simplify how we check for existing running exports
