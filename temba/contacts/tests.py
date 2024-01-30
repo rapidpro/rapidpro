@@ -3236,7 +3236,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, None, "line:12345")
 
         def request_export(query=""):
-            with self.mockReadOnly(assert_models={Contact, ContactURN, ContactField, ContactGroup}):
+            with self.mockReadOnly(assert_models={Contact, ContactURN, ContactField}):
                 self.client.post(export_url + query, {"group_memberships": (group.id,)})
             task = Export.objects.filter(export_type=ContactExport.slug).order_by("-id").first()
             filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)

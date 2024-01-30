@@ -1704,12 +1704,12 @@ class Export(TembaUUIDMixin, models.Model):
     def get_contact_fields(self):
         ids = self.config.get("with_fields", [])
         id_by_order = {id: i for i, id in enumerate(ids)}
-        return sorted(self.org.fields.filter(id__in=ids).using("readonly"), key=lambda o: id_by_order[o.id])
+        return sorted(self.org.fields.filter(id__in=ids), key=lambda o: id_by_order[o.id])
 
     def get_contact_groups(self):
         ids = self.config.get("with_groups", [])
         id_by_order = {id: i for i, id in enumerate(ids)}
-        return sorted(self.org.groups.filter(id__in=ids).using("readonly"), key=lambda o: id_by_order[o.id])
+        return sorted(self.org.groups.filter(id__in=ids), key=lambda o: id_by_order[o.id])
 
     def get_contact_headers(self) -> list:
         """
