@@ -351,8 +351,8 @@ class FieldsTest(APITest):
                 self.admin2.email: serializers.ValidationError,  # not in org
             },
             representations={
-                self.user: {"email": "viewer@nyaruka.com", "name": ""},
-                self.editor: {"email": "editor@nyaruka.com", "name": "Ed McEdits"},
+                self.user: {"email": "viewer@nyaruka.com", "name": "", "avatar": None},
+                self.editor: {"email": "editor@nyaruka.com", "name": "Ed McEdits", "avatar": None},
             },
         )
         self.assert_field(
@@ -362,7 +362,7 @@ class FieldsTest(APITest):
                 self.admin.email: self.admin,
                 self.agent.email: self.agent,
             },
-            representations={self.agent: {"email": "agent@nyaruka.com", "name": "Agnes"}},
+            representations={self.agent: {"email": "agent@nyaruka.com", "name": "Agnes", "avatar": None}},
         )
 
     def test_serialize_urn(self):
