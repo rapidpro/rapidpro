@@ -17,7 +17,6 @@ from packaging.version import Version
 from smartmin.models import SmartModel
 from smartmin.users.models import FailedLogin, RecoveryToken
 from storages.backends.s3boto3 import S3Boto3Storage
-from temba.utils.fields import UploadToIdPathAndRename
 from timezone_field import TimeZoneField
 
 from django.conf import settings
@@ -41,6 +40,7 @@ from temba.locations.models import AdminBoundary
 from temba.utils import json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
+from temba.utils.fields import UploadToIdPathAndRename
 from temba.utils.models import JSONField, TembaUUIDMixin, delete_in_batches
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import generate_secret, generate_token
