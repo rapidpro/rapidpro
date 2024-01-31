@@ -79,6 +79,7 @@
   
     _initializeForm = function(section) {
       var action, buttonName, form, onLoad;
+
       action = section.data('action');
       form = section.find("form");
       if (action === 'formax' || action === 'redirect' || action === 'open') {
@@ -131,25 +132,31 @@
         formData: formData,
         headers: headers,
         followRedirects: followRedirects,
-        onSuccess: function() {
-          var dependents, formax_form;
-          _initializeForm(section);
-          formax_form = section.find(".formax-form");
-          if (formax_form.hasClass("errors")) {
-            section.find(".formax-summary").hide();
-            formax_form.show();
+        onSuccess: function(resp) {
+          const redirect = resp.getResponseHeader('REDIRECT');
+          if (redirect) {
+            hideSection(section);
+            fetchData(section);
           } else {
-            if (section.data("action") !== 'fixed') {
-              hideSection(section);              
+            var dependents, formax_form;
+            _initializeForm(section);
+            formax_form = section.find(".formax-form");
+            if (formax_form.hasClass("errors")) {
+              section.find(".formax-summary").hide();
+              formax_form.show();
+            } else {
+              if (section.data("action") !== 'fixed') {
+                hideSection(section);              
+              }
             }
+            dependents = section.data("dependents");
+            if (dependents) {
+              $("#id-" + dependents).each(function() {
+                return fetchData($(this));
+              });
+            }
+            document.dispatchEvent(new CustomEvent("temba-formax-ready", {bubbles: true}));
           }
-          dependents = section.data("dependents");
-          if (dependents) {
-            $("#id-" + dependents).each(function() {
-              return fetchData($(this));
-            });
-          }
-          document.dispatchEvent(new CustomEvent("temba-formax-ready", {bubbles: true}));
         }
       });
     };

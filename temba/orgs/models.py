@@ -17,6 +17,7 @@ from packaging.version import Version
 from smartmin.models import SmartModel
 from smartmin.users.models import FailedLogin, RecoveryToken
 from storages.backends.s3boto3 import S3Boto3Storage
+from temba.utils.fields import UploadToIdPathAndRename
 from timezone_field import TimeZoneField
 
 from django.conf import settings
@@ -41,6 +42,7 @@ from temba.utils import json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONField, TembaUUIDMixin, delete_in_batches
+from temba.utils.s3 import public_file_storage
 from temba.utils.text import generate_secret, generate_token
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
@@ -361,6 +363,7 @@ class UserSettings(models.Model):
     verification_token = models.CharField(max_length=64, null=True)
     email_status = models.CharField(max_length=1, default=STATUS_UNVERIFIED, choices=STATUS_CHOICES)
     email_verification_secret = models.CharField(max_length=64, null=True, db_index=True)
+    avatar = models.ImageField(upload_to=UploadToIdPathAndRename("avatars/"), storage=public_file_storage, null=True)
 
 
 class OrgRole(Enum):

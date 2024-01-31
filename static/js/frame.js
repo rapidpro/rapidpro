@@ -566,7 +566,7 @@ function fetchPJAXContent(url, container, options) {
 
       if (options) {
         if ('onSuccess' in options) {
-          options['onSuccess']();
+          options['onSuccess'](jqXHR);
         }
       }
     },

@@ -302,11 +302,13 @@ def _base_msg(obj) -> dict:
 
 
 def _user(user: User) -> dict:
+    avatar = user.usersettings.get().avatar
     return {
         "id": user.id,
         "first_name": user.first_name,
         "last_name": user.last_name,
         "email": user.email,
+        "avatar": avatar.url if avatar else None,
     }
 
 

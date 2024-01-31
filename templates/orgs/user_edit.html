@@ -1,10 +1,14 @@
 {% extends "smartmin/form.html" %}
 {% load smartmin i18n %}
 
+{% block extra-style %}
+  {{ block.super }}
+{% endblock extra-style %}
 {% block fields %}
   <div class="mb-4">
     <div class="field formax-vertical">{% render_field 'first_name' %}</div>
     <div class="field formax-vertical">{% render_field 'last_name' %}</div>
+    <div class="field formax-vertical">{% render_field 'avatar' %}</div>
     <div class="field formax-vertical">{% render_field 'language' %}</div>
     <div class="field formax-vertical">{% render_field 'email' %}</div>
     <div class="field formax-vertical">{% render_field 'new_password' %}</div>
@@ -35,6 +39,7 @@
   </div>
 {% endblock summary %}
 {% block extra-script %}
+  {{ block.super }}
   <script type="text/javascript">
     function wireHandlers() {
       // hide our password field by default
@@ -68,6 +73,6 @@
       document.addEventListener("temba-formax-ready", function() {
         wireHandlers();
       });
-    })
+    });
   </script>
 {% endblock extra-script %}

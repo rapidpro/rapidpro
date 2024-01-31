@@ -53,7 +53,14 @@ from temba.notifications.models import Notification
 from temba.orgs.tasks import send_user_verification_email
 from temba.utils import analytics, get_anonymous_user, json, languages, str_to_bool
 from temba.utils.email import is_valid_address
-from temba.utils.fields import ArbitraryJsonChoiceField, CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
+from temba.utils.fields import (
+    ArbitraryJsonChoiceField,
+    CheckboxWidget,
+    ImagePickerWidget,
+    InputWidget,
+    SelectMultipleWidget,
+    SelectWidget,
+)
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import (
     ComponentFormMixin,
@@ -808,6 +815,9 @@ class UserCRUDL(SmartCRUDL):
             )
             last_name = forms.CharField(label=_("Last Name"), widget=InputWidget(attrs={"placeholder": _("Required")}))
             email = forms.EmailField(required=True, label=_("Email"), widget=InputWidget())
+            avatar = forms.ImageField(
+                required=False, label=_("Profile Picture"), widget=ImagePickerWidget(attrs={"shape": "circle"})
+            )
             current_password = forms.CharField(
                 required=False,
                 label=_("Current Password"),
@@ -850,17 +860,20 @@ class UserCRUDL(SmartCRUDL):
 
             class Meta:
                 model = User
-                fields = ("first_name", "last_name", "email", "current_password", "new_password", "language")
+                fields = ("first_name", "last_name", "email", "avatar", "current_password", "new_password", "language")
 
         form_class = Form
         success_message = ""
+        success_url = "@orgs.user_edit"
 
         def has_permission(self, request, *args, **kwargs):
             return self.request.user.is_authenticated
 
         def derive_initial(self):
             initial = super().derive_initial()
-            initial["language"] = self.get_object().settings.language
+            user_settings = self.get_object().settings
+            initial["language"] = user_settings.language
+            initial["avatar"] = user_settings.avatar
             return initial
 
         def pre_save(self, obj):
@@ -883,8 +896,8 @@ class UserCRUDL(SmartCRUDL):
                 obj.settings.email_status = UserSettings.STATUS_UNVERIFIED
 
             obj.settings.language = self.form.cleaned_data["language"]
-            obj.settings.save(update_fields=("language", "email_status"))
-
+            obj.settings.avatar = self.form.cleaned_data["avatar"]
+            obj.settings.save(update_fields=("language", "email_status", "avatar"))
             return obj
 
     class SendVerificationEmail(SpaMixin, PostOnlyMixin, InferUserMixin, SmartUpdateView):
