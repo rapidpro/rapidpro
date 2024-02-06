@@ -1811,7 +1811,7 @@ class OrgCRUDL(SmartCRUDL):
                 if from_email_params:
                     from_email_custom = parseaddr(from_email_params[0])[1]  # extract address only
 
-            context["from_email_default"] = parseaddr(settings.FLOW_FROM_EMAIL)[1]
+            context["from_email_default"] = settings.FLOW_FROM_EMAIL
             context["from_email_custom"] = from_email_custom
             return context
 
