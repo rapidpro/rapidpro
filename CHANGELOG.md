@@ -1,3 +1,8 @@
+v9.1.15 (2024-02-06)
+-------------------------
+ * Bump cryptography from 41.0.7 to 42.0.0
+ * Simplify getting default flow email address
+
 v9.1.14 (2024-01-30)
 -------------------------
  * Remove using readonly DB connection for fetching groups and fields
