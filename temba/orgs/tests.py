@@ -40,7 +40,7 @@ from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
-from temba.tests import CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, ESMockWithScroll, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import TicketExport
@@ -4676,3 +4676,20 @@ class ExportCRUDLTest(TembaTest):
         self.assertEqual(
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", response.headers["content-type"]
         )
+
+
+class BackfillFlowSMTPTest(MigrationTest):
+    app = "orgs"
+    migrate_from = "0137_org_flow_smtp"
+    migrate_to = "0138_backfill_flow_smtp"
+
+    def setUpBeforeMigration(self, apps):
+        self.org.config["smtp_server"] = "smtp://foo:bar"
+        self.org.save()
+
+    def test_migration(self):
+        self.org.refresh_from_db()
+        self.org2.refresh_from_db()
+
+        self.assertEqual("smtp://foo:bar", self.org.flow_smtp)
+        self.assertIsNone(self.org2.flow_smtp)
