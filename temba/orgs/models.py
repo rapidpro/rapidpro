@@ -524,6 +524,7 @@ class Org(SmartModel):
     country = models.ForeignKey("locations.AdminBoundary", null=True, on_delete=models.PROTECT)
     flow_languages = ArrayField(models.CharField(max_length=3), default=list, validators=[ArrayMinLengthValidator(1)])
     input_collation = models.CharField(max_length=32, choices=COLLATION_CHOICES, default=COLLATION_DEFAULT)
+    flow_smtp = models.CharField(null=True)  # e.g. smtp://...
 
     config = models.JSONField(default=dict)
     slug = models.SlugField(
@@ -943,20 +944,21 @@ class Org(SmartModel):
         password = quote(password, safe="")
         query = urlencode({"from": f"{from_email.strip()}", "tls": "true"})
 
-        self.config.update({Org.CONFIG_SMTP_SERVER: f"smtp://{username}:{password}@{host}:{port}/?{query}"})
+        self.flow_smtp = f"smtp://{username}:{password}@{host}:{port}/?{query}"
+        self.config.update({Org.CONFIG_SMTP_SERVER: self.flow_smtp})  # TODO replaced by flow_smtp
         self.modified_by = user
-        self.save(update_fields=("config", "modified_by", "modified_on"))
+        self.save(update_fields=("flow_smtp", "config", "modified_by", "modified_on"))
 
     def remove_smtp_config(self, user):
         if self.config:
             self.config.pop(Org.CONFIG_SMTP_SERVER, None)
-            self.modified_by = user
-            self.save(update_fields=("config", "modified_by", "modified_on"))
 
-    def has_smtp_config(self):
-        if self.config:
-            return bool(self.config.get(Org.CONFIG_SMTP_SERVER))
-        return False
+        self.flow_smtp = None
+        self.modified_by = user
+        self.save(update_fields=("flow_smtp", "config", "modified_by", "modified_on"))
+
+    def has_smtp_config(self) -> bool:
+        return self.flow_smtp or (self.config and self.config.get(Org.CONFIG_SMTP_SERVER))
 
     @property
     def default_country_code(self) -> str:
