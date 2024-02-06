@@ -1,3 +1,7 @@
+v9.1.16 (2024-02-06)
+-------------------------
+ * Add new dedicated Org.flow_smtp field for email settings
+
 v9.1.15 (2024-02-06)
 -------------------------
  * Bump cryptography from 41.0.7 to 42.0.0
