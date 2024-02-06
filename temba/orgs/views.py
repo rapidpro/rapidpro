@@ -1689,8 +1689,7 @@ class OrgCRUDL(SmartCRUDL):
                     smtp_password = self.cleaned_data.get("smtp_password", None)
                     smtp_port = self.cleaned_data.get("smtp_port", None)
 
-                    config = self.instance.config
-                    existing_smtp_server = urlparse(config.get("smtp_server", ""))
+                    existing_smtp_server = urlparse(self.instance.flow_smtp)
                     existing_username = ""
                     if existing_smtp_server.username:
                         existing_username = unquote(existing_smtp_server.username)
@@ -1763,8 +1762,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super().derive_initial()
             org = self.get_object()
-            smtp_server = org.config.get(Org.CONFIG_SMTP_SERVER)
-            parsed_smtp_server = urlparse(smtp_server)
+            parsed_smtp_server = urlparse(org.flow_smtp)
             smtp_username = ""
             if parsed_smtp_server.username:
                 smtp_username = unquote(parsed_smtp_server.username)
@@ -1786,16 +1784,19 @@ class OrgCRUDL(SmartCRUDL):
             org = self.request.org
 
             if disconnect:
-                org.remove_smtp_config(user)
+                org.flow_smtp = None
+                org.modified_by = user
+                org.save(update_fields=("flow_smtp", "modified_by", "modified_on"))
+
                 return HttpResponseRedirect(reverse("orgs.org_workspace"))
             else:
-                smtp_from_email = form.cleaned_data["from_email"]
-                smtp_host = form.cleaned_data["smtp_host"]
-                smtp_username = form.cleaned_data["smtp_username"]
-                smtp_password = form.cleaned_data["smtp_password"]
-                smtp_port = form.cleaned_data["smtp_port"]
+                from_email = form.cleaned_data["from_email"]
+                host = form.cleaned_data["smtp_host"]
+                username = form.cleaned_data["smtp_username"]
+                password = form.cleaned_data["smtp_password"]
+                port = form.cleaned_data["smtp_port"]
 
-                org.add_smtp_config(smtp_from_email, smtp_host, smtp_username, smtp_password, smtp_port, user)
+                org.set_flow_smtp(user, from_email, host, port, username, password)
 
             return super().form_valid(form)
 
@@ -1804,9 +1805,8 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             from_email_custom = None
 
-            if org.has_smtp_config():
-                smtp_server = org.config.get(Org.CONFIG_SMTP_SERVER)
-                parsed_smtp_server = urlparse(smtp_server)
+            if org.flow_smtp:
+                parsed_smtp_server = urlparse(org.flow_smtp)
                 from_email_params = parse_qs(parsed_smtp_server.query).get("from")
                 if from_email_params:
                     from_email_custom = parseaddr(from_email_params[0])[1]  # extract address only

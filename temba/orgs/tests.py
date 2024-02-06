@@ -1516,7 +1516,7 @@ class OrgTest(TembaTest):
         self.assertEqual("no-reply@temba.io", response.context["from_email_default"])
         self.assertEqual(None, response.context["from_email_custom"])
 
-        self.assertFalse(self.org.has_smtp_config())
+        self.assertIsNone(self.org.flow_smtp)
 
         response = self.client.post(config_url, dict(disconnect="false"), follow=True)
         self.assertEqual(
@@ -1637,11 +1637,8 @@ class OrgTest(TembaTest):
         self.assertEqual(len(mail.outbox), 1)
 
         self.org.refresh_from_db()
-        self.assertTrue(self.org.has_smtp_config())
-
         self.assertEqual(
-            self.org.config["smtp_server"],
-            "smtp://support%40example.com:secret@smtp.example.com:465/?from=foo%40bar.com&tls=true",
+            r"smtp://support%40example.com:secret@smtp.example.com:465/?from=foo%40bar.com&tls=true", self.org.flow_smtp
         )
 
         response = self.client.get(config_url)
@@ -1665,7 +1662,10 @@ class OrgTest(TembaTest):
         # name shouldn't change
         self.org.refresh_from_db()
         self.assertEqual(self.org.name, "Nyaruka")
-        self.assertTrue(self.org.has_smtp_config())
+        self.assertEqual(
+            r"smtp://support%40example.com:secret@smtp.example.com:465/?from=support%40example.com&tls=true",
+            self.org.flow_smtp,
+        )
 
         self.client.post(
             config_url,
@@ -1682,10 +1682,9 @@ class OrgTest(TembaTest):
 
         # password shouldn't change
         self.org.refresh_from_db()
-        self.assertTrue(self.org.has_smtp_config())
         self.assertEqual(
-            self.org.config["smtp_server"],
-            "smtp://support%40example.com:secret@smtp.example.com:465/?from=support%40example.com&tls=true",
+            r"smtp://support%40example.com:secret@smtp.example.com:465/?from=support%40example.com&tls=true",
+            self.org.flow_smtp,
         )
 
         response = self.client.post(
@@ -1710,7 +1709,7 @@ class OrgTest(TembaTest):
         self.client.post(config_url, dict(disconnect="true"), follow=True)
 
         self.org.refresh_from_db()
-        self.assertFalse(self.org.has_smtp_config())
+        self.assertIsNone(self.org.flow_smtp)
 
         response = self.client.post(
             config_url,
@@ -1726,11 +1725,9 @@ class OrgTest(TembaTest):
         )
 
         self.org.refresh_from_db()
-        self.assertTrue(self.org.has_smtp_config())
-
         self.assertEqual(
-            self.org.config["smtp_server"],
-            "smtp://support%40example.com:secret@smtp.example.com:465/?from=support%40example.com&tls=true",
+            r"smtp://support%40example.com:secret@smtp.example.com:465/?from=support%40example.com&tls=true",
+            self.org.flow_smtp,
         )
 
         response = self.client.post(
@@ -1747,11 +1744,9 @@ class OrgTest(TembaTest):
         )
 
         self.org.refresh_from_db()
-        self.assertTrue(self.org.has_smtp_config())
-
         self.assertEqual(
-            self.org.config["smtp_server"],
-            "smtp://support%40example.com:secre%2Ft@smtp.example.com:465/?from=support%40example.com&tls=true",
+            r"smtp://support%40example.com:secre%2Ft@smtp.example.com:465/?from=support%40example.com&tls=true",
+            self.org.flow_smtp,
         )
 
         response = self.client.get(config_url)

@@ -459,7 +459,6 @@ class Org(SmartModel):
     )
 
     CONFIG_VERIFIED = "verified"
-    CONFIG_SMTP_SERVER = "smtp_server"
     CONFIG_TWILIO_SID = "ACCOUNT_SID"
     CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
     CONFIG_VONAGE_KEY = "NEXMO_KEY"
@@ -939,26 +938,14 @@ class Org(SmartModel):
     def get_possible_countries(cls):
         return AdminBoundary.objects.filter(level=0).order_by("name")
 
-    def add_smtp_config(self, from_email, host, username, password, port, user):
+    def set_flow_smtp(self, user, from_email, host, port, username, password):
         username = quote(username)
         password = quote(password, safe="")
         query = urlencode({"from": f"{from_email.strip()}", "tls": "true"})
 
         self.flow_smtp = f"smtp://{username}:{password}@{host}:{port}/?{query}"
-        self.config.update({Org.CONFIG_SMTP_SERVER: self.flow_smtp})  # TODO replaced by flow_smtp
         self.modified_by = user
-        self.save(update_fields=("flow_smtp", "config", "modified_by", "modified_on"))
-
-    def remove_smtp_config(self, user):
-        if self.config:
-            self.config.pop(Org.CONFIG_SMTP_SERVER, None)
-
-        self.flow_smtp = None
-        self.modified_by = user
-        self.save(update_fields=("flow_smtp", "config", "modified_by", "modified_on"))
-
-    def has_smtp_config(self) -> bool:
-        return self.flow_smtp or (self.config and self.config.get(Org.CONFIG_SMTP_SERVER))
+        self.save(update_fields=("flow_smtp", "modified_by", "modified_on"))
 
     @property
     def default_country_code(self) -> str:

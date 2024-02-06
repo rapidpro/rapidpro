@@ -9,10 +9,10 @@
 {% block pre-form %}
   <div class="mb-4">
     {% blocktrans trimmed with brand=branding.name %}
-      You can configure {{ brand }} to send emails generated within flows from an email address of your choosing.
+      You can add your own email configuration for emails sent from flows.
     {% endblocktrans %}
   </div>
-  {% if object.has_smtp_config and request.META.HTTP_X_FORMAX %}
+  {% if object.flow_smtp and request.META.HTTP_X_FORMAX %}
     <div class="mb-4">
       {% blocktrans trimmed with from_email=from_email_custom %}
         If you no longer want to use {{ from_email }} to send emails, you can <a href='javascript:confirmSMTPRemove();'>remove your SMTP settings</a>.
