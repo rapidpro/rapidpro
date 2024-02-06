@@ -1,3 +1,8 @@
+v9.1.18 (2024-02-06)
+-------------------------
+ * Cleanup flow SMTP formax and show parent settings as default to match mailroom changes
+ * Remove old code for saving SMTP into org config
+
 v9.1.17 (2024-02-06)
 -------------------------
  * Data migration to backfill Org.flow_smtp
