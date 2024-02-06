@@ -1,3 +1,7 @@
+v9.1.17 (2024-02-06)
+-------------------------
+ * Data migration to backfill Org.flow_smtp
+
 v9.1.16 (2024-02-06)
 -------------------------
  * Add new dedicated Org.flow_smtp field for email settings
