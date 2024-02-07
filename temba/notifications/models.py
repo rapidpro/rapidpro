@@ -220,7 +220,7 @@ class Notification(models.Model):
 
         if subject and template:
             send_template_email(
-                self.user.email,
+                [self.user.email],
                 f"[{self.org.name}] {subject}",
                 template,
                 context,

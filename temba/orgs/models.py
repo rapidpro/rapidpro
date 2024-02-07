@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote, urlencode, urlparse
+from urllib.parse import urlparse
 
 import pycountry
 import pyotp
@@ -303,7 +303,7 @@ class User(AuthUser):
         template = "orgs/email/user_forget"
         context = {"user": self, "path": reverse("users.user_recover", args=[token])}
 
-        send_template_email(self.email, subject, template, context, branding)
+        send_template_email([self.email], subject, template, context, branding)
 
     def as_engine_ref(self) -> dict:
         return {"email": self.email, "name": self.name}
@@ -938,15 +938,6 @@ class Org(SmartModel):
     def get_possible_countries(cls):
         return AdminBoundary.objects.filter(level=0).order_by("name")
 
-    def set_flow_smtp(self, user, from_email, host, port, username, password):
-        username = quote(username)
-        password = quote(password, safe="")
-        query = urlencode({"from": f"{from_email.strip()}", "tls": "true"})
-
-        self.flow_smtp = f"smtp://{username}:{password}@{host}:{port}/?{query}"
-        self.modified_by = user
-        self.save(update_fields=("flow_smtp", "modified_by", "modified_on"))
-
     @property
     def default_country_code(self) -> str:
         """
@@ -1543,7 +1534,7 @@ class Invitation(SmartModel):
         context = dict(org=self.org, now=timezone.now(), branding=self.org.branding, invitation=self)
         context["subject"] = subject
 
-        send_template_email(to_email, subject, template, context, self.org.branding)
+        send_template_email([to_email], subject, template, context, self.org.branding)
 
     def release(self):
         self.is_active = False

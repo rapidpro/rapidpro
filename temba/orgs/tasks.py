@@ -59,7 +59,7 @@ def send_user_verification_email(user_id):
     context = dict(org=org, now=timezone.now(), branding=org.branding, secret=verification_secret)
     context["subject"] = subject
 
-    send_template_email(user.email, subject, template, context, org.branding)
+    send_template_email([user.email], subject, template, context, org.branding)
 
 
 @shared_task

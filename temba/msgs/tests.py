@@ -424,8 +424,8 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         assertReleaseCount("I", Msg.STATUS_HANDLED, Msg.VISIBILITY_ARCHIVED, None, SystemLabel.TYPE_ARCHIVED)
         assertReleaseCount("I", Msg.STATUS_HANDLED, Msg.VISIBILITY_VISIBLE, flow, SystemLabel.TYPE_FLOWS)
 
-    @patch("temba.utils.email.send_temba_email")
-    def test_message_export_from_archives(self, mock_send_temba_email):
+    @patch("temba.utils.email.send_email")
+    def test_message_export_from_archives(self, mock_send_email):
         export_url = reverse("msgs.msg_export")
 
         self.login(self.admin)
@@ -781,8 +781,8 @@ class MsgTest(TembaTest, CRUDLTestMixin):
 
         self.clear_storage()
 
-    @patch("temba.utils.email.send_temba_email")
-    def test_message_export(self, mock_send_temba_email):
+    @patch("temba.utils.email.send_email")
+    def test_message_export(self, mock_send_email):
         export_url = reverse("msgs.msg_export")
 
         self.login(self.admin)
