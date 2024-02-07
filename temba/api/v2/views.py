@@ -3684,6 +3684,7 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
             "previous": null,
             "results": [
             {
+                "avatar": "https://..."
                 "email": "bob@flow.com",
                 "first_name": "Bob",
                 "last_name": "McFlow",

@@ -365,13 +365,7 @@ class TicketCRUDL(SmartCRUDL):
                 return {"uuid": str(t.uuid), "name": t.name}
 
             def user_as_json(u):
-                return {
-                    "id": u.id,
-                    "first_name": u.first_name,
-                    "last_name": u.last_name,
-                    "email": u.email,
-                    "avatar": u.settings.avatar.url if u.settings.avatar else None,
-                }
+                return {"id": u.id, "first_name": u.first_name, "last_name": u.last_name, "email": u.email}
 
             def msg_as_json(m):
                 sender = None

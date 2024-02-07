@@ -384,8 +384,7 @@ class UserField(TembaModelField):
         super().__init__(**kwargs)
 
     def to_representation(self, obj):
-        avatar = obj.settings.avatar
-        return {"email": obj.email, "name": obj.name, "avatar": avatar.url if avatar else None}
+        return {"email": obj.email, "name": obj.name}
 
     def get_queryset(self):
         org = self.context["org"]
