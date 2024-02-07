@@ -1,3 +1,7 @@
+v9.1.19 (2024-02-07)
+-------------------------
+ * Save transformed components for WA templates
+
 v9.1.18 (2024-02-06)
 -------------------------
  * Cleanup flow SMTP formax and show parent settings as default to match mailroom changes
