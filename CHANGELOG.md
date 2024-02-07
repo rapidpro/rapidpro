@@ -1,3 +1,21 @@
+v9.1.18 (2024-02-06)
+-------------------------
+ * Cleanup flow SMTP formax and show parent settings as default to match mailroom changes
+ * Remove old code for saving SMTP into org config
+
+v9.1.17 (2024-02-06)
+-------------------------
+ * Data migration to backfill Org.flow_smtp
+
+v9.1.16 (2024-02-06)
+-------------------------
+ * Add new dedicated Org.flow_smtp field for email settings
+
+v9.1.15 (2024-02-06)
+-------------------------
+ * Bump cryptography from 41.0.7 to 42.0.0
+ * Simplify getting default flow email address
+
 v9.1.14 (2024-01-30)
 -------------------------
  * Remove using readonly DB connection for fetching groups and fields

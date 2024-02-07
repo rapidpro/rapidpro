@@ -459,7 +459,6 @@ class Org(SmartModel):
     )
 
     CONFIG_VERIFIED = "verified"
-    CONFIG_SMTP_SERVER = "smtp_server"
     CONFIG_TWILIO_SID = "ACCOUNT_SID"
     CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
     CONFIG_VONAGE_KEY = "NEXMO_KEY"
@@ -524,6 +523,7 @@ class Org(SmartModel):
     country = models.ForeignKey("locations.AdminBoundary", null=True, on_delete=models.PROTECT)
     flow_languages = ArrayField(models.CharField(max_length=3), default=list, validators=[ArrayMinLengthValidator(1)])
     input_collation = models.CharField(max_length=32, choices=COLLATION_CHOICES, default=COLLATION_DEFAULT)
+    flow_smtp = models.CharField(null=True)  # e.g. smtp://...
 
     config = models.JSONField(default=dict)
     slug = models.SlugField(
@@ -938,25 +938,14 @@ class Org(SmartModel):
     def get_possible_countries(cls):
         return AdminBoundary.objects.filter(level=0).order_by("name")
 
-    def add_smtp_config(self, from_email, host, username, password, port, user):
+    def set_flow_smtp(self, user, from_email, host, port, username, password):
         username = quote(username)
         password = quote(password, safe="")
         query = urlencode({"from": f"{from_email.strip()}", "tls": "true"})
 
-        self.config.update({Org.CONFIG_SMTP_SERVER: f"smtp://{username}:{password}@{host}:{port}/?{query}"})
+        self.flow_smtp = f"smtp://{username}:{password}@{host}:{port}/?{query}"
         self.modified_by = user
-        self.save(update_fields=("config", "modified_by", "modified_on"))
-
-    def remove_smtp_config(self, user):
-        if self.config:
-            self.config.pop(Org.CONFIG_SMTP_SERVER, None)
-            self.modified_by = user
-            self.save(update_fields=("config", "modified_by", "modified_on"))
-
-    def has_smtp_config(self):
-        if self.config:
-            return bool(self.config.get(Org.CONFIG_SMTP_SERVER))
-        return False
+        self.save(update_fields=("flow_smtp", "modified_by", "modified_on"))
 
     @property
     def default_country_code(self) -> str:

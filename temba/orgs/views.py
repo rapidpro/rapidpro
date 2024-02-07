@@ -52,7 +52,7 @@ from temba.formax import FormaxMixin
 from temba.notifications.mixins import NotificationTargetMixin
 from temba.orgs.tasks import send_user_verification_email
 from temba.utils import analytics, get_anonymous_user, json, languages, str_to_bool
-from temba.utils.email import is_valid_address
+from temba.utils.email import is_valid_address, send_custom_smtp_email
 from temba.utils.fields import ArbitraryJsonChoiceField, CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import (
@@ -1682,68 +1682,63 @@ class OrgCRUDL(SmartCRUDL):
 
             def clean(self):
                 super().clean()
-                if self.cleaned_data.get("disconnect", "false") == "false":
-                    from_email = self.cleaned_data.get("from_email", None)
-                    smtp_host = self.cleaned_data.get("smtp_host", None)
-                    smtp_username = self.cleaned_data.get("smtp_username", None)
-                    smtp_password = self.cleaned_data.get("smtp_password", None)
-                    smtp_port = self.cleaned_data.get("smtp_port", None)
 
-                    config = self.instance.config
-                    existing_smtp_server = urlparse(config.get("smtp_server", ""))
-                    existing_username = ""
-                    if existing_smtp_server.username:
-                        existing_username = unquote(existing_smtp_server.username)
-                    if not smtp_password and existing_username == smtp_username and existing_smtp_server.password:
-                        smtp_password = unquote(existing_smtp_server.password)
+                # don't validate email setting fields if we're disconnecting
+                if self.cleaned_data.get("disconnect", "false") == "true":
+                    return self.cleaned_data
 
-                    if not from_email:
-                        raise ValidationError(_("You must enter a from email"))
+                from_email = self.cleaned_data.get("from_email", None)
+                host = self.cleaned_data.get("smtp_host", None)
+                username = self.cleaned_data.get("smtp_username", None)
+                password = self.cleaned_data.get("smtp_password", None)
+                port = self.cleaned_data.get("smtp_port", None)
 
-                    parsed = parseaddr(from_email)
-                    if not is_valid_address(parsed[1]):
-                        raise ValidationError(_("Please enter a valid email address"))
+                # if editing existing settings, and username isn't changing, password can be omitted
+                existing = urlparse(self.instance.flow_smtp)
+                existing_username = unquote(existing.username) if existing.username else ""
+                if not password and existing_username == username and existing.password:
+                    password = unquote(existing.password)
+                    self.cleaned_data["smtp_password"] = password
 
-                    if not smtp_host:
-                        raise ValidationError(_("You must enter the SMTP host"))
+                if not from_email:
+                    self.add_error("from_email", _("This field is required."))
+                elif not is_valid_address(parseaddr(from_email)[1]):
+                    self.add_error("from_email", _("Please enter a valid email address."))
 
-                    if not smtp_username:
-                        raise ValidationError(_("You must enter the SMTP username"))
+                if not host:
+                    self.add_error("smtp_host", _("This field is required."))
+                if not username:
+                    self.add_error("smtp_username", _("This field is required."))
+                if not password:
+                    self.add_error("smtp_password", _("This field is required."))
+                if not port:
+                    self.add_error("smtp_port", _("This field is required."))
 
-                    if not smtp_password:
-                        raise ValidationError(_("You must enter the SMTP password"))
+                # if individual fields look valid, do an actual email test...
+                if self.is_valid():
+                    admin_emails = [admin.email for admin in self.instance.get_admins().order_by("email")]
 
-                    if not smtp_port:
-                        raise ValidationError(_("You must enter the SMTP port"))
-
-                    self.cleaned_data["smtp_password"] = smtp_password
+                    branding = self.instance.branding
+                    subject = _("%(name)s SMTP configuration test") % branding
+                    body = (
+                        _(
+                            "This email is a test to confirm the custom SMTP server configuration added to your %(name)s account."
+                        )
+                        % branding
+                    )
 
                     try:
-                        from temba.utils.email import send_custom_smtp_email
-
-                        admin_emails = [admin.email for admin in self.instance.get_admins().order_by("email")]
-
-                        branding = self.instance.branding
-                        subject = _("%(name)s SMTP configuration test") % branding
-                        body = (
-                            _(
-                                "This email is a test to confirm the custom SMTP server configuration added to your %(name)s account."
-                            )
-                            % branding
-                        )
-
                         send_custom_smtp_email(
                             admin_emails,
                             subject,
                             body,
                             from_email,
-                            smtp_host,
-                            smtp_port,
-                            smtp_username,
-                            smtp_password,
+                            host,
+                            port,
+                            username,
+                            password,
                             use_tls=True,
                         )
-
                     except smtplib.SMTPException as e:
                         raise ValidationError(
                             _("Failed to send email with STMP server configuration with error '%s'") % str(e)
@@ -1763,8 +1758,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_initial(self):
             initial = super().derive_initial()
             org = self.get_object()
-            smtp_server = org.config.get(Org.CONFIG_SMTP_SERVER)
-            parsed_smtp_server = urlparse(smtp_server)
+            parsed_smtp_server = urlparse(org.flow_smtp)
             smtp_username = ""
             if parsed_smtp_server.username:
                 smtp_username = unquote(parsed_smtp_server.username)
@@ -1786,32 +1780,37 @@ class OrgCRUDL(SmartCRUDL):
             org = self.request.org
 
             if disconnect:
-                org.remove_smtp_config(user)
+                org.flow_smtp = None
+                org.modified_by = user
+                org.save(update_fields=("flow_smtp", "modified_by", "modified_on"))
+
                 return HttpResponseRedirect(reverse("orgs.org_workspace"))
             else:
-                smtp_from_email = form.cleaned_data["from_email"]
-                smtp_host = form.cleaned_data["smtp_host"]
-                smtp_username = form.cleaned_data["smtp_username"]
-                smtp_password = form.cleaned_data["smtp_password"]
-                smtp_port = form.cleaned_data["smtp_port"]
+                from_email = form.cleaned_data["from_email"]
+                host = form.cleaned_data["smtp_host"]
+                username = form.cleaned_data["smtp_username"]
+                password = form.cleaned_data["smtp_password"]
+                port = form.cleaned_data["smtp_port"]
 
-                org.add_smtp_config(smtp_from_email, smtp_host, smtp_username, smtp_password, smtp_port, user)
+                org.set_flow_smtp(user, from_email, host, port, username, password)
 
             return super().form_valid(form)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org = self.get_object()
-            from_email_custom = None
 
-            if org.has_smtp_config():
-                smtp_server = org.config.get(Org.CONFIG_SMTP_SERVER)
-                parsed_smtp_server = urlparse(smtp_server)
-                from_email_params = parse_qs(parsed_smtp_server.query).get("from")
-                if from_email_params:
-                    from_email_custom = parseaddr(from_email_params[0])[1]  # extract address only
+            def extract_from(smtp_url: str) -> str:
+                from_param = parse_qs(urlparse(smtp_url).query).get("from")
+                return parseaddr(from_param[0])[1] if from_param else None
 
-            context["from_email_default"] = parseaddr(settings.FLOW_FROM_EMAIL)[1]
+            from_email_default = settings.FLOW_FROM_EMAIL
+            if org.is_child and org.parent.flow_smtp:
+                from_email_default = extract_from(org.parent.flow_smtp)
+
+            from_email_custom = extract_from(org.flow_smtp) if org.flow_smtp else None
+
+            context["from_email_default"] = from_email_default
             context["from_email_custom"] = from_email_custom
             return context
 

@@ -48,7 +48,7 @@ EMAIL_TIMEOUT = 10
 
 # Used when sending email from within a flow and the user hasn't configured
 # their own SMTP server.
-FLOW_FROM_EMAIL = "Temba <no-reply@temba.io>"
+FLOW_FROM_EMAIL = "no-reply@temba.io"
 
 # -----------------------------------------------------------------------------------
 # Storage

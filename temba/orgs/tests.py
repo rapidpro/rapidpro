@@ -40,7 +40,7 @@ from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
-from temba.tests import CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, ESMockWithScroll, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import TicketExport
@@ -1503,270 +1503,6 @@ class OrgTest(TembaTest):
         response = self.client.get(resthook_url)
         self.assertEqual([], list(response.context["current_resthooks"]))
 
-    @override_settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True)
-    def test_smtp_server(self):
-        self.login(self.admin)
-
-        settings_url = reverse("orgs.org_workspace")
-        config_url = reverse("orgs.org_smtp_server")
-
-        # orgs without SMTP settings see default from address
-        response = self.client.get(settings_url)
-        self.assertContains(response, "Emails sent from flows will be sent from <b>no-reply@temba.io</b>.")
-        self.assertEqual("no-reply@temba.io", response.context["from_email_default"])
-        self.assertEqual(None, response.context["from_email_custom"])
-
-        self.assertFalse(self.org.has_smtp_config())
-
-        response = self.client.post(config_url, dict(disconnect="false"), follow=True)
-        self.assertEqual(
-            '[{"message": "You must enter a from email", "code": ""}]',
-            response.context["form"].errors["__all__"].as_json(),
-        )
-        self.assertEqual(len(mail.outbox), 0)
-
-        response = self.client.post(config_url, {"from_email": "foobar.com", "disconnect": "false"}, follow=True)
-        self.assertEqual(
-            '[{"message": "Please enter a valid email address", "code": ""}]',
-            response.context["form"].errors["__all__"].as_json(),
-        )
-        self.assertEqual(len(mail.outbox), 0)
-
-        response = self.client.post(config_url, {"from_email": "foo@bar.com", "disconnect": "false"}, follow=True)
-        self.assertEqual(
-            '[{"message": "You must enter the SMTP host", "code": ""}]',
-            response.context["form"].errors["__all__"].as_json(),
-        )
-        self.assertEqual(len(mail.outbox), 0)
-
-        response = self.client.post(
-            config_url,
-            {"from_email": "foo@bar.com", "smtp_host": "smtp.example.com", "disconnect": "false"},
-            follow=True,
-        )
-        self.assertEqual(
-            '[{"message": "You must enter the SMTP username", "code": ""}]',
-            response.context["form"].errors["__all__"].as_json(),
-        )
-        self.assertEqual(len(mail.outbox), 0)
-
-        response = self.client.post(
-            config_url,
-            {
-                "from_email": "foo@bar.com",
-                "smtp_host": "smtp.example.com",
-                "smtp_username": "support@example.com",
-                "disconnect": "false",
-            },
-            follow=True,
-        )
-        self.assertEqual(
-            '[{"message": "You must enter the SMTP password", "code": ""}]',
-            response.context["form"].errors["__all__"].as_json(),
-        )
-        self.assertEqual(len(mail.outbox), 0)
-
-        response = self.client.post(
-            config_url,
-            {
-                "from_email": "foo@bar.com",
-                "smtp_host": "smtp.example.com",
-                "smtp_username": "support@example.com",
-                "smtp_password": "secret",
-                "disconnect": "false",
-            },
-            follow=True,
-        )
-        self.assertEqual(
-            '[{"message": "You must enter the SMTP port", "code": ""}]',
-            response.context["form"].errors["__all__"].as_json(),
-        )
-        self.assertEqual(len(mail.outbox), 0)
-
-        with patch("temba.utils.email.send_custom_smtp_email") as mock_send_smtp_email:
-            mock_send_smtp_email.side_effect = smtplib.SMTPException("SMTP Error")
-            response = self.client.post(
-                config_url,
-                {
-                    "from_email": "foo@bar.com",
-                    "smtp_host": "smtp.example.com",
-                    "smtp_username": "support@example.com",
-                    "smtp_password": "secret",
-                    "smtp_port": "465",
-                    "disconnect": "false",
-                },
-                follow=True,
-            )
-            self.assertEqual(
-                '[{"message": "Failed to send email with STMP server configuration with error \'SMTP Error\'", "code": ""}]',
-                response.context["form"].errors["__all__"].as_json(),
-            )
-            self.assertEqual(len(mail.outbox), 0)
-
-            mock_send_smtp_email.side_effect = Exception("Unexpected Error")
-            response = self.client.post(
-                config_url,
-                {
-                    "from_email": "foo@bar.com",
-                    "smtp_host": "smtp.example.com",
-                    "smtp_username": "support@example.com",
-                    "smtp_password": "secret",
-                    "smtp_port": "465",
-                    "disconnect": "false",
-                },
-                follow=True,
-            )
-            self.assertEqual(
-                '[{"message": "Failed to send email with STMP server configuration", "code": ""}]',
-                response.context["form"].errors["__all__"].as_json(),
-            )
-            self.assertEqual(len(mail.outbox), 0)
-
-        response = self.client.post(
-            config_url,
-            {
-                "from_email": "foo@bar.com",
-                "smtp_host": "smtp.example.com",
-                "smtp_username": "support@example.com",
-                "smtp_password": "secret",
-                "smtp_port": "465",
-                "disconnect": "false",
-            },
-            follow=True,
-        )
-        self.assertEqual(len(mail.outbox), 1)
-
-        self.org.refresh_from_db()
-        self.assertTrue(self.org.has_smtp_config())
-
-        self.assertEqual(
-            self.org.config["smtp_server"],
-            "smtp://support%40example.com:secret@smtp.example.com:465/?from=foo%40bar.com&tls=true",
-        )
-
-        response = self.client.get(config_url)
-        self.assertEqual("no-reply@temba.io", response.context["from_email_default"])
-        self.assertEqual("foo@bar.com", response.context["from_email_custom"])
-
-        self.client.post(
-            config_url,
-            {
-                "from_email": "support@example.com",
-                "smtp_host": "smtp.example.com",
-                "smtp_username": "support@example.com",
-                "smtp_password": "secret",
-                "smtp_port": "465",
-                "name": "DO NOT CHANGE ME",
-                "disconnect": "false",
-            },
-            follow=True,
-        )
-
-        # name shouldn't change
-        self.org.refresh_from_db()
-        self.assertEqual(self.org.name, "Nyaruka")
-        self.assertTrue(self.org.has_smtp_config())
-
-        self.client.post(
-            config_url,
-            {
-                "from_email": "support@example.com",
-                "smtp_host": "smtp.example.com",
-                "smtp_username": "support@example.com",
-                "smtp_password": "",
-                "smtp_port": "465",
-                "disconnect": "false",
-            },
-            follow=True,
-        )
-
-        # password shouldn't change
-        self.org.refresh_from_db()
-        self.assertTrue(self.org.has_smtp_config())
-        self.assertEqual(
-            self.org.config["smtp_server"],
-            "smtp://support%40example.com:secret@smtp.example.com:465/?from=support%40example.com&tls=true",
-        )
-
-        response = self.client.post(
-            config_url,
-            {
-                "from_email": "support@example.com",
-                "smtp_host": "smtp.example.com",
-                "smtp_username": "help@example.com",
-                "smtp_password": "",
-                "smtp_port": "465",
-                "disconnect": "false",
-            },
-            follow=True,
-        )
-
-        # should have error for blank password
-        self.assertEqual(
-            '[{"message": "You must enter the SMTP password", "code": ""}]',
-            response.context["form"].errors["__all__"].as_json(),
-        )
-
-        self.client.post(config_url, dict(disconnect="true"), follow=True)
-
-        self.org.refresh_from_db()
-        self.assertFalse(self.org.has_smtp_config())
-
-        response = self.client.post(
-            config_url,
-            {
-                "from_email": " support@example.com",
-                "smtp_host": " smtp.example.com",
-                "smtp_username": "support@example.com",
-                "smtp_password": "secret ",
-                "smtp_port": "465 ",
-                "disconnect": "false",
-            },
-            follow=True,
-        )
-
-        self.org.refresh_from_db()
-        self.assertTrue(self.org.has_smtp_config())
-
-        self.assertEqual(
-            self.org.config["smtp_server"],
-            "smtp://support%40example.com:secret@smtp.example.com:465/?from=support%40example.com&tls=true",
-        )
-
-        response = self.client.post(
-            config_url,
-            {
-                "from_email": "support@example.com",
-                "smtp_host": "smtp.example.com",
-                "smtp_username": "support@example.com",
-                "smtp_password": "secre/t",
-                "smtp_port": 465,
-                "disconnect": "false",
-            },
-            follow=True,
-        )
-
-        self.org.refresh_from_db()
-        self.assertTrue(self.org.has_smtp_config())
-
-        self.assertEqual(
-            self.org.config["smtp_server"],
-            "smtp://support%40example.com:secre%2Ft@smtp.example.com:465/?from=support%40example.com&tls=true",
-        )
-
-        response = self.client.get(config_url)
-        self.assertDictEqual(
-            response.context["view"].derive_initial(),
-            {
-                "from_email": "support@example.com",
-                "smtp_host": "smtp.example.com",
-                "smtp_username": "support@example.com",
-                "smtp_password": "secre/t",
-                "smtp_port": 465,
-                "disconnect": "false",
-            },
-        )
-
     def test_org_get_limit(self):
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 250)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
@@ -2456,6 +2192,150 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # should have an extra menu options for workspaces and users
         self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 8)
+
+    @override_settings(SEND_EMAILS=True)
+    def test_smtp_server(self):
+        self.login(self.admin)
+
+        settings_url = reverse("orgs.org_workspace")
+        config_url = reverse("orgs.org_smtp_server")
+
+        # orgs without SMTP settings see default from address
+        response = self.client.get(settings_url)
+        self.assertContains(response, "Emails sent from flows will be sent from <b>no-reply@temba.io</b>.")
+        self.assertEqual("no-reply@temba.io", response.context["from_email_default"])  # from settings
+        self.assertEqual(None, response.context["from_email_custom"])
+
+        # make org a child to a parent that alsos doesn't have SMTP settings
+        self.org.parent = self.org2
+        self.org.save(update_fields=("parent",))
+
+        response = self.client.get(config_url)
+        self.assertEqual("no-reply@temba.io", response.context["from_email_default"])
+        self.assertIsNone(response.context["from_email_custom"])
+
+        # give parent custom SMTP settings
+        self.org2.flow_smtp = "smtp://bob%40acme.com:secret@example.com/?from=bob%40acme.com&tls=true"
+        self.org2.save(update_fields=("flow_smtp",))
+
+        response = self.client.get(config_url)
+        self.assertEqual("bob@acme.com", response.context["from_email_default"])
+        self.assertIsNone(response.context["from_email_custom"])
+
+        # try submitting without any data
+        response = self.client.post(config_url, {})
+        self.assertFormError(response, "form", "from_email", "This field is required.")
+        self.assertFormError(response, "form", "smtp_host", "This field is required.")
+        self.assertFormError(response, "form", "smtp_username", "This field is required.")
+        self.assertFormError(response, "form", "smtp_password", "This field is required.")
+        self.assertFormError(response, "form", "smtp_port", "This field is required.")
+        self.assertEqual(len(mail.outbox), 0)
+
+        # try submitting an invalid from address
+        response = self.client.post(config_url, {"from_email": "foobar.com", "disconnect": "false"})
+        self.assertFormError(response, "form", "from_email", "Please enter a valid email address.")
+        self.assertEqual(len(mail.outbox), 0)
+
+        # mock email sending so test send fails
+        with patch("temba.orgs.views.send_custom_smtp_email") as mock_send:
+            mock_send.side_effect = smtplib.SMTPException("boom")
+
+            response = self.client.post(
+                config_url,
+                {
+                    "from_email": "foo@bar.com",
+                    "smtp_host": "smtp.example.com",
+                    "smtp_username": "support@example.com",
+                    "smtp_password": "secret",
+                    "smtp_port": "465",
+                    "disconnect": "false",
+                },
+            )
+            self.assertFormError(
+                response, "form", None, "Failed to send email with STMP server configuration with error 'boom'"
+            )
+            self.assertEqual(len(mail.outbox), 0)
+
+            mock_send.side_effect = Exception("Unexpected Error")
+            response = self.client.post(
+                config_url,
+                {
+                    "from_email": "foo@bar.com",
+                    "smtp_host": "smtp.example.com",
+                    "smtp_username": "support@example.com",
+                    "smtp_password": "secret",
+                    "smtp_port": "465",
+                    "disconnect": "false",
+                },
+                follow=True,
+            )
+            self.assertFormError(response, "form", None, "Failed to send email with STMP server configuration")
+            self.assertEqual(len(mail.outbox), 0)
+
+        # submit with valid fields
+        self.client.post(
+            config_url,
+            {
+                "from_email": "  foo@bar.com  ",  # check trimming
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "support@example.com",
+                "smtp_password": " secret ",
+                "smtp_port": "465",
+                "disconnect": "false",
+            },
+        )
+        self.assertEqual(len(mail.outbox), 1)
+
+        self.org.refresh_from_db()
+        self.assertEqual(
+            r"smtp://support%40example.com:secret@smtp.example.com:465/?from=foo%40bar.com&tls=true", self.org.flow_smtp
+        )
+
+        response = self.client.get(config_url)
+        self.assertEqual("bob@acme.com", response.context["from_email_default"])
+        self.assertEqual("foo@bar.com", response.context["from_email_custom"])
+
+        # password can be omitted when editing
+        self.client.post(
+            config_url,
+            {
+                "from_email": "support@example.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "support@example.com",
+                "smtp_password": "",
+                "smtp_port": "465",
+                "disconnect": "false",
+            },
+            follow=True,
+        )
+
+        # password shouldn't change
+        self.org.refresh_from_db()
+        self.assertEqual(
+            r"smtp://support%40example.com:secret@smtp.example.com:465/?from=support%40example.com&tls=true",
+            self.org.flow_smtp,
+        )
+
+        # unless username is changing
+        response = self.client.post(
+            config_url,
+            {
+                "from_email": "support@example.com",
+                "smtp_host": "smtp.example.com",
+                "smtp_username": "help@example.com",
+                "smtp_password": "",
+                "smtp_port": "465",
+                "disconnect": "false",
+            },
+            follow=True,
+        )
+        self.assertFormError(response, "form", "smtp_password", "This field is required.")
+
+        # submit with disconnect flag
+        self.client.post(config_url, {"disconnect": "true"})
+
+        self.org.refresh_from_db()
+        self.assertIsNone(self.org.flow_smtp)
 
     def test_join(self):
         # if invitation secret is invalid, redirect to root
@@ -4676,3 +4556,20 @@ class ExportCRUDLTest(TembaTest):
         self.assertEqual(
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", response.headers["content-type"]
         )
+
+
+class BackfillFlowSMTPTest(MigrationTest):
+    app = "orgs"
+    migrate_from = "0137_org_flow_smtp"
+    migrate_to = "0138_backfill_flow_smtp"
+
+    def setUpBeforeMigration(self, apps):
+        self.org.config["smtp_server"] = "smtp://foo:bar"
+        self.org.save()
+
+    def test_migration(self):
+        self.org.refresh_from_db()
+        self.org2.refresh_from_db()
+
+        self.assertEqual("smtp://foo:bar", self.org.flow_smtp)
+        self.assertIsNone(self.org2.flow_smtp)
