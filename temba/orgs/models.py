@@ -1302,8 +1302,10 @@ class Org(SmartModel):
         delete_in_batches(self.exportmessagestasks.all())
         delete_in_batches(self.exportflowresultstasks.all())
         delete_in_batches(self.exportticketstasks.all())
-        delete_in_batches(self.exports.all())
         delete_in_batches(self.flow_labels.all())
+
+        for exp in self.exports.all():
+            exp.delete()
 
         for imp in self.contact_imports.all():
             imp.delete()
@@ -1457,12 +1459,12 @@ class OrgImport(SmartModel):
     file = models.FileField(upload_to=get_import_upload_path)
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
 
-    def start_async(self):
-        from .tasks import start_org_import_task
-
-        on_transaction_commit(lambda: start_org_import_task.delay(self.id))
-
     def start(self):
+        from .tasks import perform_import
+
+        on_transaction_commit(lambda: perform_import.delay(self.id))
+
+    def perform(self):
         assert self.status == self.STATUS_PENDING, "trying to start an already started import"
 
         # mark us as processing to prevent double starting
@@ -1789,3 +1791,11 @@ class Export(TembaUUIDMixin, models.Model):
 
     def get_notification_scope(self) -> str:
         return f"{self.notification_export_type}:{self.id}"
+
+    def delete(self):
+        self.notifications.all().delete()
+
+        if self.path:
+            default_storage.delete(self.path)
+
+        super().delete()

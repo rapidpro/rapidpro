@@ -784,9 +784,11 @@ CELERY_BEAT_SCHEDULE = {
     "track-org-channel-counts": {"task": "track_org_channel_counts", "schedule": crontab(hour=4, minute=0)},
     "trim-channel-logs": {"task": "trim_channel_logs", "schedule": crontab(hour=3, minute=0)},
     "trim-event-fires": {"task": "trim_event_fires", "schedule": timedelta(seconds=900)},
+    "trim-exports": {"task": "trim_exports", "schedule": crontab(hour=2, minute=0)},
     "trim-flow-revisions": {"task": "trim_flow_revisions", "schedule": crontab(hour=0, minute=0)},
     "trim-flow-sessions": {"task": "trim_flow_sessions", "schedule": crontab(hour=0, minute=0)},
     "trim-http-logs": {"task": "trim_http_logs", "schedule": crontab(hour=2, minute=0)},
+    "trim-notifications": {"task": "trim_notifications", "schedule": crontab(hour=2, minute=0)},
     "trim-sync-events": {"task": "trim_sync_events", "schedule": crontab(hour=3, minute=0)},
     "trim-webhook-events": {"task": "trim_webhook_events", "schedule": crontab(hour=3, minute=0)},
 }
@@ -951,9 +953,11 @@ ORG_LIMIT_DEFAULTS = {
 
 RETENTION_PERIODS = {
     "channellog": timedelta(days=14),
+    "export": timedelta(days=90),
     "eventfire": timedelta(days=90),  # matches default rp-archiver behavior
     "flowsession": timedelta(days=7),
     "httplog": timedelta(days=3),
+    "notification": timedelta(days=30),
     "syncevent": timedelta(days=7),
     "webhookevent": timedelta(hours=48),
 }

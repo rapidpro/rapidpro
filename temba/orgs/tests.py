@@ -10,6 +10,7 @@ from smartmin.users.models import FailedLogin, RecoveryToken
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core import mail
+from django.core.files.storage import default_storage
 from django.db.models import Model
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -51,7 +52,7 @@ from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .context_processors import RolePermsWrapper
 from .models import BackupToken, Export, Invitation, Org, OrgImport, OrgMembership, OrgRole, User
-from .tasks import delete_released_orgs, restart_stalled_exports, send_user_verification_email
+from .tasks import delete_released_orgs, restart_stalled_exports, send_user_verification_email, trim_exports
 
 
 class OrgRoleTest(TembaTest):
@@ -4512,6 +4513,33 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
+
+
+class ExportTest(TembaTest):
+    def test_trim_task(self):
+        export1 = TicketExport.create(
+            self.org, self.admin, start_date=date.today() - timedelta(days=7), end_date=date.today(), with_fields=()
+        )
+        export2 = TicketExport.create(
+            self.org, self.admin, start_date=date.today() - timedelta(days=7), end_date=date.today(), with_fields=()
+        )
+        export1.perform()
+        export2.perform()
+
+        self.assertTrue(default_storage.exists(export1.path))
+        self.assertTrue(default_storage.exists(export2.path))
+
+        # make export 1 look old
+        export1.created_on = timezone.now() - timedelta(days=100)
+        export1.save(update_fields=("created_on",))
+
+        trim_exports()
+
+        self.assertFalse(Export.objects.filter(id=export1.id).exists())
+        self.assertTrue(Export.objects.filter(id=export2.id).exists())
+
+        self.assertFalse(default_storage.exists(export1.path))
+        self.assertTrue(default_storage.exists(export2.path))
 
 
 class ExportCRUDLTest(TembaTest):
