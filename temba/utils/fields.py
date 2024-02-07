@@ -15,18 +15,6 @@ from django.utils.translation import gettext_lazy as _
 
 
 @deconstructible
-class UploadToPathAndRename(object):
-    def __init__(self, path):
-        self.sub_path = path
-
-    def __call__(self, instance, filename):
-        ext = filename.split(".")[-1]
-        filename = "{}.{}".format(uuid4().hex, ext)
-        # Use a relative path
-        return "{}/{}".format(self.sub_path, filename)
-
-
-@deconstructible
 class UploadToIdPathAndRename(object):
     def __init__(self, path):
         self.sub_path = path

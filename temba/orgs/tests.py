@@ -52,6 +52,7 @@ from temba.utils.views import TEMBA_MENU_SELECTION
 from .context_processors import RolePermsWrapper
 from .models import BackupToken, Invitation, Org, OrgImport, OrgMembership, OrgRole, User
 from .tasks import delete_released_orgs, resume_failed_tasks, send_user_verification_email
+import io
 
 
 class OrgRoleTest(TembaTest):
@@ -3794,6 +3795,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             edit_url,
             {
+                "avatar": self.getMockImageUpload(),
                 "language": "pt-br",
                 "first_name": "Admin",
                 "last_name": "User",
@@ -3801,11 +3803,13 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
                 "current_password": "",
             },
         )
+
         self.assertEqual(302, response.status_code)
 
         self.admin.refresh_from_db()
         self.assertEqual("Admin User", self.admin.name)
         self.assertTrue("V", self.admin.settings.email_status)  # unchanged
+        self.assertIsNotNone(self.admin.settings.avatar)
 
         del self.admin.settings  # clear cached_property
         self.assertEqual("pt-br", self.admin.settings.language)

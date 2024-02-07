@@ -2,6 +2,7 @@ import copy
 import shutil
 from datetime import datetime
 from functools import wraps
+from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
@@ -17,6 +18,8 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import override_settings
 from django.utils import timezone
+
+from PIL import Image, ImageDraw
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
@@ -849,6 +852,17 @@ class TembaTest(SmartminTest):
 
     def mockReadOnly(self, assert_models: set = None):
         return MockReadOnly(self, assert_models=assert_models)
+
+    def getMockImageUpload(self, filename="test.png", width=100, height=100, type="png"):
+
+        f = BytesIO()
+        image = Image.new("RGB", (width, height), color="white")
+        draw = ImageDraw.Draw(image)
+        draw.text((10, 10), filename, fill="black")
+        image.save(f, type)
+        f.seek(0)
+
+        return SimpleUploadedFile(filename, content=f.read(), content_type="image/png")
 
 
 class AnonymousOrg:
