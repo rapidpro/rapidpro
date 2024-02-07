@@ -497,7 +497,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     "ticket": {
                         "uuid": str(joes_open_tickets[1].uuid),
                         "assignee": {
-                            "avatar": None,
                             "id": self.admin.id,
                             "first_name": "Andy",
                             "last_name": "",

@@ -1728,7 +1728,7 @@ class UserReadSerializer(ReadSerializer):
 
     def get_avatar(self, obj):
         settings = obj.settings
-        return settings.avatar.url if settings.avatar else None
+        return settings.avatar.url if settings and settings.avatar else None
 
     def get_role(self, obj):
         role = self.context["user_roles"][obj]
