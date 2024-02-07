@@ -3423,7 +3423,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
 
 class TemplatesEndpoint(ListAPIMixin, BaseEndpoint):
     """
-    Undocumented endpoint to fetch WhatsApp templates with their translations.
+    TODO deprecated, migrate editor to api/internal/templates.json
     """
 
     model = Template
