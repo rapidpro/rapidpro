@@ -1,6 +1,10 @@
 import logging
 
+from django.conf import settings
+from django.utils import timezone
+
 from temba.utils.crons import cron_task
+from temba.utils.models import delete_in_batches
 
 from .models import Notification, NotificationCount
 
@@ -31,3 +35,12 @@ def send_notification_emails():
 @cron_task(lock_timeout=1800)
 def squash_notification_counts():
     NotificationCount.squash()
+
+
+@cron_task()
+def trim_notifications():
+    trim_before = timezone.now() - settings.RETENTION_PERIODS["notification"]
+
+    num_deleted = delete_in_batches(Notification.objects.filter(created_on__lt=trim_before))
+
+    return {"deleted": num_deleted}

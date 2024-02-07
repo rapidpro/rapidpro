@@ -3,6 +3,7 @@ from datetime import timedelta
 
 from celery import shared_task
 
+from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -19,9 +20,8 @@ from .models import Export, Invitation, Org, OrgImport, User, UserSettings
 
 
 @shared_task
-def start_org_import_task(import_id):
-    org_import = OrgImport.objects.get(id=import_id)
-    org_import.start()
+def perform_import(import_id):
+    OrgImport.objects.get(id=import_id).perform()
 
 
 @shared_task
@@ -73,6 +73,18 @@ def normalize_contact_tels_task(org_id):
             urn.ensure_number_normalization(org.default_country_code)
 
 
+@cron_task()
+def trim_exports():
+    trim_before = timezone.now() - settings.RETENTION_PERIODS["export"]
+
+    num_deleted = 0
+    for export in Export.objects.filter(created_on__lt=trim_before):
+        export.delete()
+        num_deleted += 1
+
+    return {"deleted": num_deleted}
+
+
 @cron_task(lock_timeout=7200)
 def restart_stalled_exports():
     now = timezone.now()
@@ -82,7 +94,7 @@ def restart_stalled_exports():
         status__in=[Export.STATUS_COMPLETE, Export.STATUS_FAILED]
     )
     for export in exports:
-        perform_export.delay(export.pk)
+        perform_export.delay(export.id)
 
     flow_results_exports = ExportFlowResultsTask.objects.filter(modified_on__lte=window).exclude(
         status__in=[ExportFlowResultsTask.STATUS_COMPLETE, ExportFlowResultsTask.STATUS_FAILED]

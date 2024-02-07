@@ -14,7 +14,7 @@ from temba.tickets.models import TicketExport
 
 from .incidents.builtin import OrgFlaggedIncidentType
 from .models import Incident, Notification
-from .tasks import send_notification_emails, squash_notification_counts
+from .tasks import send_notification_emails, squash_notification_counts, trim_notifications
 from .types.builtin import ExportFinishedNotificationType
 
 
@@ -448,6 +448,25 @@ class NotificationTest(TembaTest):
         self.assertEqual(0, Notification.get_unseen_count(self.org, self.editor))
         self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
         self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
+
+    def test_trim_task(self):
+        self.org.suspend()
+        self.org.unsuspend()
+
+        notification1 = self.admin.notifications.order_by("id").last()
+
+        self.org.suspend()
+        self.org.unsuspend()
+
+        notification2 = self.admin.notifications.order_by("id").last()
+
+        notification1.created_on = timezone.now() - timedelta(days=33)
+        notification1.save(update_fields=("created_on",))
+
+        trim_notifications()
+
+        self.assertFalse(Notification.objects.filter(id=notification1.id).exists())
+        self.assertTrue(Notification.objects.filter(id=notification2.id).exists())
 
 
 class MarkOldAsSeenTest(MigrationTest):

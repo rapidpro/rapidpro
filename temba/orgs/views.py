@@ -3101,7 +3101,7 @@ class OrgImportCRUDL(SmartCRUDL):
             return obj
 
         def post_save(self, obj):
-            obj.start_async()
+            obj.start()
             return obj
 
     class Read(SpaMixin, OrgPermsMixin, SmartReadView):
