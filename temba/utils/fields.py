@@ -4,6 +4,7 @@ import socket
 from copy import deepcopy
 from datetime import datetime
 from urllib.parse import urlparse
+from uuid import uuid4
 
 from django import forms
 from django.core.validators import URLValidator
@@ -11,6 +12,18 @@ from django.forms import ValidationError
 from django.utils.dateparse import parse_datetime
 from django.utils.deconstruct import deconstructible
 from django.utils.translation import gettext_lazy as _
+
+
+@deconstructible
+class UploadToIdPathAndRename(object):
+    def __init__(self, path):
+        self.sub_path = path
+
+    def __call__(self, instance, filename):
+        ext = filename.split(".")[-1]
+        filename = "{}.{}".format(uuid4().hex, ext)
+        # Use a relative path
+        return "{}/{}/{}".format(self.sub_path, instance.id, filename)
 
 
 class JSONField(forms.Field):
@@ -49,20 +62,7 @@ class TembaDateTimeField(forms.DateTimeField):
         return None
 
 
-class ColorPickerWidget(forms.TextInput):  # pragma: needs cover
-    template_name = "utils/forms/color_picker.html"
-    is_annotated = True
-
-    def get_context(self, name, value, attrs):
-        context = super().get_context(name, value, attrs)
-        context["widget"]["type"] = self.input_type
-        if attrs.get("hide_label", False) and context.get("label", None):
-            del context["label"]
-        return context
-
-
-class InputWidget(forms.TextInput):
-    template_name = "utils/forms/input.html"
+class TembaWidgetMixin:
     is_annotated = True
 
     def get_context(self, name, value, attrs):
@@ -72,6 +72,19 @@ class InputWidget(forms.TextInput):
         if attrs.get("hide_label", False) and context.get("label", None):  # pragma: needs cover
             del context["label"]
         return context
+
+
+class ColorPickerWidget(TembaWidgetMixin, forms.TextInput):  # pragma: needs cover
+    template_name = "utils/forms/color_picker.html"
+
+
+class ImagePickerWidget(TembaWidgetMixin, forms.ClearableFileInput):
+    template_name = "utils/forms/image_picker.html"
+
+
+class InputWidget(TembaWidgetMixin, forms.TextInput):
+    template_name = "utils/forms/input.html"
+    is_annotated = True
 
 
 @deconstructible

@@ -70,13 +70,14 @@
     react "^16.8.6"
     react-dom "^16.8.6"
 
-"@nyaruka/temba-components@0.67.4":
-  version "0.67.4"
-  resolved "https://registry.yarnpkg.com/@nyaruka/temba-components/-/temba-components-0.67.4.tgz#279d67690eb610ca57f7d93b663c6d3a0e81f02d"
-  integrity sha512-Wv9JvbLQjF4w9BaJ7SmI0bibgPNmkCbjVemEdEUH74y0+mntGqJQwhnKcgm0KBVwsHq4M+g92f4QghMS712NxA==
+"@nyaruka/temba-components@0.70.0":
+  version "0.70.0"
+  resolved "https://registry.yarnpkg.com/@nyaruka/temba-components/-/temba-components-0.70.0.tgz#a49b75b49dd492e9973e2f0fe6e690bc82051b0b"
+  integrity sha512-W+ZsZRZUtiebWAyj6mKfBQam53gel4OCFL2lXlC7P65Cv74SvfBVkn5u0j82Ua03TxQCiBiSsCLuqlfIE1ca/A==
   dependencies:
     "@lit/localize" "^0.11.4"
     color-hash "^2.0.2"
+    croppie "^2.6.5"
     geojson "^0.5.0"
     highlight.js "^10.7.1"
     image-size "^0.9.7"
@@ -312,6 +313,11 @@ cosmiconfig@^7.0.0:
     parse-json "^5.0.0"
     path-type "^4.0.0"
     yaml "^1.10.0"
+
+croppie@^2.6.5:
+  version "2.6.5"
+  resolved "https://registry.yarnpkg.com/croppie/-/croppie-2.6.5.tgz#67d76855b2983bdcd8aa348367398b2b8ef277cf"
+  integrity sha512-IlChnVUGG5T3w2gRZIaQgBtlvyuYnlUWs2YZIXXR3H9KrlO1PtBT3j+ykxvy9eZIWhk+V5SpBmhCQz5UXKrEKQ==
 
 css-unit-converter@^1.1.1:
   version "1.1.2"

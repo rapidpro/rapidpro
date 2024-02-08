@@ -302,12 +302,7 @@ def _base_msg(obj) -> dict:
 
 
 def _user(user: User) -> dict:
-    return {
-        "id": user.id,
-        "first_name": user.first_name,
-        "last_name": user.last_name,
-        "email": user.email,
-    }
+    return {"id": user.id, "first_name": user.first_name, "last_name": user.last_name, "email": user.email}
 
 
 def _channel(channel: Channel) -> dict:

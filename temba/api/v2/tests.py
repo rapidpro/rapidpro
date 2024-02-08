@@ -5426,11 +5426,17 @@ class EndpointsTest(APITest):
         self.surveyor.last_name = "McSurveys"
         self.surveyor.save()
 
+        # create all of our usersettings so we don't measure creation queries
+        users = self.org.get_users()
+        for user in users:
+            user.settings
+
         self.assertGet(
             endpoint_url,
             [self.agent, self.user, self.editor, self.admin],
             results=[
                 {
+                    "avatar": None,
                     "email": "surveyor@nyaruka.com",
                     "first_name": "Stu",
                     "last_name": "McSurveys",
@@ -5438,6 +5444,7 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(self.surveyor.date_joined),
                 },
                 {
+                    "avatar": None,
                     "email": "agent@nyaruka.com",
                     "first_name": "Agnes",
                     "last_name": "",
@@ -5445,6 +5452,7 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(self.agent.date_joined),
                 },
                 {
+                    "avatar": None,
                     "email": "viewer@nyaruka.com",
                     "first_name": "",
                     "last_name": "",
@@ -5452,6 +5460,7 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(self.user.date_joined),
                 },
                 {
+                    "avatar": None,
                     "email": "editor@nyaruka.com",
                     "first_name": "Ed",
                     "last_name": "McEdits",
@@ -5459,6 +5468,7 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(self.editor.date_joined),
                 },
                 {
+                    "avatar": None,
                     "email": "admin@nyaruka.com",
                     "first_name": "Andy",
                     "last_name": "",
@@ -5466,7 +5476,8 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(self.admin.date_joined),
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 2,
+            # one query per user for their settings
+            num_queries=NUM_BASE_REQUEST_QUERIES + 2 + len(users),
         )
 
         # filter by roles

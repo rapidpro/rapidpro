@@ -3670,6 +3670,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(
             edit_url,
             {
+                "avatar": self.getMockImageUpload(),
                 "language": "pt-br",
                 "first_name": "Admin",
                 "last_name": "User",
@@ -3677,11 +3678,13 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
                 "current_password": "",
             },
         )
+
         self.assertEqual(302, response.status_code)
 
         self.admin.refresh_from_db()
         self.assertEqual("Admin User", self.admin.name)
         self.assertTrue("V", self.admin.settings.email_status)  # unchanged
+        self.assertIsNotNone(self.admin.settings.avatar)
 
         del self.admin.settings  # clear cached_property
         self.assertEqual("pt-br", self.admin.settings.language)

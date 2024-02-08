@@ -1722,8 +1722,13 @@ class UserReadSerializer(ReadSerializer):
         OrgRole.SURVEYOR: "surveyor",
     }
 
+    avatar = serializers.SerializerMethodField()
     role = serializers.SerializerMethodField()
     created_on = serializers.DateTimeField(default_timezone=tzone.utc, source="date_joined")
+
+    def get_avatar(self, obj):
+        settings = obj.settings
+        return settings.avatar.url if settings and settings.avatar else None
 
     def get_role(self, obj):
         role = self.context["user_roles"][obj]
@@ -1731,7 +1736,7 @@ class UserReadSerializer(ReadSerializer):
 
     class Meta:
         model = User
-        fields = ("email", "first_name", "last_name", "role", "created_on")
+        fields = ("email", "first_name", "last_name", "role", "created_on", "avatar")
 
 
 class WorkspaceReadSerializer(ReadSerializer):

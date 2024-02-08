@@ -1,0 +1,4 @@
+<temba-image-picker name="{{ widget.name }}"
+                    {% if widget.value != None %}url="{{ widget.value.url|stringformat:'s' }}"{% endif %}
+                    {% include "django/forms/widgets/attrs.html" %}>
+</temba-image-picker>
