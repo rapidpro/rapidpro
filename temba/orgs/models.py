@@ -355,7 +355,7 @@ class UserSettings(models.Model):
         (STATUS_FAILING, _("Failing")),
     )
 
-    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="usersettings")
+    user = models.OneToOneField(User, on_delete=models.PROTECT, related_name="usersettings")
     language = models.CharField(max_length=8, choices=settings.LANGUAGES, default=settings.DEFAULT_LANGUAGE)
     team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
     otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
