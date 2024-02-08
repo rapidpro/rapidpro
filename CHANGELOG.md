@@ -1,3 +1,11 @@
+v9.1.20 (2024-02-08)
+-------------------------
+ * Use orgs.Export for messages exports
+ * Simplify sending template emails
+ * Add new endpoint to internal API for templates
+ * Trim old export and notifications
+ * Add support for user avatars
+
 v9.1.19 (2024-02-07)
 -------------------------
  * Save transformed components for WA templates
