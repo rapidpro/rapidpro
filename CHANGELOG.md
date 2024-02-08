@@ -1,3 +1,7 @@
+v9.1.21 (2024-02-08)
+-------------------------
+ * Make user settings one to one
+
 v9.1.20 (2024-02-08)
 -------------------------
  * Use orgs.Export for messages exports
