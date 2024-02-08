@@ -8,6 +8,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from django_redis import get_redis_connection
+from PIL import Image, ImageDraw
 from smartmin.tests import SmartminTest
 
 from django.conf import settings
@@ -18,8 +19,6 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import override_settings
 from django.utils import timezone
-
-from PIL import Image, ImageDraw
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
@@ -854,7 +853,6 @@ class TembaTest(SmartminTest):
         return MockReadOnly(self, assert_models=assert_models)
 
     def getMockImageUpload(self, filename="test.png", width=100, height=100, type="png"):
-
         f = BytesIO()
         image = Image.new("RGB", (width, height), color="white")
         draw = ImageDraw.Draw(image)
