@@ -1,0 +1,5 @@
+{% load tz i18n %}
+
+{% blocktrans trimmed %}
+This email is a test to confirm the custom SMTP server configuration added to your account.
+{% endblocktrans %}
