@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from temba.contacts.models import ContactExport, ContactImport
 from temba.flows.models import ExportFlowResultsTask
-from temba.msgs.models import ExportMessagesTask
+from temba.msgs.models import MessageExport
 from temba.orgs.models import OrgRole
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers
 from temba.tickets.models import TicketExport
@@ -186,14 +186,14 @@ class NotificationTest(TembaTest):
         self.assertTrue(self.editor.notifications.get(export=export).is_seen)
 
     def test_message_export_finished(self):
-        export = ExportMessagesTask.create(
+        export = MessageExport.create(
             self.org, self.editor, start_date=date.today(), end_date=date.today(), system_label="I"
         )
         export.perform()
 
         ExportFinishedNotificationType.create(export)
 
-        self.assertFalse(self.editor.notifications.get(message_export=export).is_seen)
+        self.assertFalse(self.editor.notifications.get(export=export).is_seen)
 
         # we only notify the user that started the export
         self.assert_notifications(
@@ -201,7 +201,7 @@ class NotificationTest(TembaTest):
             expected_json={
                 "type": "export:finished",
                 "created_on": matchers.ISODate(),
-                "target_url": f"/assets/download/message_export/{export.id}/",
+                "target_url": f"/export/download/{export.uuid}/",
                 "is_seen": False,
                 "export": {"type": "message", "num_records": 0},
             },

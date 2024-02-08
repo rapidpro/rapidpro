@@ -1,0 +1,15 @@
+{% extends "orgs/export_download.html" %}
+{% load i18n %}
+
+{% block "extra-fields" %}
+    <tr>
+        <th>{% trans "Label" %}</th>
+        <td>
+            {% if label %}
+                <a href="{% url "msgs.msg_filter" label.uuid %}">{{ label.name }}</a>
+            {% else %}
+                --
+            {% endif %}
+        </td>
+    </tr>
+{% endblock "extra-fields" %}

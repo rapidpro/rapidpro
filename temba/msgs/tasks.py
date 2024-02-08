@@ -3,16 +3,15 @@ from datetime import timedelta
 
 from celery import shared_task
 
-from django.db.models import Prefetch
 from django.utils import timezone
 
-from temba.contacts.models import Contact, ContactField, ContactGroup
+from temba.contacts.models import Contact
 from temba.flows.models import FlowRun
 from temba.orgs.models import Org, User
 from temba.utils import analytics
 from temba.utils.crons import cron_task
 
-from .models import Broadcast, BroadcastMsgCount, ExportMessagesTask, LabelCount, Media, Msg, SystemLabelCount
+from .models import Broadcast, BroadcastMsgCount, LabelCount, Media, Msg, SystemLabelCount
 
 logger = logging.getLogger(__name__)
 
@@ -53,17 +52,6 @@ def fail_old_messages():
     num_failed = too_old.update(status=Msg.STATUS_FAILED, failed_reason=Msg.FAILED_TOO_OLD, modified_on=timezone.now())
 
     return {"failed": num_failed}
-
-
-@shared_task
-def export_messages_task(export_id):
-    """
-    Export messages to a file and e-mail a link to the user
-    """
-    ExportMessagesTask.objects.select_related("org", "created_by").prefetch_related(
-        Prefetch("with_fields", ContactField.objects.order_by("name")),
-        Prefetch("with_groups", ContactGroup.objects.order_by("name")),
-    ).get(id=export_id).perform()
 
 
 @cron_task(lock_timeout=7200)

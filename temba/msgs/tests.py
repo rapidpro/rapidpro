@@ -19,16 +19,17 @@ from temba.flows.models import Flow
 from temba.msgs.models import (
     Attachment,
     Broadcast,
-    ExportMessagesTask,
     Label,
     LabelCount,
     Media,
+    MessageExport,
     Msg,
     OptIn,
     SystemLabel,
     SystemLabelCount,
 )
 from temba.msgs.views import ScheduleForm
+from temba.orgs.models import Export
 from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, TembaTest, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
@@ -526,12 +527,12 @@ class MsgTest(TembaTest, CRUDLTestMixin):
             with self.mockReadOnly():
                 response = self.client.post(export_url + query, data)
             self.assertModalResponse(response, redirect="/msg/")
-            task = ExportMessagesTask.objects.order_by("-id").first()
+            task = Export.objects.filter(export_type=MessageExport.slug).order_by("-id").first()
             filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
             return load_workbook(filename=filename)
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(34):
+        with self.assertNumQueries(30):
             with patch("temba.utils.s3.client", return_value=mock_s3):
                 workbook = request_export(
                     "?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-01"}
@@ -853,7 +854,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         msg3.save()
 
         # create a dummy export task so that we won't be able to export
-        blocking_export = ExportMessagesTask.create(
+        blocking_export = MessageExport.create(
             self.org,
             self.admin,
             start_date=date(2017, 1, 1),
@@ -884,7 +885,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
             with self.mockReadOnly(assert_models={Msg, Contact}):
                 response = self.client.post(export_url + query, data)
             self.assertModalResponse(response, redirect="/msg/")
-            task = ExportMessagesTask.objects.order_by("-id").first()
+            task = Export.objects.filter(export_type=MessageExport.slug).order_by("-id").first()
             filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
             workbook = load_workbook(filename=filename)
             return workbook.worksheets[0]
@@ -905,7 +906,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         ]
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(32):
+        with self.assertNumQueries(28):
             self.assertExcelSheet(
                 request_export("?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"}),
                 [
@@ -1027,11 +1028,11 @@ class MsgTest(TembaTest, CRUDLTestMixin):
             )
 
         # check that notifications were created
-        export = ExportMessagesTask.objects.order_by("id").last()
+        export = Export.objects.filter(export_type=MessageExport.slug).order_by("id").last()
         self.assertEqual(
             1,
             self.admin.notifications.filter(
-                notification_type="export:finished", message_export=export, email_status="P"
+                notification_type="export:finished", export=export, email_status="P"
             ).count(),
         )
 
@@ -1951,14 +1952,16 @@ def get_broadcast_form_data(
             ),
             (
                 "schedule",
-                {
-                    "send_when": send_when,
-                    "start_datetime": start_datetime,
-                    "repeat_period": repeat_period,
-                    "repeat_days_of_week": repeat_days_of_week,
-                }
-                if send_when
-                else None,
+                (
+                    {
+                        "send_when": send_when,
+                        "start_datetime": start_datetime,
+                        "repeat_period": repeat_period,
+                        "repeat_days_of_week": repeat_days_of_week,
+                    }
+                    if send_when
+                    else None
+                ),
             ),
         ]
     )
@@ -2581,7 +2584,7 @@ class LabelTest(TembaTest):
         label2.toggle_label([msg1], add=True)
         label3.toggle_label([msg3], add=True)
 
-        ExportMessagesTask.create(self.org, self.admin, start_date=date.today(), end_date=date.today(), label=label1)
+        MessageExport.create(self.org, self.admin, start_date=date.today(), end_date=date.today(), label=label1)
 
         label1.release(self.admin)
         label2.release(self.admin)

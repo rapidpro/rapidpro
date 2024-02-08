@@ -35,7 +35,7 @@ from temba.contacts.models import (
 from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowSession, FlowStart, FlowStartCount
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import ExportMessagesTask, Label, Msg
+from temba.msgs.models import Label, MessageExport, Msg
 from temba.notifications.incidents.builtin import ChannelDisconnectedIncidentType
 from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
@@ -1542,23 +1542,21 @@ class OrgTest(TembaTest):
         # default values should be the same as parent
         self.assertEqual(self.org.timezone, sub_org.timezone)
 
-    @patch("temba.msgs.tasks.export_messages_task.delay")
     @patch("temba.flows.tasks.export_flow_results_task.delay")
     @patch("temba.orgs.tasks.perform_export.delay")
-    def test_restart_stalled_exports(
-        self, mock_org_export_task, mock_export_flow_results_task, mock_export_messages_task
-    ):
+    def test_restart_stalled_exports(self, mock_org_export_task, mock_export_flow_results_task):
         mock_org_export_task.return_value = None
         mock_export_flow_results_task.return_value = None
-        mock_export_messages_task.return_value = None
 
-        ExportMessagesTask.objects.create(
-            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportMessagesTask.STATUS_FAILED
-        )
-        ExportMessagesTask.objects.create(
-            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportMessagesTask.STATUS_COMPLETE
-        )
-        ExportMessagesTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
+        message_export1 = MessageExport.create(org=self.org, user=self.admin, start_date=None, end_date=None)
+        message_export1.status = Export.STATUS_FAILED
+        message_export1.save(update_fields=("status",))
+
+        message_export2 = MessageExport.create(org=self.org, user=self.admin, start_date=None, end_date=None)
+        message_export2.status = Export.STATUS_COMPLETE
+        message_export2.save(update_fields=("status",))
+
+        MessageExport.create(org=self.org, user=self.admin, start_date=None, end_date=None)
 
         ExportFlowResultsTask.objects.create(
             org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportFlowResultsTask.STATUS_FAILED
@@ -1568,25 +1566,24 @@ class OrgTest(TembaTest):
         )
         ExportFlowResultsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
 
-        export1 = ContactExport.create(org=self.org, user=self.admin)
-        export1.status = Export.STATUS_FAILED
-        export1.save(update_fields=("status",))
-        export2 = ContactExport.create(org=self.org, user=self.admin)
-        export2.status = Export.STATUS_COMPLETE
-        export2.save(update_fields=("status",))
+        contact_export1 = ContactExport.create(org=self.org, user=self.admin)
+        contact_export1.status = Export.STATUS_FAILED
+        contact_export1.save(update_fields=("status",))
+        contact_export2 = ContactExport.create(org=self.org, user=self.admin)
+        contact_export2.status = Export.STATUS_COMPLETE
+        contact_export2.save(update_fields=("status",))
         ContactExport.create(org=self.org, user=self.admin)
 
         two_hours_ago = timezone.now() - timedelta(hours=2)
 
-        ExportMessagesTask.objects.all().update(modified_on=two_hours_ago)
         ExportFlowResultsTask.objects.all().update(modified_on=two_hours_ago)
         Export.objects.filter(export_type=ContactExport.slug).update(modified_on=two_hours_ago)
+        Export.objects.filter(export_type=MessageExport.slug).update(modified_on=two_hours_ago)
 
         restart_stalled_exports()
 
-        mock_org_export_task.assert_called_once()
+        self.assertEqual(2, mock_org_export_task.call_count)
         mock_export_flow_results_task.assert_called_once()
-        mock_export_messages_task.assert_called_once()
 
 
 class OrgDeleteTest(TembaTest):
@@ -1837,9 +1834,7 @@ class OrgDeleteTest(TembaTest):
         contacts = add(ContactExport.create(org, user, group=groups[0]))
         ExportFinishedNotificationType.create(contacts)
 
-        messages = add(
-            ExportMessagesTask.create(org, user, start_date=date.today(), end_date=date.today(), label=labels[0])
-        )
+        messages = add(MessageExport.create(org, user, start_date=date.today(), end_date=date.today(), label=labels[0]))
         ExportFinishedNotificationType.create(messages)
 
         tickets = add(
