@@ -1,3 +1,8 @@
+v9.1.22 (2024-02-08)
+-------------------------
+ * Fix croppie dependency
+ * Prefetch user settings on users endpoint
+
 v9.1.21 (2024-02-08)
 -------------------------
  * Make user settings one to one
