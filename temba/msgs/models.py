@@ -8,13 +8,11 @@ from fnmatch import fnmatch
 from urllib.parse import unquote, urlparse
 
 import iso8601
-from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.storage import default_storage
-from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Lower
@@ -26,10 +24,11 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts import search
 from temba.contacts.models import Contact, ContactGroup, ContactURN
-from temba.orgs.models import DependencyMixin, Org
+from temba.orgs.models import DependencyMixin, Export, ExportType, Org
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
+from temba.utils.export.models import MultiSheetExporter
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.uuid import uuid4
@@ -1093,81 +1092,68 @@ class MsgIterator:
         return next(self._generator)
 
 
-class ExportMessagesTask(BaseItemWithContactExport):
+class MessageExport(ExportType):
     """
-    Wrapper for handling exports of raw messages. This will export all selected messages in
-    an Excel spreadsheet, adding sheets as necessary to fall within the guidelines of Excel 97
-    (the library we depend on requires this) which has column and row size limits.
-
-    When the export is done, we store the file on the server and send an e-mail notice with a
-    link to download the results.
+    Export of messages
     """
 
-    analytics_key = "msg_export"
-    notification_export_type = "message"
-
-    label = models.ForeignKey(Label, on_delete=models.PROTECT, null=True)
-    system_label = models.CharField(null=True, max_length=1)
-
-    # TODO backfill, for now overridden from base class to make nullable
-    start_date = models.DateField(null=True)
-    end_date = models.DateField(null=True)
+    slug = "message"
+    name = _("Messages")
+    download_prefix = "messages"
+    download_template = "msgs/export_download.html"
 
     @classmethod
     def create(cls, org, user, start_date, end_date, system_label=None, label=None, with_fields=(), with_groups=()):
-        assert not (label and system_label), "can't specify both label and system label"
-
-        export = cls.objects.create(
+        export = Export.objects.create(
             org=org,
-            system_label=system_label,
-            label=label,
+            export_type=cls.slug,
             start_date=start_date,
             end_date=end_date,
+            config={
+                "system_label": system_label,
+                "label_uuid": str(label.uuid) if label else None,
+                "with_fields": [f.id for f in with_fields],
+                "with_groups": [g.id for g in with_groups],
+            },
             created_by=user,
-            modified_by=user,
         )
-        export.with_fields.add(*with_fields)
-        export.with_groups.add(*with_groups)
         return export
 
-    def _add_msgs_sheet(self, book):
-        name = "Messages (%d)" % (book.num_msgs_sheets + 1) if book.num_msgs_sheets > 0 else "Messages"
-        sheet = book.add_sheet(name, book.num_msgs_sheets)
-        book.num_msgs_sheets += 1
+    def get_folder(self, export):
+        label_uuid = export.config.get("label_uuid")
+        system_label = export.config.get("system_label")
+        if label_uuid:
+            return None, export.org.msgs_labels.filter(uuid=label_uuid).first()
+        else:
+            return system_label, None
 
-        self.append_row(sheet, book.headers)
-        return sheet
+    def write(self, export):
+        system_label, label = self.get_folder(export)
+        start_date, end_date = export.get_date_range()
 
-    def write_export(self):
-        book = XLSXBook()
-        book.num_msgs_sheets = 0
-        book.headers = (
+        # create our exporter
+        exporter = MultiSheetExporter(
+            "Messages",
             ["Date"]
-            + self._get_contact_headers()
-            + ["Flow", "Direction", "Text", "Attachments", "Status", "Channel", "Labels"]
+            + export.get_contact_headers()
+            + ["Flow", "Direction", "Text", "Attachments", "Status", "Channel", "Labels"],
+            export.org.timezone,
         )
-        book.current_msgs_sheet = self._add_msgs_sheet(book)
-
-        start_date, end_date = self._get_date_range()
         num_records = 0
+        logger.info(f"starting msgs export #{export.id} for org #{export.org.id}")
 
-        logger.info(f"starting msgs export #{self.id} for org #{self.org.id}")
-
-        for batch in self._get_msg_batches(self.system_label, self.label, start_date, end_date):
-            self._write_msgs(book, batch)
+        for batch in self._get_msg_batches(export, system_label, label, start_date, end_date):
+            self._write_msgs(export, exporter, batch)
 
             num_records += len(batch)
 
             # update modified_on so we can see if an export hangs
-            self.modified_on = timezone.now()
-            self.save(update_fields=("modified_on",))
+            export.modified_on = timezone.now()
+            export.save(update_fields=("modified_on",))
 
-        temp = NamedTemporaryFile(delete=True, suffix=".xlsx", mode="wb+")
-        book.finalize(to_file=temp)
-        temp.flush()
-        return temp, "xlsx", num_records
+        return *exporter.save_file(), num_records
 
-    def _get_msg_batches(self, system_label, label, start_date, end_date):
+    def _get_msg_batches(self, export, system_label, label, start_date, end_date):
         from temba.archives.models import Archive
         from temba.flows.models import Flow
 
@@ -1179,7 +1165,7 @@ class ExportMessagesTask(BaseItemWithContactExport):
         else:
             where = {"visibility": "visible"}
 
-        records = Archive.iter_all_records(self.org, Archive.TYPE_MSG, start_date, end_date, where=where)
+        records = Archive.iter_all_records(export.org, Archive.TYPE_MSG, start_date, end_date, where=where)
         last_created_on = None
 
         for record_batch in chunk_list(records, 1000):
@@ -1193,11 +1179,11 @@ class ExportMessagesTask(BaseItemWithContactExport):
             yield matching
 
         if system_label:
-            messages = SystemLabel.get_queryset(self.org, system_label)
+            messages = SystemLabel.get_queryset(export.org, system_label)
         elif label:
             messages = label.get_messages()
         else:
-            messages = self.org.msgs.filter(visibility=Msg.VISIBILITY_VISIBLE)
+            messages = export.org.msgs.filter(visibility=Msg.VISIBILITY_VISIBLE)
 
         messages = messages.filter(created_on__gte=start_date, created_on__lte=end_date)
 
@@ -1220,11 +1206,11 @@ class ExportMessagesTask(BaseItemWithContactExport):
             # convert this batch of msgs to same format as records in our archives
             yield [msg.as_archive_json() for msg in msg_batch]
 
-    def _write_msgs(self, book, msgs):
+    def _write_msgs(self, export, exporter, msgs):
         # get all the contacts referenced in this batch
         contact_uuids = {m["contact"]["uuid"] for m in msgs}
         contacts = (
-            Contact.objects.filter(org=self.org, uuid__in=contact_uuids)
+            Contact.objects.filter(org=export.org, uuid__in=contact_uuids)
             .select_related("org")
             .prefetch_related("groups")
             .using("readonly")
@@ -1235,13 +1221,9 @@ class ExportMessagesTask(BaseItemWithContactExport):
             contact = contacts_by_uuid.get(msg["contact"]["uuid"])
             flow = msg.get("flow")
 
-            if book.current_msgs_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
-                book.current_msgs_sheet = self._add_msgs_sheet(book)
-
-            self.append_row(
-                book.current_msgs_sheet,
+            exporter.write_row(
                 [iso8601.parse_date(msg["created_on"])]
-                + self._get_contact_columns(contact, urn=msg["urn"])
+                + export.get_contact_columns(contact, urn=msg["urn"])
                 + [
                     flow["name"] if flow else None,
                     msg["direction"].upper() if msg["direction"] else None,
@@ -1252,6 +1234,35 @@ class ExportMessagesTask(BaseItemWithContactExport):
                     ", ".join(msg_label["name"] for msg_label in msg["labels"]),
                 ],
             )
+
+    def get_download_context(self, export) -> dict:
+        system_label, label = self.get_folder(export)
+        return {"label": label} if label else {}
+
+
+class ExportMessagesTask(BaseItemWithContactExport):
+    """
+    TODO migrate to orgs.Export and drop.
+    """
+
+    """
+    Wrapper for handling exports of raw messages. This will export all selected messages in
+    an Excel spreadsheet, adding sheets as necessary to fall within the guidelines of Excel 97
+    (the library we depend on requires this) which has column and row size limits.
+
+    When the export is done, we store the file on the server and send an e-mail notice with a
+    link to download the results.
+    """
+
+    analytics_key = "msg_export"
+    notification_export_type = "message"
+
+    label = models.ForeignKey(Label, on_delete=models.PROTECT, null=True)
+    system_label = models.CharField(null=True, max_length=1)
+
+    # TODO backfill, for now overridden from base class to make nullable
+    start_date = models.DateField(null=True)
+    end_date = models.DateField(null=True)
 
 
 @register_asset_store

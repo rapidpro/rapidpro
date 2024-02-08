@@ -55,8 +55,7 @@ from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ContentMenuMixin, PostOnlyMixin, SpaMixin, StaffOnlyMixin
 from temba.utils.wizard import SmartWizardUpdateView, SmartWizardView
 
-from .models import Broadcast, ExportMessagesTask, Label, LabelCount, Media, Msg, OptIn, SystemLabel
-from .tasks import export_messages_task
+from .models import Broadcast, Label, LabelCount, Media, MessageExport, Msg, OptIn, SystemLabel
 
 
 class SystemLabelView(SpaMixin, OrgPermsMixin, SmartListView):
@@ -783,19 +782,15 @@ class MsgCRUDL(SmartCRUDL):
             system_label, label = (None, None) if export_all else self.derive_label()
 
             # is there already an export taking place?
-            existing = ExportMessagesTask.get_recent_unfinished(org)
-            if existing:
+            if MessageExport.has_recent_unfinished(org):
                 messages.info(
                     self.request,
                     _(
-                        "There is already an export in progress, started by %s. You must wait "
-                        "for that export to complete before starting another." % existing.created_by.username
+                        "There is already an export in progress. You must wait for that export to complete before starting another."
                     ),
                 )
-
-            # otherwise, off we go
             else:
-                export = ExportMessagesTask.create(
+                export = MessageExport.create(
                     org,
                     user,
                     start_date=start_date,
@@ -806,8 +801,8 @@ class MsgCRUDL(SmartCRUDL):
                     with_groups=with_groups,
                 )
 
-                on_transaction_commit(lambda: export_messages_task.delay(export.id))
-
+                # schedule the export job
+                on_transaction_commit(lambda: export.start())
                 messages.info(self.request, self.success_message)
 
             messages.success(self.request, self.derive_success_message())
