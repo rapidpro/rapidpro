@@ -424,7 +424,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         assertReleaseCount("I", Msg.STATUS_HANDLED, Msg.VISIBILITY_ARCHIVED, None, SystemLabel.TYPE_ARCHIVED)
         assertReleaseCount("I", Msg.STATUS_HANDLED, Msg.VISIBILITY_VISIBLE, flow, SystemLabel.TYPE_FLOWS)
 
-    @patch("temba.utils.email.send_email")
+    @patch("temba.utils.email.send.send_email")
     def test_message_export_from_archives(self, mock_send_email):
         export_url = reverse("msgs.msg_export")
 
@@ -781,7 +781,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
 
         self.clear_storage()
 
-    @patch("temba.utils.email.send_email")
+    @patch("temba.utils.email.send.send_email")
     def test_message_export(self, mock_send_email):
         export_url = reverse("msgs.msg_export")
 
@@ -1951,14 +1951,16 @@ def get_broadcast_form_data(
             ),
             (
                 "schedule",
-                {
-                    "send_when": send_when,
-                    "start_datetime": start_datetime,
-                    "repeat_period": repeat_period,
-                    "repeat_days_of_week": repeat_days_of_week,
-                }
-                if send_when
-                else None,
+                (
+                    {
+                        "send_when": send_when,
+                        "start_datetime": start_datetime,
+                        "repeat_period": repeat_period,
+                        "repeat_days_of_week": repeat_days_of_week,
+                    }
+                    if send_when
+                    else None
+                ),
             ),
         ]
     )

@@ -1,6 +1,7 @@
 from temba.tests import TembaTest
 
-from .email import is_valid_address, make_smtp_url, parse_smtp_url
+from .conf import make_smtp_url, parse_smtp_url
+from .validate import is_valid_address
 
 
 class EmailTest(TembaTest):

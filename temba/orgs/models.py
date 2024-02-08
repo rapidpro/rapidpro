@@ -39,7 +39,7 @@ from temba.archives.models import Archive
 from temba.locations.models import AdminBoundary
 from temba.utils import json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_str
-from temba.utils.email import send_template_email
+from temba.utils.email import EmailSender
 from temba.utils.models import JSONField, TembaUUIDMixin, delete_in_batches
 from temba.utils.text import generate_secret, generate_token
 from temba.utils.timezones import timezone_to_country_code
@@ -299,11 +299,13 @@ class User(AuthUser):
         self.send_recovery_email(token, branding)
 
     def send_recovery_email(self, token: str, branding: dict):
-        subject = _("Password Recovery Request")
-        template = "orgs/email/user_forget"
-        context = {"user": self, "path": reverse("users.user_recover", args=[token])}
-
-        send_template_email([self.email], subject, template, context, branding)
+        sender = EmailSender.from_email_type(branding, "notifications")
+        sender.send(
+            [self.email],
+            _("Password Recovery Request"),
+            "orgs/email/user_forget",
+            {"user": self, "path": reverse("users.user_recover", args=[token])},
+        )
 
     def as_engine_ref(self) -> dict:
         return {"email": self.email, "name": self.name}
@@ -1527,14 +1529,13 @@ class Invitation(SmartModel):
         if not self.email:  # pragma: needs cover
             return
 
-        subject = _("%(name)s Invitation") % self.org.branding
-        template = "orgs/email/invitation_email"
-        to_email = self.email
-
-        context = dict(org=self.org, now=timezone.now(), branding=self.org.branding, invitation=self)
-        context["subject"] = subject
-
-        send_template_email([to_email], subject, template, context, self.org.branding)
+        sender = EmailSender.from_email_type(self.org.branding, "notifications")
+        sender.send(
+            [self.email],
+            _("%(name)s Invitation") % self.org.branding,
+            "orgs/email/invitation_email",
+            {"org": self.org, "invitation": self},
+        )
 
     def release(self):
         self.is_active = False

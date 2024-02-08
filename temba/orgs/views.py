@@ -52,7 +52,7 @@ from temba.formax import FormaxMixin
 from temba.notifications.mixins import NotificationTargetMixin
 from temba.orgs.tasks import send_user_verification_email
 from temba.utils import analytics, get_anonymous_user, json, languages, str_to_bool
-from temba.utils.email import is_valid_address, make_smtp_url, parse_smtp_url, send_custom_smtp_email
+from temba.utils.email import EmailSender, is_valid_address, make_smtp_url, parse_smtp_url
 from temba.utils.fields import ArbitraryJsonChoiceField, CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import (
@@ -1690,9 +1690,9 @@ class OrgCRUDL(SmartCRUDL):
 
                 from_email = self.cleaned_data.get("from_email", None)
                 host = self.cleaned_data.get("smtp_host", None)
+                port = self.cleaned_data.get("smtp_port", None)
                 username = self.cleaned_data.get("smtp_username", None)
                 password = self.cleaned_data.get("smtp_password", None)
-                port = self.cleaned_data.get("smtp_port", None)
 
                 # if editing existing settings, and username isn't changing, password can be omitted
                 existing = urlparse(self.instance.flow_smtp)
@@ -1708,36 +1708,23 @@ class OrgCRUDL(SmartCRUDL):
 
                 if not host:
                     self.add_error("smtp_host", _("This field is required."))
+                if not port:
+                    self.add_error("smtp_port", _("This field is required."))
                 if not username:
                     self.add_error("smtp_username", _("This field is required."))
                 if not password:
                     self.add_error("smtp_password", _("This field is required."))
-                if not port:
-                    self.add_error("smtp_port", _("This field is required."))
 
                 # if individual fields look valid, do an actual email test...
                 if self.is_valid():
-                    admin_emails = [admin.email for admin in self.instance.get_admins().order_by("email")]
-                    branding = self.instance.branding
-                    subject = _("%(name)s SMTP configuration test") % branding
-                    body = (
-                        _(
-                            "This email is a test to confirm the custom SMTP server configuration added to your %(name)s account."
-                        )
-                        % branding
-                    )
-
+                    smtp_url = make_smtp_url(host, port, username, password, from_email, tls=True)
                     try:
-                        send_custom_smtp_email(
-                            admin_emails,
-                            subject=subject,
-                            text=body,
-                            host=host,
-                            port=port,
-                            username=username,
-                            password=password,
-                            from_email=from_email,
-                            use_tls=True,
+                        sender = EmailSender.from_smtp_url(self.instance.branding, smtp_url)
+                        sender.send(
+                            [admin.email for admin in self.instance.get_admins().order_by("email")],
+                            _("%(name)s SMTP configuration test") % self.instance.branding,
+                            "orgs/email/smtp_test",
+                            {},
                         )
                     except smtplib.SMTPException as e:
                         raise ValidationError(

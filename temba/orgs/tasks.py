@@ -13,7 +13,7 @@ from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import ExportMessagesTask
 from temba.msgs.tasks import export_messages_task
 from temba.utils.crons import cron_task
-from temba.utils.email import send_template_email
+from temba.utils.email import EmailSender
 from temba.utils.text import generate_secret
 
 from .models import Export, Invitation, Org, OrgImport, User, UserSettings
@@ -53,13 +53,13 @@ def send_user_verification_email(user_id):
 
     org = user.get_orgs().first()
 
-    subject = _("%(name)s Email Verification") % org.branding
-    template = "orgs/email/email_verification"
-
-    context = dict(org=org, now=timezone.now(), branding=org.branding, secret=verification_secret)
-    context["subject"] = subject
-
-    send_template_email([user.email], subject, template, context, org.branding)
+    sender = EmailSender.from_email_type(org.branding, "notifications")
+    sender.send(
+        [user.email],
+        _("%(name)s Email Verification") % org.branding,
+        "orgs/email/email_verification",
+        {"org": org, "secret": verification_secret},
+    )
 
 
 @shared_task
