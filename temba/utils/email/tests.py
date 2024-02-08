@@ -1,10 +1,31 @@
 from temba.tests import TembaTest
 
 from .conf import make_smtp_url, parse_smtp_url
+from .send import EmailSender
 from .validate import is_valid_address
 
 
 class EmailTest(TembaTest):
+    def test_sender(self):
+        branding = {"name": "Test", "emails": {"spam": "no-reply@acme.com"}}
+        sender = EmailSender.from_email_type(branding, "spam")
+        self.assertEqual(branding, sender.branding)
+        self.assertIsNone(sender.connection)  # use default
+        self.assertEqual("no-reply@acme.com", sender.from_email)
+
+        # test email type not defined in branding
+        sender = EmailSender.from_email_type(branding, "marketing")
+        self.assertEqual(branding, sender.branding)
+        self.assertIsNone(sender.connection)
+        self.assertEqual("server@temba.io", sender.from_email)  # from settings
+
+        # test full SMTP url in branding
+        branding = {"name": "Test", "emails": {"spam": "smtp://foo:sesame@acme.com/?tls=true&from=no-reply%40acme.com"}}
+        sender = EmailSender.from_email_type(branding, "spam")
+        self.assertEqual(branding, sender.branding)
+        self.assertIsNotNone(sender.connection)
+        self.assertEqual("no-reply@acme.com", sender.from_email)
+
     def test_is_valid_address(self):
         valid_emails = [
             # Cases from https://en.wikipedia.org/wiki/Email_address

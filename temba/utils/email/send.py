@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives, get_connection, send_mail as django_send_email
+from django.core.mail import EmailMultiAlternatives, get_connection
 from django.template import loader
 from django.utils import timezone
 
@@ -24,7 +24,7 @@ class EmailSender:
         Creates a sender from the given email type setting in the given branding.
         """
         email_cfg = get_nested_key(branding, f"emails.{email_type}", None)
-        if email_cfg.startswith("smtp://"):
+        if email_cfg and email_cfg.startswith("smtp://"):
             return cls.from_smtp_url(branding, email_cfg)
 
         return cls(branding, connection=None, from_email=email_cfg)
@@ -71,12 +71,9 @@ def send_email(recipients: list, subject: str, text: str, html: str, from_email:
     Actually sends the email. Having this as separate function makes testing multi-part emails easier
     """
     if settings.SEND_EMAILS:
-        if html is not None:
-            message = EmailMultiAlternatives(subject, text, from_email, recipients, connection=connection)
-            message.attach_alternative(html, "text/html")
-            message.send()
-        else:
-            django_send_email(subject, text, from_email, recipients, connection=connection)
+        message = EmailMultiAlternatives(subject, text, from_email, recipients, connection=connection)
+        message.attach_alternative(html, "text/html")
+        message.send()
     else:  # pragma: no cover
         # just print to console if we aren't meant to send emails
         print("------------- Skipping sending email, SEND_EMAILS is False -------------")
