@@ -192,20 +192,13 @@ class BaseItemWithContactExport(BaseDateRangeExport):
 
         return cols
 
-    def _get_contact_columns(self, contact, urn: str = "") -> list:
+    def _get_contact_columns(self, contact) -> list:
         """
         Gets the column values for the given contact.
         """
-        from temba.contacts.models import URN
 
-        if urn == "":
-            urn_obj = contact.get_urn()
-            urn_scheme, urn_path = (urn_obj.scheme, urn_obj.path) if urn_obj else (None, None)
-        elif urn is not None:
-            urn_scheme = URN.to_parts(urn)[0]
-            urn_path = URN.format(urn, international=False, formatted=False)
-        else:
-            urn_scheme, urn_path = None, None
+        urn_obj = contact.get_urn()
+        urn_scheme, urn_path = (urn_obj.scheme, urn_obj.path) if urn_obj else (None, None)
 
         cols = [str(contact.uuid), contact.name, urn_scheme]
         if self.org.is_anon:

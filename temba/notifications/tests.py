@@ -215,6 +215,17 @@ class NotificationTest(TembaTest):
         self.assertEqual("[Nyaruka] Your message export is ready", mail.outbox[0].subject)
         self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
 
+        # calling task again won't send more emails
+        send_notification_emails()
+
+        self.assertEqual(1, len(mail.outbox))
+
+        # if a user visits the export download page, their notification for that export is now read
+        self.login(self.editor)
+        self.client.get(reverse("orgs.export_download", args=[export.uuid]))
+
+        self.assertTrue(self.editor.notifications.get(export=export).is_seen)
+
     def test_results_export_finished(self):
         flow1 = self.create_flow("Test Flow 1")
         flow2 = self.create_flow("Test Flow 2")
