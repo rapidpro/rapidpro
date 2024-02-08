@@ -5426,11 +5426,6 @@ class EndpointsTest(APITest):
         self.surveyor.last_name = "McSurveys"
         self.surveyor.save()
 
-        # create all of our usersettings so we don't measure creation queries
-        users = self.org.get_users()
-        for user in users:
-            user.settings
-
         self.assertGet(
             endpoint_url,
             [self.agent, self.user, self.editor, self.admin],
@@ -5477,7 +5472,7 @@ class EndpointsTest(APITest):
                 },
             ],
             # one query per user for their settings
-            num_queries=NUM_BASE_REQUEST_QUERIES + 2 + len(users),
+            num_queries=NUM_BASE_REQUEST_QUERIES + 3,
         )
 
         # filter by roles

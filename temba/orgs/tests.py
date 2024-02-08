@@ -269,7 +269,7 @@ class UserTest(TembaTest):
         response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "Qwerty123"})
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
-        del self.admin.settings  # clear cached_property
+        self.admin.settings.refresh_from_db()
         self.assertIsNotNone(self.admin.settings.last_auth_on)
 
         # logout and enable 2FA
@@ -454,7 +454,7 @@ class UserTest(TembaTest):
             response = self.client.post(enable_url, {"otp": "123456", "confirm_password": "Qwerty123"})
         self.assertRedirect(response, tokens_url)
 
-        del self.admin.settings  # clear cached_property
+        self.admin.settings.refresh_from_db()
         self.assertTrue(self.admin.settings.two_factor_enabled)
 
         # view backup tokens page
@@ -484,7 +484,7 @@ class UserTest(TembaTest):
         response = self.client.post(disable_url, {"confirm_password": "Qwerty123"})
         self.assertRedirect(response, reverse("orgs.user_account"))
 
-        del self.admin.settings  # clear cached_property
+        self.admin.settings.refresh_from_db()
         self.assertFalse(self.admin.settings.two_factor_enabled)
 
         # trying to view the tokens page now takes us to the enable form
@@ -3718,7 +3718,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertEqual(302, response.status_code)
 
-        del self.admin.settings  # clear cached_property
+        self.admin.settings.refresh_from_db()
         self.assertEqual("U", self.admin.settings.email_status)  # because email changed
 
     def test_token(self):

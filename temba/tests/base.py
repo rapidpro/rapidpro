@@ -204,6 +204,10 @@ class TembaTest(SmartminTest):
         user = User.objects.create_user(username=email, email=email, **kwargs)
         user.set_password(self.default_password)
         user.save()
+
+        # create settings upfront so query count tests aren't affected by lazy creation
+        user.settings
+
         for group in group_names:
             user.groups.add(Group.objects.get(name=group))
         return user
