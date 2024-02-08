@@ -808,7 +808,7 @@ class UserCRUDL(SmartCRUDL):
 
             return super().form_valid(form)
 
-    class Edit(InferUserMixin, SmartUpdateView):
+    class Edit(ComponentFormMixin, InferUserMixin, SmartUpdateView):
         class Form(forms.ModelForm):
             first_name = forms.CharField(
                 label=_("First Name"), widget=InputWidget(attrs={"placeholder": _("Required")})
