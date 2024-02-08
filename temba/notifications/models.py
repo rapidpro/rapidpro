@@ -14,7 +14,7 @@ from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import Export, Org
 from temba.tickets.models import ExportTicketsTask
-from temba.utils.email import send_template_email
+from temba.utils.email import EmailSender
 from temba.utils.models import SquashableModel
 
 logger = logging.getLogger(__name__)
@@ -219,13 +219,8 @@ class Notification(models.Model):
         context = self.type.get_email_context(self)
 
         if subject and template:
-            send_template_email(
-                self.user.email,
-                f"[{self.org.name}] {subject}",
-                template,
-                context,
-                self.org.branding,
-            )
+            sender = EmailSender.from_email_type(self.org.branding, "notifications")
+            sender.send([self.user.email], f"[{self.org.name}] {subject}", template, context)
         else:  # pragma: no cover
             logger.error(f"pending emails for notification type {self.type.slug} not configured for email")
 

@@ -1,0 +1,10 @@
+{% extends "email_base.html" %}
+{% load tz i18n %}
+
+{% block body %}
+    <p>
+        {% blocktrans trimmed %}
+            This email is a test to confirm the custom SMTP server configuration added to your account.
+        {% endblocktrans %}
+    </p>
+{% endblock body %}

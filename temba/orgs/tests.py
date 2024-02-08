@@ -101,8 +101,8 @@ class OrgContextProcessorTest(TembaTest):
 
 
 class InvitationTest(TembaTest):
-    @patch("temba.utils.email.send_temba_email")
-    def test_model(self, mock_send_temba_email):
+    @patch("temba.utils.email.send.send_email")
+    def test_model(self, mock_send_email):
         invitation = Invitation.objects.create(
             org=self.org,
             user_group="E",
@@ -114,13 +114,14 @@ class InvitationTest(TembaTest):
         self.assertEqual(OrgRole.EDITOR, invitation.role)
 
         invitation.send()
-        email_args = mock_send_temba_email.call_args[0]  # all positional args
+        email_args = mock_send_email.call_args[0]  # all positional args
 
-        self.assertEqual(email_args[0], "RapidPro Invitation")
-        self.assertIn("https://app.rapidpro.io/org/join/%s/" % invitation.secret, email_args[1])
-        self.assertNotIn("{{", email_args[1])
+        self.assertEqual(["invitededitor@nyaruka.com"], email_args[0])
+        self.assertEqual("RapidPro Invitation", email_args[1])
         self.assertIn("https://app.rapidpro.io/org/join/%s/" % invitation.secret, email_args[2])
         self.assertNotIn("{{", email_args[2])
+        self.assertIn("https://app.rapidpro.io/org/join/%s/" % invitation.secret, email_args[3])
+        self.assertNotIn("{{", email_args[3])
 
         invitation.release()
 
@@ -844,8 +845,8 @@ class OrgTest(TembaTest):
 
         self.assertIsNone(self.org.default_country)
 
-    @patch("temba.utils.email.send_temba_email")
-    def test_user_forget(self, mock_send_temba_email):
+    @patch("temba.utils.email.send.send_email")
+    def test_user_forget(self, mock_send_email):
         invitation = Invitation.objects.create(
             org=self.org,
             user_group="A",
@@ -874,16 +875,15 @@ class OrgTest(TembaTest):
         response = self.client.post(forget_url, post_data, follow=True)
         self.assertEqual(200, response.status_code)
 
-        email_args = mock_send_temba_email.call_args[0]  # all positional args
-
-        self.assertEqual(email_args[0], "RapidPro Invitation")
-        self.assertIn(f"https://app.rapidpro.io/org/join/{invitation.secret}/", email_args[1])
-        self.assertNotIn("{{", email_args[1])
+        email_args = mock_send_email.call_args[0]  # all positional args
+        self.assertEqual(email_args[0], ["invited@nyaruka.com"])
+        self.assertEqual(email_args[1], "RapidPro Invitation")
         self.assertIn(f"https://app.rapidpro.io/org/join/{invitation.secret}/", email_args[2])
         self.assertNotIn("{{", email_args[2])
-        self.assertEqual(email_args[4], ["invited@nyaruka.com"])
+        self.assertIn(f"https://app.rapidpro.io/org/join/{invitation.secret}/", email_args[3])
+        self.assertNotIn("{{", email_args[3])
 
-        mock_send_temba_email.reset_mock()
+        mock_send_email.reset_mock()
         post_data = dict(email="existing@nyaruka.com")
 
         response = self.client.post(forget_url, post_data, follow=True)
@@ -891,13 +891,13 @@ class OrgTest(TembaTest):
 
         token_obj = RecoveryToken.objects.filter(user=user).first()
 
-        email_args = mock_send_temba_email.call_args[0]  # all positional args
-        self.assertEqual(email_args[0], "Password Recovery Request")
-        self.assertIn(f"app.rapidpro.io/users/user/recover/{token_obj.token}/", email_args[1])
-        self.assertNotIn("{{", email_args[1])
+        email_args = mock_send_email.call_args[0]  # all positional args
+        self.assertEqual(email_args[0], ["existing@nyaruka.com"])
+        self.assertEqual(email_args[1], "Password Recovery Request")
         self.assertIn(f"app.rapidpro.io/users/user/recover/{token_obj.token}/", email_args[2])
         self.assertNotIn("{{", email_args[2])
-        self.assertEqual(email_args[4], ["existing@nyaruka.com"])
+        self.assertIn(f"app.rapidpro.io/users/user/recover/{token_obj.token}/", email_args[3])
+        self.assertNotIn("{{", email_args[3])
 
     @patch("temba.flows.models.FlowStart.async_start")
     @mock_mailroom
@@ -2238,7 +2238,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(len(mail.outbox), 0)
 
         # mock email sending so test send fails
-        with patch("temba.orgs.views.send_custom_smtp_email") as mock_send:
+        with patch("temba.utils.email.send.send_email") as mock_send:
             mock_send.side_effect = smtplib.SMTPException("boom")
 
             response = self.client.post(
