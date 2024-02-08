@@ -462,7 +462,6 @@ class Org(SmartModel):
     )
 
     CONFIG_VERIFIED = "verified"
-    CONFIG_SMTP_SERVER = "smtp_server"
     CONFIG_TWILIO_SID = "ACCOUNT_SID"
     CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
     CONFIG_VONAGE_KEY = "NEXMO_KEY"
@@ -527,6 +526,7 @@ class Org(SmartModel):
     country = models.ForeignKey("locations.AdminBoundary", null=True, on_delete=models.PROTECT)
     flow_languages = ArrayField(models.CharField(max_length=3), default=list, validators=[ArrayMinLengthValidator(1)])
     input_collation = models.CharField(max_length=32, choices=COLLATION_CHOICES, default=COLLATION_DEFAULT)
+    flow_smtp = models.CharField(null=True)  # e.g. smtp://...
 
     config = models.JSONField(default=dict)
     slug = models.SlugField(
@@ -941,25 +941,14 @@ class Org(SmartModel):
     def get_possible_countries(cls):
         return AdminBoundary.objects.filter(level=0).order_by("name")
 
-    def add_smtp_config(self, from_email, host, username, password, port, user):
+    def set_flow_smtp(self, user, from_email, host, port, username, password):
         username = quote(username)
         password = quote(password, safe="")
         query = urlencode({"from": f"{from_email.strip()}", "tls": "true"})
 
-        self.config.update({Org.CONFIG_SMTP_SERVER: f"smtp://{username}:{password}@{host}:{port}/?{query}"})
+        self.flow_smtp = f"smtp://{username}:{password}@{host}:{port}/?{query}"
         self.modified_by = user
-        self.save(update_fields=("config", "modified_by", "modified_on"))
-
-    def remove_smtp_config(self, user):
-        if self.config:
-            self.config.pop(Org.CONFIG_SMTP_SERVER, None)
-            self.modified_by = user
-            self.save(update_fields=("config", "modified_by", "modified_on"))
-
-    def has_smtp_config(self):
-        if self.config:
-            return bool(self.config.get(Org.CONFIG_SMTP_SERVER))
-        return False
+        self.save(update_fields=("flow_smtp", "modified_by", "modified_on"))
 
     @property
     def default_country_code(self) -> str:
@@ -1316,8 +1305,10 @@ class Org(SmartModel):
         delete_in_batches(self.exportmessagestasks.all())
         delete_in_batches(self.exportflowresultstasks.all())
         delete_in_batches(self.exportticketstasks.all())
-        delete_in_batches(self.exports.all())
         delete_in_batches(self.flow_labels.all())
+
+        for exp in self.exports.all():
+            exp.delete()
 
         for imp in self.contact_imports.all():
             imp.delete()
@@ -1471,12 +1462,12 @@ class OrgImport(SmartModel):
     file = models.FileField(upload_to=get_import_upload_path)
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
 
-    def start_async(self):
-        from .tasks import start_org_import_task
-
-        on_transaction_commit(lambda: start_org_import_task.delay(self.id))
-
     def start(self):
+        from .tasks import perform_import
+
+        on_transaction_commit(lambda: perform_import.delay(self.id))
+
+    def perform(self):
         assert self.status == self.STATUS_PENDING, "trying to start an already started import"
 
         # mark us as processing to prevent double starting
@@ -1586,13 +1577,28 @@ class BackupToken(models.Model):
 
 class ExportType:
     slug: str
-    storage_folder: str
+    name: str
+    download_prefix: str
+    download_template = "orgs/export_download.html"
+
+    @classmethod
+    def has_recent_unfinished(cls, org) -> bool:
+        """
+        Checks for unfinished exports created in the last 4 hours for this org
+        """
+
+        day_ago = timezone.now() - timedelta(hours=4)
+
+        return Export.get_unfinished(org, cls.slug).filter(created_on__gt=day_ago).order_by("created_on").exists()
 
     def write(self, export) -> tuple:  # pragma: no cover
         """
         Should return tuple of 1) temporary file handle, 2) file extension, 3) count of items exported
         """
         pass
+
+    def get_download_context(self, export) -> dict:  # pragma: no cover
+        return {}
 
 
 class Export(TembaUUIDMixin, models.Model):
@@ -1610,6 +1616,9 @@ class Export(TembaUUIDMixin, models.Model):
         (STATUS_COMPLETE, _("Complete")),
         (STATUS_FAILED, _("Failed")),
     )
+
+    # log progress after this number of exported objects have been exported
+    LOG_PROGRESS_PER_ROWS = 10000
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="exports")
     export_type = models.CharField(max_length=20)
@@ -1645,7 +1654,7 @@ class Export(TembaUUIDMixin, models.Model):
             temp_file, extension, num_records = self.type.write(self)
 
             # save file to storage
-            directory = os.path.join(settings.STORAGE_ROOT_DIR, str(self.org.id), self.type.storage_folder)
+            directory = os.path.join(settings.STORAGE_ROOT_DIR, str(self.org.id), self.type.slug + "_exports")
             path = f"{directory}/{self.uuid}.{extension}"
             default_storage.save(path, File(temp_file))
 
@@ -1669,21 +1678,13 @@ class Export(TembaUUIDMixin, models.Model):
             ExportFinishedNotificationType.create(self)
 
     @classmethod
-    def get_unfinished(cls, export_type: str):
+    def get_unfinished(cls, org, export_type: str):
         """
         Returns all unfinished exports
         """
-        return cls.objects.filter(export_type=export_type, status__in=(cls.STATUS_PENDING, cls.STATUS_PROCESSING))
-
-    @classmethod
-    def has_recent_unfinished(cls, org, export_type: str) -> bool:
-        """
-        Checks for unfinished exports created in the last 4 hours for this org
-        """
-
-        day_ago = timezone.now() - timedelta(hours=4)
-
-        return cls.get_unfinished(export_type).filter(org=org, created_on__gt=day_ago).order_by("created_on").exists()
+        return cls.objects.filter(
+            org=org, export_type=export_type, status__in=(cls.STATUS_PENDING, cls.STATUS_PROCESSING)
+        )
 
     def get_date_range(self) -> tuple:
         """
@@ -1761,17 +1762,12 @@ class Export(TembaUUIDMixin, models.Model):
     def type(self):
         return self._get_types()[self.export_type]
 
-    def get_download_url(self) -> str:
-        return reverse("orgs.export_download", kwargs={"uuid": self.uuid})
-
     def get_raw_access(self) -> tuple[str]:
         """
         Gets a tuple of 1) raw storage URL, 2) a friendly filename and 3) its MIME type
         """
 
-        # create a more friendly download filename
-        _, extension = self.path.rsplit(".", 1)
-        filename = f"{self.type.slug}_{self.id}_{slugify(self.org.name)}.{extension}"
+        filename = self._get_download_filename()
 
         if isinstance(default_storage, S3Boto3Storage):  # pragma: needs cover
             url = default_storage.url(
@@ -1784,9 +1780,25 @@ class Export(TembaUUIDMixin, models.Model):
 
         return url, filename, mimetypes.guess_type(self.path)[0]
 
+    def _get_download_filename(self):
+        """
+        Create a more user friendly filename for download
+        """
+        _, extension = self.path.rsplit(".", 1)
+        date_str = datetime.today().strftime(r"%Y%m%d")
+        return f"{self.type.download_prefix}_{date_str}.{extension}"
+
     @property
     def notification_export_type(self):
         return self.type.slug
 
     def get_notification_scope(self) -> str:
         return f"{self.notification_export_type}:{self.id}"
+
+    def delete(self):
+        self.notifications.all().delete()
+
+        if self.path:
+            default_storage.delete(self.path)
+
+        super().delete()

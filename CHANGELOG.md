@@ -1,3 +1,45 @@
+v9.1.19 (2024-02-07)
+-------------------------
+ * Save transformed components for WA templates
+
+v9.1.18 (2024-02-06)
+-------------------------
+ * Cleanup flow SMTP formax and show parent settings as default to match mailroom changes
+ * Remove old code for saving SMTP into org config
+
+v9.1.17 (2024-02-06)
+-------------------------
+ * Data migration to backfill Org.flow_smtp
+
+v9.1.16 (2024-02-06)
+-------------------------
+ * Add new dedicated Org.flow_smtp field for email settings
+
+v9.1.15 (2024-02-06)
+-------------------------
+ * Bump cryptography from 41.0.7 to 42.0.0
+ * Simplify getting default flow email address
+
+v9.1.14 (2024-01-30)
+-------------------------
+ * Remove using readonly DB connection for fetching groups and fields
+
+v9.1.13 (2024-01-29)
+-------------------------
+ * Simplify how we check for existing running exports
+ * Dta migration to mark old notifications as seen
+ * Improve export download page
+ * Allow marking all notifications as read by DELETE request to notifications endpoint
+ * Use orgs.Export for contact exports
+
+v9.1.12 (2024-01-23)
+-------------------------
+ * Tweak mailgun channel claiming
+
+v9.1.11 (2024-01-18)
+-------------------------
+ * Some cleanup to new exports framework
+
 v9.1.10 (2024-01-18)
 -------------------------
  * Add skeleton staff only mailgun channel type

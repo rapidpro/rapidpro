@@ -5,7 +5,8 @@ from zoneinfo import ZoneInfo
 
 from openpyxl import load_workbook
 
-from temba.contacts.models import ExportContactsTask
+from temba.contacts.models import ContactExport
+from temba.orgs.models import Export
 from temba.tests import TembaTest
 
 from .models import MultiSheetExporter, prepare_value
@@ -16,8 +17,10 @@ class ExportTest(TembaTest):
         super().setUp()
 
         self.group = self.create_group("New contacts", [])
-        self.task = ExportContactsTask.objects.create(
-            org=self.org, group=self.group, created_by=self.admin, modified_by=self.admin
+        self.task = ContactExport.create(
+            org=self.org,
+            user=self.admin,
+            group=self.group,
         )
 
     def test_prepare_value(self):
@@ -35,24 +38,22 @@ class ExportTest(TembaTest):
             prepare_value(self)
 
     def test_task_status(self):
-        self.assertEqual(self.task.status, ExportContactsTask.STATUS_PENDING)
+        self.assertEqual(self.task.status, Export.STATUS_PENDING)
 
         self.task.perform()
 
-        self.assertEqual(self.task.status, ExportContactsTask.STATUS_COMPLETE)
+        self.assertEqual(self.task.status, Export.STATUS_COMPLETE)
 
-        task2 = ExportContactsTask.objects.create(
-            org=self.org, group=self.group, created_by=self.admin, modified_by=self.admin
-        )
+        task2 = ContactExport.create(org=self.org, user=self.admin, group=self.group)
 
         # if task throws exception, will be marked as failed
-        with patch.object(task2, "write_export") as mock_write_export:
-            mock_write_export.side_effect = ValueError("Problem!")
+        with patch("temba.contacts.models.ContactExport.write") as mock_export_write:
+            mock_export_write.side_effect = ValueError("Problem!")
 
             with self.assertRaises(Exception):
                 task2.perform()
 
-            self.assertEqual(task2.status, ExportContactsTask.STATUS_FAILED)
+            self.assertEqual(task2.status, Export.STATUS_FAILED)
 
     @patch("temba.utils.export.BaseExport.MAX_EXCEL_ROWS", new_callable=PropertyMock)
     def test_multisheetexporter(self, mock_max_rows):

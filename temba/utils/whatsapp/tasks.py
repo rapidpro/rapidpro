@@ -99,25 +99,43 @@ def _calculate_variable_count(content):
 def _extract_template_params(components):
     params = defaultdict(list)
 
+    transformed_components = defaultdict(dict)
+
     for component in components:
         component_type = component["type"].lower()
 
         if component_type == "header":
+            comp_params = []
+
             if component.get("format", "text").upper() == "TEXT":
                 for match in VARIABLE_RE.findall(component.get("text", "")):
-                    params[component_type].append({"type": "text"})
+                    comp_params.append({"type": "text"})
             else:
-                params[component_type].append({"type": component["format"].lower()})
-        if component_type == "body":
+                comp_params.append({"type": component["format"].lower()})
+
+            if comp_params:
+                params[component_type] = comp_params
+            transformed_components[component_type] = dict(content=component.get("text", ""), params=comp_params)
+        elif component_type == "body":
+            comp_params = []
             for match in VARIABLE_RE.findall(component.get("text", "")):
-                params[component_type].append({"type": "text"})
-        if component_type == "buttons":
+                comp_params.append({"type": "text"})
+            if comp_params:
+                params[component_type] = comp_params
+            transformed_components[component_type] = dict(content=component.get("text", ""), params=comp_params)
+        elif component_type == "buttons":
             buttons = component["buttons"]
             for idx, button in enumerate(buttons):
+                comp_params = []
                 if button["type"].lower() == "url":
                     for match in VARIABLE_RE.findall(button.get("url", "")):
-                        params[f"button.{idx}"].append({"type": "text"})
-    return params
+                        comp_params.append({"type": "text"})
+                if comp_params:
+                    params[f"button.{idx}"] = comp_params
+                transformed_components[f"button.{idx}"] = dict(content=button.get("text", ""), params=comp_params)
+        else:
+            transformed_components[component_type] = dict(content=component.get("text", ""), params=[])
+    return params, transformed_components
 
 
 def update_local_templates(channel, templates_data):
@@ -136,7 +154,7 @@ def update_local_templates(channel, templates_data):
 
         components = template["components"]
 
-        params = _extract_template_params(components)
+        params, transformed_components = _extract_template_params(components)
         content_parts = []
 
         all_supported = True
@@ -169,7 +187,7 @@ def update_local_templates(channel, templates_data):
             external_locale=template["language"],
             external_id=template.get("id", missing_external_id[:64]),
             namespace=template.get("namespace", channel_namespace),
-            components=components,
+            components=transformed_components,
             params=params,
         )
 

@@ -32,7 +32,11 @@ class ExportFinishedNotificationType(NotificationType):
         )
 
     def get_target_url(self, notification) -> str:
-        return notification.export_obj.get_download_url()
+        # if legacy export model, call model method
+        if not notification.export:
+            return notification.export_obj.get_download_url()
+
+        return reverse("orgs.export_download", kwargs={"uuid": notification.export.uuid})
 
     def get_email_subject(self, notification) -> str:
         return _("Your %s export is ready") % notification.export_obj.notification_export_type

@@ -192,7 +192,13 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual("goodbye (eng) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
-            [{"type": "BODY", "text": "Goodbye {{1}}, see you on {{2}}. See you later {{1}}"}], ct.components
+            {
+                "body": {
+                    "content": "Goodbye {{1}}, see you on {{2}}. See you later {{1}}",
+                    "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
+                }
+            },
+            ct.components,
         )
         self.assertEqual({"body": [{"type": "text"}, {"type": "text"}, {"type": "text"}]}, ct.params)
 
@@ -206,14 +212,14 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
-            [
-                {"type": "HEADER", "text": "Workout challenge week extra points!"},
-                {
-                    "type": "BODY",
-                    "text": "Hey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.",
+            {
+                "header": {"content": "Workout challenge week extra points!", "params": []},
+                "body": {
+                    "content": "Hey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.",
+                    "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
                 },
-                {"type": "FOOTER", "text": "Remember to drink water."},
-            ],
+                "footer": {"content": "Remember to drink water.", "params": []},
+            },
             ct.components,
         )
         self.assertEqual({"body": [{"type": "text"}, {"type": "text"}, {"type": "text"}]}, ct.params)
@@ -223,7 +229,7 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
-            [{"type": "RANDOM", "text": "Bonjour {{1}}"}],
+            {"random": {"content": "Bonjour {{1}}", "params": []}},
             ct.components,
         )
         self.assertEqual({}, ct.params)
@@ -233,11 +239,11 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
-            [
-                {"add_security_recommendation": "True", "type": "BODY"},
-                {"type": "FOOTER"},
-                {"buttons": [{"otp_type": "COPY_CODE", "text": "copy", "type": "OTP"}], "type": "BUTTONS"},
-            ],
+            {
+                "body": {"content": "", "params": []},
+                "footer": {"content": "", "params": []},
+                "button.0": {"content": "copy", "params": []},
+            },
             ct.components,
         )
         self.assertEqual({}, ct.params)
@@ -247,39 +253,19 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual(TemplateTranslation.STATUS_APPROVED, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
-            [
-                {
-                    "type": "HEADER",
-                    "format": "IMAGE",
-                    "example": {"header_handle": [r"http://example.com/test.jpg"]},
+            {
+                "header": {"content": "", "params": [{"type": "image"}]},
+                "body": {
+                    "content": "Sorry your order {{1}} took longer to deliver than expected.\nWe'll notify you about updates in the next {{2}} days.\n\nDo you have more question?",
+                    "params": [{"type": "text"}, {"type": "text"}],
                 },
-                {
-                    "type": "BODY",
-                    "text": "Sorry your order {{1}} took longer to deliver than expected.\nWe'll notify you about updates in the next {{2}} days.\n\nDo you have more question?",
-                    "example": {"body_text": [["#123 for shoes", "3"]]},
-                },
-                {"type": "FOOTER", "text": "Thanks for your patience"},
-                {
-                    "type": "BUTTONS",
-                    "buttons": [
-                        {"type": "QUICK_REPLY", "text": "Yes"},
-                        {"type": "QUICK_REPLY", "text": "No"},
-                        {"type": "PHONE_NUMBER", "text": "Call center", "phone_number": "+1234"},
-                        {
-                            "type": "URL",
-                            "text": "Check website",
-                            "url": r"https:\/\/example.com\/?wa_customer={{1}}",
-                            "example": [r"https:\/\/example.com\/?wa_customer=id_123"],
-                        },
-                        {
-                            "type": "URL",
-                            "text": "Check website",
-                            "url": r"https:\/\/example.com\/help",
-                            "example": [r"https:\/\/example.com\/help"],
-                        },
-                    ],
-                },
-            ],
+                "footer": {"content": "Thanks for your patience", "params": []},
+                "button.0": {"content": "Yes", "params": []},
+                "button.1": {"content": "No", "params": []},
+                "button.2": {"content": "Call center", "params": []},
+                "button.3": {"content": "Check website", "params": [{"type": "text"}]},
+                "button.4": {"content": "Check website", "params": []},
+            },
             ct.components,
         )
         self.assertEqual(

@@ -233,9 +233,11 @@ class Notification(models.Model):
         self.save(update_fields=("email_status",))
 
     @classmethod
-    def mark_seen(cls, org, notification_type: str, *, scope: str, user):
-        notifications = cls.objects.filter(org_id=org.id, notification_type=notification_type, user=user, is_seen=False)
+    def mark_seen(cls, org, user, notification_type: str = None, *, scope: str = None):
+        notifications = cls.objects.filter(org_id=org.id, user=user, is_seen=False)
 
+        if notification_type:
+            notifications = notifications.filter(notification_type=notification_type)
         if scope is not None:
             notifications = notifications.filter(scope=scope)
 

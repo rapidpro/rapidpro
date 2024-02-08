@@ -1,20 +1,20 @@
-from datetime import date, datetime, timezone as tzone
+from datetime import date, datetime, timedelta, timezone as tzone
 
 from django.core import mail
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.contacts.models import ContactImport, ExportContactsTask
+from temba.contacts.models import ContactExport, ContactImport
 from temba.flows.models import ExportFlowResultsTask
 from temba.msgs.models import ExportMessagesTask
 from temba.orgs.models import OrgRole
-from temba.tests import CRUDLTestMixin, TembaTest, matchers
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers
 from temba.tickets.models import TicketExport
 
 from .incidents.builtin import OrgFlaggedIncidentType
 from .models import Incident, Notification
-from .tasks import send_notification_emails, squash_notification_counts
+from .tasks import send_notification_emails, squash_notification_counts, trim_notifications
 from .types.builtin import ExportFinishedNotificationType
 
 
@@ -147,12 +147,12 @@ class NotificationTest(TembaTest):
         self.assertEqual(expected_users, actual_users)
 
     def test_contact_export_finished(self):
-        export = ExportContactsTask.create(self.org, self.editor)
+        export = ContactExport.create(self.org, self.editor)
         export.perform()
 
         ExportFinishedNotificationType.create(export)
 
-        self.assertFalse(self.editor.notifications.get(contact_export=export).is_seen)
+        self.assertFalse(self.editor.notifications.get(export=export).is_seen)
 
         # we only notify the user that started the export
         self.assert_notifications(
@@ -160,7 +160,7 @@ class NotificationTest(TembaTest):
             expected_json={
                 "type": "export:finished",
                 "created_on": matchers.ISODate(),
-                "target_url": f"/assets/download/contact_export/{export.id}/",
+                "target_url": f"/export/download/{export.uuid}/",
                 "is_seen": False,
                 "export": {"type": "contact", "num_records": 0},
             },
@@ -181,9 +181,9 @@ class NotificationTest(TembaTest):
 
         # if a user visits the export download page, their notification for that export is now read
         self.login(self.editor)
-        self.client.get(export.get_download_url())
+        self.client.get(reverse("orgs.export_download", args=[export.uuid]))
 
-        self.assertTrue(self.editor.notifications.get(contact_export=export).is_seen)
+        self.assertTrue(self.editor.notifications.get(export=export).is_seen)
 
     def test_message_export_finished(self):
         export = ExportMessagesTask.create(
@@ -284,6 +284,12 @@ class NotificationTest(TembaTest):
         self.assertEqual(1, len(mail.outbox))
         self.assertEqual("[Nyaruka] Your ticket export is ready", mail.outbox[0].subject)
         self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
+
+        # if a user visits the export download page, their notification for that export is now read
+        self.login(self.editor)
+        self.client.get(reverse("orgs.export_download", args=[export.uuid]))
+
+        self.assertTrue(self.editor.notifications.get(export=export).is_seen)
 
     def test_import_finished(self):
         imp = ContactImport.objects.create(
@@ -415,7 +421,7 @@ class NotificationTest(TembaTest):
         self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
         self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
 
-        Notification.mark_seen(self.org, "tickets:activity", scope="", user=self.agent)
+        Notification.mark_seen(self.org, self.agent, "tickets:activity", scope="")
 
         self.assertEqual(1, Notification.get_unseen_count(self.org, self.agent))
         self.assertEqual(3, Notification.get_unseen_count(self.org, self.editor))
@@ -435,3 +441,66 @@ class NotificationTest(TembaTest):
         self.assertEqual(2, Notification.get_unseen_count(self.org, self.editor))
         self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
         self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
+
+        Notification.mark_seen(self.org, self.editor)
+
+        self.assertEqual(1, Notification.get_unseen_count(self.org, self.agent))
+        self.assertEqual(0, Notification.get_unseen_count(self.org, self.editor))
+        self.assertEqual(0, Notification.get_unseen_count(self.org2, self.agent))
+        self.assertEqual(1, Notification.get_unseen_count(self.org2, self.editor))
+
+    def test_trim_task(self):
+        self.org.suspend()
+        self.org.unsuspend()
+
+        notification1 = self.admin.notifications.order_by("id").last()
+
+        self.org.suspend()
+        self.org.unsuspend()
+
+        notification2 = self.admin.notifications.order_by("id").last()
+
+        notification1.created_on = timezone.now() - timedelta(days=33)
+        notification1.save(update_fields=("created_on",))
+
+        trim_notifications()
+
+        self.assertFalse(Notification.objects.filter(id=notification1.id).exists())
+        self.assertTrue(Notification.objects.filter(id=notification2.id).exists())
+
+
+class MarkOldAsSeenTest(MigrationTest):
+    app = "notifications"
+    migrate_from = "0019_notification_export"
+    migrate_to = "0020_mark_old_notifications_seen"
+
+    def setUpBeforeMigration(self, apps):
+        # create incident notification
+        self.org.suspend()
+        self.org.unsuspend()
+
+        # make it look 30 days old
+        self.notification1 = Notification.objects.last()
+        self.notification1.created_on = timezone.now() - timedelta(days=30)
+        self.notification1.save(update_fields=("created_on",))
+
+        self.org.suspend()
+        self.org.unsuspend()
+
+        self.notification2 = Notification.objects.last()
+
+        self.org.suspend()
+        self.org.unsuspend()
+
+        self.notification3 = Notification.objects.last()
+        self.notification3.is_seen = True
+        self.notification3.save(update_fields=("is_seen",))
+
+    def test_migration(self):
+        self.notification1.refresh_from_db()
+        self.notification2.refresh_from_db()
+        self.notification3.refresh_from_db()
+
+        self.assertTrue(self.notification1.is_seen)  # updated
+        self.assertFalse(self.notification2.is_seen)
+        self.assertTrue(self.notification3.is_seen)  # unchanged

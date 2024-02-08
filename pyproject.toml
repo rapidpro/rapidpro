@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temba"
-version = "9.1.10"
+version = "9.1.19"
 description = "Hosted service for visually building interactive messaging applications"
 authors = ["Nyaruka <code@nyaruka.com>"]
 
@@ -24,7 +24,7 @@ redis = "^4.5.4"
 elasticsearch = "^7.11.0"
 elasticsearch-dsl = "^7.3.0"
 boto3 = "^1.28.3"
-cryptography = "^41.0.6"
+cryptography = "^42.0.0"
 vonage = "2.5.2"
 pyfcm = "^1.5.1"
 pyotp = "2.4.1"
