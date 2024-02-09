@@ -1,3 +1,8 @@
+v9.1.23 (2024-02-09)
+-------------------------
+ * Fix org avatar scale for menu
+ * Fix widget for user avatar
+
 v9.1.22 (2024-02-08)
 -------------------------
  * Fix croppie dependency
