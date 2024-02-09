@@ -2,7 +2,7 @@ import gc
 import logging
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from smartmin.models import SmartModel
 from xlsxlite.writer import XLSXBook
@@ -11,7 +11,6 @@ from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models
 from django.http import HttpResponse
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba.assets.models import BaseAssetStore, get_asset_store
@@ -113,26 +112,6 @@ class BaseExport(TembaUUIDMixin, SmartModel):
         self.num_records = num_records
         self.save(update_fields=("status", "num_records", "modified_on"))
 
-    @classmethod
-    def get_unfinished(cls):
-        """
-        Returns all unfinished exports
-        """
-        return cls.objects.filter(status__in=(cls.STATUS_PENDING, cls.STATUS_PROCESSING))
-
-    @classmethod
-    def get_recent_unfinished(cls, org):
-        """
-        Checks for unfinished exports created in the last 4 hours for this org, and returns the most recent
-        """
-
-        day_ago = timezone.now() - timedelta(hours=4)
-
-        return cls.get_unfinished().filter(org=org, created_on__gt=day_ago).order_by("created_on").last()
-
-    def append_row(self, sheet, values):
-        sheet.append_row(*[prepare_value(v, self.org.timezone) for v in values])
-
     def get_download_url(self) -> str:
         asset_store = get_asset_store(model=self.__class__)
         return asset_store.get_asset_url(self.id)
@@ -152,16 +131,6 @@ class BaseDateRangeExport(BaseExport):
     start_date = models.DateField()
     end_date = models.DateField()
 
-    def _get_date_range(self) -> tuple:
-        """
-        Gets the since > until datetimes of items to export.
-        """
-        tz = self.org.timezone
-        return (
-            max(datetime.combine(self.start_date, datetime.min.time()).replace(tzinfo=tz), self.org.created_on),
-            datetime.combine(self.end_date, datetime.max.time()).replace(tzinfo=tz),
-        )
-
     class Meta:
         abstract = True
 
@@ -173,48 +142,6 @@ class BaseItemWithContactExport(BaseDateRangeExport):
 
     with_fields = models.ManyToManyField("contacts.ContactField", related_name="%(class)s_exports")
     with_groups = models.ManyToManyField("contacts.ContactGroup", related_name="%(class)s_exports")
-
-    def _get_contact_headers(self) -> list:
-        """
-        Gets the header values common to exports with contacts.
-        """
-        cols = ["Contact UUID", "Contact Name", "URN Scheme"]
-        if self.org.is_anon:
-            cols.append("Anon Value")
-        else:
-            cols.append("URN Value")
-
-        for cf in self.with_fields.all():
-            cols.append("Field:%s" % cf.name)
-
-        for cg in self.with_groups.all():
-            cols.append("Group:%s" % cg.name)
-
-        return cols
-
-    def _get_contact_columns(self, contact) -> list:
-        """
-        Gets the column values for the given contact.
-        """
-
-        urn_obj = contact.get_urn()
-        urn_scheme, urn_path = (urn_obj.scheme, urn_obj.path) if urn_obj else (None, None)
-
-        cols = [str(contact.uuid), contact.name, urn_scheme]
-        if self.org.is_anon:
-            cols.append(contact.anon_display)
-        else:
-            cols.append(urn_path)
-
-        for cf in self.with_fields.all():
-            cols.append(contact.get_field_display(cf))
-
-        memberships = set(contact.groups.all())
-
-        for cg in self.with_groups.all():
-            cols.append(cg in memberships)
-
-        return cols
 
     class Meta:
         abstract = True

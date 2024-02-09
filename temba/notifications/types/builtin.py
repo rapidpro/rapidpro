@@ -46,8 +46,6 @@ class ExportFinishedNotificationType(NotificationType):
 
     def get_email_context(self, notification):
         context = super().get_email_context(notification)
-        if notification.results_export:
-            context["flows"] = notification.results_export.flows.order_by("name")
         return context
 
     def as_json(self, notification) -> dict:

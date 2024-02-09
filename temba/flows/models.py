@@ -1879,10 +1879,6 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
     TODO migrate to orgs.Export and drop.
     """
 
-    """
-    Container for managing our export requests
-    """
-
     analytics_key = "flowresult_export"
     notification_export_type = "results"
 
