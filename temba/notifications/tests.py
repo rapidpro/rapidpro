@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import ContactExport, ContactImport
-from temba.flows.models import ExportFlowResultsTask
+from temba.flows.models import ResultsExport
 from temba.msgs.models import MessageExport
 from temba.orgs.models import OrgRole
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers
@@ -229,7 +229,7 @@ class NotificationTest(TembaTest):
     def test_results_export_finished(self):
         flow1 = self.create_flow("Test Flow 1")
         flow2 = self.create_flow("Test Flow 2")
-        export = ExportFlowResultsTask.create(
+        export = ResultsExport.create(
             self.org,
             self.editor,
             start_date=date.today(),
@@ -244,7 +244,7 @@ class NotificationTest(TembaTest):
 
         ExportFinishedNotificationType.create(export)
 
-        self.assertFalse(self.editor.notifications.get(results_export=export).is_seen)
+        self.assertFalse(self.editor.notifications.get(export=export).is_seen)
 
         # we only notify the user that started the export
         self.assert_notifications(
@@ -252,7 +252,7 @@ class NotificationTest(TembaTest):
             expected_json={
                 "type": "export:finished",
                 "created_on": matchers.ISODate(),
-                "target_url": f"/assets/download/results_export/{export.id}/",
+                "target_url": f"/export/download/{export.uuid}/",
                 "is_seen": False,
                 "export": {"type": "results", "num_records": 0},
             },
@@ -265,8 +265,17 @@ class NotificationTest(TembaTest):
         self.assertEqual(1, len(mail.outbox))
         self.assertEqual("[Nyaruka] Your results export is ready", mail.outbox[0].subject)
         self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
-        self.assertIn("Test Flow 1", mail.outbox[0].body)
-        self.assertIn("Test Flow 2", mail.outbox[0].body)
+
+        # calling task again won't send more emails
+        send_notification_emails()
+
+        self.assertEqual(1, len(mail.outbox))
+
+        # if a user visits the export download page, their notification for that export is now read
+        self.login(self.editor)
+        self.client.get(reverse("orgs.export_download", args=[export.uuid]))
+
+        self.assertTrue(self.editor.notifications.get(export=export).is_seen)
 
     def test_export_finished(self):
         export = TicketExport.create(self.org, self.editor, start_date=date.today(), end_date=date.today())

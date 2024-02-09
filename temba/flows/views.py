@@ -34,7 +34,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import URN
 from temba.contacts.search import SearchException, parse_query
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, FlowStart
-from temba.flows.tasks import export_flow_results_task, update_session_wait_expires
+from temba.flows.tasks import update_session_wait_expires
 from temba.ivr.models import Call
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import IntegrationType, Org
@@ -60,13 +60,7 @@ from temba.utils.fields import (
 from temba.utils.text import slugify_with
 from temba.utils.views import BulkActionMixin, ContentMenuMixin, SpaMixin, StaffOnlyMixin
 
-from .models import (
-    ExportFlowResultsTask,
-    FlowLabel,
-    FlowStartCount,
-    FlowUserConflictException,
-    FlowVersionConflictException,
-)
+from .models import FlowLabel, FlowStartCount, FlowUserConflictException, FlowVersionConflictException, ResultsExport
 
 logger = logging.getLogger(__name__)
 
@@ -1223,20 +1217,18 @@ class FlowCRUDL(SmartCRUDL):
             org = self.request.org
 
             # is there already an export taking place?
-            existing = ExportFlowResultsTask.get_recent_unfinished(org)
-            if existing:
+            if ResultsExport.has_recent_unfinished(org):
                 messages.info(
                     self.request,
                     _(
-                        "There is already an export in progress, started by %s. You must wait "
-                        "for that export to complete before starting another." % existing.created_by.username
+                        "There is already an export in progress. You must wait for that export to complete before starting another."
                     ),
                 )
             else:
                 flows = form.cleaned_data["flows"]
-                responded_only = form.cleaned_data[ExportFlowResultsTask.RESPONDED_ONLY]
+                responded_only = form.cleaned_data["responded_only"]
 
-                export = ExportFlowResultsTask.create(
+                export = ResultsExport.create(
                     org,
                     user,
                     start_date=form.cleaned_data["start_date"],
@@ -1245,10 +1237,11 @@ class FlowCRUDL(SmartCRUDL):
                     with_fields=form.cleaned_data["with_fields"],
                     with_groups=form.cleaned_data["with_groups"],
                     responded_only=responded_only,
-                    extra_urns=form.cleaned_data.get(ExportFlowResultsTask.EXTRA_URNS, []),
+                    extra_urns=form.cleaned_data.get("extra_urns", []),
                 )
-                on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
 
+                # schedule the export job
+                on_transaction_commit(lambda: export.start())
                 analytics.track(
                     self.request.user,
                     "temba.responses_export_started" if responded_only else "temba.results_export_started",

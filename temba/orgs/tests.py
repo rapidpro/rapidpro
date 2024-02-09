@@ -32,7 +32,7 @@ from temba.contacts.models import (
     ContactImport,
     ContactImportBatch,
 )
-from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowSession, FlowStart, FlowStartCount
+from temba.flows.models import Flow, FlowLabel, FlowRun, FlowSession, FlowStart, FlowStartCount, ResultsExport
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label, MessageExport, Msg
@@ -1542,11 +1542,9 @@ class OrgTest(TembaTest):
         # default values should be the same as parent
         self.assertEqual(self.org.timezone, sub_org.timezone)
 
-    @patch("temba.flows.tasks.export_flow_results_task.delay")
     @patch("temba.orgs.tasks.perform_export.delay")
-    def test_restart_stalled_exports(self, mock_org_export_task, mock_export_flow_results_task):
+    def test_restart_stalled_exports(self, mock_org_export_task):
         mock_org_export_task.return_value = None
-        mock_export_flow_results_task.return_value = None
 
         message_export1 = MessageExport.create(org=self.org, user=self.admin, start_date=None, end_date=None)
         message_export1.status = Export.STATUS_FAILED
@@ -1558,13 +1556,15 @@ class OrgTest(TembaTest):
 
         MessageExport.create(org=self.org, user=self.admin, start_date=None, end_date=None)
 
-        ExportFlowResultsTask.objects.create(
-            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportFlowResultsTask.STATUS_FAILED
-        )
-        ExportFlowResultsTask.objects.create(
-            org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportFlowResultsTask.STATUS_COMPLETE
-        )
-        ExportFlowResultsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
+        results_export1 = ResultsExport.create(org=self.org, user=self.admin, start_date=None, end_date=None)
+        results_export1.status = Export.STATUS_FAILED
+        results_export1.save(update_fields=("status",))
+
+        results_export2 = ResultsExport.create(org=self.org, user=self.admin, start_date=None, end_date=None)
+        results_export2.status = Export.STATUS_COMPLETE
+        results_export2.save(update_fields=("status",))
+
+        ResultsExport.create(org=self.org, user=self.admin, start_date=None, end_date=None)
 
         contact_export1 = ContactExport.create(org=self.org, user=self.admin)
         contact_export1.status = Export.STATUS_FAILED
@@ -1576,14 +1576,11 @@ class OrgTest(TembaTest):
 
         two_hours_ago = timezone.now() - timedelta(hours=2)
 
-        ExportFlowResultsTask.objects.all().update(modified_on=two_hours_ago)
-        Export.objects.filter(export_type=ContactExport.slug).update(modified_on=two_hours_ago)
-        Export.objects.filter(export_type=MessageExport.slug).update(modified_on=two_hours_ago)
+        Export.objects.all().update(modified_on=two_hours_ago)
 
         restart_stalled_exports()
 
-        self.assertEqual(2, mock_org_export_task.call_count)
-        mock_export_flow_results_task.assert_called_once()
+        self.assertEqual(3, mock_org_export_task.call_count)
 
 
 class OrgDeleteTest(TembaTest):
@@ -1817,7 +1814,7 @@ class OrgDeleteTest(TembaTest):
 
     def _create_export_content(self, org, user, flows, groups, fields, labels, add):
         results = add(
-            ExportFlowResultsTask.create(
+            ResultsExport.create(
                 org,
                 user,
                 start_date=date.today(),

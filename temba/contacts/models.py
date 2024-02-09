@@ -80,7 +80,7 @@ class URN:
         (FACEBOOK_SCHEME, _("Facebook Identifier")),
         (FCM_SCHEME, _("Firebase Cloud Messaging Identifier")),
         (FRESHCHAT_SCHEME, _("Freshchat Identifier")),
-        (INSTAGRAM_SCHEME, _("Instagram Handle")),
+        (INSTAGRAM_SCHEME, _("Instagram Identifier")),
         (JIOCHAT_SCHEME, _("JioChat Identifier")),
         (LINE_SCHEME, _("LINE Identifier")),
         (ROCKETCHAT_SCHEME, _("RocketChat Identifier")),
