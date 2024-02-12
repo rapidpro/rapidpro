@@ -1893,6 +1893,17 @@ class ExportFlowResultsTask(BaseItemWithContactExport):
 
     config = JSONAsTextField(null=True, default=dict, help_text=_("Any configuration options for this flow export"))
 
+    # just for testing old export downloads still work
+    def write_export(self):
+        # create our exporter
+        exporter = MultiSheetExporter(
+            "Runs",
+            ["Foo", "Bar"],
+            self.org.timezone,
+        )
+        num_records = 0
+        return *exporter.save_file(), num_records
+
 
 @register_asset_store
 class ResultsExportAssetStore(BaseExportAssetStore):
