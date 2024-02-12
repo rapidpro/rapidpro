@@ -352,20 +352,19 @@
               "status": "A",
               "external_id": "eng1",
               "external_locale": "en_US",
-              "components": [
-                {
-                  "type": "BODY",
-                  "text": "Hi {{1}}, are you still experiencing problems with {{2}}?",
-                  "example": {
-                    "body_text": [
-                      [
-                        "Bob",
-                        "Product_A"
-                      ]
-                    ]
-                  }
+              "components": {
+                "body": {
+                  "content": "Hi {{1}}, are you still experiencing problems with {{2}}?",
+                  "params": [
+                    {
+                      "type": "text"
+                    },
+                    {
+                      "type": "text"
+                    }
+                  ]
                 }
-              ],
+              },
               "params": {
                 "body": [
                   {
@@ -386,20 +385,19 @@
               "status": "P",
               "external_id": "fra1",
               "external_locale": "fr",
-              "components": [
-                {
-                  "type": "BODY",
-                  "text": "Bonjour {{1}}, a tu des problems avec {{2}}?",
-                  "example": {
-                    "body_text": [
-                      [
-                        "Bob",
-                        "Produit_A"
-                      ]
-                    ]
-                  }
+              "components": {
+                "body": {
+                  "content": "Bonjour {{1}}, a tu des problems avec {{2}}?",
+                  "params": [
+                    {
+                      "type": "text"
+                    },
+                    {
+                      "type": "text"
+                    }
+                  ]
                 }
-              ],
+              },
               "params": {
                 "body": [
                   {
@@ -426,12 +424,12 @@
               "status": "A",
               "external_id": "fra2",
               "external_locale": "fr",
-              "components": [
-                {
-                  "type": "BODY",
-                  "text": "Salut!"
+              "components": {
+                "body": {
+                  "content": "Salut!",
+                  "params": []
                 }
-              ],
+              },
               "params": {}
             }
           ]
