@@ -1,3 +1,9 @@
+v9.1.24 (2024-02-12)
+-------------------------
+ * Use dict for flow type icons instead of nested if elses
+ * Simplify export finished notification emails
+ * Use Org.Export for flows results exports
+
 v9.1.23 (2024-02-09)
 -------------------------
  * Fix org avatar scale for menu
