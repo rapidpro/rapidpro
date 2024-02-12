@@ -42,11 +42,7 @@ class ExportFinishedNotificationType(NotificationType):
         return _("Your %s export is ready") % notification.export_obj.notification_export_type
 
     def get_email_template(self, notification) -> str:
-        return f"notifications/email/export_finished.{notification.export_obj.notification_export_type}"
-
-    def get_email_context(self, notification):
-        context = super().get_email_context(notification)
-        return context
+        return "notifications/email/export_finished"
 
     def as_json(self, notification) -> dict:
         json = super().as_json(notification)
