@@ -1,7 +1,0 @@
-{% extends "notifications/email/base.html" %}
-{% load i18n %}
-
-{% block notification-body %}
-  <p>{% trans "Your ticket export is ready." %}</p>
-  <p>{% blocktrans with url="https://"|add:branding.domain|add:target_url %}Download the Excel file here: {{ url }}{% endblocktrans %}</p>
-{% endblock notification-body %}
