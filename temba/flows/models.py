@@ -106,6 +106,12 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         TYPE_SURVEY: "messaging_offline",
         TYPE_VOICE: "voice",
     }
+    TYPE_ICONS = {
+        TYPE_MESSAGE: "flow_message",
+        TYPE_VOICE: "flow_ivr",
+        TYPE_BACKGROUND: "flow_background",
+        TYPE_SURVEY: "flow_surveyor",
+    }
 
     FINAL_LEGACY_VERSION = legacy.VERSIONS[-1]
     INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
@@ -384,23 +390,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
                 pass
 
     def get_attrs(self):
-        icon = (
-            "flow_message"
-            if self.flow_type == Flow.TYPE_MESSAGE
-            else (
-                "flow_ivr"
-                if self.flow_type == Flow.TYPE_VOICE
-                else (
-                    "flow_background"
-                    if self.flow_type == Flow.TYPE_BACKGROUND
-                    else "flow_surveyor"
-                    if self.flow_type == Flow.TYPE_SURVEY
-                    else "flow"
-                )
-            )
-        )
-
-        return {"icon": icon, "type": self.flow_type, "uuid": self.uuid}
+        return {"icon": self.TYPE_ICONS.get(self.flow_type, "flow"), "type": self.flow_type, "uuid": self.uuid}
 
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]
