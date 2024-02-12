@@ -1245,15 +1245,6 @@ class ExportMessagesTask(BaseItemWithContactExport):
     TODO migrate to orgs.Export and drop.
     """
 
-    """
-    Wrapper for handling exports of raw messages. This will export all selected messages in
-    an Excel spreadsheet, adding sheets as necessary to fall within the guidelines of Excel 97
-    (the library we depend on requires this) which has column and row size limits.
-
-    When the export is done, we store the file on the server and send an e-mail notice with a
-    link to download the results.
-    """
-
     analytics_key = "msg_export"
     notification_export_type = "message"
 

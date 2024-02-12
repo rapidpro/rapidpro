@@ -8,8 +8,6 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN, ContactURN
-from temba.flows.models import ExportFlowResultsTask
-from temba.flows.tasks import export_flow_results_task
 from temba.utils.crons import cron_task
 from temba.utils.email import EmailSender
 from temba.utils.text import generate_secret
@@ -93,12 +91,6 @@ def restart_stalled_exports():
     )
     for export in exports:
         perform_export.delay(export.id)
-
-    flow_results_exports = ExportFlowResultsTask.objects.filter(modified_on__lte=window).exclude(
-        status__in=[ExportFlowResultsTask.STATUS_COMPLETE, ExportFlowResultsTask.STATUS_FAILED]
-    )
-    for flow_results_export in flow_results_exports:
-        export_flow_results_task.delay(flow_results_export.pk)
 
 
 @cron_task(lock_timeout=7 * 24 * 60 * 60)

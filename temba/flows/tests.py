@@ -22,6 +22,7 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup, Cont
 from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
+from temba.orgs.models import Export
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
 from temba.tests.base import get_contact_search
@@ -34,7 +35,6 @@ from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .checks import mailroom_url
 from .models import (
-    ExportFlowResultsTask,
     Flow,
     FlowCategoryCount,
     FlowLabel,
@@ -48,6 +48,7 @@ from .models import (
     FlowStartCount,
     FlowUserConflictException,
     FlowVersionConflictException,
+    ResultsExport,
 )
 from .tasks import (
     interrupt_flow_sessions,
@@ -3855,7 +3856,7 @@ class ExportFlowResultsTest(TembaTest):
             response = self.client.post(reverse("flows.flow_export_results"), form)
             self.assertModalResponse(response, redirect="/flow/")
 
-        task = ExportFlowResultsTask.objects.order_by("-id").first()
+        task = Export.objects.filter(export_type=ResultsExport.slug).order_by("-id").first()
         self.assertIsNotNone(task)
 
         filename = "%s/test_orgs/%d/results_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
@@ -3976,9 +3977,7 @@ class ExportFlowResultsTest(TembaTest):
         self.login(self.admin)
 
         # create a dummy export task so that we won't be able to export
-        blocking_export = ExportFlowResultsTask.objects.create(
-            org=self.org, created_by=self.admin, modified_by=self.admin
-        )
+        blocking_export = ResultsExport.create(org=self.org, user=self.admin, start_date=None, end_date=None)
         response = self.client.post(
             reverse("flows.flow_export_results"),
             {"start_date": "2022-09-01", "end_date": "2022-09-28", "flows": [flow.id], "with_groups": [devs.id]},
@@ -3989,7 +3988,8 @@ class ExportFlowResultsTest(TembaTest):
         self.assertContains(response, "already an export in progress")
 
         # ok, mark that one as finished and try again
-        blocking_export.update_status(ExportFlowResultsTask.STATUS_COMPLETE)
+        blocking_export.status = Export.STATUS_COMPLETE
+        blocking_export.save(update_fields=("status",))
 
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
@@ -4016,10 +4016,8 @@ class ExportFlowResultsTest(TembaTest):
             )
 
         # check that notifications were created
-        export = ExportFlowResultsTask.objects.order_by("id").last()
-        self.assertEqual(
-            1, self.admin.notifications.filter(notification_type="export:finished", results_export=export).count()
-        )
+        export = Export.objects.filter(export_type=ResultsExport.slug).order_by("id").last()
+        self.assertEqual(1, self.admin.notifications.filter(notification_type="export:finished", export=export).count())
 
         tz = self.org.timezone
 
@@ -4149,7 +4147,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(41):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
@@ -4224,7 +4222,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test export with a contact field
-        with self.assertNumQueries(45):
+        with self.assertNumQueries(46):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
@@ -4288,9 +4286,9 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test that we don't exceed the limit on rows per sheet
-        with patch("temba.flows.models.ExportFlowResultsTask.MAX_EXCEL_ROWS", 4):
+        with patch("temba.utils.export.BaseExport.MAX_EXCEL_ROWS", 4):
             workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
-            expected_sheets = [("Runs", 4), ("Runs (2)", 3)]
+            expected_sheets = [("Runs 1", 4), ("Runs 2", 3)]
 
             for s, sheet in enumerate(workbook.worksheets):
                 self.assertEqual((sheet.title, len(list(sheet.rows))), expected_sheets[s])
@@ -4407,7 +4405,7 @@ class ExportFlowResultsTest(TembaTest):
 
         contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2 = FlowRun.objects.order_by("id")
 
-        with self.assertNumQueries(51):
+        with self.assertNumQueries(46):
             workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
 
         tz = self.org.timezone
@@ -4501,7 +4499,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(34):
+        with self.assertNumQueries(29):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),

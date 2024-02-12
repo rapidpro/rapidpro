@@ -6,18 +6,16 @@ from celery import shared_task
 from django_redis import get_redis_connection
 
 from django.conf import settings
-from django.db.models import F, Prefetch
+from django.db.models import F
 from django.utils import timezone
 from django.utils.timesince import timesince
 
 from temba import mailroom
-from temba.contacts.models import ContactField, ContactGroup
 from temba.utils import chunk_list
 from temba.utils.crons import cron_task
 from temba.utils.models import delete_in_batches
 
 from .models import (
-    ExportFlowResultsTask,
     Flow,
     FlowCategoryCount,
     FlowNodeCount,
@@ -44,17 +42,6 @@ def update_session_wait_expires(flow_id):
     for id_batch in chunk_list(session_ids, 1000):
         batch = FlowSession.objects.filter(id__in=id_batch)
         batch.update(wait_expires_on=F("wait_started_on") + timedelta(minutes=flow.expires_after_minutes))
-
-
-@shared_task
-def export_flow_results_task(export_id):
-    """
-    Export a flow to a file and e-mail a link to the user
-    """
-    ExportFlowResultsTask.objects.select_related("org", "created_by").prefetch_related(
-        Prefetch("with_fields", ContactField.objects.order_by("name")),
-        Prefetch("with_groups", ContactGroup.objects.order_by("name")),
-    ).get(id=export_id).perform()
 
 
 @cron_task(lock_timeout=7200)
