@@ -1,3 +1,7 @@
+v9.1.25 (2024-02-14)
+-------------------------
+ * Update temba-components
+
 v9.1.24 (2024-02-12)
 -------------------------
  * Use dict for flow type icons instead of nested if elses
