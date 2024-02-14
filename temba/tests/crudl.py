@@ -242,16 +242,16 @@ class CRUDLTestMixin:
         as_user(org2_admin, allowed=False)
         return as_user(admin, allowed=True)
 
-    def assertStaffOnly(self, url: str):
+    def assertStaffOnly(self, url: str, choose_org=None):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
-        self.requestView(url, None, checks=[LoginRedirect()])
-        self.requestView(url, agent, checks=[LoginRedirect()])
-        self.requestView(url, viewer, checks=[LoginRedirect()])
-        self.requestView(url, editor, checks=[LoginRedirect()])
-        self.requestView(url, admin, checks=[LoginRedirect()])
+        self.requestView(url, None, checks=[LoginRedirect()], choose_org=choose_org)
+        self.requestView(url, agent, checks=[LoginRedirect()], choose_org=choose_org)
+        self.requestView(url, viewer, checks=[LoginRedirect()], choose_org=choose_org)
+        self.requestView(url, editor, checks=[LoginRedirect()], choose_org=choose_org)
+        self.requestView(url, admin, checks=[LoginRedirect()], choose_org=choose_org)
 
-        return self.requestView(url, self.customer_support, checks=[StatusCode(200)])
+        return self.requestView(url, self.customer_support, checks=[StatusCode(200)], choose_org=choose_org)
 
     def assertMenu(self, url, count, contains_names=[], allow_viewers=True):
         response = self.assertListFetch(url, allow_viewers=allow_viewers, allow_editors=True, allow_agents=True)
