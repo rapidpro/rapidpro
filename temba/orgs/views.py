@@ -3,7 +3,7 @@ import smtplib
 from collections import OrderedDict
 from datetime import timedelta
 from email.utils import parseaddr
-from urllib.parse import quote, quote_plus, unquote, urlparse
+from urllib.parse import quote, quote_plus
 
 import iso8601
 import pyotp
@@ -1279,7 +1279,7 @@ class OrgCRUDL(SmartCRUDL):
         "resthooks",
         "service",
         "surveyor",
-        "smtp_server",
+        "flow_smtp",
         "workspace",
     )
 
@@ -1664,132 +1664,101 @@ class OrgCRUDL(SmartCRUDL):
 
             return non_single_buckets, singles
 
-    class SmtpServer(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class Form(forms.ModelForm):
+    class FlowSmtp(InferOrgMixin, OrgPermsMixin, SmartFormView):
+        class Form(forms.Form):
             from_email = forms.CharField(
                 max_length=128,
-                label=_("Email Address"),
-                required=False,
-                help_text=_("The from email address, can contain a name: ex: Jane Doe <jane@example.org>"),
+                label=_("From Address"),
+                help_text=_("Can contain a name e.g. Jane Doe <jane@example.org>"),
                 widget=InputWidget(),
             )
-            smtp_host = forms.CharField(
-                max_length=128,
-                required=False,
-                widget=InputWidget(attrs={"widget_only": True, "placeholder": _("SMTP Host")}),
+            host = forms.CharField(
+                label=_("Hostname"), max_length=128, widget=InputWidget(attrs={"placeholder": _("smtp.example.com")})
             )
-            smtp_username = forms.CharField(max_length=128, label=_("Username"), required=False, widget=InputWidget())
-            smtp_password = forms.CharField(
-                max_length=128,
-                label=_("Password"),
-                required=False,
-                help_text=_("Leave blank to keep the existing set password if one exists"),
-                widget=InputWidget(attrs={"password": True}),
+            port = forms.IntegerField(
+                label=_("Port"), min_value=1, max_value=65535, widget=InputWidget(attrs={"placeholder": _("25")})
             )
-            smtp_port = forms.IntegerField(
-                min_value=1,
-                max_value=65535,
-                required=False,
-                widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Port")}),
+            username = forms.CharField(max_length=128, label=_("Username"), widget=InputWidget())
+            password = forms.CharField(
+                max_length=128, label=_("Password"), widget=InputWidget(attrs={"password": True})
             )
-            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
+
+            def __init__(self, org, initial: str, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                self.org = org
+
+                host, port, username, password, from_email, _ = parse_smtp_url(initial)
+                self.fields["from_email"].initial = from_email
+                self.fields["host"].initial = host
+                self.fields["port"].initial = port
+                self.fields["username"].initial = username
+                self.fields["password"].initial = password
+
+            def clean_from_email(self):
+                data = self.cleaned_data["from_email"]
+                if data and not is_valid_address(parseaddr(data)[1]):
+                    raise forms.ValidationError(_("Not a valid email address."))
+                return data
 
             def clean(self):
                 super().clean()
 
-                # don't validate email setting fields if we're disconnecting
-                if self.cleaned_data.get("disconnect", "false") == "true":
-                    return self.cleaned_data
-
-                from_email = self.cleaned_data.get("from_email", None)
-                host = self.cleaned_data.get("smtp_host", None)
-                port = self.cleaned_data.get("smtp_port", None)
-                username = self.cleaned_data.get("smtp_username", None)
-                password = self.cleaned_data.get("smtp_password", None)
-
-                # if editing existing settings, and username isn't changing, password can be omitted
-                existing = urlparse(self.instance.flow_smtp)
-                existing_username = unquote(existing.username) if existing.username else ""
-                if not password and existing_username == username and existing.password:
-                    password = unquote(existing.password)
-                    self.cleaned_data["smtp_password"] = password
-
-                if not from_email:
-                    self.add_error("from_email", _("This field is required."))
-                elif not is_valid_address(parseaddr(from_email)[1]):
-                    self.add_error("from_email", _("Please enter a valid email address."))
-
-                if not host:
-                    self.add_error("smtp_host", _("This field is required."))
-                if not port:
-                    self.add_error("smtp_port", _("This field is required."))
-                if not username:
-                    self.add_error("smtp_username", _("This field is required."))
-                if not password:
-                    self.add_error("smtp_password", _("This field is required."))
-
                 # if individual fields look valid, do an actual email test...
                 if self.is_valid():
+                    from_email = self.cleaned_data["from_email"]
+                    host = self.cleaned_data["host"]
+                    port = self.cleaned_data["port"]
+                    username = self.cleaned_data["username"]
+                    password = self.cleaned_data["password"]
+
                     smtp_url = make_smtp_url(host, port, username, password, from_email, tls=True)
+                    sender = EmailSender.from_smtp_url(self.org.branding, smtp_url)
                     try:
-                        sender = EmailSender.from_smtp_url(self.instance.branding, smtp_url)
                         sender.send(
-                            [admin.email for admin in self.instance.get_admins().order_by("email")],
-                            _("%(name)s SMTP configuration test") % self.instance.branding,
+                            [admin.email for admin in self.org.get_admins().order_by("email")],
+                            _("%(name)s SMTP settings test") % self.org.branding,
                             "orgs/email/smtp_test",
                             {},
                         )
                     except smtplib.SMTPException as e:
-                        raise ValidationError(
-                            _("Failed to send email with STMP server configuration with error '%s'") % str(e)
-                        )
+                        raise ValidationError(_("SMTP settings test failed with error: %s") % str(e))
                     except Exception:
-                        raise ValidationError(_("Failed to send email with STMP server configuration"))
+                        raise ValidationError(_("SMTP settings test failed."))
+
+                    self.cleaned_data["smtp_url"] = smtp_url
 
                 return self.cleaned_data
 
             class Meta:
-                model = Org
-                fields = ("from_email", "smtp_host", "smtp_username", "smtp_password", "smtp_port", "disconnect")
+                fields = ("from_email", "host", "username", "password", "port")
 
         form_class = Form
         success_message = ""
 
-        def derive_initial(self):
-            initial = super().derive_initial()
-            org = self.get_object()
-
-            host, port, username, password, from_email, _ = parse_smtp_url(org.flow_smtp)
-
-            initial["from_email"] = from_email
-            initial["smtp_host"] = host
-            initial["smtp_port"] = port
-            initial["smtp_username"] = username
-            initial["smtp_password"] = password
-            initial["disconnect"] = "false"
-            return initial
-
-        def form_valid(self, form):
-            disconnect = form.cleaned_data.get("disconnect", "false") == "true"
-            user = self.request.user
-            org = self.request.org
-
-            if disconnect:
+        def post(self, request, *args, **kwargs):
+            if "disconnect" in request.POST:
+                org = self.request.org
                 org.flow_smtp = None
-                org.modified_by = user
+                org.modified_by = request.user
                 org.save(update_fields=("flow_smtp", "modified_by", "modified_on"))
 
                 return HttpResponseRedirect(reverse("orgs.org_workspace"))
-            else:
-                from_email = form.cleaned_data["from_email"]
-                host = form.cleaned_data["smtp_host"]
-                username = form.cleaned_data["smtp_username"]
-                password = form.cleaned_data["smtp_password"]
-                port = form.cleaned_data["smtp_port"]
 
-                org.flow_smtp = make_smtp_url(host, port, username, password, from_email, tls=True)
-                org.modified_by = user
-                org.save(update_fields=("flow_smtp", "modified_by", "modified_on"))
+            return super().post(request, *args, **kwargs)
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
+            kwargs["initial"] = self.request.org.flow_smtp
+            return kwargs
+
+        def form_valid(self, form):
+            org = self.request.org
+
+            org.flow_smtp = form.cleaned_data["smtp_url"]
+            org.modified_by = self.request.user
+            org.save(update_fields=("flow_smtp", "modified_by", "modified_on"))
 
             return super().form_valid(form)
 
@@ -2878,8 +2847,8 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_country") and "locations" in settings.FEATURES:
                 formax.add_section("country", reverse("orgs.org_country"), icon="location")
 
-            if self.has_org_perm("orgs.org_smtp_server"):
-                formax.add_section("email", reverse("orgs.org_smtp_server"), icon="email")
+            if self.has_org_perm("orgs.org_flow_smtp"):
+                formax.add_section("email", reverse("orgs.org_flow_smtp"), icon="email")
 
             if self.has_org_perm("orgs.org_prometheus"):
                 formax.add_section("prometheus", reverse("orgs.org_prometheus"), icon="prometheus", nobutton=True)

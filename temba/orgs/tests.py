@@ -2187,11 +2187,11 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 8)
 
     @override_settings(SEND_EMAILS=True)
-    def test_smtp_server(self):
+    def test_flow_smtp(self):
         self.login(self.admin)
 
         settings_url = reverse("orgs.org_workspace")
-        config_url = reverse("orgs.org_smtp_server")
+        config_url = reverse("orgs.org_flow_smtp")
 
         # orgs without SMTP settings see default from address
         response = self.client.get(settings_url)
@@ -2218,15 +2218,15 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # try submitting without any data
         response = self.client.post(config_url, {})
         self.assertFormError(response, "form", "from_email", "This field is required.")
-        self.assertFormError(response, "form", "smtp_host", "This field is required.")
-        self.assertFormError(response, "form", "smtp_username", "This field is required.")
-        self.assertFormError(response, "form", "smtp_password", "This field is required.")
-        self.assertFormError(response, "form", "smtp_port", "This field is required.")
+        self.assertFormError(response, "form", "host", "This field is required.")
+        self.assertFormError(response, "form", "username", "This field is required.")
+        self.assertFormError(response, "form", "password", "This field is required.")
+        self.assertFormError(response, "form", "port", "This field is required.")
         self.assertEqual(len(mail.outbox), 0)
 
         # try submitting an invalid from address
-        response = self.client.post(config_url, {"from_email": "foobar.com", "disconnect": "false"})
-        self.assertFormError(response, "form", "from_email", "Please enter a valid email address.")
+        response = self.client.post(config_url, {"from_email": "foobar.com"})
+        self.assertFormError(response, "form", "from_email", "Not a valid email address.")
         self.assertEqual(len(mail.outbox), 0)
 
         # mock email sending so test send fails
@@ -2237,16 +2237,13 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 config_url,
                 {
                     "from_email": "foo@bar.com",
-                    "smtp_host": "smtp.example.com",
-                    "smtp_username": "support@example.com",
-                    "smtp_password": "secret",
-                    "smtp_port": "465",
-                    "disconnect": "false",
+                    "host": "smtp.example.com",
+                    "username": "support@example.com",
+                    "password": "secret",
+                    "port": "465",
                 },
             )
-            self.assertFormError(
-                response, "form", None, "Failed to send email with STMP server configuration with error 'boom'"
-            )
+            self.assertFormError(response, "form", None, "SMTP settings test failed with error: boom")
             self.assertEqual(len(mail.outbox), 0)
 
             mock_send.side_effect = Exception("Unexpected Error")
@@ -2254,15 +2251,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 config_url,
                 {
                     "from_email": "foo@bar.com",
-                    "smtp_host": "smtp.example.com",
-                    "smtp_username": "support@example.com",
-                    "smtp_password": "secret",
-                    "smtp_port": "465",
-                    "disconnect": "false",
+                    "host": "smtp.example.com",
+                    "username": "support@example.com",
+                    "password": "secret",
+                    "port": "465",
                 },
                 follow=True,
             )
-            self.assertFormError(response, "form", None, "Failed to send email with STMP server configuration")
+            self.assertFormError(response, "form", None, "SMTP settings test failed.")
             self.assertEqual(len(mail.outbox), 0)
 
         # submit with valid fields
@@ -2270,11 +2266,10 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             config_url,
             {
                 "from_email": "  foo@bar.com  ",  # check trimming
-                "smtp_host": "smtp.example.com",
-                "smtp_username": "support@example.com",
-                "smtp_password": " secret ",
-                "smtp_port": "465",
-                "disconnect": "false",
+                "host": "smtp.example.com",
+                "username": "support@example.com",
+                "password": " secret ",
+                "port": "465",
             },
         )
         self.assertEqual(len(mail.outbox), 1)
@@ -2287,42 +2282,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(config_url)
         self.assertEqual("bob@acme.com", response.context["from_email_default"])
         self.assertEqual("foo@bar.com", response.context["from_email_custom"])
-
-        # password can be omitted when editing
-        self.client.post(
-            config_url,
-            {
-                "from_email": "support@example.com",
-                "smtp_host": "smtp.example.com",
-                "smtp_username": "support@example.com",
-                "smtp_password": "",
-                "smtp_port": "465",
-                "disconnect": "false",
-            },
-            follow=True,
-        )
-
-        # password shouldn't change
-        self.org.refresh_from_db()
-        self.assertEqual(
-            r"smtp://support%40example.com:secret@smtp.example.com:465/?from=support%40example.com&tls=true",
-            self.org.flow_smtp,
-        )
-
-        # unless username is changing
-        response = self.client.post(
-            config_url,
-            {
-                "from_email": "support@example.com",
-                "smtp_host": "smtp.example.com",
-                "smtp_username": "help@example.com",
-                "smtp_password": "",
-                "smtp_port": "465",
-                "disconnect": "false",
-            },
-            follow=True,
-        )
-        self.assertFormError(response, "form", "smtp_password", "This field is required.")
 
         # submit with disconnect flag
         self.client.post(config_url, {"disconnect": "true"})
