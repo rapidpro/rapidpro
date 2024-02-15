@@ -26,18 +26,19 @@
         Are you sure you want to continue?
       {% endblocktrans %}
     </div>
-    <div href="{% url "orgs.org_smtp_server" %}?disconnect=true" id="remove-smtp-form"></div>
+    <div href="{% url "orgs.org_flow_smtp" %}?disconnect=true" id="remove-smtp-form"></div>
   </div>
 {% endblock pre-form %}
 {% block fields %}
   {% render_field 'from_email' %}
   <div class="flex">
-    <div class="host flex-grow mr-4">{% render_field 'smtp_host' %}</div>
-    <div class="port">{% render_field 'smtp_port' %}</div>
+    <div class="flex-grow mr-4">{% render_field 'host' %}</div>
+    <div>{% render_field 'port' %}</div>
   </div>
-  {% render_field 'smtp_username' %}
-  {% render_field 'smtp_password' %}
-  {% render_field 'disconnect' %}
+  <div class="flex">
+    <div class="flex-auto mr-4">{% render_field 'username' %}</div>
+    <div class="flex-auto">{% render_field 'password' %}</div>
+  </div>
 {% endblock fields %}
 {% block extra-script %}
   {{ block.super }}

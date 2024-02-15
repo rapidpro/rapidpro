@@ -1,9 +1,7 @@
 import itertools
-import smtplib
 from collections import OrderedDict
 from datetime import timedelta
-from email.utils import parseaddr
-from urllib.parse import quote, quote_plus, unquote, urlparse
+from urllib.parse import quote, quote_plus
 
 import iso8601
 import pyotp
@@ -52,7 +50,7 @@ from temba.formax import FormaxMixin
 from temba.notifications.mixins import NotificationTargetMixin
 from temba.orgs.tasks import send_user_verification_email
 from temba.utils import analytics, get_anonymous_user, json, languages, str_to_bool
-from temba.utils.email import EmailSender, is_valid_address, make_smtp_url, parse_smtp_url
+from temba.utils.email import parse_smtp_url
 from temba.utils.fields import (
     ArbitraryJsonChoiceField,
     CheckboxWidget,
@@ -73,6 +71,7 @@ from temba.utils.views import (
     StaffOnlyMixin,
 )
 
+from .forms import SignupForm, SMTPForm
 from .models import BackupToken, Export, IntegrationType, Invitation, Org, OrgImport, OrgRole, User, UserSettings
 
 # session key for storing a two-factor enabled user's id once we've checked their password
@@ -357,95 +356,6 @@ class DependencyDeleteModal(DependencyModalMixin, ModalMixin, SmartDeleteView):
         response = HttpResponse()
         response["Temba-Success"] = self.get_success_url()
         return response
-
-
-class OrgSignupForm(forms.ModelForm):
-    """
-    Signup for new organizations
-    """
-
-    first_name = forms.CharField(
-        max_length=User._meta.get_field("first_name").max_length,
-        widget=InputWidget(attrs={"widget_only": True, "placeholder": _("First name")}),
-    )
-    last_name = forms.CharField(
-        max_length=User._meta.get_field("last_name").max_length,
-        widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Last name")}),
-    )
-    email = forms.EmailField(
-        max_length=User._meta.get_field("username").max_length,
-        widget=InputWidget(attrs={"widget_only": True, "placeholder": _("name@domain.com")}),
-    )
-
-    timezone = TimeZoneFormField(help_text=_("The timezone for your workspace"), widget=forms.widgets.HiddenInput())
-
-    password = forms.CharField(
-        widget=InputWidget(attrs={"hide_label": True, "password": True, "placeholder": _("Password")}),
-        validators=[validate_password],
-        help_text=_("At least eight characters or more"),
-    )
-
-    name = forms.CharField(
-        label=_("Workspace"),
-        help_text=_("A workspace is usually the name of a company or project"),
-        widget=InputWidget(attrs={"widget_only": False, "placeholder": _("My Company, Inc.")}),
-    )
-
-    def clean_email(self):
-        email = self.cleaned_data["email"]
-        if email:
-            if User.objects.filter(username__iexact=email):
-                raise forms.ValidationError(_("That email address is already used"))
-
-        return email.lower()
-
-    class Meta:
-        model = Org
-        fields = ("first_name", "last_name", "email", "timezone", "password", "name")
-
-
-class OrgGrantForm(forms.ModelForm):
-    first_name = forms.CharField(
-        help_text=_("The first name of the workspace administrator"),
-        max_length=User._meta.get_field("first_name").max_length,
-    )
-    last_name = forms.CharField(
-        help_text=_("Your last name of the workspace administrator"),
-        max_length=User._meta.get_field("last_name").max_length,
-    )
-    email = forms.EmailField(help_text=_("Their email address"), max_length=User._meta.get_field("username").max_length)
-    timezone = TimeZoneFormField(help_text=_("The timezone for the workspace"))
-    password = forms.CharField(
-        widget=forms.PasswordInput,
-        required=False,
-        help_text=_("Their password, at least eight letters please. (leave blank for existing login)"),
-    )
-    name = forms.CharField(label=_("Workspace"), help_text=_("The name of the new workspace"))
-
-    def clean(self):
-        data = self.cleaned_data
-
-        email = data.get("email", None)
-        password = data.get("password", None)
-
-        # for granting new accounts, either the email maps to an existing user (and their existing password is used)
-        # or both email and password must be included
-        if email:
-            user = User.objects.filter(username__iexact=email).first()
-            if user:
-                if password:
-                    raise ValidationError(_("Login already exists, please do not include password."))
-            else:
-                if not password:
-                    raise ValidationError(_("Password required for new login."))
-
-                validate_password(password)
-
-        return data
-
-    class Meta:
-        model = Org
-        fields = ("first_name", "last_name", "email", "timezone", "password", "name")
 
 
 class LoginView(Login):
@@ -1279,7 +1189,7 @@ class OrgCRUDL(SmartCRUDL):
         "resthooks",
         "service",
         "surveyor",
-        "smtp_server",
+        "flow_smtp",
         "workspace",
     )
 
@@ -1664,132 +1574,33 @@ class OrgCRUDL(SmartCRUDL):
 
             return non_single_buckets, singles
 
-    class SmtpServer(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class Form(forms.ModelForm):
-            from_email = forms.CharField(
-                max_length=128,
-                label=_("Email Address"),
-                required=False,
-                help_text=_("The from email address, can contain a name: ex: Jane Doe <jane@example.org>"),
-                widget=InputWidget(),
-            )
-            smtp_host = forms.CharField(
-                max_length=128,
-                required=False,
-                widget=InputWidget(attrs={"widget_only": True, "placeholder": _("SMTP Host")}),
-            )
-            smtp_username = forms.CharField(max_length=128, label=_("Username"), required=False, widget=InputWidget())
-            smtp_password = forms.CharField(
-                max_length=128,
-                label=_("Password"),
-                required=False,
-                help_text=_("Leave blank to keep the existing set password if one exists"),
-                widget=InputWidget(attrs={"password": True}),
-            )
-            smtp_port = forms.IntegerField(
-                min_value=1,
-                max_value=65535,
-                required=False,
-                widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Port")}),
-            )
-            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
-
-            def clean(self):
-                super().clean()
-
-                # don't validate email setting fields if we're disconnecting
-                if self.cleaned_data.get("disconnect", "false") == "true":
-                    return self.cleaned_data
-
-                from_email = self.cleaned_data.get("from_email", None)
-                host = self.cleaned_data.get("smtp_host", None)
-                port = self.cleaned_data.get("smtp_port", None)
-                username = self.cleaned_data.get("smtp_username", None)
-                password = self.cleaned_data.get("smtp_password", None)
-
-                # if editing existing settings, and username isn't changing, password can be omitted
-                existing = urlparse(self.instance.flow_smtp)
-                existing_username = unquote(existing.username) if existing.username else ""
-                if not password and existing_username == username and existing.password:
-                    password = unquote(existing.password)
-                    self.cleaned_data["smtp_password"] = password
-
-                if not from_email:
-                    self.add_error("from_email", _("This field is required."))
-                elif not is_valid_address(parseaddr(from_email)[1]):
-                    self.add_error("from_email", _("Please enter a valid email address."))
-
-                if not host:
-                    self.add_error("smtp_host", _("This field is required."))
-                if not port:
-                    self.add_error("smtp_port", _("This field is required."))
-                if not username:
-                    self.add_error("smtp_username", _("This field is required."))
-                if not password:
-                    self.add_error("smtp_password", _("This field is required."))
-
-                # if individual fields look valid, do an actual email test...
-                if self.is_valid():
-                    smtp_url = make_smtp_url(host, port, username, password, from_email, tls=True)
-                    try:
-                        sender = EmailSender.from_smtp_url(self.instance.branding, smtp_url)
-                        sender.send(
-                            [admin.email for admin in self.instance.get_admins().order_by("email")],
-                            _("%(name)s SMTP configuration test") % self.instance.branding,
-                            "orgs/email/smtp_test",
-                            {},
-                        )
-                    except smtplib.SMTPException as e:
-                        raise ValidationError(
-                            _("Failed to send email with STMP server configuration with error '%s'") % str(e)
-                        )
-                    except Exception:
-                        raise ValidationError(_("Failed to send email with STMP server configuration"))
-
-                return self.cleaned_data
-
-            class Meta:
-                model = Org
-                fields = ("from_email", "smtp_host", "smtp_username", "smtp_password", "smtp_port", "disconnect")
-
-        form_class = Form
+    class FlowSmtp(InferOrgMixin, OrgPermsMixin, SmartFormView):
+        form_class = SMTPForm
         success_message = ""
 
-        def derive_initial(self):
-            initial = super().derive_initial()
-            org = self.get_object()
-
-            host, port, username, password, from_email, _ = parse_smtp_url(org.flow_smtp)
-
-            initial["from_email"] = from_email
-            initial["smtp_host"] = host
-            initial["smtp_port"] = port
-            initial["smtp_username"] = username
-            initial["smtp_password"] = password
-            initial["disconnect"] = "false"
-            return initial
-
-        def form_valid(self, form):
-            disconnect = form.cleaned_data.get("disconnect", "false") == "true"
-            user = self.request.user
-            org = self.request.org
-
-            if disconnect:
+        def post(self, request, *args, **kwargs):
+            if "disconnect" in request.POST:
+                org = self.request.org
                 org.flow_smtp = None
-                org.modified_by = user
+                org.modified_by = request.user
                 org.save(update_fields=("flow_smtp", "modified_by", "modified_on"))
 
                 return HttpResponseRedirect(reverse("orgs.org_workspace"))
-            else:
-                from_email = form.cleaned_data["from_email"]
-                host = form.cleaned_data["smtp_host"]
-                username = form.cleaned_data["smtp_username"]
-                password = form.cleaned_data["smtp_password"]
-                port = form.cleaned_data["smtp_port"]
 
-                org.flow_smtp = make_smtp_url(host, port, username, password, from_email, tls=True)
-                org.modified_by = user
-                org.save(update_fields=("flow_smtp", "modified_by", "modified_on"))
+            return super().post(request, *args, **kwargs)
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.request.org
+            kwargs["initial"] = self.request.org.flow_smtp
+            return kwargs
+
+        def form_valid(self, form):
+            org = self.request.org
+
+            org.flow_smtp = form.cleaned_data["smtp_url"]
+            org.modified_by = self.request.user
+            org.save(update_fields=("flow_smtp", "modified_by", "modified_on"))
 
             return super().form_valid(form)
 
@@ -1806,6 +1617,7 @@ class OrgCRUDL(SmartCRUDL):
 
             from_email_custom = extract_from(org.flow_smtp) if org.flow_smtp else None
 
+            context["object"] = org
             context["from_email_default"] = from_email_default
             context["from_email_custom"] = from_email_custom
             return context
@@ -2491,7 +2303,7 @@ class OrgCRUDL(SmartCRUDL):
         Sign up form for new users to accept a workspace invitations.
         """
 
-        form_class = OrgSignupForm
+        form_class = SignupForm
         fields = ("first_name", "last_name", "password")
         success_message = ""
         success_url = "@orgs.org_start"
@@ -2691,8 +2503,53 @@ class OrgCRUDL(SmartCRUDL):
                 return super().get_template_names()
 
     class Grant(NonAtomicMixin, SmartCreateView):
+        class Form(forms.ModelForm):
+            first_name = forms.CharField(
+                help_text=_("The first name of the workspace administrator"),
+                max_length=User._meta.get_field("first_name").max_length,
+            )
+            last_name = forms.CharField(
+                help_text=_("Your last name of the workspace administrator"),
+                max_length=User._meta.get_field("last_name").max_length,
+            )
+            email = forms.EmailField(
+                help_text=_("Their email address"), max_length=User._meta.get_field("username").max_length
+            )
+            timezone = TimeZoneFormField(help_text=_("The timezone for the workspace"))
+            password = forms.CharField(
+                widget=forms.PasswordInput,
+                required=False,
+                help_text=_("Their password, at least eight letters please. (leave blank for existing login)"),
+            )
+            name = forms.CharField(label=_("Workspace"), help_text=_("The name of the new workspace"))
+
+            def clean(self):
+                data = self.cleaned_data
+
+                email = data.get("email", None)
+                password = data.get("password", None)
+
+                # for granting new accounts, either the email maps to an existing user (and their existing password is used)
+                # or both email and password must be included
+                if email:
+                    user = User.objects.filter(username__iexact=email).first()
+                    if user:
+                        if password:
+                            raise ValidationError(_("Login already exists, please do not include password."))
+                    else:
+                        if not password:
+                            raise ValidationError(_("Password required for new login."))
+
+                        validate_password(password)
+
+                return data
+
+            class Meta:
+                model = Org
+                fields = ("first_name", "last_name", "email", "timezone", "password", "name")
+
         title = _("Create Workspace Account")
-        form_class = OrgGrantForm
+        form_class = Form
         success_message = "Workspace successfully created."
         submit_button_name = _("Create")
         success_url = "@orgs.org_grant"
@@ -2714,7 +2571,7 @@ class OrgCRUDL(SmartCRUDL):
 
     class Signup(ComponentFormMixin, NonAtomicMixin, SmartCreateView):
         title = _("Sign Up")
-        form_class = OrgSignupForm
+        form_class = SignupForm
         permission = None
         success_message = ""
         submit_button_name = _("Save")
@@ -2878,8 +2735,8 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_country") and "locations" in settings.FEATURES:
                 formax.add_section("country", reverse("orgs.org_country"), icon="location")
 
-            if self.has_org_perm("orgs.org_smtp_server"):
-                formax.add_section("email", reverse("orgs.org_smtp_server"), icon="email")
+            if self.has_org_perm("orgs.org_flow_smtp"):
+                formax.add_section("email", reverse("orgs.org_flow_smtp"), icon="email")
 
             if self.has_org_perm("orgs.org_prometheus"):
                 formax.add_section("prometheus", reverse("orgs.org_prometheus"), icon="prometheus", nobutton=True)
