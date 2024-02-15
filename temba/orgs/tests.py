@@ -2211,6 +2211,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org2.flow_smtp = "smtp://bob%40acme.com:secret@example.com/?from=bob%40acme.com&tls=true"
         self.org2.save(update_fields=("flow_smtp",))
 
+        response = self.client.get(settings_url)
+        self.assertContains(response, "Emails sent from flows will be sent from <b>bob@acme.com</b>.")
+
         response = self.client.get(config_url)
         self.assertEqual("bob@acme.com", response.context["from_email_default"])
         self.assertIsNone(response.context["from_email_custom"])
@@ -2279,6 +2282,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             r"smtp://support%40example.com:secret@smtp.example.com:465/?from=foo%40bar.com&tls=true", self.org.flow_smtp
         )
 
+        response = self.client.get(settings_url)
+        self.assertContains(response, "Emails sent from flows will be sent from <b>foo@bar.com</b>.")
+
         response = self.client.get(config_url)
         self.assertEqual("bob@acme.com", response.context["from_email_default"])
         self.assertEqual("foo@bar.com", response.context["from_email_custom"])
@@ -2288,6 +2294,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.org.refresh_from_db()
         self.assertIsNone(self.org.flow_smtp)
+
+        response = self.client.get(settings_url)
+        self.assertContains(response, "Emails sent from flows will be sent from <b>bob@acme.com</b>.")
 
     def test_join(self):
         # if invitation secret is invalid, redirect to root

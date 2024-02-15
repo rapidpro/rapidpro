@@ -3,8 +3,6 @@ from django.core.mail import EmailMultiAlternatives, get_connection
 from django.template import loader
 from django.utils import timezone
 
-from temba.utils import get_nested_key
-
 from .conf import parse_smtp_url
 
 
@@ -23,7 +21,7 @@ class EmailSender:
         """
         Creates a sender from the given email type setting in the given branding.
         """
-        email_cfg = get_nested_key(branding, f"emails.{email_type}", None)
+        email_cfg = branding.get("emails", {}).get(email_type)
         if email_cfg and email_cfg.startswith("smtp://"):
             return cls.from_smtp_url(branding, email_cfg)
 
