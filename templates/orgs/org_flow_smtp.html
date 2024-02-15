@@ -1,5 +1,5 @@
 {% extends "smartmin/form.html" %}
-{% load compress temba smartmin i18n %}
+{% load i18n smartmin %}
 
 {% block summary %}
   {% blocktrans trimmed with from_email=from_email_custom|default:from_email_default %}
@@ -8,13 +8,13 @@
 {% endblock summary %}
 {% block pre-form %}
   <div class="mb-4">
-    {% if object.flow_smtp %}
+    {% if from_email_custom != from_email_default %}
       {% blocktrans trimmed with from_email=from_email_custom %}
-        If you no longer want to use this configuration to send emails from flows, <a href='javascript:confirmSMTPRemove();'>click here.</a>
+        If you no longer want to use these SMTP settings to send emails from flows, <a href='javascript:confirmSMTPRemove();'>click here.</a>
       {% endblocktrans %}
     {% else %}
       {% blocktrans trimmed %}
-        You can add your own email configuration for emails sent from flows.
+        You can add your own SMTP settings for emails sent from flows.
       {% endblocktrans %}
     {% endif %}
   </div>

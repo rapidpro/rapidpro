@@ -1617,7 +1617,6 @@ class OrgCRUDL(SmartCRUDL):
 
             from_email_custom = extract_from(org.flow_smtp) if org.flow_smtp else None
 
-            context["object"] = org
             context["from_email_default"] = from_email_default
             context["from_email_custom"] = from_email_custom
             return context
