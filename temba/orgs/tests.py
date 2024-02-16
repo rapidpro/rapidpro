@@ -2204,6 +2204,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.save(update_fields=("parent",))
 
         response = self.client.get(config_url)
+        self.assertContains(response, "You can add your own SMTP settings for emails sent from flows.")
         self.assertEqual("no-reply@temba.io", response.context["from_email_default"])
         self.assertIsNone(response.context["from_email_custom"])
 
@@ -2215,6 +2216,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Emails sent from flows will be sent from <b>bob@acme.com</b>.")
 
         response = self.client.get(config_url)
+        self.assertContains(response, "You can add your own SMTP settings for emails sent from flows.")
         self.assertEqual("bob@acme.com", response.context["from_email_default"])
         self.assertIsNone(response.context["from_email_custom"])
 
@@ -2286,6 +2288,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Emails sent from flows will be sent from <b>foo@bar.com</b>.")
 
         response = self.client.get(config_url)
+        self.assertContains(response, "If you no longer want to use these SMTP settings")
         self.assertEqual("bob@acme.com", response.context["from_email_default"])
         self.assertEqual("foo@bar.com", response.context["from_email_custom"])
 

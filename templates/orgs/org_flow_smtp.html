@@ -8,7 +8,7 @@
 {% endblock summary %}
 {% block pre-form %}
   <div class="mb-4">
-    {% if from_email_custom != from_email_default %}
+    {% if from_email_custom %}
       {% blocktrans trimmed with from_email=from_email_custom %}
         If you no longer want to use these SMTP settings to send emails from flows, <a href='javascript:confirmSMTPRemove();'>click here.</a>
       {% endblocktrans %}
