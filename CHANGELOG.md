@@ -1,3 +1,8 @@
+v9.1.26 (2024-02-18)
+-------------------------
+ * Bump cryptography from 42.0.0 to 42.0.2
+ * Improve the form for setting flow SMTP and make reusable
+
 v9.1.25 (2024-02-14)
 -------------------------
  * Update temba-components
