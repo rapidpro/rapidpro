@@ -28,6 +28,10 @@ class OrgMiddleware:
     Determines the org for this request and sets it on the request. Also sets request.branding for convenience.
     """
 
+    session_key = "org_id"
+    header_name = "X-Temba-Org"
+    select_related = ("parent",)
+
     def __init__(self, get_response=None):
         self.get_response = get_response
 
@@ -46,7 +50,7 @@ class OrgMiddleware:
 
         if request.org:
             # set a response header to make it easier to find the current org id
-            response["X-Temba-Org"] = request.org.id
+            response[self.header_name] = request.org.id
 
         return response
 
@@ -57,9 +61,9 @@ class OrgMiddleware:
             return None
 
         # check for value in session
-        org_id = request.session.get("org_id", None)
+        org_id = request.session.get(self.session_key, None)
         if org_id:
-            org = Org.objects.filter(is_active=True, id=org_id).select_related("parent").first()
+            org = Org.objects.filter(is_active=True, id=org_id).select_related(*self.select_related).first()
 
             # only use if user actually belongs to this org
             if org and (user.is_staff or org.has_user(user)):
