@@ -105,13 +105,10 @@ class SMTPForm(forms.Form):
 
             smtp_url = make_smtp_url(host, port, username, password, from_email, tls=True)
             sender = EmailSender.from_smtp_url(self.org.branding, smtp_url)
+            recipients = [admin.email for admin in self.org.get_admins().order_by("email")]
+            subject = _("%(name)s SMTP settings test") % self.org.branding
             try:
-                sender.send(
-                    [admin.email for admin in self.org.get_admins().order_by("email")],
-                    _("%(name)s SMTP settings test") % self.org.branding,
-                    "orgs/email/smtp_test",
-                    {},
-                )
+                sender.send(recipients, subject, "orgs/email/smtp_test", {})
             except smtplib.SMTPException as e:
                 raise ValidationError(_("SMTP settings test failed with error: %s") % str(e))
             except Exception:
