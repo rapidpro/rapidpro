@@ -80,8 +80,9 @@ TWO_FACTOR_STARTED_SESSION_KEY = "_two_factor_started_on"
 TWO_FACTOR_LIMIT_SECONDS = 5 * 60
 
 
-def switch_to_org(request, org):
+def switch_to_org(request, org, *, servicing: bool = False):
     request.session["org_id"] = org.id if org else None
+    request.session["servicing"] = servicing
 
 
 def check_login(request):
@@ -2091,7 +2092,7 @@ class OrgCRUDL(SmartCRUDL):
 
         # valid form means we set our org and redirect to their inbox
         def form_valid(self, form):
-            switch_to_org(self.request, form.cleaned_data["other_org"])
+            switch_to_org(self.request, form.cleaned_data["other_org"], servicing=True)
             success_url = form.cleaned_data["next"] or reverse("msgs.msg_inbox")
             return HttpResponseRedirect(success_url)
 
