@@ -3343,46 +3343,48 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         inbox_url = reverse("msgs.msg_inbox")
 
         # without logging in, try to service our main org
-        response = self.client.get(service_url, dict(other_org=self.org.id, next=inbox_url))
+        response = self.client.get(service_url, {"other_org": self.org.id, "next": inbox_url})
         self.assertLoginRedirect(response)
 
-        response = self.client.post(service_url, dict(other_org=self.org.id))
+        response = self.client.post(service_url, {"other_org": self.org.id})
         self.assertLoginRedirect(response)
 
         # try logging in with a normal user
         self.login(self.admin)
 
         # same thing, no permission
-        response = self.client.get(service_url, dict(other_org=self.org.id, next=inbox_url))
+        response = self.client.get(service_url, {"other_org": self.org.id, "next": inbox_url})
         self.assertLoginRedirect(response)
 
-        response = self.client.post(service_url, dict(other_org=self.org.id))
+        response = self.client.post(service_url, {"other_org": self.org.id})
         self.assertLoginRedirect(response)
 
         # ok, log in as our cs rep
         self.login(self.customer_support)
 
         # getting invalid org, has no service form
-        response = self.client.get(service_url, dict(other_org=325253256, next=inbox_url))
+        response = self.client.get(service_url, {"other_org": 325253256, "next": inbox_url})
         self.assertContains(response, "Invalid org")
 
         # posting invalid org just redirects back to manage page
-        response = self.client.post(service_url, dict(other_org=325253256))
+        response = self.client.post(service_url, {"other_org": 325253256})
         self.assertRedirect(response, "/org/manage/")
 
         # then service our org
-        response = self.client.get(service_url, dict(other_org=self.org.id))
+        response = self.client.get(service_url, {"other_org": self.org.id})
         self.assertContains(response, "You are about to service the workspace, <b>Nyaruka</b>.")
 
         # requesting a next page has a slightly different message
-        response = self.client.get(service_url, dict(other_org=self.org.id, next=inbox_url))
+        response = self.client.get(service_url, {"other_org": self.org.id, "next": inbox_url})
         self.assertContains(response, "The page you are requesting belongs to a different workspace, <b>Nyaruka</b>.")
 
-        response = self.client.post(service_url, dict(other_org=self.org.id))
+        response = self.client.post(service_url, {"other_org": self.org.id})
         self.assertRedirect(response, "/msg/")
+        self.assertEqual(self.org.id, self.client.session["org_id"])
+        self.assertTrue(self.client.session["servicing"])
 
         # specify redirect_url
-        response = self.client.post(service_url, dict(other_org=self.org.id, next="/flow/"))
+        response = self.client.post(service_url, {"other_org": self.org.id, "next": "/flow/"})
         self.assertRedirect(response, "/flow/")
 
         # create a new contact
@@ -3394,6 +3396,15 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # make sure that contact's created on is our cs rep
         contact = Contact.objects.get(urns__path="+250788123123", org=self.org)
         self.assertEqual(self.customer_support, contact.created_by)
+
+        self.assertEqual(self.org.id, self.client.session["org_id"])
+        self.assertTrue(self.client.session["servicing"])
+
+        # stop servicing
+        response = self.client.post(service_url, {})
+        self.assertRedirect(response, "/org/manage/")
+        self.assertIsNone(self.client.session["org_id"])
+        self.assertFalse(self.client.session["servicing"])
 
     def test_languages(self):
         settings_url = reverse("orgs.org_workspace")

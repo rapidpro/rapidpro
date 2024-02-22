@@ -1,7 +1,5 @@
 from collections import defaultdict
 
-from temba.orgs.models import User
-
 
 class RolePermsWrapper:
     """
@@ -22,13 +20,6 @@ class RolePermsWrapper:
 
     def __iter__(self):
         raise TypeError(f"{type(self)} is not iterable.")  # I am large, I contain multitudes
-
-
-def user_orgs(request):
-    if request.user.is_authenticated:
-        user_orgs = User.get_orgs_for_request(request)
-        return {"user_orgs": user_orgs}
-    return {}
 
 
 def user_group_perms_processor(request):

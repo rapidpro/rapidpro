@@ -139,26 +139,24 @@
           <div class="ajax-scripts"></div>
           <div class="flex-col">
             <div style="height:100vh;overflow:hidden" class="flex widget-container">
-              {% if request.user.is_staff %}
-                {% if user_org and user_org not in user_orgs %}
-                  <div style="z-index:999999;
-                              right:0;
-                              bottom:0"
-                       class="servicing absolute bg-secondary my-2 mr-20 rounded shadow-xl">
-                    <a href="{% url 'orgs.org_service' %}"
-                       style="text-decoration:none"
-                       onclick="handlePosterizeClick(event)"
-                       class="relative">
-                      <div style="opacity:1;padding:0em 0.5em;" class="flex items-center text-white text-lg hover rounded">
-                        <div class="flex-grow"></div>
-                        <temba-icon style="color:#fff" name="service">
-                        </temba-icon>
-                        <div class="ml-2">{{ user_org.name }}</div>
-                        <div class="flex-grow"></div>
-                      </div>
-                    </a>
-                  </div>
-                {% endif %}
+              {% if request.user.is_staff and request.session.servicing %}
+                <div style="z-index:999999;
+                            right:0;
+                            bottom:0"
+                     class="servicing absolute bg-secondary my-2 mr-20 rounded shadow-xl">
+                  <a href="{% url 'orgs.org_service' %}"
+                     style="text-decoration:none"
+                     onclick="handlePosterizeClick(event)"
+                     class="relative">
+                    <div style="opacity:1;padding:0em 0.5em;" class="flex items-center text-white text-lg hover rounded">
+                      <div class="flex-grow"></div>
+                      <temba-icon style="color:#fff" name="service">
+                      </temba-icon>
+                      <div class="ml-2">{{ user_org.name }}</div>
+                      <div class="flex-grow"></div>
+                    </div>
+                  </a>
+                </div>
               {% endif %}
               <div class="folders">
                 <temba-menu style="height:100%"

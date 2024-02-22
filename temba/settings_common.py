@@ -159,7 +159,6 @@ TEMPLATES = [
                 "temba.context_processors.branding",
                 "temba.context_processors.config",
                 "temba.orgs.context_processors.user_group_perms_processor",
-                "temba.orgs.context_processors.user_orgs",
             ],
             "loaders": [
                 "django.template.loaders.filesystem.Loader",
