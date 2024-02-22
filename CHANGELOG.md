@@ -1,3 +1,9 @@
+v9.1.28 (2024-02-22)
+-------------------------
+ * Store servicing flag in session to avoid needing user orgs in context processor
+ * Add select_related to user loading for sessions and API tokens
+ * Bump cryptography from 42.0.2 to 42.0.4
+
 v9.1.27 (2024-02-21)
 -------------------------
  * Update floweditor
