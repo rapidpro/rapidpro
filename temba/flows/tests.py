@@ -4007,7 +4007,7 @@ class ExportFlowResultsTest(TembaTest):
         response = self.client.post(export_url, {"start_date": "2022-09-01", "end_date": "2022-03-01"})
         self.assertFormError(response, "form", None, "End date can't be before start date.")
 
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(42):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
@@ -4147,7 +4147,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(40):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
@@ -4222,7 +4222,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test export with a contact field
-        with self.assertNumQueries(46):
+        with self.assertNumQueries(45):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
@@ -4405,7 +4405,7 @@ class ExportFlowResultsTest(TembaTest):
 
         contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2 = FlowRun.objects.order_by("id")
 
-        with self.assertNumQueries(46):
+        with self.assertNumQueries(45):
             workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
 
         tz = self.org.timezone
@@ -4499,7 +4499,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(29):
+        with self.assertNumQueries(28):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),

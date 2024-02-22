@@ -2089,7 +2089,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # agents should only see tickets and settings
         self.login(self.agent)
 
-        with self.assertNumQueries(11):
+        with self.assertNumQueries(10):
             response = self.client.get(menu_url)
 
         menu = response.json()["results"]
@@ -2180,7 +2180,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             parent=self.org,
         )
 
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(11):
             response = self.client.get(workspace_url)
 
         # should have an extra menu options for workspaces and users

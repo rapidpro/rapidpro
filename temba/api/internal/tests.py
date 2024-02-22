@@ -8,7 +8,7 @@ from temba.templates.models import TemplateTranslation
 from temba.tests import TembaTest, matchers
 from temba.tickets.models import TicketExport
 
-NUM_BASE_REQUEST_QUERIES = 5  # number of db queries required for any API request
+NUM_BASE_QUERIES = 4  # number of queries required for any request (internal API is session only)
 
 
 class EndpointsTest(APITestMixin, TembaTest):
@@ -226,5 +226,5 @@ class EndpointsTest(APITestMixin, TembaTest):
                     "modified_on": matchers.ISODate(),
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 3,
+            num_queries=NUM_BASE_QUERIES + 3,
         )

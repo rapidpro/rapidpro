@@ -42,7 +42,8 @@ from ..tests import APITestMixin
 from . import fields
 from .serializers import format_datetime, normalize_extra
 
-NUM_BASE_REQUEST_QUERIES = 5  # number of db queries required for any API request
+NUM_BASE_SESSION_QUERIES = 4  # number of queries required for any request using session auth
+NUM_BASE_TOKEN_QUERIES = 3  # number of queries required for any request using token auth
 
 
 class APITest(APITestMixin, TembaTest):
@@ -874,7 +875,7 @@ class EndpointsTest(APITest):
                     "start_date": "2017-04-05",
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 2,
+            num_queries=NUM_BASE_SESSION_QUERIES + 2,
         )
 
         self.assertGet(endpoint_url + "?after=2017-05-01", [self.editor], results=[archive4, archive3, archive2])
@@ -999,7 +1000,7 @@ class EndpointsTest(APITest):
                     "geometry": None,
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 3,
+            num_queries=NUM_BASE_SESSION_QUERIES + 3,
         )
 
         # test with geometry
@@ -1028,7 +1029,7 @@ class EndpointsTest(APITest):
                 matchers.Dict(),
                 matchers.Dict(),
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 3,
+            num_queries=NUM_BASE_SESSION_QUERIES + 3,
         )
 
         # if org doesn't have a country, just return no results
@@ -1075,7 +1076,7 @@ class EndpointsTest(APITest):
             endpoint_url,
             [self.user, self.editor, self.admin],
             results=[bcast4, bcast3, bcast2, bcast1],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 3,
+            num_queries=NUM_BASE_SESSION_QUERIES + 3,
         )
         resp_json = response.json()
 
@@ -1302,7 +1303,7 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(campaign1.created_on),
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 2,
+            num_queries=NUM_BASE_SESSION_QUERIES + 2,
         )
 
         # filter by UUID
@@ -1476,7 +1477,7 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(event1.created_on),
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 4,
+            num_queries=NUM_BASE_SESSION_QUERIES + 4,
         )
 
         # filter by UUID
@@ -1779,7 +1780,7 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(self.channel.created_on),
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 2,
+            num_queries=NUM_BASE_SESSION_QUERIES + 2,
         )
 
         # filter by UUID
@@ -1809,7 +1810,7 @@ class EndpointsTest(APITest):
             endpoint_url,
             [self.user, self.editor, self.admin],
             results=[call4, call3, call2, call1],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 3,
+            num_queries=NUM_BASE_SESSION_QUERIES + 3,
         )
 
         resp_json = response.json()
@@ -1876,7 +1877,7 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(c1.created_on),
                 }
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 2,
+            num_queries=NUM_BASE_SESSION_QUERIES + 2,
         )
 
         # filter by uuid (not there)
@@ -1933,7 +1934,7 @@ class EndpointsTest(APITest):
             endpoint_url,
             [self.user, self.editor, self.admin, self.agent],
             results=[contact4, self.joe, contact2, contact1, self.frank],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 6,
+            num_queries=NUM_BASE_SESSION_QUERIES + 6,
         )
         self.assertEqual(
             {
@@ -1952,6 +1953,15 @@ class EndpointsTest(APITest):
                 "stopped": False,
             },
             response.json()["results"][0],
+        )
+
+        # no filtering with token auth
+        response = self.assertGet(
+            endpoint_url,
+            [self.admin],
+            results=[contact4, self.joe, contact2, contact1, self.frank],
+            by_token=True,
+            num_queries=NUM_BASE_TOKEN_QUERIES + 6,
         )
 
         # with expanded URNs
@@ -1998,7 +2008,7 @@ class EndpointsTest(APITest):
                 endpoint_url,
                 [self.user, self.editor, self.admin, self.agent],
                 results=[contact4, self.joe, contact2, contact1, self.frank],
-                num_queries=NUM_BASE_REQUEST_QUERIES + 6,
+                num_queries=NUM_BASE_SESSION_QUERIES + 6,
             )
             self.assertEqual(
                 {
@@ -2969,7 +2979,7 @@ class EndpointsTest(APITest):
                     "value_type": "text",
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 1,
+            num_queries=NUM_BASE_SESSION_QUERIES + 1,
         )
 
         # filter by key
@@ -3180,7 +3190,7 @@ class EndpointsTest(APITest):
                     "modified_on": format_datetime(survey.modified_on),
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 5,
+            num_queries=NUM_BASE_SESSION_QUERIES + 5,
         )
 
         self.assertGet(endpoint_url, [self.admin2], results=[other_org])
@@ -3430,7 +3440,7 @@ class EndpointsTest(APITest):
             endpoint_url,
             [self.user, self.editor],
             results=[start4, start3, start2, start1],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 4,
+            num_queries=NUM_BASE_SESSION_QUERIES + 4,
         )
         self.assertEqual(
             response.json()["results"][1],
@@ -3512,6 +3522,7 @@ class EndpointsTest(APITest):
         # on another org
         global3 = Global.get_or_create(self.org2, self.admin, "thingy", "Thingy", "xyz")
 
+        # check no filtering
         response = self.assertGet(
             endpoint_url,
             [self.user, self.editor],
@@ -3529,7 +3540,16 @@ class EndpointsTest(APITest):
                     "modified_on": format_datetime(global1.modified_on),
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 1,
+            num_queries=NUM_BASE_SESSION_QUERIES + 1,
+        )
+
+        # check no filtering with token auth
+        response = self.assertGet(
+            endpoint_url,
+            [self.editor, self.admin],
+            results=[global2, global1],
+            by_token=True,
+            num_queries=NUM_BASE_TOKEN_QUERIES + 1,
         )
 
         self.assertGet(endpoint_url, [self.admin2], results=[global3])
@@ -3663,7 +3683,7 @@ class EndpointsTest(APITest):
                     "count": 0,
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 2,
+            num_queries=NUM_BASE_SESSION_QUERIES + 2,
         )
 
         # filter by UUID
@@ -3841,7 +3861,7 @@ class EndpointsTest(APITest):
                 {"uuid": str(feedback.uuid), "name": "Feedback", "count": 0},
                 {"uuid": str(important.uuid), "name": "Important", "count": 1},
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 2,
+            num_queries=NUM_BASE_SESSION_QUERIES + 2,
         )
 
         # filter by UUID
@@ -4010,7 +4030,7 @@ class EndpointsTest(APITest):
             endpoint_url,
             [self.user, self.editor, self.admin],
             results=[joe_msg4, frank_msg4, frank_msg3, joe_msg3, frank_msg2, joe_msg2, frank_msg1, joe_msg1],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 6,
+            num_queries=NUM_BASE_SESSION_QUERIES + 6,
         )
 
         # filter by inbox
@@ -4039,7 +4059,7 @@ class EndpointsTest(APITest):
                     "visibility": "visible",
                 }
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 5,
+            num_queries=NUM_BASE_SESSION_QUERIES + 5,
         )
 
         # filter by incoming, should get deleted messages too
@@ -4468,7 +4488,7 @@ class EndpointsTest(APITest):
             endpoint_url,
             [self.user, self.editor],
             results=[joe_run3, joe_run2, frank_run2, frank_run1, joe_run1],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 6,
+            num_queries=NUM_BASE_SESSION_QUERIES + 6,
         )
         resp_json = response.json()
         self.assertEqual(
@@ -4711,7 +4731,7 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(polls.created_on),
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 1,
+            num_queries=NUM_BASE_SESSION_QUERIES + 1,
         )
 
         # try to create empty optin
@@ -4790,7 +4810,7 @@ class EndpointsTest(APITest):
                     "modified_on": format_datetime(resthook1.modified_on),
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 1,
+            num_queries=NUM_BASE_SESSION_QUERIES + 1,
         )
 
         # try to create empty subscription
@@ -4841,7 +4861,7 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(hook1_subscriber.created_on),
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 1,
+            num_queries=NUM_BASE_SESSION_QUERIES + 1,
         )
 
         # filter by id
@@ -4893,7 +4913,7 @@ class EndpointsTest(APITest):
                     "data": {"event": "new mother", "values": {"name": "Greg"}, "steps": {"uuid": "abcde"}},
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 1,
+            num_queries=NUM_BASE_SESSION_QUERIES + 1,
         )
 
     def test_templates(self):
@@ -5076,7 +5096,7 @@ class EndpointsTest(APITest):
                     "modified_on": format_datetime(tpl1.modified_on),
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 3,
+            num_queries=NUM_BASE_SESSION_QUERIES + 3,
         )
 
     @patch("temba.mailroom.client.MailroomClient.ticket_close")
@@ -5147,7 +5167,7 @@ class EndpointsTest(APITest):
                     "closed_on": "2021-01-01T12:30:45.123456Z",
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 6,
+            num_queries=NUM_BASE_SESSION_QUERIES + 6,
         )
 
         # filter by contact uuid (not there)
@@ -5340,7 +5360,7 @@ class EndpointsTest(APITest):
                     "created_on": format_datetime(self.org.default_ticket_topic.created_on),
                 },
             ],
-            num_queries=NUM_BASE_REQUEST_QUERIES + 3,
+            num_queries=NUM_BASE_SESSION_QUERIES + 3,
         )
 
         # try to create empty topic
@@ -5472,7 +5492,7 @@ class EndpointsTest(APITest):
                 },
             ],
             # one query per user for their settings
-            num_queries=NUM_BASE_REQUEST_QUERIES + 3,
+            num_queries=NUM_BASE_SESSION_QUERIES + 3,
         )
 
         # filter by roles

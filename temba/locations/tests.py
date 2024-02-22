@@ -107,7 +107,7 @@ class LocationTest(TembaTest):
         )
 
         # update our alias for east
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(13):
             response = self.client.post(
                 reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]),
                 json.dumps(dict(osm_id=self.state2.osm_id, aliases="kigs\n")),
@@ -117,7 +117,7 @@ class LocationTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # fetch our aliases
-        with self.assertNumQueries(19):
+        with self.assertNumQueries(18):
             response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
         response_json = response.json()
 
@@ -127,17 +127,16 @@ class LocationTest(TembaTest):
         self.assertEqual("kigs", children[0]["aliases"])
 
         # update our alias for Nyarugenge
-        with self.assertNumQueries(14):
-            response = self.client.post(
-                reverse("locations.adminboundary_boundaries", args=[self.state1.osm_id]),
-                json.dumps(dict(osm_id=self.district3.osm_id, aliases="kigs\n")),
-                content_type="application/json",
-            )
+        response = self.client.post(
+            reverse("locations.adminboundary_boundaries", args=[self.state1.osm_id]),
+            json.dumps(dict(osm_id=self.district3.osm_id, aliases="kigs\n")),
+            content_type="application/json",
+        )
 
         self.assertEqual(200, response.status_code)
 
         # fetch our aliases
-        with self.assertNumQueries(26):
+        with self.assertNumQueries(25):
             response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.state1.osm_id]))
         response_json = response.json()
 
@@ -147,12 +146,11 @@ class LocationTest(TembaTest):
         self.assertEqual("kigs", children[0]["aliases"])
 
         # update our alias for kigali
-        with self.assertNumQueries(16):
-            response = self.client.post(
-                reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]),
-                json.dumps(dict(osm_id=self.state1.osm_id, aliases="kigs\nkig")),
-                content_type="application/json",
-            )
+        response = self.client.post(
+            reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]),
+            json.dumps(dict(osm_id=self.state1.osm_id, aliases="kigs\nkig")),
+            content_type="application/json",
+        )
 
         self.assertEqual(200, response.status_code)
 
