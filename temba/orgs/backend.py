@@ -6,7 +6,7 @@ from temba.orgs.models import User
 class AuthenticationBackend(ModelBackend):
     def authenticate(self, request, username=None, password=None, **kwargs):
         try:
-            user = User.objects.get(username__iexact=username)
+            user = User.objects.select_related("usersettings").get(username__iexact=username)
             if user.check_password(password):
                 return user
             else:
@@ -18,7 +18,7 @@ class AuthenticationBackend(ModelBackend):
 
     def get_user(self, user_id):
         try:
-            user = User.objects.get(pk=user_id)
+            user = User.objects.select_related("usersettings").get(pk=user_id)
         except User.DoesNotExist:  # pragma: no cover
             return None
         return user if self.user_can_authenticate(user) else None

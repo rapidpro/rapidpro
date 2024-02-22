@@ -45,10 +45,11 @@ class APITokenAuthentication(RequestAttributesMixin, TokenAuthentication):
     """
 
     model = APIToken
+    select_related = ("user", "user__usersettings", "org", "org__parent")
 
     def authenticate_credentials(self, key):
         try:
-            token = self.model.objects.get(is_active=True, key=key)
+            token = self.model.objects.select_related(*self.select_related).get(is_active=True, key=key)
         except self.model.DoesNotExist:
             raise exceptions.AuthenticationFailed("Invalid token")
 

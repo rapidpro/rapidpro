@@ -122,21 +122,23 @@ class APITestMixin:
 
         connection.settings_dict["ATOMIC_REQUESTS"] = True
 
-    def _getJSON(self, endpoint_url: str, user, num_queries: int = None):
+    def _getJSON(self, endpoint_url: str, user, *, by_token: bool = False, num_queries: int = None):
         self.client.logout()
+
+        kwargs = {"HTTP_X_FORWARDED_HTTPS": "https"}
         if user:
-            self.login(user)
+            if by_token:
+                token = APIToken.get_or_create(self.org, user)
+                kwargs["HTTP_AUTHORIZATION"] = f"Token {token.key}"
+            else:
+                self.login(user)
 
         with self.mockReadOnly():
             if num_queries:
                 with self.assertNumQueries(num_queries):
-                    response = self.client.get(
-                        endpoint_url, content_type="application/json", HTTP_X_FORWARDED_HTTPS="https"
-                    )
+                    response = self.client.get(endpoint_url, content_type="application/json", **kwargs)
             else:
-                response = self.client.get(
-                    endpoint_url, content_type="application/json", HTTP_X_FORWARDED_HTTPS="https"
-                )
+                response = self.client.get(endpoint_url, content_type="application/json", **kwargs)
 
         response.json()  # this will fail if our response isn't valid json
 
@@ -175,6 +177,7 @@ class APITestMixin:
         results: list = None,
         errors: dict = None,
         raw=None,
+        by_token: bool = False,
         num_queries: int = None,
     ):
         assert (results is not None) ^ (errors is not None) ^ (raw is not None)
@@ -188,7 +191,7 @@ class APITestMixin:
         )
 
         def as_user(user, expected_results: list, expected_queries: int = None):
-            response = self._getJSON(endpoint_url, user, expected_queries)
+            response = self._getJSON(endpoint_url, user, by_token=by_token, num_queries=expected_queries)
 
             if results is not None:
                 self.assertEqual(200, response.status_code)
