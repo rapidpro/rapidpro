@@ -287,7 +287,7 @@ BRAND = {
     "features": ["signups"],
 }
 
-FEATURES = {"locations", "surveyor"}
+FEATURES = {"locations"}
 
 
 # -----------------------------------------------------------------------------------
@@ -375,7 +375,6 @@ PERMISSIONS = {
         "signup",
         "spa",
         "sub_orgs",
-        "surveyor",
         "trial",
         "twilio_account",
         "twilio_connect",
@@ -393,15 +392,7 @@ GROUP_PERMISSIONS = {
     "Alpha": (),
     "Beta": (),
     "Dashboard": ("orgs.org_dashboard",),
-    "Surveyors": (
-        "contacts.contact_list",
-        "contacts.contactfield_list",
-        "contacts.contactgroup_list",
-        "flows.flow_list",
-        "locations.adminboundary_list",
-        "orgs.org_export",
-        "orgs.org_surveyor",
-    ),
+    "Surveyors": (),
     "Customer Support": (),
     "Granters": ("orgs.org_grant",),
     "Administrators": (

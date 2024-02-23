@@ -683,6 +683,7 @@ class OrgTest(TembaTest):
         self.assertEqual([self.admin, self.admin2], list(self.org2.get_admins().order_by("id")))
 
     def test_get_allowed_user_roles(self):
+        # show viewer and surveyor because org already has users with those roles
         self.assertEqual(
             [OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.VIEWER, OrgRole.AGENT, OrgRole.SURVEYOR],
             self.org.get_allowed_user_roles(),
@@ -691,19 +692,18 @@ class OrgTest(TembaTest):
         self.user.release(self.customer_support)
         self.surveyor.release(self.customer_support)
 
-        # should lose viewer because org doesn't have that feature but keep surveyor because deploy has that feature
+        # should lose viewer and surveyor because org doesn't have those features
         self.assertEqual(
-            [OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.AGENT, OrgRole.SURVEYOR],
+            [OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.AGENT],
             self.org.get_allowed_user_roles(),
         )
 
         self.org.features = [Org.FEATURE_VIEWERS]
         self.org.save(update_fields=("features",))
 
-        with self.settings(FEATURES=[]):
-            # should gain viewer because it's a feature and lose surveyor
+        with self.settings(FEATURES=["surveyor"]):
             self.assertEqual(
-                [OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.VIEWER, OrgRole.AGENT],
+                [OrgRole.ADMINISTRATOR, OrgRole.EDITOR, OrgRole.VIEWER, OrgRole.AGENT, OrgRole.SURVEYOR],
                 self.org.get_allowed_user_roles(),
             )
 
@@ -1182,14 +1182,14 @@ class OrgTest(TembaTest):
         )
         self.assertFormError(response, "form", None, "A workspace must have at least one administrator.")
 
-        # finally upgrade agent to admin, downgrade editor to surveyor, remove ourselves entirely and remove last invite
+        # finally upgrade agent to admin, downgrade editor to agent, remove ourselves entirely and remove last invite
         last_invite = Invitation.objects.last()
         response = self.client.post(
             url,
             {
                 f"user_{self.admin.id}_role": "A",
                 f"user_{self.admin.id}_remove": "1",
-                f"user_{self.editor.id}_role": "S",
+                f"user_{self.editor.id}_role": "T",
                 f"user_{self.user.id}_role": "E",
                 f"user_{self.agent.id}_role": "A",
                 f"invite_{last_invite.id}_remove": "1",
@@ -1209,12 +1209,12 @@ class OrgTest(TembaTest):
         self.assertEqual({self.agent}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
         self.assertEqual({self.user}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
         self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
-        self.assertEqual({self.editor}, set(self.org.get_users(roles=[OrgRole.SURVEYOR])))
-        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.AGENT])))
+        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.SURVEYOR])))
+        self.assertEqual({self.editor}, set(self.org.get_users(roles=[OrgRole.AGENT])))
 
-        # editor will have lost their editor API token, but not their surveyor token
+        # editor will have lost their API tokens
         self.editor.refresh_from_db()
-        self.assertEqual([t.role.name for t in self.editor.api_tokens.filter(is_active=True)], ["Surveyors"])
+        self.assertEqual(0, self.editor.api_tokens.filter(is_active=True).count())
 
         # and all our API tokens for the admin are deleted
         self.admin.refresh_from_db()
@@ -1308,107 +1308,6 @@ class OrgTest(TembaTest):
                 [("A", "Administrator"), ("E", "Editor"), ("T", "Agent")],
                 response.context["form"].fields["invite_role"].choices,
             )
-
-    def test_surveyor_invite(self):
-        surveyor_invite = Invitation.objects.create(
-            org=self.org, user_group="S", email="surveyor@gmail.com", created_by=self.admin, modified_by=self.admin
-        )
-
-        admin_create_login_url = reverse("orgs.org_join_signup", args=[surveyor_invite.secret])
-        self.client.logout()
-
-        response = self.client.post(
-            admin_create_login_url,
-            {"first_name": "Surveyor", "last_name": "User", "email": "surveyor@gmail.com", "password": "HeyThere123"},
-            follow=True,
-        )
-        self.assertEqual(200, response.status_code)
-
-        # as a surveyor we should have been rerouted
-        self.assertEqual(reverse("orgs.org_surveyor"), response._request.path)
-        self.assertFalse(Invitation.objects.get(pk=surveyor_invite.pk).is_active)
-
-        # make sure we are a surveyor
-        new_invited_user = User.objects.get(email="surveyor@gmail.com")
-        self.assertEqual(OrgRole.SURVEYOR, self.org.get_user_role(new_invited_user))
-
-        # if we login, we should be rerouted too
-        self.client.logout()
-        response = self.client.post(
-            "/users/login/", {"username": "surveyor@gmail.com", "password": "HeyThere123"}, follow=True
-        )
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(reverse("orgs.org_surveyor"), response._request.path)
-
-    def test_surveyor(self):
-        self.client.logout()
-        url = "%s?mobile=true" % reverse("orgs.org_surveyor")
-
-        # try creating a surveyor account with a bogus password
-        post_data = dict(surveyor_password="badpassword")
-        response = self.client.post(url, post_data)
-        self.assertContains(response, "Invalid surveyor password, please check with your project leader and try again.")
-
-        # put a space in the org name to test URL encoding and set a surveyor password
-        self.org.name = "Temba Org"
-        self.org.surveyor_password = "nyaruka"
-        self.org.save()
-
-        # now lets try again
-        post_data = dict(surveyor_password="nyaruka")
-        response = self.client.post(url, post_data)
-        self.assertContains(response, "Enter your details below to create your login.")
-
-        # now try creating an account on the second step without and surveyor_password
-        post_data = dict(
-            first_name="Marshawn", last_name="Lynch", password="beastmode24", email="beastmode@seahawks.com"
-        )
-        response = self.client.post(url, post_data)
-        self.assertContains(response, "Enter your details below to create your login.")
-
-        # now do the same but with a valid surveyor_password
-        post_data = dict(
-            first_name="Marshawn",
-            last_name="Lynch",
-            password="beastmode24",
-            email="beastmode@seahawks.com",
-            surveyor_password="nyaruka",
-        )
-        response = self.client.post(url, post_data)
-        self.assertIn("token", response.url)
-        self.assertIn("beastmode", response.url)
-        self.assertIn("Temba%20Org", response.url)
-
-        # try with a login that already exists
-        post_data = dict(
-            first_name="Resused",
-            last_name="Email",
-            password="mypassword1",
-            email="beastmode@seahawks.com",
-            surveyor_password="nyaruka",
-        )
-        response = self.client.post(url, post_data)
-        self.assertContains(response, "That email address is already used")
-
-        # try with a login that already exists
-        post_data = dict(
-            first_name="Short",
-            last_name="Password",
-            password="short",
-            email="thomasrawls@seahawks.com",
-            surveyor_password="nyaruka",
-        )
-        response = self.client.post(url, post_data)
-        self.assertFormError(
-            response, "form", "password", "This password is too short. It must contain at least 8 characters."
-        )
-
-        # finally make sure our login works
-        success = self.client.login(username="beastmode@seahawks.com", password="beastmode24")
-        self.assertTrue(success)
-
-        # and that we have the surveyor role
-        self.assertEqual(OrgRole.SURVEYOR, self.org.get_user_role(User.objects.get(username="beastmode@seahawks.com")))
 
     def test_prometheus(self):
         # visit as viewer, no prometheus section
@@ -3081,7 +2980,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(self.requestView(start_url, self.editor), "/msg/")
         self.assertRedirect(self.requestView(start_url, self.user), "/msg/")
         self.assertRedirect(self.requestView(start_url, self.agent), "/ticket/")
-        self.assertRedirect(self.requestView(start_url, self.surveyor), "/org/surveyor/")
 
         # now try as customer support
         self.assertRedirect(self.requestView(start_url, self.customer_support), "/org/manage/")
@@ -3111,7 +3009,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(self.requestView(choose_url, self.editor), "/org/start/")
         self.assertRedirect(self.requestView(choose_url, self.user), "/org/start/")
         self.assertRedirect(self.requestView(choose_url, self.agent), "/org/start/")
-        self.assertRedirect(self.requestView(choose_url, self.surveyor), "/org/start/")
 
         # users with no org are redirected back to the login page
         response = self.requestView(choose_url, self.non_org_user)

@@ -7,14 +7,10 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
-from smartmin.views import SmartFormView, SmartTemplateView
+from smartmin.views import SmartTemplateView
 
-from django import forms
-from django.contrib.auth import authenticate, login
 from django.db.models import Count, Prefetch, Q
-from django.http import HttpResponse, JsonResponse
 from django.utils.translation import gettext_lazy as _
-from django.views.decorators.csrf import csrf_exempt
 
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
@@ -25,14 +21,14 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Media, Msg, OptIn, SystemLabel
-from temba.orgs.models import OrgMembership, OrgRole, User
+from temba.orgs.models import OrgMembership, User
 from temba.orgs.views import OrgPermsMixin
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, TicketCount, Topic
 from temba.utils import str_to_bool
 from temba.utils.uuid import is_uuid
 
-from ..models import APIPermission, APIToken, Resthook, ResthookSubscriber, SSLPermission, WebHookEvent
+from ..models import APIPermission, Resthook, ResthookSubscriber, SSLPermission, WebHookEvent
 from ..support import (
     APIBasicAuthentication,
     APISessionAuthentication,
@@ -156,51 +152,6 @@ class ExplorerView(OrgPermsMixin, SmartTemplateView):
             WorkspaceEndpoint.get_read_explorer(),
         ]
         return context
-
-
-class AuthenticateView(SmartFormView):
-    """
-    Provides a login form view for app users to generate and access their API tokens
-    """
-
-    class LoginForm(forms.Form):
-        ROLE_CHOICES = (("A", _("Administrator")), ("E", _("Editor")), ("S", _("Surveyor")))
-
-        username = forms.CharField()
-        password = forms.CharField(widget=forms.PasswordInput)
-        role = forms.ChoiceField(choices=ROLE_CHOICES)
-
-    title = "API Authentication"
-    form_class = LoginForm
-
-    @csrf_exempt
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def form_valid(self, form, *args, **kwargs):
-        username = form.cleaned_data.get("username")
-        password = form.cleaned_data.get("password")
-        role_code = form.cleaned_data.get("role")
-
-        user = authenticate(username=username, password=password)
-        if user and user.is_active:
-            login(self.request, user)
-
-            role = OrgRole.from_code(role_code)
-            tokens = []
-
-            if role:
-                valid_orgs = APIToken.get_orgs_for_role(self.request, role)
-                for org in valid_orgs:
-                    token = APIToken.get_or_create(org, user, role=role)
-                    serialized = {"uuid": str(org.uuid), "name": org.name, "id": org.id}  # for backward compatibility
-                    tokens.append({"org": serialized, "token": token.key})
-            else:  # pragma: needs cover
-                return HttpResponse(status=404)
-
-            return JsonResponse({"tokens": tokens})
-        else:
-            return HttpResponse(status=403)
 
 
 class DocumentationRenderer(DocumentationRenderer):

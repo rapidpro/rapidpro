@@ -2,7 +2,6 @@ from datetime import timedelta
 
 from django.contrib.auth.models import Group
 from django.db import connection
-from django.http import HttpRequest
 from django.test import override_settings
 from django.utils import timezone
 
@@ -55,14 +54,6 @@ class APITokenTest(TembaTest):
         # can't create token for viewer users or other users using viewers role
         self.assertRaises(ValueError, APIToken.get_or_create, self.org, self.admin, role=OrgRole.VIEWER)
         self.assertRaises(ValueError, APIToken.get_or_create, self.org, self.user)
-
-    def test_get_orgs_for_role(self):
-        # mock our request
-        request = HttpRequest()
-        request.user = self.admin
-
-        self.assertEqual(set(APIToken.get_orgs_for_role(request, OrgRole.ADMINISTRATOR)), {self.org})
-        self.assertEqual(set(APIToken.get_orgs_for_role(request, OrgRole.SURVEYOR)), {self.org, self.org2})
 
     def test_is_valid(self):
         token1 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.ADMINISTRATOR)

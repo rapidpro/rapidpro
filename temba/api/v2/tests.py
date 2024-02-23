@@ -8,10 +8,8 @@ from urllib.parse import quote_plus
 
 import iso8601
 from rest_framework import serializers
-from rest_framework.test import APIClient
 
 from django.conf import settings
-from django.contrib.auth.models import Group
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.cache import cache
 from django.test import override_settings
@@ -471,9 +469,8 @@ class EndpointsTest(APITest):
         fields_url = reverse("api.v2.fields")
 
         token1 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.ADMINISTRATOR)
-        token2 = APIToken.get_or_create(self.org, self.admin, role=OrgRole.SURVEYOR)
-        token3 = APIToken.get_or_create(self.org, self.editor, role=OrgRole.EDITOR)
-        token4 = APIToken.get_or_create(self.org, self.customer_support, role=OrgRole.ADMINISTRATOR)
+        token2 = APIToken.get_or_create(self.org, self.editor, role=OrgRole.EDITOR)
+        token3 = APIToken.get_or_create(self.org, self.customer_support, role=OrgRole.ADMINISTRATOR)
 
         # can request fields endpoint using all 3 methods
         response = request_by_token(fields_url, token1.key)
@@ -500,18 +497,7 @@ class EndpointsTest(APITest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(str(self.org.id), response["X-Temba-Org"])
 
-        # but not with surveyor token
-        response = request_by_token(campaigns_url, token2.key)
-        self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
-
-        response = request_by_basic_auth(campaigns_url, self.admin.username, token2.key)
-        self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
-
-        # but it can be used to access the contacts endpoint
-        response = request_by_token(contacts_url, token2.key)
-        self.assertEqual(200, response.status_code)
-
-        response = request_by_basic_auth(contacts_url, self.admin.username, token2.key)
+        response = request_by_basic_auth(contacts_url, self.editor.username, token2.key)
         self.assertEqual(200, response.status_code)
         self.assertEqual(str(self.org.id), response["X-Temba-Org"])
 
@@ -527,7 +513,7 @@ class EndpointsTest(APITest):
         self.assertEqual(response.status_code, 429)
 
         # or if another user in same org makes a request
-        response = request_by_token(fields_url, token3.key)
+        response = request_by_token(fields_url, token2.key)
         self.assertEqual(response.status_code, 429)
 
         # but they can still make a request if they have a session
@@ -535,7 +521,7 @@ class EndpointsTest(APITest):
         self.assertEqual(response.status_code, 200)
 
         # or if they're a staff user because they are user-scoped
-        response = request_by_token(fields_url, token4.key)
+        response = request_by_token(fields_url, token3.key)
         self.assertEqual(response.status_code, 200)
 
         # are allowed to access if we have not reached the configured org api rates
@@ -557,16 +543,16 @@ class EndpointsTest(APITest):
         self.assertEqual(request_by_token(campaigns_url, token1.key).status_code, 403)
         self.assertEqual(request_by_basic_auth(campaigns_url, self.admin.username, token1.key).status_code, 403)
         self.assertEqual(request_by_token(contacts_url, token2.key).status_code, 200)  # other token unaffected
-        self.assertEqual(request_by_basic_auth(contacts_url, self.admin.username, token2.key).status_code, 200)
+        self.assertEqual(request_by_basic_auth(contacts_url, self.editor.username, token2.key).status_code, 200)
 
         # and if user is inactive, disallow the request
         self.admin.is_active = False
         self.admin.save()
 
-        response = request_by_token(contacts_url, token2.key)
+        response = request_by_token(contacts_url, token1.key)
         self.assertResponseError(response, None, "Invalid token", status_code=403)
 
-        response = request_by_basic_auth(contacts_url, self.admin.username, token2.key)
+        response = request_by_basic_auth(contacts_url, self.admin.username, token1.key)
         self.assertResponseError(response, None, "Invalid token or email", status_code=403)
 
     @override_settings(SECURE_PROXY_SSL_HEADER=("HTTP_X_FORWARDED_HTTPS", "https"))
@@ -651,91 +637,6 @@ class EndpointsTest(APITest):
         returned_ids += [r["id"] for r in response.json()["results"]]
 
         self.assertEqual(returned_ids, actual_ids)  # ensure all results were returned and in correct order
-
-    def test_authenticate(self):
-        auth_url = reverse("api.v2.authenticate")
-
-        # fetch as HTML
-        response = self.client.get(auth_url)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(response.context["form"].fields.keys()), ["username", "password", "role", "loc"])
-
-        admins = Group.objects.get(name="Administrators")
-        surveyors = Group.objects.get(name="Surveyors")
-
-        # try to authenticate with incorrect password
-        response = self.client.post(auth_url, {"username": "admin@nyaruka.com", "password": "XXXX", "role": "A"})
-        self.assertEqual(response.status_code, 403)
-
-        # try to authenticate with invalid role
-        response = self.client.post(auth_url, {"username": "admin@nyaruka.com", "password": "Qwerty123", "role": "X"})
-        self.assertFormError(response, "form", "role", "Select a valid choice. X is not one of the available choices.")
-
-        # authenticate an admin as an admin
-        response = self.client.post(auth_url, {"username": "admin@nyaruka.com", "password": "Qwerty123", "role": "A"})
-
-        # should have created a new token object
-        token_obj1 = APIToken.objects.get(user=self.admin, role=admins)
-
-        tokens = response.json()["tokens"]
-        self.assertEqual(len(tokens), 1)
-        self.assertEqual(
-            tokens[0],
-            {"org": {"id": self.org.pk, "name": "Nyaruka", "uuid": str(self.org.uuid)}, "token": token_obj1.key},
-        )
-
-        # authenticate an admin as a surveyor
-        response = self.client.post(auth_url, {"username": "admin@nyaruka.com", "password": "Qwerty123", "role": "S"})
-
-        # should have created a new token object
-        token_obj2 = APIToken.objects.get(user=self.admin, role=surveyors)
-
-        tokens = response.json()["tokens"]
-        self.assertEqual(len(tokens), 1)
-        self.assertEqual(
-            tokens[0],
-            {"org": {"id": self.org.pk, "name": "Nyaruka", "uuid": str(self.org.uuid)}, "token": token_obj2.key},
-        )
-
-        # the keys should be different
-        self.assertNotEqual(token_obj1.key, token_obj2.key)
-
-        client = APIClient()
-
-        # campaigns can be fetched by admin token
-        client.credentials(HTTP_AUTHORIZATION="Token " + token_obj1.key)
-        self.assertEqual(client.get(reverse("api.v2.campaigns") + ".json").status_code, 200)
-
-        # but not by an admin's surveyor token
-        client.credentials(HTTP_AUTHORIZATION="Token " + token_obj2.key)
-        self.assertEqual(client.get(reverse("api.v2.campaigns") + ".json").status_code, 403)
-
-        # but their surveyor token can get flows or contacts
-        self.assertEqual(client.get(reverse("api.v2.flows") + ".json").status_code, 200)
-        self.assertEqual(client.get(reverse("api.v2.contacts") + ".json").status_code, 200)
-
-        # our surveyor can't login with an admin role
-        response = self.client.post(
-            auth_url, {"username": "surveyor@nyaruka.com", "password": "Qwerty123", "role": "A"}
-        )
-        tokens = response.json()["tokens"]
-        self.assertEqual(len(tokens), 0)
-
-        # but they can with a surveyor role
-        response = self.client.post(
-            auth_url, {"username": "surveyor@nyaruka.com", "password": "Qwerty123", "role": "S"}
-        )
-        tokens = response.json()["tokens"]
-        self.assertEqual(len(tokens), 1)
-
-        token_obj3 = APIToken.objects.get(user=self.surveyor, role=surveyors)
-
-        # and can fetch flows, contacts, and fields, but not campaigns
-        client.credentials(HTTP_AUTHORIZATION="Token " + token_obj3.key)
-        self.assertEqual(client.get(reverse("api.v2.flows") + ".json").status_code, 200)
-        self.assertEqual(client.get(reverse("api.v2.contacts") + ".json").status_code, 200)
-        self.assertEqual(client.get(reverse("api.v2.fields") + ".json").status_code, 200)
-        self.assertEqual(client.get(reverse("api.v2.campaigns") + ".json").status_code, 403)
 
     @patch("temba.flows.models.FlowStart.create")
     def test_transactions(self, mock_flowstart_create):
@@ -2841,14 +2742,14 @@ class EndpointsTest(APITest):
         # all flow dependencies and we should get the child flow
         self.assertGet(
             endpoint_url + f"?flow={flow.uuid}",
-            [self.surveyor],
+            [self.editor],
             raw=lambda j: {f["name"] for f in j["flows"]} == {"Child Flow", "Parent Flow"},
         )
 
         # export just the parent flow
         self.assertGet(
             endpoint_url + f"?flow={flow.uuid}&dependencies=none",
-            [self.surveyor],
+            [self.editor],
             raw=lambda j: {f["name"] for f in j["flows"]} == {"Parent Flow"},
         )
 
@@ -2859,14 +2760,14 @@ class EndpointsTest(APITest):
         flow = Flow.objects.get(name="Catch All")
         self.assertGet(
             endpoint_url + f"?flow={flow.uuid}&dependencies=none",
-            [self.surveyor],
+            [self.editor],
             raw=lambda j: len(j["flows"]) == 1 and len(j["campaigns"]) == 0 and len(j["triggers"]) == 0,
         )
 
         # with its trigger dependency
         self.assertGet(
             endpoint_url + f"?flow={flow.uuid}",
-            [self.surveyor],
+            [self.editor],
             raw=lambda j: len(j["flows"]) == 1 and len(j["campaigns"]) == 0 and len(j["triggers"]) == 1,
         )
 
@@ -2874,21 +2775,21 @@ class EndpointsTest(APITest):
         flow = Flow.objects.get(name="Register Patient")
         self.assertGet(
             endpoint_url + f"?flow={flow.uuid}&dependencies=none",
-            [self.surveyor],
+            [self.editor],
             raw=lambda j: len(j["flows"]) == 1 and len(j["campaigns"]) == 0 and len(j["triggers"]) == 0,
         )
 
         # touches a lot of stuff
         self.assertGet(
             endpoint_url + f"?flow={flow.uuid}",
-            [self.surveyor],
+            [self.editor],
             raw=lambda j: len(j["flows"]) == 6 and len(j["campaigns"]) == 1 and len(j["triggers"]) == 2,
         )
 
         # ignore campaign dependencies
         self.assertGet(
             endpoint_url + f"?flow={flow.uuid}&dependencies=flows",
-            [self.surveyor],
+            [self.editor],
             raw=lambda j: len(j["flows"]) == 2 and len(j["campaigns"]) == 0 and len(j["triggers"]) == 1,
         )
 
@@ -2896,27 +2797,27 @@ class EndpointsTest(APITest):
         missed_call = Flow.objects.get(name="Missed Call")
         self.assertGet(
             endpoint_url + f"?flow={flow.uuid}&flow={missed_call.uuid}&dependencies=all",
-            [self.surveyor],
+            [self.editor],
             raw=lambda j: len(j["flows"]) == 7 and len(j["campaigns"]) == 1 and len(j["triggers"]) == 3,
         )
 
         campaign = Campaign.objects.get(name="Appointment Schedule")
         self.assertGet(
             endpoint_url + f"?campaign={campaign.uuid}&dependencies=none",
-            [self.surveyor],
+            [self.editor],
             raw=lambda j: len(j["flows"]) == 0 and len(j["campaigns"]) == 1 and len(j["triggers"]) == 0,
         )
 
         self.assertGet(
             endpoint_url + f"?campaign={campaign.uuid}",
-            [self.surveyor],
+            [self.editor],
             raw=lambda j: len(j["flows"]) == 6 and len(j["campaigns"]) == 1 and len(j["triggers"]) == 2,
         )
 
         # test an invalid value for dependencies
         self.assertGet(
             endpoint_url + f"?flow={flow.uuid}&dependencies=xx",
-            [self.surveyor],
+            [self.editor],
             errors={None: "dependencies must be one of none, flows, all"},
         )
 
@@ -2926,7 +2827,7 @@ class EndpointsTest(APITest):
         flow = Flow.objects.get(name="Favorites")
         self.assertGet(
             endpoint_url + f"?flow={flow.uuid}",
-            [self.surveyor],
+            [self.editor],
             raw=lambda j: len(j["flows"]) == 1 and j["flows"][0]["spec_version"] == Flow.CURRENT_SPEC_VERSION,
         )
 
