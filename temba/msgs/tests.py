@@ -2341,6 +2341,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.assertCreateSubmit(
             f"{to_node_url}?node={color_split['uuid']}&count=1",
+            self.admin,
             {"text": "Hurry up"},
             new_obj_query=Broadcast.objects.filter(
                 translations={"und": {"text": "Hurry up"}}, groups=None, contacts=self.joe
@@ -2478,7 +2479,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "You are about to delete")
 
         # submit the delete modal
-        response = self.assertDeleteSubmit(delete_url, object_deactivated=broadcast, success_status=200)
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=broadcast, success_status=200)
         self.assertEqual("/broadcast/scheduled/", response["Temba-Success"])
 
         broadcast.refresh_from_db()
@@ -2610,21 +2611,25 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=("name", "messages"))
 
         # try to create label with invalid name
-        self.assertCreateSubmit(create_url, {"name": '"Spam"'}, form_errors={"name": 'Cannot contain the character: "'})
+        self.assertCreateSubmit(
+            create_url, self.admin, {"name": '"Spam"'}, form_errors={"name": 'Cannot contain the character: "'}
+        )
 
         # try again with valid name
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "Spam"},
             new_obj_query=Label.objects.filter(name="Spam"),
         )
 
         # check that we can't create another with same name
-        self.assertCreateSubmit(create_url, {"name": "Spam"}, form_errors={"name": "Must be unique."})
+        self.assertCreateSubmit(create_url, self.admin, {"name": "Spam"}, form_errors={"name": "Must be unique."})
 
         # create another label
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "Spam 2"},
             new_obj_query=Label.objects.filter(name="Spam 2"),
         )
@@ -2655,13 +2660,14 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to update to invalid name
         self.assertUpdateSubmit(
             label1_url,
+            self.admin,
             {"name": '"Spam"'},
             form_errors={"name": 'Cannot contain the character: "'},
             object_unchanged=label1,
         )
 
         # update with valid name
-        self.assertUpdateSubmit(label1_url, {"name": "Junk"})
+        self.assertUpdateSubmit(label1_url, self.admin, {"name": "Junk"})
 
         label1.refresh_from_db()
         self.assertEqual("Junk", label1.name)
@@ -2676,7 +2682,7 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "You are about to delete")
 
         # submit to delete it
-        response = self.assertDeleteSubmit(delete_url, object_deactivated=label, success_status=200)
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=label, success_status=200)
         self.assertEqual("/msg/", response["Temba-Success"])
 
         # reactivate
@@ -2692,7 +2698,7 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "is used by the following items but can still be deleted:")
         self.assertContains(response, "Color Flow")
 
-        self.assertDeleteSubmit(delete_url, object_deactivated=label, success_status=200)
+        self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=label, success_status=200)
 
         flow.refresh_from_db()
         self.assertTrue(flow.has_issues)

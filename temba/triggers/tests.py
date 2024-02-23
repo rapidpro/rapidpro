@@ -540,6 +540,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         flow = self.create_flow("My Flow", flow_type=Flow.TYPE_MESSAGE)
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"keywords": ["start"], "flow": flow.id, "match_type": "F"},
             new_obj_query=Trigger.objects.filter(keywords=["start"], flow=flow),
             success_status=200,
@@ -654,6 +655,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # try a keyword with spaces
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"keywords": ["with spaces"], "flow": flow1.id, "match_type": "F"},
             form_errors={
                 "keywords": "Must be a single word containing only letters and numbers, or a single emoji character."
@@ -663,6 +665,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # try a keyword with special characters
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"keywords": ["keyw!o^rd__"], "flow": flow1.id, "match_type": "F"},
             form_errors={
                 "keywords": "Must be a single word containing only letters and numbers, or a single emoji character."
@@ -672,6 +675,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # try with group as both inclusion and exclusion
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {
                 "keywords": ["start"],
                 "flow": flow1.id,
@@ -685,6 +689,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # create a trigger with no groups
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"keywords": ["start", "begin"], "flow": flow1.id, "match_type": "F"},
             new_obj_query=Trigger.objects.filter(keywords=["start", "begin"], flow=flow1),
             success_status=200,
@@ -693,6 +698,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # creating triggers with non-ASCII keywords
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"keywords": ["١٠٠", "मिलाए"], "flow": flow1.id, "match_type": "F"},
             new_obj_query=Trigger.objects.filter(keywords=["١٠٠", "मिलाए"], flow=flow1),
             success_status=200,
@@ -701,6 +707,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # try a duplicate keyword
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"keywords": ["start"], "flow": flow2.id, "match_type": "F"},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
@@ -708,6 +715,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # works if we specify a group
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"keywords": ["start"], "flow": flow2.id, "match_type": "F", "groups": group1.id},
             new_obj_query=Trigger.objects.filter(keywords=["start"], flow=flow2, groups=group1),
             success_status=200,
@@ -716,6 +724,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # or a channel
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"keywords": ["start"], "flow": flow2.id, "match_type": "F", "channel": self.channel.id},
             new_obj_query=Trigger.objects.filter(keywords=["start"], flow=flow2, channel=self.channel),
             success_status=200,
@@ -724,6 +733,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # groups between triggers can't overlap
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"keywords": ["start"], "flow": flow2.id, "match_type": "F", "groups": [group1.id, group2.id]},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
@@ -763,6 +773,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to create trigger with an empty form
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {},
             form_errors={
                 "__all__": "Must provide at least one group or contact to include.",
@@ -775,6 +786,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to create a weekly repeating schedule without specifying the days of the week
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"start_datetime": "2021-06-24 12:00", "repeat_period": "W", "flow": flow1.id, "groups": [group1.id]},
             form_errors={"repeat_days_of_week": "Must specify at least one day of the week."},
         )
@@ -782,6 +794,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to create a weekly repeating schedule with an invalid day of the week (UI doesn't actually allow this)
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {
                 "start_datetime": "2021-06-24 12:00",
                 "repeat_period": "W",
@@ -799,6 +812,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # now create a valid trigger
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {
                 "start_datetime": "2021-06-24 12:00",
                 "repeat_period": "W",
@@ -823,6 +837,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # there is no conflict detection for scheduled triggers so can create the same trigger again
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {
                 "start_datetime": "2021-06-24 12:00",
                 "repeat_period": "W",
@@ -871,11 +886,16 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual([channel2, channel1], list(response.context["form"].fields["channel"].queryset))
 
         # which flow field is required depends on the action selected
-        self.assertCreateSubmit(create_url, {"action": "answer"}, form_errors={"voice_flow": "This field is required."})
-        self.assertCreateSubmit(create_url, {"action": "hangup"}, form_errors={"msg_flow": "This field is required."})
+        self.assertCreateSubmit(
+            create_url, self.admin, {"action": "answer"}, form_errors={"voice_flow": "This field is required."}
+        )
+        self.assertCreateSubmit(
+            create_url, self.admin, {"action": "hangup"}, form_errors={"msg_flow": "This field is required."}
+        )
 
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"action": "answer", "voice_flow": flow1.id, "groups": group1.id},
             new_obj_query=Trigger.objects.filter(flow=flow1, trigger_type=Trigger.TYPE_INBOUND_CALL),
             success_status=200,
@@ -884,6 +904,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # can't create another inbound call trigger for same group
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"action": "answer", "voice_flow": flow2.id, "groups": group1.id},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
@@ -891,6 +912,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # even if it's for a different type of flow
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"action": "hangup", "msg_flow": flow3.id, "groups": group1.id},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
@@ -898,6 +920,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # but can for different group
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"action": "answer", "voice_flow": flow2.id, "groups": group2.id},
             new_obj_query=Trigger.objects.filter(flow=flow2, trigger_type=Trigger.TYPE_INBOUND_CALL),
             success_status=200,
@@ -927,6 +950,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow1.id},
             new_obj_query=Trigger.objects.filter(flow=flow1, trigger_type=Trigger.TYPE_MISSED_CALL),
             success_status=200,
@@ -935,6 +959,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # we can't create another...
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow2.id},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
@@ -971,6 +996,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # go create it
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"channel": channel1.id, "flow": flow1.id},
             new_obj_query=Trigger.objects.filter(
                 trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False, channel=channel1
@@ -982,6 +1008,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to create another one, fails as we already have a trigger for that channel
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"channel": channel1.id, "flow": flow1.id},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
@@ -989,6 +1016,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # but can create a different trigger for a different channel
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"channel": channel2.id, "flow": flow1.id},
             new_obj_query=Trigger.objects.filter(
                 trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False, channel=channel2
@@ -1028,6 +1056,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # go create it
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"channel": channel1.id, "flow": flow1.id, "referrer_id": "234567"},
             new_obj_query=Trigger.objects.filter(
                 trigger_type=Trigger.TYPE_REFERRAL, channel=channel1, referrer_id="234567"
@@ -1039,6 +1068,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to create another one, fails as we already have a trigger for that channel and referrer
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"channel": channel1.id, "flow": flow1.id, "referrer_id": "234567"},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
@@ -1046,6 +1076,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # but can create a different trigger for a different referrer
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"channel": channel1.id, "flow": flow1.id, "referrer_id": "345678"},
             new_obj_query=Trigger.objects.filter(
                 trigger_type=Trigger.TYPE_REFERRAL, channel=channel1, referrer_id="345678"
@@ -1056,6 +1087,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # or blank referrer
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"channel": channel2.id, "flow": flow1.id, "referrer_id": ""},
             new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_REFERRAL, channel=channel2, referrer_id=""),
             success_status=200,
@@ -1064,6 +1096,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # or channel
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"channel": channel2.id, "flow": flow1.id, "referrer_id": "234567"},
             new_obj_query=Trigger.objects.filter(
                 trigger_type=Trigger.TYPE_REFERRAL, channel=channel2, referrer_id="234567"
@@ -1100,6 +1133,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # create a trigger with no groups
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow1.id},
             new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_CATCH_ALL, flow=flow1),
             success_status=200,
@@ -1108,6 +1142,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # try a duplicate catch all with no groups
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow2.id},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
@@ -1115,6 +1150,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # works if we specify a group
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow2.id, "groups": group1.id},
             new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_CATCH_ALL, flow=flow2),
             success_status=200,
@@ -1123,6 +1159,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # or a channel
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow2.id, "channel": self.channel.id},
             new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_CATCH_ALL, flow=flow2, channel=self.channel),
             success_status=200,
@@ -1131,6 +1168,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # groups between triggers can't overlap
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow2.id, "groups": [group1.id, group2.id]},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
@@ -1155,6 +1193,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow1.id},
             new_obj_query=Trigger.objects.filter(flow=flow1, trigger_type=Trigger.TYPE_CLOSED_TICKET),
             success_status=200,
@@ -1163,6 +1202,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # we can't create another...
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow2.id},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
@@ -1197,6 +1237,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow1.id},
             new_obj_query=Trigger.objects.filter(flow=flow1, trigger_type=Trigger.TYPE_OPT_IN),
             success_status=200,
@@ -1205,6 +1246,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # we can't create another
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow2.id},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
@@ -1212,6 +1254,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # works if we specify a group
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow2.id, "groups": group1.id},
             new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_OPT_IN, flow=flow2),
             success_status=200,
@@ -1220,6 +1263,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # or a channel
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow2.id, "channel": channel2.id},
             new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_OPT_IN, flow=flow2, channel=channel2),
             success_status=200,
@@ -1255,6 +1299,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow1.id},
             new_obj_query=Trigger.objects.filter(flow=flow1, trigger_type=Trigger.TYPE_OPT_OUT),
             success_status=200,
@@ -1263,6 +1308,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # we can't create another...
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow2.id},
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
@@ -1270,6 +1316,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # works if we specify a group
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow2.id, "groups": group1.id},
             new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_OPT_OUT, flow=flow2),
             success_status=200,
@@ -1278,6 +1325,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # or a channel
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow": flow2.id, "channel": channel1.id},
             new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_OPT_OUT, flow=flow2, channel=channel1),
             success_status=200,
@@ -1318,6 +1366,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # submit with valid keyword and extra group
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {
                 "keywords": ["begin", "start"],
                 "flow": flow.id,
@@ -1340,12 +1389,14 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # error if keyword is not defined or invalid
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"keywords": "", "flow": flow.id, "match_type": "F"},
             form_errors={"keywords": "This field is required."},
             object_unchanged=trigger,
         )
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"keywords": ["two words"], "flow": flow.id, "match_type": "F"},
             form_errors={
                 "keywords": "Must be a single word containing only letters and numbers, or a single emoji character."
@@ -1376,13 +1427,13 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # switch to different voice flow
-        self.assertUpdateSubmit(update_url, {"action": "answer", "voice_flow": flow1.id})
+        self.assertUpdateSubmit(update_url, self.admin, {"action": "answer", "voice_flow": flow1.id})
 
         trigger.refresh_from_db()
         self.assertEqual(flow1, trigger.flow)
 
         # switch to a message flow
-        self.assertUpdateSubmit(update_url, {"action": "hangup", "msg_flow": flow3.id})
+        self.assertUpdateSubmit(update_url, self.admin, {"action": "hangup", "msg_flow": flow3.id})
 
         trigger.refresh_from_db()
         self.assertEqual(flow3, trigger.flow)
@@ -1450,6 +1501,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to update a weekly repeating schedule without specifying the days of the week
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"start_datetime": "2021-06-24 12:00", "repeat_period": "W", "flow": flow1.id, "groups": [group1.id]},
             form_errors={"repeat_days_of_week": "Must specify at least one day of the week."},
             object_unchanged=trigger,
@@ -1458,6 +1510,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to create a weekly repeating schedule with an invalid day of the week (UI doesn't actually allow this)
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {
                 "start_datetime": "2021-06-24 12:00",
                 "repeat_period": "W",
@@ -1472,6 +1525,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit without any groups or contacts
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"start_datetime": "2021-06-24 12:00", "repeat_period": "W", "flow": flow1.id},
             form_errors={"__all__": "Must provide at least one group or contact to include."},
             object_unchanged=trigger,
@@ -1480,6 +1534,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # submit with valid data...
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {
                 "start_datetime": "2021-06-24T10:00Z",
                 "repeat_period": "D",

@@ -252,6 +252,7 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
         update_url = reverse("tickets.topic_update", args=[system_topic.uuid])
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"name": "My Topic"},
             form_errors={"name": "Cannot edit system topic"},
             object_unchanged=system_topic,
@@ -261,6 +262,7 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
         update_url = reverse("tickets.topic_update", args=[user_topic.uuid])
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"name": "General"},
             form_errors={"name": "Topic already exists, please try another name"},
             object_unchanged=user_topic,
@@ -270,7 +272,7 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=["name"])
 
         # edit successfully
-        self.assertUpdateSubmit(update_url, {"name": "Boring Tickets"}, success_status=302)
+        self.assertUpdateSubmit(update_url, self.admin, {"name": "Boring Tickets"}, success_status=302)
 
         user_topic.refresh_from_db()
         self.assertEqual(user_topic.name, "Boring Tickets")
@@ -354,7 +356,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         user_topic = Topic.objects.create(org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin)
 
         # edit successfully
-        self.assertUpdateSubmit(update_url, {"topic": user_topic.id, "body": "This is silly"}, success_status=302)
+        self.assertUpdateSubmit(
+            update_url, self.admin, {"topic": user_topic.id, "body": "This is silly"}, success_status=302
+        )
 
         ticket.refresh_from_db()
         self.assertEqual(user_topic, ticket.topic)
@@ -583,10 +587,16 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         self.assertUpdateSubmit(
-            update_url, {"note": ""}, form_errors={"note": "This field is required."}, object_unchanged=ticket
+            update_url,
+            self.admin,
+            {"note": ""},
+            form_errors={"note": "This field is required."},
+            object_unchanged=ticket,
         )
 
-        self.assertUpdateSubmit(update_url, {"note": "I have a bad feeling about this."}, success_status=200)
+        self.assertUpdateSubmit(
+            update_url, self.admin, {"note": "I have a bad feeling about this."}, success_status=200
+        )
 
         self.assertEqual(1, ticket.events.filter(event_type=TicketEvent.TYPE_NOTE_ADDED).count())
 

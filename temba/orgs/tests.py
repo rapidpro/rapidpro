@@ -2870,12 +2870,16 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # try to submit an empty form
         response = self.assertCreateSubmit(
-            create_url, {}, form_errors={"name": "This field is required.", "timezone": "This field is required."}
+            create_url,
+            self.admin,
+            {},
+            form_errors={"name": "This field is required.", "timezone": "This field is required."},
         )
 
         # submit with valid values to create a new org...
         response = self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "My Other Org", "timezone": "Africa/Nairobi"},
             new_obj_query=Org.objects.filter(name="My Other Org", parent=None),
         )
@@ -2919,12 +2923,16 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # try to submit an empty form
         response = self.assertCreateSubmit(
-            create_url, {}, form_errors={"name": "This field is required.", "timezone": "This field is required."}
+            create_url,
+            self.admin,
+            {},
+            form_errors={"name": "This field is required.", "timezone": "This field is required."},
         )
 
         # submit with valid values to create a child org...
         response = self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "My Child Org", "timezone": "Africa/Nairobi"},
             new_obj_query=Org.objects.filter(name="My Child Org", parent=self.org),
         )
@@ -2960,6 +2968,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # create new org
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"type": "new", "name": "New Org", "timezone": "Africa/Nairobi"},
             new_obj_query=Org.objects.filter(name="New Org", parent=None),
         )
@@ -2967,6 +2976,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # create child org
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"type": "child", "name": "Child Org", "timezone": "Africa/Nairobi"},
             new_obj_query=Org.objects.filter(name="Child Org", parent=self.org),
         )
@@ -3431,6 +3441,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit as is (empty)
         self.assertUpdateSubmit(
             langs_url,
+            self.admin,
             {},
             object_unchanged=self.org,
             form_errors={"primary_lang": "This field is required.", "input_collation": "This field is required."},
@@ -3438,7 +3449,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # give the org a primary language
         self.assertUpdateSubmit(
-            langs_url, {"primary_lang": '{"name":"French", "value":"fra"}', "input_collation": "confusables"}
+            langs_url,
+            self.admin,
+            {"primary_lang": '{"name":"French", "value":"fra"}', "input_collation": "confusables"},
         )
 
         self.org.refresh_from_db()
@@ -3453,6 +3466,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # and now give it additional languages
         self.assertUpdateSubmit(
             langs_url,
+            self.admin,
             {
                 "primary_lang": '{"name":"French", "value":"fra"}',
                 "other_langs": ['{"name":"Haitian", "value":"hat"}', '{"name":"Hausa", "value":"hau"}'],

@@ -113,16 +113,20 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with invalid name and missing value
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "/?:"},
             form_errors={"name": "Can only contain letters, numbers and hypens.", "value": "This field is required."},
         )
 
         # try to submit with name that would become invalid key
-        self.assertCreateSubmit(create_url, {"name": "-", "value": "123"}, form_errors={"name": "Isn't a valid name"})
+        self.assertCreateSubmit(
+            create_url, self.admin, {"name": "-", "value": "123"}, form_errors={"name": "Isn't a valid name"}
+        )
 
         # submit with valid values
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "Secret", "value": "[xyz]"},
             success_status=200,
             new_obj_query=Global.objects.filter(org=self.org, name="Secret", value="[xyz]"),
@@ -130,12 +134,13 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # try to submit with same name
         self.assertCreateSubmit(
-            create_url, {"name": "Secret", "value": "[abc]"}, form_errors={"name": "Must be unique."}
+            create_url, self.admin, {"name": "Secret", "value": "[abc]"}, form_errors={"name": "Must be unique."}
         )
 
         # works if name is unique
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "Secret2", "value": "[abc]"},
             success_status=200,
             new_obj_query=Global.objects.filter(org=self.org, name="Secret2", value="[abc]"),
@@ -144,6 +149,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to create another now that we've reached the limit
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "Secret3", "value": "[abc]"},
             form_errors={
                 "__all__": "This workspace has reached its limit of 4 globals. You must delete existing ones before you can create new ones."
@@ -157,10 +163,10 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # try to submit with missing value
         self.assertUpdateSubmit(
-            update_url, {}, form_errors={"value": "This field is required."}, object_unchanged=self.global1
+            update_url, self.admin, {}, form_errors={"value": "This field is required."}, object_unchanged=self.global1
         )
 
-        self.assertUpdateSubmit(update_url, {"value": "Acme Holdings"})
+        self.assertUpdateSubmit(update_url, self.admin, {"value": "Acme Holdings"})
 
         self.global1.refresh_from_db()
         self.assertEqual("Org Name", self.global1.name)
@@ -193,7 +199,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertDeleteFetch(delete_url, allow_editors=True)
         self.assertContains(response, "You are about to delete")
 
-        response = self.assertDeleteSubmit(delete_url, object_deactivated=self.global2, success_status=200)
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=self.global2, success_status=200)
         self.assertEqual("/global/", response["Temba-Success"])
 
         # should see warning if global is being used
@@ -205,7 +211,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "is used by the following items but can still be deleted:")
         self.assertContains(response, "Color Flow")
 
-        response = self.assertDeleteSubmit(delete_url, object_deactivated=self.global1, success_status=200)
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=self.global1, success_status=200)
         self.assertEqual("/global/", response["Temba-Success"])
 
         self.flow.refresh_from_db()

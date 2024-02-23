@@ -1529,6 +1529,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit without name or language
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"flow_type": "M"},
             form_errors={"name": "This field is required.", "base_language": "This field is required."},
         )
@@ -1536,6 +1537,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with a name that contains disallowed characters
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": '"Registration"', "flow_type": "M", "base_language": "eng"},
             form_errors={"name": 'Cannot contain the character: "'},
         )
@@ -1543,6 +1545,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with a name that is too long
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "X" * 65, "flow_type": "M", "base_language": "eng"},
             form_errors={"name": "Ensure this value has at most 64 characters (it has 65)."},
         )
@@ -1550,12 +1553,14 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with a name that is already used
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "Registration", "flow_type": "M", "base_language": "eng"},
             form_errors={"name": "Already used by another flow."},
         )
 
         response = self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "Flow 1", "flow_type": "M", "base_language": "eng"},
             new_obj_query=Flow.objects.filter(org=self.org, flow_type="M", name="Flow 1"),
         )
@@ -1571,6 +1576,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # try creating a flow with invalid keywords
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {
                 "name": "Flow #1",
                 "base_language": "eng",
@@ -1585,6 +1591,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # submit with valid keywords
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {
                 "name": "Flow 1",
                 "base_language": "eng",
@@ -1602,6 +1609,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to create another flow with one of the same keywords
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {
                 "name": "Flow 2",
                 "base_language": "eng",
@@ -1618,6 +1626,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # and now it's no longer a conflict
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {
                 "name": "Flow 2",
                 "base_language": "eng",
@@ -1873,6 +1882,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to update with empty name
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"name": "", "expires_after_minutes": 10, "ignore_triggers": True},
             form_errors={"name": "This field is required."},
             object_unchanged=flow,
@@ -1881,6 +1891,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # update all fields
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {
                 "name": "New Name",
                 "keyword_triggers": ["test", "help"],
@@ -1899,6 +1910,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # remove one keyword and add another
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {
                 "name": "New Name",
                 "keyword_triggers": ["help", "support"],
@@ -1917,6 +1929,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # put "test" keyword back and remove "support"
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {
                 "name": "New Name",
                 "keyword_triggers": ["test", "help"],
@@ -1940,6 +1953,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # re-adding "support" will now restore that trigger
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {
                 "name": "New Name",
                 "keyword_triggers": ["test", "help", "support"],
@@ -1970,6 +1984,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to update with an expires value which is only for messaging flows and an invalid retry value
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"name": "New Name", "expires_after_minutes": 720, "ignore_triggers": True, "ivr_retry": 1234},
             form_errors={
                 "expires_after_minutes": "Select a valid choice. 720 is not one of the available choices.",
@@ -1981,6 +1996,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # update name and contact creation option to be per login
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {
                 "name": "New Name",
                 "keyword_triggers": ["test", "help"],
@@ -2012,7 +2028,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # update name and contact creation option to be per login
-        self.assertUpdateSubmit(update_url, {"name": "New Name", "contact_creation": "login"})
+        self.assertUpdateSubmit(update_url, self.admin, {"name": "New Name", "contact_creation": "login"})
 
         flow.refresh_from_db()
         self.assertEqual("New Name", flow.name)
@@ -2026,7 +2042,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=["name"])
 
         # update name and contact creation option to be per login
-        self.assertUpdateSubmit(update_url, {"name": "New Name"})
+        self.assertUpdateSubmit(update_url, self.admin, {"name": "New Name"})
 
         flow.refresh_from_db()
         self.assertEqual("New Name", flow.name)
@@ -2699,6 +2715,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         mr_mocks.parse_query("frank", cleaned='name ~ "frank"')
         self.assertUpdateSubmit(
             start_url,
+            self.admin,
             {"flow": flow.id, "contact_search": get_contact_search(query="frank")},
         )
 
@@ -2717,6 +2734,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         mr_mocks.error("query contains an error")
         self.assertUpdateSubmit(
             start_url,
+            self.admin,
             {"flow": flow.id, "contact_search": get_contact_search(query='name = "frank')},
             form_errors={"contact_search": "query contains an error"},
             object_unchanged=flow,
@@ -2725,6 +2743,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # try missing contacts
         self.assertUpdateSubmit(
             start_url,
+            self.admin,
             {"flow": flow.id, "contact_search": get_contact_search(contacts=[])},
             form_errors={"contact_search": "Contacts or groups are required."},
             object_unchanged=flow,
@@ -2733,6 +2752,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to create with an empty query
         self.assertUpdateSubmit(
             start_url,
+            self.admin,
             {"flow": flow.id, "contact_search": get_contact_search(query="")},
             form_errors={"contact_search": "A contact query is required."},
             object_unchanged=flow,
@@ -2744,6 +2764,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # create flow start with exclude_in_other and exclude_reruns both left unchecked
         self.assertUpdateSubmit(
             start_url,
+            self.admin,
             {"flow": flow.id, "contact_search": get_contact_search(query=query)},
         )
 
@@ -2768,7 +2789,9 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         mr_mocks.parse_query("frank", cleaned='name ~ "frank"')
 
         start_url = f"{reverse('flows.flow_start', args=[])}?flow={flow.id}"
-        self.assertUpdateSubmit(start_url, {"flow": flow.id, "contact_search": get_contact_search(query="frank")})
+        self.assertUpdateSubmit(
+            start_url, self.admin, {"flow": flow.id, "contact_search": get_contact_search(query="frank")}
+        )
 
         start = FlowStart.objects.get()
         self.assertEqual(flow, start.flow)
@@ -3082,14 +3105,22 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         change_url = reverse("flows.flow_change_language", args=[flow.id])
 
         self.assertUpdateSubmit(
-            change_url, {"language": ""}, form_errors={"language": "This field is required."}, object_unchanged=flow
+            change_url,
+            self.admin,
+            {"language": ""},
+            form_errors={"language": "This field is required."},
+            object_unchanged=flow,
         )
 
         self.assertUpdateSubmit(
-            change_url, {"language": "fra"}, form_errors={"language": "Not a valid language."}, object_unchanged=flow
+            change_url,
+            self.admin,
+            {"language": "fra"},
+            form_errors={"language": "Not a valid language."},
+            object_unchanged=flow,
         )
 
-        self.assertUpdateSubmit(change_url, {"language": "spa"}, success_status=302)
+        self.assertUpdateSubmit(change_url, self.admin, {"language": "spa"}, success_status=302)
 
         flow_def = flow.get_definition()
         self.assertIn("eng", flow_def["localization"])
@@ -3104,7 +3135,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateFetch(export_url, allow_viewers=False, allow_editors=True, form_fields=["language"])
 
         # submit with no language
-        response = self.assertUpdateSubmit(export_url, {})
+        response = self.assertUpdateSubmit(export_url, self.admin, {})
 
         self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=", response.url)
 
@@ -3145,7 +3176,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # submit with no file
         self.assertUpdateSubmit(
-            step1_url, {}, form_errors={"po_file": "This field is required."}, object_unchanged=flow
+            step1_url, self.admin, {}, form_errors={"po_file": "This field is required."}, object_unchanged=flow
         )
 
         # submit with something that's empty
@@ -3672,7 +3703,7 @@ class FlowRunCRUDLTest(TembaTest, CRUDLTestMixin):
 
         delete_url = reverse("flows.flowrun_delete", args=[run1.id])
 
-        self.assertDeleteSubmit(delete_url, object_deleted=run1, success_status=200)
+        self.assertDeleteSubmit(delete_url, self.admin, object_deleted=run1, success_status=200)
 
         self.assertFalse(FlowRun.objects.filter(id=run1.id).exists())
         self.assertTrue(FlowRun.objects.filter(id=run2.id).exists())  # unchanged
@@ -5136,19 +5167,22 @@ class FlowLabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=("name", "flows"))
 
         # try to submit without a name
-        self.assertCreateSubmit(create_url, {}, form_errors={"name": "This field is required."})
+        self.assertCreateSubmit(create_url, self.admin, {}, form_errors={"name": "This field is required."})
 
         # try to submit with an invalid name
         self.assertCreateSubmit(
-            create_url, {"name": '"Cool"\\'}, form_errors={"name": 'Cannot contain the character: "'}
+            create_url, self.admin, {"name": '"Cool"\\'}, form_errors={"name": 'Cannot contain the character: "'}
         )
 
         self.assertCreateSubmit(
-            create_url, {"name": "Cool Flows"}, new_obj_query=FlowLabel.objects.filter(org=self.org, name="Cool Flows")
+            create_url,
+            self.admin,
+            {"name": "Cool Flows"},
+            new_obj_query=FlowLabel.objects.filter(org=self.org, name="Cool Flows"),
         )
 
         # try to create with a name that's already used
-        self.assertCreateSubmit(create_url, {"name": "Cool Flows"}, form_errors={"name": "Must be unique."})
+        self.assertCreateSubmit(create_url, self.admin, {"name": "Cool Flows"}, form_errors={"name": "Must be unique."})
 
     def test_update(self):
         label = FlowLabel.create(self.org, self.admin, "Cool Flows")
@@ -5161,6 +5195,7 @@ class FlowLabelCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to update to an invalid name
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"name": '"Cool"\\'},
             form_errors={"name": 'Cannot contain the character: "'},
             object_unchanged=label,
@@ -5168,10 +5203,14 @@ class FlowLabelCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # try to update to a non-unique name
         self.assertUpdateSubmit(
-            update_url, {"name": "Crazy Flows"}, form_errors={"name": "Must be unique."}, object_unchanged=label
+            update_url,
+            self.admin,
+            {"name": "Crazy Flows"},
+            form_errors={"name": "Must be unique."},
+            object_unchanged=label,
         )
 
-        self.assertUpdateSubmit(update_url, {"name": "Super Cool Flows"})
+        self.assertUpdateSubmit(update_url, self.admin, {"name": "Super Cool Flows"})
 
         label.refresh_from_db()
         self.assertEqual("Super Cool Flows", label.name)
@@ -5182,7 +5221,7 @@ class FlowLabelCRUDLTest(TembaTest, CRUDLTestMixin):
         delete_url = reverse("flows.flowlabel_delete", args=[label.id])
 
         self.assertDeleteFetch(delete_url, allow_editors=True)
-        self.assertDeleteSubmit(delete_url, object_deleted=label, success_status=200)
+        self.assertDeleteSubmit(delete_url, self.admin, object_deleted=label, success_status=200)
 
 
 class SimulationTest(TembaTest):

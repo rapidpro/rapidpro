@@ -85,7 +85,7 @@ class ViberPublicTypeTest(TembaTest, CRUDLTestMixin):
         )
 
         self.assertUpdateSubmit(
-            update_url, {"name": "Updated", "welcome_message": "Welcome, please subscribe for more"}
+            update_url, self.admin, {"name": "Updated", "welcome_message": "Welcome, please subscribe for more"}
         )
 
         self.channel.refresh_from_db()
