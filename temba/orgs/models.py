@@ -163,16 +163,12 @@ class User(AuthUser):
         return cls.create(email, first_name, last_name, password=password, language=language)
 
     @classmethod
-    def get_orgs_for_request(cls, request, *, roles=None):
+    def get_orgs_for_request(cls, request):
         """
-        Gets the orgs that the logged in user has access to (i.e. a role in).
+        Gets the orgs that the logged in user has a membership of.
         """
-        user = request.user
-        orgs = user.orgs.filter(is_active=True).order_by("name")
-        if roles is not None:
-            orgs = orgs.filter(orgmembership__user=user, orgmembership__role_code__in=[r.code for r in roles])
 
-        return orgs
+        return request.user.orgs.filter(is_active=True).order_by("name")
 
     @classmethod
     def get_system_user(cls):

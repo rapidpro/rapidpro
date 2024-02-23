@@ -254,14 +254,6 @@ class APIToken(models.Model):
             return tokens.first()
 
     @classmethod
-    def get_orgs_for_role(cls, request, role: OrgRole):
-        """
-        Gets all the orgs the user can access the API with the given role
-        """
-        granting_roles = cls.GROUP_GRANTED_TO.get(role.group.name, [])
-        return User.get_orgs_for_request(request, roles=granting_roles) if granting_roles else Org.objects.none()
-
-    @classmethod
     def get_default_role(cls, org, user):
         """
         Gets the default API role for the given user
