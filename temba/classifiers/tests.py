@@ -159,7 +159,7 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertDeleteFetch(delete_url)
         self.assertContains(response, "You are about to delete")
 
-        response = self.assertDeleteSubmit(delete_url, object_deactivated=self.c2, success_status=200)
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=self.c2, success_status=200)
         self.assertEqual("/org/workspace/", response["Temba-Success"])
 
         # should see warning if global is being used
@@ -171,7 +171,7 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "is used by the following items but can still be deleted:")
         self.assertContains(response, "Color Flow")
 
-        response = self.assertDeleteSubmit(delete_url, object_deactivated=self.c1, success_status=200)
+        response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=self.c1, success_status=200)
         self.assertEqual("/org/workspace/", response["Temba-Success"])
 
         self.flow.refresh_from_db()

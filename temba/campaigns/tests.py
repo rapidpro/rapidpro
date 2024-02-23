@@ -1181,12 +1181,16 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # try to submit with no data
         self.assertCreateSubmit(
-            create_url, {}, form_errors={"name": "This field is required.", "group": "This field is required."}
+            create_url,
+            self.admin,
+            {},
+            form_errors={"name": "This field is required.", "group": "This field is required."},
         )
 
         # submit with valid data
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "Reminders", "group": group.id},
             new_obj_query=Campaign.objects.filter(name="Reminders", group=group),
         )
@@ -1257,13 +1261,14 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with empty name
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"name": "", "group": group1.id},
             form_errors={"name": "This field is required."},
             object_unchanged=campaign,
         )
 
         # submit with valid name
-        self.assertUpdateSubmit(update_url, {"name": "Greetings", "group": group1.id}, success_status=200)
+        self.assertUpdateSubmit(update_url, self.admin, {"name": "Greetings", "group": group1.id}, success_status=200)
 
         campaign.refresh_from_db()
         self.assertEqual("Greetings", campaign.name)
@@ -1273,7 +1278,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, len(mr_mocks.queued_batch_tasks))
 
         # submit with group change
-        self.assertUpdateSubmit(update_url, {"name": "Greetings", "group": group2.id}, success_status=200)
+        self.assertUpdateSubmit(update_url, self.admin, {"name": "Greetings", "group": group2.id}, success_status=200)
 
         campaign.refresh_from_db()
         self.assertEqual("Greetings", campaign.name)
@@ -1395,6 +1400,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with missing fields
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {
                 "event_type": "M",
                 "eng": "This is my message",
@@ -1407,6 +1413,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {
                 "event_type": "F",
                 "direction": "A",
@@ -1420,6 +1427,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         # can create an event with just a eng translation
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {
                 "relative_to": planting_date.id,
                 "event_type": "M",
@@ -1451,6 +1459,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         # have to submit translation for primary language
         response = self.assertCreateSubmit(
             create_url,
+            self.admin,
             {
                 "relative_to": planting_date.id,
                 "event_type": "M",
@@ -1468,6 +1477,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.assertCreateSubmit(
             create_url,
+            self.admin,
             {
                 "relative_to": planting_date.id,
                 "event_type": "M",
@@ -1530,6 +1540,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         # update the event to be passive
         response = self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {
                 "relative_to": planting_date.id,
                 "event_type": "M",
@@ -1572,6 +1583,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         # translation in new language is optional
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {
                 "relative_to": planting_date.id,
                 "event_type": "M",
@@ -1709,6 +1721,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         update_url = reverse("campaigns.campaignevent_update", args=[event.id])
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {
                 "relative_to": event.relative_to.id,
                 "event_type": "M",

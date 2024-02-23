@@ -1037,6 +1037,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         # name can't be empty
         self.assertUpdateSubmit(
             android_url,
+            self.admin,
             {"name": ""},
             form_errors={"name": "This field is required."},
             object_unchanged=android_channel,
@@ -1045,6 +1046,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         # make some changes
         self.assertUpdateSubmit(
             vonage_url,
+            self.admin,
             {"name": "Updated Name", "allow_international": True, "machine_detection": True},
         )
 
@@ -1077,7 +1079,9 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "You are about to delete")
 
         # submit to delete it
-        response = self.assertDeleteSubmit(delete_url, object_deactivated=self.ex_channel, success_status=200)
+        response = self.assertDeleteSubmit(
+            delete_url, self.admin, object_deactivated=self.ex_channel, success_status=200
+        )
         self.assertEqual("/org/workspace/", response["Temba-Success"])
 
         # reactivate
@@ -1093,7 +1097,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "is used by the following items but can still be deleted:")
         self.assertContains(response, "Color Flow")
 
-        self.assertDeleteSubmit(delete_url, object_deactivated=self.ex_channel, success_status=200)
+        self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=self.ex_channel, success_status=200)
 
         flow.refresh_from_db()
         self.assertTrue(flow.has_issues)

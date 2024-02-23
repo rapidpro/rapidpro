@@ -497,6 +497,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # update all fields (removes second tel URN, adds a new Facebook URN)
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {
                 "name": "Bobby",
                 "status": "B",
@@ -538,6 +539,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # try to update with invalid URNs
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {
                 "name": "Bobby",
                 "status": "B",
@@ -574,6 +576,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {
                 "name": "Bobby",
                 "status": "A",
@@ -709,7 +712,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         )
 
         # can submit with no assignee
-        response = self.assertUpdateSubmit(open_url, {"topic": general.id, "body": "Help", "assignee": ""})
+        response = self.assertUpdateSubmit(open_url, self.admin, {"topic": general.id, "body": "Help", "assignee": ""})
 
         # should have new ticket
         ticket = contact.tickets.get()
@@ -825,6 +828,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # try to submit without specifying a flow
         self.assertUpdateSubmit(
             start_url,
+            self.admin,
             data={},
             form_errors={"flow": "This field is required.", "contact_search": "This field is required."},
             object_unchanged=contact,
@@ -833,7 +837,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # submit with flow...
         contact_search = dict(query=f"uuid='{contact.uuid}'", advanced=True)
         self.assertUpdateSubmit(
-            start_url, data={"flow": background_flow.id, "contact_search": json.dumps(contact_search)}
+            start_url, self.admin, {"flow": background_flow.id, "contact_search": json.dumps(contact_search)}
         )
 
         # should now have a flow start
@@ -1451,7 +1455,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "You are about to delete")
         self.assertContains(response, "There is no way to undo this. Are you sure?")
 
-        self.assertDeleteSubmit(delete_group1_url, object_deactivated=group1, success_status=200)
+        self.assertDeleteSubmit(delete_group1_url, self.admin, object_deactivated=group1, success_status=200)
 
         # a group with only soft dependents can be deleted but we give warnings
         response = self.assertDeleteFetch(delete_group2_url, allow_editors=True)
@@ -1462,7 +1466,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, flow1.name)
         self.assertContains(response, "There is no way to undo this. Are you sure?")
 
-        self.assertDeleteSubmit(delete_group2_url, object_deactivated=group2, success_status=200)
+        self.assertDeleteSubmit(delete_group2_url, self.admin, object_deactivated=group2, success_status=200)
 
         # check that the flow is now marked as having issues
         flow1.refresh_from_db()
@@ -1479,7 +1483,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, f"Schedule → {flow2.name}")
         self.assertContains(response, "There is no way to undo this. Are you sure?")
 
-        self.assertDeleteSubmit(delete_group3_url, object_deactivated=group3, success_status=200)
+        self.assertDeleteSubmit(delete_group3_url, self.admin, object_deactivated=group3, success_status=200)
 
         # check that the flow is now marked as having issues
         flow2.refresh_from_db()
@@ -4060,6 +4064,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with empty name
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "", "value_type": "T", "show_in_table": True, "agent_access": "E"},
             form_errors={"name": "This field is required."},
         )
@@ -4067,6 +4072,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with invalid name
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "???", "value_type": "T", "show_in_table": True, "agent_access": "E"},
             form_errors={"name": "Can only contain letters, numbers and hypens."},
         )
@@ -4074,6 +4080,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with something that would be an invalid key
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "UUID", "value_type": "T", "show_in_table": True, "agent_access": "E"},
             form_errors={"name": "Can't be a reserved word."},
         )
@@ -4081,6 +4088,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with name of existing field
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "AGE", "value_type": "N", "show_in_table": True, "agent_access": "E"},
             form_errors={"name": "Must be unique."},
         )
@@ -4088,6 +4096,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         # submit with valid data
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "Goats", "value_type": "N", "show_in_table": True, "agent_access": "E"},
             new_obj_query=ContactField.user_fields.filter(
                 org=self.org, name="Goats", value_type="N", show_in_table=True, agent_access="E"
@@ -4100,6 +4109,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertCreateSubmit(
             create_url,
+            self.admin,
             {"name": "Age", "value_type": "N", "show_in_table": True, "agent_access": "N"},
             new_obj_query=ContactField.user_fields.filter(
                 org=self.org, name="Age", value_type="N", show_in_table=True, agent_access="N", is_active=True
@@ -4111,6 +4121,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         with override_settings(ORG_LIMIT_DEFAULTS={"fields": 2}):
             self.assertCreateSubmit(
                 create_url,
+                self.admin,
                 {"name": "Sheep", "value_type": "T", "show_in_table": True, "agent_access": "E"},
                 form_errors={
                     "__all__": "This workspace has reached its limit of 2 fields. You must delete existing ones before you can create new ones."
@@ -4141,6 +4152,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         # try submit without change
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"name": "Age", "value_type": "N", "show_in_table": True, "agent_access": "V"},
             success_status=200,
         )
@@ -4148,6 +4160,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with empty name
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"name": "", "value_type": "N", "show_in_table": True, "agent_access": "V"},
             form_errors={"name": "This field is required."},
             object_unchanged=self.age,
@@ -4156,6 +4169,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with invalid name
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"name": "???", "value_type": "N", "show_in_table": True, "agent_access": "V"},
             form_errors={"name": "Can only contain letters, numbers and hypens."},
             object_unchanged=self.age,
@@ -4164,6 +4178,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with a name that is used by another field
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"name": "GENDER", "value_type": "N", "show_in_table": True, "agent_access": "V"},
             form_errors={"name": "Must be unique."},
             object_unchanged=self.age,
@@ -4172,6 +4187,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         # submit with different name, type and agent access
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"name": "Age In Years", "value_type": "T", "show_in_table": False, "agent_access": "E"},
             success_status=200,
         )
@@ -4186,6 +4202,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         with override_settings(ORG_LIMIT_DEFAULTS={"fields": 2}):
             self.assertUpdateSubmit(
                 update_url,
+                self.admin,
                 {"name": "Age 2", "value_type": "T", "show_in_table": True, "agent_access": "E"},
                 success_status=200,
             )
@@ -4212,6 +4229,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit with different type
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"name": "Registered", "value_type": "T", "show_in_table": False, "agent_access": "V"},
             form_errors={"value_type": "Can't change type of date field being used by campaign events."},
             object_unchanged=registered,
@@ -4220,6 +4238,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         # submit with only a different name
         self.assertUpdateSubmit(
             update_url,
+            self.admin,
             {"name": "Registered On", "value_type": "D", "show_in_table": False, "agent_access": "V"},
             success_status=200,
         )
@@ -4329,14 +4348,14 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "You are about to delete")
         self.assertContains(response, "There is no way to undo this. Are you sure?")
 
-        self.assertDeleteSubmit(delete_gender_url, object_deactivated=self.gender, success_status=200)
+        self.assertDeleteSubmit(delete_gender_url, self.admin, object_deactivated=self.gender, success_status=200)
 
         # create the same field again
         self.gender = self.create_field("gender", "Gender", value_type="T")
 
         # since fields are queried by key name, try and delete it again
         # to make sure we aren't deleting the previous deleted field again
-        self.assertDeleteSubmit(delete_gender_url, object_deactivated=self.gender, success_status=200)
+        self.assertDeleteSubmit(delete_gender_url, self.admin, object_deactivated=self.gender, success_status=200)
         self.gender.refresh_from_db()
         self.assertFalse(self.gender.is_active)
 
@@ -4348,7 +4367,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Amazing Flow")
         self.assertContains(response, "There is no way to undo this. Are you sure?")
 
-        self.assertDeleteSubmit(delete_joined_url, object_deactivated=joined_on, success_status=200)
+        self.assertDeleteSubmit(delete_joined_url, self.admin, object_deactivated=joined_on, success_status=200)
 
         # check that flow is now marked as having issues
         flow.refresh_from_db()
