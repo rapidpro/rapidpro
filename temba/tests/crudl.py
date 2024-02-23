@@ -131,10 +131,8 @@ class CRUDLTestMixin:
         as_user(org2_admin, allowed=allow_org2, check_fields=False)
         return as_user(admin, allowed=True)
 
-    def assertCreateSubmit(self, url, data, *, form_errors=None, new_obj_query=None, success_status=302):
+    def assertCreateSubmit(self, url, user, data, *, form_errors=None, new_obj_query=None, success_status=302):
         assert form_errors or new_obj_query is not None, "must specify form_errors or new_obj_query"
-
-        viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
         def as_user(user, allowed):
             if allowed:
@@ -150,7 +148,7 @@ class CRUDLTestMixin:
             return self.requestView(url, user, post_data=data, checks=checks, choose_org=self.org)
 
         as_user(None, allowed=False)
-        return as_user(admin, allowed=True)
+        return as_user(user, allowed=True)
 
     def assertUpdateFetch(
         self, url, *, allow_viewers, allow_editors, allow_agents=False, allow_org2=False, form_fields=(), status=200
@@ -174,10 +172,8 @@ class CRUDLTestMixin:
         as_user(org2_admin, allowed=allow_org2)
         return as_user(admin, allowed=True)
 
-    def assertUpdateSubmit(self, url, data, *, form_errors=None, object_unchanged=None, success_status=302):
+    def assertUpdateSubmit(self, url, user, data, *, form_errors=None, object_unchanged=None, success_status=302):
         assert not form_errors or object_unchanged, "if form_errors specified, must also specify object_unchanged"
-
-        viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
         def as_user(user, allowed):
             if allowed:
@@ -191,7 +187,7 @@ class CRUDLTestMixin:
             return self.requestView(url, user, post_data=data, checks=checks, choose_org=self.org)
 
         as_user(None, allowed=False)
-        return as_user(admin, allowed=True)
+        return as_user(user, allowed=True)
 
     def assertDeleteFetch(
         self, url, *, allow_viewers=False, allow_editors=False, allow_agents=False, status=200, as_modal=False
@@ -217,7 +213,7 @@ class CRUDLTestMixin:
         return as_user(admin, allowed=True)
 
     def assertDeleteSubmit(
-        self, url, *, object_unchanged=None, object_deleted=None, object_deactivated=None, success_status=302
+        self, url, user, *, object_unchanged=None, object_deleted=None, object_deactivated=None, success_status=302
     ):
         assert (
             object_unchanged or object_deleted or object_deactivated
@@ -239,8 +235,8 @@ class CRUDLTestMixin:
             return self.requestView(url, user, post_data={}, checks=checks)
 
         as_user(None, allowed=False)
-        as_user(org2_admin, allowed=False)
-        return as_user(admin, allowed=True)
+        as_user(self.admin2, allowed=False)
+        return as_user(user, allowed=True)
 
     def assertStaffOnly(self, url: str, choose_org=None):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
