@@ -1200,7 +1200,8 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         campaign = self.create_campaign(self.org, "Welcomes", group)
         read_url = reverse("campaigns.campaign_read", args=[campaign.uuid])
 
-        response = self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=campaign)
+        self.assertRequestDisallowed(read_url, [None, self.agent, self.admin2])
+        response = self.assertReadFetch(read_url, [self.user, self.editor, self.admin], context_object=campaign)
         self.assertContains(response, "Welcomes")
         self.assertContains(response, "Registered")
 
@@ -1343,7 +1344,8 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         event = self.campaign1.events.order_by("id").first()
         read_url = reverse("campaigns.campaignevent_read", args=[event.campaign.uuid, event.id])
 
-        response = self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=event)
+        self.assertRequestDisallowed(read_url, [None, self.agent, self.admin2])
+        response = self.assertReadFetch(read_url, [self.user, self.editor, self.admin], context_object=event)
 
         self.assertContains(response, "Welcomes")
         self.assertContains(response, "1 week after")
@@ -1355,7 +1357,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         event.campaign.save()
 
         # archived campaigns should focus the archived menu
-        response = self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=event)
+        response = self.assertReadFetch(read_url, [self.editor], context_object=event)
         self.assertEqual("/campaign/archived/", response.headers.get(TEMBA_MENU_SELECTION))
 
         self.assertContentMenu(read_url, self.admin, ["Delete"])

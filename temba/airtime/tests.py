@@ -59,9 +59,8 @@ class AirtimeCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_read(self):
         read_url = reverse("airtime.airtimetransfer_read", args=[self.transfer1.id])
 
-        response = self.assertReadFetch(
-            read_url, allow_viewers=False, allow_editors=True, context_object=self.transfer1
-        )
+        self.assertRequestDisallowed(read_url, [None, self.user, self.agent, self.admin2])
+        response = self.assertReadFetch(read_url, [self.editor, self.admin], context_object=self.transfer1)
         self.assertContains(response, "Ben Haggerty")
         self.assertContains(response, "+250 700 000 003")
         self.assertTrue(response.context["show_logs"])

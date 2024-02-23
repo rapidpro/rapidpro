@@ -362,7 +362,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         group3_url = reverse("contacts.contact_filter", args=[group3.uuid])
         open_tickets_url = reverse("contacts.contact_filter", args=[open_tickets.uuid])
 
-        response = self.assertReadFetch(group1_url, allow_viewers=True, allow_editors=True)
+        self.assertRequestDisallowed(group1_url, [None, self.agent, self.admin2])
+        response = self.assertReadFetch(group1_url, [self.user, self.editor, self.admin])
 
         self.assertEqual([frank, joe], list(response.context["object_list"]))
         self.assertEqual(["block", "unlabel", "send", "start-flow"], list(response.context["actions"]))
@@ -373,14 +374,14 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             ["Edit", "Export", "Usages", "Delete"],
         )
 
-        response = self.assertReadFetch(group2_url, allow_viewers=True, allow_editors=True)
+        response = self.assertReadFetch(group2_url, [self.editor])
 
         self.assertEqual([frank], list(response.context["object_list"]))
         self.assertEqual(["block", "archive", "send", "start-flow"], list(response.context["actions"]))
         self.assertContains(response, "age &gt; 40")
 
         # can access system group like any other except no options to edit or delete
-        response = self.assertReadFetch(open_tickets_url, allow_viewers=True, allow_editors=True)
+        response = self.assertReadFetch(open_tickets_url, [self.editor])
         self.assertEqual([], list(response.context["object_list"]))
         self.assertEqual(["block", "archive", "send", "start-flow"], list(response.context["actions"]))
         self.assertContains(response, "tickets &gt; 0")
@@ -600,7 +601,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         schedule_url = reverse("contacts.contact_scheduled", args=[contact1.uuid])
 
-        response = self.assertReadFetch(schedule_url, allow_viewers=True, allow_editors=True)
+        self.assertRequestDisallowed(schedule_url, [None, self.agent, self.admin2])
+        response = self.assertReadFetch(schedule_url, [self.user, self.editor, self.admin])
         self.assertEqual({"results": []}, response.json())
 
         # create a campaign and event fires for this contact
@@ -1393,7 +1395,8 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
 
         usages_url = reverse("contacts.contactgroup_usages", args=[group.uuid])
 
-        response = self.assertReadFetch(usages_url, allow_viewers=True, allow_editors=True, context_object=group)
+        self.assertRequestDisallowed(usages_url, [None, self.agent, self.admin2])
+        response = self.assertReadFetch(usages_url, [self.user, self.editor, self.admin], context_object=group)
 
         self.assertEqual(
             {"flow": [flow], "campaign": [campaign1], "trigger": [trigger1, trigger2]},
@@ -4315,7 +4318,8 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
 
         usages_url = reverse("contacts.contactfield_usages", args=[field.key])
 
-        response = self.assertReadFetch(usages_url, allow_viewers=True, allow_editors=True, context_object=field)
+        self.assertRequestDisallowed(usages_url, [None, self.agent, self.admin2])
+        response = self.assertReadFetch(usages_url, [self.user, self.editor, self.admin], context_object=field)
 
         self.assertEqual(
             {"flow": [flow], "group": [group], "campaign_event": [event1]},
@@ -5379,4 +5383,5 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
 
         read_url = reverse("contacts.contactimport_read", args=[imp.id])
 
-        self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=imp)
+        self.assertRequestDisallowed(read_url, [None, self.agent, self.admin2])
+        self.assertReadFetch(read_url, [self.user, self.editor, self.admin], context_object=imp)

@@ -188,7 +188,8 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_usages(self):
         detail_url = reverse("globals.global_usages", args=[self.global1.uuid])
 
-        response = self.assertReadFetch(detail_url, allow_viewers=True, allow_editors=True, context_object=self.global1)
+        self.assertRequestDisallowed(detail_url, [None, self.agent, self.admin2])
+        response = self.assertReadFetch(detail_url, [self.user, self.editor, self.admin], context_object=self.global1)
 
         self.assertEqual({"flow": [self.flow]}, {t: list(qs) for t, qs in response.context["dependents"].items()})
 

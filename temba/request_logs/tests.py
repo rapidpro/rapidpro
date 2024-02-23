@@ -93,11 +93,12 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, log_url)
 
         # view the individual log item
-        response = self.assertReadFetch(log_url, allow_viewers=False, allow_editors=True, context_object=l1)
+        self.assertRequestDisallowed(log_url, [None, self.user, self.agent, self.admin2])
+        response = self.assertReadFetch(log_url, [self.editor, self.admin], context_object=l1)
         self.assertContains(response, "200")
         self.assertContains(response, "org1.bar")
 
-        response = self.assertReadFetch(log_url, allow_viewers=False, allow_editors=True, context_object=l1)
+        response = self.assertReadFetch(log_url, [self.editor], context_object=l1)
         self.assertEqual("/flow/history/webhooks", response.headers.get(TEMBA_MENU_SELECTION))
 
     def test_classifier(self):
@@ -142,7 +143,8 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, "Classifier Called")
 
         # view the individual log item
-        response = self.assertReadFetch(log_url, allow_viewers=False, allow_editors=False, context_object=l1)
+        self.assertRequestDisallowed(log_url, [None, self.user, self.agent, self.editor, self.admin2])
+        response = self.assertReadFetch(log_url, [self.admin], context_object=l1)
         self.assertEqual(menu_path, response.headers[TEMBA_MENU_SELECTION])
         self.assertContains(response, "200")
         self.assertContains(response, "org1.bar")
