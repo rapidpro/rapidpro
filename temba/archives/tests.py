@@ -253,8 +253,9 @@ class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
             f"tent-disposition=attachment%3B&response-content-type=application%2Foctet&response-content-encoding=none"
         )
 
+        self.assertRequestDisallowed(download_url, [None, self.user, self.agent, self.admin2])
         response = self.assertReadFetch(
-            reverse("archives.archive_read", args=[archive.id]), allow_viewers=False, allow_editors=True, status=302
+            reverse("archives.archive_read", args=[archive.id]), [self.editor, self.admin], status=302
         )
 
         self.assertIn(download_url, response.get("Location"))

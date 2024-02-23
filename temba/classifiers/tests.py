@@ -143,7 +143,8 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_read(self):
         read_url = reverse("classifiers.classifier_read", args=[self.c1.uuid])
 
-        response = self.assertReadFetch(read_url, allow_viewers=True, allow_editors=True, context_object=self.c1)
+        self.assertRequestDisallowed(read_url, [None, self.agent, self.admin2])
+        response = self.assertReadFetch(read_url, [self.user, self.editor, self.admin], context_object=self.c1)
 
         # lists active intents
         self.assertContains(response, "book_flight")

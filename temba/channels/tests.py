@@ -341,7 +341,9 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
     def test_chart(self):
         chart_url = reverse("channels.channel_chart", args=[self.tel_channel.uuid])
-        self.assertReadFetch(chart_url, allow_viewers=True, allow_editors=True)
+
+        self.assertRequestDisallowed(chart_url, [None, self.agent, self.admin2])
+        self.assertReadFetch(chart_url, [self.user, self.editor, self.admin])
 
         # create some test messages
         test_date = datetime(2020, 1, 20, 0, 0, 0, 0, timezone.utc)
@@ -1744,7 +1746,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         # try viewing the failed message log
         read_url = reverse("channels.channellog_read", args=[failed_log.id])
 
-        self.assertReadFetch(read_url, allow_viewers=False, allow_editors=False, context_object=failed_log)
+        self.assertRequestDisallowed(read_url, [None, self.user, self.agent, self.editor, self.admin2])
+        self.assertReadFetch(read_url, [self.admin], context_object=failed_log)
 
         # invalid channel UUID returns 404
         response = self.client.get(reverse("channels.channellog_list", args=["invalid-uuid"]))

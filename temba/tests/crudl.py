@@ -48,30 +48,26 @@ class CRUDLTestMixin:
                 return response
         return response
 
-    def assertReadFetch(
-        self, url, *, allow_viewers, allow_editors, allow_agents=False, context_object=None, status=200
-    ):
+    def assertRequestDisallowed(self, url, users: list):
         """
-        Fetches a read view as different users
+        Asserts that the given users cannot fetch the given URL
         """
-        viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
-        def as_user(user, allowed):
-            if allowed:
-                checks = [StatusCode(status)]
-                if context_object:
-                    checks.append(ContextObject(context_object))
-            else:
-                checks = [LoginRedirectOr404()]
+        for user in users:
+            self.requestView(url, user, checks=[LoginRedirectOr404()])
 
-            return self.requestView(url, user, checks=checks, choose_org=self.org)
+    def assertReadFetch(self, url, users: list, *, context_object=None, status=200):
+        """
+        Asserts that the given users can fetch the given read page
+        """
 
-        as_user(None, allowed=False)
-        as_user(viewer, allowed=allow_viewers)
-        as_user(editor, allowed=allow_editors)
-        as_user(agent, allowed=allow_agents)
-        as_user(org2_admin, allowed=False)
-        return as_user(admin, allowed=True)
+        for user in users:
+            checks = [StatusCode(status)]
+            if context_object:
+                checks.append(ContextObject(context_object))
+
+            resp = self.requestView(url, user, checks=checks, choose_org=self.org)
+        return resp
 
     def assertListFetch(
         self,

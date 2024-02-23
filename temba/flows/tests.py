@@ -2821,7 +2821,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         seg1_url = reverse("flows.flow_recent_contacts", args=[flow.uuid, node1_exit1_uuid, node2_uuid])
 
         # nothing set in redis just means empty list
-        response = self.assertReadFetch(seg1_url, allow_viewers=True, allow_editors=True)
+        self.assertRequestDisallowed(seg1_url, [None, self.agent, self.admin2])
+        response = self.assertReadFetch(seg1_url, [self.user, self.editor, self.admin])
         self.assertEqual([], response.json())
 
         def add_recent_contact(exit_uuid: str, dest_uuid: str, contact, text: str, ts: float):
@@ -2833,7 +2834,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         add_recent_contact(node1_exit1_uuid, node2_uuid, contact2, "|x|", 1639338555.234567)
         add_recent_contact(node1_exit1_uuid, node2_uuid, contact1, "Sounds good", 1639338561.345678)
 
-        response = self.assertReadFetch(seg1_url, allow_viewers=True, allow_editors=True)
+        response = self.assertReadFetch(seg1_url, [self.user, self.editor, self.admin])
         self.assertEqual(
             [
                 {
@@ -3143,14 +3144,15 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # check fetching the PO from the download link
         with patch("temba.mailroom.client.MailroomClient.po_export") as mock_po_export:
             mock_po_export.return_value = b'msgid "Red"\nmsgstr "Roja"\n\n'
-            response = self.assertReadFetch(response.url, allow_viewers=False, allow_editors=True)
+            self.assertRequestDisallowed(response.url, [None, self.user, self.agent, self.admin2])
+            response = self.assertReadFetch(response.url, [self.editor, self.admin])
 
             self.assertEqual(b'msgid "Red"\nmsgstr "Roja"\n\n', response.content)
             self.assertEqual('attachment; filename="favorites.po"', response["Content-Disposition"])
             self.assertEqual("text/x-gettext-translation", response["Content-Type"])
 
         # submit with a language
-        response = self.requestView(export_url, self.admin, post_data={"language": "spa"})
+        response = self.assertUpdateSubmit(export_url, self.admin, {"language": "spa"})
 
         self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=spa", response.url)
 
