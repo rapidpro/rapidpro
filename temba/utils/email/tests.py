@@ -145,3 +145,4 @@ class EmailTest(TembaTest):
             ("gmail.com", 457, "foo%", "ses/ame", "foo@gmail.com", True),
             parse_smtp_url("smtp://foo%25:ses%2Fame@gmail.com:457/?tls=true&from=foo%40gmail.com"),
         )
+        self.assertEqual((None, 25, None, None, "foo@gmail.com", False), parse_smtp_url("smtp://?from=foo%40gmail.com"))
