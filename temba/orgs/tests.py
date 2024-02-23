@@ -1182,14 +1182,14 @@ class OrgTest(TembaTest):
         )
         self.assertFormError(response, "form", None, "A workspace must have at least one administrator.")
 
-        # finally upgrade agent to admin, downgrade editor to surveyor, remove ourselves entirely and remove last invite
+        # finally upgrade agent to admin, downgrade editor to agent, remove ourselves entirely and remove last invite
         last_invite = Invitation.objects.last()
         response = self.client.post(
             url,
             {
                 f"user_{self.admin.id}_role": "A",
                 f"user_{self.admin.id}_remove": "1",
-                f"user_{self.editor.id}_role": "S",
+                f"user_{self.editor.id}_role": "T",
                 f"user_{self.user.id}_role": "E",
                 f"user_{self.agent.id}_role": "A",
                 f"invite_{last_invite.id}_remove": "1",
@@ -1209,12 +1209,12 @@ class OrgTest(TembaTest):
         self.assertEqual({self.agent}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
         self.assertEqual({self.user}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
         self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
-        self.assertEqual({self.editor}, set(self.org.get_users(roles=[OrgRole.SURVEYOR])))
-        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.AGENT])))
+        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.SURVEYOR])))
+        self.assertEqual({self.editor}, set(self.org.get_users(roles=[OrgRole.AGENT])))
 
-        # editor will have lost their editor API token, but not their surveyor token
+        # editor will have lost their API tokens
         self.editor.refresh_from_db()
-        self.assertEqual([t.role.name for t in self.editor.api_tokens.filter(is_active=True)], ["Surveyors"])
+        self.assertEqual(0, self.editor.api_tokens.filter(is_active=True).count())
 
         # and all our API tokens for the admin are deleted
         self.admin.refresh_from_db()

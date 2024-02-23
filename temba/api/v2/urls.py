@@ -4,7 +4,6 @@ from django.urls import re_path
 
 from .views import (
     ArchivesEndpoint,
-    AuthenticateView,
     BoundariesEndpoint,
     BroadcastsEndpoint,
     CampaignEventsEndpoint,
@@ -42,7 +41,6 @@ from .views import (
 urlpatterns = [
     re_path(r"^$", RootView.as_view(), name="api.v2.root"),
     re_path(r"^explorer/$", ExplorerView.as_view(), name="api.v2.explorer"),
-    re_path(r"^authenticate$", AuthenticateView.as_view(), name="api.v2.authenticate"),
     # ========== endpoints A-Z ===========
     re_path(r"^archives$", ArchivesEndpoint.as_view(), name="api.v2.archives"),
     re_path(r"^boundaries$", BoundariesEndpoint.as_view(), name="api.v2.boundaries"),

@@ -1504,13 +1504,12 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 (Flow.TYPE_MESSAGE, "Messaging"),
                 (Flow.TYPE_VOICE, "Phone Call"),
                 (Flow.TYPE_BACKGROUND, "Background"),
-                (Flow.TYPE_SURVEY, "Surveyor"),
             ],
             response.context["form"].fields["flow_type"].choices,
         )
 
-        # if surveyor feature is disabled, that is no longer a flow type option
-        with self.settings(FEATURES={}):
+        # if surveyor feature is enabled, that becomes a flow type option
+        with self.settings(FEATURES={"surveyor"}):
             response = self.assertCreateFetch(
                 create_url,
                 allow_viewers=False,
@@ -1522,6 +1521,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                     (Flow.TYPE_MESSAGE, "Messaging"),
                     (Flow.TYPE_VOICE, "Phone Call"),
                     (Flow.TYPE_BACKGROUND, "Background"),
+                    (Flow.TYPE_SURVEY, "Surveyor"),
                 ],
                 response.context["form"].fields["flow_type"].choices,
             )
@@ -1640,6 +1640,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow2 = Flow.objects.get(name="Flow 2")
         self.assertEqual([["test"]], list(flow2.triggers.order_by("id").values_list("keywords", flat=True)))
 
+    @override_settings(FEATURES={"surveyor"})
     def test_views(self):
         create_url = reverse("flows.flow_create")
 
