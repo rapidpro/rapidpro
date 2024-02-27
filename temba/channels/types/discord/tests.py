@@ -39,9 +39,11 @@ class DiscordTypeTest(TembaTest):
 
         self.login(self.admin)
 
-        # check that claim page URL appears on claim list page
         response = self.client.get(reverse("channels.channel_claim"))
-        self.assertContains(response, url)
+        self.assertEqual(200, response.status_code)
+        self.assertNotContains(response, url)
+
+        self.make_beta(self.admin)
 
         # can fetch the claim page
         response = self.client.get(url)

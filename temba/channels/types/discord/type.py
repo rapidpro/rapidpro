@@ -14,6 +14,7 @@ class DiscordType(ChannelType):
     code = "DS"
     name = "Discord"
     category = ChannelType.Category.SOCIAL_MEDIA
+    beta_only = True
 
     courier_url = r"^ds/(?P<uuid>[a-z0-9\-]+)/receive$"
     schemes = [URN.DISCORD_SCHEME]
@@ -30,3 +31,6 @@ class DiscordType(ChannelType):
         }
     )
     claim_view = ClaimView
+
+    def is_available_to(self, org, user):
+        return False, False
