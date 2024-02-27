@@ -1,3 +1,8 @@
+v9.1.29 (2024-02-27)
+-------------------------
+ * Remove DS from available channel and only accessible to beta group
+ * Prevent further creation of surveyor users since that functionality no longer works
+
 v9.1.28 (2024-02-22)
 -------------------------
  * Store servicing flag in session to avoid needing user orgs in context processor
