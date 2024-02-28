@@ -808,7 +808,10 @@ class UserCRUDL(SmartCRUDL):
             if obj._email_changed:
                 obj.settings.email_status = UserSettings.STATUS_UNVERIFIED
 
-            obj.settings.language = self.form.cleaned_data["language"]
+            language = self.form.cleaned_data.get("language")
+            if language:
+                obj.settings.language = language
+
             obj.settings.avatar = self.form.cleaned_data["avatar"]
             obj.settings.save(update_fields=("language", "email_status", "avatar"))
             return obj

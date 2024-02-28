@@ -3633,6 +3633,23 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.admin.settings.refresh_from_db()
         self.assertEqual("U", self.admin.settings.email_status)  # because email changed
 
+        # submit when language isn't an option
+        with override_settings(LANGUAGES=(("en-us", "English"),)):
+            response = self.client.post(
+                edit_url,
+                {
+                    "first_name": "Andy",
+                    "last_name": "Flows",
+                    "email": "admin@trileet.com",
+                },
+            )
+            self.assertEqual(302, response.status_code)
+
+            self.admin.refresh_from_db()
+            self.admin.settings.refresh_from_db()
+            self.assertEqual("Andy", self.admin.first_name)
+            self.assertEqual("en-us", self.admin.settings.language)
+
     def test_token(self):
         token_url = reverse("orgs.user_token")
 
