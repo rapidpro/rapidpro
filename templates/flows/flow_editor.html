@@ -122,7 +122,6 @@
   <script type="text/javascript">
     var base = '/flow/assets/{{object.org.id}}/' + new Date().getTime() + '/';
     var api = '/api/v2/';
-    var internal = '/api/internal/';
     var flowType = '{{ object.engine_type }}';
 
     onSpload(function() {
@@ -193,7 +192,7 @@
         channels: api + 'channels.json',
         classifiers: api + 'classifiers.json',
         resthooks: api + 'resthooks.json',
-        templates: internal + 'templates.json',
+        templates: api + 'templates.json',
         flows: api + 'flows.json?archived=false',
         globals: api + 'globals.json',
         users: api + 'users.json',
