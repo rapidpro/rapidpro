@@ -1,3 +1,8 @@
+v9.1.30 (2024-02-28)
+-------------------------
+ * Hide UI language options when there aren't any
+ * Update test_db templates
+
 v9.1.29 (2024-02-27)
 -------------------------
  * Remove DS from available channel and only accessible to beta group
