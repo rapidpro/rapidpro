@@ -3044,10 +3044,16 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertLoginRedirect(self.client.get(edit_url))
 
         self.login(self.admin)
+
         response = self.client.get(edit_url)
         self.assertEqual(
             ["name", "timezone", "date_format", "language", "loc"], list(response.context["form"].fields.keys())
         )
+
+        # language is only shown if there are multiple options
+        with override_settings(LANGUAGES=(("en-us", "English"),)):
+            response = self.client.get(edit_url)
+            self.assertEqual(["name", "timezone", "date_format", "loc"], list(response.context["form"].fields.keys()))
 
         # try submitting with errors
         response = self.client.post(
@@ -3546,15 +3552,31 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
 
+        response = self.client.get(edit_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            ["first_name", "last_name", "email", "avatar", "current_password", "new_password", "language", "loc"],
+            list(response.context["form"].fields.keys()),
+        )
+
+        # language is only shown if there are multiple options
+        with override_settings(LANGUAGES=(("en-us", "English"),)):
+            response = self.client.get(edit_url)
+            self.assertEqual(
+                ["first_name", "last_name", "email", "avatar", "current_password", "new_password", "loc"],
+                list(response.context["form"].fields.keys()),
+            )
+
         self.admin.settings.email_status = "V"  # mark user email as verified
         self.admin.settings.save()
 
         # try to submit without required fields
-        response = self.client.post(edit_url, {"language": "en-us"})
+        response = self.client.post(edit_url, {})
         self.assertEqual(200, response.status_code)
         self.assertFormError(response, "form", "email", "This field is required.")
         self.assertFormError(response, "form", "first_name", "This field is required.")
         self.assertFormError(response, "form", "last_name", "This field is required.")
+        self.assertFormError(response, "form", "language", "This field is required.")
 
         # change the name and language
         response = self.client.post(

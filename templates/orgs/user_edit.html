@@ -9,7 +9,9 @@
     <div class="field formax-vertical">{% render_field 'first_name' %}</div>
     <div class="field formax-vertical">{% render_field 'last_name' %}</div>
     <div class="field formax-vertical">{% render_field 'avatar' %}</div>
-    <div class="field formax-vertical">{% render_field 'language' %}</div>
+    {% if form.fields.language %}
+      <div class="field formax-vertical">{% render_field 'language' %}</div>
+    {% endif %}
     <div class="field formax-vertical">{% render_field 'email' %}</div>
     <div class="field formax-vertical">{% render_field 'new_password' %}</div>
     <div class="field formax-vertical p-4 bg-gray-100 rounded-lg mt-4 hidden" id="current-password">
