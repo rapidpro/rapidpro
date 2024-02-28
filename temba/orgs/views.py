@@ -780,11 +780,13 @@ class UserCRUDL(SmartCRUDL):
         def has_permission(self, request, *args, **kwargs):
             return self.request.user.is_authenticated
 
+        def derive_exclude(self):
+            return ["language"] if len(settings.LANGUAGES) == 1 else []
+
         def derive_initial(self):
             initial = super().derive_initial()
-            user_settings = self.get_object().settings
-            initial["language"] = user_settings.language
-            initial["avatar"] = user_settings.avatar
+            initial["language"] = self.object.settings.language
+            initial["avatar"] = self.object.settings.avatar
             return initial
 
         def pre_save(self, obj):
@@ -2633,6 +2635,9 @@ class OrgCRUDL(SmartCRUDL):
 
         success_message = ""
         form_class = Form
+
+        def derive_exclude(self):
+            return ["language"] if len(settings.LANGUAGES) == 1 else []
 
     class EditSubOrg(SpaMixin, ModalMixin, Edit):
         success_url = "@orgs.org_sub_orgs"
