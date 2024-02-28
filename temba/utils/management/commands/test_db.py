@@ -346,45 +346,51 @@ class Command(BaseCommand):
                 if channel.channel_type == "WAC":
                     TemplateTranslation.get_or_create(
                         channel,
-                        "hello",
+                        "Dinner Menu",
                         locale="eng-US",
-                        content="Hello {{1}}",
-                        variable_count=1,
                         status=TemplateTranslation.STATUS_APPROVED,
                         external_id="1234",
                         external_locale="en_US",
                         namespace="",
+                        content="Hi there {{1}}! We are in the process of preparing our world class menu. Would you like {{2}} or {{3}}",
+                        variable_count=3,
                         components=[
                             {
-                                "type": "BODY",
-                                "text": "Hello {{1}}",
-                                "example": {"body_text": [["Bob"]]},
+                                "body": {
+                                    "content": "Hi there {{1}}! We are in the process of preparing our world class menu. Would you like {{2}} or {{3}}",
+                                    "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
+                                },
+                                "buttons.0": {"content": "Order {{1}}", "params": [{"type": "text"}]},
+                                "buttons.1": {"content": "Order {{1}}", "params": [{"type": "text"}]},
+                                "buttons.2": {"content": "Not Hungry", "params": [{"type": "text"}]},
                             },
                         ],
                         params={"body": [{"type": "text"}]},
                     )
                     TemplateTranslation.get_or_create(
                         channel,
-                        "hello",
+                        "Dinner Menu",
                         locale="fra-FR",
-                        content="Bonjour {{1}}",
-                        variable_count=1,
                         status=TemplateTranslation.STATUS_APPROVED,
                         external_id="5678",
                         external_locale="fr_FR",
                         namespace="",
-                        components=[
-                            {
-                                "type": "BODY",
-                                "text": "Bonjour {{1}}",
-                                "example": {"body_text": [["Bob"]]},
+                        content="Bonjour {{1}} ! Nous sommes en train de préparer notre menu de classe mondiale. Souhaitez-vous {{2}} ou {{3}}",
+                        variable_count=3,
+                        components={
+                            "body": {
+                                "content": "Bonjour {{1}} ! Nous sommes en train de préparer notre menu de classe mondiale. Souhaitez-vous {{2}} ou {{3}}",
+                                "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
                             },
-                        ],
-                        params={"body": [{"type": "text"}]},
+                            "buttons.0": {"content": "Commande {{1}}", "params": [{"type": "text"}]},
+                            "buttons.1": {"content": "Commande {{1}}", "params": [{"type": "text"}]},
+                            "buttons.2": {"content": "Pas Faim", "params": [{"type": "text"}]},
+                        },
+                        params={"body": [{"type": "text"}, {"type": "text"}, {"type": "text"}]},
                     )
                     TemplateTranslation.get_or_create(
                         channel,
-                        "bye",
+                        "Reservation Confirmation",
                         locale="eng-US",
                         content="See ya {{1}}",
                         variable_count=1,
@@ -392,13 +398,10 @@ class Command(BaseCommand):
                         external_id="6789",
                         external_locale="en_US",
                         namespace="",
-                        components=[
-                            {
-                                "type": "BODY",
-                                "text": "See ya {{1}}",
-                                "example": {"body_text": [["Bob"]]},
-                            },
-                        ],
+                        components={
+                            "body": "We have reserved a table for you at {{1}}. See you soon!",
+                            "params": [{"type": "text"}],
+                        },
                         params={"body": [{"type": "text"}]},
                     )
 
@@ -619,9 +622,11 @@ class Command(BaseCommand):
                     "name": name,
                     "groups": [],
                     "tel": "+2507%08d" % c_index if self.probability(CONTACT_HAS_TEL_PROB) else None,
-                    "twitter": "%s%d" % (name.replace(" ", "_").lower() if name else "tweep", c_index)
-                    if self.probability(CONTACT_HAS_TWITTER_PROB)
-                    else None,
+                    "twitter": (
+                        "%s%d" % (name.replace(" ", "_").lower() if name else "tweep", c_index)
+                        if self.probability(CONTACT_HAS_TWITTER_PROB)
+                        else None
+                    ),
                     "gender": self.random_choice(("M", "F")) if self.probability(CONTACT_HAS_FIELD_PROB) else None,
                     "age": self.random.randint(16, 80) if self.probability(CONTACT_HAS_FIELD_PROB) else None,
                     "joined": self.random_date() if self.probability(CONTACT_HAS_FIELD_PROB) else None,
