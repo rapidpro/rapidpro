@@ -1,3 +1,7 @@
+v9.1.31 (2024-02-28)
+-------------------------
+ * Fix editing user when language is not an option
+
 v9.1.30 (2024-02-28)
 -------------------------
  * Hide UI language options when there aren't any
