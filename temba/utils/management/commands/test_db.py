@@ -352,19 +352,18 @@ class Command(BaseCommand):
                         external_id="1234",
                         external_locale="en_US",
                         namespace="",
+                        components={
+                            "body": {
+                                "content": "Hi there {{1}}! We are in the process of preparing our world class menu. Would you like {{2}} or {{3}}",
+                                "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
+                            },
+                            "buttons.0": {"content": "Order {{1}}", "params": [{"type": "text"}]},
+                            "buttons.1": {"content": "Order {{1}}", "params": [{"type": "text"}]},
+                            "buttons.2": {"content": "Not Hungry", "params": [{"type": "text"}]},
+                        },
+                        # deprecated
                         content="Hi there {{1}}! We are in the process of preparing our world class menu. Would you like {{2}} or {{3}}",
                         variable_count=3,
-                        components=[
-                            {
-                                "body": {
-                                    "content": "Hi there {{1}}! We are in the process of preparing our world class menu. Would you like {{2}} or {{3}}",
-                                    "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
-                                },
-                                "buttons.0": {"content": "Order {{1}}", "params": [{"type": "text"}]},
-                                "buttons.1": {"content": "Order {{1}}", "params": [{"type": "text"}]},
-                                "buttons.2": {"content": "Not Hungry", "params": [{"type": "text"}]},
-                            },
-                        ],
                         params={"body": [{"type": "text"}]},
                     )
                     TemplateTranslation.get_or_create(
@@ -375,8 +374,6 @@ class Command(BaseCommand):
                         external_id="5678",
                         external_locale="fr_FR",
                         namespace="",
-                        content="Bonjour {{1}} ! Nous sommes en train de préparer notre menu de classe mondiale. Souhaitez-vous {{2}} ou {{3}}",
-                        variable_count=3,
                         components={
                             "body": {
                                 "content": "Bonjour {{1}} ! Nous sommes en train de préparer notre menu de classe mondiale. Souhaitez-vous {{2}} ou {{3}}",
@@ -386,14 +383,15 @@ class Command(BaseCommand):
                             "buttons.1": {"content": "Commande {{1}}", "params": [{"type": "text"}]},
                             "buttons.2": {"content": "Pas Faim", "params": [{"type": "text"}]},
                         },
+                        # deprecated
+                        content="Bonjour {{1}} ! Nous sommes en train de préparer notre menu de classe mondiale. Souhaitez-vous {{2}} ou {{3}}",
+                        variable_count=3,
                         params={"body": [{"type": "text"}, {"type": "text"}, {"type": "text"}]},
                     )
                     TemplateTranslation.get_or_create(
                         channel,
                         "Reservation Confirmation",
                         locale="eng-US",
-                        content="See ya {{1}}",
-                        variable_count=1,
                         status=TemplateTranslation.STATUS_PENDING,
                         external_id="6789",
                         external_locale="en_US",
@@ -402,6 +400,9 @@ class Command(BaseCommand):
                             "body": "We have reserved a table for you at {{1}}. See you soon!",
                             "params": [{"type": "text"}],
                         },
+                        # deprecated
+                        content="See ya {{1}}",
+                        variable_count=1,
                         params={"body": [{"type": "text"}]},
                     )
 

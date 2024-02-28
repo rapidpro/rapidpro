@@ -68,16 +68,16 @@ class TemplateTranslation(models.Model):
 
     namespace = models.CharField(max_length=36, default="")
     locale = models.CharField(null=True, max_length=6)  # e.g. eng-US
-    content = models.TextField(null=True)
     components = models.JSONField(default=dict)
-    params = models.JSONField(default=dict)
-    variable_count = models.IntegerField()
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, null=False)
-
     external_id = models.CharField(null=True, max_length=64)
     external_locale = models.CharField(null=True, max_length=6)  # e.g. en_US
-
     is_active = models.BooleanField(default=True)
+
+    # deprecated
+    content = models.TextField(null=True)
+    params = models.JSONField(default=dict)
+    variable_count = models.IntegerField()
 
     @classmethod
     def trim(cls, channel, existing):
