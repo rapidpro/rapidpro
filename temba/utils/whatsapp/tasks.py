@@ -11,6 +11,8 @@ from django.utils import timezone
 
 from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactURN
+from temba.notifications.incidents.builtin import ChannelTemplatesFailedIncidentType
+from temba.notifications.models import Incident
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
 from temba.utils import chunk_list
@@ -230,9 +232,16 @@ def refresh_whatsapp_templates():
             try:
                 templates_data, valid = channel.type.get_api_templates(channel)
                 if not valid:
+                    ChannelTemplatesFailedIncidentType.get_or_create(channel=channel)
                     continue
 
+                ongoing = Incident.objects.filter(
+                    incident_type=ChannelTemplatesFailedIncidentType.slug, ended_on=None, channel=channel
+                ).first()
+                if ongoing:
+                    ongoing.end()
                 update_local_templates(channel, templates_data)
 
             except Exception as e:
+                ChannelTemplatesFailedIncidentType.get_or_create(channel=channel)
                 logger.error(f"Error refreshing whatsapp templates: {str(e)}", exc_info=True)

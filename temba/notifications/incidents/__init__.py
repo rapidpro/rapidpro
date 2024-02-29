@@ -1,5 +1,6 @@
 from .builtin import (
     ChannelDisconnectedIncidentType,
+    ChannelTemplatesFailedIncidentType,
     OrgFlaggedIncidentType,
     OrgSuspendedIncidentType,
     WebhooksUnhealthyIncidentType,
@@ -23,3 +24,4 @@ register_incident_type(ChannelDisconnectedIncidentType())
 register_incident_type(OrgFlaggedIncidentType())
 register_incident_type(OrgSuspendedIncidentType())
 register_incident_type(WebhooksUnhealthyIncidentType())
+register_incident_type(ChannelTemplatesFailedIncidentType())
