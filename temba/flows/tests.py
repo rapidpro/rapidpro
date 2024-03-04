@@ -157,7 +157,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
     def test_ensure_current_version(self):
         # importing migrates to latest spec version
         flow = self.get_flow("favorites_v13")
-        self.assertEqual("13.2.0", flow.version_number)
+        self.assertEqual("13.3.0", flow.version_number)
         self.assertEqual(1, flow.revisions.count())
 
         # rewind one spec version..
@@ -174,7 +174,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
         flow.ensure_current_version()
 
         # check we migrate to current spec version
-        self.assertEqual("13.2.0", flow.version_number)
+        self.assertEqual("13.3.0", flow.version_number)
         self.assertEqual(2, flow.revisions.count())
         self.assertEqual("system", flow.revisions.order_by("id").last().created_by.username)
 
