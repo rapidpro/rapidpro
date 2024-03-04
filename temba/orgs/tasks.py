@@ -35,8 +35,12 @@ def send_invitation_email_task(invitation_id):
 
 
 @shared_task
-def send_user_verification_email(user_id):
+def send_user_verification_email(org_id, user_id):
+    org = Org.objects.get(id=org_id)
     user = User.objects.get(id=user_id)
+
+    assert user in org.get_users()
+
     if user.settings.email_status == UserSettings.STATUS_VERIFIED:
         return
 
@@ -46,10 +50,6 @@ def send_user_verification_email(user_id):
 
         user.settings.email_verification_secret = verification_secret
         user.settings.save(update_fields=("email_verification_secret",))
-
-    org = user.get_orgs().filter(is_suspended=False).first()
-    if not org:
-        return
 
     sender = EmailSender.from_email_type(org.branding, "notifications")
     sender.send(
