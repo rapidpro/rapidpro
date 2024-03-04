@@ -67,3 +67,27 @@ class WebhooksUnhealthyIncidentType(IncidentType):
 
     slug = "webhooks:unhealthy"
     title = _("Webhooks Unhealthy")
+
+
+class ChannelTemplatesFailedIncidentType(IncidentType):
+    """
+    WhatsApp templates failed syncing
+    """
+
+    slug = "channel:templates_failed"
+    title = _("WhatsApp Templates Sync Failed")
+
+    @classmethod
+    def get_or_create(cls, channel):
+        """
+        Creates a channel disconnected incident if one is not already ongoing
+        """
+        return Incident.get_or_create(
+            channel.org, ChannelTemplatesFailedIncidentType.slug, scope=str(channel.id), channel=channel
+        )
+
+    def get_notification_scope(self, incident) -> str:
+        return str(incident.channel.id)
+
+    def get_notification_target_url(self, incident) -> str:
+        return reverse("channels.channel_read", args=[str(incident.channel.uuid)])

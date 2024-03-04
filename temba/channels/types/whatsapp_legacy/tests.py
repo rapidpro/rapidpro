@@ -6,6 +6,8 @@ from requests import RequestException
 from django.forms import ValidationError
 from django.urls import reverse
 
+from temba.notifications.incidents.builtin import ChannelTemplatesFailedIncidentType
+from temba.notifications.models import Incident
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
@@ -485,9 +487,21 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             refresh_whatsapp_templates()
             self.assertEqual(0, mock_get_api_templates.call_count)
             self.assertEqual(0, update_local_templates_mock.call_count)
+            self.assertEqual(
+                0,
+                Incident.objects.filter(
+                    incident_type=ChannelTemplatesFailedIncidentType.slug, ended_on=None, channel=channel
+                ).count(),
+            )
 
         # should skip if fail with API
         refresh_whatsapp_templates()
+        self.assertEqual(
+            1,
+            Incident.objects.filter(
+                incident_type=ChannelTemplatesFailedIncidentType.slug, ended_on=None, channel=channel
+            ).count(),
+        )
 
         mock_get_api_templates.assert_called_with(channel)
         self.assertEqual(1, mock_get_api_templates.call_count)
@@ -496,6 +510,12 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
 
         # any exception
         refresh_whatsapp_templates()
+        self.assertEqual(
+            1,
+            Incident.objects.filter(
+                incident_type=ChannelTemplatesFailedIncidentType.slug, ended_on=None, channel=channel
+            ).count(),
+        )
 
         mock_get_api_templates.assert_called_with(channel)
         self.assertEqual(2, mock_get_api_templates.call_count)
@@ -504,6 +524,12 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
 
         # now it should refresh
         refresh_whatsapp_templates()
+        self.assertEqual(
+            0,
+            Incident.objects.filter(
+                incident_type=ChannelTemplatesFailedIncidentType.slug, ended_on=None, channel=channel
+            ).count(),
+        )
 
         mock_get_api_templates.assert_called_with(channel)
         self.assertEqual(3, mock_get_api_templates.call_count)

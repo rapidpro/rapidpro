@@ -1,0 +1,10 @@
+{% extends "notifications/email/base.html" %}
+{% load i18n %}
+
+{% block notification-body %}
+    <p>
+        {% blocktrans trimmed with url="https://"|add:branding.domain|add:target_url %}
+            Your <a href="{{ url }}">Android channel</a> appears to not be syncing templates.
+        {% endblocktrans %}
+    </p>
+{% endblock notification-body %}
