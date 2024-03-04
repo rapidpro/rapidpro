@@ -1,3 +1,9 @@
+v9.1.32 (2024-03-04)
+-------------------------
+ * Update temba-components
+ * Always send verification email with branding of current org
+ * Add incident for WhatsApp templates sync failed
+
 v9.1.31 (2024-02-28)
 -------------------------
  * Fix editing user when language is not an option
