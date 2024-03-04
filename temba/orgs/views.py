@@ -838,7 +838,8 @@ class UserCRUDL(SmartCRUDL):
             return super().pre_process(request, *args, **kwargs)
 
         def form_valid(self, form):
-            send_user_verification_email.delay(self.get_object().id)
+            send_user_verification_email.delay(self.request.org.id, self.object.id)
+
             return super().form_valid(form)
 
     class VerifyEmail(NoNavMixin, SmartReadView):

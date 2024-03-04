@@ -3754,18 +3754,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, len(mail.outbox))
 
         # even the method will not send the email for verified status
-        send_user_verification_email.delay(self.admin.pk)
-
-        # no new email sent
-        self.assertEqual(1, len(mail.outbox))
-
-        # and org being suspended
-        self.admin.settings.email_status = "U"
-        self.admin.settings.save(update_fields=("email_status",))
-        self.org.suspend()
-
-        # the method will not send the email for suspended workspace
-        send_user_verification_email.delay(self.admin.pk)
+        send_user_verification_email.delay(self.org.id, self.admin.id)
 
         # no new email sent
         self.assertEqual(1, len(mail.outbox))
