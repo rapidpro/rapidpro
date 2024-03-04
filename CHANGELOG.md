@@ -1,3 +1,8 @@
+v9.1.33 (2024-03-04)
+-------------------------
+ * Bump current flow spec version to 13.3
+ * Ensure incidents are ended when releasing a channel
+
 v9.1.32 (2024-03-04)
 -------------------------
  * Update temba-components
