@@ -656,6 +656,10 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
             trigger.archive(user)
             trigger.release(user)
 
+        # any open incidents are ended
+        for incident in self.incidents.filter(ended_on=None):
+            incident.end()
+
     def delete(self):
         for trigger in self.triggers.all():
             trigger.delete()
