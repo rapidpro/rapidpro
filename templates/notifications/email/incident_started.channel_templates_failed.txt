@@ -3,6 +3,6 @@
 
 {% block notification-body %}
 {% blocktrans trimmed with url="https://"|add:branding.domain|add:target_url %}
-Your WhatsApp channel ({{ url }}) appears to not be syncing templates.
+Your WhatsApp channel ({{ url }}) is currently having problems fetching templates.
 {% endblocktrans %}
 {% endblock notification-body %}
