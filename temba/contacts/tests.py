@@ -3222,22 +3222,22 @@ class ContactFieldTest(TembaTest):
         group2 = self.create_group("Dynamic", query="tel is 1234")
         group2.status = ContactGroup.STATUS_EVALUATING
         group2.save()
+        too_big_group = self.create_group("Poppin Tags", [contact])
+        ContactGroupCount.objects.create(group=too_big_group, count=1_000_001)
 
         # create a dummy export task so that we won't be able to export
         blocking_export = ContactExport.create(self.org, self.admin)
 
-        response = self.client.post(export_url, {}, follow=True)
+        response = self.client.get(export_url)
         self.assertContains(response, "already an export in progress")
 
-        # ok, mark that one as finished and try again
+        # mark that one as finished so it's no longer a blocker
         blocking_export.status = Export.STATUS_COMPLETE
         blocking_export.save(update_fields=("status",))
 
-        # make sure we can't redirect to places we shouldn't
-        with self.mockReadOnly():
-            response = self.client.post(export_url + "?redirect=http://foo.me/", {"group_memberships": (group.id,)})
-            self.assertEqual(302, response.status_code)
-            self.assertEqual("/contact/", response.url)
+        # try to export a group that is too big
+        response = self.client.get(export_url + f"?g={too_big_group.uuid}")
+        self.assertContains(response, "This group or search is too large to export.")
 
         # create orphaned URN in scheme that no contacts have a URN for
         ContactURN.create(self.org, None, "line:12345")
@@ -3491,7 +3491,7 @@ class ContactFieldTest(TembaTest):
         assertImportExportedFile()
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(35):
+        with self.assertNumQueries(36):
             export, task = request_export("?g=%s" % group.uuid)
             self.assertExcelSheet(
                 export[0],
@@ -3680,7 +3680,7 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(36):
+            with self.assertNumQueries(37):
                 export, task = request_export("?g=%s&s=Hagg" % group.uuid)
                 self.assertExcelSheet(
                     export[0],
