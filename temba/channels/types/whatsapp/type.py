@@ -30,7 +30,6 @@ class WhatsAppType(ChannelType):
 
     courier_url = r"^wac/receive"
     schemes = [URN.WHATSAPP_SCHEME]
-    redact_values = (settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN,)
 
     claim_blurb = _("If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts")
     claim_view = ClaimView
@@ -99,3 +98,9 @@ class WhatsAppType(ChannelType):
                 raise e
 
         return templates
+
+    def get_redact_values(self, channel) -> tuple:
+        """
+        Gets the values to redact from logs
+        """
+        return (settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN,)

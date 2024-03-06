@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from requests import RequestException
@@ -98,8 +99,8 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
 
         mock_get.side_effect = [
             RequestException("Network is unreachable", response=MockResponse(100, "")),
-            MockResponse(400, '{ "meta": { "success": false } }'),
-            MockResponse(200, '{"waba_templates": ["foo", "bar"]}'),
+            MockResponse(400, '{ "meta": { "success": false } }', headers={"D360-API-KEY": "123456789"}),
+            MockResponse(200, '{"waba_templates": ["foo", "bar"]}', headers={"D360-API-KEY": "123456789"}),
         ]
 
         with self.assertRaises(RequestException):
@@ -117,6 +118,10 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
 
         self.assertEqual(2, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, is_error=True).count())
         self.assertEqual(1, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, is_error=False).count())
+
+        # check auth token is redacted in HTTP logs
+        for log in HTTPLog.objects.all():
+            self.assertNotIn("123456789", json.dumps(log.get_display()))
 
         mock_get.assert_called_with(
             "https://waba-v2.360dialog.io/v1/configs/templates",

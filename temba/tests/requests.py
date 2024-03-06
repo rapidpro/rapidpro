@@ -2,7 +2,7 @@ from unittest.mock import Mock, patch
 
 from requests import HTTPError, Request
 from requests.structures import CaseInsensitiveDict
-from urllib3.response import HTTPResponse
+from urllib3.response import HTTPHeaderDict, HTTPResponse
 
 from django.utils.encoding import force_bytes, force_str
 
@@ -34,7 +34,7 @@ class MockResponse:
         self.streaming = False
         self.charset = "utf-8"
         self.connection = dict()
-        self.raw = Mock(HTTPResponse, version="1.1", status=status_code, headers=headers)
+        self.raw = Mock(HTTPResponse, version="1.1", status=status_code, headers=HTTPHeaderDict(headers))
         self.reason = ""
 
         # mock up a request object on our response as well

@@ -117,7 +117,7 @@ class HTTPLog(models.Model):
 
     def _get_redact_secrets(self) -> tuple:
         if self.channel:
-            return self.channel.type.redact_values
+            return self.channel.type.get_redact_values(self.channel)
         return ()
 
     def _get_display_value(self, original):
