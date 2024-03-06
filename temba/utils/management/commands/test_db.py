@@ -397,11 +397,13 @@ class Command(BaseCommand):
                         external_locale="en_US",
                         namespace="",
                         components={
-                            "body": "We have reserved a table for you at {{1}}. See you soon!",
-                            "params": [{"type": "text"}],
+                            "body": {
+                                "content": "We have reserved a table for you at {{1}}. See you soon!",
+                                "params": [{"type": "text"}],
+                            }
                         },
                         # deprecated
-                        content="See ya {{1}}",
+                        content="We have reserved a table for you at {{1}}. See you soon!",
                         variable_count=1,
                         params={"body": [{"type": "text"}]},
                     )
