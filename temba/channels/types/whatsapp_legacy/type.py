@@ -89,38 +89,33 @@ class WhatsAppLegacyType(ChannelType):
 
         update_api_version(channel)
 
-    def get_api_templates(self, channel):
-        if (
-            CONFIG_FB_BUSINESS_ID not in channel.config or CONFIG_FB_ACCESS_TOKEN not in channel.config
-        ):  # pragma: no cover
-            return [], False
+    def fetch_templates(self, channel) -> list:
+        # Retrieve the template domain, fallback to the default for channels that have been setup earlier for backwards
+        # compatibility
+        facebook_template_domain = channel.config.get(CONFIG_FB_TEMPLATE_LIST_DOMAIN, "graph.facebook.com")
+        facebook_business_id = channel.config.get(CONFIG_FB_BUSINESS_ID)
+        facebook_template_api_version = channel.config.get(CONFIG_FB_TEMPLATE_API_VERSION, "v14.0")
+        url = TEMPLATE_LIST_URL % (facebook_template_domain, facebook_template_api_version, facebook_business_id)
+        templates = []
 
-        start = timezone.now()
-        try:
-            # Retrieve the template domain, fallback to the default for channels
-            # that have been setup earlier for backwards compatibility
-            facebook_template_domain = channel.config.get(CONFIG_FB_TEMPLATE_LIST_DOMAIN, "graph.facebook.com")
-            facebook_business_id = channel.config.get(CONFIG_FB_BUSINESS_ID)
-            facebook_template_api_version = channel.config.get(CONFIG_FB_TEMPLATE_API_VERSION, "v14.0")
-            url = TEMPLATE_LIST_URL % (facebook_template_domain, facebook_template_api_version, facebook_business_id)
-            template_data = []
-            while url:
+        while url:
+            start = timezone.now()
+            try:
                 response = requests.get(
-                    url, params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255)
+                    url, params={"access_token": channel.config[CONFIG_FB_ACCESS_TOKEN], "limit": 255}
                 )
+                response.raise_for_status()
                 HTTPLog.from_response(
                     HTTPLog.WHATSAPP_TEMPLATES_SYNCED, response, start, timezone.now(), channel=channel
                 )
 
-                if response.status_code != 200:  # pragma: no cover
-                    return [], False
-
-                template_data.extend(response.json()["data"])
+                templates.extend(response.json()["data"])
                 url = response.json().get("paging", {}).get("next", None)
-            return template_data, True
-        except requests.RequestException as e:
-            HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, e, start, channel=channel)
-            return [], False
+            except Exception as e:
+                HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, e, start, channel=channel)
+                raise e
+
+        return templates
 
     def check_health(self, channel):
         headers = self.get_api_headers(channel)

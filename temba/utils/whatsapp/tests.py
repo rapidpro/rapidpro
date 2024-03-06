@@ -9,13 +9,20 @@ from temba.channels.types.whatsapp_legacy.type import (
     CONFIG_FB_NAMESPACE,
     CONFIG_FB_TEMPLATE_LIST_DOMAIN,
 )
+from temba.notifications.incidents.builtin import ChannelTemplatesFailedIncidentType
+from temba.notifications.models import Incident
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import TembaTest
 from temba.tests.requests import MockResponse
 
 from . import update_api_version
-from .tasks import _calculate_variable_count, parse_whatsapp_language, update_local_templates
+from .tasks import (
+    _calculate_variable_count,
+    parse_whatsapp_language,
+    refresh_whatsapp_templates,
+    update_local_templates,
+)
 
 
 class WhatsAppUtilsTest(TembaTest):
@@ -542,3 +549,88 @@ class WhatsAppUtilsTest(TembaTest):
         mock_health.side_effect = [requests.RequestException(response=MockResponse(401, "{}"))]
         update_api_version(channel)
         self.assertEqual(1, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_CHECK_HEALTH).count())
+
+    @patch("temba.utils.whatsapp.tasks.update_local_templates")
+    @patch("temba.channels.types.dialog360.Dialog360Type.fetch_templates")
+    @patch("temba.channels.types.dialog360_legacy.Dialog360LegacyType.fetch_templates")
+    def test_refresh_templates(self, mock_d3_fetch_templates, mock_d3c_fetch_templates, mock_update_local):
+        d3c_channel = self.create_channel(
+            "D3C",
+            "360Dialog channel",
+            address="1234",
+            country="BR",
+            config={
+                Channel.CONFIG_BASE_URL: "https://waba-v2.360dialog.io",
+                Channel.CONFIG_AUTH_TOKEN: "123456789",
+            },
+        )
+        self.create_channel(
+            "D3",
+            "360Dialog channel",
+            address="1234",
+            country="BR",
+            config={
+                Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
+                Channel.CONFIG_AUTH_TOKEN: "123456789",
+            },
+        )
+
+        def mock_fetch(ch):
+            HTTPLog.objects.create(
+                org=ch.org, channel=ch, log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, request_time=0, is_error=False
+            )
+            return [{"name": "hello"}]
+
+        def mock_fail_fetch(ch):
+            HTTPLog.objects.create(
+                org=ch.org, channel=ch, log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, request_time=0, is_error=True
+            )
+            raise requests.ConnectionError("timeout")
+
+        mock_d3_fetch_templates.side_effect = mock_fetch
+        mock_d3c_fetch_templates.side_effect = mock_fetch
+        mock_update_local.return_value = None
+
+        refresh_whatsapp_templates()
+
+        self.assertEqual(1, mock_d3_fetch_templates.call_count)
+        self.assertEqual(1, mock_d3c_fetch_templates.call_count)
+        self.assertEqual(2, mock_update_local.call_count)
+        self.assertEqual(0, Incident.objects.filter(incident_type=ChannelTemplatesFailedIncidentType.slug).count())
+
+        # if one channel fails, others continue
+        mock_d3c_fetch_templates.side_effect = mock_fail_fetch
+
+        refresh_whatsapp_templates()
+
+        self.assertEqual(2, mock_d3_fetch_templates.call_count)
+        self.assertEqual(2, mock_d3c_fetch_templates.call_count)
+        self.assertEqual(3, mock_update_local.call_count)
+
+        # one failure isn't enough to create an incident
+        self.assertEqual(0, Incident.objects.filter(incident_type=ChannelTemplatesFailedIncidentType.slug).count())
+
+        # but 5 will be
+        refresh_whatsapp_templates()
+        refresh_whatsapp_templates()
+        refresh_whatsapp_templates()
+        refresh_whatsapp_templates()
+
+        self.assertEqual(
+            1,
+            Incident.objects.filter(
+                incident_type=ChannelTemplatesFailedIncidentType.slug, channel=d3c_channel, ended_on=None
+            ).count(),
+        )
+
+        # a successful fetch will clear it
+        mock_d3c_fetch_templates.side_effect = mock_fetch
+
+        refresh_whatsapp_templates()
+
+        self.assertEqual(
+            0,
+            Incident.objects.filter(
+                incident_type=ChannelTemplatesFailedIncidentType.slug, channel=d3c_channel, ended_on=None
+            ).count(),
+        )
