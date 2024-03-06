@@ -7,7 +7,6 @@ from django.test import override_settings
 from django.urls import reverse
 
 from temba.request_logs.models import HTTPLog
-from temba.templates.models import TemplateTranslation
 from temba.tests import MockResponse, TembaTest
 from temba.utils.views import TEMBA_MENU_SELECTION
 
@@ -576,10 +575,7 @@ class WhatsAppTypeTest(TembaTest):
 
     @override_settings(WHATSAPP_ADMIN_SYSTEM_USER_TOKEN="WA_ADMIN_TOKEN")
     @patch("requests.get")
-    def test_get_api_templates(self, mock_get):
-        TemplateTranslation.objects.all().delete()
-        Channel.objects.all().delete()
-
+    def test_fetch_templates(self, mock_get):
         channel = self.create_channel(
             "WAC",
             "WABA name",
@@ -600,21 +596,22 @@ class WhatsAppTypeTest(TembaTest):
             MockResponse(200, '{"data": ["bar"], "paging": {"cursors": {"after": "MjQZD"} } }'),
         ]
 
-        # RequestException check HTTPLog
-        templates_data, no_error = WhatsAppType().get_api_templates(channel)
-        self.assertEqual(1, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).count())
-        self.assertFalse(no_error)
-        self.assertEqual([], templates_data)
+        with self.assertRaises(RequestException):
+            channel.type.fetch_templates(channel)
 
-        # should be empty list with an error flag if fail with API
-        templates_data, no_error = WhatsAppType().get_api_templates(channel)
-        self.assertFalse(no_error)
-        self.assertEqual([], templates_data)
+        self.assertEqual(1, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, is_error=True).count())
 
-        # success no error and list
-        templates_data, no_error = WhatsAppType().get_api_templates(channel)
-        self.assertTrue(no_error)
-        self.assertEqual(["foo", "bar"], templates_data)
+        with self.assertRaises(RequestException):
+            channel.type.fetch_templates(channel)
+
+        self.assertEqual(2, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, is_error=True).count())
+
+        # check when no next page
+        templates = channel.type.fetch_templates(channel)
+        self.assertEqual(["foo", "bar"], templates)
+
+        self.assertEqual(2, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, is_error=True).count())
+        self.assertEqual(1, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, is_error=False).count())
 
         mock_get.assert_called_with(
             "https://graph.facebook.com/v18.0/111111111111111/message_templates",
@@ -622,10 +619,9 @@ class WhatsAppTypeTest(TembaTest):
             headers={"Authorization": "Bearer WA_ADMIN_TOKEN"},
         )
 
-        # success no error and pagination
-        templates_data, no_error = WhatsAppType().get_api_templates(channel)
-        self.assertTrue(no_error)
-        self.assertEqual(["foo", "bar"], templates_data)
+        # check when templates across two pages
+        templates = channel.type.fetch_templates(channel)
+        self.assertEqual(["foo", "bar"], templates)
 
         mock_get.assert_has_calls(
             [

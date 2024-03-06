@@ -12,21 +12,21 @@ from django.utils import timezone
 from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactURN
 from temba.notifications.incidents.builtin import ChannelTemplatesFailedIncidentType
-from temba.notifications.models import Incident
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
 from temba.utils import chunk_list
+from temba.utils.crons import cron_task
 from temba.utils.languages import alpha2_to_alpha3
 
 from . import update_api_version
 
 logger = logging.getLogger(__name__)
 
-STATUS_MAPPING = dict(
-    PENDING=TemplateTranslation.STATUS_PENDING,
-    APPROVED=TemplateTranslation.STATUS_APPROVED,
-    REJECTED=TemplateTranslation.STATUS_REJECTED,
-)
+STATUS_MAPPING = {
+    "PENDING": TemplateTranslation.STATUS_PENDING,
+    "APPROVED": TemplateTranslation.STATUS_APPROVED,
+    "REJECTED": TemplateTranslation.STATUS_REJECTED,
+}
 
 
 @shared_task
@@ -211,37 +211,47 @@ def parse_whatsapp_language(lang) -> str:
     return f"{language}-{country}" if country else language
 
 
-@shared_task
+@cron_task()
 def refresh_whatsapp_templates():
     """
     Runs across all WhatsApp templates that have connected FB accounts and syncs the templates which are active.
     """
 
-    r = get_redis_connection()
-    if r.get("refresh_whatsapp_templates"):  # pragma: no cover
-        return
+    num_refreshed, num_errored = 0, 0
 
-    with r.lock("refresh_whatsapp_templates", 1800):
-        # for every whatsapp channel
-        for channel in Channel.objects.filter(is_active=True, channel_type__in=["WA", "D3", "D3C", "WAC"]):
-            # update the version only when have it set in the config
-            if channel.config.get("version"):
-                # fetches API version and saves on channel.config
-                update_api_version(channel)
-            # fetch all our templates
-            try:
-                templates_data, valid = channel.type.get_api_templates(channel)
-                if not valid:
-                    ChannelTemplatesFailedIncidentType.get_or_create(channel=channel)
-                    continue
+    template_types = [t.code for t in Channel.get_types() if hasattr(t, "fetch_templates")]
 
-                ongoing = Incident.objects.filter(
-                    incident_type=ChannelTemplatesFailedIncidentType.slug, ended_on=None, channel=channel
-                ).first()
-                if ongoing:
-                    ongoing.end()
-                update_local_templates(channel, templates_data)
+    for channel in Channel.objects.filter(is_active=True, channel_type__in=template_types):
+        # for channels which have version in their config, refresh it
+        if channel.config.get("version"):
+            update_api_version(channel)
 
-            except Exception as e:
-                ChannelTemplatesFailedIncidentType.get_or_create(channel=channel)
-                logger.error(f"Error refreshing whatsapp templates: {str(e)}", exc_info=True)
+        try:
+            templates = channel.type.fetch_templates(channel)
+
+            update_local_templates(channel, templates)
+
+            num_refreshed += 1
+
+            # if we have an ongoing template incident, end it
+            ongoing = channel.incidents.filter(
+                incident_type=ChannelTemplatesFailedIncidentType.slug, ended_on=None
+            ).first()
+            if ongoing:
+                ongoing.end()
+
+        except Exception as e:
+            num_errored += 1
+
+            # if last 5 sync attempts have been errors, create an incident
+            recent_is_errors = list(
+                channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED)
+                .order_by("-id")
+                .values_list("is_error", flat=True)[:5]
+            )
+            if len(recent_is_errors) >= 5 and all(recent_is_errors):
+                ChannelTemplatesFailedIncidentType.get_or_create(channel)
+
+            logger.error(f"Error refreshing whatsapp templates: {str(e)}", exc_info=True)
+
+    return {"refreshed": num_refreshed, "errored": num_errored}

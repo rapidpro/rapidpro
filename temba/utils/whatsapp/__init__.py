@@ -18,7 +18,7 @@ def update_api_version(channel):
         if not version.startswith("v"):
             version = "v" + version
         channel.config.update(version=version)
-        channel.save()
+        channel.save(update_fields=("config",))
     except requests.RequestException as e:
         HTTPLog.from_exception(HTTPLog.WHATSAPP_CHECK_HEALTH, e, start, channel=channel)
     except Exception as e:  # pragma: no cover
