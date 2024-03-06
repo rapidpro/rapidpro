@@ -1,3 +1,10 @@
+v9.1.35 (2024-03-06)
+-------------------------
+ * Restrict exports of contact groups that are too big
+ * Redact auth tokens from http logs when fetching whatsapp templates
+ * Cleanup code for fetching whatsapp templates and only create incidents after 5 failures
+ * Add data migration to delete old ticket exports
+
 v9.1.34 (2024-03-04)
 -------------------------
  * Update floweditor
