@@ -79,7 +79,7 @@ class FacebookAppType(ChannelType):
             if response.status_code != 200:  # pragma: no cover
                 raise Exception("Unable to update call to action: %s" % response.text)
 
-    def get_redact_values(self, channel) -> tuple:
+    def get_redact_values(self, channel) -> tuple:  # pragma: needs cover
         """
         Gets the values to redact from logs
         """

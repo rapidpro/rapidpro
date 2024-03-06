@@ -48,7 +48,7 @@ class InstagramType(ChannelType):
             params={"access_token": config[Channel.CONFIG_AUTH_TOKEN]},
         )
 
-    def get_redact_values(self, channel) -> tuple:
+    def get_redact_values(self, channel) -> tuple:  # pragma: needs cover
         """
         Gets the values to redact from logs
         """

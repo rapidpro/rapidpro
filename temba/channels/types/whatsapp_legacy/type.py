@@ -134,4 +134,4 @@ class WhatsAppLegacyType(ChannelType):
         """
         Gets the values to redact from logs
         """
-        return (channel.config[Channel.CONFIG_FB_ACCESS_TOKEN],)
+        return (channel.config[CONFIG_FB_ACCESS_TOKEN],)

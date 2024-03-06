@@ -1,3 +1,4 @@
+import json
 from unittest.mock import call, patch
 
 from requests import RequestException
@@ -424,6 +425,10 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
 
         self.assertEqual(2, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, is_error=True).count())
         self.assertEqual(1, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, is_error=False).count())
+
+        # check admin token is redacted in HTTP logs
+        for log in HTTPLog.objects.all():
+            self.assertNotIn("token123", json.dumps(log.get_display()))
 
         mock_get.assert_called_with(
             "https://graph.facebook.com/v14.0/1234/message_templates",
