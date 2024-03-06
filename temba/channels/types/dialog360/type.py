@@ -73,3 +73,6 @@ class Dialog360Type(ChannelType):
             raise e
 
         return response.json()["waba_templates"]
+
+    def get_redact_values(self, channel) -> tuple:
+        return (channel.config[Channel.CONFIG_AUTH_TOKEN],)

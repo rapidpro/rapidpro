@@ -85,5 +85,11 @@ class Dialog360LegacyType(ChannelType):
 
         return response
 
+    def get_redact_values(self, channel) -> tuple:
+        """
+        Gets the values to redact from logs
+        """
+        return (channel.config[Channel.CONFIG_AUTH_TOKEN],)
+
     def is_available_to(self, org, user):
         return False, False

@@ -588,12 +588,17 @@ class WhatsAppTypeTest(TembaTest):
         mock_get.side_effect = [
             RequestException("Network is unreachable", response=MockResponse(100, "")),
             MockResponse(400, '{ "meta": { "success": false } }'),
-            MockResponse(200, '{"data": ["foo", "bar"]}'),
+            MockResponse(200, '{"data": ["foo", "bar"]}', headers={"Authorization": "Bearer WA_ADMIN_TOKEN"}),
             MockResponse(
                 200,
                 '{"data": ["foo"], "paging": {"cursors": {"after": "MjQZD"}, "next": "https://graph.facebook.com/v18.0/111111111111111/message_templates?after=MjQZD" } }',
+                headers={"Authorization": "Bearer WA_ADMIN_TOKEN"},
             ),
-            MockResponse(200, '{"data": ["bar"], "paging": {"cursors": {"after": "MjQZD"} } }'),
+            MockResponse(
+                200,
+                '{"data": ["bar"], "paging": {"cursors": {"after": "MjQZD"} } }',
+                headers={"Authorization": "Bearer WA_ADMIN_TOKEN"},
+            ),
         ]
 
         with self.assertRaises(RequestException):
@@ -612,6 +617,10 @@ class WhatsAppTypeTest(TembaTest):
 
         self.assertEqual(2, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, is_error=True).count())
         self.assertEqual(1, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, is_error=False).count())
+
+        # check admin token is redacted in HTTP logs
+        for log in HTTPLog.objects.all():
+            self.assertNotIn("WA_ADMIN_TOKEN", json.dumps(log.get_display()))
 
         mock_get.assert_called_with(
             "https://graph.facebook.com/v18.0/111111111111111/message_templates",

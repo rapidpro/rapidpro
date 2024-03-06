@@ -129,3 +129,9 @@ class WhatsAppLegacyType(ChannelType):
             raise requests.RequestException(f"Error checking API health: {response.content}", response=response)
 
         return response
+
+    def get_redact_values(self, channel) -> tuple:
+        """
+        Gets the values to redact from logs
+        """
+        return (channel.config[CONFIG_FB_ACCESS_TOKEN],)

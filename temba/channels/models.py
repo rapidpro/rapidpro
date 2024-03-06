@@ -121,9 +121,9 @@ class ChannelType(metaclass=ABCMeta):
     # during activation. Channels should make sure their claim view is non-atomic if a callback will be involved
     async_activation = True
 
+    # used for anonymizing logs
     redact_request_keys = ()
     redact_response_keys = ()
-    redact_values = ()
 
     def is_available_to(self, org, user):
         """
@@ -206,6 +206,12 @@ class ChannelType(metaclass=ABCMeta):
         Context for the config UI if a custom template is provided
         """
         return {"channel": channel}
+
+    def get_redact_values(self, channel) -> tuple:
+        """
+        Gets the values to redact from logs
+        """
+        return ()
 
     def get_error_ref_url(self, channel, code: str) -> str:
         """
@@ -945,7 +951,7 @@ class ChannelLog(models.Model):
 
         # out of an abundance of caution, check that we're not returning one of our own credential values
         for log in data["http_logs"]:
-            for secret in channel.type.redact_values:
+            for secret in channel.type.get_redact_values(channel):
                 assert secret not in log["url"] and secret not in log["request"] and secret not in log["response"]
 
         return data
