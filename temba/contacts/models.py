@@ -1698,7 +1698,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     def get_member_count(self):
         """
-        Returns the number of active and non-test contacts in the group
+        Returns the number of contacts in the group
         """
         return ContactGroupCount.get_totals([self])[self]
 

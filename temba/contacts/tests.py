@@ -3222,22 +3222,22 @@ class ContactFieldTest(TembaTest):
         group2 = self.create_group("Dynamic", query="tel is 1234")
         group2.status = ContactGroup.STATUS_EVALUATING
         group2.save()
+        too_big_group = self.create_group("Poppin Tags", [contact])
+        ContactGroupCount.objects.create(group=too_big_group, count=1_000_001)
 
         # create a dummy export task so that we won't be able to export
         blocking_export = ContactExport.create(self.org, self.admin)
 
-        response = self.client.post(export_url, {}, follow=True)
+        response = self.client.get(export_url)
         self.assertContains(response, "already an export in progress")
 
-        # ok, mark that one as finished and try again
+        # mark that one as finished so it's no longer a blocker
         blocking_export.status = Export.STATUS_COMPLETE
         blocking_export.save(update_fields=("status",))
 
-        # make sure we can't redirect to places we shouldn't
-        with self.mockReadOnly():
-            response = self.client.post(export_url + "?redirect=http://foo.me/", {"group_memberships": (group.id,)})
-            self.assertEqual(302, response.status_code)
-            self.assertEqual("/contact/", response.url)
+        # try to export a group that is too big
+        response = self.client.get(export_url + f"?g={too_big_group.uuid}")
+        self.assertContains(response, "This group or search is too large to export.")
 
         # create orphaned URN in scheme that no contacts have a URN for
         ContactURN.create(self.org, None, "line:12345")
@@ -3259,7 +3259,7 @@ class ContactFieldTest(TembaTest):
             self.create_contact_import(path)
 
         # no group specified, so will default to 'Active'
-        with self.assertNumQueries(34):
+        with self.assertNumQueries(38):
             export, task = request_export()
             self.assertEqual(2, task.num_records)
             self.assertEqual("C", task.status)
@@ -3327,7 +3327,7 @@ class ContactFieldTest(TembaTest):
         # change the order of the fields
         self.contactfield_2.priority = 15
         self.contactfield_2.save()
-        with self.assertNumQueries(34):
+        with self.assertNumQueries(38):
             export, task = request_export()
             self.assertEqual(2, task.num_records)
             self.assertEqual("C", task.status)
@@ -3393,7 +3393,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, "tel:+12062233445")
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(34):
+        with self.assertNumQueries(38):
             export, task = request_export()
             self.assertEqual(4, task.num_records)
             self.assertEqual("C", task.status)
@@ -3491,7 +3491,7 @@ class ContactFieldTest(TembaTest):
         assertImportExportedFile()
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(35):
+        with self.assertNumQueries(38):
             export, task = request_export("?g=%s" % group.uuid)
             self.assertExcelSheet(
                 export[0],
@@ -3611,7 +3611,7 @@ class ContactFieldTest(TembaTest):
                 log_info_threshold.return_value = 1
 
                 with ESMockWithScroll(data=mock_es_data):
-                    with self.assertNumQueries(37):
+                    with self.assertNumQueries(41):
                         export, task = request_export("?s=name+has+adam+or+name+has+deng")
                         self.assertExcelSheet(
                             export[0],
@@ -3680,7 +3680,7 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(36):
+            with self.assertNumQueries(39):
                 export, task = request_export("?g=%s&s=Hagg" % group.uuid)
                 self.assertExcelSheet(
                     export[0],

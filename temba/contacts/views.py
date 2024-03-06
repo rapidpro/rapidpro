@@ -27,7 +27,6 @@ from django.http import Http404, HttpResponse, HttpResponseNotFound, HttpRespons
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
 from django.views import View
 
@@ -35,7 +34,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.mailroom.events import Event
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.models import Export, User
+from temba.orgs.models import User
 from temba.orgs.views import (
     DependencyDeleteModal,
     DependencyUsagesModal,
@@ -45,7 +44,7 @@ from temba.orgs.views import (
     OrgPermsMixin,
 )
 from temba.tickets.models import Ticket, Topic
-from temba.utils import analytics, json, languages, on_transaction_commit
+from temba.utils import json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.fields import (
     CheckboxWidget,
@@ -180,8 +179,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
 
     def derive_export_url(self):
         search = quote_plus(self.request.GET.get("search", ""))
-        redirect = quote_plus(self.request.get_full_path())
-        return f"{reverse('contacts.contact_export')}?g={self.group.uuid}&s={search}&redirect={redirect}"
+        return f"{reverse('contacts.contact_export')}?g={self.group.uuid}&s={search}"
 
     def derive_refresh(self):
         # smart groups that are reevaluating should refresh every 2 seconds
@@ -447,28 +445,6 @@ class UpdateContactForm(ContactForm):
         }
 
 
-class ExportForm(Form):
-    group_memberships = forms.ModelMultipleChoiceField(
-        queryset=ContactGroup.objects.none(),
-        required=False,
-        label=_("Group Memberships for"),
-        widget=SelectMultipleWidget(
-            attrs={"widget_only": True, "placeholder": _("Optional: Choose groups to show in your export")}
-        ),
-    )
-
-    def __init__(self, org, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.fields["group_memberships"].queryset = ContactGroup.get_groups(org, ready_only=True).order_by(
-            Upper("name")
-        )
-
-        self.fields["group_memberships"].help_text = _(
-            "Include group membership only for these groups. " "(Leave blank to ignore group memberships)."
-        )
-
-
 class ContactCRUDL(SmartCRUDL):
     model = Contact
     actions = (
@@ -574,81 +550,78 @@ class ContactCRUDL(SmartCRUDL):
             return JsonResponse({"results": menu})
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
-        form_class = ExportForm
+        class Form(Form):
+            group_memberships = forms.ModelMultipleChoiceField(
+                queryset=ContactGroup.objects.none(),
+                required=False,
+                label=_("Group Memberships for"),
+                widget=SelectMultipleWidget(
+                    attrs={"widget_only": True, "placeholder": _("Optional: Group memberships to include")}
+                ),
+            )
+
+            def __init__(self, org, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                self.fields["group_memberships"].queryset = ContactGroup.get_groups(org, ready_only=True).order_by(
+                    Upper("name")
+                )
+
+        form_class = Form
         submit_button_name = _("Export")
         success_url = "@contacts.contact_list"
-
-        def derive_params(self):
-            group_uuid = self.request.GET.get("g")
-            search = self.request.GET.get("s")
-            redirect = self.request.GET.get("redirect")
-            if redirect and not url_has_allowed_host_and_scheme(redirect, self.request.get_host()):
-                redirect = None
-
-            return group_uuid, search, redirect
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.request.org
             return kwargs
 
-        def form_invalid(self, form):  # pragma: needs cover
-            if "_format" in self.request.GET and self.request.GET["_format"] == "json":
-                return HttpResponse(
-                    json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400
-                )
-            else:
-                return super().form_invalid(form)
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["blockers"] = self.get_blockers()
+            return context
 
-        def form_valid(self, form):
-            user = self.request.user
-            org = self.request.org
-            group_uuid, search, redirect = self.derive_params()
+        def get_blockers(self):
+            blockers = []
 
-            # is there already an export taking place?
-            if ContactExport.has_recent_unfinished(org):
-                messages.info(
-                    self.request,
+            if ContactExport.has_recent_unfinished(self.request.org):
+                blockers.append(
                     _(
-                        "There is already an export in progress. You must wait for that export to complete before starting another."
-                    ),
-                )
-            else:
-                group_memberships = form.cleaned_data["group_memberships"]
-
-                group = org.groups.filter(uuid=group_uuid).first() if group_uuid else None
-
-                previous_export = (
-                    Export.objects.filter(org=org, export_type=ContactExport.slug, created_by=user)
-                    .order_by("-modified_on")
-                    .first()
-                )
-                if previous_export and previous_export.created_on < timezone.now() - timedelta(
-                    hours=24
-                ):  # pragma: needs cover
-                    analytics.track(self.request.user, "temba.contact_exported")
-
-                export = ContactExport.create(org, user, group=group, search=search, with_groups=group_memberships)
-
-                # schedule the export job
-                on_transaction_commit(lambda: export.start())
-
-                messages.info(
-                    self.request, _("We are preparing your export and you will get a notification when it is ready.")
-                )
-
-            if "HTTP_X_PJAX" not in self.request.META:
-                return HttpResponseRedirect(redirect or reverse("contacts.contact_list"))
-            else:  # pragma: no cover
-                response = self.render_to_response(
-                    self.get_context_data(
-                        form=form,
-                        success_url=self.get_success_url(),
-                        success_script=getattr(self, "success_script", None),
+                        "There is already an export in progress. "
+                        "You must wait for that export to complete before starting another."
                     )
                 )
-                response["Temba-Success"] = self.get_success_url()
-                return response
+
+            # TODO need something like the flow start preview endpoint to check if the export will be too large
+            if self.group and self.group.get_member_count() > 1_000_000 and not self.request.GET.get("s"):
+                blockers.append(_("This group or search is too large to export."))
+
+            return blockers
+
+        @cached_property
+        def group(self):
+            org = self.request.org
+            group_uuid = self.request.GET.get("g")
+            return org.groups.filter(uuid=group_uuid).first() if group_uuid else org.active_contacts_group
+
+        def form_valid(self, form):
+            assert not self.get_blockers()
+
+            user = self.request.user
+            org = self.request.org
+            search = self.request.GET.get("s")
+
+            group_memberships = form.cleaned_data["group_memberships"]
+
+            export = ContactExport.create(org, user, group=self.group, search=search, with_groups=group_memberships)
+
+            on_transaction_commit(lambda: export.start())
+
+            messages.info(
+                self.request, _("We are preparing your export and you will get a notification when it is ready.")
+            )
+
+            return self.render_modal_response(form)
 
     class Omnibox(OrgPermsMixin, SmartListView):
         paginate_by = 75
