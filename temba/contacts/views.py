@@ -578,7 +578,10 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
+            context["blockers"] = self.get_blockers()
+            return context
 
+        def get_blockers(self):
             blockers = []
 
             if ContactExport.has_recent_unfinished(self.request.org):
@@ -593,15 +596,17 @@ class ContactCRUDL(SmartCRUDL):
             if self.group and self.group.get_member_count() > 1_000_000 and not self.request.GET.get("s"):
                 blockers.append(_("This group or search is too large to export."))
 
-            context["blockers"] = blockers
-            return context
+            return blockers
 
         @cached_property
         def group(self):
+            org = self.request.org
             group_uuid = self.request.GET.get("g")
-            return self.request.org.groups.filter(uuid=group_uuid).first() if group_uuid else None
+            return org.groups.filter(uuid=group_uuid).first() if group_uuid else org.active_contacts_group
 
         def form_valid(self, form):
+            assert not self.get_blockers()
+
             user = self.request.user
             org = self.request.org
             search = self.request.GET.get("s")
