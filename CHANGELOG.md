@@ -1,3 +1,8 @@
+v9.1.36 (2024-03-06)
+-------------------------
+ * Bump spec version to 13.4
+ * Update editor to support template components
+
 v9.1.35 (2024-03-06)
 -------------------------
  * Restrict exports of contact groups that are too big
