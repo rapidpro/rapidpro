@@ -1,0 +1,10 @@
+{% extends "notifications/email/base.html" %}
+{% load i18n %}
+
+{% block notification-body %}
+    <p>
+        {% blocktrans trimmed with url="https://"|add:branding.domain|add:target_url %}
+            Your <a href="{{ url }}">WhatsApp channel</a> is currently having problems fetching templates.
+        {% endblocktrans %}
+    </p>
+{% endblock notification-body %}

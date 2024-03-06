@@ -1,3 +1,34 @@
+v9.1.35 (2024-03-06)
+-------------------------
+ * Restrict exports of contact groups that are too big
+ * Redact auth tokens from http logs when fetching whatsapp templates
+ * Cleanup code for fetching whatsapp templates and only create incidents after 5 failures
+ * Add data migration to delete old ticket exports
+
+v9.1.34 (2024-03-04)
+-------------------------
+ * Update floweditor
+
+v9.1.33 (2024-03-04)
+-------------------------
+ * Bump current flow spec version to 13.3
+ * Ensure incidents are ended when releasing a channel
+
+v9.1.32 (2024-03-04)
+-------------------------
+ * Update temba-components
+ * Always send verification email with branding of current org
+ * Add incident for WhatsApp templates sync failed
+
+v9.1.31 (2024-02-28)
+-------------------------
+ * Fix editing user when language is not an option
+
+v9.1.30 (2024-02-28)
+-------------------------
+ * Hide UI language options when there aren't any
+ * Update test_db templates
+
 v9.1.29 (2024-02-27)
 -------------------------
  * Remove DS from available channel and only accessible to beta group

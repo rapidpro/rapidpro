@@ -12,7 +12,7 @@ from temba.orgs.models import OrgRole
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers
 from temba.tickets.models import TicketExport
 
-from .incidents.builtin import OrgFlaggedIncidentType
+from .incidents.builtin import ChannelTemplatesFailedIncidentType, OrgFlaggedIncidentType
 from .models import Incident, Notification
 from .tasks import send_notification_emails, squash_notification_counts, trim_notifications
 from .types.builtin import ExportFinishedNotificationType
@@ -424,6 +424,44 @@ class NotificationTest(TembaTest):
 
         self.assertTrue(self.agent.notifications.get().is_seen)
         self.assertFalse(self.editor.notifications.get().is_seen)
+
+    def test_channel_templates_failed(self):
+        self.org.add_user(self.editor, OrgRole.ADMINISTRATOR)  # upgrade editor to administrator
+
+        ChannelTemplatesFailedIncidentType.get_or_create(channel=self.channel)
+
+        self.assert_notifications(
+            expected_json={
+                "type": "incident:started",
+                "created_on": matchers.ISODate(),
+                "target_url": f"/channels/channel/read/{self.channel.uuid}/",
+                "is_seen": False,
+                "incident": {
+                    "type": "channel:templates_failed",
+                    "started_on": matchers.ISODate(),
+                    "ended_on": None,
+                },
+            },
+            expected_users={self.editor, self.admin},
+            email=True,
+        )
+
+        send_notification_emails()
+
+        self.assertEqual(2, len(mail.outbox))
+
+        self.assertEqual(2, len(mail.outbox))
+        self.assertEqual("[Nyaruka] Incident: WhatsApp Templates Sync Failed", mail.outbox[0].subject)
+        self.assertEqual(["admin@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertEqual("[Nyaruka] Incident: WhatsApp Templates Sync Failed", mail.outbox[1].subject)
+        self.assertEqual(["editor@nyaruka.com"], mail.outbox[1].recipients())
+
+        # if a user visits the incident page, all incident notifications are now read
+        self.login(self.editor)
+        self.client.get(f"/channels/channel/read/{self.channel.uuid}/")
+
+        self.assertTrue(self.editor.notifications.get().is_seen)
+        self.assertFalse(self.admin.notifications.get().is_seen)
 
     def test_incident_started(self):
         self.org.add_user(self.editor, OrgRole.ADMINISTRATOR)  # upgrade editor to administrator

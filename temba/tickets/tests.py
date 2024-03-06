@@ -10,11 +10,12 @@ from django.utils import timezone
 
 from temba.contacts.models import Contact, ContactField, ContactURN
 from temba.orgs.models import Export
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.utils.dates import datetime_to_timestamp
 from temba.utils.uuid import uuid4
 
 from .models import (
+    ExportTicketsTask,
     Team,
     Ticket,
     TicketCount,
@@ -1349,3 +1350,44 @@ class TicketDailyTimingTest(TembaTest):
         TicketDailyTiming.objects.create(
             count_type=TicketDailyTiming.TYPE_LAST_CLOSE, scope=f"o:{org.id}", day=d, count=count, seconds=seconds
         )
+
+
+class DeleteOldExportsTest(MigrationTest):
+    app = "tickets"
+    migrate_from = "0058_exportticketstask_item_count_and_more"
+    migrate_to = "0059_delete_old_exports"
+
+    def setUpBeforeMigration(self, apps):
+        self.export1 = ExportTicketsTask.objects.create(
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
+            start_date=date(2022, 6, 1),
+            end_date=date(2022, 6, 30),
+        )
+        self.export1.notifications.create(
+            org=self.org, user=self.admin, notification_type="export:finished", scope=str(self.export1.id)
+        )
+
+        self.export2 = ExportTicketsTask.objects.create(
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
+            start_date=date(2022, 6, 1),
+            end_date=date(2022, 6, 30),
+        )
+        self.export2.notifications.create(
+            org=self.org, user=self.admin, notification_type="export:finished", scope=str(self.export2.id)
+        )
+
+        # patch delete so that second export can't be deleted from storage
+        self.delete_patcher = patch("django.core.files.storage.FileSystemStorage.delete")
+        mock_delete = self.delete_patcher.start()
+        mock_delete.side_effect = [None, Exception("boom!")]
+
+    def tearDown(self):
+        self.delete_patcher.stop()
+
+    def test_migration(self):
+        self.assertFalse(ExportTicketsTask.objects.filter(id=self.export1.id).exists())
+        self.assertTrue(ExportTicketsTask.objects.filter(id=self.export2.id).exists())

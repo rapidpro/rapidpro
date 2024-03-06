@@ -61,22 +61,18 @@ class Dialog360Type(ChannelType):
         if resp.status_code != 200:
             raise ValidationError(_("Unable to register callbacks: %(resp)s"), params={"resp": resp.content})
 
-    def get_api_templates(self, channel):
-        if Channel.CONFIG_AUTH_TOKEN not in channel.config:  # pragma: no cover
-            return [], False
-
-        templates_url = "%s/v1/configs/templates" % channel.config.get(Channel.CONFIG_BASE_URL, "")
+    def fetch_templates(self, channel) -> list:
+        templates_url = "%s/v1/configs/templates" % channel.config[Channel.CONFIG_BASE_URL]
         start = timezone.now()
-
         try:
             response = requests.get(templates_url, headers=self.get_headers(channel))
+            response.raise_for_status()
             HTTPLog.from_response(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, response, start, timezone.now(), channel=channel)
-
-            if response.status_code != 200:  # pragma: no cover
-                return [], False
-
-            template_data = response.json()["waba_templates"]
-            return template_data, True
-        except requests.RequestException as e:
+        except Exception as e:
             HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, e, start, channel=channel)
-            return [], False
+            raise e
+
+        return response.json()["waba_templates"]
+
+    def get_redact_values(self, channel) -> tuple:
+        return (channel.config[Channel.CONFIG_AUTH_TOKEN],)

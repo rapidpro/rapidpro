@@ -30,7 +30,6 @@ class WhatsAppType(ChannelType):
 
     courier_url = r"^wac/receive"
     schemes = [URN.WHATSAPP_SCHEME]
-    redact_values = (settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN,)
 
     claim_blurb = _("If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts")
     claim_view = ClaimView
@@ -77,29 +76,31 @@ class WhatsAppType(ChannelType):
                 _("Unable to register phone with ID %s from WABA with ID %s" % (channel.address, waba_id))
             )
 
-    def get_api_templates(self, channel):
-        if not settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN:  # pragma: no cover
-            return [], False
+    def fetch_templates(self, channel) -> list:
+        waba_id = channel.config["wa_waba_id"]
+        url = f"https://graph.facebook.com/v18.0/{waba_id}/message_templates"
+        headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
+        templates = []
 
-        waba_id = channel.config.get("wa_waba_id", None)
-        if not waba_id:  # pragma: no cover
-            return [], False
+        while url:
+            start = timezone.now()
+            try:
+                response = requests.get(url, params={"limit": 255}, headers=headers)
+                response.raise_for_status()
+                HTTPLog.from_response(
+                    HTTPLog.WHATSAPP_TEMPLATES_SYNCED, response, start, timezone.now(), channel=channel
+                )
 
-        start = timezone.now()
-        try:
-            template_data = []
-            url = f"https://graph.facebook.com/v18.0/{waba_id}/message_templates"
+                templates.extend(response.json()["data"])
+                url = response.json().get("paging", {}).get("next", None)
+            except Exception as e:
+                HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, e, start, channel=channel)
+                raise e
 
-            headers = {"Authorization": f"Bearer {settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN}"}
-            while url:
-                resp = requests.get(url, params=dict(limit=255), headers=headers)
-                HTTPLog.from_response(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, resp, start, timezone.now(), channel=channel)
-                if resp.status_code != 200:  # pragma: no cover
-                    return [], False
+        return templates
 
-                template_data.extend(resp.json()["data"])
-                url = resp.json().get("paging", {}).get("next", None)
-            return template_data, True
-        except requests.RequestException as e:
-            HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, e, start, channel=channel)
-            return [], False
+    def get_redact_values(self, channel) -> tuple:
+        """
+        Gets the values to redact from logs
+        """
+        return (settings.WHATSAPP_ADMIN_SYSTEM_USER_TOKEN,)

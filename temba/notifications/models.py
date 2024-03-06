@@ -46,7 +46,7 @@ class Incident(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="incidents")
-    incident_type = models.CharField(max_length=20)
+    incident_type = models.CharField(max_length=32)
 
     # The scope is what we maintain uniqueness of ongoing incidents for within an org. For incident types with an
     # associated object, this will be the UUID of the object.

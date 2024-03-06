@@ -24,7 +24,6 @@ class FacebookAppType(ChannelType):
 
     courier_url = r"^fba/receive"
     schemes = [URN.FACEBOOK_SCHEME]
-    redact_values = (settings.FACEBOOK_APPLICATION_SECRET, settings.FACEBOOK_WEBHOOK_SECRET)
 
     claim_blurb = _(
         "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will "
@@ -79,6 +78,12 @@ class FacebookAppType(ChannelType):
 
             if response.status_code != 200:  # pragma: no cover
                 raise Exception("Unable to update call to action: %s" % response.text)
+
+    def get_redact_values(self, channel) -> tuple:  # pragma: needs cover
+        """
+        Gets the values to redact from logs
+        """
+        return (settings.FACEBOOK_APPLICATION_SECRET, settings.FACEBOOK_WEBHOOK_SECRET)
 
     def get_error_ref_url(self, channel, code: str) -> str:
         return "https://developers.facebook.com/docs/messenger-platform/error-codes"

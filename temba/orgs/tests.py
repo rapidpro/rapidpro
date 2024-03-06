@@ -3044,10 +3044,16 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertLoginRedirect(self.client.get(edit_url))
 
         self.login(self.admin)
+
         response = self.client.get(edit_url)
         self.assertEqual(
             ["name", "timezone", "date_format", "language", "loc"], list(response.context["form"].fields.keys())
         )
+
+        # language is only shown if there are multiple options
+        with override_settings(LANGUAGES=(("en-us", "English"),)):
+            response = self.client.get(edit_url)
+            self.assertEqual(["name", "timezone", "date_format", "loc"], list(response.context["form"].fields.keys()))
 
         # try submitting with errors
         response = self.client.post(
@@ -3546,15 +3552,31 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
 
+        response = self.client.get(edit_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(
+            ["first_name", "last_name", "email", "avatar", "current_password", "new_password", "language", "loc"],
+            list(response.context["form"].fields.keys()),
+        )
+
+        # language is only shown if there are multiple options
+        with override_settings(LANGUAGES=(("en-us", "English"),)):
+            response = self.client.get(edit_url)
+            self.assertEqual(
+                ["first_name", "last_name", "email", "avatar", "current_password", "new_password", "loc"],
+                list(response.context["form"].fields.keys()),
+            )
+
         self.admin.settings.email_status = "V"  # mark user email as verified
         self.admin.settings.save()
 
         # try to submit without required fields
-        response = self.client.post(edit_url, {"language": "en-us"})
+        response = self.client.post(edit_url, {})
         self.assertEqual(200, response.status_code)
         self.assertFormError(response, "form", "email", "This field is required.")
         self.assertFormError(response, "form", "first_name", "This field is required.")
         self.assertFormError(response, "form", "last_name", "This field is required.")
+        self.assertFormError(response, "form", "language", "This field is required.")
 
         # change the name and language
         response = self.client.post(
@@ -3610,6 +3632,23 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.admin.settings.refresh_from_db()
         self.assertEqual("U", self.admin.settings.email_status)  # because email changed
+
+        # submit when language isn't an option
+        with override_settings(LANGUAGES=(("en-us", "English"),)):
+            response = self.client.post(
+                edit_url,
+                {
+                    "first_name": "Andy",
+                    "last_name": "Flows",
+                    "email": "admin@trileet.com",
+                },
+            )
+            self.assertEqual(302, response.status_code)
+
+            self.admin.refresh_from_db()
+            self.admin.settings.refresh_from_db()
+            self.assertEqual("Andy", self.admin.first_name)
+            self.assertEqual("en-us", self.admin.settings.language)
 
     def test_token(self):
         token_url = reverse("orgs.user_token")
@@ -3715,7 +3754,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, len(mail.outbox))
 
         # even the method will not send the email for verified status
-        send_user_verification_email.delay(self.admin.pk)
+        send_user_verification_email.delay(self.org.id, self.admin.id)
 
         # no new email sent
         self.assertEqual(1, len(mail.outbox))

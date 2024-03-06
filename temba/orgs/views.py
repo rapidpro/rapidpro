@@ -780,11 +780,13 @@ class UserCRUDL(SmartCRUDL):
         def has_permission(self, request, *args, **kwargs):
             return self.request.user.is_authenticated
 
+        def derive_exclude(self):
+            return ["language"] if len(settings.LANGUAGES) == 1 else []
+
         def derive_initial(self):
             initial = super().derive_initial()
-            user_settings = self.get_object().settings
-            initial["language"] = user_settings.language
-            initial["avatar"] = user_settings.avatar
+            initial["language"] = self.object.settings.language
+            initial["avatar"] = self.object.settings.avatar
             return initial
 
         def pre_save(self, obj):
@@ -806,7 +808,10 @@ class UserCRUDL(SmartCRUDL):
             if obj._email_changed:
                 obj.settings.email_status = UserSettings.STATUS_UNVERIFIED
 
-            obj.settings.language = self.form.cleaned_data["language"]
+            language = self.form.cleaned_data.get("language")
+            if language:
+                obj.settings.language = language
+
             obj.settings.avatar = self.form.cleaned_data["avatar"]
             obj.settings.save(update_fields=("language", "email_status", "avatar"))
             return obj
@@ -833,7 +838,8 @@ class UserCRUDL(SmartCRUDL):
             return super().pre_process(request, *args, **kwargs)
 
         def form_valid(self, form):
-            send_user_verification_email.delay(self.get_object().id)
+            send_user_verification_email.delay(self.request.org.id, self.object.id)
+
             return super().form_valid(form)
 
     class VerifyEmail(NoNavMixin, SmartReadView):
@@ -2633,6 +2639,9 @@ class OrgCRUDL(SmartCRUDL):
 
         success_message = ""
         form_class = Form
+
+        def derive_exclude(self):
+            return ["language"] if len(settings.LANGUAGES) == 1 else []
 
     class EditSubOrg(SpaMixin, ModalMixin, Edit):
         success_url = "@orgs.org_sub_orgs"

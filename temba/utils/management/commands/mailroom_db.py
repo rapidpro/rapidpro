@@ -399,13 +399,14 @@ class Command(BaseCommand):
                     channel,
                     t["name"],
                     locale=tt["locale"],
-                    content=tt["content"],
-                    variable_count=tt["variable_count"],
                     status=tt["status"],
                     external_id=tt["external_id"],
                     external_locale=tt["external_locale"],
                     namespace=tt["namespace"],
                     components=tt["components"],
+                    # deprecated
+                    content=tt["content"],
+                    variable_count=tt["variable_count"],
                     params=tt["params"],
                 )
 
