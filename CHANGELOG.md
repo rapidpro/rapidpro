@@ -1,3 +1,8 @@
+v9.1.37 (2024-03-07)
+-------------------------
+ * Do not sync templates for channels on suspended orgs or inactive orgs
+ * Redact WA password config in HTTP logs
+
 v9.1.36 (2024-03-06)
 -------------------------
  * Bump spec version to 13.4
