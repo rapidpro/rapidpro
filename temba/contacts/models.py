@@ -1983,7 +1983,7 @@ class ContactExport(ExportType):
         )
 
         num_records = 0
-        start = time.time()
+        time.time()
 
         # write out contacts in batches to limit memory usage
         for batch_ids in chunk_list(contact_ids, 1000):
@@ -2015,25 +2015,10 @@ class ContactExport(ExportType):
                 exporter.write_row(values + group_values)
                 num_records += 1
 
-                # output some status information every 10,000 contacts
-                if num_records % Export.LOG_PROGRESS_PER_ROWS == 0:
-                    elapsed = time.time() - start
-                    predicted = elapsed // (num_records / len(contact_ids))
-
-                    logger.info(
-                        "Export of %s contacts - %d%% (%s/%s) complete in %0.2fs (predicted %0.0fs)"
-                        % (
-                            export.org.name,
-                            num_records * 100 // len(contact_ids),
-                            "{:,}".format(num_records),
-                            "{:,}".format(len(contact_ids)),
-                            time.time() - start,
-                            predicted,
-                        )
-                    )
-
-                    export.modified_on = timezone.now()
-                    export.save(update_fields=["modified_on"])
+            # keep bumping our modified_on to show we're alive
+            if timezone.now() - export.modified_on > timedelta(minutes=3):  # pragma: no cover
+                export.modified_on = timezone.now()
+                export.save(update_fields=("modified_on",))
 
         return *exporter.save_file(), num_records
 
