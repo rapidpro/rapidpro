@@ -214,14 +214,21 @@ def parse_whatsapp_language(lang) -> str:
 @cron_task()
 def refresh_whatsapp_templates():
     """
-    Runs across all WhatsApp templates that have connected FB accounts and syncs the templates which are active.
+    Runs across all WhatsApp channels that have connected FB accounts and syncs the templates which are active.
     """
 
     num_refreshed, num_errored = 0, 0
 
     template_types = [t.code for t in Channel.get_types() if hasattr(t, "fetch_templates")]
 
-    for channel in Channel.objects.filter(is_active=True, channel_type__in=template_types):
+    channels = Channel.objects.filter(
+        is_active=True,
+        channel_type__in=template_types,
+        org__is_active=True,
+        org__is_suspended=False,
+    )
+
+    for channel in channels:
         # for channels which have version in their config, refresh it
         if channel.config.get("version"):
             update_api_version(channel)

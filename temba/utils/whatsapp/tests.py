@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -11,6 +12,7 @@ from temba.channels.types.whatsapp_legacy.type import (
 )
 from temba.notifications.incidents.builtin import ChannelTemplatesFailedIncidentType
 from temba.notifications.models import Incident
+from temba.orgs.models import Org, OrgRole
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import TembaTest
@@ -554,6 +556,54 @@ class WhatsAppUtilsTest(TembaTest):
     @patch("temba.channels.types.dialog360.Dialog360Type.fetch_templates")
     @patch("temba.channels.types.dialog360_legacy.Dialog360LegacyType.fetch_templates")
     def test_refresh_templates(self, mock_d3_fetch_templates, mock_d3c_fetch_templates, mock_update_local):
+        org3 = Org.objects.create(
+            name="Nyaruka 3",
+            timezone=ZoneInfo("Africa/Kigali"),
+            flow_languages=["eng", "kin"],
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+        org3.initialize()
+        org3.add_user(self.admin, OrgRole.ADMINISTRATOR)
+        org3.suspend()
+
+        org4 = Org.objects.create(
+            name="Nyaruka 4",
+            timezone=ZoneInfo("Africa/Kigali"),
+            flow_languages=["eng", "kin"],
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+        org4.initialize()
+        org4.add_user(self.admin, OrgRole.ADMINISTRATOR)
+        org4.release(self.admin)
+
+        # channels on suspended org are ignored
+        self.create_channel(
+            "D3",
+            "360Dialog channel",
+            address="234",
+            country="BR",
+            config={
+                Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
+                Channel.CONFIG_AUTH_TOKEN: "123456789",
+            },
+            org=org3,
+        )
+
+        # channels on inactive org are ignored
+        self.create_channel(
+            "D3",
+            "360Dialog channel",
+            address="345",
+            country="BR",
+            config={
+                Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
+                Channel.CONFIG_AUTH_TOKEN: "123456789",
+            },
+            org=org4,
+        )
+
         d3c_channel = self.create_channel(
             "D3C",
             "360Dialog channel",
