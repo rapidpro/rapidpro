@@ -85,10 +85,7 @@ class Mocks:
         self._contact_search[query] = mock
 
     def contact_export_preview(self, total):
-        def mock(org):
-            return {"total": total}
-
-        self._contact_export_preview.append(mock)
+        self._contact_export_preview.append({"total": total})
 
     def flow_start_preview(self, query, total):
         def mock(org):
@@ -148,13 +145,11 @@ class TestClient(MailroomClient):
         return {"contact": {"id": obj.id, "uuid": str(obj.uuid), "name": obj.name}}
 
     @_client_method
-    def contact_export_preview(self, org_id: int, group_id: int):
-        assert self.mocks._contact_export_preview, "missing contact_export_preview mock"
+    def contact_export_preview(self, org_id: int, group_id: int, query: str):
+        if self.mocks._contact_export_preview:
+            return self.mocks._contact_export_preview.pop(0)
 
-        mock = self.mocks._contact_export_preview.pop(0)
-        org = Org.objects.get(id=org_id)
-
-        return mock(org)
+        return {"total": ContactGroup.objects.get(id=group_id).get_member_count()}
 
     @_client_method
     def contact_modify(self, org_id, user_id, contact_ids, modifiers: list[Modifier]):

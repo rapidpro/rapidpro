@@ -29,8 +29,8 @@ from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from django.views import View
-from temba import mailroom
 
+from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.mailroom.events import Event
@@ -587,7 +587,8 @@ class ContactCRUDL(SmartCRUDL):
             if ContactExport.has_recent_unfinished(self.request.org):
                 return "existing-export"
 
-            preview = mailroom.get_client().contact_export_preview(self.request.org.id, self.group.id)
+            query = self.request.GET.get("s")
+            preview = mailroom.get_client().contact_export_preview(self.request.org.id, self.group.id, query)
             if preview["total"] > self.size_limit:
                 return "too-big"
 
