@@ -30,6 +30,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from django.views import View
 
+from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.mailroom.events import Event
@@ -570,6 +571,7 @@ class ContactCRUDL(SmartCRUDL):
         form_class = Form
         submit_button_name = _("Export")
         success_url = "@contacts.contact_list"
+        size_limit = 1_000_000
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -578,25 +580,19 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["blockers"] = self.get_blockers()
+            context["blocker"] = self.get_blocker()
             return context
 
-        def get_blockers(self):
-            blockers = []
-
+        def get_blocker(self) -> str:
             if ContactExport.has_recent_unfinished(self.request.org):
-                blockers.append(
-                    _(
-                        "There is already an export in progress. "
-                        "You must wait for that export to complete before starting another."
-                    )
-                )
+                return "existing-export"
 
-            # TODO need something like the flow start preview endpoint to check if the export will be too large
-            if self.group and self.group.get_member_count() > 1_000_000 and not self.request.GET.get("s"):
-                blockers.append(_("This group or search is too large to export."))
+            query = self.request.GET.get("s")
+            preview = mailroom.get_client().contact_export_preview(self.request.org.id, self.group.id, query)
+            if preview["total"] > self.size_limit:
+                return "too-big"
 
-            return blockers
+            return ""
 
         @cached_property
         def group(self):
@@ -605,7 +601,7 @@ class ContactCRUDL(SmartCRUDL):
             return org.groups.filter(uuid=group_uuid).first() if group_uuid else org.active_contacts_group
 
         def form_valid(self, form):
-            assert not self.get_blockers()
+            assert not self.get_blocker()
 
             user = self.request.user
             org = self.request.org

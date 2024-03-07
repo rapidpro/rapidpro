@@ -84,6 +84,19 @@ class MailroomClientTest(TembaTest):
         )
 
     @patch("requests.post")
+    def test_contact_export_preview(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"total": 123}')
+
+        response = get_client().contact_export_preview(self.org.id, 234, "age = 42")
+
+        self.assertEqual({"total": 123}, response)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/export_preview",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "group_id": 234, "query": "age = 42"},
+        )
+
+    @patch("requests.post")
     def test_contact_inspect(self, mock_post):
         mock_post.return_value = MockResponse(200, '{"101": {}, "102": {}}')
 
