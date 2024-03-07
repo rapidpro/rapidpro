@@ -89,34 +89,34 @@ class EndpointsTest(APITestMixin, TembaTest):
             self.channel,
             "hello",
             locale="eng-US",
-            content="Hi {{1}}",
-            variable_count=1,
             status=TemplateTranslation.STATUS_APPROVED,
             external_id="1234",
             external_locale="en_US",
             namespace="foo_namespace",
             components={"body": {"content": "Hi {{1}}", "params": [{"type": "text"}]}},
+            # deprecated
+            content="Hi {{1}}",
+            variable_count=1,
             params={"body": [{"type": "text"}]},
         ).template
         TemplateTranslation.get_or_create(
             self.channel,
             "hello",
             locale="fra-FR",
-            content="Bonjour {{1}}",
-            variable_count=1,
             status=TemplateTranslation.STATUS_PENDING,
             external_id="5678",
             external_locale="fr_FR",
             namespace="foo_namespace",
             components={"body": {"content": "Bonjour {{1}}", "params": [{"type": "text"}]}},
+            # deprecated
+            content="Bonjour {{1}}",
+            variable_count=1,
             params={"body": [{"type": "text"}]},
         )
         tt = TemplateTranslation.get_or_create(
             self.channel,
             "hello",
             locale="afr-ZA",
-            content="This is a template translation for a deleted channel {{1}}",
-            variable_count=1,
             status=TemplateTranslation.STATUS_APPROVED,
             external_id="9012",
             external_locale="af_ZA",
@@ -127,6 +127,9 @@ class EndpointsTest(APITestMixin, TembaTest):
                     "params": [{"type": "text"}],
                 }
             },
+            # deprecated
+            content="This is a template translation for a deleted channel {{1}}",
+            variable_count=1,
             params={"body": [{"type": "text"}]},
         )
         tt.is_active = False
@@ -136,13 +139,14 @@ class EndpointsTest(APITestMixin, TembaTest):
             self.channel,
             "goodbye",
             locale="eng-US",
-            content="Goodbye {{1}}",
-            variable_count=1,
             status=TemplateTranslation.STATUS_PENDING,
             external_id="6789",
             external_locale="en_US",
             namespace="foo_namespace",
             components={"body": {"content": "Goodbye {{1}}", "params": [{"type": "text"}]}},
+            # deprecated
+            content="Goodbye {{1}}",
+            variable_count=1,
             params={"body": [{"type": "text"}]},
         ).template
 
@@ -151,32 +155,28 @@ class EndpointsTest(APITestMixin, TembaTest):
             org2channel,
             "goodbye",
             locale="eng-US",
-            content="Goodbye {{1}}",
-            variable_count=1,
             status=TemplateTranslation.STATUS_APPROVED,
             external_id="1234",
             external_locale="en_US",
             namespace="bar_namespace",
             components={"body": {"content": "Goodbye {{1}}", "params": [{"type": "text"}]}},
+            # deprecated
+            content="Goodbye {{1}}",
+            variable_count=1,
             params={"body": [{"type": "text"}]},
         )
         TemplateTranslation.get_or_create(
             org2channel,
             "goodbye",
             locale="fra-FR",
-            content="Salut {{1}}",
-            variable_count=1,
             status=TemplateTranslation.STATUS_PENDING,
             external_id="5678",
             external_locale="fr_FR",
             namespace="bar_namespace",
-            components=[
-                {
-                    "type": "BODY",
-                    "text": "Salut {{1}}",
-                    "example": {"body_text": [["Bob"]]},
-                },
-            ],
+            components={"body": {"content": "Salut {{1}}", "params": [{"type": "text"}]}},
+            # deprecated
+            content="Salut {{1}}",
+            variable_count=1,
             params={"body": [{"type": "text"}]},
         )
 

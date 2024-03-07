@@ -459,19 +459,14 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             channel,
             "hello",
             locale="eng-US",
-            content="Hello {{1}}",
-            variable_count=1,
             status=TemplateTranslation.STATUS_APPROVED,
             external_id="1234",
             external_locale="en_US",
             namespace="foo_namespace",
-            components=[
-                {
-                    "type": "BODY",
-                    "text": "Hello {{1}}",
-                    "example": {"body_text": [["Bob"]]},
-                },
-            ],
+            components={"body": {"content": "Hello {{1}}", "params": [{"type": "text"}]}},
+            # deprecated
+            content="Hello {{1}}",
+            variable_count=1,
             params={"body": [{"type": "text"}]},
         )
 
@@ -479,19 +474,14 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             channel,
             "hi",
             locale="eng-US",
-            content="Goodbye {{1}}",
-            variable_count=1,
             status=TemplateTranslation.STATUS_APPROVED,
             external_id="1235",
             external_locale="en_US",
             namespace="foo_namespace",
-            components=[
-                {
-                    "type": "BODY",
-                    "text": "Goodbye {{1}}",
-                    "example": {"body_text": [["Bob"]]},
-                },
-            ],
+            components={"body": {"content": "Goodbye {{1}}", "params": [{"type": "text"}]}},
+            # deprecated
+            content="Goodbye {{1}}",
+            variable_count=1,
             params={"body": [{"type": "text"}]},
         )
 

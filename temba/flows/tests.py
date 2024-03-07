@@ -2654,19 +2654,15 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             self.channel,
             "affirmation",
             locale="eng-US",
-            content="good boy",
-            variable_count=0,
             status=TemplateTranslation.STATUS_REJECTED,
             external_id="id1",
             external_locale="en_US",
             namespace="foo_namespace",
-            components=[
-                {
-                    "type": "BODY",
-                    "text": "good boy",
-                }
-            ],
-            params={},
+            components={"body": {"content": "Hello {{1}}", "params": [{"type": "text"}]}},
+            # deprecated
+            content="Hello {{1}}",
+            variable_count=1,
+            params={"body": [{"type": "text"}]},
         )
 
         # will be warned again
