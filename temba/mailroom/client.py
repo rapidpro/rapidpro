@@ -125,13 +125,14 @@ class MailroomClient:
         return self._request("", post=False).get("version")
 
     def contact_create(self, org_id: int, user_id: int, contact: ContactSpec):
-        payload = {
-            "org_id": org_id,
-            "user_id": user_id,
-            "contact": asdict(contact),
-        }
+        payload = {"org_id": org_id, "user_id": user_id, "contact": asdict(contact)}
 
         return self._request("contact/create", payload)
+
+    def contact_export_preview(self, org_id: int, group_id: int):
+        payload = {"org_id": org_id, "group_id": group_id}
+
+        return self._request("contact/export_preview", payload)
 
     def contact_inspect(self, org_id: int, contact_ids: list[int]):
         payload = {"org_id": org_id, "contact_ids": contact_ids}
