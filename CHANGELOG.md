@@ -1,3 +1,8 @@
+v9.1.39 (2024-03-07)
+-------------------------
+ * Updated editor with sendmsg update fix
+ * Improve contact export modal and use mailroom endpoint to know how many contacts will be exported
+
 v9.1.38 (2024-03-07)
 -------------------------
  * Updated component button rendering
