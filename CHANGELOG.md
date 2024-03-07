@@ -1,3 +1,7 @@
+v9.1.38 (2024-03-07)
+-------------------------
+ * Updated component button rendering
+
 v9.1.37 (2024-03-07)
 -------------------------
  * Do not sync templates for channels on suspended orgs or inactive orgs
