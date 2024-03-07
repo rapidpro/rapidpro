@@ -124,25 +124,58 @@ class MailroomClient:
     def version(self):
         return self._request("", post=False).get("version")
 
-    def flow_migrate(self, definition, to_version=None):
-        """
-        Migrates a flow definition to the specified spec version
-        """
-        from temba.flows.models import Flow
+    def contact_create(self, org_id: int, user_id: int, contact: ContactSpec):
+        payload = {
+            "org_id": org_id,
+            "user_id": user_id,
+            "contact": asdict(contact),
+        }
 
-        if not to_version:
-            to_version = Flow.CURRENT_SPEC_VERSION
+        return self._request("contact/create", payload)
 
-        return self._request("flow/migrate", {"flow": definition, "to_version": to_version}, encode_json=True)
+    def contact_inspect(self, org_id: int, contact_ids: list[int]):
+        payload = {"org_id": org_id, "contact_ids": contact_ids}
 
-    def flow_inspect(self, org_id, flow):
-        payload = {"flow": flow}
+        return self._request("contact/inspect", payload)
 
-        # can't do dependency checking during tests because mailroom can't see unit test data created in a transaction
-        if not settings.TESTING:
-            payload["org_id"] = org_id
+    def contact_interrupt(self, org_id: int, user_id: int, contact_id: int):
+        payload = {"org_id": org_id, "user_id": user_id, "contact_id": contact_id}
 
-        return self._request("flow/inspect", payload, encode_json=True)
+        return self._request("contact/interrupt", payload)
+
+    def contact_modify(self, org_id: int, user_id: int, contact_ids: list[int], modifiers: list[Modifier]):
+        payload = {
+            "org_id": org_id,
+            "user_id": user_id,
+            "contact_ids": contact_ids,
+            "modifiers": [asdict(m) for m in modifiers],
+        }
+
+        return self._request("contact/modify", payload)
+
+    def contact_resolve(self, org_id: int, channel_id: int, urn: str):
+        payload = {"org_id": org_id, "channel_id": channel_id, "urn": urn}
+
+        return self._request("contact/resolve", payload)
+
+    def contact_search(
+        self, org_id: int, group_id: int, query: str, sort: str, offset=0, exclude_ids=()
+    ) -> SearchResults:
+        payload = {
+            "org_id": org_id,
+            "group_id": group_id,
+            "exclude_ids": exclude_ids,
+            "query": query,
+            "sort": sort,
+            "offset": offset,
+        }
+        response = self._request("contact/search", payload)
+        return SearchResults(
+            query=response["query"],
+            total=response["total"],
+            contact_ids=response["contact_ids"],
+            metadata=QueryMetadata(**response.get("metadata", {})),
+        )
 
     def flow_change_language(self, flow, language):
         payload = {"flow": flow, "language": language}
@@ -154,6 +187,26 @@ class MailroomClient:
 
         return self._request("flow/clone", payload)
 
+    def flow_inspect(self, org_id, flow):
+        payload = {"flow": flow}
+
+        # can't do dependency checking during tests because mailroom can't see unit test data created in a transaction
+        if not settings.TESTING:
+            payload["org_id"] = org_id
+
+        return self._request("flow/inspect", payload, encode_json=True)
+
+    def flow_migrate(self, definition, to_version=None):
+        """
+        Migrates a flow definition to the specified spec version
+        """
+        from temba.flows.models import Flow
+
+        if not to_version:
+            to_version = Flow.CURRENT_SPEC_VERSION
+
+        return self._request("flow/migrate", {"flow": definition, "to_version": to_version}, encode_json=True)
+
     def flow_start_preview(self, org_id: int, flow_id: int, include: Inclusions, exclude: Exclusions) -> StartPreview:
         payload = {
             "org_id": org_id,
@@ -164,29 +217,6 @@ class MailroomClient:
 
         response = self._request("flow/start_preview", payload, encode_json=True)
         return StartPreview(query=response["query"], total=response["total"])
-
-    def msg_send(self, org_id: int, user_id: int, contact_id: int, text: str, attachments: list[str], ticket_id: int):
-        payload = {
-            "org_id": org_id,
-            "user_id": user_id,
-            "contact_id": contact_id,
-            "text": text,
-            "attachments": attachments,
-            "ticket_id": ticket_id,
-        }
-
-        return self._request("msg/send", payload)
-
-    def msg_resend(self, org_id, msg_ids):
-        payload = {"org_id": org_id, "msg_ids": msg_ids}
-
-        return self._request("msg/resend", payload)
-
-    def msg_broadcast_preview(self, org_id: int, include: Inclusions, exclude: Exclusions) -> BroadcastPreview:
-        payload = {"org_id": org_id, "include": asdict(include), "exclude": asdict(exclude)}
-
-        response = self._request("msg/broadcast_preview", payload, encode_json=True)
-        return BroadcastPreview(query=response["query"], total=response["total"])
 
     def msg_broadcast(
         self,
@@ -214,6 +244,29 @@ class MailroomClient:
 
         return self._request("msg/broadcast", payload, encode_json=True)
 
+    def msg_broadcast_preview(self, org_id: int, include: Inclusions, exclude: Exclusions) -> BroadcastPreview:
+        payload = {"org_id": org_id, "include": asdict(include), "exclude": asdict(exclude)}
+
+        response = self._request("msg/broadcast_preview", payload, encode_json=True)
+        return BroadcastPreview(query=response["query"], total=response["total"])
+
+    def msg_resend(self, org_id, msg_ids):
+        payload = {"org_id": org_id, "msg_ids": msg_ids}
+
+        return self._request("msg/resend", payload)
+
+    def msg_send(self, org_id: int, user_id: int, contact_id: int, text: str, attachments: list[str], ticket_id: int):
+        payload = {
+            "org_id": org_id,
+            "user_id": user_id,
+            "contact_id": contact_id,
+            "text": text,
+            "attachments": attachments,
+            "ticket_id": ticket_id,
+        }
+
+        return self._request("msg/send", payload)
+
     def po_export(self, org_id: int, flow_ids: list, language: str):
         payload = {"org_id": org_id, "flow_ids": flow_ids, "language": language}
 
@@ -229,59 +282,6 @@ class MailroomClient:
 
     def sim_resume(self, payload):
         return self._request("sim/resume", payload, encode_json=True)
-
-    def contact_create(self, org_id: int, user_id: int, contact: ContactSpec):
-        payload = {
-            "org_id": org_id,
-            "user_id": user_id,
-            "contact": asdict(contact),
-        }
-
-        return self._request("contact/create", payload)
-
-    def contact_modify(self, org_id: int, user_id: int, contact_ids: list[int], modifiers: list[Modifier]):
-        payload = {
-            "org_id": org_id,
-            "user_id": user_id,
-            "contact_ids": contact_ids,
-            "modifiers": [asdict(m) for m in modifiers],
-        }
-
-        return self._request("contact/modify", payload)
-
-    def contact_resolve(self, org_id: int, channel_id: int, urn: str):
-        payload = {"org_id": org_id, "channel_id": channel_id, "urn": urn}
-
-        return self._request("contact/resolve", payload)
-
-    def contact_inspect(self, org_id: int, contact_ids: list[int]):
-        payload = {"org_id": org_id, "contact_ids": contact_ids}
-
-        return self._request("contact/inspect", payload)
-
-    def contact_interrupt(self, org_id: int, user_id: int, contact_id: int):
-        payload = {"org_id": org_id, "user_id": user_id, "contact_id": contact_id}
-
-        return self._request("contact/interrupt", payload)
-
-    def contact_search(
-        self, org_id: int, group_id: int, query: str, sort: str, offset=0, exclude_ids=()
-    ) -> SearchResults:
-        payload = {
-            "org_id": org_id,
-            "group_id": group_id,
-            "exclude_ids": exclude_ids,
-            "query": query,
-            "sort": sort,
-            "offset": offset,
-        }
-        response = self._request("contact/search", payload)
-        return SearchResults(
-            query=response["query"],
-            total=response["total"],
-            contact_ids=response["contact_ids"],
-            metadata=QueryMetadata(**response.get("metadata", {})),
-        )
 
     def parse_query(self, org_id: int, query: str, parse_only: bool = False, group_uuid: str = "") -> ParsedQuery:
         payload = {"org_id": org_id, "query": query, "parse_only": parse_only, "group_uuid": group_uuid}
