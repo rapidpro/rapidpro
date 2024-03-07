@@ -1,3 +1,5 @@
+import base64
+
 import requests
 
 from django.forms import ValidationError
@@ -134,4 +136,11 @@ class WhatsAppLegacyType(ChannelType):
         """
         Gets the values to redact from logs
         """
-        return (channel.config[CONFIG_FB_ACCESS_TOKEN],)
+        credentials_base64 = base64.b64encode(
+            f"{channel.config[Channel.CONFIG_USERNAME]}:{channel.config[Channel.CONFIG_PASSWORD]}".encode()
+        ).decode()
+        return (
+            channel.config[CONFIG_FB_ACCESS_TOKEN],
+            channel.config[Channel.CONFIG_PASSWORD],
+            credentials_base64,
+        )
