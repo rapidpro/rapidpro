@@ -19,6 +19,7 @@ from temba.flows.models import Flow
 from temba.msgs.models import (
     Attachment,
     Broadcast,
+    ExportMessagesTask,
     Label,
     LabelCount,
     Media,
@@ -31,7 +32,7 @@ from temba.msgs.models import (
 from temba.msgs.views import ScheduleForm
 from temba.orgs.models import Export
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, TembaTest, mock_mailroom, mock_uuids
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticket
@@ -3037,3 +3038,44 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual([media2, media1], list(response.context["object_list"]))
 
         self.clear_storage()
+
+
+class DeleteOldExportsTest(MigrationTest):
+    app = "msgs"
+    migrate_from = "0255_exportmessagestask_item_count_and_more"
+    migrate_to = "0256_delete_old_exports"
+
+    def setUpBeforeMigration(self, apps):
+        self.export1 = ExportMessagesTask.objects.create(
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
+            start_date=date(2022, 6, 1),
+            end_date=date(2022, 6, 30),
+        )
+        self.export1.notifications.create(
+            org=self.org, user=self.admin, notification_type="export:finished", scope=str(self.export1.id)
+        )
+
+        self.export2 = ExportMessagesTask.objects.create(
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
+            start_date=date(2022, 6, 1),
+            end_date=date(2022, 6, 30),
+        )
+        self.export2.notifications.create(
+            org=self.org, user=self.admin, notification_type="export:finished", scope=str(self.export2.id)
+        )
+
+        # patch delete so that second export can't be deleted from storage
+        self.delete_patcher = patch("django.core.files.storage.FileSystemStorage.delete")
+        mock_delete = self.delete_patcher.start()
+        mock_delete.side_effect = [None, Exception("boom!")]
+
+    def tearDown(self):
+        self.delete_patcher.stop()
+
+    def test_migration(self):
+        self.assertFalse(ExportMessagesTask.objects.filter(id=self.export1.id).exists())
+        self.assertTrue(ExportMessagesTask.objects.filter(id=self.export2.id).exists())
