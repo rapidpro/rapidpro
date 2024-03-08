@@ -95,7 +95,7 @@ class WhatsAppUtilsTest(TembaTest):
                 "id": "9014",
             },
             {
-                "name": "workout_activity_with_unsuported_variablet",
+                "name": "workout_activity_with_variables",
                 "components": [
                     {"type": "HEADER", "text": "Workout challenge week {{2}}, {{4}} extra points!"},
                     {
@@ -192,6 +192,12 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual(8, Template.objects.filter(org=self.org).count())
         self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel).count())
         self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel, namespace="foo_namespace").count())
+        self.assertEqual(
+            3,
+            TemplateTranslation.objects.filter(
+                channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
+            ).count(),
+        )
 
         ct = TemplateTranslation.objects.get(template__name="goodbye", is_active=True)
         self.assertEqual(2, ct.variable_count)
@@ -346,7 +352,7 @@ class WhatsAppUtilsTest(TembaTest):
                 "category": "ISSUE_RESOLUTION",
             },
             {
-                "name": "workout_activity_with_unsuported_variablet",
+                "name": "workout_activity_with_variables",
                 "components": [
                     {"type": "HEADER", "text": "Workout challenge week {{2}}, {{4}} extra points!"},
                     {
@@ -479,12 +485,37 @@ class WhatsAppUtilsTest(TembaTest):
                     "en/workout_activity",
                     "kli/invalid_language",
                     "en/missing_text_component",
-                    "en/workout_activity_with_unsuported_variablet",
+                    "en/workout_activity_with_variables",
                     "fr/invalid_component",
                     "fr/login",
                 ]
             ),
-            sorted(list(TemplateTranslation.objects.filter(channel=channel).values_list("external_id", flat=True))),
+            sorted(
+                list(
+                    TemplateTranslation.objects.filter(channel=channel, is_active=True).values_list(
+                        "external_id", flat=True
+                    )
+                )
+            ),
+        )
+
+        self.assertEqual(
+            3,
+            TemplateTranslation.objects.filter(
+                channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
+            ).count(),
+        )
+        self.assertEqual(
+            [
+                "en/missing_text_component",
+                "fr/invalid_component",
+                "fr/login",
+            ],
+            list(
+                TemplateTranslation.objects.filter(
+                    channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
+                ).values_list("external_id", flat=True)
+            ),
         )
 
         tt = TemplateTranslation.objects.filter(channel=channel, external_id="fr/invalid_component").first()

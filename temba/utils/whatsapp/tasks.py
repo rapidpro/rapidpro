@@ -159,23 +159,17 @@ def update_local_templates(channel, templates_data):
         params, transformed_components = _extract_template_params(components)
         content_parts = []
 
-        all_supported = True
         for component in components:
-            if component["type"] not in ["HEADER", "BODY", "FOOTER"]:
-                continue
+            if component["type"] in ["HEADER", "BODY", "FOOTER"]:
+                if "text" not in component:
+                    continue
 
-            if "text" not in component:
-                continue
-
-            if component["type"] in ["HEADER", "FOOTER"] and _calculate_variable_count(component["text"]):
-                all_supported = False
-
-            content_parts.append(component["text"])
+                content_parts.append(component["text"])
 
         content = "\n\n".join(content_parts)
         variable_count = _calculate_variable_count(content)
 
-        if not content_parts or not all_supported:
+        if not content_parts:
             status = TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
 
         missing_external_id = f"{template['language']}/{template['name']}"
