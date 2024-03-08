@@ -1,3 +1,7 @@
+v9.1.40 (2024-03-08)
+-------------------------
+ * Allow more WhatsApp templates to be usable in the flows
+
 v9.1.39 (2024-03-07)
 -------------------------
  * Updated editor with sendmsg update fix
