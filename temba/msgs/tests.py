@@ -13,7 +13,7 @@ from django.utils import timezone
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import ChannelCount, ChannelEvent, ChannelLog
-from temba.contacts.models import URN, Contact, ContactURN
+from temba.contacts.models import URN, ContactURN
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.msgs.models import (
@@ -425,915 +425,6 @@ class MsgTest(TembaTest, CRUDLTestMixin):
         assertReleaseCount("I", Msg.STATUS_HANDLED, Msg.VISIBILITY_ARCHIVED, None, SystemLabel.TYPE_ARCHIVED)
         assertReleaseCount("I", Msg.STATUS_HANDLED, Msg.VISIBILITY_VISIBLE, flow, SystemLabel.TYPE_FLOWS)
 
-    @patch("temba.utils.email.send.send_email")
-    def test_message_export_from_archives(self, mock_send_email):
-        export_url = reverse("msgs.msg_export")
-
-        self.login(self.admin)
-
-        self.joe.name = "Jo\02e Blow"
-        self.joe.save(update_fields=("name",))
-
-        self.org.created_on = datetime(2017, 1, 1, 9, tzinfo=tzone.utc)
-        self.org.save()
-
-        flow = self.create_flow("Color Flow")
-
-        msg1 = self.create_incoming_msg(self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=tzone.utc))
-        msg2 = self.create_incoming_msg(
-            self.frank, "hello 2", created_on=datetime(2017, 1, 2, 10, tzinfo=tzone.utc), flow=flow
-        )
-        msg3 = self.create_incoming_msg(self.joe, "hello 3", created_on=datetime(2017, 1, 3, 10, tzinfo=tzone.utc))
-
-        # inbound message that looks like a surveyor message
-        msg4 = self.create_incoming_msg(
-            self.joe, "hello 4", surveyor=True, created_on=datetime(2017, 1, 4, 10, tzinfo=tzone.utc)
-        )
-
-        # inbound message with media attached, such as an ivr recording
-        msg5 = self.create_incoming_msg(
-            self.joe,
-            "Media message",
-            attachments=["audio:http://rapidpro.io/audio/sound.mp3"],
-            created_on=datetime(2017, 1, 5, 10, tzinfo=tzone.utc),
-        )
-
-        # create some outbound messages with different statuses
-        msg6 = self.create_outgoing_msg(
-            self.joe, "Hey out 6", status=Msg.STATUS_SENT, created_on=datetime(2017, 1, 6, 10, tzinfo=tzone.utc)
-        )
-        msg7 = self.create_outgoing_msg(
-            self.joe, "Hey out 7", status=Msg.STATUS_DELIVERED, created_on=datetime(2017, 1, 7, 10, tzinfo=tzone.utc)
-        )
-        msg8 = self.create_outgoing_msg(
-            self.joe, "Hey out 8", status=Msg.STATUS_ERRORED, created_on=datetime(2017, 1, 8, 10, tzinfo=tzone.utc)
-        )
-        msg9 = self.create_outgoing_msg(
-            self.joe, "Hey out 9", status=Msg.STATUS_FAILED, created_on=datetime(2017, 1, 9, 10, tzinfo=tzone.utc)
-        )
-
-        self.assertEqual(msg5.get_attachments(), [Attachment("audio", "http://rapidpro.io/audio/sound.mp3")])
-
-        # label first message
-        label = self.create_label("la\02bel1")
-        label.toggle_label([msg1], add=True)
-
-        # archive last message
-        msg3.visibility = Msg.VISIBILITY_ARCHIVED
-        msg3.save()
-
-        # archive 5 msgs
-        mock_s3 = MockS3Client()
-        body, md5, size = jsonlgz_encode([m.as_archive_json() for m in (msg1, msg2, msg3, msg4, msg5, msg6)])
-        mock_s3.put_object("test-bucket", "archive1.jsonl.gz", body)
-
-        Archive.objects.create(
-            org=self.org,
-            archive_type=Archive.TYPE_MSG,
-            size=size,
-            hash=md5,
-            url="http://test-bucket.aws.com/archive1.jsonl.gz",
-            record_count=6,
-            start_date=msg5.created_on.date(),
-            period="D",
-            build_time=23425,
-        )
-
-        with patch("django.core.files.storage.default_storage.delete"):
-            msg2.delete()
-            msg3.delete()
-            msg4.delete()
-            msg5.delete()
-            msg6.delete()
-
-        # create an archive earlier than our flow created date so we check that it isn't included
-        body, md5, size = jsonlgz_encode([msg7.as_archive_json()])
-        Archive.objects.create(
-            org=self.org,
-            archive_type=Archive.TYPE_MSG,
-            size=size,
-            hash=md5,
-            url="http://test-bucket.aws.com/archive2.jsonl.gz",
-            record_count=1,
-            start_date=self.org.created_on - timedelta(days=2),
-            period="D",
-            build_time=5678,
-        )
-        mock_s3.put_object("test-bucket", "archive2.jsonl.gz", body)
-
-        msg7.delete()
-
-        def request_export(query, data=None):
-            with self.mockReadOnly():
-                response = self.client.post(export_url + query, data)
-            self.assertModalResponse(response, redirect="/msg/")
-            task = Export.objects.filter(export_type=MessageExport.slug).order_by("-id").first()
-            filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
-            return load_workbook(filename=filename)
-
-        # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(29):
-            with patch("temba.utils.s3.client", return_value=mock_s3):
-                workbook = request_export(
-                    "?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-01"}
-                )
-
-        expected_headers = [
-            "Date",
-            "Contact UUID",
-            "Contact Name",
-            "URN Scheme",
-            "URN Value",
-            "Flow",
-            "Direction",
-            "Text",
-            "Attachments",
-            "Status",
-            "Channel",
-            "Labels",
-        ]
-
-        self.assertExcelSheet(
-            workbook.worksheets[0],
-            [
-                expected_headers,
-                [
-                    msg1.created_on,
-                    msg1.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "",
-                    "IN",
-                    "hello 1",
-                    "",
-                    "handled",
-                    "Test Channel",
-                    "label1",
-                ],
-                [
-                    msg2.created_on,
-                    msg2.contact.uuid,
-                    "Frank Blow",
-                    "tel",
-                    "321",
-                    "Color Flow",
-                    "IN",
-                    "hello 2",
-                    "",
-                    "handled",
-                    "Test Channel",
-                    "",
-                ],
-                [msg4.created_on, msg1.contact.uuid, "Joe Blow", "", "", "", "IN", "hello 4", "", "handled", "", ""],
-                [
-                    msg5.created_on,
-                    msg5.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "",
-                    "IN",
-                    "Media message",
-                    "http://rapidpro.io/audio/sound.mp3",
-                    "handled",
-                    "Test Channel",
-                    "",
-                ],
-                [
-                    msg6.created_on,
-                    msg6.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "",
-                    "OUT",
-                    "Hey out 6",
-                    "",
-                    "sent",
-                    "Test Channel",
-                    "",
-                ],
-                [
-                    msg8.created_on,
-                    msg8.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "",
-                    "OUT",
-                    "Hey out 8",
-                    "",
-                    "errored",
-                    "Test Channel",
-                    "",
-                ],
-                [
-                    msg9.created_on,
-                    msg9.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "",
-                    "OUT",
-                    "Hey out 9",
-                    "",
-                    "failed",
-                    "Test Channel",
-                    "",
-                ],
-            ],
-            self.org.timezone,
-        )
-
-        with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = request_export(
-                "?l=I",
-                {
-                    "export_all": 0,
-                    "start_date": msg5.created_on.strftime("%Y-%m-%d"),
-                    "end_date": msg7.created_on.strftime("%Y-%m-%d"),
-                },
-            )
-
-        self.assertExcelSheet(
-            workbook.worksheets[0],
-            [
-                expected_headers,
-                [
-                    msg5.created_on,
-                    msg5.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "",
-                    "IN",
-                    "Media message",
-                    "http://rapidpro.io/audio/sound.mp3",
-                    "handled",
-                    "Test Channel",
-                    "",
-                ],
-            ],
-            self.org.timezone,
-        )
-
-        with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = request_export("?l=S", {"export_all": 0, "start_date": "2000-09-01", "end_date": "2022-09-01"})
-
-        self.assertExcelSheet(
-            workbook.worksheets[0],
-            [
-                expected_headers,
-                [
-                    msg6.created_on,
-                    msg6.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "",
-                    "OUT",
-                    "Hey out 6",
-                    "",
-                    "sent",
-                    "Test Channel",
-                    "",
-                ],
-            ],
-            self.org.timezone,
-        )
-
-        with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = request_export("?l=X", {"export_all": 0, "start_date": "2000-09-01", "end_date": "2022-09-01"})
-
-        self.assertExcelSheet(
-            workbook.worksheets[0],
-            [
-                expected_headers,
-                [
-                    msg9.created_on,
-                    msg9.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "",
-                    "OUT",
-                    "Hey out 9",
-                    "",
-                    "failed",
-                    "Test Channel",
-                    "",
-                ],
-            ],
-            self.org.timezone,
-        )
-
-        with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = request_export("?l=W", {"export_all": 0, "start_date": "2000-09-01", "end_date": "2022-09-01"})
-
-        self.assertExcelSheet(
-            workbook.worksheets[0],
-            [
-                expected_headers,
-                [
-                    msg2.created_on,
-                    msg2.contact.uuid,
-                    "Frank Blow",
-                    "tel",
-                    "321",
-                    "Color Flow",
-                    "IN",
-                    "hello 2",
-                    "",
-                    "handled",
-                    "Test Channel",
-                    "",
-                ],
-            ],
-            self.org.timezone,
-        )
-
-        with patch("temba.utils.s3.client", return_value=mock_s3):
-            workbook = request_export(
-                f"?l={label.uuid}", {"export_all": 0, "start_date": "2000-09-01", "end_date": "2022-09-01"}
-            )
-
-        self.assertExcelSheet(
-            workbook.worksheets[0],
-            [
-                expected_headers,
-                [
-                    msg1.created_on,
-                    msg1.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "",
-                    "IN",
-                    "hello 1",
-                    "",
-                    "handled",
-                    "Test Channel",
-                    "label1",
-                ],
-            ],
-            self.org.timezone,
-        )
-
-        self.clear_storage()
-
-    @patch("temba.utils.email.send.send_email")
-    def test_message_export(self, mock_send_email):
-        export_url = reverse("msgs.msg_export")
-
-        self.login(self.admin)
-
-        age = self.create_field("age", "Age")
-        bob = self.create_contact("Bob", urns=["telegram:234567"], fields={"age": 40})
-        devs = self.create_group("Devs", [bob])
-
-        self.joe.name = "Jo\02e Blow"
-        self.joe.save(update_fields=("name",))
-
-        telegram = self.create_channel("TG", "Telegram", "765432")
-
-        # messages can't be older than org
-        self.org.created_on = datetime(2016, 1, 2, 10, tzinfo=tzone.utc)
-        self.org.save(update_fields=("created_on",))
-
-        flow = self.create_flow("Color Flow")
-        msg1 = self.create_incoming_msg(
-            self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=tzone.utc), flow=flow
-        )
-        msg2 = self.create_incoming_msg(
-            bob, "hello 2", created_on=datetime(2017, 1, 2, 10, tzinfo=tzone.utc), channel=telegram
-        )
-        msg3 = self.create_incoming_msg(
-            bob, "hello 3", created_on=datetime(2017, 1, 3, 10, tzinfo=tzone.utc), channel=telegram
-        )
-
-        # inbound message that looks like a surveyor message
-        msg4 = self.create_incoming_msg(
-            self.joe, "hello 4", surveyor=True, created_on=datetime(2017, 1, 4, 10, tzinfo=tzone.utc)
-        )
-
-        # inbound message with media attached, such as an ivr recording
-        msg5 = self.create_incoming_msg(
-            self.joe,
-            "Media message",
-            attachments=["audio:http://rapidpro.io/audio/sound.mp3"],
-            created_on=datetime(2017, 1, 5, 10, tzinfo=tzone.utc),
-        )
-
-        # create some outbound messages with different statuses
-        msg6 = self.create_outgoing_msg(
-            self.joe, "Hey out 6", status=Msg.STATUS_SENT, created_on=datetime(2017, 1, 6, 10, tzinfo=tzone.utc)
-        )
-        msg7 = self.create_outgoing_msg(
-            bob,
-            "Hey out 7",
-            status=Msg.STATUS_DELIVERED,
-            created_on=datetime(2017, 1, 7, 10, tzinfo=tzone.utc),
-            channel=telegram,
-        )
-        msg8 = self.create_outgoing_msg(
-            self.joe, "Hey out 8", status=Msg.STATUS_ERRORED, created_on=datetime(2017, 1, 8, 10, tzinfo=tzone.utc)
-        )
-        msg9 = self.create_outgoing_msg(
-            self.joe, "Hey out 9", status=Msg.STATUS_FAILED, created_on=datetime(2017, 1, 9, 10, tzinfo=tzone.utc)
-        )
-
-        self.assertEqual(msg5.get_attachments(), [Attachment("audio", "http://rapidpro.io/audio/sound.mp3")])
-
-        # label first message
-        label = self.create_label("la\02bel1")
-        label.toggle_label([msg1], add=True)
-
-        # archive last message
-        msg3.visibility = Msg.VISIBILITY_ARCHIVED
-        msg3.save()
-
-        # create a dummy export task so that we won't be able to export
-        blocking_export = MessageExport.create(
-            self.org,
-            self.admin,
-            start_date=date(2017, 1, 1),
-            end_date=date.today(),
-            system_label=SystemLabel.TYPE_INBOX,
-        )
-
-        old_modified_on = blocking_export.modified_on
-
-        response = self.client.post(
-            export_url + "?l=I",
-            {"export_all": 1, "start_date": "2022-09-01", "end_date": "2022-09-28"},
-        )
-        self.assertModalResponse(response, redirect="/msg/")
-
-        response = self.client.get("/msg/")
-        self.assertContains(response, "already an export in progress")
-
-        # perform the export manually, assert how many queries
-        with self.mockReadOnly():
-            blocking_export.perform()
-
-        blocking_export.refresh_from_db()
-        # after performing the export `modified_on` should be updated
-        self.assertNotEqual(old_modified_on, blocking_export.modified_on)
-
-        def request_export(query, data=None):
-            with self.mockReadOnly(assert_models={Msg, Contact}):
-                response = self.client.post(export_url + query, data)
-            self.assertModalResponse(response, redirect="/msg/")
-            task = Export.objects.filter(export_type=MessageExport.slug).order_by("-id").first()
-            filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.id, task.uuid)
-            workbook = load_workbook(filename=filename)
-            return workbook.worksheets[0]
-
-        expected_headers = [
-            "Date",
-            "Contact UUID",
-            "Contact Name",
-            "URN Scheme",
-            "URN Value",
-            "Flow",
-            "Direction",
-            "Text",
-            "Attachments",
-            "Status",
-            "Channel",
-            "Labels",
-        ]
-
-        # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(27):
-            self.assertExcelSheet(
-                request_export("?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"}),
-                [
-                    expected_headers,
-                    [
-                        msg1.created_on,
-                        msg1.contact.uuid,
-                        "Joe Blow",
-                        "tel",
-                        "123",
-                        "Color Flow",
-                        "IN",
-                        "hello 1",
-                        "",
-                        "handled",
-                        "Test Channel",
-                        "label1",
-                    ],
-                    [
-                        msg2.created_on,
-                        msg2.contact.uuid,
-                        "Bob",
-                        "telegram",
-                        "234567",
-                        "",
-                        "IN",
-                        "hello 2",
-                        "",
-                        "handled",
-                        "Telegram",
-                        "",
-                    ],
-                    [
-                        msg4.created_on,
-                        msg4.contact.uuid,
-                        "Joe Blow",
-                        "",
-                        "",
-                        "",
-                        "IN",
-                        "hello 4",
-                        "",
-                        "handled",
-                        "",
-                        "",
-                    ],
-                    [
-                        msg5.created_on,
-                        msg5.contact.uuid,
-                        "Joe Blow",
-                        "tel",
-                        "123",
-                        "",
-                        "IN",
-                        "Media message",
-                        "http://rapidpro.io/audio/sound.mp3",
-                        "handled",
-                        "Test Channel",
-                        "",
-                    ],
-                    [
-                        msg6.created_on,
-                        msg6.contact.uuid,
-                        "Joe Blow",
-                        "tel",
-                        "123",
-                        "",
-                        "OUT",
-                        "Hey out 6",
-                        "",
-                        "sent",
-                        "Test Channel",
-                        "",
-                    ],
-                    [
-                        msg7.created_on,
-                        msg7.contact.uuid,
-                        "Bob",
-                        "telegram",
-                        "234567",
-                        "",
-                        "OUT",
-                        "Hey out 7",
-                        "",
-                        "delivered",
-                        "Telegram",
-                        "",
-                    ],
-                    [
-                        msg8.created_on,
-                        msg8.contact.uuid,
-                        "Joe Blow",
-                        "tel",
-                        "123",
-                        "",
-                        "OUT",
-                        "Hey out 8",
-                        "",
-                        "errored",
-                        "Test Channel",
-                        "",
-                    ],
-                    [
-                        msg9.created_on,
-                        msg9.contact.uuid,
-                        "Joe Blow",
-                        "tel",
-                        "123",
-                        "",
-                        "OUT",
-                        "Hey out 9",
-                        "",
-                        "failed",
-                        "Test Channel",
-                        "",
-                    ],
-                ],
-                self.org.timezone,
-            )
-
-        # check that notifications were created
-        export = Export.objects.filter(export_type=MessageExport.slug).order_by("id").last()
-        self.assertEqual(
-            1,
-            self.admin.notifications.filter(
-                notification_type="export:finished", export=export, email_status="P"
-            ).count(),
-        )
-
-        # export just archived messages
-        self.assertExcelSheet(
-            request_export("?l=A", {"export_all": 0, "start_date": "2000-09-01", "end_date": "2022-09-28"}),
-            [
-                expected_headers,
-                [
-                    msg3.created_on,
-                    msg3.contact.uuid,
-                    "Bob",
-                    "telegram",
-                    "234567",
-                    "",
-                    "IN",
-                    "hello 3",
-                    "",
-                    "handled",
-                    "Telegram",
-                    "",
-                ],
-            ],
-            self.org.timezone,
-        )
-
-        # filter page should have an export option
-        filter_url = reverse("msgs.msg_filter", args=[label.uuid])
-        response = self.requestView(filter_url, self.admin)
-        self.assertContains(response, label.name)
-        self.assertContentMenu(filter_url, self.admin, ["Edit", "Download", "Usages", "Delete"])
-
-        # try export with user label
-        self.assertExcelSheet(
-            request_export(
-                "?l=%s" % label.uuid, {"export_all": 0, "start_date": "2000-09-01", "end_date": "2022-09-28"}
-            ),
-            [
-                expected_headers,
-                [
-                    msg1.created_on,
-                    msg1.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "Color Flow",
-                    "IN",
-                    "hello 1",
-                    "",
-                    "handled",
-                    "Test Channel",
-                    "label1",
-                ],
-            ],
-            self.org.timezone,
-        )
-
-        # try export with a date range, a field and a group
-        export_data = {
-            "export_all": 1,
-            "start_date": msg5.created_on.strftime("%Y-%m-%d"),
-            "end_date": msg7.created_on.strftime("%Y-%m-%d"),
-            "with_fields": [age.id],
-            "with_groups": [devs.id],
-        }
-
-        self.assertExcelSheet(
-            request_export("?l=I", export_data),
-            [
-                [
-                    "Date",
-                    "Contact UUID",
-                    "Contact Name",
-                    "URN Scheme",
-                    "URN Value",
-                    "Field:Age",
-                    "Group:Devs",
-                    "Flow",
-                    "Direction",
-                    "Text",
-                    "Attachments",
-                    "Status",
-                    "Channel",
-                    "Labels",
-                ],
-                [
-                    msg5.created_on,
-                    msg5.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "",
-                    False,
-                    "",
-                    "IN",
-                    "Media message",
-                    "http://rapidpro.io/audio/sound.mp3",
-                    "handled",
-                    "Test Channel",
-                    "",
-                ],
-                [
-                    msg6.created_on,
-                    msg6.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "",
-                    False,
-                    "",
-                    "OUT",
-                    "Hey out 6",
-                    "",
-                    "sent",
-                    "Test Channel",
-                    "",
-                ],
-                [
-                    msg7.created_on,
-                    msg7.contact.uuid,
-                    "Bob",
-                    "telegram",
-                    "234567",
-                    "40",
-                    True,
-                    "",
-                    "OUT",
-                    "Hey out 7",
-                    "",
-                    "delivered",
-                    "Telegram",
-                    "",
-                ],
-            ],
-            self.org.timezone,
-        )
-
-        # try to submit an invalid date (UI doesn't actually allow this)
-        response = self.client.post(export_url + "?l=I", {"export_all": 1, "start_date": "xyz"})
-        self.assertFormError(response, "form", "start_date", "Enter a valid date.")
-
-        # try to submit without specifying dates (UI doesn't actually allow this)
-        response = self.client.post(export_url + "?l=I", {"export_all": 1})
-        self.assertFormError(response, "form", "start_date", "This field is required.")
-        self.assertFormError(response, "form", "end_date", "This field is required.")
-
-        # try to submit with start date in future
-        response = self.client.post(
-            export_url + "?l=I", {"export_all": 1, "start_date": "2200-01-01", "end_date": "2022-09-28"}
-        )
-        self.assertFormError(response, "form", None, "Start date can't be in the future.")
-
-        # try to submit with start date > end date
-        response = self.client.post(
-            export_url + "?l=I", {"export_all": 1, "start_date": "2022-09-01", "end_date": "2022-03-01"}
-        )
-        self.assertFormError(response, "form", None, "End date can't be before start date.")
-
-        # test as anon org to check that URNs don't end up in exports
-        with self.anonymous(self.org):
-            self.assertExcelSheet(
-                request_export("?l=I", {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"}),
-                [
-                    [
-                        "Date",
-                        "Contact UUID",
-                        "Contact Name",
-                        "URN Scheme",
-                        "Anon Value",
-                        "Flow",
-                        "Direction",
-                        "Text",
-                        "Attachments",
-                        "Status",
-                        "Channel",
-                        "Labels",
-                    ],
-                    [
-                        msg1.created_on,
-                        msg1.contact.uuid,
-                        "Joe Blow",
-                        "tel",
-                        self.joe.anon_display,
-                        "Color Flow",
-                        "IN",
-                        "hello 1",
-                        "",
-                        "handled",
-                        "Test Channel",
-                        "label1",
-                    ],
-                    [
-                        msg2.created_on,
-                        msg2.contact.uuid,
-                        "Bob",
-                        "telegram",
-                        bob.anon_display,
-                        "",
-                        "IN",
-                        "hello 2",
-                        "",
-                        "handled",
-                        "Telegram",
-                        "",
-                    ],
-                    [
-                        msg4.created_on,
-                        msg4.contact.uuid,
-                        "Joe Blow",
-                        "",
-                        self.joe.anon_display,
-                        "",
-                        "IN",
-                        "hello 4",
-                        "",
-                        "handled",
-                        "",
-                        "",
-                    ],
-                    [
-                        msg5.created_on,
-                        msg5.contact.uuid,
-                        "Joe Blow",
-                        "tel",
-                        self.joe.anon_display,
-                        "",
-                        "IN",
-                        "Media message",
-                        "http://rapidpro.io/audio/sound.mp3",
-                        "handled",
-                        "Test Channel",
-                        "",
-                    ],
-                    [
-                        msg6.created_on,
-                        msg6.contact.uuid,
-                        "Joe Blow",
-                        "tel",
-                        self.joe.anon_display,
-                        "",
-                        "OUT",
-                        "Hey out 6",
-                        "",
-                        "sent",
-                        "Test Channel",
-                        "",
-                    ],
-                    [
-                        msg7.created_on,
-                        msg7.contact.uuid,
-                        "Bob",
-                        "telegram",
-                        bob.anon_display,
-                        "",
-                        "OUT",
-                        "Hey out 7",
-                        "",
-                        "delivered",
-                        "Telegram",
-                        "",
-                    ],
-                    [
-                        msg8.created_on,
-                        msg8.contact.uuid,
-                        "Joe Blow",
-                        "tel",
-                        self.joe.anon_display,
-                        "",
-                        "OUT",
-                        "Hey out 8",
-                        "",
-                        "errored",
-                        "Test Channel",
-                        "",
-                    ],
-                    [
-                        msg9.created_on,
-                        msg9.contact.uuid,
-                        "Joe Blow",
-                        "tel",
-                        self.joe.anon_display,
-                        "",
-                        "OUT",
-                        "Hey out 9",
-                        "",
-                        "failed",
-                        "Test Channel",
-                        "",
-                    ],
-                ],
-                self.org.timezone,
-            )
-
-        response = self.client.post(
-            export_url + "?l=I&redirect=http://foo.me",
-            {"export_all": 1, "start_date": "2000-09-01", "end_date": "2022-09-28"},
-        )
-        self.assertModalResponse(response, redirect="/msg/")
-
-        self.clear_storage()
-
     def test_fail_old_messages(self):
         msg1 = self.create_outgoing_msg(self.joe, "Hello", status=Msg.STATUS_QUEUED)
         msg2 = self.create_outgoing_msg(
@@ -1723,6 +814,908 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check admin users see edit and delete options for labels
         self.assertContentMenu(label1_url, self.admin, ["Edit", "Download", "Usages", "Delete"])
+
+    def test_export(self):
+        export_url = reverse("msgs.msg_export")
+
+        self.create_flow("Test")
+        testers = self.create_group("Testers", contacts=[])
+        gender = self.create_field("gender", "Gender")
+
+        response = self.assertUpdateFetch(
+            export_url + "?l=I",
+            allow_viewers=True,
+            allow_editors=True,
+            allow_org2=True,
+            form_fields=(
+                "start_date",
+                "end_date",
+                "with_fields",
+                "with_groups",
+                "export_all",
+            ),
+        )
+        self.assertNotContains(response, "already an export in progress")
+
+        # create a dummy export task so that we won't be able to export
+        blocking_export = MessageExport.create(
+            self.org, self.admin, start_date=date.today() - timedelta(days=7), end_date=date.today()
+        )
+
+        response = self.client.get(export_url + "?l=I")
+        self.assertContains(response, "already an export in progress")
+
+        # we don't given them the option to start the export but check it can't be started anyway
+        with self.assertRaises(AssertionError):
+            response = self.client.post(
+                export_url + "?l=I", {"start_date": "2022-06-28", "end_date": "2022-09-28", "export_all": 1}
+            )
+
+        # mark that one as finished so it's no longer a blocker
+        blocking_export.status = Export.STATUS_COMPLETE
+        blocking_export.save(update_fields=("status",))
+
+        # try to submit with no values
+        response = self.client.post(export_url + "?l=I", {})
+        self.assertFormError(response, "form", "start_date", "This field is required.")
+        self.assertFormError(response, "form", "end_date", "This field is required.")
+        self.assertFormError(response, "form", "export_all", "This field is required.")
+
+        response = self.client.post(
+            export_url + "?l=I",
+            {
+                "start_date": "2022-06-28",
+                "end_date": "2022-09-28",
+                "with_groups": [testers.id],
+                "with_fields": [gender.id],
+                "export_all": 0,
+            },
+        )
+        self.assertEqual(200, response.status_code)
+
+        export = Export.objects.exclude(id=blocking_export.id).get()
+        self.assertEqual("message", export.export_type)
+        self.assertEqual(date(2022, 6, 28), export.start_date)
+        self.assertEqual(date(2022, 9, 28), export.end_date)
+        self.assertEqual(
+            {"with_groups": [testers.id], "with_fields": [gender.id], "label_uuid": None, "system_label": "I"},
+            export.config,
+        )
+
+        self.clear_storage()
+
+
+class MessageExportTest(TembaTest):
+    def setUp(self):
+        super().setUp()
+
+        self.joe = self.create_contact("Joe Blow", phone="123")
+        ContactURN.create(self.org, self.joe, "tel:789")
+
+        self.frank = self.create_contact("Frank Blow", phone="321")
+        self.kevin = self.create_contact("Kevin Durant", phone="987")
+
+        self.just_joe = self.create_group("Just Joe", [self.joe])
+        self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
+
+    def _export(self, system_label, label, start_date, end_date, with_groups=(), with_fields=()):
+        export = MessageExport.create(
+            self.org,
+            self.admin,
+            start_date,
+            end_date,
+            system_label,
+            label,
+            with_groups=with_groups,
+            with_fields=with_fields,
+        )
+        with self.mockReadOnly():
+            export.perform()
+
+        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/message_exports/{export.uuid}.xlsx"
+        return load_workbook(filename=filename)
+
+    def test_export_from_archives(self):
+        self.joe.name = "Jo\02e Blow"
+        self.joe.save(update_fields=("name",))
+
+        self.org.created_on = datetime(2017, 1, 1, 9, tzinfo=tzone.utc)
+        self.org.save()
+
+        flow = self.create_flow("Color Flow")
+
+        msg1 = self.create_incoming_msg(self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=tzone.utc))
+        msg2 = self.create_incoming_msg(
+            self.frank, "hello 2", created_on=datetime(2017, 1, 2, 10, tzinfo=tzone.utc), flow=flow
+        )
+        msg3 = self.create_incoming_msg(self.joe, "hello 3", created_on=datetime(2017, 1, 3, 10, tzinfo=tzone.utc))
+
+        # inbound message that looks like a surveyor message
+        msg4 = self.create_incoming_msg(
+            self.joe, "hello 4", surveyor=True, created_on=datetime(2017, 1, 4, 10, tzinfo=tzone.utc)
+        )
+
+        # inbound message with media attached, such as an ivr recording
+        msg5 = self.create_incoming_msg(
+            self.joe,
+            "Media message",
+            attachments=["audio:http://rapidpro.io/audio/sound.mp3"],
+            created_on=datetime(2017, 1, 5, 10, tzinfo=tzone.utc),
+        )
+
+        # create some outbound messages with different statuses
+        msg6 = self.create_outgoing_msg(
+            self.joe, "Hey out 6", status=Msg.STATUS_SENT, created_on=datetime(2017, 1, 6, 10, tzinfo=tzone.utc)
+        )
+        msg7 = self.create_outgoing_msg(
+            self.joe, "Hey out 7", status=Msg.STATUS_DELIVERED, created_on=datetime(2017, 1, 7, 10, tzinfo=tzone.utc)
+        )
+        msg8 = self.create_outgoing_msg(
+            self.joe, "Hey out 8", status=Msg.STATUS_ERRORED, created_on=datetime(2017, 1, 8, 10, tzinfo=tzone.utc)
+        )
+        msg9 = self.create_outgoing_msg(
+            self.joe, "Hey out 9", status=Msg.STATUS_FAILED, created_on=datetime(2017, 1, 9, 10, tzinfo=tzone.utc)
+        )
+
+        self.assertEqual(msg5.get_attachments(), [Attachment("audio", "http://rapidpro.io/audio/sound.mp3")])
+
+        # label first message
+        label = self.create_label("la\02bel1")
+        label.toggle_label([msg1], add=True)
+
+        # archive last message
+        msg3.visibility = Msg.VISIBILITY_ARCHIVED
+        msg3.save()
+
+        # archive 5 msgs
+        mock_s3 = MockS3Client()
+        body, md5, size = jsonlgz_encode([m.as_archive_json() for m in (msg1, msg2, msg3, msg4, msg5, msg6)])
+        mock_s3.put_object("test-bucket", "archive1.jsonl.gz", body)
+
+        Archive.objects.create(
+            org=self.org,
+            archive_type=Archive.TYPE_MSG,
+            size=size,
+            hash=md5,
+            url="http://test-bucket.aws.com/archive1.jsonl.gz",
+            record_count=6,
+            start_date=msg5.created_on.date(),
+            period="D",
+            build_time=23425,
+        )
+
+        with patch("django.core.files.storage.default_storage.delete"):
+            msg2.delete()
+            msg3.delete()
+            msg4.delete()
+            msg5.delete()
+            msg6.delete()
+
+        # create an archive earlier than our flow created date so we check that it isn't included
+        body, md5, size = jsonlgz_encode([msg7.as_archive_json()])
+        Archive.objects.create(
+            org=self.org,
+            archive_type=Archive.TYPE_MSG,
+            size=size,
+            hash=md5,
+            url="http://test-bucket.aws.com/archive2.jsonl.gz",
+            record_count=1,
+            start_date=self.org.created_on - timedelta(days=2),
+            period="D",
+            build_time=5678,
+        )
+        mock_s3.put_object("test-bucket", "archive2.jsonl.gz", body)
+
+        msg7.delete()
+
+        # export all visible messages (i.e. not msg3) using export_all param
+        with self.assertNumQueries(18):
+            with patch("temba.utils.s3.client", return_value=mock_s3):
+                workbook = self._export(None, None, date(2000, 9, 1), date(2022, 9, 1))
+
+        expected_headers = [
+            "Date",
+            "Contact UUID",
+            "Contact Name",
+            "URN Scheme",
+            "URN Value",
+            "Flow",
+            "Direction",
+            "Text",
+            "Attachments",
+            "Status",
+            "Channel",
+            "Labels",
+        ]
+
+        self.assertExcelSheet(
+            workbook.worksheets[0],
+            [
+                expected_headers,
+                [
+                    msg1.created_on,
+                    msg1.contact.uuid,
+                    "Joe Blow",
+                    "tel",
+                    "123",
+                    "",
+                    "IN",
+                    "hello 1",
+                    "",
+                    "handled",
+                    "Test Channel",
+                    "label1",
+                ],
+                [
+                    msg2.created_on,
+                    msg2.contact.uuid,
+                    "Frank Blow",
+                    "tel",
+                    "321",
+                    "Color Flow",
+                    "IN",
+                    "hello 2",
+                    "",
+                    "handled",
+                    "Test Channel",
+                    "",
+                ],
+                [msg4.created_on, msg1.contact.uuid, "Joe Blow", "", "", "", "IN", "hello 4", "", "handled", "", ""],
+                [
+                    msg5.created_on,
+                    msg5.contact.uuid,
+                    "Joe Blow",
+                    "tel",
+                    "123",
+                    "",
+                    "IN",
+                    "Media message",
+                    "http://rapidpro.io/audio/sound.mp3",
+                    "handled",
+                    "Test Channel",
+                    "",
+                ],
+                [
+                    msg6.created_on,
+                    msg6.contact.uuid,
+                    "Joe Blow",
+                    "tel",
+                    "123",
+                    "",
+                    "OUT",
+                    "Hey out 6",
+                    "",
+                    "sent",
+                    "Test Channel",
+                    "",
+                ],
+                [
+                    msg8.created_on,
+                    msg8.contact.uuid,
+                    "Joe Blow",
+                    "tel",
+                    "123",
+                    "",
+                    "OUT",
+                    "Hey out 8",
+                    "",
+                    "errored",
+                    "Test Channel",
+                    "",
+                ],
+                [
+                    msg9.created_on,
+                    msg9.contact.uuid,
+                    "Joe Blow",
+                    "tel",
+                    "123",
+                    "",
+                    "OUT",
+                    "Hey out 9",
+                    "",
+                    "failed",
+                    "Test Channel",
+                    "",
+                ],
+            ],
+            self.org.timezone,
+        )
+
+        with patch("temba.utils.s3.client", return_value=mock_s3):
+            workbook = self._export(SystemLabel.TYPE_INBOX, None, msg5.created_on.date(), msg7.created_on.date())
+
+        self.assertExcelSheet(
+            workbook.worksheets[0],
+            [
+                expected_headers,
+                [
+                    msg5.created_on,
+                    msg5.contact.uuid,
+                    "Joe Blow",
+                    "tel",
+                    "123",
+                    "",
+                    "IN",
+                    "Media message",
+                    "http://rapidpro.io/audio/sound.mp3",
+                    "handled",
+                    "Test Channel",
+                    "",
+                ],
+            ],
+            self.org.timezone,
+        )
+
+        with patch("temba.utils.s3.client", return_value=mock_s3):
+            workbook = self._export(SystemLabel.TYPE_SENT, None, date(2000, 9, 1), date(2022, 9, 1))
+
+        self.assertExcelSheet(
+            workbook.worksheets[0],
+            [
+                expected_headers,
+                [
+                    msg6.created_on,
+                    msg6.contact.uuid,
+                    "Joe Blow",
+                    "tel",
+                    "123",
+                    "",
+                    "OUT",
+                    "Hey out 6",
+                    "",
+                    "sent",
+                    "Test Channel",
+                    "",
+                ],
+            ],
+            self.org.timezone,
+        )
+
+        with patch("temba.utils.s3.client", return_value=mock_s3):
+            workbook = self._export(SystemLabel.TYPE_FAILED, None, date(2000, 9, 1), date(2022, 9, 1))
+
+        self.assertExcelSheet(
+            workbook.worksheets[0],
+            [
+                expected_headers,
+                [
+                    msg9.created_on,
+                    msg9.contact.uuid,
+                    "Joe Blow",
+                    "tel",
+                    "123",
+                    "",
+                    "OUT",
+                    "Hey out 9",
+                    "",
+                    "failed",
+                    "Test Channel",
+                    "",
+                ],
+            ],
+            self.org.timezone,
+        )
+
+        with patch("temba.utils.s3.client", return_value=mock_s3):
+            workbook = self._export(SystemLabel.TYPE_FLOWS, None, date(2000, 9, 1), date(2022, 9, 1))
+
+        self.assertExcelSheet(
+            workbook.worksheets[0],
+            [
+                expected_headers,
+                [
+                    msg2.created_on,
+                    msg2.contact.uuid,
+                    "Frank Blow",
+                    "tel",
+                    "321",
+                    "Color Flow",
+                    "IN",
+                    "hello 2",
+                    "",
+                    "handled",
+                    "Test Channel",
+                    "",
+                ],
+            ],
+            self.org.timezone,
+        )
+
+        with patch("temba.utils.s3.client", return_value=mock_s3):
+            workbook = self._export(None, label, date(2000, 9, 1), date(2022, 9, 1))
+
+        self.assertExcelSheet(
+            workbook.worksheets[0],
+            [
+                expected_headers,
+                [
+                    msg1.created_on,
+                    msg1.contact.uuid,
+                    "Joe Blow",
+                    "tel",
+                    "123",
+                    "",
+                    "IN",
+                    "hello 1",
+                    "",
+                    "handled",
+                    "Test Channel",
+                    "label1",
+                ],
+            ],
+            self.org.timezone,
+        )
+
+        self.clear_storage()
+
+    def test_export(self):
+        age = self.create_field("age", "Age")
+        bob = self.create_contact("Bob", urns=["telegram:234567"], fields={"age": 40})
+        devs = self.create_group("Devs", [bob])
+
+        self.joe.name = "Jo\02e Blow"
+        self.joe.save(update_fields=("name",))
+
+        telegram = self.create_channel("TG", "Telegram", "765432")
+
+        # messages can't be older than org
+        self.org.created_on = datetime(2016, 1, 2, 10, tzinfo=tzone.utc)
+        self.org.save(update_fields=("created_on",))
+
+        flow = self.create_flow("Color Flow")
+        msg1 = self.create_incoming_msg(
+            self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=tzone.utc), flow=flow
+        )
+        msg2 = self.create_incoming_msg(
+            bob, "hello 2", created_on=datetime(2017, 1, 2, 10, tzinfo=tzone.utc), channel=telegram
+        )
+        msg3 = self.create_incoming_msg(
+            bob, "hello 3", created_on=datetime(2017, 1, 3, 10, tzinfo=tzone.utc), channel=telegram
+        )
+
+        # inbound message that looks like a surveyor message
+        msg4 = self.create_incoming_msg(
+            self.joe, "hello 4", surveyor=True, created_on=datetime(2017, 1, 4, 10, tzinfo=tzone.utc)
+        )
+
+        # inbound message with media attached, such as an ivr recording
+        msg5 = self.create_incoming_msg(
+            self.joe,
+            "Media message",
+            attachments=["audio:http://rapidpro.io/audio/sound.mp3"],
+            created_on=datetime(2017, 1, 5, 10, tzinfo=tzone.utc),
+        )
+
+        # create some outbound messages with different statuses
+        msg6 = self.create_outgoing_msg(
+            self.joe, "Hey out 6", status=Msg.STATUS_SENT, created_on=datetime(2017, 1, 6, 10, tzinfo=tzone.utc)
+        )
+        msg7 = self.create_outgoing_msg(
+            bob,
+            "Hey out 7",
+            status=Msg.STATUS_DELIVERED,
+            created_on=datetime(2017, 1, 7, 10, tzinfo=tzone.utc),
+            channel=telegram,
+        )
+        msg8 = self.create_outgoing_msg(
+            self.joe, "Hey out 8", status=Msg.STATUS_ERRORED, created_on=datetime(2017, 1, 8, 10, tzinfo=tzone.utc)
+        )
+        msg9 = self.create_outgoing_msg(
+            self.joe, "Hey out 9", status=Msg.STATUS_FAILED, created_on=datetime(2017, 1, 9, 10, tzinfo=tzone.utc)
+        )
+
+        self.assertEqual(msg5.get_attachments(), [Attachment("audio", "http://rapidpro.io/audio/sound.mp3")])
+
+        # label first message
+        label = self.create_label("la\02bel1")
+        label.toggle_label([msg1], add=True)
+
+        # archive last message
+        msg3.visibility = Msg.VISIBILITY_ARCHIVED
+        msg3.save()
+
+        expected_headers = [
+            "Date",
+            "Contact UUID",
+            "Contact Name",
+            "URN Scheme",
+            "URN Value",
+            "Flow",
+            "Direction",
+            "Text",
+            "Attachments",
+            "Status",
+            "Channel",
+            "Labels",
+        ]
+
+        # export all visible messages (i.e. not msg3) using export_all param
+        with self.assertNumQueries(16):
+            self.assertExcelSheet(
+                self._export(None, None, date(2000, 9, 1), date(2022, 9, 28)).worksheets[0],
+                [
+                    expected_headers,
+                    [
+                        msg1.created_on,
+                        msg1.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        "123",
+                        "Color Flow",
+                        "IN",
+                        "hello 1",
+                        "",
+                        "handled",
+                        "Test Channel",
+                        "label1",
+                    ],
+                    [
+                        msg2.created_on,
+                        msg2.contact.uuid,
+                        "Bob",
+                        "telegram",
+                        "234567",
+                        "",
+                        "IN",
+                        "hello 2",
+                        "",
+                        "handled",
+                        "Telegram",
+                        "",
+                    ],
+                    [
+                        msg4.created_on,
+                        msg4.contact.uuid,
+                        "Joe Blow",
+                        "",
+                        "",
+                        "",
+                        "IN",
+                        "hello 4",
+                        "",
+                        "handled",
+                        "",
+                        "",
+                    ],
+                    [
+                        msg5.created_on,
+                        msg5.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        "123",
+                        "",
+                        "IN",
+                        "Media message",
+                        "http://rapidpro.io/audio/sound.mp3",
+                        "handled",
+                        "Test Channel",
+                        "",
+                    ],
+                    [
+                        msg6.created_on,
+                        msg6.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        "123",
+                        "",
+                        "OUT",
+                        "Hey out 6",
+                        "",
+                        "sent",
+                        "Test Channel",
+                        "",
+                    ],
+                    [
+                        msg7.created_on,
+                        msg7.contact.uuid,
+                        "Bob",
+                        "telegram",
+                        "234567",
+                        "",
+                        "OUT",
+                        "Hey out 7",
+                        "",
+                        "delivered",
+                        "Telegram",
+                        "",
+                    ],
+                    [
+                        msg8.created_on,
+                        msg8.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        "123",
+                        "",
+                        "OUT",
+                        "Hey out 8",
+                        "",
+                        "errored",
+                        "Test Channel",
+                        "",
+                    ],
+                    [
+                        msg9.created_on,
+                        msg9.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        "123",
+                        "",
+                        "OUT",
+                        "Hey out 9",
+                        "",
+                        "failed",
+                        "Test Channel",
+                        "",
+                    ],
+                ],
+                self.org.timezone,
+            )
+
+        # check that notifications were created
+        export = Export.objects.filter(export_type=MessageExport.slug).order_by("id").last()
+        self.assertEqual(
+            1,
+            self.admin.notifications.filter(
+                notification_type="export:finished", export=export, email_status="P"
+            ).count(),
+        )
+
+        # export just archived messages
+        self.assertExcelSheet(
+            self._export(SystemLabel.TYPE_ARCHIVED, None, date(2000, 9, 1), date(2022, 9, 28)).worksheets[0],
+            [
+                expected_headers,
+                [
+                    msg3.created_on,
+                    msg3.contact.uuid,
+                    "Bob",
+                    "telegram",
+                    "234567",
+                    "",
+                    "IN",
+                    "hello 3",
+                    "",
+                    "handled",
+                    "Telegram",
+                    "",
+                ],
+            ],
+            self.org.timezone,
+        )
+
+        # try export with user label
+        self.assertExcelSheet(
+            self._export(None, label, date(2000, 9, 1), date(2022, 9, 28)).worksheets[0],
+            [
+                expected_headers,
+                [
+                    msg1.created_on,
+                    msg1.contact.uuid,
+                    "Joe Blow",
+                    "tel",
+                    "123",
+                    "Color Flow",
+                    "IN",
+                    "hello 1",
+                    "",
+                    "handled",
+                    "Test Channel",
+                    "label1",
+                ],
+            ],
+            self.org.timezone,
+        )
+
+        # try export with a date range, a field and a group
+        self.assertExcelSheet(
+            self._export(
+                None, None, msg5.created_on.date(), msg7.created_on.date(), with_fields=[age], with_groups=[devs]
+            ).worksheets[0],
+            [
+                [
+                    "Date",
+                    "Contact UUID",
+                    "Contact Name",
+                    "URN Scheme",
+                    "URN Value",
+                    "Field:Age",
+                    "Group:Devs",
+                    "Flow",
+                    "Direction",
+                    "Text",
+                    "Attachments",
+                    "Status",
+                    "Channel",
+                    "Labels",
+                ],
+                [
+                    msg5.created_on,
+                    msg5.contact.uuid,
+                    "Joe Blow",
+                    "tel",
+                    "123",
+                    "",
+                    False,
+                    "",
+                    "IN",
+                    "Media message",
+                    "http://rapidpro.io/audio/sound.mp3",
+                    "handled",
+                    "Test Channel",
+                    "",
+                ],
+                [
+                    msg6.created_on,
+                    msg6.contact.uuid,
+                    "Joe Blow",
+                    "tel",
+                    "123",
+                    "",
+                    False,
+                    "",
+                    "OUT",
+                    "Hey out 6",
+                    "",
+                    "sent",
+                    "Test Channel",
+                    "",
+                ],
+                [
+                    msg7.created_on,
+                    msg7.contact.uuid,
+                    "Bob",
+                    "telegram",
+                    "234567",
+                    "40",
+                    True,
+                    "",
+                    "OUT",
+                    "Hey out 7",
+                    "",
+                    "delivered",
+                    "Telegram",
+                    "",
+                ],
+            ],
+            self.org.timezone,
+        )
+
+        # test as anon org to check that URNs don't end up in exports
+        with self.anonymous(self.org):
+            self.assertExcelSheet(
+                self._export(None, None, date(2000, 9, 1), date(2022, 9, 28)).worksheets[0],
+                [
+                    [
+                        "Date",
+                        "Contact UUID",
+                        "Contact Name",
+                        "URN Scheme",
+                        "Anon Value",
+                        "Flow",
+                        "Direction",
+                        "Text",
+                        "Attachments",
+                        "Status",
+                        "Channel",
+                        "Labels",
+                    ],
+                    [
+                        msg1.created_on,
+                        msg1.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        self.joe.anon_display,
+                        "Color Flow",
+                        "IN",
+                        "hello 1",
+                        "",
+                        "handled",
+                        "Test Channel",
+                        "label1",
+                    ],
+                    [
+                        msg2.created_on,
+                        msg2.contact.uuid,
+                        "Bob",
+                        "telegram",
+                        bob.anon_display,
+                        "",
+                        "IN",
+                        "hello 2",
+                        "",
+                        "handled",
+                        "Telegram",
+                        "",
+                    ],
+                    [
+                        msg4.created_on,
+                        msg4.contact.uuid,
+                        "Joe Blow",
+                        "",
+                        self.joe.anon_display,
+                        "",
+                        "IN",
+                        "hello 4",
+                        "",
+                        "handled",
+                        "",
+                        "",
+                    ],
+                    [
+                        msg5.created_on,
+                        msg5.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        self.joe.anon_display,
+                        "",
+                        "IN",
+                        "Media message",
+                        "http://rapidpro.io/audio/sound.mp3",
+                        "handled",
+                        "Test Channel",
+                        "",
+                    ],
+                    [
+                        msg6.created_on,
+                        msg6.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        self.joe.anon_display,
+                        "",
+                        "OUT",
+                        "Hey out 6",
+                        "",
+                        "sent",
+                        "Test Channel",
+                        "",
+                    ],
+                    [
+                        msg7.created_on,
+                        msg7.contact.uuid,
+                        "Bob",
+                        "telegram",
+                        bob.anon_display,
+                        "",
+                        "OUT",
+                        "Hey out 7",
+                        "",
+                        "delivered",
+                        "Telegram",
+                        "",
+                    ],
+                    [
+                        msg8.created_on,
+                        msg8.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        self.joe.anon_display,
+                        "",
+                        "OUT",
+                        "Hey out 8",
+                        "",
+                        "errored",
+                        "Test Channel",
+                        "",
+                    ],
+                    [
+                        msg9.created_on,
+                        msg9.contact.uuid,
+                        "Joe Blow",
+                        "tel",
+                        self.joe.anon_display,
+                        "",
+                        "OUT",
+                        "Hey out 9",
+                        "",
+                        "failed",
+                        "Test Channel",
+                        "",
+                    ],
+                ],
+                self.org.timezone,
+            )
+
+        self.clear_storage()
 
 
 class BroadcastTest(TembaTest):

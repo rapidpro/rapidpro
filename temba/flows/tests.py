@@ -3169,8 +3169,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             response = self.client.post(
                 export_url, {"start_date": "2022-06-28", "end_date": "2022-09-28", "flows": [flow.id]}
             )
-            print(response)
-            breakpoint()
 
         # mark that one as finished so it's no longer a blocker
         blocking_export.status = Export.STATUS_COMPLETE
