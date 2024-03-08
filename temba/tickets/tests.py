@@ -629,7 +629,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create a dummy export task so that we won't be able to export
         blocking_export = TicketExport.create(
-            self.org, self.admin, start_date=date.today() - timedelta(days=7), end_date=date.today(), with_fields=()
+            self.org, self.admin, start_date=date.today() - timedelta(days=7), end_date=date.today()
         )
 
         response = self.client.get(export_url)
@@ -688,6 +688,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         export = Export.objects.exclude(id=blocking_export.id).get()
         self.assertEqual("ticket", export.export_type)
+        self.assertEqual(date(2022, 6, 28), export.start_date)
+        self.assertEqual(date(2022, 9, 28), export.end_date)
         self.assertEqual(
             {"with_groups": [testers.id], "with_fields": [gender.id]},
             export.config,
@@ -697,7 +699,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
 
 class TicketExportTest(TembaTest):
-    def create_export(self, start_date: date, end_date: date, with_fields=(), with_groups=()):
+    def _export(self, start_date: date, end_date: date, with_fields=(), with_groups=()):
         export = TicketExport.create(
             self.org,
             self.admin,
@@ -713,7 +715,7 @@ class TicketExportTest(TembaTest):
 
     def test_export_empty(self):
         # check results of sheet in workbook (no Contact ID column)
-        sheets, export = self.create_export(start_date=date.today() - timedelta(days=7), end_date=date.today())
+        sheets, export = self._export(start_date=date.today() - timedelta(days=7), end_date=date.today())
         self.assertExcelSheet(
             sheets[0],
             [
@@ -734,7 +736,7 @@ class TicketExportTest(TembaTest):
 
         with self.anonymous(self.org):
             # anon org doesn't see URN value column
-            sheets, export = self.create_export(start_date=date.today() - timedelta(days=7), end_date=date.today())
+            sheets, export = self._export(start_date=date.today() - timedelta(days=7), end_date=date.today())
             self.assertExcelSheet(
                 sheets[0],
                 [
@@ -824,7 +826,7 @@ class TicketExportTest(TembaTest):
         # check requesting export for last 90 days
         with self.mockReadOnly(assert_models={Ticket, ContactURN}):
             with self.assertNumQueries(17):
-                sheets, export = self.create_export(start_date=today - timedelta(days=90), end_date=today)
+                sheets, export = self._export(start_date=today - timedelta(days=90), end_date=today)
 
         expected_headers = [
             "UUID",
@@ -892,7 +894,7 @@ class TicketExportTest(TembaTest):
 
         # check requesting export for last 7 days
         with self.mockReadOnly(assert_models={Ticket, ContactURN}):
-            sheets, export = self.create_export(start_date=today - timedelta(days=7), end_date=today)
+            sheets, export = self._export(start_date=today - timedelta(days=7), end_date=today)
 
         self.assertExcelSheet(
             sheets[0],
@@ -926,7 +928,7 @@ class TicketExportTest(TembaTest):
 
         # check requesting with contact fields and groups
         with self.mockReadOnly(assert_models={Ticket, ContactURN}):
-            sheets, export = self.create_export(
+            sheets, export = self._export(
                 start_date=today - timedelta(days=7), end_date=today, with_fields=(age, gender), with_groups=(testers,)
             )
 
@@ -968,7 +970,7 @@ class TicketExportTest(TembaTest):
 
         with self.anonymous(self.org):
             with self.mockReadOnly(assert_models={Ticket, ContactURN}):
-                sheets, export = self.create_export(start_date=today - timedelta(days=90), end_date=today)
+                sheets, export = self._export(start_date=today - timedelta(days=90), end_date=today)
             self.assertExcelSheet(
                 sheets[0],
                 [
