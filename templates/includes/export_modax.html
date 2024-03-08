@@ -1,0 +1,29 @@
+{% extends "includes/modax.html" %}
+{% load i18n smartmin %}
+
+{% block modal %}
+  {# if there's a blocker, we override the entire modal content to hide the form and just show the blocker #}
+  {% if blocker == "existing-export" %}
+    {% trans "There is already an export in progress. You must wait for that export to complete before starting another." %}
+  {% elif blocker == "too-big" %}
+    {% block too-big-blocker %}
+    {% endblock too-big-blocker %}
+  {% else %}
+    {{ block.super }}
+  {% endif %}
+{% endblock modal %}
+{% block fields %}
+  {% if form.fields.start_date or form.fields.end_date %}
+    <div class="flex">
+      <div class="start flex-grow">{% render_field 'start_date' %}</div>
+      <div class="px-1"></div>
+      <div class="end flex-grow">{% render_field 'end_date' %}</div>
+    </div>
+  {% endif %}
+  {% if form.fields.with_fields %}
+    {% render_field 'with_fields' %}
+  {% endif %}
+  {% if form.fields.with_groups %}
+    {% render_field 'with_groups' %}
+  {% endif %}
+{% endblock fields %}

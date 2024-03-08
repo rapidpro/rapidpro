@@ -614,36 +614,108 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             response["Content-Disposition"],
         )
 
-    def test_export_when_export_already_in_progress(self):
-        self.clear_storage()
-        self.login(self.admin)
+    @mock_mailroom
+    def test_export(self, mr_mocks):
         export_url = reverse("tickets.ticket_export")
+
+        response = self.assertUpdateFetch(
+            export_url,
+            allow_viewers=True,
+            allow_editors=True,
+            allow_org2=True,
+            form_fields=("start_date", "end_date", "with_fields", "with_groups"),
+        )
+        self.assertNotContains(response, "already an export in progress")
 
         # create a dummy export task so that we won't be able to export
         blocking_export = TicketExport.create(
             self.org, self.admin, start_date=date.today() - timedelta(days=7), end_date=date.today(), with_fields=()
         )
-        response = self.client.post(export_url, {"start_date": "2022-06-28", "end_date": "2022-09-28"})
-        self.assertModalResponse(response, redirect="/ticket/")
 
-        response = self.client.get("/ticket/")
+        response = self.client.get(export_url)
         self.assertContains(response, "already an export in progress")
 
-        # ok mark that export as finished and try again
+        # we don't given them the option to start the export but check it can't be started anyway
+        with self.assertRaises(AssertionError):
+            self.client.post(export_url, {"start_date": "2022-06-28", "end_date": "2022-09-28"})
+
+        # mark that one as finished so it's no longer a blocker
         blocking_export.status = Export.STATUS_COMPLETE
         blocking_export.save(update_fields=("status",))
 
-        response = self.client.post(export_url, {"start_date": "2022-06-28", "end_date": "2022-09-28"})
-        self.assertModalResponse(response, redirect="/ticket/")
-        self.assertEqual(2, Export.objects.count())
+        # try to submit with no values
+        response = self.client.post(export_url, {})
+        self.assertFormError(response, "form", "start_date", "This field is required.")
+        self.assertFormError(response, "form", "end_date", "This field is required.")
+
+        # try to submit with start date in future
+        response = self.client.post(export_url, {"start_date": "2200-01-01", "end_date": "2022-09-28"})
+        self.assertFormError(response, "form", None, "Start date can't be in the future.")
+
+        # try to submit with start date > end date
+        response = self.client.post(export_url, {"start_date": "2022-09-01", "end_date": "2022-03-01"})
+        self.assertFormError(response, "form", None, "End date can't be before start date.")
+
+        # try to submit with too many fields or groups
+        too_many_fields = [self.create_field(f"Field {i}", f"field{i}") for i in range(11)]
+        too_many_groups = [self.create_group(f"Group {i}", contacts=[]) for i in range(11)]
+
+        response = self.client.post(
+            export_url,
+            {
+                "start_date": "2022-06-28",
+                "end_date": "2022-09-28",
+                "with_fields": [cf.id for cf in too_many_fields],
+                "with_groups": [cg.id for cg in too_many_groups],
+            },
+        )
+        self.assertFormError(response, "form", "with_fields", "You can only include up to 10 fields.")
+        self.assertFormError(response, "form", "with_groups", "You can only include up to 10 groups.")
+
+        testers = self.create_group("Testers", contacts=[])
+        gender = self.create_field("gender", "Gender")
+
+        response = self.client.post(
+            export_url,
+            {
+                "start_date": "2022-06-28",
+                "end_date": "2022-09-28",
+                "with_groups": [testers.id],
+                "with_fields": [gender.id],
+            },
+        )
+        self.assertEqual(200, response.status_code)
+
+        export = Export.objects.exclude(id=blocking_export.id).get()
+        self.assertEqual("ticket", export.export_type)
+        self.assertEqual(
+            {"with_groups": [testers.id], "with_fields": [gender.id]},
+            export.config,
+        )
+
+        self.clear_storage()
+
+
+class TicketExportTest(TembaTest):
+    def create_export(self, start_date: date, end_date: date, with_fields=(), with_groups=()):
+        export = TicketExport.create(
+            self.org,
+            self.admin,
+            start_date=start_date,
+            end_date=end_date,
+            with_fields=with_fields,
+            with_groups=with_groups,
+        )
+        export.perform()
+        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/ticket_exports/{export.uuid}.xlsx"
+        workbook = load_workbook(filename=filename)
+        return workbook.worksheets, export
 
     def test_export_empty(self):
-        self.login(self.admin)
-
         # check results of sheet in workbook (no Contact ID column)
-        export = self._request_export(start_date=date.today() - timedelta(days=7), end_date=date.today())
+        sheets, export = self.create_export(start_date=date.today() - timedelta(days=7), end_date=date.today())
         self.assertExcelSheet(
-            export[0],
+            sheets[0],
             [
                 [
                     "UUID",
@@ -662,9 +734,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         with self.anonymous(self.org):
             # anon org doesn't see URN value column
-            export = self._request_export(start_date=date.today() - timedelta(days=7), end_date=date.today())
+            sheets, export = self.create_export(start_date=date.today() - timedelta(days=7), end_date=date.today())
             self.assertExcelSheet(
-                export[0],
+                sheets[0],
                 [
                     [
                         "UUID",
@@ -684,10 +756,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.clear_storage()
 
     def test_export(self):
-        export_url = reverse("tickets.ticket_export")
-
-        self.login(self.admin)
-
         gender = self.create_field("gender", "Gender")
         age = self.create_field("age", "Age", value_type=ContactField.TYPE_NUMBER)
 
@@ -753,23 +821,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # create a ticket on another org for rebecca
         self.create_ticket(self.create_contact("Rebecca", urns=["twitter:rwaddingham"], org=self.org2), "Stuff")
 
-        # try to submit without specifying dates (UI doesn't actually allow this)
-        response = self.client.post(export_url, {})
-        self.assertFormError(response, "form", "start_date", "This field is required.")
-        self.assertFormError(response, "form", "end_date", "This field is required.")
-
-        # try to submit with start date in future
-        response = self.client.post(export_url, {"start_date": "2200-01-01", "end_date": "2022-09-28"})
-        self.assertFormError(response, "form", None, "Start date can't be in the future.")
-
-        # try to submit with start date > end date
-        response = self.client.post(export_url, {"start_date": "2022-09-01", "end_date": "2022-03-01"})
-        self.assertFormError(response, "form", None, "End date can't be before start date.")
-
         # check requesting export for last 90 days
         with self.mockReadOnly(assert_models={Ticket, ContactURN}):
-            with self.assertNumQueries(28):
-                export = self._request_export(start_date=today - timedelta(days=90), end_date=today)
+            with self.assertNumQueries(17):
+                sheets, export = self.create_export(start_date=today - timedelta(days=90), end_date=today)
 
         expected_headers = [
             "UUID",
@@ -784,7 +839,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         ]
 
         self.assertExcelSheet(
-            export[0],
+            sheets[0],
             rows=[
                 expected_headers,
                 [
@@ -837,10 +892,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check requesting export for last 7 days
         with self.mockReadOnly(assert_models={Ticket, ContactURN}):
-            export = self._request_export(start_date=today - timedelta(days=7), end_date=today)
+            sheets, export = self.create_export(start_date=today - timedelta(days=7), end_date=today)
 
         self.assertExcelSheet(
-            export[0],
+            sheets[0],
             rows=[
                 expected_headers,
                 [
@@ -871,12 +926,12 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # check requesting with contact fields and groups
         with self.mockReadOnly(assert_models={Ticket, ContactURN}):
-            export = self._request_export(
+            sheets, export = self.create_export(
                 start_date=today - timedelta(days=7), end_date=today, with_fields=(age, gender), with_groups=(testers,)
             )
 
         self.assertExcelSheet(
-            export[0],
+            sheets[0],
             rows=[
                 expected_headers + ["Field:Age", "Field:Gender", "Group:Testers"],
                 [
@@ -913,9 +968,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         with self.anonymous(self.org):
             with self.mockReadOnly(assert_models={Ticket, ContactURN}):
-                export = self._request_export(start_date=today - timedelta(days=90), end_date=today)
+                sheets, export = self.create_export(start_date=today - timedelta(days=90), end_date=today)
             self.assertExcelSheet(
-                export[0],
+                sheets[0],
                 [
                     [
                         "UUID",
@@ -977,41 +1032,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             )
 
         self.clear_storage()
-
-    def test_export_with_too_many_fields_and_groups(self):
-        export_url = reverse("tickets.ticket_export")
-        today = timezone.now().astimezone(self.org.timezone).date()
-        too_many_fields = [self.create_field(f"Field {i}", f"field{i}") for i in range(11)]
-        too_many_groups = [self.create_group(f"Group {i}", contacts=[]) for i in range(11)]
-
-        self.login(self.admin)
-        response = self.client.post(
-            export_url,
-            {
-                "start_date": today - timedelta(days=7),
-                "end_date": today,
-                "with_fields": [cf.id for cf in too_many_fields],
-                "with_groups": [cg.id for cg in too_many_groups],
-            },
-        )
-        self.assertFormError(response, "form", "with_fields", "You can only include up to 10 fields.")
-        self.assertFormError(response, "form", "with_groups", "You can only include up to 10 groups.")
-
-    def _request_export(self, start_date: date, end_date: date, with_fields=(), with_groups=()):
-        export_url = reverse("tickets.ticket_export")
-        self.client.post(
-            export_url,
-            {
-                "start_date": start_date.isoformat(),
-                "end_date": end_date.isoformat(),
-                "with_fields": [cf.id for cf in with_fields],
-                "with_groups": [cf.id for cf in with_groups],
-            },
-        )
-        task = Export.objects.all().order_by("-id").first()
-        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/ticket_exports/{task.uuid}.xlsx"
-        workbook = load_workbook(filename=filename)
-        return workbook.worksheets
 
 
 class TopicTest(TembaTest):

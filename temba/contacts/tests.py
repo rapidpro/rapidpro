@@ -599,7 +599,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         export_url = reverse("contacts.contact_export")
 
         response = self.assertUpdateFetch(
-            export_url, allow_viewers=True, allow_editors=True, allow_org2=True, form_fields=("group_memberships",)
+            export_url, allow_viewers=True, allow_editors=True, allow_org2=True, form_fields=("with_groups",)
         )
         self.assertNotContains(response, "already an export in progress")
 
@@ -625,7 +625,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContains(response, "This group or search is too large to export.")
 
         response = self.client.post(
-            export_url + f"?g={self.org.active_contacts_group.uuid}", {"group_memberships": [big_group.id]}
+            export_url + f"?g={self.org.active_contacts_group.uuid}", {"with_groups": [big_group.id]}
         )
         self.assertEqual(200, response.status_code)
 

@@ -3,7 +3,6 @@ from datetime import timedelta
 from smartmin.views import SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
-from django.contrib import messages
 from django.db.models.aggregates import Max
 from django.http import Http404, JsonResponse
 from django.urls import reverse
@@ -13,11 +12,9 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.notifications.views import NotificationTargetMixin
-from temba.orgs.views import MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils import on_transaction_commit
+from temba.orgs.views import BaseExportView, MenuMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.export import response_from_workbook
-from temba.utils.export.views import BaseExportView
 from temba.utils.fields import InputWidget
 from temba.utils.uuid import UUID_REGEX
 from temba.utils.views import ComponentFormMixin, ContentMenuMixin, SpaMixin
@@ -441,32 +438,14 @@ class TicketCRUDL(SmartCRUDL):
             return response_from_workbook(workbook, f"ticket-stats-{timezone.now().strftime('%Y-%m-%d')}.xlsx")
 
     class Export(BaseExportView):
+        export_type = TicketExport
         success_url = "@tickets.ticket_list"
 
-        def form_valid(self, form):
-            org = self.request.org
-            user = self.request.user
-
-            # is there already an export taking place?
-            if TicketExport.has_recent_unfinished(org):
-                messages.info(
-                    self.request,
-                    "There is already an export in progress. You must wait for that export to complete before starting another.",
-                )
-            else:
-                start_date = form.cleaned_data["start_date"]
-                end_date = form.cleaned_data["end_date"]
-                with_fields = form.cleaned_data["with_fields"]
-                with_groups = form.cleaned_data["with_groups"]
-                export = TicketExport.create(
-                    org, user, start_date, end_date, with_fields=with_fields, with_groups=with_groups
-                )
-
-                # schedule the export job
-                on_transaction_commit(lambda: export.start())
-
-                messages.info(self.request, self.success_message)
-
-            response = self.render_modal_response(form)
-            response["REDIRECT"] = self.get_success_url()
-            return response
+        def create_export(self, org, user, form):
+            start_date = form.cleaned_data["start_date"]
+            end_date = form.cleaned_data["end_date"]
+            with_fields = form.cleaned_data["with_fields"]
+            with_groups = form.cleaned_data["with_groups"]
+            return TicketExport.create(
+                org, user, start_date, end_date, with_fields=with_fields, with_groups=with_groups
+            )
