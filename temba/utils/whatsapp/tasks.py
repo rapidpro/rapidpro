@@ -103,6 +103,8 @@ def _extract_template_params(components):
 
     transformed_components = defaultdict(dict)
 
+    all_parts_supported = True
+
     for component in components:
         component_type = component["type"].lower()
 
@@ -114,6 +116,7 @@ def _extract_template_params(components):
                     comp_params.append({"type": "text"})
             else:
                 comp_params.append({"type": component["format"].lower()})
+                all_parts_supported = False
 
             if comp_params:
                 params[component_type] = comp_params
@@ -132,12 +135,13 @@ def _extract_template_params(components):
                 if button["type"].lower() == "url":
                     for match in VARIABLE_RE.findall(button.get("url", "")):
                         comp_params.append({"type": "text"})
+                        all_parts_supported = False
                 if comp_params:
                     params[f"button.{idx}"] = comp_params
                 transformed_components[f"button.{idx}"] = dict(content=button.get("text", ""), params=comp_params)
         else:
             transformed_components[component_type] = dict(content=component.get("text", ""), params=[])
-    return params, transformed_components
+    return params, transformed_components, all_parts_supported
 
 
 def update_local_templates(channel, templates_data):
@@ -156,7 +160,7 @@ def update_local_templates(channel, templates_data):
 
         components = template["components"]
 
-        params, transformed_components = _extract_template_params(components)
+        params, transformed_components, all_parts_supported = _extract_template_params(components)
         content_parts = []
 
         for component in components:
@@ -169,7 +173,7 @@ def update_local_templates(channel, templates_data):
         content = "\n\n".join(content_parts)
         variable_count = _calculate_variable_count(content)
 
-        if not content_parts:
+        if not content_parts or not all_parts_supported:
             status = TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
 
         missing_external_id = f"{template['language']}/{template['name']}"

@@ -193,7 +193,7 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel).count())
         self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel, namespace="foo_namespace").count())
         self.assertEqual(
-            3,
+            4,
             TemplateTranslation.objects.filter(
                 channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
             ).count(),
@@ -265,7 +265,7 @@ class WhatsAppUtilsTest(TembaTest):
 
         ct = TemplateTranslation.objects.get(template__name="order_template", is_active=True)
         self.assertEqual("eng", ct.locale)
-        self.assertEqual(TemplateTranslation.STATUS_APPROVED, ct.status)
+        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
             {
@@ -500,7 +500,7 @@ class WhatsAppUtilsTest(TembaTest):
         )
 
         self.assertEqual(
-            3,
+            4,
             TemplateTranslation.objects.filter(
                 channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
             ).count(),
@@ -508,6 +508,7 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual(
             [
                 "en/missing_text_component",
+                "en/order_template",
                 "fr/invalid_component",
                 "fr/login",
             ],
