@@ -62,18 +62,18 @@
   dependencies:
     "@lit-labs/ssr-dom-shim" "^1.0.0"
 
-"@nyaruka/flow-editor@1.27.0":
-  version "1.27.0"
-  resolved "https://registry.yarnpkg.com/@nyaruka/flow-editor/-/flow-editor-1.27.0.tgz#e1e922ff051e472dbdbe8c299d8bea70f8912ea6"
-  integrity sha512-7Fm4nuE+QwbhXxzueubsh9ml5hI88inIus6mCHhU2oXbZ5WZIDbYaqwwh63NI6mL4HPTsEnxWKG8hHEKPyVPXA==
+"@nyaruka/flow-editor@1.27.2":
+  version "1.27.2"
+  resolved "https://registry.yarnpkg.com/@nyaruka/flow-editor/-/flow-editor-1.27.2.tgz#770f57b589524795c68574f56b9acc2fd93e9eb3"
+  integrity sha512-IK/sTsvn98TfFzd3HzQ+UtK0xP/24f/4Q3Y0jvnuFOSqHUfB6IFko/q5Xm9vWid+Pjcq8Vcz8ly4H9GyltTfaA==
   dependencies:
     react "^16.8.6"
     react-dom "^16.8.6"
 
-"@nyaruka/temba-components@0.72.0":
-  version "0.72.0"
-  resolved "https://registry.yarnpkg.com/@nyaruka/temba-components/-/temba-components-0.72.0.tgz#b354a7c43f3584e8615989fc5bb3dc7950bd09d9"
-  integrity sha512-qSCjTUNAUatSzyUbaxUYusockq3PWuKwn9d/cT994Ra94/rGbAUbMZfRLLfUlbJ6hdb8zRgbNFi+r67ISds1KA==
+"@nyaruka/temba-components@0.72.1":
+  version "0.72.1"
+  resolved "https://registry.yarnpkg.com/@nyaruka/temba-components/-/temba-components-0.72.1.tgz#1ee11d763f1657ea9a038807dcdbe79f08b2e887"
+  integrity sha512-qyVdL10dz50V+rHBXZhlRwrHs428BXj+rhfSFqbtF8WSf8xn8HpVzlHnT+wZHoBnUCAE1h0btPCGfqdhiYmEOA==
   dependencies:
     "@lit/localize" "^0.11.4"
     color-hash "^2.0.2"

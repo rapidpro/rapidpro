@@ -31,162 +31,95 @@ class MailroomClientTest(TembaTest):
 
         self.assertEqual("5.3.4", version)
 
-    def test_flow_migrate(self):
-        flow_def = {"nodes": [{"val": Decimal("1.23")}]}
+    @patch("requests.post")
+    def test_contact_create(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234, "name": "", "language": ""}}')
 
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"name": "Migrated!"}')
-            migrated = get_client().flow_migrate(flow_def, to_version="13.1.0")
-
-            self.assertEqual({"name": "Migrated!"}, migrated)
-
-        call = mock_post.call_args
-
-        self.assertEqual(("http://localhost:8090/mr/flow/migrate",), call[0])
-        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
-        self.assertEqual({"flow": flow_def, "to_version": "13.1.0"}, json.loads(call[1]["data"]))
-
-    @override_settings(TESTING=False)
-    def test_flow_inspect(self):
-        flow_def = {"nodes": [{"val": Decimal("1.23")}]}
-
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"dependencies":[]}')
-            info = get_client().flow_inspect(self.org.id, flow_def)
-
-            self.assertEqual({"dependencies": []}, info)
-
-        call = mock_post.call_args
-
-        self.assertEqual(("http://localhost:8090/mr/flow/inspect",), call[0])
-        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
-        self.assertEqual({"org_id": self.org.id, "flow": flow_def}, json.loads(call[1]["data"]))
-
-    def test_flow_change_language(self):
-        flow_def = {"nodes": [{"val": Decimal("1.23")}]}
-
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"language": "spa"}')
-            migrated = get_client().flow_change_language(flow_def, language="spa")
-
-            self.assertEqual({"language": "spa"}, migrated)
-
-        call = mock_post.call_args
-
-        self.assertEqual(("http://localhost:8090/mr/flow/change_language",), call[0])
-        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
-        self.assertEqual({"flow": flow_def, "language": "spa"}, json.loads(call[1]["data"]))
-
-    def test_flow_start_preview(self):
-        with patch("requests.post") as mock_post:
-            mock_resp = {"query": 'group = "Farmers" AND status = "active"', "total": 2345}
-            mock_post.return_value = MockResponse(200, json.dumps(mock_resp))
-            preview = get_client().flow_start_preview(
-                self.org.id,
-                flow_id=12,
-                include=Inclusions(
-                    group_uuids=["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
-                    contact_uuids=["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
-                ),
-                exclude=Exclusions(non_active=True, not_seen_since_days=30),
-            )
-
-            self.assertEqual(StartPreview(query='group = "Farmers" AND status = "active"', total=2345), preview)
-
-        call = mock_post.call_args
-
-        self.assertEqual(("http://localhost:8090/mr/flow/start_preview",), call[0])
-        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
-        self.assertEqual(
-            {
-                "org_id": self.org.id,
-                "flow_id": 12,
-                "include": {
-                    "group_uuids": ["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
-                    "contact_uuids": ["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
-                    "query": "",
-                },
-                "exclude": {
-                    "non_active": True,
-                    "in_a_flow": False,
-                    "started_previously": False,
-                    "not_seen_since_days": 30,
-                },
-            },
-            json.loads(call[1]["data"]),
+        # try with empty contact spec
+        response = get_client().contact_create(
+            self.org.id, self.admin.id, ContactSpec(name="", language="", urns=[], fields={}, groups=[])
         )
 
-    def test_msg_broadcast_preview(self):
-        with patch("requests.post") as mock_post:
-            mock_resp = {"query": 'group = "Farmers" AND status = "active"', "total": 2345}
-            mock_post.return_value = MockResponse(200, json.dumps(mock_resp))
-            preview = get_client().msg_broadcast_preview(
-                self.org.id,
-                include=Inclusions(
-                    group_uuids=["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
-                    contact_uuids=["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
-                ),
-                exclude=Exclusions(non_active=True, not_seen_since_days=30),
-            )
-
-            self.assertEqual(BroadcastPreview(query='group = "Farmers" AND status = "active"', total=2345), preview)
-
-        call = mock_post.call_args
-
-        self.assertEqual(("http://localhost:8090/mr/msg/broadcast_preview",), call[0])
-        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
-        self.assertEqual(
-            {
-                "org_id": self.org.id,
-                "include": {
-                    "group_uuids": ["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
-                    "contact_uuids": ["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
-                    "query": "",
-                },
-                "exclude": {
-                    "non_active": True,
-                    "in_a_flow": False,
-                    "started_previously": False,
-                    "not_seen_since_days": 30,
-                },
-            },
-            json.loads(call[1]["data"]),
-        )
-
-    def test_msg_broadcast(self):
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, json.dumps({"id": 123}))
-            resp = get_client().msg_broadcast(
-                self.org.id,
-                self.admin.id,
-                {"eng": {"text": "Hello"}},
-                "eng",
-                [12, 23],
-                [123, 234],
-                ["tel:1234"],
-                "age > 20",
-                567,
-            )
-
-            self.assertEqual({"id": 123}, resp)
-
-        call = mock_post.call_args
-
-        self.assertEqual(("http://localhost:8090/mr/msg/broadcast",), call[0])
-        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
-        self.assertEqual(
-            {
+        self.assertEqual({"id": 1234, "name": "", "language": ""}, response["contact"])
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/create",
+            headers={"User-Agent": "Temba"},
+            json={
                 "org_id": self.org.id,
                 "user_id": self.admin.id,
-                "translations": {"eng": {"text": "Hello"}},
-                "base_language": "eng",
-                "group_ids": [12, 23],
-                "contact_ids": [123, 234],
-                "urns": ["tel:1234"],
-                "query": "age > 20",
-                "optin_id": 567,
+                "contact": {"name": "", "language": "", "urns": [], "fields": {}, "groups": []},
             },
-            json.loads(call[1]["data"]),
+        )
+
+        mock_post.reset_mock()
+        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234, "name": "Bob", "language": "eng"}}')
+
+        response = get_client().contact_create(
+            self.org.id,
+            self.admin.id,
+            ContactSpec(
+                name="Bob",
+                language="eng",
+                urns=["tel:+123456789"],
+                fields={"age": "39", "gender": "M"},
+                groups=["d5b1770f-0fb6-423b-86a0-b4d51096b99a"],
+            ),
+        )
+
+        self.assertEqual({"id": 1234, "name": "Bob", "language": "eng"}, response["contact"])
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/create",
+            headers={"User-Agent": "Temba"},
+            json={
+                "org_id": self.org.id,
+                "user_id": self.admin.id,
+                "contact": {
+                    "name": "Bob",
+                    "language": "eng",
+                    "urns": ["tel:+123456789"],
+                    "fields": {"age": "39", "gender": "M"},
+                    "groups": ["d5b1770f-0fb6-423b-86a0-b4d51096b99a"],
+                },
+            },
+        )
+
+    @patch("requests.post")
+    def test_contact_export_preview(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"total": 123}')
+
+        response = get_client().contact_export_preview(self.org.id, 234, "age = 42")
+
+        self.assertEqual({"total": 123}, response)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/export_preview",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "group_id": 234, "query": "age = 42"},
+        )
+
+    @patch("requests.post")
+    def test_contact_inspect(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"101": {}, "102": {}}')
+
+        response = get_client().contact_inspect(self.org.id, [101, 102])
+
+        self.assertEqual({"101": {}, "102": {}}, response)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/inspect",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "contact_ids": [101, 102]},
+        )
+
+    @patch("requests.post")
+    def test_contact_interrupt(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"sessions": 1}')
+
+        response = get_client().contact_interrupt(self.org.id, 3, 345)
+
+        self.assertEqual({"sessions": 1}, response)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/interrupt",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "user_id": 3, "contact_id": 345},
         )
 
     def test_contact_modify(self):
@@ -259,6 +192,227 @@ class MailroomClientTest(TembaTest):
             )
 
     @patch("requests.post")
+    def test_contact_resolve(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234}, "urn": {"id": 2345}}')
+
+        # try with empty contact spec
+        response = get_client().contact_resolve(self.org.id, 345, "tel:+1234567890")
+
+        self.assertEqual({"contact": {"id": 1234}, "urn": {"id": 2345}}, response)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/resolve",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "channel_id": 345, "urn": "tel:+1234567890"},
+        )
+
+    @patch("requests.post")
+    def test_contact_search(self, mock_post):
+        mock_post.return_value = MockResponse(
+            200,
+            """
+            {
+              "query":"name ~ \\"frank\\"",
+              "contact_ids":[1,2],
+              "total": 2,
+              "offset": 0,
+              "metadata": {"attributes":["name"]}
+            }
+            """,
+        )
+        response = get_client().contact_search(1, 2, "frank", "-created_on")
+
+        self.assertEqual('name ~ "frank"', response.query)
+        self.assertEqual(["name"], response.metadata.attributes)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/search",
+            headers={"User-Agent": "Temba"},
+            json={
+                "query": "frank",
+                "org_id": 1,
+                "group_id": 2,
+                "exclude_ids": (),
+                "offset": 0,
+                "sort": "-created_on",
+            },
+        )
+
+        mock_post.return_value = MockResponse(400, '{"error":"no such field age"}')
+
+        with self.assertRaises(MailroomException):
+            get_client().contact_search(1, 2, "age > 10", "-created_on")
+
+    def test_flow_change_language(self):
+        flow_def = {"nodes": [{"val": Decimal("1.23")}]}
+
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"language": "spa"}')
+            migrated = get_client().flow_change_language(flow_def, language="spa")
+
+            self.assertEqual({"language": "spa"}, migrated)
+
+        call = mock_post.call_args
+
+        self.assertEqual(("http://localhost:8090/mr/flow/change_language",), call[0])
+        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
+        self.assertEqual({"flow": flow_def, "language": "spa"}, json.loads(call[1]["data"]))
+
+    @override_settings(TESTING=False)
+    def test_flow_inspect(self):
+        flow_def = {"nodes": [{"val": Decimal("1.23")}]}
+
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"dependencies":[]}')
+            info = get_client().flow_inspect(self.org.id, flow_def)
+
+            self.assertEqual({"dependencies": []}, info)
+
+        call = mock_post.call_args
+
+        self.assertEqual(("http://localhost:8090/mr/flow/inspect",), call[0])
+        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
+        self.assertEqual({"org_id": self.org.id, "flow": flow_def}, json.loads(call[1]["data"]))
+
+    def test_flow_migrate(self):
+        flow_def = {"nodes": [{"val": Decimal("1.23")}]}
+
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"name": "Migrated!"}')
+            migrated = get_client().flow_migrate(flow_def, to_version="13.1.0")
+
+            self.assertEqual({"name": "Migrated!"}, migrated)
+
+        call = mock_post.call_args
+
+        self.assertEqual(("http://localhost:8090/mr/flow/migrate",), call[0])
+        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
+        self.assertEqual({"flow": flow_def, "to_version": "13.1.0"}, json.loads(call[1]["data"]))
+
+    def test_flow_start_preview(self):
+        with patch("requests.post") as mock_post:
+            mock_resp = {"query": 'group = "Farmers" AND status = "active"', "total": 2345}
+            mock_post.return_value = MockResponse(200, json.dumps(mock_resp))
+            preview = get_client().flow_start_preview(
+                self.org.id,
+                flow_id=12,
+                include=Inclusions(
+                    group_uuids=["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
+                    contact_uuids=["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
+                ),
+                exclude=Exclusions(non_active=True, not_seen_since_days=30),
+            )
+
+            self.assertEqual(StartPreview(query='group = "Farmers" AND status = "active"', total=2345), preview)
+
+        call = mock_post.call_args
+
+        self.assertEqual(("http://localhost:8090/mr/flow/start_preview",), call[0])
+        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
+        self.assertEqual(
+            {
+                "org_id": self.org.id,
+                "flow_id": 12,
+                "include": {
+                    "group_uuids": ["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
+                    "contact_uuids": ["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
+                    "query": "",
+                },
+                "exclude": {
+                    "non_active": True,
+                    "in_a_flow": False,
+                    "started_previously": False,
+                    "not_seen_since_days": 30,
+                },
+            },
+            json.loads(call[1]["data"]),
+        )
+
+    def test_msg_broadcast(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, json.dumps({"id": 123}))
+            resp = get_client().msg_broadcast(
+                self.org.id,
+                self.admin.id,
+                {"eng": {"text": "Hello"}},
+                "eng",
+                [12, 23],
+                [123, 234],
+                ["tel:1234"],
+                "age > 20",
+                567,
+            )
+
+            self.assertEqual({"id": 123}, resp)
+
+        call = mock_post.call_args
+
+        self.assertEqual(("http://localhost:8090/mr/msg/broadcast",), call[0])
+        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
+        self.assertEqual(
+            {
+                "org_id": self.org.id,
+                "user_id": self.admin.id,
+                "translations": {"eng": {"text": "Hello"}},
+                "base_language": "eng",
+                "group_ids": [12, 23],
+                "contact_ids": [123, 234],
+                "urns": ["tel:1234"],
+                "query": "age > 20",
+                "optin_id": 567,
+            },
+            json.loads(call[1]["data"]),
+        )
+
+    def test_msg_broadcast_preview(self):
+        with patch("requests.post") as mock_post:
+            mock_resp = {"query": 'group = "Farmers" AND status = "active"', "total": 2345}
+            mock_post.return_value = MockResponse(200, json.dumps(mock_resp))
+            preview = get_client().msg_broadcast_preview(
+                self.org.id,
+                include=Inclusions(
+                    group_uuids=["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
+                    contact_uuids=["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
+                ),
+                exclude=Exclusions(non_active=True, not_seen_since_days=30),
+            )
+
+            self.assertEqual(BroadcastPreview(query='group = "Farmers" AND status = "active"', total=2345), preview)
+
+        call = mock_post.call_args
+
+        self.assertEqual(("http://localhost:8090/mr/msg/broadcast_preview",), call[0])
+        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
+        self.assertEqual(
+            {
+                "org_id": self.org.id,
+                "include": {
+                    "group_uuids": ["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
+                    "contact_uuids": ["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
+                    "query": "",
+                },
+                "exclude": {
+                    "non_active": True,
+                    "in_a_flow": False,
+                    "started_previously": False,
+                    "not_seen_since_days": 30,
+                },
+            },
+            json.loads(call[1]["data"]),
+        )
+
+    @patch("requests.post")
+    def test_msg_resend(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"msg_ids": [12345]}')
+        response = get_client().msg_resend(org_id=self.org.id, msg_ids=[12345, 67890])
+
+        self.assertEqual({"msg_ids": [12345]}, response)
+
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/msg/resend",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "msg_ids": [12345, 67890]},
+        )
+
+    @patch("requests.post")
     def test_msg_send(self, mock_post):
         mock_post.return_value = MockResponse(200, '{"id": 12345}')
         response = get_client().msg_send(
@@ -278,19 +432,6 @@ class MailroomClientTest(TembaTest):
                 "attachments": [],
                 "ticket_id": 345,
             },
-        )
-
-    @patch("requests.post")
-    def test_msg_resend(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"msg_ids": [12345]}')
-        response = get_client().msg_resend(org_id=self.org.id, msg_ids=[12345, 67890])
-
-        self.assertEqual({"msg_ids": [12345]}, response)
-
-        mock_post.assert_called_once_with(
-            "http://localhost:8090/mr/msg/resend",
-            headers={"User-Agent": "Temba"},
-            json={"org_id": self.org.id, "msg_ids": [12345, 67890]},
         )
 
     def test_po_export(self):
@@ -340,134 +481,6 @@ class MailroomClientTest(TembaTest):
 
         with self.assertRaises(MailroomException):
             get_client().parse_query(1, "age > 10")
-
-    @patch("requests.post")
-    def test_contact_create(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234, "name": "", "language": ""}}')
-
-        # try with empty contact spec
-        response = get_client().contact_create(
-            self.org.id, self.admin.id, ContactSpec(name="", language="", urns=[], fields={}, groups=[])
-        )
-
-        self.assertEqual({"id": 1234, "name": "", "language": ""}, response["contact"])
-        mock_post.assert_called_once_with(
-            "http://localhost:8090/mr/contact/create",
-            headers={"User-Agent": "Temba"},
-            json={
-                "org_id": self.org.id,
-                "user_id": self.admin.id,
-                "contact": {"name": "", "language": "", "urns": [], "fields": {}, "groups": []},
-            },
-        )
-
-        mock_post.reset_mock()
-        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234, "name": "Bob", "language": "eng"}}')
-
-        response = get_client().contact_create(
-            self.org.id,
-            self.admin.id,
-            ContactSpec(
-                name="Bob",
-                language="eng",
-                urns=["tel:+123456789"],
-                fields={"age": "39", "gender": "M"},
-                groups=["d5b1770f-0fb6-423b-86a0-b4d51096b99a"],
-            ),
-        )
-
-        self.assertEqual({"id": 1234, "name": "Bob", "language": "eng"}, response["contact"])
-        mock_post.assert_called_once_with(
-            "http://localhost:8090/mr/contact/create",
-            headers={"User-Agent": "Temba"},
-            json={
-                "org_id": self.org.id,
-                "user_id": self.admin.id,
-                "contact": {
-                    "name": "Bob",
-                    "language": "eng",
-                    "urns": ["tel:+123456789"],
-                    "fields": {"age": "39", "gender": "M"},
-                    "groups": ["d5b1770f-0fb6-423b-86a0-b4d51096b99a"],
-                },
-            },
-        )
-
-    @patch("requests.post")
-    def test_contact_resolve(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234}, "urn": {"id": 2345}}')
-
-        # try with empty contact spec
-        response = get_client().contact_resolve(self.org.id, 345, "tel:+1234567890")
-
-        self.assertEqual({"contact": {"id": 1234}, "urn": {"id": 2345}}, response)
-        mock_post.assert_called_once_with(
-            "http://localhost:8090/mr/contact/resolve",
-            headers={"User-Agent": "Temba"},
-            json={"org_id": self.org.id, "channel_id": 345, "urn": "tel:+1234567890"},
-        )
-
-    @patch("requests.post")
-    def test_contact_inspect(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"101": {}, "102": {}}')
-
-        response = get_client().contact_inspect(self.org.id, [101, 102])
-
-        self.assertEqual({"101": {}, "102": {}}, response)
-        mock_post.assert_called_once_with(
-            "http://localhost:8090/mr/contact/inspect",
-            headers={"User-Agent": "Temba"},
-            json={"org_id": self.org.id, "contact_ids": [101, 102]},
-        )
-
-    @patch("requests.post")
-    def test_contact_interrupt(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"sessions": 1}')
-
-        response = get_client().contact_interrupt(self.org.id, 3, 345)
-
-        self.assertEqual({"sessions": 1}, response)
-        mock_post.assert_called_once_with(
-            "http://localhost:8090/mr/contact/interrupt",
-            headers={"User-Agent": "Temba"},
-            json={"org_id": self.org.id, "user_id": 3, "contact_id": 345},
-        )
-
-    @patch("requests.post")
-    def test_contact_search(self, mock_post):
-        mock_post.return_value = MockResponse(
-            200,
-            """
-            {
-              "query":"name ~ \\"frank\\"",
-              "contact_ids":[1,2],
-              "total": 2,
-              "offset": 0,
-              "metadata": {"attributes":["name"]}
-            }
-            """,
-        )
-        response = get_client().contact_search(1, 2, "frank", "-created_on")
-
-        self.assertEqual('name ~ "frank"', response.query)
-        self.assertEqual(["name"], response.metadata.attributes)
-        mock_post.assert_called_once_with(
-            "http://localhost:8090/mr/contact/search",
-            headers={"User-Agent": "Temba"},
-            json={
-                "query": "frank",
-                "org_id": 1,
-                "group_id": 2,
-                "exclude_ids": (),
-                "offset": 0,
-                "sort": "-created_on",
-            },
-        )
-
-        mock_post.return_value = MockResponse(400, '{"error":"no such field age"}')
-
-        with self.assertRaises(MailroomException):
-            get_client().contact_search(1, 2, "age > 10", "-created_on")
 
     def test_ticket_assign(self):
         with patch("requests.post") as mock_post:

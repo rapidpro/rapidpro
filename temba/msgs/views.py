@@ -14,13 +14,11 @@ from smartmin.views import (
 )
 
 from django import forms
-from django.contrib import messages
 from django.db.models.functions.text import Lower
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import RedirectView
 
@@ -30,6 +28,7 @@ from temba.contacts.search import SearchException
 from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
 from temba.orgs.models import Org
 from temba.orgs.views import (
+    BaseExportView,
     DependencyDeleteModal,
     DependencyUsagesModal,
     MenuMixin,
@@ -39,9 +38,8 @@ from temba.orgs.views import (
 )
 from temba.schedules.models import Schedule
 from temba.schedules.views import ScheduleFormMixin
-from temba.utils import json, languages, on_transaction_commit
+from temba.utils import json, languages
 from temba.utils.compose import compose_deserialize, compose_serialize
-from temba.utils.export.views import BaseExportView
 from temba.utils.fields import (
     CompletionTextarea,
     ComposeField,
@@ -747,6 +745,7 @@ class MsgCRUDL(SmartCRUDL):
                 self.fields["export_all"].choices = self.LABEL_CHOICES if label else self.SYSTEM_LABEL_CHOICES
 
         form_class = Form
+        export_type = MessageExport
         success_url = "@msgs.msg_inbox"
 
         def get_form_kwargs(self):
@@ -762,17 +761,7 @@ class MsgCRUDL(SmartCRUDL):
             else:
                 return None, Label.get_active_for_org(self.request.org).get(uuid=label_id)
 
-        def get_success_url(self):
-            redirect = self.request.GET.get("redirect")
-            if redirect and not url_has_allowed_host_and_scheme(redirect, self.request.get_host()):
-                redirect = None
-
-            return redirect or reverse("msgs.msg_inbox")
-
-        def form_valid(self, form):
-            user = self.request.user
-            org = self.request.org
-
+        def create_export(self, org, user, form):
             export_all = bool(int(form.cleaned_data["export_all"]))
             start_date = form.cleaned_data["start_date"]
             end_date = form.cleaned_data["end_date"]
@@ -781,35 +770,16 @@ class MsgCRUDL(SmartCRUDL):
 
             system_label, label = (None, None) if export_all else self.derive_label()
 
-            # is there already an export taking place?
-            if MessageExport.has_recent_unfinished(org):
-                messages.info(
-                    self.request,
-                    _(
-                        "There is already an export in progress. You must wait for that export to complete before starting another."
-                    ),
-                )
-            else:
-                export = MessageExport.create(
-                    org,
-                    user,
-                    start_date=start_date,
-                    end_date=end_date,
-                    system_label=system_label,
-                    label=label,
-                    with_fields=with_fields,
-                    with_groups=with_groups,
-                )
-
-                # schedule the export job
-                on_transaction_commit(lambda: export.start())
-                messages.info(self.request, self.success_message)
-
-            messages.success(self.request, self.derive_success_message())
-
-            response = self.render_modal_response(form)
-            response["REDIRECT"] = self.get_success_url()
-            return response
+            return MessageExport.create(
+                org,
+                user,
+                start_date=start_date,
+                end_date=end_date,
+                system_label=system_label,
+                label=label,
+                with_fields=with_fields,
+                with_groups=with_groups,
+            )
 
     class LegacyInbox(RedirectView):
         url = "/msg"

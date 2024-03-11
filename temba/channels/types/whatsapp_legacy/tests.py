@@ -288,29 +288,85 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
 
         # and fetching new tokens
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc345"}]}')
+            mock_post.return_value = MockResponse(
+                200,
+                '{"users": [{"token": "abc345"}]}',
+                headers={
+                    "Authorization": "Basic dGVtYmE6dGVtYmFwYXNzd2Q=",
+                    "WA-user": "temba",
+                    "WA-pass": "tembapasswd",
+                },
+            )
             self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=False))
             refresh_whatsapp_tokens()
             self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=False))
             channel.refresh_from_db()
             self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
+            # check channel username, password, basic auth are redacted in HTTP logs
+            for log in channel.http_logs.all():
+                self.assertIn("temba", json.dumps(log.get_display()))
+                self.assertNotIn("tembapasswd", json.dumps(log.get_display()))
+                self.assertNotIn("dGVtYmE6dGVtYmFwYXNzd2Q=", json.dumps(log.get_display()))
 
         with patch("requests.post") as mock_post:
-            mock_post.side_effect = [MockResponse(400, '{ "error": true }')]
+            mock_post.side_effect = [
+                MockResponse(
+                    400,
+                    '{ "error": true }',
+                    headers={
+                        "Authorization": "Basic dGVtYmE6dGVtYmFwYXNzd2Q=",
+                        "WA-user": "temba",
+                        "WA-pass": "tembapasswd",
+                    },
+                )
+            ]
             self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=True))
             refresh_whatsapp_tokens()
             self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=True))
             channel.refresh_from_db()
             self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
+            # check channel username, password, basic auth are redacted in HTTP logs
+            for log in channel.http_logs.all():
+                self.assertIn("temba", json.dumps(log.get_display()))
+                self.assertNotIn("tembapasswd", json.dumps(log.get_display()))
+                self.assertNotIn("dGVtYmE6dGVtYmFwYXNzd2Q=", json.dumps(log.get_display()))
 
         with patch("requests.post") as mock_post:
-            mock_post.side_effect = [MockResponse(200, ""), MockResponse(200, '{"users": [{"token": "abc098"}]}')]
+            mock_post.side_effect = [
+                MockResponse(
+                    200,
+                    "",
+                    headers={
+                        "Authorization": "Basic dGVtYmE6dGVtYmFwYXNzd2Q=",
+                        "WA-user": "temba",
+                        "WA-pass": "tembapasswd",
+                    },
+                ),
+                MockResponse(
+                    200,
+                    '{"users": [{"token": "abc098"}]}',
+                    headers={
+                        "Authorization": "Basic dGVtYmE6dGVtYmFwYXNzd2Q=",
+                        "WA-user": "temba",
+                        "WA-pass": "tembapasswd",
+                    },
+                ),
+            ]
             refresh_whatsapp_tokens()
 
             channel.refresh_from_db()
             channel2.refresh_from_db()
             self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
             self.assertEqual("abc098", channel2.config[Channel.CONFIG_AUTH_TOKEN])
+            # check channel username, password, basic auth are redacted in HTTP logs
+            for log in channel.http_logs.all():
+                self.assertIn("temba", json.dumps(log.get_display()))
+                self.assertNotIn("tembapasswd", json.dumps(log.get_display()))
+                self.assertNotIn("dGVtYmE6dGVtYmFwYXNzd2Q=", json.dumps(log.get_display()))
+            for log in channel2.http_logs.all():
+                self.assertIn("temba", json.dumps(log.get_display()))
+                self.assertNotIn("tembapasswd", json.dumps(log.get_display()))
+                self.assertNotIn("dGVtYmE6dGVtYmFwYXNzd2Q=", json.dumps(log.get_display()))
 
     @patch("socket.gethostbyname", return_value="123.123.123.123")
     @patch("temba.channels.types.whatsapp_legacy.WhatsAppLegacyType.check_health")
@@ -459,19 +515,14 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             channel,
             "hello",
             locale="eng-US",
-            content="Hello {{1}}",
-            variable_count=1,
             status=TemplateTranslation.STATUS_APPROVED,
             external_id="1234",
             external_locale="en_US",
             namespace="foo_namespace",
-            components=[
-                {
-                    "type": "BODY",
-                    "text": "Hello {{1}}",
-                    "example": {"body_text": [["Bob"]]},
-                },
-            ],
+            components={"body": {"content": "Hello {{1}}", "params": [{"type": "text"}]}},
+            # deprecated
+            content="Hello {{1}}",
+            variable_count=1,
             params={"body": [{"type": "text"}]},
         )
 
@@ -479,19 +530,14 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             channel,
             "hi",
             locale="eng-US",
-            content="Goodbye {{1}}",
-            variable_count=1,
             status=TemplateTranslation.STATUS_APPROVED,
             external_id="1235",
             external_locale="en_US",
             namespace="foo_namespace",
-            components=[
-                {
-                    "type": "BODY",
-                    "text": "Goodbye {{1}}",
-                    "example": {"body_text": [["Bob"]]},
-                },
-            ],
+            components={"body": {"content": "Goodbye {{1}}", "params": [{"type": "text"}]}},
+            # deprecated
+            content="Goodbye {{1}}",
+            variable_count=1,
             params={"body": [{"type": "text"}]},
         )
 

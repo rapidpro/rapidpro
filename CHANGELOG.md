@@ -1,3 +1,26 @@
+v9.1.41 (2024-03-11)
+-------------------------
+ * Mark templates with button URLs and attachment in header not supported
+ * Convert exports to use shared export modal view
+
+v9.1.40 (2024-03-08)
+-------------------------
+ * Allow more WhatsApp templates to be usable in the flows
+
+v9.1.39 (2024-03-07)
+-------------------------
+ * Updated editor with sendmsg update fix
+ * Improve contact export modal and use mailroom endpoint to know how many contacts will be exported
+
+v9.1.38 (2024-03-07)
+-------------------------
+ * Updated component button rendering
+
+v9.1.37 (2024-03-07)
+-------------------------
+ * Do not sync templates for channels on suspended orgs or inactive orgs
+ * Redact WA password config in HTTP logs
+
 v9.1.36 (2024-03-06)
 -------------------------
  * Bump spec version to 13.4

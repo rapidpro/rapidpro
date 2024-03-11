@@ -1,14 +1,9 @@
-{% extends "smartmin/form.html" %}
-{% load i18n smartmin %}
+{% extends "includes/export_modax.html" %}
+{% load i18n %}
 
-{% block form %}
-  {% if blockers %}
-    {% for blocker in blockers %}
-      <temba-alert level="error">
-        {{ blocker }}
-      </temba-alert>
-    {% endfor %}
-  {% else %}
-    {{ block.super }}
-  {% endif %}
-{% endblock form %}
+{% block too-big-blocker %}
+  {% url "api.v2.contacts" as api_url %}
+  {% blocktrans trimmed with api_url=api_url %}
+    This group or search is too large to export. Consider using <a href="{{ api_url }}">the API</a> to export this data instead.
+  {% endblocktrans %}
+{% endblock too-big-blocker %}

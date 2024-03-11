@@ -103,6 +103,8 @@ def _extract_template_params(components):
 
     transformed_components = defaultdict(dict)
 
+    all_parts_supported = True
+
     for component in components:
         component_type = component["type"].lower()
 
@@ -114,6 +116,7 @@ def _extract_template_params(components):
                     comp_params.append({"type": "text"})
             else:
                 comp_params.append({"type": component["format"].lower()})
+                all_parts_supported = False
 
             if comp_params:
                 params[component_type] = comp_params
@@ -132,12 +135,13 @@ def _extract_template_params(components):
                 if button["type"].lower() == "url":
                     for match in VARIABLE_RE.findall(button.get("url", "")):
                         comp_params.append({"type": "text"})
+                        all_parts_supported = False
                 if comp_params:
                     params[f"button.{idx}"] = comp_params
                 transformed_components[f"button.{idx}"] = dict(content=button.get("text", ""), params=comp_params)
         else:
             transformed_components[component_type] = dict(content=component.get("text", ""), params=[])
-    return params, transformed_components
+    return params, transformed_components, all_parts_supported
 
 
 def update_local_templates(channel, templates_data):
@@ -156,26 +160,20 @@ def update_local_templates(channel, templates_data):
 
         components = template["components"]
 
-        params, transformed_components = _extract_template_params(components)
+        params, transformed_components, all_parts_supported = _extract_template_params(components)
         content_parts = []
 
-        all_supported = True
         for component in components:
-            if component["type"] not in ["HEADER", "BODY", "FOOTER"]:
-                continue
+            if component["type"] in ["HEADER", "BODY", "FOOTER"]:
+                if "text" not in component:
+                    continue
 
-            if "text" not in component:
-                continue
-
-            if component["type"] in ["HEADER", "FOOTER"] and _calculate_variable_count(component["text"]):
-                all_supported = False
-
-            content_parts.append(component["text"])
+                content_parts.append(component["text"])
 
         content = "\n\n".join(content_parts)
         variable_count = _calculate_variable_count(content)
 
-        if not content_parts or not all_supported:
+        if not content_parts or not all_parts_supported:
             status = TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
 
         missing_external_id = f"{template['language']}/{template['name']}"
@@ -214,14 +212,21 @@ def parse_whatsapp_language(lang) -> str:
 @cron_task()
 def refresh_whatsapp_templates():
     """
-    Runs across all WhatsApp templates that have connected FB accounts and syncs the templates which are active.
+    Runs across all WhatsApp channels that have connected FB accounts and syncs the templates which are active.
     """
 
     num_refreshed, num_errored = 0, 0
 
     template_types = [t.code for t in Channel.get_types() if hasattr(t, "fetch_templates")]
 
-    for channel in Channel.objects.filter(is_active=True, channel_type__in=template_types):
+    channels = Channel.objects.filter(
+        is_active=True,
+        channel_type__in=template_types,
+        org__is_active=True,
+        org__is_suspended=False,
+    )
+
+    for channel in channels:
         # for channels which have version in their config, refresh it
         if channel.config.get("version"):
             update_api_version(channel)

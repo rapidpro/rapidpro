@@ -1,4 +1,5 @@
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -11,6 +12,7 @@ from temba.channels.types.whatsapp_legacy.type import (
 )
 from temba.notifications.incidents.builtin import ChannelTemplatesFailedIncidentType
 from temba.notifications.models import Incident
+from temba.orgs.models import Org, OrgRole
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import TembaTest
@@ -93,7 +95,7 @@ class WhatsAppUtilsTest(TembaTest):
                 "id": "9014",
             },
             {
-                "name": "workout_activity_with_unsuported_variablet",
+                "name": "workout_activity_with_variables",
                 "components": [
                     {"type": "HEADER", "text": "Workout challenge week {{2}}, {{4}} extra points!"},
                     {
@@ -190,6 +192,12 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual(8, Template.objects.filter(org=self.org).count())
         self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel).count())
         self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel, namespace="foo_namespace").count())
+        self.assertEqual(
+            4,
+            TemplateTranslation.objects.filter(
+                channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
+            ).count(),
+        )
 
         ct = TemplateTranslation.objects.get(template__name="goodbye", is_active=True)
         self.assertEqual(2, ct.variable_count)
@@ -257,7 +265,7 @@ class WhatsAppUtilsTest(TembaTest):
 
         ct = TemplateTranslation.objects.get(template__name="order_template", is_active=True)
         self.assertEqual("eng", ct.locale)
-        self.assertEqual(TemplateTranslation.STATUS_APPROVED, ct.status)
+        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
             {
@@ -344,7 +352,7 @@ class WhatsAppUtilsTest(TembaTest):
                 "category": "ISSUE_RESOLUTION",
             },
             {
-                "name": "workout_activity_with_unsuported_variablet",
+                "name": "workout_activity_with_variables",
                 "components": [
                     {"type": "HEADER", "text": "Workout challenge week {{2}}, {{4}} extra points!"},
                     {
@@ -477,12 +485,38 @@ class WhatsAppUtilsTest(TembaTest):
                     "en/workout_activity",
                     "kli/invalid_language",
                     "en/missing_text_component",
-                    "en/workout_activity_with_unsuported_variablet",
+                    "en/workout_activity_with_variables",
                     "fr/invalid_component",
                     "fr/login",
                 ]
             ),
-            sorted(list(TemplateTranslation.objects.filter(channel=channel).values_list("external_id", flat=True))),
+            sorted(
+                list(
+                    TemplateTranslation.objects.filter(channel=channel, is_active=True).values_list(
+                        "external_id", flat=True
+                    )
+                )
+            ),
+        )
+
+        self.assertEqual(
+            4,
+            TemplateTranslation.objects.filter(
+                channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
+            ).count(),
+        )
+        self.assertEqual(
+            [
+                "en/missing_text_component",
+                "en/order_template",
+                "fr/invalid_component",
+                "fr/login",
+            ],
+            list(
+                TemplateTranslation.objects.filter(
+                    channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
+                ).values_list("external_id", flat=True)
+            ),
         )
 
         tt = TemplateTranslation.objects.filter(channel=channel, external_id="fr/invalid_component").first()
@@ -554,6 +588,54 @@ class WhatsAppUtilsTest(TembaTest):
     @patch("temba.channels.types.dialog360.Dialog360Type.fetch_templates")
     @patch("temba.channels.types.dialog360_legacy.Dialog360LegacyType.fetch_templates")
     def test_refresh_templates(self, mock_d3_fetch_templates, mock_d3c_fetch_templates, mock_update_local):
+        org3 = Org.objects.create(
+            name="Nyaruka 3",
+            timezone=ZoneInfo("Africa/Kigali"),
+            flow_languages=["eng", "kin"],
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+        org3.initialize()
+        org3.add_user(self.admin, OrgRole.ADMINISTRATOR)
+        org3.suspend()
+
+        org4 = Org.objects.create(
+            name="Nyaruka 4",
+            timezone=ZoneInfo("Africa/Kigali"),
+            flow_languages=["eng", "kin"],
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+        org4.initialize()
+        org4.add_user(self.admin, OrgRole.ADMINISTRATOR)
+        org4.release(self.admin)
+
+        # channels on suspended org are ignored
+        self.create_channel(
+            "D3",
+            "360Dialog channel",
+            address="234",
+            country="BR",
+            config={
+                Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
+                Channel.CONFIG_AUTH_TOKEN: "123456789",
+            },
+            org=org3,
+        )
+
+        # channels on inactive org are ignored
+        self.create_channel(
+            "D3",
+            "360Dialog channel",
+            address="345",
+            country="BR",
+            config={
+                Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
+                Channel.CONFIG_AUTH_TOKEN: "123456789",
+            },
+            org=org4,
+        )
+
         d3c_channel = self.create_channel(
             "D3C",
             "360Dialog channel",

@@ -1,7 +1,7 @@
 import decimal
 import io
 import os
-from datetime import datetime, timedelta, timezone as tzone
+from datetime import date, datetime, timedelta, timezone as tzone
 from unittest.mock import patch
 
 from django_redis import get_redis_connection
@@ -2654,19 +2654,15 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             self.channel,
             "affirmation",
             locale="eng-US",
-            content="good boy",
-            variable_count=0,
             status=TemplateTranslation.STATUS_REJECTED,
             external_id="id1",
             external_locale="en_US",
             namespace="foo_namespace",
-            components=[
-                {
-                    "type": "BODY",
-                    "text": "good boy",
-                }
-            ],
-            params={},
+            components={"body": {"content": "Hello {{1}}", "params": [{"type": "text"}]}},
+            # deprecated
+            content="Hello {{1}}",
+            variable_count=1,
+            params={"body": [{"type": "text"}]},
         )
 
         # will be warned again
@@ -3127,6 +3123,92 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow_def = flow.get_definition()
         self.assertIn("eng", flow_def["localization"])
         self.assertEqual("¿Cuál es tu color favorito?", flow_def["nodes"][0]["actions"][0]["text"])
+
+    def test_export_results(self):
+        export_url = reverse("flows.flow_export_results")
+
+        flow1 = self.create_flow("Test 1")
+        flow2 = self.create_flow("Test 2")
+        testers = self.create_group("Testers", contacts=[])
+        gender = self.create_field("gender", "Gender")
+
+        response = self.assertUpdateFetch(
+            export_url + f"?ids={flow1.id},{flow2.id}",
+            allow_viewers=True,
+            allow_editors=True,
+            allow_org2=True,
+            form_fields=(
+                "start_date",
+                "end_date",
+                "with_fields",
+                "with_groups",
+                "flows",
+                "extra_urns",
+                "responded_only",
+            ),
+        )
+        self.assertNotContains(response, "already an export in progress")
+
+        # anon orgs don't see urns option
+        with self.anonymous(self.org):
+            response = self.client.get(export_url)
+            self.assertEqual(
+                ["start_date", "end_date", "with_fields", "with_groups", "flows", "responded_only", "loc"],
+                list(response.context["form"].fields.keys()),
+            )
+
+        # create a dummy export task so that we won't be able to export
+        blocking_export = ResultsExport.create(
+            self.org, self.admin, start_date=date.today() - timedelta(days=7), end_date=date.today()
+        )
+
+        response = self.client.get(export_url)
+        self.assertContains(response, "already an export in progress")
+
+        # we don't given them the option to start the export but check it can't be started anyway
+        with self.assertRaises(AssertionError):
+            response = self.client.post(
+                export_url, {"start_date": "2022-06-28", "end_date": "2022-09-28", "flows": [flow1.id]}
+            )
+
+        # mark that one as finished so it's no longer a blocker
+        blocking_export.status = Export.STATUS_COMPLETE
+        blocking_export.save(update_fields=("status",))
+
+        # try to submit with no values
+        response = self.client.post(export_url, {})
+        self.assertFormError(response, "form", "start_date", "This field is required.")
+        self.assertFormError(response, "form", "end_date", "This field is required.")
+        self.assertFormError(response, "form", "flows", "This field is required.")
+
+        response = self.client.post(
+            export_url,
+            {
+                "start_date": "2022-06-28",
+                "end_date": "2022-09-28",
+                "flows": [flow1.id],
+                "with_groups": [testers.id],
+                "with_fields": [gender.id],
+            },
+        )
+        self.assertEqual(200, response.status_code)
+
+        export = Export.objects.exclude(id=blocking_export.id).get()
+        self.assertEqual("results", export.export_type)
+        self.assertEqual(date(2022, 6, 28), export.start_date)
+        self.assertEqual(date(2022, 9, 28), export.end_date)
+        self.assertEqual(
+            {
+                "flow_ids": [flow1.id],
+                "with_groups": [testers.id],
+                "with_fields": [gender.id],
+                "extra_urns": [],
+                "responded_only": False,
+            },
+            export.config,
+        )
+
+        self.clear_storage()
 
     def test_export_and_download_translation(self):
         self.org.set_flow_languages(self.admin, ["spa"])
@@ -3845,7 +3927,7 @@ class FlowSessionTest(TembaTest):
         self.assertEqual(FlowSession.objects.count(), 2)
 
 
-class ExportFlowResultsTest(TembaTest):
+class ResultsExportTest(TembaTest):
     def setUp(self):
         super().setUp()
 
@@ -3859,7 +3941,7 @@ class ExportFlowResultsTest(TembaTest):
         start_date,
         end_date,
         responded_only=False,
-        with_fields=None,
+        with_fields=(),
         with_groups=(),
         extra_urns=(),
         has_results=True,
@@ -3867,38 +3949,32 @@ class ExportFlowResultsTest(TembaTest):
         """
         Exports results for the given flow and returns the generated workbook
         """
-        self.login(self.admin)
-
-        form = {
-            "start_date": start_date.isoformat(),
-            "end_date": end_date.isoformat(),
-            "flows": [flow.id],
-            "responded_only": responded_only,
-            "extra_urns": extra_urns,
-        }
-        if with_fields:
-            form["with_fields"] = [c.id for c in with_fields]
-        if with_groups:
-            form["with_groups"] = [g.id for g in with_groups]
 
         readonly_models = {FlowRun}
         if has_results:
             readonly_models.add(Contact)
             readonly_models.add(ContactURN)
 
+        export = ResultsExport.create(
+            self.org,
+            self.admin,
+            start_date,
+            end_date,
+            flows=[flow],
+            with_fields=with_fields,
+            with_groups=with_groups,
+            responded_only=responded_only,
+            extra_urns=extra_urns,
+        )
+
         with self.mockReadOnly(assert_models=readonly_models):
-            response = self.client.post(reverse("flows.flow_export_results"), form)
-            self.assertModalResponse(response, redirect="/flow/")
+            export.perform()
 
-        task = Export.objects.filter(export_type=ResultsExport.slug).order_by("-id").first()
-        self.assertIsNotNone(task)
-
-        filename = "%s/test_orgs/%d/results_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/results_exports/{export.uuid}.xlsx"
         return load_workbook(filename=os.path.join(settings.MEDIA_ROOT, filename))
 
     @mock_mailroom
-    def test_export_results(self, mr_mocks):
-        export_url = reverse("flows.flow_export_results")
+    def test_export(self, mr_mocks):
         today = timezone.now().astimezone(self.org.timezone).date()
 
         flow = self.get_flow("color_v13")
@@ -4004,44 +4080,10 @@ class ExportFlowResultsTest(TembaTest):
             .save()
         ).session.runs.get()
 
-        # check can't export anonymously
-        response = self.client.get(export_url + "?ids=%d" % flow.id)
-        self.assertLoginRedirect(response)
-
-        self.login(self.admin)
-
-        # create a dummy export task so that we won't be able to export
-        blocking_export = ResultsExport.create(org=self.org, user=self.admin, start_date=None, end_date=None)
-        response = self.client.post(
-            reverse("flows.flow_export_results"),
-            {"start_date": "2022-09-01", "end_date": "2022-09-28", "flows": [flow.id], "with_groups": [devs.id]},
-        )
-        self.assertModalResponse(response, redirect="/flow/")
-
-        response = self.client.get("/flow/")
-        self.assertContains(response, "already an export in progress")
-
-        # ok, mark that one as finished and try again
-        blocking_export.status = Export.STATUS_COMPLETE
-        blocking_export.save(update_fields=("status",))
-
         for run in (contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2):
             run.refresh_from_db()
 
-        # try to submit without specifying dates (UI doesn't actually allow this)
-        response = self.client.post(export_url, {})
-        self.assertFormError(response, "form", "start_date", "This field is required.")
-        self.assertFormError(response, "form", "end_date", "This field is required.")
-
-        # try to submit with start date in future
-        response = self.client.post(export_url, {"start_date": "2200-01-01", "end_date": "2022-09-28"})
-        self.assertFormError(response, "form", None, "Start date can't be in the future.")
-
-        # try to submit with start date > end date
-        response = self.client.post(export_url, {"start_date": "2022-09-01", "end_date": "2022-03-01"})
-        self.assertFormError(response, "form", None, "End date can't be before start date.")
-
-        with self.assertNumQueries(42):
+        with self.assertNumQueries(23):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
@@ -4181,7 +4223,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(21):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
@@ -4256,7 +4298,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test export with a contact field
-        with self.assertNumQueries(45):
+        with self.assertNumQueries(25):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),
@@ -4340,7 +4382,6 @@ class ExportFlowResultsTest(TembaTest):
         self.assertEqual(11, len(list(sheet_runs.columns)))
 
     def test_anon_org(self):
-        export_url = reverse("flows.flow_export_results")
         today = timezone.now().astimezone(self.org.timezone).date()
 
         with self.anonymous(self.org):
@@ -4363,14 +4404,6 @@ class ExportFlowResultsTest(TembaTest):
                 .complete()
                 .save()
             ).session.runs.get()
-
-            # we don't show URNs field
-            self.login(self.admin)
-            response = self.client.get(export_url)
-            self.assertEqual(
-                ["start_date", "end_date", "with_fields", "with_groups", "flows", "responded_only", "loc"],
-                list(response.context["form"].fields.keys()),
-            )
 
             workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
             self.assertEqual(1, len(workbook.worksheets))
@@ -4439,7 +4472,7 @@ class ExportFlowResultsTest(TembaTest):
 
         contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2 = FlowRun.objects.order_by("id")
 
-        with self.assertNumQueries(45):
+        with self.assertNumQueries(17):
             workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
 
         tz = self.org.timezone
@@ -4533,7 +4566,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without unresponded
-        with self.assertNumQueries(28):
+        with self.assertNumQueries(10):
             workbook = self._export(
                 flow,
                 start_date=today - timedelta(days=7),

@@ -16,7 +16,6 @@ from smartmin.views import (
 
 from django import forms
 from django.conf import settings
-from django.contrib import messages
 from django.contrib.humanize.templatetags import humanize
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Max, Min, Sum
@@ -39,6 +38,7 @@ from temba.ivr.models import Call
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import IntegrationType, Org
 from temba.orgs.views import (
+    BaseExportView,
     DependencyDeleteModal,
     MenuMixin,
     ModalMixin,
@@ -48,7 +48,6 @@ from temba.orgs.views import (
 )
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit
-from temba.utils.export.views import BaseExportView
 from temba.utils.fields import (
     CheckboxWidget,
     ContactSearchWidget,
@@ -1172,9 +1171,8 @@ class FlowCRUDL(SmartCRUDL):
     class ExportResults(BaseExportView):
         class Form(BaseExportView.Form):
             flows = forms.ModelMultipleChoiceField(
-                Flow.objects.filter(id__lt=0), required=True, widget=forms.MultipleHiddenInput()
+                Flow.objects.none(), required=True, widget=forms.MultipleHiddenInput()
             )
-
             extra_urns = forms.MultipleChoiceField(
                 required=False,
                 label=_("URNs"),
@@ -1183,7 +1181,6 @@ class FlowCRUDL(SmartCRUDL):
                     attrs={"placeholder": _("Optional: URNs in addition to the one used in the flow")}
                 ),
             )
-
             responded_only = forms.BooleanField(
                 required=False,
                 label=_("Responded Only"),
@@ -1198,13 +1195,14 @@ class FlowCRUDL(SmartCRUDL):
                 self.fields["flows"].queryset = Flow.objects.filter(org=org, is_active=True)
 
         form_class = Form
+        export_type = ResultsExport
         success_url = "@flows.flow_list"
 
         def derive_initial(self):
             initial = super().derive_initial()
 
-            flow_ids = self.request.GET.get("ids", None)
-            if flow_ids:  # pragma: needs cover
+            flow_ids = self.request.GET.get("ids")
+            if flow_ids:
                 initial["flows"] = self.request.org.flows.filter(is_active=True, id__in=flow_ids.split(","))
 
             return initial
@@ -1212,47 +1210,18 @@ class FlowCRUDL(SmartCRUDL):
         def derive_exclude(self):
             return ["extra_urns"] if self.request.org.is_anon else []
 
-        def form_valid(self, form):
-            user = self.request.user
-            org = self.request.org
-
-            # is there already an export taking place?
-            if ResultsExport.has_recent_unfinished(org):
-                messages.info(
-                    self.request,
-                    _(
-                        "There is already an export in progress. You must wait for that export to complete before starting another."
-                    ),
-                )
-            else:
-                flows = form.cleaned_data["flows"]
-                responded_only = form.cleaned_data["responded_only"]
-
-                export = ResultsExport.create(
-                    org,
-                    user,
-                    start_date=form.cleaned_data["start_date"],
-                    end_date=form.cleaned_data["end_date"],
-                    flows=flows,
-                    with_fields=form.cleaned_data["with_fields"],
-                    with_groups=form.cleaned_data["with_groups"],
-                    responded_only=responded_only,
-                    extra_urns=form.cleaned_data.get("extra_urns", []),
-                )
-
-                # schedule the export job
-                on_transaction_commit(lambda: export.start())
-                analytics.track(
-                    self.request.user,
-                    "temba.responses_export_started" if responded_only else "temba.results_export_started",
-                    dict(flows=", ".join([f.uuid for f in flows])),
-                )
-
-                messages.info(self.request, self.success_message)
-
-            response = self.render_modal_response(form)
-            response["REDIRECT"] = self.get_success_url()
-            return response
+        def create_export(self, org, user, form):
+            return ResultsExport.create(
+                org,
+                user,
+                start_date=form.cleaned_data["start_date"],
+                end_date=form.cleaned_data["end_date"],
+                flows=form.cleaned_data["flows"],
+                with_fields=form.cleaned_data["with_fields"],
+                with_groups=form.cleaned_data["with_groups"],
+                responded_only=form.cleaned_data["responded_only"],
+                extra_urns=form.cleaned_data.get("extra_urns", []),
+            )
 
     class ActivityData(OrgObjPermsMixin, SmartReadView):
         # the min number of responses to show a histogram
