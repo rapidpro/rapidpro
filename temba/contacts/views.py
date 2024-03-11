@@ -7,7 +7,6 @@ import iso8601
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
-    SmartFormView,
     SmartListView,
     SmartReadView,
     SmartTemplateView,
@@ -22,7 +21,6 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
 from django.db.models.functions import Upper
-from django.forms import Form
 from django.http import Http404, HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
@@ -37,6 +35,7 @@ from temba.mailroom.events import Event
 from temba.notifications.views import NotificationTargetMixin
 from temba.orgs.models import User
 from temba.orgs.views import (
+    BaseExportView,
     DependencyDeleteModal,
     DependencyUsagesModal,
     MenuMixin,
@@ -550,42 +549,17 @@ class ContactCRUDL(SmartCRUDL):
 
             return JsonResponse({"results": menu})
 
-    class Export(ModalMixin, OrgPermsMixin, SmartFormView):
-        class Form(Form):
-            group_memberships = forms.ModelMultipleChoiceField(
-                queryset=ContactGroup.objects.none(),
-                required=False,
-                label=_("Group Memberships for"),
-                widget=SelectMultipleWidget(
-                    attrs={"widget_only": True, "placeholder": _("Optional: Group memberships to include")}
-                ),
-            )
-
-            def __init__(self, org, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-                self.fields["group_memberships"].queryset = ContactGroup.get_groups(org, ready_only=True).order_by(
-                    Upper("name")
-                )
-
-        form_class = Form
-        submit_button_name = _("Export")
+    class Export(BaseExportView):
+        export_type = ContactExport
         success_url = "@contacts.contact_list"
-        size_limit = 1_000_000
+        size_limit = 1_000
 
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.request.org
-            return kwargs
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["blocker"] = self.get_blocker()
-            return context
+        def derive_fields(self):
+            return ("with_groups",)
 
         def get_blocker(self) -> str:
-            if ContactExport.has_recent_unfinished(self.request.org):
-                return "existing-export"
+            if blocker := super().get_blocker():
+                return blocker
 
             query = self.request.GET.get("s")
             preview = mailroom.get_client().contact_export_preview(self.request.org.id, self.group.id, query)
@@ -600,24 +574,10 @@ class ContactCRUDL(SmartCRUDL):
             group_uuid = self.request.GET.get("g")
             return org.groups.filter(uuid=group_uuid).first() if group_uuid else org.active_contacts_group
 
-        def form_valid(self, form):
-            assert not self.get_blocker()
-
-            user = self.request.user
-            org = self.request.org
+        def create_export(self, org, user, form):
             search = self.request.GET.get("s")
-
-            group_memberships = form.cleaned_data["group_memberships"]
-
-            export = ContactExport.create(org, user, group=self.group, search=search, with_groups=group_memberships)
-
-            on_transaction_commit(lambda: export.start())
-
-            messages.info(
-                self.request, _("We are preparing your export and you will get a notification when it is ready.")
-            )
-
-            return self.render_modal_response(form)
+            with_groups = form.cleaned_data["with_groups"]
+            return ContactExport.create(org, user, group=self.group, search=search, with_groups=with_groups)
 
     class Omnibox(OrgPermsMixin, SmartListView):
         paginate_by = 75

@@ -599,7 +599,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         export_url = reverse("contacts.contact_export")
 
         response = self.assertUpdateFetch(
-            export_url, allow_viewers=True, allow_editors=True, allow_org2=True, form_fields=("group_memberships",)
+            export_url, allow_viewers=True, allow_editors=True, allow_org2=True, form_fields=("with_groups",)
         )
         self.assertNotContains(response, "already an export in progress")
 
@@ -625,7 +625,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContains(response, "This group or search is too large to export.")
 
         response = self.client.post(
-            export_url + f"?g={self.org.active_contacts_group.uuid}", {"group_memberships": [big_group.id]}
+            export_url + f"?g={self.org.active_contacts_group.uuid}", {"with_groups": [big_group.id]}
         )
         self.assertEqual(200, response.status_code)
 
@@ -4811,6 +4811,15 @@ class ContactExportTest(TembaTest):
         self.contactfield_2 = self.create_field("second", "Second")
         self.contactfield_3 = self.create_field("third", "Third", priority=20)
 
+    def _export(self, group, search="", with_groups=()):
+        export = ContactExport.create(self.org, self.admin, group, search, with_groups=with_groups)
+        with self.mockReadOnly(assert_models={Contact, ContactURN, ContactField}):
+            export.perform()
+
+        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/contact_exports/{export.uuid}.xlsx"
+        workbook = load_workbook(filename=filename)
+        return workbook.worksheets, export
+
     @mock_mailroom
     def test_export(self, mr_mocks):
         self.clear_storage()
@@ -4859,24 +4868,12 @@ class ContactExportTest(TembaTest):
         # create orphaned URN in scheme that no contacts have a URN for
         ContactURN.create(self.org, None, "line:12345")
 
-        def create_export(group=None, search=""):
-            export = ContactExport.create(
-                self.org, self.admin, group or self.org.active_contacts_group, search, with_groups=[group1]
-            )
-            with self.mockReadOnly(assert_models={Contact, ContactURN, ContactField}):
-                export.perform()
-
-            filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/contact_exports/{export.uuid}.xlsx"
-            workbook = load_workbook(filename=filename)
-            return workbook.worksheets, export
-
         def assertReimport(export):
             filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/contact_exports/{export.uuid}.xlsx"
             self.create_contact_import(filename)
 
-        # no group specified, so will default to 'Active'
         with self.assertNumQueries(22):
-            sheets, export = create_export()
+            sheets, export = self._export(self.org.active_contacts_group, with_groups=[group1])
             self.assertEqual(2, export.num_records)
             self.assertEqual("C", export.status)
             self.assertExcelSheet(
@@ -4945,7 +4942,7 @@ class ContactExportTest(TembaTest):
         self.contactfield_2.save()
 
         with self.assertNumQueries(21):
-            sheets, export = create_export()
+            sheets, export = self._export(self.org.active_contacts_group, with_groups=[group1])
             self.assertEqual(2, export.num_records)
             self.assertEqual("C", export.status)
             self.assertExcelSheet(
@@ -5012,7 +5009,7 @@ class ContactExportTest(TembaTest):
 
         # but should have additional Twitter and phone columns
         with self.assertNumQueries(21):
-            sheets, export = create_export()
+            sheets, export = self._export(self.org.active_contacts_group, with_groups=[group1])
             self.assertEqual(4, export.num_records)
             self.assertExcelSheet(
                 sheets[0],
@@ -5110,7 +5107,7 @@ class ContactExportTest(TembaTest):
 
         # export a specified group of contacts (only Ben and Adam are in the group)
         with self.assertNumQueries(21):
-            sheets, export = create_export(group=group1)
+            sheets, export = self._export(group1, with_groups=[group1])
             self.assertExcelSheet(
                 sheets[0],
                 [
@@ -5174,7 +5171,7 @@ class ContactExportTest(TembaTest):
         contact5 = self.create_contact("George", urns=["tel:+1234567777"], status=Contact.STATUS_STOPPED)
 
         # export a specified status group of contacts (Stopped)
-        sheets, export = create_export(group=self.org.groups.get(name="Stopped"))
+        sheets, export = self._export(self.org.groups.get(name="Stopped"), with_groups=[group1])
         self.assertExcelSheet(
             sheets[0],
             [
@@ -5223,7 +5220,9 @@ class ContactExportTest(TembaTest):
         ]
         with ESMockWithScroll(data=mock_es_data):
             with self.assertNumQueries(24):
-                sheets, export = create_export(search="name has adam or name has deng")
+                sheets, export = self._export(
+                    self.org.active_contacts_group, "name has adam or name has deng", with_groups=[group1]
+                )
                 self.assertExcelSheet(
                     sheets[0],
                     [
@@ -5288,7 +5287,7 @@ class ContactExportTest(TembaTest):
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
             with self.assertNumQueries(22):
-                sheets, export = create_export(group=group1, search="Hagg")
+                sheets, export = self._export(group1, search="Hagg", with_groups=[group1])
                 self.assertExcelSheet(
                     sheets[0],
                     [
@@ -5334,7 +5333,7 @@ class ContactExportTest(TembaTest):
 
         # now try with an anonymous org
         with self.anonymous(self.org):
-            sheets, export = create_export()
+            sheets, export = self._export(self.org.active_contacts_group, with_groups=[group1])
             self.assertExcelSheet(
                 sheets[0],
                 [
