@@ -24,7 +24,7 @@ from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.orgs.models import Export
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
+from temba.tests import CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
 from temba.tests.base import get_contact_search
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
@@ -35,6 +35,7 @@ from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .checks import mailroom_url
 from .models import (
+    ExportFlowResultsTask,
     Flow,
     FlowCategoryCount,
     FlowLabel,
@@ -5590,3 +5591,47 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+
+
+class DeleteOldExportsTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0331_exportflowresultstask_item_count_and_more"
+    migrate_to = "0332_delete_old_exports"
+
+    def setUpBeforeMigration(self, apps):
+        flow = self.create_flow("Test")
+        self.export1 = ExportFlowResultsTask.objects.create(
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
+            start_date=date(2022, 6, 1),
+            end_date=date(2022, 6, 30),
+        )
+        self.export1.flows.add(flow)
+        self.export1.notifications.create(
+            org=self.org, user=self.admin, notification_type="export:finished", scope=str(self.export1.id)
+        )
+
+        self.export2 = ExportFlowResultsTask.objects.create(
+            org=self.org,
+            created_by=self.admin,
+            modified_by=self.admin,
+            start_date=date(2022, 6, 1),
+            end_date=date(2022, 6, 30),
+        )
+        self.export2.flows.add(flow)
+        self.export2.notifications.create(
+            org=self.org, user=self.admin, notification_type="export:finished", scope=str(self.export2.id)
+        )
+
+        # patch delete so that second export can't be deleted from storage
+        self.delete_patcher = patch("django.core.files.storage.FileSystemStorage.delete")
+        mock_delete = self.delete_patcher.start()
+        mock_delete.side_effect = [None, Exception("boom!")]
+
+    def tearDown(self):
+        self.delete_patcher.stop()
+
+    def test_migration(self):
+        self.assertFalse(ExportFlowResultsTask.objects.filter(id=self.export1.id).exists())
+        self.assertTrue(ExportFlowResultsTask.objects.filter(id=self.export2.id).exists())
