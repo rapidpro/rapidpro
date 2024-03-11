@@ -1,3 +1,8 @@
+v9.1.43 (2024-03-11)
+-------------------------
+ * Data migration to delete old flow results exports
+ * Data migration to delete old msgs exports
+
 v9.1.42 (2024-03-11)
 -------------------------
  * Data migration to delete old contacts exports
