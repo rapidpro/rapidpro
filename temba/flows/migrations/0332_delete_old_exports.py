@@ -32,6 +32,12 @@ def reverse(apps, schema_editor):
     pass
 
 
+def apply_manual():  # pragma: no cover
+    from django.apps import apps
+
+    delete_old_exports(apps, None)
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("flows", "0331_exportflowresultstask_item_count_and_more"),
