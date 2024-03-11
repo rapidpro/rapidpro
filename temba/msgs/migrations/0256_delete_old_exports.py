@@ -32,6 +32,12 @@ def reverse(apps, schema_editor):
     pass
 
 
+def apply_manual():  # pragma: no cover
+    from django.apps import apps
+
+    delete_old_exports(apps, None)
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("msgs", "0255_exportmessagestask_item_count_and_more"),
