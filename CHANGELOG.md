@@ -1,3 +1,7 @@
+v9.1.42 (2024-03-11)
+-------------------------
+ * Data migration to delete old contacts exports
+
 v9.1.41 (2024-03-11)
 -------------------------
  * Mark templates with button URLs and attachment in header not supported
