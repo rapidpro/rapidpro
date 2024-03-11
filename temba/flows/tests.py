@@ -3127,12 +3127,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_export_results(self):
         export_url = reverse("flows.flow_export_results")
 
-        flow = self.create_flow("Test")
+        flow1 = self.create_flow("Test 1")
+        flow2 = self.create_flow("Test 2")
         testers = self.create_group("Testers", contacts=[])
         gender = self.create_field("gender", "Gender")
 
         response = self.assertUpdateFetch(
-            export_url,
+            export_url + f"?ids={flow1.id},{flow2.id}",
             allow_viewers=True,
             allow_editors=True,
             allow_org2=True,
@@ -3167,7 +3168,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # we don't given them the option to start the export but check it can't be started anyway
         with self.assertRaises(AssertionError):
             response = self.client.post(
-                export_url, {"start_date": "2022-06-28", "end_date": "2022-09-28", "flows": [flow.id]}
+                export_url, {"start_date": "2022-06-28", "end_date": "2022-09-28", "flows": [flow1.id]}
             )
 
         # mark that one as finished so it's no longer a blocker
@@ -3185,7 +3186,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             {
                 "start_date": "2022-06-28",
                 "end_date": "2022-09-28",
-                "flows": [flow.id],
+                "flows": [flow1.id],
                 "with_groups": [testers.id],
                 "with_fields": [gender.id],
             },
@@ -3198,7 +3199,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(date(2022, 9, 28), export.end_date)
         self.assertEqual(
             {
-                "flow_ids": [flow.id],
+                "flow_ids": [flow1.id],
                 "with_groups": [testers.id],
                 "with_fields": [gender.id],
                 "extra_urns": [],

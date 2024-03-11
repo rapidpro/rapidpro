@@ -818,7 +818,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_export(self):
         export_url = reverse("msgs.msg_export")
 
-        self.create_flow("Test")
+        label = self.create_label("Test")
         testers = self.create_group("Testers", contacts=[])
         gender = self.create_field("gender", "Gender")
 
@@ -861,6 +861,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response, "form", "end_date", "This field is required.")
         self.assertFormError(response, "form", "export_all", "This field is required.")
 
+        # submit for inbox export
         response = self.client.post(
             export_url + "?l=I",
             {
@@ -879,6 +880,30 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(date(2022, 9, 28), export.end_date)
         self.assertEqual(
             {"with_groups": [testers.id], "with_fields": [gender.id], "label_uuid": None, "system_label": "I"},
+            export.config,
+        )
+
+        # submit user label export
+        response = self.client.post(
+            export_url + f"?l={label.uuid}",
+            {
+                "start_date": "2022-06-28",
+                "end_date": "2022-09-28",
+                "with_groups": [testers.id],
+                "with_fields": [gender.id],
+                "export_all": 0,
+            },
+        )
+        self.assertEqual(200, response.status_code)
+
+        export = Export.objects.exclude(id=blocking_export.id).last()
+        self.assertEqual(
+            {
+                "with_groups": [testers.id],
+                "with_fields": [gender.id],
+                "label_uuid": str(label.uuid),
+                "system_label": None,
+            },
             export.config,
         )
 
