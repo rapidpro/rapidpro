@@ -28,7 +28,7 @@ def delete_old_exports(apps, schema_editor):  # pragma: no cover
         print(f"Deleted {num_deleted} old exports and skipped {num_skipped} old exports.")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

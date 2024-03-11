@@ -225,7 +225,6 @@ INSTALLED_APPS = (
     "timezone_field",
     "temba.apks",
     "temba.archives",
-    "temba.assets",
     "temba.auth_tweaks",
     "temba.api",
     "temba.request_logs",

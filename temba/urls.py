@@ -41,7 +41,6 @@ urlpatterns += [
     re_path(r"users/user/forget/", RedirectView.as_view(pattern_name="orgs.user_forget", permanent=True)),
     re_path(r"^users/", include("smartmin.users.urls")),
     re_path(r"^imports/", include("smartmin.csv_imports.urls")),
-    re_path(r"^assets/", include("temba.assets.urls")),
     re_path(r"^jsi18n/$", JavaScriptCatalog.as_view(), js_info_dict, name="django.views.i18n.javascript_catalog"),
 ]
 
