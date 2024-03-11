@@ -16,7 +16,6 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
-from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts import search
@@ -27,7 +26,6 @@ from temba.orgs.models import DependencyMixin, Export, ExportType, Org, User
 from temba.templates.models import Template
 from temba.tickets.models import Topic
 from temba.utils import analytics, chunk_list, json, on_transaction_commit, s3
-from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
 from temba.utils.export.models import MultiSheetExporter
 from temba.utils.models import JSONAsTextField, LegacyUUIDMixin, SquashableModel, TembaModel, delete_in_batches
 from temba.utils.uuid import uuid4
@@ -1862,46 +1860,6 @@ class ResultsExport(ExportType):
             "responded_only": responded_only,
             "flows": [dict(uuid=f.uuid, name=f.name) for f in flows],
         }
-
-
-class ExportFlowResultsTask(BaseItemWithContactExport):
-    """
-    TODO migrate to orgs.Export and drop.
-    """
-
-    analytics_key = "flowresult_export"
-    notification_export_type = "results"
-
-    RESPONDED_ONLY = "responded_only"
-    EXTRA_URNS = "extra_urns"
-
-    flows = models.ManyToManyField(Flow, related_name="exports", help_text=_("The flows to export"))
-
-    # TODO backfill, for now overridden from base class to make nullable
-    start_date = models.DateField(null=True)
-    end_date = models.DateField(null=True)
-
-    config = JSONAsTextField(null=True, default=dict, help_text=_("Any configuration options for this flow export"))
-
-    # just for testing old export downloads still work
-    def write_export(self):
-        # create our exporter
-        exporter = MultiSheetExporter(
-            "Runs",
-            ["Foo", "Bar"],
-            self.org.timezone,
-        )
-        num_records = 0
-        return *exporter.save_file(), num_records
-
-
-@register_asset_store
-class ResultsExportAssetStore(BaseExportAssetStore):
-    model = ExportFlowResultsTask
-    key = "results_export"
-    directory = "results_exports"
-    permission = "flows.flow_export_results"
-    extensions = ("xlsx",)
 
 
 class FlowStart(models.Model):

@@ -1,8 +1,6 @@
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from temba.orgs.models import Export
-
 from ..models import Notification, NotificationType
 
 
@@ -19,8 +17,6 @@ class ExportFinishedNotificationType(NotificationType):
         Creates an export finished notification for the creator of the given export.
         """
 
-        export_field = "export" if isinstance(export, Export) else export.notification_export_type + "_export"
-
         Notification.create_all(
             export.org,
             cls.slug,
@@ -28,18 +24,14 @@ class ExportFinishedNotificationType(NotificationType):
             users=[export.created_by],
             medium=Notification.MEDIUM_UI + Notification.MEDIUM_EMAIL,
             email_status=Notification.EMAIL_STATUS_PENDING,
-            **{export_field: export},
+            **{"export": export},
         )
 
     def get_target_url(self, notification) -> str:
-        # if legacy export model, call model method
-        if not notification.export:
-            return notification.export_obj.get_download_url()
-
         return reverse("orgs.export_download", kwargs={"uuid": notification.export.uuid})
 
     def get_email_subject(self, notification) -> str:
-        return _("Your %s export is ready") % notification.export_obj.notification_export_type
+        return _("Your %s export is ready") % notification.export.notification_export_type
 
     def get_email_template(self, notification) -> str:
         return "notifications/email/export_finished"
@@ -47,8 +39,8 @@ class ExportFinishedNotificationType(NotificationType):
     def as_json(self, notification) -> dict:
         json = super().as_json(notification)
         json["export"] = {
-            "type": notification.export_obj.notification_export_type,
-            "num_records": notification.export_obj.num_records,
+            "type": notification.export.notification_export_type,
+            "num_records": notification.export.num_records,
         }
         return json
 

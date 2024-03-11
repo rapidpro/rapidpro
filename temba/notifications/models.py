@@ -6,14 +6,10 @@ from django.db import models
 from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.functional import cached_property
 
 from temba.channels.models import Channel
-from temba.contacts.models import ContactImport, ExportContactsTask
-from temba.flows.models import ExportFlowResultsTask
-from temba.msgs.models import ExportMessagesTask
+from temba.contacts.models import ContactImport
 from temba.orgs.models import Export, Org
-from temba.tickets.models import ExportTicketsTask
 from temba.utils.email import EmailSender
 from temba.utils.models import SquashableModel
 
@@ -183,22 +179,8 @@ class Notification(models.Model):
     email_status = models.CharField(choices=EMAIL_STATUS_CHOICES, max_length=1, default=EMAIL_STATUS_NONE)
     created_on = models.DateTimeField(default=timezone.now)
 
-    contact_export = models.ForeignKey(
-        ExportContactsTask, null=True, on_delete=models.PROTECT, related_name="notifications"
-    )
-    message_export = models.ForeignKey(
-        ExportMessagesTask, null=True, on_delete=models.PROTECT, related_name="notifications"
-    )
-    results_export = models.ForeignKey(
-        ExportFlowResultsTask, null=True, on_delete=models.PROTECT, related_name="notifications"
-    )
-    ticket_export = models.ForeignKey(
-        ExportTicketsTask, null=True, on_delete=models.PROTECT, related_name="notifications"
-    )
     export = models.ForeignKey(Export, null=True, on_delete=models.PROTECT, related_name="notifications")
-
     contact_import = models.ForeignKey(ContactImport, null=True, on_delete=models.PROTECT, related_name="notifications")
-
     incident = models.ForeignKey(Incident, null=True, on_delete=models.PROTECT, related_name="notifications")
 
     @classmethod
@@ -241,11 +223,6 @@ class Notification(models.Model):
     @classmethod
     def get_unseen_count(cls, org: Org, user: User) -> int:
         return NotificationCount.get_total(org, user)
-
-    @cached_property
-    def export_obj(self):
-        # TODO remove once everything is an orgs.Export
-        return self.contact_export or self.message_export or self.results_export or self.ticket_export or self.export
 
     @property
     def type(self):
