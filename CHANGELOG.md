@@ -1,3 +1,8 @@
+v9.1.41 (2024-03-11)
+-------------------------
+ * Mark templates with button URLs and attachment in header not supported
+ * Convert exports to use shared export modal view
+
 v9.1.40 (2024-03-08)
 -------------------------
  * Allow more WhatsApp templates to be usable in the flows
