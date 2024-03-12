@@ -552,7 +552,7 @@ class ContactCRUDL(SmartCRUDL):
     class Export(BaseExportView):
         export_type = ContactExport
         success_url = "@contacts.contact_list"
-        size_limit = 1_000
+        size_limit = 1_000_000
 
         def derive_fields(self):
             return ("with_groups",)
