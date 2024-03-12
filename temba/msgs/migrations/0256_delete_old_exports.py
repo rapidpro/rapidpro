@@ -5,7 +5,7 @@ from django.core.files.storage import default_storage
 from django.db import migrations
 
 
-def delete_old_exports(apps, schema_editor):
+def delete_old_exports(apps, schema_editor):  # pragma: no cover
     ExportMessagesTask = apps.get_model("msgs", "ExportMessagesTask")
     num_deleted = 0
     num_skipped = 0
@@ -28,7 +28,7 @@ def delete_old_exports(apps, schema_editor):
         print(f"Deleted {num_deleted} old msgs exports and skipped {num_skipped} old msgs exports.")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

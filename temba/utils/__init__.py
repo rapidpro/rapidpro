@@ -3,6 +3,8 @@ from itertools import islice
 from django.conf import settings
 from django.db import transaction
 
+from .checks import *  # noqa
+
 
 def str_to_bool(text):
     """

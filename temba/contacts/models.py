@@ -24,13 +24,12 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
-from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Export, ExportType, Org, OrgRole
 from temba.utils import chunk_list, format_number, on_transaction_commit
-from temba.utils.export import BaseExport, BaseExportAssetStore, MultiSheetExporter
+from temba.utils.export import MultiSheetExporter
 from temba.utils.models import JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
 from temba.utils.text import decode_stream, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
@@ -1848,27 +1847,6 @@ class ContactGroupCount(SquashableModel):
         ]
 
 
-class ExportContactsTask(BaseExport):
-    """
-    TODO migrate to orgs.Export and drop.
-    """
-
-    analytics_key = "contact_export"
-    notification_export_type = "contact"
-
-    group = models.ForeignKey(
-        ContactGroup,
-        on_delete=models.PROTECT,
-        null=True,
-        related_name="exports",
-        help_text=_("The unique group to export"),
-    )
-
-    group_memberships = models.ManyToManyField(ContactGroup)
-
-    search = models.TextField(null=True, blank=True, help_text=_("The search query"))
-
-
 class ContactExport(ExportType):
     """
     Export of contacts
@@ -2555,12 +2533,3 @@ class ContactImportBatch(models.Model):
 
     def import_async(self):
         mailroom.queue_contact_import_batch(self)
-
-
-@register_asset_store
-class ContactExportAssetStore(BaseExportAssetStore):
-    model = ExportContactsTask
-    key = "contact_export"
-    directory = "contact_exports"
-    permission = "contacts.contact_export"
-    extensions = ("xlsx", "csv")

@@ -36,6 +36,7 @@ from . import (
     sizeof_fmt,
     str_to_bool,
 )
+from .checks import storage
 from .crons import clear_cron_stats, cron_task
 from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .fields import ExternalURLField, NameValidator
@@ -905,3 +906,19 @@ class TestUUIDs(TembaTest):
 class ComposeTest(TembaTest):
     def test_empty_compose(self):
         self.assertEqual(compose_serialize(), {})
+
+
+class SystemChecksTest(TembaTest):
+    def test_storage(self):
+        self.assertEqual(len(storage(None)), 0)
+
+        with override_settings(STORAGES={"default": {"BACKEND": "x"}, "staticfiles": {"BACKEND": "x"}}):
+            self.assertEqual(storage(None)[0].msg, "Missing 'archives' storage config.")
+            self.assertEqual(storage(None)[1].msg, "Missing 'logs' storage config.")
+            self.assertEqual(storage(None)[2].msg, "Missing 'public' storage config.")
+
+        with override_settings(STORAGE_URL=None):
+            self.assertEqual(storage(None)[0].msg, "No storage URL set.")
+
+        with override_settings(STORAGE_URL="http://example.com/uploads/"):
+            self.assertEqual(storage(None)[0].msg, "Storage URL shouldn't end with trailing slash.")

@@ -30,7 +30,7 @@ from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modi
 from temba.msgs.models import Broadcast, Msg, SystemLabel
 from temba.orgs.models import Export, Org, OrgRole
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, ESMockWithScroll, MigrationTest, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticket, TicketCount
@@ -50,7 +50,6 @@ from .models import (
     ContactImport,
     ContactImportBatch,
     ContactURN,
-    ExportContactsTask,
 )
 from .tasks import check_elasticsearch_lag, squash_group_counts
 from .templatetags.contacts import contact_field, msg_status_badge
@@ -5412,40 +5411,3 @@ class ContactExportTest(TembaTest):
                 tz=self.org.timezone,
             )
             assertReimport(export)
-
-
-class DeleteOldExportsTest(MigrationTest):
-    app = "contacts"
-    migrate_from = "0185_exportcontactstask_item_count_and_more"
-    migrate_to = "0186_delete_old_exports"
-
-    def setUpBeforeMigration(self, apps):
-        self.export1 = ExportContactsTask.objects.create(
-            org=self.org,
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-        self.export1.notifications.create(
-            org=self.org, user=self.admin, notification_type="export:finished", scope=str(self.export1.id)
-        )
-
-        self.export2 = ExportContactsTask.objects.create(
-            org=self.org,
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-        self.export2.notifications.create(
-            org=self.org, user=self.admin, notification_type="export:finished", scope=str(self.export2.id)
-        )
-
-        # patch delete so that second export can't be deleted from storage
-        self.delete_patcher = patch("django.core.files.storage.FileSystemStorage.delete")
-        mock_delete = self.delete_patcher.start()
-        mock_delete.side_effect = [None, Exception("boom!"), Exception("boom!"), Exception("boom!")]
-
-    def tearDown(self):
-        self.delete_patcher.stop()
-
-    def test_migration(self):
-        self.assertFalse(ExportContactsTask.objects.filter(id=self.export1.id).exists())
-        self.assertTrue(ExportContactsTask.objects.filter(id=self.export2.id).exists())
