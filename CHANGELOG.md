@@ -1,3 +1,7 @@
+v9.1.44 (2024-03-12)
+-------------------------
+ * Drop old export models and assets app
+
 v9.1.43 (2024-03-11)
 -------------------------
  * Data migration to delete old flow results exports
