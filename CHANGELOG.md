@@ -1,3 +1,7 @@
+v9.1.45 (2024-03-12)
+-------------------------
+ * Fix the size limit for contact exports
+
 v9.1.44 (2024-03-12)
 -------------------------
  * Drop old export models and assets app
