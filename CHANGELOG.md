@@ -1,3 +1,7 @@
+v9.1.46 (2024-03-13)
+-------------------------
+ * Reduce WA template sync error logging to ignore those in http logs
+
 v9.1.45 (2024-03-12)
 -------------------------
  * Fix the size limit for contact exports
