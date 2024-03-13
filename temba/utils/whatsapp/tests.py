@@ -716,3 +716,10 @@ class WhatsAppUtilsTest(TembaTest):
                 incident_type=ChannelTemplatesFailedIncidentType.slug, channel=d3c_channel, ended_on=None
             ).count(),
         )
+
+        # other exception logged to sentry
+        mock_d3c_fetch_templates.side_effect = Exception("boom")
+        with patch("logging.Logger.error") as mock_log_error:
+            refresh_whatsapp_templates()
+            self.assertEqual(1, mock_log_error.call_count)
+            self.assertEqual("Error refreshing whatsapp templates: boom", mock_log_error.call_args[0][0])
