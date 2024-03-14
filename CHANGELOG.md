@@ -1,3 +1,8 @@
+v9.1.47 (2024-03-14)
+-------------------------
+ * Remove old templates API endpoint
+ * Update flow version for campaigns events single message flows
+
 v9.1.46 (2024-03-13)
 -------------------------
  * Reduce WA template sync error logging to ignore those in http logs
