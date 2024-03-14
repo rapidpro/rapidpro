@@ -17,9 +17,26 @@
         </div>
       {% endifchanged %}
       <div max-width="100%" class="flex translation">
-        <div width="70%" class="flex p-4 content">{{ translation.content }}</div>
+        <div width="70%" class="flex flex-col p-4 content">
+          {% if "header" in translation.components %}
+            <div width="100%" class="my-1 text-lg font-normal">{{ translation.components.header.content }}</div>
+          {% endif %}
+          {% if "body" in translation.components %}
+            <div width="100%" class="my-1">{{ translation.components.body.content }}</div>
+          {% endif %}
+          {% if "footer" in translation.components %}
+            <div width="100%" class="my-1 text-sm">{{ translation.components.footer.content }}</div>
+          {% endif %}
+          <div class="my-4 flex">
+            {% for key, comp in translation.components.items %}
+              {% if key|slice:":7" == "button." %}
+                <div width="100%" class="border mr-2 p-2 rounded-lg">{{ comp.content }}</div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
         <div class="flex-1 p-4 locale">{{ translation.locale }}</div>
-        <div class="tr-{{ translation.get_status_display }} flex p-4 status">{{ translation.get_status_display }}</div>
+        <div class="tr-{{ translation.get_status_display }} flex p-4 font-mono">{{ translation.get_status_display }}</div>
       </div>
     {% empty %}
       <tr class="empty">
@@ -44,8 +61,8 @@
       border-bottom: 1px solid #e6e6e6;
     }
 
-    .translation div {
-      border-bottom: 1px solid #e6e6e6;
+    .translation {
+      border-bottom: 2px solid #e6e6e6;
     }
 
     .translation .locale {
@@ -53,12 +70,7 @@
       color: #666;
     }
 
-    .translation .status {
-      font-family: monospace;
-    }
-
     .content {
-      font-style: italic;
       width: 70%;
     }
 
