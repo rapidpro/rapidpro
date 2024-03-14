@@ -1,3 +1,8 @@
+v9.1.48 (2024-03-14)
+-------------------------
+ * Show more components for WA templates list
+ * Add display to WA templates button components
+
 v9.1.47 (2024-03-14)
 -------------------------
  * Remove old templates API endpoint
