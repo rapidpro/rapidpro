@@ -278,8 +278,12 @@ class WhatsAppUtilsTest(TembaTest):
                 "button.0": {"content": "Yes", "params": []},
                 "button.1": {"content": "No", "params": []},
                 "button.2": {"content": "Call center", "params": []},
-                "button.3": {"content": "Check website", "params": [{"type": "text"}]},
-                "button.4": {"content": "Check website", "params": []},
+                "button.3": {
+                    "content": r"https:\/\/example.com\/?wa_customer={{1}}",
+                    "display": "Check website",
+                    "params": [{"type": "text"}],
+                },
+                "button.4": {"content": r"https:\/\/example.com\/help", "display": "Check website", "params": []},
             },
             ct.components,
         )
