@@ -23,7 +23,6 @@ from temba.locations.models import AdminBoundary
 from temba.mailroom import modifiers
 from temba.msgs.models import Broadcast, Label, Media, Msg, OptIn
 from temba.orgs.models import Org, OrgRole
-from temba.templates.models import Template
 from temba.tickets.models import Ticket, Topic
 from temba.utils import json, on_transaction_commit
 from temba.utils.fields import NameValidator
@@ -1567,33 +1566,6 @@ class WebHookEventReadSerializer(ReadSerializer):
     class Meta:
         model = WebHookEvent
         fields = ("resthook", "data", "created_on")
-
-
-class TemplateReadSerializer(ReadSerializer):
-    translations = serializers.SerializerMethodField()
-    modified_on = serializers.DateTimeField(default_timezone=tzone.utc)
-    created_on = serializers.DateTimeField(default_timezone=tzone.utc)
-
-    def get_translations(self, obj):
-        translations = []
-        for translation in obj.translations.all():
-            translations.append(
-                {
-                    "language": translation.locale[:3],
-                    "locale": translation.locale,
-                    "content": translation.content,
-                    "namespace": translation.namespace,
-                    "variable_count": translation.variable_count,
-                    "status": translation.get_status_display(),
-                    "channel": {"uuid": translation.channel.uuid, "name": translation.channel.name},
-                }
-            )
-
-        return translations
-
-    class Meta:
-        model = Template
-        fields = ("uuid", "name", "translations", "created_on", "modified_on")
 
 
 class TicketReadSerializer(ReadSerializer):
