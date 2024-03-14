@@ -245,7 +245,7 @@ def refresh_whatsapp_templates():
             if ongoing:
                 ongoing.end()
 
-        except Exception as e:
+        except requests.RequestException:
             num_errored += 1
 
             # if last 5 sync attempts have been errors, create an incident
@@ -257,6 +257,7 @@ def refresh_whatsapp_templates():
             if len(recent_is_errors) >= 5 and all(recent_is_errors):
                 ChannelTemplatesFailedIncidentType.get_or_create(channel)
 
+        except Exception as e:
             logger.error(f"Error refreshing whatsapp templates: {str(e)}", exc_info=True)
 
     return {"refreshed": num_refreshed, "errored": num_errored}
