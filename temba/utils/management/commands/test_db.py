@@ -369,7 +369,6 @@ class Command(BaseCommand):
                             },
                             "button.2": {
                                 "content": "Not Hungry",
-                                "display": "Not Hungry",
                                 "params": [{"type": "text"}],
                             },
                         },
@@ -401,7 +400,7 @@ class Command(BaseCommand):
                                 "display": "Plat B",
                                 "params": [{"type": "text"}],
                             },
-                            "button.2": {"content": "Pas Faim", "display": "Pas Faim", "params": [{"type": "text"}]},
+                            "button.2": {"content": "Pas Faim", "params": [{"type": "text"}]},
                         },
                         # deprecated
                         content="Bonjour {{1}} ! Nous sommes en train de préparer notre menu de classe mondiale. Souhaitez-vous {{2}} ou {{3}}",

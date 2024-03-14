@@ -136,14 +136,17 @@ def _extract_template_params(components):
             for idx, button in enumerate(buttons):
                 comp_params = []
                 content = button.get("text", "")
-                display = button.get("text", "")
+                display = ""
                 if button["type"].lower() == "url":
                     for match in VARIABLE_RE.findall(button.get("url", "")):
                         comp_params.append({"type": "text"})
                     content = button.get("url", "")
+                    display = button.get("text", "")
                 if comp_params:
                     params[f"button.{idx}"] = comp_params
-                transformed_components[f"button.{idx}"] = dict(content=content, display=display, params=comp_params)
+                transformed_components[f"button.{idx}"] = dict(content=content, params=comp_params)
+                if display:
+                    transformed_components[f"button.{idx}"]["display"] = display
         else:
             transformed_components[component_type] = dict(content=component.get("text", ""), params=[])
     return params, transformed_components, all_parts_supported

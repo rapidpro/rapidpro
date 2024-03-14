@@ -257,7 +257,7 @@ class WhatsAppUtilsTest(TembaTest):
             {
                 "body": {"content": "", "params": []},
                 "footer": {"content": "", "params": []},
-                "button.0": {"content": "copy", "display": "copy", "params": []},
+                "button.0": {"content": "copy", "params": []},
             },
             ct.components,
         )
@@ -275,9 +275,9 @@ class WhatsAppUtilsTest(TembaTest):
                     "params": [{"type": "text"}, {"type": "text"}],
                 },
                 "footer": {"content": "Thanks for your patience", "params": []},
-                "button.0": {"content": "Yes", "display": "Yes", "params": []},
-                "button.1": {"content": "No", "display": "No", "params": []},
-                "button.2": {"content": "Call center", "display": "Call center", "params": []},
+                "button.0": {"content": "Yes", "params": []},
+                "button.1": {"content": "No", "params": []},
+                "button.2": {"content": "Call center", "params": []},
                 "button.3": {
                     "content": r"https:\/\/example.com\/?wa_customer={{1}}",
                     "display": "Check website",
