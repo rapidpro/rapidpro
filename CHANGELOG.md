@@ -1,3 +1,7 @@
+v9.1.49 (2024-03-15)
+-------------------------
+ * Add url param type for buttons with URLs
+
 v9.1.48 (2024-03-14)
 -------------------------
  * Show more components for WA templates list
