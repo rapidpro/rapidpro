@@ -281,7 +281,7 @@ class WhatsAppUtilsTest(TembaTest):
                 "button.3": {
                     "content": r"https:\/\/example.com\/?wa_customer={{1}}",
                     "display": "Check website",
-                    "params": [{"type": "text"}],
+                    "params": [{"type": "url"}],
                 },
                 "button.4": {"content": r"https:\/\/example.com\/help", "display": "Check website", "params": []},
             },
@@ -291,7 +291,7 @@ class WhatsAppUtilsTest(TembaTest):
             {
                 "header": [{"type": "image"}],
                 "body": [{"type": "text"}, {"type": "text"}],
-                "button.3": [{"type": "text"}],
+                "button.3": [{"type": "url"}],
             },
             ct.params,
         )

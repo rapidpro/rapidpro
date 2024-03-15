@@ -139,7 +139,7 @@ def _extract_template_params(components):
                 display = ""
                 if button["type"].lower() == "url":
                     for match in VARIABLE_RE.findall(button.get("url", "")):
-                        comp_params.append({"type": "text"})
+                        comp_params.append({"type": "url"})
                     content = button.get("url", "")
                     display = button.get("text", "")
                 if comp_params:
