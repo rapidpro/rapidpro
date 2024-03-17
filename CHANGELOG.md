@@ -1,3 +1,7 @@
+v9.1.50 (2024-03-17)
+-------------------------
+ * Better feedback when editing contact fields
+
 v9.1.49 (2024-03-15)
 -------------------------
  * Add url param type for buttons with URLs
