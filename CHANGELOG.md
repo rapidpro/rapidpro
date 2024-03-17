@@ -1,3 +1,7 @@
+v9.1.51 (2024-03-17)
+-------------------------
+ * Tweaks to make the interface more mobile friendly
+
 v9.1.50 (2024-03-17)
 -------------------------
  * Better feedback when editing contact fields
