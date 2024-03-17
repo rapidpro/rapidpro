@@ -278,8 +278,12 @@ class WhatsAppUtilsTest(TembaTest):
                 "button.0": {"content": "Yes", "params": []},
                 "button.1": {"content": "No", "params": []},
                 "button.2": {"content": "Call center", "params": []},
-                "button.3": {"content": "Check website", "params": [{"type": "text"}]},
-                "button.4": {"content": "Check website", "params": []},
+                "button.3": {
+                    "content": r"https:\/\/example.com\/?wa_customer={{1}}",
+                    "display": "Check website",
+                    "params": [{"type": "url"}],
+                },
+                "button.4": {"content": r"https:\/\/example.com\/help", "display": "Check website", "params": []},
             },
             ct.components,
         )
@@ -287,7 +291,7 @@ class WhatsAppUtilsTest(TembaTest):
             {
                 "header": [{"type": "image"}],
                 "body": [{"type": "text"}, {"type": "text"}],
-                "button.3": [{"type": "text"}],
+                "button.3": [{"type": "url"}],
             },
             ct.params,
         )
@@ -716,3 +720,10 @@ class WhatsAppUtilsTest(TembaTest):
                 incident_type=ChannelTemplatesFailedIncidentType.slug, channel=d3c_channel, ended_on=None
             ).count(),
         )
+
+        # other exception logged to sentry
+        mock_d3c_fetch_templates.side_effect = Exception("boom")
+        with patch("logging.Logger.error") as mock_log_error:
+            refresh_whatsapp_templates()
+            self.assertEqual(1, mock_log_error.call_count)
+            self.assertEqual("Error refreshing whatsapp templates: boom", mock_log_error.call_args[0][0])

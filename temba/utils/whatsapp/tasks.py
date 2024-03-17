@@ -108,6 +108,9 @@ def _extract_template_params(components):
     for component in components:
         component_type = component["type"].lower()
 
+        if component_type not in ["header", "body", "footer", "buttons"]:
+            all_parts_supported = False
+
         if component_type == "header":
             comp_params = []
 
@@ -132,13 +135,18 @@ def _extract_template_params(components):
             buttons = component["buttons"]
             for idx, button in enumerate(buttons):
                 comp_params = []
+                content = button.get("text", "")
+                display = ""
                 if button["type"].lower() == "url":
                     for match in VARIABLE_RE.findall(button.get("url", "")):
-                        comp_params.append({"type": "text"})
-                        all_parts_supported = False
+                        comp_params.append({"type": "url"})
+                    content = button.get("url", "")
+                    display = button.get("text", "")
                 if comp_params:
                     params[f"button.{idx}"] = comp_params
-                transformed_components[f"button.{idx}"] = dict(content=button.get("text", ""), params=comp_params)
+                transformed_components[f"button.{idx}"] = dict(content=content, params=comp_params)
+                if display:
+                    transformed_components[f"button.{idx}"]["display"] = display
         else:
             transformed_components[component_type] = dict(content=component.get("text", ""), params=[])
     return params, transformed_components, all_parts_supported
@@ -161,6 +169,8 @@ def update_local_templates(channel, templates_data):
         components = template["components"]
 
         params, transformed_components, all_parts_supported = _extract_template_params(components)
+
+        # TODO: Remove saving content and variable_count once we migrate the template display to not use the content field
         content_parts = []
 
         for component in components:
@@ -245,7 +255,7 @@ def refresh_whatsapp_templates():
             if ongoing:
                 ongoing.end()
 
-        except Exception as e:
+        except requests.RequestException:
             num_errored += 1
 
             # if last 5 sync attempts have been errors, create an incident
@@ -257,6 +267,7 @@ def refresh_whatsapp_templates():
             if len(recent_is_errors) >= 5 and all(recent_is_errors):
                 ChannelTemplatesFailedIncidentType.get_or_create(channel)
 
+        except Exception as e:
             logger.error(f"Error refreshing whatsapp templates: {str(e)}", exc_info=True)
 
     return {"refreshed": num_refreshed, "errored": num_errored}

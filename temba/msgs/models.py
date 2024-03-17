@@ -20,14 +20,12 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
-from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts import search
 from temba.contacts.models import Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Export, ExportType, Org
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, on_transaction_commit
-from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
 from temba.utils.export.models import MultiSheetExporter
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel
 from temba.utils.s3 import public_file_storage
@@ -1238,28 +1236,3 @@ class MessageExport(ExportType):
     def get_download_context(self, export) -> dict:
         system_label, label = self.get_folder(export)
         return {"label": label} if label else {}
-
-
-class ExportMessagesTask(BaseItemWithContactExport):
-    """
-    TODO migrate to orgs.Export and drop.
-    """
-
-    analytics_key = "msg_export"
-    notification_export_type = "message"
-
-    label = models.ForeignKey(Label, on_delete=models.PROTECT, null=True)
-    system_label = models.CharField(null=True, max_length=1)
-
-    # TODO backfill, for now overridden from base class to make nullable
-    start_date = models.DateField(null=True)
-    end_date = models.DateField(null=True)
-
-
-@register_asset_store
-class MessageExportAssetStore(BaseExportAssetStore):
-    model = ExportMessagesTask
-    key = "message_export"
-    directory = "message_exports"
-    permission = "msgs.msg_export"
-    extensions = ("xlsx",)

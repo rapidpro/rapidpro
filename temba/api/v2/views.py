@@ -23,7 +23,6 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Media, Msg, OptIn, SystemLabel
 from temba.orgs.models import OrgMembership, User
 from temba.orgs.views import OrgPermsMixin
-from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticket, TicketCount, Topic
 from temba.utils import str_to_bool
 from temba.utils.uuid import is_uuid
@@ -79,7 +78,6 @@ from .serializers import (
     ResthookReadSerializer,
     ResthookSubscriberReadSerializer,
     ResthookSubscriberWriteSerializer,
-    TemplateReadSerializer,
     TicketBulkActionSerializer,
     TicketReadSerializer,
     TopicReadSerializer,
@@ -308,7 +306,6 @@ class RootView(BaseEndpoint):
                 "resthook_events": reverse("api.v2.resthook_events", request=request),
                 "resthook_subscribers": reverse("api.v2.resthook_subscribers", request=request),
                 "runs": reverse("api.v2.runs", request=request),
-                "templates": reverse("api.v2.templates", request=request),
                 "tickets": reverse("api.v2.tickets", request=request),
                 "ticket_actions": reverse("api.v2.ticket_actions", request=request),
                 "topics": reverse("api.v2.topics", request=request),
@@ -3370,24 +3367,6 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
             ],
             example=dict(body='{"flow":"f5901b62-ba76-4003-9c62-72fdacc1b7b7","urns":["twitter:sirmixalot"]}'),
         )
-
-
-class TemplatesEndpoint(ListAPIMixin, BaseEndpoint):
-    """
-    TODO deprecated, migrate editor to api/internal/templates.json
-    """
-
-    model = Template
-    serializer_class = TemplateReadSerializer
-    pagination_class = ModifiedOnCursorPagination
-
-    def filter_queryset(self, queryset):
-        org = self.request.org
-        queryset = org.templates.exclude(translations=None).prefetch_related(
-            Prefetch("translations", TemplateTranslation.objects.filter(is_active=True).order_by("locale")),
-            Prefetch("translations__channel", Channel.objects.only("uuid", "name")),
-        )
-        return self.filter_before_after(queryset, "modified_on")
 
 
 class TicketsEndpoint(ListAPIMixin, BaseEndpoint):

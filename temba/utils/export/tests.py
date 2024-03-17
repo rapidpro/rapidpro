@@ -55,7 +55,7 @@ class ExportTest(TembaTest):
 
             self.assertEqual(task2.status, Export.STATUS_FAILED)
 
-    @patch("temba.utils.export.BaseExport.MAX_EXCEL_ROWS", new_callable=PropertyMock)
+    @patch("temba.utils.export.MultiSheetExporter.MAX_EXCEL_ROWS", new_callable=PropertyMock)
     def test_multisheetexporter(self, mock_max_rows):
         test_max_rows = 1500
         mock_max_rows.return_value = test_max_rows

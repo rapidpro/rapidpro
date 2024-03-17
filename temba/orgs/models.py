@@ -1295,10 +1295,6 @@ class Org(SmartModel):
         delete_in_batches(self.notifications.all())
         delete_in_batches(self.notification_counts.all())
         delete_in_batches(self.incidents.all())
-        delete_in_batches(self.exportcontactstasks.all())
-        delete_in_batches(self.exportmessagestasks.all())
-        delete_in_batches(self.exportflowresultstasks.all())
-        delete_in_batches(self.exportticketstasks.all())
         delete_in_batches(self.flow_labels.all())
 
         for exp in self.exports.all():

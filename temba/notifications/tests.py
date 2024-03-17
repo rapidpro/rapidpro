@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.contacts.models import ContactExport, ContactImport
-from temba.flows.models import ExportFlowResultsTask, ResultsExport
+from temba.flows.models import ResultsExport
 from temba.msgs.models import MessageExport
 from temba.orgs.models import OrgRole
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers
@@ -225,45 +225,6 @@ class NotificationTest(TembaTest):
         self.client.get(reverse("orgs.export_download", args=[export.uuid]))
 
         self.assertTrue(self.editor.notifications.get(export=export).is_seen)
-
-    def test_old_results_export_finished(self):
-        flow1 = self.create_flow("Test Flow 1")
-        flow2 = self.create_flow("Test Flow 2")
-        export = ExportFlowResultsTask.objects.create(
-            org=self.org,
-            created_by=self.editor,
-            modified_by=self.editor,
-            start_date=date.today(),
-            end_date=date.today(),
-            config={ExportFlowResultsTask.RESPONDED_ONLY: True, ExportFlowResultsTask.EXTRA_URNS: []},
-        )
-
-        export.flows.add(*[flow1, flow2])
-        export.perform()
-
-        ExportFinishedNotificationType.create(export)
-
-        self.assertFalse(self.editor.notifications.get(results_export=export).is_seen)
-
-        # we only notify the user that started the export
-        self.assert_notifications(
-            after=export.created_on,
-            expected_json={
-                "type": "export:finished",
-                "created_on": matchers.ISODate(),
-                "target_url": f"/assets/download/results_export/{export.id}/",
-                "is_seen": False,
-                "export": {"type": "results", "num_records": 0},
-            },
-            expected_users={self.editor},
-            email=True,
-        )
-
-        send_notification_emails()
-
-        self.assertEqual(1, len(mail.outbox))
-        self.assertEqual("[Nyaruka] Your results export is ready", mail.outbox[0].subject)
-        self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
 
     def test_results_export_finished(self):
         flow1 = self.create_flow("Test Flow 1")

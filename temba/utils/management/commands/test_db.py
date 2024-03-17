@@ -357,9 +357,20 @@ class Command(BaseCommand):
                                 "content": "Hi there {{1}}! We are in the process of preparing our world class menu. Would you like {{2}} or {{3}}",
                                 "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
                             },
-                            "button.0": {"content": "Order {{1}}", "params": [{"type": "text"}]},
-                            "button.1": {"content": "Order {{1}}", "params": [{"type": "text"}]},
-                            "button.2": {"content": "Not Hungry", "params": [{"type": "text"}]},
+                            "button.0": {
+                                "content": "https://example.com/?wa_customer={{1}}",
+                                "display": "Dish A",
+                                "params": [{"type": "text"}],
+                            },
+                            "button.1": {
+                                "content": "https://example.com/?wa_organization={{1}}",
+                                "display": "Dish B",
+                                "params": [{"type": "text"}],
+                            },
+                            "button.2": {
+                                "content": "Not Hungry",
+                                "params": [{"type": "text"}],
+                            },
                         },
                         # deprecated
                         content="Hi there {{1}}! We are in the process of preparing our world class menu. Would you like {{2}} or {{3}}",
@@ -379,8 +390,16 @@ class Command(BaseCommand):
                                 "content": "Bonjour {{1}} ! Nous sommes en train de préparer notre menu de classe mondiale. Souhaitez-vous {{2}} ou {{3}}",
                                 "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
                             },
-                            "button.0": {"content": "Commande {{1}}", "params": [{"type": "text"}]},
-                            "button.1": {"content": "Commande {{1}}", "params": [{"type": "text"}]},
+                            "button.0": {
+                                "content": "https://example.com/?wa_customer={{1}}",
+                                "display": "Plat A",
+                                "params": [{"type": "text"}],
+                            },
+                            "button.1": {
+                                "content": "https://example.com/?wa_organization={{1}}",
+                                "display": "Plat B",
+                                "params": [{"type": "text"}],
+                            },
                             "button.2": {"content": "Pas Faim", "params": [{"type": "text"}]},
                         },
                         # deprecated

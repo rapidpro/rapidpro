@@ -1,3 +1,29 @@
+v9.1.49 (2024-03-15)
+-------------------------
+ * Add url param type for buttons with URLs
+
+v9.1.48 (2024-03-14)
+-------------------------
+ * Show more components for WA templates list
+ * Add display to WA templates button components
+
+v9.1.47 (2024-03-14)
+-------------------------
+ * Remove old templates API endpoint
+ * Update flow version for campaigns events single message flows
+
+v9.1.46 (2024-03-13)
+-------------------------
+ * Reduce WA template sync error logging to ignore those in http logs
+
+v9.1.45 (2024-03-12)
+-------------------------
+ * Fix the size limit for contact exports
+
+v9.1.44 (2024-03-12)
+-------------------------
+ * Drop old export models and assets app
+
 v9.1.43 (2024-03-11)
 -------------------------
  * Data migration to delete old flow results exports
