@@ -35,6 +35,24 @@
       <script src="{{ STATIC_URL }}js/utils.js"></script>
     {% endcompress %}
     <script type="text/javascript">
+      function isMobile() {
+        return window.innerWidth < 600;
+      }
+
+      function updateFrameForMobile() {
+        var body = document.querySelector("body");
+        if (body) {
+          if (isMobile()) {
+            body.classList.add("mobile");
+          } else {
+            body.classList.remove("mobile");
+          }
+        }
+      }
+
+      
+
+
       var static_url = "{{ STATIC_URL }}";
       var org_id = {% if active_org %}{{ active_org.id }}{% else %}null{% endif %};
       var tembaVersion = "{{ temba_version }}";
@@ -63,6 +81,11 @@
         if (titleText) {
           document.title = titleText.innerText;
         }
+
+        updateFrameForMobile();
+        window.addEventListener('resize', function(event) {
+          updateFrameForMobile();
+        });
       });
     </script>
     {% block scripts %}
