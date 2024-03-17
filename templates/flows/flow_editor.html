@@ -21,6 +21,13 @@
 {% block extra-style %}
   {{ block.super }}
   <style type="text/css">
+    .mobile-notice {
+      padding: 1em;
+      background: rgba(0, 0, 0, .02);
+      margin-left: -1.2em;
+      margin-right: -1.2em;
+    }
+
     .spa-content {
       margin-bottom: 0;
       padding-bottom: 0px !important;
@@ -260,4 +267,5 @@
     </temba-loading>
     <div id="rp-flow-editor"></div>
   </div>
+  <div class="mobile-notice">Please visit {{ branding.name }} on your browser to edit your flows.</div>
 {% endblock content %}
