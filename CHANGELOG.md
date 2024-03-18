@@ -1,3 +1,7 @@
+v9.1.53 (2024-03-18)
+-------------------------
+ * Fix mobile notice
+
 v9.1.52 (2024-03-18)
 -------------------------
  * Don't migrate flows when listing campaign events
