@@ -1,7 +1,5 @@
 import logging
-import re
 import time
-from collections import defaultdict
 
 import requests
 from celery import shared_task
@@ -13,20 +11,13 @@ from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactURN
 from temba.notifications.incidents.builtin import ChannelTemplatesFailedIncidentType
 from temba.request_logs.models import HTTPLog
-from temba.templates.models import TemplateTranslation
 from temba.utils import chunk_list
 from temba.utils.crons import cron_task
-from temba.utils.languages import alpha2_to_alpha3
 
 from . import update_api_version
+from .templates import update_local_templates
 
 logger = logging.getLogger(__name__)
-
-STATUS_MAPPING = {
-    "PENDING": TemplateTranslation.STATUS_PENDING,
-    "APPROVED": TemplateTranslation.STATUS_APPROVED,
-    "REJECTED": TemplateTranslation.STATUS_REJECTED,
-}
 
 
 @shared_task
@@ -80,137 +71,6 @@ def refresh_whatsapp_contacts(channel_id):
             refreshed += len(urn_batch)
 
         print("refreshed %d whatsapp urns for channel %d" % (refreshed, channel_id))
-
-
-VARIABLE_RE = re.compile(r"{{(\d+)}}")
-
-
-def _calculate_variable_count(content):
-    """
-    Utility method that extracts the number of variables in the passed in WhatsApp template
-    """
-    count = 0
-
-    for match in VARIABLE_RE.findall(content):
-        if int(match) > count:
-            count = int(match)
-
-    return count
-
-
-def _extract_template_params(components):
-    params = defaultdict(list)
-
-    transformed_components = defaultdict(dict)
-
-    all_parts_supported = True
-
-    for component in components:
-        component_type = component["type"].lower()
-
-        if component_type not in ["header", "body", "footer", "buttons"]:
-            all_parts_supported = False
-
-        if component_type == "header":
-            comp_params = []
-
-            if component.get("format", "text").upper() == "TEXT":
-                for match in VARIABLE_RE.findall(component.get("text", "")):
-                    comp_params.append({"type": "text"})
-            else:
-                comp_params.append({"type": component["format"].lower()})
-                all_parts_supported = False
-
-            if comp_params:
-                params[component_type] = comp_params
-            transformed_components[component_type] = dict(content=component.get("text", ""), params=comp_params)
-        elif component_type == "body":
-            comp_params = []
-            for match in VARIABLE_RE.findall(component.get("text", "")):
-                comp_params.append({"type": "text"})
-            if comp_params:
-                params[component_type] = comp_params
-            transformed_components[component_type] = dict(content=component.get("text", ""), params=comp_params)
-        elif component_type == "buttons":
-            buttons = component["buttons"]
-            for idx, button in enumerate(buttons):
-                comp_params = []
-                content = button.get("text", "")
-                display = ""
-                if button["type"].lower() == "url":
-                    for match in VARIABLE_RE.findall(button.get("url", "")):
-                        comp_params.append({"type": "url"})
-                    content = button.get("url", "")
-                    display = button.get("text", "")
-                if comp_params:
-                    params[f"button.{idx}"] = comp_params
-                transformed_components[f"button.{idx}"] = dict(content=content, params=comp_params)
-                if display:
-                    transformed_components[f"button.{idx}"]["display"] = display
-        else:
-            transformed_components[component_type] = dict(content=component.get("text", ""), params=[])
-    return params, transformed_components, all_parts_supported
-
-
-def update_local_templates(channel, templates_data):
-    channel_namespace = channel.config.get("fb_namespace", "")
-    # run through all our templates making sure they are present in our DB
-    seen = []
-    for template in templates_data:
-        template_status = template["status"]
-
-        template_status = template_status.upper()
-        # if this is a status we don't know about
-        if template_status not in STATUS_MAPPING:
-            continue
-
-        status = STATUS_MAPPING[template_status]
-
-        components = template["components"]
-
-        params, transformed_components, all_parts_supported = _extract_template_params(components)
-
-        # TODO: Remove saving content and variable_count once we migrate the template display to not use the content field
-        content_parts = []
-
-        for component in components:
-            if component["type"] in ["HEADER", "BODY", "FOOTER"]:
-                if "text" not in component:
-                    continue
-
-                content_parts.append(component["text"])
-
-        if not content_parts or not all_parts_supported:
-            status = TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
-
-        missing_external_id = f"{template['language']}/{template['name']}"
-        translation = TemplateTranslation.get_or_create(
-            channel,
-            template["name"],
-            locale=parse_whatsapp_language(template["language"]),
-            status=status,
-            external_locale=template["language"],
-            external_id=template.get("id", missing_external_id[:64]),
-            namespace=template.get("namespace", channel_namespace),
-            components=transformed_components,
-        )
-
-        seen.append(translation)
-
-    # trim any translations we didn't see
-    TemplateTranslation.trim(channel, seen)
-
-
-def parse_whatsapp_language(lang) -> str:
-    """
-    Converts a WhatsApp language code which can be alpha2 ('en') or alpha2_country ('en_US') or alpha3 ('fil')
-    to our locale format ('eng' or 'eng-US').
-    """
-    language, country = lang.split("_") if "_" in lang else [lang, None]
-    if len(language) == 2:
-        language = alpha2_to_alpha3(language)
-
-    return f"{language}-{country}" if country else language
 
 
 @cron_task()

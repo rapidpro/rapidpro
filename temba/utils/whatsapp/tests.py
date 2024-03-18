@@ -19,24 +19,20 @@ from temba.tests import TembaTest
 from temba.tests.requests import MockResponse
 
 from . import update_api_version
-from .tasks import (
-    _calculate_variable_count,
-    parse_whatsapp_language,
-    refresh_whatsapp_templates,
-    update_local_templates,
-)
+from .tasks import refresh_whatsapp_templates
+from .templates import _extract_params, parse_language, update_local_templates
 
 
 class WhatsAppUtilsTest(TembaTest):
-    def test_parse_whatsapp_language(self):
-        self.assertEqual("eng", parse_whatsapp_language("en"))
-        self.assertEqual("eng-US", parse_whatsapp_language("en_US"))
-        self.assertEqual("fil", parse_whatsapp_language("fil"))
+    def test_parse_language(self):
+        self.assertEqual("eng", parse_language("en"))
+        self.assertEqual("eng-US", parse_language("en_US"))
+        self.assertEqual("fil", parse_language("fil"))
 
-    def test_calculate_variable_count(self):
-        self.assertEqual(2, _calculate_variable_count("Hi {{1}} how are you? {{2}}"))
-        self.assertEqual(2, _calculate_variable_count("Hi {{1}} how are you? {{2}} {{1}}"))
-        self.assertEqual(0, _calculate_variable_count("Hi there."))
+    def test_extract_params(self):
+        self.assertEqual([{"type": "text"}, {"type": "text"}], _extract_params("Hi {{1}} how are you? {{2}}"))
+        self.assertEqual([{"type": "text"}, {"type": "text"}], _extract_params("Hi {{1}} how are you? {{2}} {{1}}"))
+        self.assertEqual([], _extract_params("Hi there."))
 
     def test_update_local_templates_whatsapp(self):
         # channel has namespace in the channel config
@@ -46,7 +42,7 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual(0, TemplateTranslation.objects.filter(channel=channel).count())
 
         # no namespace in template data, use channel config namespace
-        WA_templates_data = [
+        wa_templates = [
             {
                 "name": "hello",
                 "components": [{"type": "BODY", "text": "Hello {{1}}"}],
@@ -174,6 +170,16 @@ class WhatsAppUtilsTest(TembaTest):
                 "id": "9020",
             },
             {
+                "name": "delivery_address",
+                "category": "UTILITY",
+                "components": [
+                    {"type": "HEADER", "format": "LOCATION"},
+                ],
+                "language": "en",
+                "status": "approved",
+                "id": "7777",
+            },
+            {
                 "category": "UTILITY",
                 "components": [
                     {"add_security_recommendation": "True", "type": "BODY"},
@@ -187,16 +193,18 @@ class WhatsAppUtilsTest(TembaTest):
             },
         ]
 
-        update_local_templates(channel, WA_templates_data)
+        update_local_templates(channel, wa_templates)
 
-        self.assertEqual(8, Template.objects.filter(org=self.org).count())
-        self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel).count())
-        self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel, namespace="foo_namespace").count())
+        self.assertEqual(9, Template.objects.filter(org=self.org).count())
+        self.assertEqual(11, TemplateTranslation.objects.filter(channel=channel).count())
+        self.assertEqual(11, TemplateTranslation.objects.filter(channel=channel, namespace="foo_namespace").count())
         self.assertEqual(
-            4,
-            TemplateTranslation.objects.filter(
-                channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
-            ).count(),
+            {"1233", "7777", "9030"},
+            set(
+                TemplateTranslation.objects.filter(
+                    channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
+                ).values_list("external_id", flat=True)
+            ),
         )
 
         ct = TemplateTranslation.objects.get(template__name="goodbye", is_active=True)
@@ -206,8 +214,9 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual(
             {
                 "body": {
+                    "type": "body",
                     "content": "Goodbye {{1}}, see you on {{2}}. See you later {{1}}",
-                    "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
+                    "params": [{"type": "text"}, {"type": "text"}],
                 }
             },
             ct.components,
@@ -219,12 +228,13 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
             {
-                "header": {"content": "Workout challenge week extra points!", "params": []},
+                "header": {"type": "header", "content": "Workout challenge week extra points!", "params": []},
                 "body": {
+                    "type": "body",
                     "content": "Hey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.",
                     "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
                 },
-                "footer": {"content": "Remember to drink water.", "params": []},
+                "footer": {"type": "footer", "content": "Remember to drink water.", "params": []},
             },
             ct.components,
         )
@@ -233,10 +243,7 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual("fra", ct.locale)
         self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
-        self.assertEqual(
-            {"random": {"content": "Bonjour {{1}}", "params": []}},
-            ct.components,
-        )
+        self.assertEqual({}, ct.components)
 
         ct = TemplateTranslation.objects.get(template__name="login", is_active=True)
         self.assertEqual("fra", ct.locale)
@@ -244,34 +251,45 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
             {
-                "body": {"content": "", "params": []},
-                "footer": {"content": "", "params": []},
-                "button.0": {"content": "copy", "params": []},
+                "body": {"type": "body", "content": "", "params": []},
+                "footer": {"type": "footer", "content": "", "params": []},
             },
             ct.components,
         )
 
         ct = TemplateTranslation.objects.get(template__name="order_template", is_active=True)
         self.assertEqual("eng", ct.locale)
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS, ct.status)
+        self.assertEqual(TemplateTranslation.STATUS_APPROVED, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
             {
-                "header": {"content": "", "params": [{"type": "image"}]},
+                "header": {"type": "header", "content": "", "params": [{"type": "image"}]},
                 "body": {
+                    "type": "body",
                     "content": "Sorry your order {{1}} took longer to deliver than expected.\nWe'll notify you about updates in the next {{2}} days.\n\nDo you have more question?",
                     "params": [{"type": "text"}, {"type": "text"}],
                 },
-                "footer": {"content": "Thanks for your patience", "params": []},
-                "button.0": {"content": "Yes", "params": []},
-                "button.1": {"content": "No", "params": []},
-                "button.2": {"content": "Call center", "params": []},
+                "footer": {"type": "footer", "content": "Thanks for your patience", "params": []},
+                "button.0": {"type": "button/quick_reply", "content": "Yes", "params": []},
+                "button.1": {"type": "button/quick_reply", "content": "No", "params": []},
+                "button.2": {
+                    "type": "button/phone_number",
+                    "content": "+1234",
+                    "display": "Call center",
+                    "params": [],
+                },
                 "button.3": {
+                    "type": "button/url",
                     "content": r"https:\/\/example.com\/?wa_customer={{1}}",
                     "display": "Check website",
-                    "params": [{"type": "url"}],
+                    "params": [{"type": "text"}],
                 },
-                "button.4": {"content": r"https:\/\/example.com\/help", "display": "Check website", "params": []},
+                "button.4": {
+                    "type": "button/url",
+                    "content": r"https:\/\/example.com\/help",
+                    "display": "Check website",
+                    "params": [],
+                },
             },
             ct.components,
         )
@@ -478,15 +496,8 @@ class WhatsAppUtilsTest(TembaTest):
                 )
             ),
         )
-
         self.assertEqual(
-            4,
-            TemplateTranslation.objects.filter(
-                channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
-            ).count(),
-        )
-        self.assertEqual(
-            {"en/missing_text_component", "en/order_template", "fr/invalid_component", "fr/login"},
+            {"fr/invalid_component", "fr/login"},
             set(
                 TemplateTranslation.objects.filter(
                     channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
