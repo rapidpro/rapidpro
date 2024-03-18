@@ -179,7 +179,7 @@ class CampaignTest(TembaTest):
             created_by=self.admin,
             modified_by=self.admin,
             saved_by=self.admin,
-            version_number=3,
+            version_number="13.4.0",
             flow_type="V",
         )
 
@@ -189,13 +189,7 @@ class CampaignTest(TembaTest):
             self.org, self.admin, campaign, self.planting_date, offset=2, unit="W", flow=flow, delivery_hour="5"
         )
 
-        self.assertEqual(flow.version_number, 3)
         self.assertEqual(campaign.get_sorted_events(), [event2, event1, event3, event4])
-
-        flow.refresh_from_db()
-
-        self.assertNotEqual(flow.version_number, 3)
-        self.assertEqual(flow.version_number, Flow.CURRENT_SPEC_VERSION)
 
     def test_message_event(self):
         # create a campaign with a message event 1 day after planting date
