@@ -14,10 +14,6 @@ class TemplateTest(TembaTest):
             external_locale="en_US",
             namespace="",
             components={"body": {"content": "Hello {{1}}", "params": [{"type": "text"}]}},
-            # deprecated
-            content="Hello {{1}}",
-            variable_count=1,
-            params={"body": [{"type": "text"}]},
         )
         tt2 = TemplateTranslation.get_or_create(
             self.channel,
@@ -28,10 +24,6 @@ class TemplateTest(TembaTest):
             external_locale="fr_FR",
             namespace="",
             components={"body": {"content": "Bonjour {{1}}", "params": [{"type": "text"}]}},
-            # deprecated
-            content="Bonjour {{1}}",
-            variable_count=1,
-            params={"body": [{"type": "text"}]},
         )
 
         self.assertEqual(tt1.template, tt2.template)
@@ -46,10 +38,6 @@ class TemplateTest(TembaTest):
             external_locale="fr_FR",
             namespace="foo_namespace",
             components={"body": {"content": "Salut {{1}}", "params": [{"type": "text"}]}},
-            # deprecated
-            content="Salut {{1}}",
-            variable_count=1,
-            params={"body": [{"type": "text"}]},
         )
 
         self.assertTrue(tt3.template.modified_on > modified_on)

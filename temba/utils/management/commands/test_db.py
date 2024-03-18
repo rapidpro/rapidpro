@@ -372,10 +372,6 @@ class Command(BaseCommand):
                                 "params": [{"type": "text"}],
                             },
                         },
-                        # deprecated
-                        content="Hi there {{1}}! We are in the process of preparing our world class menu. Would you like {{2}} or {{3}}",
-                        variable_count=3,
-                        params={"body": [{"type": "text"}]},
                     )
                     TemplateTranslation.get_or_create(
                         channel,
@@ -402,10 +398,6 @@ class Command(BaseCommand):
                             },
                             "button.2": {"content": "Pas Faim", "params": [{"type": "text"}]},
                         },
-                        # deprecated
-                        content="Bonjour {{1}} ! Nous sommes en train de préparer notre menu de classe mondiale. Souhaitez-vous {{2}} ou {{3}}",
-                        variable_count=3,
-                        params={"body": [{"type": "text"}, {"type": "text"}, {"type": "text"}]},
                     )
                     TemplateTranslation.get_or_create(
                         channel,
@@ -421,10 +413,6 @@ class Command(BaseCommand):
                                 "params": [{"type": "text"}],
                             }
                         },
-                        # deprecated
-                        content="We have reserved a table for you at {{1}}. See you soon!",
-                        variable_count=1,
-                        params={"body": [{"type": "text"}]},
                     )
 
             self._log(self.style.SUCCESS("OK") + "\n")

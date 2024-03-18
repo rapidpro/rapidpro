@@ -94,10 +94,6 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_locale="en_US",
             namespace="foo_namespace",
             components={"body": {"content": "Hi {{1}}", "params": [{"type": "text"}]}},
-            # deprecated
-            content="Hi {{1}}",
-            variable_count=1,
-            params={"body": [{"type": "text"}]},
         ).template
         TemplateTranslation.get_or_create(
             self.channel,
@@ -108,10 +104,6 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_locale="fr_FR",
             namespace="foo_namespace",
             components={"body": {"content": "Bonjour {{1}}", "params": [{"type": "text"}]}},
-            # deprecated
-            content="Bonjour {{1}}",
-            variable_count=1,
-            params={"body": [{"type": "text"}]},
         )
         tt = TemplateTranslation.get_or_create(
             self.channel,
@@ -127,10 +119,6 @@ class EndpointsTest(APITestMixin, TembaTest):
                     "params": [{"type": "text"}],
                 }
             },
-            # deprecated
-            content="This is a template translation for a deleted channel {{1}}",
-            variable_count=1,
-            params={"body": [{"type": "text"}]},
         )
         tt.is_active = False
         tt.save()
@@ -144,10 +132,6 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_locale="en_US",
             namespace="foo_namespace",
             components={"body": {"content": "Goodbye {{1}}", "params": [{"type": "text"}]}},
-            # deprecated
-            content="Goodbye {{1}}",
-            variable_count=1,
-            params={"body": [{"type": "text"}]},
         ).template
 
         # templates on other org to test filtering
@@ -160,10 +144,6 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_locale="en_US",
             namespace="bar_namespace",
             components={"body": {"content": "Goodbye {{1}}", "params": [{"type": "text"}]}},
-            # deprecated
-            content="Goodbye {{1}}",
-            variable_count=1,
-            params={"body": [{"type": "text"}]},
         )
         TemplateTranslation.get_or_create(
             org2channel,
@@ -174,10 +154,6 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_locale="fr_FR",
             namespace="bar_namespace",
             components={"body": {"content": "Salut {{1}}", "params": [{"type": "text"}]}},
-            # deprecated
-            content="Salut {{1}}",
-            variable_count=1,
-            params={"body": [{"type": "text"}]},
         )
 
         tpl1.refresh_from_db()

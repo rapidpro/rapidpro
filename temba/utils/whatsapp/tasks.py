@@ -180,9 +180,6 @@ def update_local_templates(channel, templates_data):
 
                 content_parts.append(component["text"])
 
-        content = "\n\n".join(content_parts)
-        variable_count = _calculate_variable_count(content)
-
         if not content_parts or not all_parts_supported:
             status = TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
 
@@ -191,14 +188,11 @@ def update_local_templates(channel, templates_data):
             channel,
             template["name"],
             locale=parse_whatsapp_language(template["language"]),
-            content=content,
-            variable_count=variable_count,
             status=status,
             external_locale=template["language"],
             external_id=template.get("id", missing_external_id[:64]),
             namespace=template.get("namespace", channel_namespace),
             components=transformed_components,
-            params=params,
         )
 
         seen.append(translation)
