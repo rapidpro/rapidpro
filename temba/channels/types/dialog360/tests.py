@@ -152,10 +152,6 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
             external_locale="en_US",
             namespace="foo_namespace",
             components={"body": {"content": "Hello {{1}}", "params": [{"type": "text"}]}},
-            # deprecated
-            content="Hello {{1}}",
-            variable_count=1,
-            params={"body": [{"type": "text"}]},
         )
 
         sync_url = reverse("channels.types.dialog360.sync_logs", args=[channel.uuid])

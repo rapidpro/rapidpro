@@ -200,11 +200,8 @@ class WhatsAppUtilsTest(TembaTest):
         )
 
         ct = TemplateTranslation.objects.get(template__name="goodbye", is_active=True)
-        self.assertEqual(2, ct.variable_count)
-        self.assertEqual("Goodbye {{1}}, see you on {{2}}. See you later {{1}}", ct.content)
         self.assertEqual("eng", ct.locale)
         self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
-        self.assertEqual("goodbye (eng) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
             {
@@ -215,14 +212,8 @@ class WhatsAppUtilsTest(TembaTest):
             },
             ct.components,
         )
-        self.assertEqual({"body": [{"type": "text"}, {"type": "text"}, {"type": "text"}]}, ct.params)
 
         ct = TemplateTranslation.objects.get(template__name="workout_activity", is_active=True)
-        self.assertEqual(3, ct.variable_count)
-        self.assertEqual(
-            "Workout challenge week extra points!\n\nHey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.\n\nRemember to drink water.",
-            ct.content,
-        )
         self.assertEqual("eng", ct.locale)
         self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
@@ -237,7 +228,6 @@ class WhatsAppUtilsTest(TembaTest):
             },
             ct.components,
         )
-        self.assertEqual({"body": [{"type": "text"}, {"type": "text"}, {"type": "text"}]}, ct.params)
 
         ct = TemplateTranslation.objects.get(template__name="invalid_component", is_active=True)
         self.assertEqual("fra", ct.locale)
@@ -247,7 +237,6 @@ class WhatsAppUtilsTest(TembaTest):
             {"random": {"content": "Bonjour {{1}}", "params": []}},
             ct.components,
         )
-        self.assertEqual({}, ct.params)
 
         ct = TemplateTranslation.objects.get(template__name="login", is_active=True)
         self.assertEqual("fra", ct.locale)
@@ -261,7 +250,6 @@ class WhatsAppUtilsTest(TembaTest):
             },
             ct.components,
         )
-        self.assertEqual({}, ct.params)
 
         ct = TemplateTranslation.objects.get(template__name="order_template", is_active=True)
         self.assertEqual("eng", ct.locale)
@@ -286,14 +274,6 @@ class WhatsAppUtilsTest(TembaTest):
                 "button.4": {"content": r"https:\/\/example.com\/help", "display": "Check website", "params": []},
             },
             ct.components,
-        )
-        self.assertEqual(
-            {
-                "header": [{"type": "image"}],
-                "body": [{"type": "text"}, {"type": "text"}],
-                "button.3": [{"type": "url"}],
-            },
-            ct.params,
         )
 
     def test_update_local_templates_dialog360(self):
@@ -478,27 +458,23 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual(0, TemplateTranslation.objects.filter(channel=channel, namespace="").count())
         self.assertEqual(0, TemplateTranslation.objects.filter(channel=channel, namespace=None).count())
         self.assertEqual(
-            sorted(
-                [
-                    "en/hello",
-                    "en_GB/hello",
-                    "fr/hello",
-                    "en/goodbye",
-                    "en/order_template",
-                    "en_US/this_is_template_has_a_very_long_name,_and_not_having_an_i",
-                    "en/workout_activity",
-                    "kli/invalid_language",
-                    "en/missing_text_component",
-                    "en/workout_activity_with_variables",
-                    "fr/invalid_component",
-                    "fr/login",
-                ]
-            ),
-            sorted(
-                list(
-                    TemplateTranslation.objects.filter(channel=channel, is_active=True).values_list(
-                        "external_id", flat=True
-                    )
+            {
+                "en/hello",
+                "en_GB/hello",
+                "fr/hello",
+                "en/goodbye",
+                "en/order_template",
+                "en_US/this_is_template_has_a_very_long_name,_and_not_having_an_i",
+                "en/workout_activity",
+                "kli/invalid_language",
+                "en/missing_text_component",
+                "en/workout_activity_with_variables",
+                "fr/invalid_component",
+                "fr/login",
+            },
+            set(
+                TemplateTranslation.objects.filter(channel=channel, is_active=True).values_list(
+                    "external_id", flat=True
                 )
             ),
         )
@@ -510,13 +486,8 @@ class WhatsAppUtilsTest(TembaTest):
             ).count(),
         )
         self.assertEqual(
-            [
-                "en/missing_text_component",
-                "en/order_template",
-                "fr/invalid_component",
-                "fr/login",
-            ],
-            list(
+            {"en/missing_text_component", "en/order_template", "fr/invalid_component", "fr/login"},
+            set(
                 TemplateTranslation.objects.filter(
                     channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
                 ).values_list("external_id", flat=True)

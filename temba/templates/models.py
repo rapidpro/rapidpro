@@ -76,8 +76,8 @@ class TemplateTranslation(models.Model):
 
     # deprecated
     content = models.TextField(null=True)
-    params = models.JSONField(default=dict)
-    variable_count = models.IntegerField()
+    params = models.JSONField(null=True)
+    variable_count = models.IntegerField(null=True)
 
     @classmethod
     def trim(cls, channel, existing):
@@ -99,14 +99,11 @@ class TemplateTranslation(models.Model):
         name,
         *,
         locale,
-        content,
-        variable_count,
         status,
         external_id,
         external_locale,
         namespace,
         components,
-        params,
     ):
         existing = TemplateTranslation.objects.filter(channel=channel, external_id=external_id).first()
 
@@ -125,53 +122,28 @@ class TemplateTranslation(models.Model):
                 channel=channel,
                 namespace=namespace,
                 locale=locale,
-                content=content,
-                variable_count=variable_count,
                 components=components,
-                params=params,
                 status=status,
                 external_id=external_id,
                 external_locale=external_locale,
             )
 
         else:
-            if (
-                existing.status != status
-                or existing.content != content
-                or existing.locale != locale
-                or existing.components != components
-                or existing.params != params
-            ):
+            if existing.status != status or existing.locale != locale or existing.components != components:
                 existing.namespace = namespace
                 existing.locale = locale
                 existing.status = status
-                existing.content = content
-                existing.variable_count = variable_count
                 existing.is_active = True
                 existing.components = components
-                existing.params = params
                 existing.external_locale = external_locale
                 existing.save(
-                    update_fields=[
-                        "namespace",
-                        "locale",
-                        "status",
-                        "content",
-                        "is_active",
-                        "variable_count",
-                        "components",
-                        "params",
-                        "external_locale",
-                    ]
+                    update_fields=["namespace", "locale", "status", "is_active", "components", "external_locale"]
                 )
 
                 existing.template.modified_on = timezone.now()
                 existing.template.save(update_fields=["modified_on"])
 
         return existing
-
-    def __str__(self):
-        return f"{self.template.name} ({self.locale}) {self.status}: {self.content}"
 
     class Meta:
         indexes = [models.Index(name="templatetranslations_by_ext", fields=("channel", "external_id"))]

@@ -520,10 +520,6 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             external_locale="en_US",
             namespace="foo_namespace",
             components={"body": {"content": "Hello {{1}}", "params": [{"type": "text"}]}},
-            # deprecated
-            content="Hello {{1}}",
-            variable_count=1,
-            params={"body": [{"type": "text"}]},
         )
 
         foo = TemplateTranslation.get_or_create(
@@ -535,10 +531,6 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             external_locale="en_US",
             namespace="foo_namespace",
             components={"body": {"content": "Goodbye {{1}}", "params": [{"type": "text"}]}},
-            # deprecated
-            content="Goodbye {{1}}",
-            variable_count=1,
-            params={"body": [{"type": "text"}]},
         )
 
         sync_url = reverse("channels.types.whatsapp_legacy.sync_logs", args=[channel.uuid])
