@@ -1,3 +1,7 @@
+v9.1.52 (2024-03-18)
+-------------------------
+ * Don't migrate flows when listing campaign events
+
 v9.1.51 (2024-03-17)
 -------------------------
  * Tweaks to make the interface more mobile friendly
