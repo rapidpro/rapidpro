@@ -1,3 +1,8 @@
+v9.1.54 (2024-03-19)
+-------------------------
+ * Add type to template components
+ * Remove deprecated fields from template translations
+
 v9.1.53 (2024-03-18)
 -------------------------
  * Fix mobile notice
