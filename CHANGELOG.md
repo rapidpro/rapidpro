@@ -1,3 +1,7 @@
+v9.1.56 (2024-03-19)
+-------------------------
+ * Save TemplateTranslation.components as list, use comps_as_dict for API endpoint
+
 v9.1.55 (2024-03-19)
 -------------------------
  * Add temporary TemplateTranslation.comps_as_dict field
