@@ -13,7 +13,7 @@ class TemplateTest(TembaTest):
             external_id="1234",
             external_locale="en_US",
             namespace="",
-            components={"body": {"content": "Hello {{1}}", "params": [{"type": "text"}]}},
+            components=[{"type": "body", "content": "Hello {{1}}", "params": [{"type": "text"}]}],
         )
         tt2 = TemplateTranslation.get_or_create(
             self.channel,
@@ -23,7 +23,7 @@ class TemplateTest(TembaTest):
             external_id="5678",
             external_locale="fr_FR",
             namespace="",
-            components={"body": {"content": "Bonjour {{1}}", "params": [{"type": "text"}]}},
+            components=[{"type": "body", "content": "Bonjour {{1}}", "params": [{"type": "text"}]}],
         )
 
         self.assertEqual(tt1.template, tt2.template)
@@ -37,7 +37,7 @@ class TemplateTest(TembaTest):
             external_id="5678",
             external_locale="fr_FR",
             namespace="foo_namespace",
-            components={"body": {"content": "Salut {{1}}", "params": [{"type": "text"}]}},
+            components=[{"type": "body", "content": "Salut {{1}}", "params": [{"type": "text"}]}],
         )
 
         self.assertTrue(tt3.template.modified_on > modified_on)

@@ -101,9 +101,20 @@ class TemplateTranslation(models.Model):
         external_id,
         external_locale,
         namespace,
-        components,
+        components: list,
     ):
         existing = TemplateTranslation.objects.filter(channel=channel, external_id=external_id).first()
+
+        # convert components to dict format that mailroom and editor still use
+        comps_as_dict = {}
+        button_index = 0
+        for comp in components:
+            comp_type = comp["type"]
+            if comp_type.startswith("button/"):
+                comps_as_dict[f"button.{button_index}"] = comp
+                button_index += 1
+            else:
+                comps_as_dict[comp_type] = comp
 
         if not existing:
             template = Template.objects.filter(org=channel.org, name=name).first()
@@ -121,7 +132,7 @@ class TemplateTranslation(models.Model):
                 namespace=namespace,
                 locale=locale,
                 components=components,
-                comps_as_dict=components,
+                comps_as_dict=comps_as_dict,
                 status=status,
                 external_id=external_id,
                 external_locale=external_locale,
@@ -134,7 +145,7 @@ class TemplateTranslation(models.Model):
                 existing.status = status
                 existing.is_active = True
                 existing.components = components
-                existing.comps_as_dict = components
+                existing.comps_as_dict = comps_as_dict
                 existing.external_locale = external_locale
                 existing.save(
                     update_fields=[

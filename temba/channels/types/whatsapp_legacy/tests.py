@@ -519,7 +519,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             external_id="1234",
             external_locale="en_US",
             namespace="foo_namespace",
-            components={"body": {"content": "Hello {{1}}", "params": [{"type": "text"}]}},
+            components=[{"type": "body", "content": "Hello {{1}}", "params": [{"type": "text"}]}],
         )
 
         foo = TemplateTranslation.get_or_create(
@@ -530,7 +530,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             external_id="1235",
             external_locale="en_US",
             namespace="foo_namespace",
-            components={"body": {"content": "Goodbye {{1}}", "params": [{"type": "text"}]}},
+            components=[{"type": "body", "content": "Goodbye {{1}}", "params": [{"type": "text"}]}],
         )
 
         sync_url = reverse("channels.types.whatsapp_legacy.sync_logs", args=[channel.uuid])

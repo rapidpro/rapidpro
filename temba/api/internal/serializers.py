@@ -24,7 +24,7 @@ class TemplateReadSerializer(serializers.ModelSerializer):
                     "namespace": trans.namespace,
                     "locale": trans.locale,
                     "status": trans.get_status_display(),
-                    "components": trans.components,
+                    "components": trans.comps_as_dict,
                 }
             )
 
