@@ -170,16 +170,6 @@ class WhatsAppUtilsTest(TembaTest):
                 "id": "9020",
             },
             {
-                "name": "delivery_address",
-                "category": "UTILITY",
-                "components": [
-                    {"type": "HEADER", "format": "LOCATION"},
-                ],
-                "language": "en",
-                "status": "approved",
-                "id": "7777",
-            },
-            {
                 "category": "UTILITY",
                 "components": [
                     {"add_security_recommendation": "True", "type": "BODY"},
@@ -195,11 +185,11 @@ class WhatsAppUtilsTest(TembaTest):
 
         update_local_templates(channel, wa_templates)
 
-        self.assertEqual(9, Template.objects.filter(org=self.org).count())
-        self.assertEqual(11, TemplateTranslation.objects.filter(channel=channel).count())
-        self.assertEqual(11, TemplateTranslation.objects.filter(channel=channel, namespace="foo_namespace").count())
+        self.assertEqual(8, Template.objects.filter(org=self.org).count())
+        self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel).count())
+        self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel, namespace="foo_namespace").count())
         self.assertEqual(
-            {"1233", "7777", "9030"},
+            {"1233", "1235", "9020", "9030"},
             set(
                 TemplateTranslation.objects.filter(
                     channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
@@ -259,11 +249,11 @@ class WhatsAppUtilsTest(TembaTest):
 
         ct = TemplateTranslation.objects.get(template__name="order_template", is_active=True)
         self.assertEqual("eng", ct.locale)
-        self.assertEqual(TemplateTranslation.STATUS_APPROVED, ct.status)
+        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
             {
-                "header": {"type": "header", "content": "", "params": [{"type": "image"}]},
+                "header": {"type": "header", "content": "", "params": []},
                 "body": {
                     "type": "body",
                     "content": "Sorry your order {{1}} took longer to deliver than expected.\nWe'll notify you about updates in the next {{2}} days.\n\nDo you have more question?",
@@ -497,7 +487,7 @@ class WhatsAppUtilsTest(TembaTest):
             ),
         )
         self.assertEqual(
-            {"fr/invalid_component", "fr/login"},
+            {"en/order_template", "en/missing_text_component", "fr/invalid_component", "fr/login"},
             set(
                 TemplateTranslation.objects.filter(
                     channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
