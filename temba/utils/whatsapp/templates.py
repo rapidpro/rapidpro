@@ -100,17 +100,6 @@ def update_local_templates(channel, wa_templates):
 
         components, all_supported = _extract_components(template["components"])
 
-        # TODO save components as a list... but for now organize them into a dict by type/index
-        comps_as_dict = {}
-        button_index = 0
-        for comp in components:
-            comp_type = comp["type"]
-            if comp_type.startswith("button/"):
-                comps_as_dict[f"button.{button_index}"] = comp
-                button_index += 1
-            else:
-                comps_as_dict[comp_type] = comp
-
         status = STATUS_MAPPING[template_status]
         if not all_supported:
             status = TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
@@ -124,7 +113,7 @@ def update_local_templates(channel, wa_templates):
             external_locale=template["language"],
             external_id=template.get("id", missing_external_id[:64]),
             namespace=template.get("namespace", channel_namespace),
-            components=comps_as_dict,
+            components=components,
         )
 
         seen.append(translation)

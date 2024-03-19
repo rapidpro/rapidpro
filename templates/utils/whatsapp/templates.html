@@ -18,17 +18,17 @@
       {% endifchanged %}
       <div max-width="100%" class="flex translation">
         <div width="70%" class="flex flex-col p-4 content">
-          {% if "header" in translation.components %}
-            <div width="100%" class="my-1 text-lg font-normal">{{ translation.components.header.content }}</div>
+          {% if "header" in translation.comps_as_dict %}
+            <div width="100%" class="my-1 text-lg font-normal">{{ translation.comps_as_dict.header.content }}</div>
           {% endif %}
-          {% if "body" in translation.components %}
-            <div width="100%" class="my-1">{{ translation.components.body.content }}</div>
+          {% if "body" in translation.comps_as_dict %}
+            <div width="100%" class="my-1">{{ translation.comps_as_dict.body.content }}</div>
           {% endif %}
-          {% if "footer" in translation.components %}
-            <div width="100%" class="my-1 text-sm">{{ translation.components.footer.content }}</div>
+          {% if "footer" in translation.comps_as_dict %}
+            <div width="100%" class="my-1 text-sm">{{ translation.comps_as_dict.footer.content }}</div>
           {% endif %}
           <div class="my-4 flex">
-            {% for key, comp in translation.components.items %}
+            {% for key, comp in translation.comps_as_dict.items %}
               {% if key|slice:":7" == "button." %}
                 <div width="100%" class="border mr-2 p-2 rounded-lg">{{ comp.content }}</div>
               {% endif %}

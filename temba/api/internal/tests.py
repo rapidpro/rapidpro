@@ -93,7 +93,7 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_id="1234",
             external_locale="en_US",
             namespace="foo_namespace",
-            components={"body": {"content": "Hi {{1}}", "params": [{"type": "text"}]}},
+            components=[{"type": "body", "content": "Hi {{1}}", "params": [{"type": "text"}]}],
         ).template
         TemplateTranslation.get_or_create(
             self.channel,
@@ -103,7 +103,7 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_id="5678",
             external_locale="fr_FR",
             namespace="foo_namespace",
-            components={"body": {"content": "Bonjour {{1}}", "params": [{"type": "text"}]}},
+            components=[{"type": "body", "content": "Bonjour {{1}}", "params": [{"type": "text"}]}],
         )
         tt = TemplateTranslation.get_or_create(
             self.channel,
@@ -113,12 +113,13 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_id="9012",
             external_locale="af_ZA",
             namespace="foo_namespace",
-            components={
-                "body": {
+            components=[
+                {
+                    "type": "body",
                     "content": "This is a template translation for a deleted channel {{1}}",
                     "params": [{"type": "text"}],
                 }
-            },
+            ],
         )
         tt.is_active = False
         tt.save()
@@ -131,7 +132,7 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_id="6789",
             external_locale="en_US",
             namespace="foo_namespace",
-            components={"body": {"content": "Goodbye {{1}}", "params": [{"type": "text"}]}},
+            components=[{"type": "body", "content": "Goodbye {{1}}", "params": [{"type": "text"}]}],
         ).template
 
         # templates on other org to test filtering
@@ -143,7 +144,7 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_id="1234",
             external_locale="en_US",
             namespace="bar_namespace",
-            components={"body": {"content": "Goodbye {{1}}", "params": [{"type": "text"}]}},
+            components=[{"type": "body", "content": "Goodbye {{1}}", "params": [{"type": "text"}]}],
         )
         TemplateTranslation.get_or_create(
             org2channel,
@@ -153,7 +154,7 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_id="5678",
             external_locale="fr_FR",
             namespace="bar_namespace",
-            components={"body": {"content": "Salut {{1}}", "params": [{"type": "text"}]}},
+            components=[{"type": "body", "content": "Salut {{1}}", "params": [{"type": "text"}]}],
         )
 
         tpl1.refresh_from_db()
@@ -173,7 +174,9 @@ class EndpointsTest(APITestMixin, TembaTest):
                             "locale": "eng-US",
                             "namespace": "foo_namespace",
                             "status": "pending",
-                            "components": {"body": {"content": "Goodbye {{1}}", "params": [{"type": "text"}]}},
+                            "components": {
+                                "body": {"type": "body", "content": "Goodbye {{1}}", "params": [{"type": "text"}]}
+                            },
                         },
                     ],
                     "created_on": matchers.ISODate(),
@@ -188,14 +191,18 @@ class EndpointsTest(APITestMixin, TembaTest):
                             "locale": "eng-US",
                             "namespace": "foo_namespace",
                             "status": "approved",
-                            "components": {"body": {"content": "Hi {{1}}", "params": [{"type": "text"}]}},
+                            "components": {
+                                "body": {"type": "body", "content": "Hi {{1}}", "params": [{"type": "text"}]}
+                            },
                         },
                         {
                             "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
                             "locale": "fra-FR",
                             "namespace": "foo_namespace",
                             "status": "pending",
-                            "components": {"body": {"content": "Bonjour {{1}}", "params": [{"type": "text"}]}},
+                            "components": {
+                                "body": {"type": "body", "content": "Bonjour {{1}}", "params": [{"type": "text"}]}
+                            },
                         },
                     ],
                     "created_on": matchers.ISODate(),

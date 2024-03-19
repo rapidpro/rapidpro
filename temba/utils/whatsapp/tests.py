@@ -209,6 +209,16 @@ class WhatsAppUtilsTest(TembaTest):
                     "params": [{"type": "text"}, {"type": "text"}],
                 }
             },
+            ct.comps_as_dict,
+        )
+        self.assertEqual(
+            [
+                {
+                    "type": "body",
+                    "content": "Goodbye {{1}}, see you on {{2}}. See you later {{1}}",
+                    "params": [{"type": "text"}, {"type": "text"}],
+                }
+            ],
             ct.components,
         )
 
@@ -226,14 +236,14 @@ class WhatsAppUtilsTest(TembaTest):
                 },
                 "footer": {"type": "footer", "content": "Remember to drink water.", "params": []},
             },
-            ct.components,
+            ct.comps_as_dict,
         )
 
         ct = TemplateTranslation.objects.get(template__name="invalid_component", is_active=True)
         self.assertEqual("fra", ct.locale)
         self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
-        self.assertEqual({}, ct.components)
+        self.assertEqual([], ct.components)
 
         ct = TemplateTranslation.objects.get(template__name="login", is_active=True)
         self.assertEqual("fra", ct.locale)
@@ -244,7 +254,7 @@ class WhatsAppUtilsTest(TembaTest):
                 "body": {"type": "body", "content": "", "params": []},
                 "footer": {"type": "footer", "content": "", "params": []},
             },
-            ct.components,
+            ct.comps_as_dict,
         )
 
         ct = TemplateTranslation.objects.get(template__name="order_template", is_active=True)
@@ -281,7 +291,7 @@ class WhatsAppUtilsTest(TembaTest):
                     "params": [],
                 },
             },
-            ct.components,
+            ct.comps_as_dict,
         )
 
     def test_update_local_templates_dialog360(self):

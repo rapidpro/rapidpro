@@ -352,26 +352,30 @@ class Command(BaseCommand):
                         external_id="1234",
                         external_locale="en_US",
                         namespace="",
-                        components={
-                            "body": {
+                        components=[
+                            {
+                                "type": "body",
                                 "content": "Hi there {{1}}! We are in the process of preparing our world class menu. Would you like {{2}} or {{3}}",
                                 "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
                             },
-                            "button.0": {
+                            {
+                                "type": "button/url",
                                 "content": "https://example.com/?wa_customer={{1}}",
                                 "display": "Dish A",
                                 "params": [{"type": "text"}],
                             },
-                            "button.1": {
+                            {
+                                "type": "button/url",
                                 "content": "https://example.com/?wa_organization={{1}}",
                                 "display": "Dish B",
                                 "params": [{"type": "text"}],
                             },
-                            "button.2": {
+                            {
+                                "type": "button/quick_reply",
                                 "content": "Not Hungry",
                                 "params": [{"type": "text"}],
                             },
-                        },
+                        ],
                     )
                     TemplateTranslation.get_or_create(
                         channel,
@@ -381,23 +385,26 @@ class Command(BaseCommand):
                         external_id="5678",
                         external_locale="fr_FR",
                         namespace="",
-                        components={
-                            "body": {
+                        components=[
+                            {
+                                "type": "body",
                                 "content": "Bonjour {{1}} ! Nous sommes en train de préparer notre menu de classe mondiale. Souhaitez-vous {{2}} ou {{3}}",
                                 "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
                             },
-                            "button.0": {
+                            {
+                                "type": "button/url",
                                 "content": "https://example.com/?wa_customer={{1}}",
                                 "display": "Plat A",
                                 "params": [{"type": "text"}],
                             },
-                            "button.1": {
+                            {
+                                "type": "button/url",
                                 "content": "https://example.com/?wa_organization={{1}}",
                                 "display": "Plat B",
                                 "params": [{"type": "text"}],
                             },
-                            "button.2": {"content": "Pas Faim", "params": [{"type": "text"}]},
-                        },
+                            {"type": "button/quick_reply", "content": "Pas Faim", "params": [{"type": "text"}]},
+                        ],
                     )
                     TemplateTranslation.get_or_create(
                         channel,
@@ -407,12 +414,13 @@ class Command(BaseCommand):
                         external_id="6789",
                         external_locale="en_US",
                         namespace="",
-                        components={
-                            "body": {
+                        components=[
+                            {
+                                "type": "body",
                                 "content": "We have reserved a table for you at {{1}}. See you soon!",
                                 "params": [{"type": "text"}],
                             }
-                        },
+                        ],
                     )
 
             self._log(self.style.SUCCESS("OK") + "\n")
