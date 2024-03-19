@@ -404,10 +404,6 @@ class Command(BaseCommand):
                     external_locale=tt["external_locale"],
                     namespace=tt["namespace"],
                     components=tt["components"],
-                    # deprecated
-                    content=tt["content"],
-                    variable_count=tt["variable_count"],
-                    params=tt["params"],
                 )
 
         self._log(self.style.SUCCESS("OK") + "\n")
