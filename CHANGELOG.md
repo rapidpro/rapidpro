@@ -1,3 +1,7 @@
+v9.1.55 (2024-03-19)
+-------------------------
+ * Add temporary TemplateTranslation.comps_as_dict field
+
 v9.1.54 (2024-03-19)
 -------------------------
  * Add type to template components
