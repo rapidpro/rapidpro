@@ -68,16 +68,14 @@ class TemplateTranslation(models.Model):
 
     namespace = models.CharField(max_length=36, default="")
     locale = models.CharField(null=True, max_length=6)  # e.g. eng-US
-    components = models.JSONField(default=dict)
+    components = models.JSONField(default=list)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, null=False)
     external_id = models.CharField(null=True, max_length=64)
     external_locale = models.CharField(null=True, max_length=6)  # e.g. en_US
     is_active = models.BooleanField(default=True)
 
-    # deprecated
-    content = models.TextField(null=True)
-    params = models.JSONField(null=True)
-    variable_count = models.IntegerField(null=True)
+    # temporary workaround to let mailroom load components in dict format
+    comps_as_dict = models.JSONField(default=dict)
 
     @classmethod
     def trim(cls, channel, existing):
@@ -123,6 +121,7 @@ class TemplateTranslation(models.Model):
                 namespace=namespace,
                 locale=locale,
                 components=components,
+                comps_as_dict=components,
                 status=status,
                 external_id=external_id,
                 external_locale=external_locale,
@@ -135,9 +134,18 @@ class TemplateTranslation(models.Model):
                 existing.status = status
                 existing.is_active = True
                 existing.components = components
+                existing.comps_as_dict = components
                 existing.external_locale = external_locale
                 existing.save(
-                    update_fields=["namespace", "locale", "status", "is_active", "components", "external_locale"]
+                    update_fields=[
+                        "namespace",
+                        "locale",
+                        "status",
+                        "is_active",
+                        "components",
+                        "comps_as_dict",
+                        "external_locale",
+                    ]
                 )
 
                 existing.template.modified_on = timezone.now()
