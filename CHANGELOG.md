@@ -1,3 +1,8 @@
+v9.1.57 (2024-03-20)
+-------------------------
+ * Add name field also to template components
+ * Tweak template list page to use components list instead of comps_as_dict
+
 v9.1.56 (2024-03-19)
 -------------------------
  * Save TemplateTranslation.components as list, use comps_as_dict for API endpoint
