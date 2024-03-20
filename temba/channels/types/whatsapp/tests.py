@@ -300,9 +300,9 @@ class WhatsAppTypeTest(TembaTest):
 
                 post_data = response.context["form"].initial
                 post_data["number"] = "1234"
-                post_data[
-                    "verified_name"
-                ] = "Long WABA name foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar"
+                post_data["verified_name"] = (
+                    "Long WABA name foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar foobar"
+                )
                 post_data["phone_number_id"] = "123123123"
                 post_data["waba_id"] = "111111111111111"
                 post_data["business_id"] = "2222222222222"
