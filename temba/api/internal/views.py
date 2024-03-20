@@ -6,6 +6,7 @@ from django.db.models import Prefetch
 from temba.channels.models import Channel
 from temba.notifications.models import Notification
 from temba.templates.models import Template, TemplateTranslation
+from temba.utils import str_to_bool
 
 from ..models import APIPermission, SSLPermission
 from ..support import APISessionAuthentication, CreatedOnCursorPagination, ModifiedOnCursorPagination
@@ -62,3 +63,8 @@ class TemplatesEndpoint(ListAPIMixin, BaseEndpoint):
             Prefetch("translations__channel", Channel.objects.only("uuid", "name")),
         )
         return self.filter_before_after(queryset, "modified_on")
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["comps_as_list"] = str_to_bool(self.request.query_params.get("comps_as_list", "false"))
+        return context

@@ -74,7 +74,7 @@ class TemplateTranslation(models.Model):
     external_locale = models.CharField(null=True, max_length=6)  # e.g. en_US
     is_active = models.BooleanField(default=True)
 
-    # temporary workaround to let mailroom load components in dict format
+    # TODO remove
     comps_as_dict = models.JSONField(default=dict)
 
     @classmethod
