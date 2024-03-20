@@ -12,31 +12,29 @@
   <div class="card p-0 overflow-y-scroll" id="templates">
     {% for translation in translations %}
       {% ifchanged translation.template.name %}
-        <div class="block template-name">
-          <div width="100%" class="truncate block p-4">{{ translation.template.name }}</div>
-        </div>
+        <div class="p-4 font-bold">{{ translation.template.name }}</div>
       {% endifchanged %}
       <div max-width="100%" class="flex translation">
-        <div width="70%" class="flex flex-col p-4 content">
-          {% if "header" in translation.comps_as_dict %}
-            <div width="100%" class="my-1 text-lg font-normal">{{ translation.comps_as_dict.header.content }}</div>
-          {% endif %}
-          {% if "body" in translation.comps_as_dict %}
-            <div width="100%" class="my-1">{{ translation.comps_as_dict.body.content }}</div>
-          {% endif %}
-          {% if "footer" in translation.comps_as_dict %}
-            <div width="100%" class="my-1 text-sm">{{ translation.comps_as_dict.footer.content }}</div>
-          {% endif %}
+        <div width="70%" class="flex-grow p-4">
+          {% for comp in translation.components %}
+            {% if comp.type == "header" %}
+              <div width="100%" class="my-1 text-lg font-normal">{{ comp.content }}</div>
+            {% elif comp.type == "body" %}
+              <div width="100%" class="my-1">{{ comp.content }}</div>
+            {% elif comp.type == "footer" %}
+              <div width="100%" class="my-1 text-sm">{{ comp.content }}</div>
+            {% endif %}
+          {% endfor %}
           <div class="my-4 flex">
-            {% for key, comp in translation.comps_as_dict.items %}
-              {% if key|slice:":7" == "button." %}
-                <div width="100%" class="border mr-2 p-2 rounded-lg">{{ comp.content }}</div>
+            {% for comp in translation.components %}
+              {% if comp.type|slice:":7" == "button/" %}
+                <div width="100%" class="border mr-2 p-2 rounded-lg">{{ comp.display|default:comp.content }}</div>
               {% endif %}
             {% endfor %}
           </div>
         </div>
-        <div class="flex-1 p-4 locale">{{ translation.locale }}</div>
-        <div class="tr-{{ translation.get_status_display }} flex p-4 font-mono">{{ translation.get_status_display }}</div>
+        <div class="p-4 locale">{{ translation.locale }}</div>
+        <div class="tr-{{ translation.get_status_display }} p-4 font-mono">{{ translation.get_status_display }}</div>
       </div>
     {% empty %}
       <tr class="empty">
@@ -48,30 +46,8 @@
 {% block extra-style %}
   {{ block.super }}
   <style type="text/css">
-    .page-content {
-      max-width: 100%;
-    }
-
-    #templates {
-      width: 100%;
-    }
-
-    .template-name div {
-      font-weight: bold;
-      border-bottom: 1px solid #e6e6e6;
-    }
-
     .translation {
-      border-bottom: 2px solid #e6e6e6;
-    }
-
-    .translation .locale {
-      font-family: monospace;
-      color: #666;
-    }
-
-    .content {
-      width: 70%;
+      border-bottom: 1px solid #e6e6e6;
     }
 
     .tr-pending {
@@ -84,10 +60,6 @@
 
     .tr-approved {
       color: #4ca20b;
-    }
-
-    .empty div {
-      font-style: italic;
     }
   </style>
 {% endblock extra-style %}
