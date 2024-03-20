@@ -93,7 +93,7 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_id="1234",
             external_locale="en_US",
             namespace="foo_namespace",
-            components=[{"type": "body", "content": "Hi {{1}}", "params": [{"type": "text"}]}],
+            components=[{"type": "body", "name": "body", "content": "Hi {{1}}", "params": [{"type": "text"}]}],
         ).template
         TemplateTranslation.get_or_create(
             self.channel,
@@ -103,7 +103,7 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_id="5678",
             external_locale="fr_FR",
             namespace="foo_namespace",
-            components=[{"type": "body", "content": "Bonjour {{1}}", "params": [{"type": "text"}]}],
+            components=[{"type": "body", "name": "body", "content": "Bonjour {{1}}", "params": [{"type": "text"}]}],
         )
         tt = TemplateTranslation.get_or_create(
             self.channel,
@@ -116,6 +116,7 @@ class EndpointsTest(APITestMixin, TembaTest):
             components=[
                 {
                     "type": "body",
+                    "name": "body",
                     "content": "This is a template translation for a deleted channel {{1}}",
                     "params": [{"type": "text"}],
                 }
@@ -132,7 +133,7 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_id="6789",
             external_locale="en_US",
             namespace="foo_namespace",
-            components=[{"type": "body", "content": "Goodbye {{1}}", "params": [{"type": "text"}]}],
+            components=[{"type": "body", "name": "body", "content": "Goodbye {{1}}", "params": [{"type": "text"}]}],
         ).template
 
         # templates on other org to test filtering
@@ -144,7 +145,7 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_id="1234",
             external_locale="en_US",
             namespace="bar_namespace",
-            components=[{"type": "body", "content": "Goodbye {{1}}", "params": [{"type": "text"}]}],
+            components=[{"type": "body", "name": "body", "content": "Goodbye {{1}}", "params": [{"type": "text"}]}],
         )
         TemplateTranslation.get_or_create(
             org2channel,
@@ -154,7 +155,7 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_id="5678",
             external_locale="fr_FR",
             namespace="bar_namespace",
-            components=[{"type": "body", "content": "Salut {{1}}", "params": [{"type": "text"}]}],
+            components=[{"type": "body", "name": "body", "content": "Salut {{1}}", "params": [{"type": "text"}]}],
         )
 
         tpl1.refresh_from_db()
@@ -175,7 +176,12 @@ class EndpointsTest(APITestMixin, TembaTest):
                             "namespace": "foo_namespace",
                             "status": "pending",
                             "components": {
-                                "body": {"type": "body", "content": "Goodbye {{1}}", "params": [{"type": "text"}]}
+                                "body": {
+                                    "type": "body",
+                                    "name": "body",
+                                    "content": "Goodbye {{1}}",
+                                    "params": [{"type": "text"}],
+                                }
                             },
                         },
                     ],
@@ -192,7 +198,12 @@ class EndpointsTest(APITestMixin, TembaTest):
                             "namespace": "foo_namespace",
                             "status": "approved",
                             "components": {
-                                "body": {"type": "body", "content": "Hi {{1}}", "params": [{"type": "text"}]}
+                                "body": {
+                                    "type": "body",
+                                    "name": "body",
+                                    "content": "Hi {{1}}",
+                                    "params": [{"type": "text"}],
+                                }
                             },
                         },
                         {
@@ -201,7 +212,12 @@ class EndpointsTest(APITestMixin, TembaTest):
                             "namespace": "foo_namespace",
                             "status": "pending",
                             "components": {
-                                "body": {"type": "body", "content": "Bonjour {{1}}", "params": [{"type": "text"}]}
+                                "body": {
+                                    "type": "body",
+                                    "name": "body",
+                                    "content": "Bonjour {{1}}",
+                                    "params": [{"type": "text"}],
+                                }
                             },
                         },
                     ],

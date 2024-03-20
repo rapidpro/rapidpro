@@ -2658,7 +2658,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             external_id="id1",
             external_locale="en_US",
             namespace="foo_namespace",
-            components=[{"type": "body", "content": "Hello {{1}}", "params": [{"type": "text"}]}],
+            components=[{"type": "body", "name": "body", "content": "Hello {{1}}", "params": [{"type": "text"}]}],
         )
 
         # will be warned again
