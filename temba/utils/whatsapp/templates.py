@@ -65,21 +65,24 @@ def _extract_components(components) -> tuple:
                 button_text = button.get("text", "")
 
                 if button_type == "QUICK_REPLY":
-                    params = _extract_params(button_text)
                     extracted.append(
-                        {"type": "button/quick_reply", "name": button_name, "content": button_text, "params": params}
+                        {
+                            "type": "button/quick_reply",
+                            "name": button_name,
+                            "content": button_text,
+                            "params": _extract_params(button_text),
+                        }
                     )
 
                 elif button_type == "URL":
                     button_url = button.get("url", "")
-                    params = _extract_params(button_text) + _extract_params(button_url)
                     extracted.append(
                         {
                             "type": "button/url",
                             "name": button_name,
                             "content": button_url,
                             "display": button_text,
-                            "params": params,
+                            "params": _extract_params(button_url),
                         }
                     )
 
