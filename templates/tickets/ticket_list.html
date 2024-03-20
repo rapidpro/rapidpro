@@ -6,6 +6,16 @@
 {% block extra-style %}
   {{ block.super }}
   <style type="text/css">
+    .back-button {
+      display: none;
+      padding-right: 0.5em;
+      margin-top: -1em;
+    }
+
+    .back-button:hover {
+      color: var(--color-primary-dark);
+    }
+
     .ticket-ui {
       position: relative;
       margin: 0;
@@ -15,12 +25,39 @@
     }
 
     .mobile .ticket-ui {
-      flex-direction: column;
+      overflow: hidden;
+      display: inline-flex;
     }
 
-    .mobile temba-resizer {
-      padding-right: 1em;
-      width: 100%;
+    .mobile .ticket-ui temba-resizer {
+      min-width: 100vw;
+      padding: 0.75em;
+      transition: margin-left 0.5s;
+    }
+
+    .mobile .ticket-ui temba-resizer .ticket-list {
+      padding: 0;
+      padding-bottom: 0em;
+    }
+
+    .mobile .ticket-ui .chat-pane {
+      padding-right: 0.75em;
+      padding-left: 0.75em;
+      margin-left: 0;
+    }
+
+    .mobile .ticket-ui .chat-pane .back-button {
+      display: block;
+    }
+
+    .mobile .ticket-ui.has-selection temba-resizer {
+      margin-left: -100vw;
+    }
+
+    .mobile .ticket-ui.has-selection .chat-pane {}
+
+    .mobile .chat-pane .empty {
+      display: none;
     }
 
     temba-select[name='ticket-status'] {
@@ -33,7 +70,7 @@
       margin-bottom: -0.5em;
     }
 
-    .empty {
+    .chat-pane .empty {
       position: absolute;
       opacity: 0;
       padding: 3px 40px;
@@ -247,19 +284,25 @@
       updateTicketList();
     }
 
-    function handleContactChanged(event) {
+    function handleContactSelected(event) {
+      const contact = event.target.getSelection();
+      handleContactChanged(contact);
+    }
+
+    function handleContactChanged(contact) {
       messageSent = false;
-      var contact = event.target.getSelection();
+      const ticketUI = document.querySelector('.ticket-ui');
 
       var contactHeader = document.querySelector("temba-contact-name-fetch");
       var contactTickets = document.querySelector("temba-contact-tickets");
       var chat = document.querySelector("temba-contact-chat");
-      var empty = document.querySelector(".empty");
+      var empty = document.querySelector(".chat-pane .empty");
 
       var fields = document.querySelectorAll("temba-contact-fields");
       var tabs = document.querySelector("temba-tabs");
 
       if (contact) {
+        ticketUI.classList.add('has-selection');
         chat.contact = contact.uuid;
         chat.currentTicket = contact.ticket;
 
@@ -288,6 +331,11 @@
         empty.style.opacity = '0';
 
       } else {
+        console.log('clearing contact..');
+
+        const ticketList = document.querySelector("temba-ticket-list");
+        ticketList.cursorIndex = -1;
+        ticketUI.classList.remove('has-selection');
         tabs.classList.add("hidden");
         chat.style.opacity = '0';
         empty.style.opacity = '1';
@@ -495,7 +543,7 @@
               <temba-ticket-list agent="{{ request.user.email }}"
                                  endpoint="{% url 'tickets.ticket_folder' folder status uuid %}"
                                  -temba-refreshed="handleTicketsRefreshed"
-                                 onchange="handleContactChanged(event)"
+                                 onchange="handleContactSelected(event)"
                                  class="flex-grow">
                 <div style="text-align:center" class="filter-note m-2 hidden">
                   <div onclick="clearFilter()" class="linked">{% trans "See more tickets" %}</div>
@@ -506,7 +554,7 @@
                                  agent="{{ request.user.email }}"
                                  endpoint="{% url 'tickets.ticket_folder' folder status %}"
                                  -temba-refreshed="handleTicketsRefreshed"
-                                 onchange="handleContactChanged(event)"
+                                 onchange="handleContactSelected(event)"
                                  class="flex-grow">
               </temba-ticket-list>
             {% endif %}
@@ -548,6 +596,8 @@
         </div>
         <div class="flex flex-col menu-flex">
           <div class="flex">
+            <temba-icon size="1.2" class="back-button" name="arrow_left" clickable onclick="handleContactChanged()">
+            </temba-icon>
             <temba-contact-name-fetch -temba-refreshed="handleContactRefreshed"
                                       onclick="{% if org_perms.contacts.contact_read %}handleNameClicked(){% endif %}"
                                       class="{% if org_perms.contacts.contact_read %}clickable{% endif %} text-2xl mb-4">
