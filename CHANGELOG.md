@@ -1,3 +1,10 @@
+v9.1.58 (2024-03-20)
+-------------------------
+ * Some fixes for on-device mobile issues
+ * Allow returning of components in list format from API endpoint
+ * Update to latest black
+ * Don't try to extract parameters from template url button component display values
+
 v9.1.57 (2024-03-20)
 -------------------------
  * Add name field also to template components
