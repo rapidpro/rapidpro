@@ -353,6 +353,7 @@
               "components": [
                 {
                   "type": "body",
+                  "name": "body",
                   "content": "Hi {{1}}, are you still experiencing problems with {{2}}?",
                   "params": [
                     {
@@ -375,6 +376,7 @@
               "components": [
                 {
                   "type": "body",
+                  "name": "body",
                   "content": "Bonjour {{1}}, a tu des problems avec {{2}}?",
                   "params": [
                     {
@@ -403,6 +405,7 @@
               "components": [
                 {
                   "type": "body",
+                  "name": "body",
                   "content": "Salut!",
                   "params": []
                 }

@@ -106,15 +106,7 @@ class TemplateTranslation(models.Model):
         existing = TemplateTranslation.objects.filter(channel=channel, external_id=external_id).first()
 
         # convert components to dict format that mailroom and editor still use
-        comps_as_dict = {}
-        button_index = 0
-        for comp in components:
-            comp_type = comp["type"]
-            if comp_type.startswith("button/"):
-                comps_as_dict[f"button.{button_index}"] = comp
-                button_index += 1
-            else:
-                comps_as_dict[comp_type] = comp
+        comps_as_dict = {c["name"]: c for c in components}
 
         if not existing:
             template = Template.objects.filter(org=channel.org, name=name).first()

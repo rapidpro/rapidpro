@@ -355,23 +355,27 @@ class Command(BaseCommand):
                         components=[
                             {
                                 "type": "body",
+                                "name": "body",
                                 "content": "Hi there {{1}}! We are in the process of preparing our world class menu. Would you like {{2}} or {{3}}",
                                 "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
                             },
                             {
                                 "type": "button/url",
+                                "name": "button.0",
                                 "content": "https://example.com/?wa_customer={{1}}",
                                 "display": "Dish A",
                                 "params": [{"type": "text"}],
                             },
                             {
                                 "type": "button/url",
+                                "name": "button.1",
                                 "content": "https://example.com/?wa_organization={{1}}",
                                 "display": "Dish B",
                                 "params": [{"type": "text"}],
                             },
                             {
                                 "type": "button/quick_reply",
+                                "name": "button.2",
                                 "content": "Not Hungry",
                                 "params": [{"type": "text"}],
                             },

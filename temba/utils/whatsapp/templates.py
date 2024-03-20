@@ -48,36 +48,51 @@ def _extract_components(components) -> tuple:
             else:
                 all_supported = False
 
-            extracted.append({"type": "header", "content": comp_text, "params": params})
+            extracted.append({"type": "header", "name": "header", "content": comp_text, "params": params})
 
         elif comp_type == "BODY":
             params = _extract_params(comp_text)
 
-            extracted.append({"type": "body", "content": comp_text, "params": params})
+            extracted.append({"type": "body", "name": "body", "content": comp_text, "params": params})
 
         elif comp_type == "FOOTER":
-            extracted.append({"type": "footer", "content": comp_text, "params": []})
+            extracted.append({"type": "footer", "name": "footer", "content": comp_text, "params": []})
 
         elif comp_type == "BUTTONS":
-            for button in component["buttons"]:
+            for idx, button in enumerate(component["buttons"]):
                 button_type = button["type"].upper()
+                button_name = f"button.{idx}"
                 button_text = button.get("text", "")
 
                 if button_type == "QUICK_REPLY":
                     params = _extract_params(button_text)
-                    extracted.append({"type": "button/quick_reply", "content": button_text, "params": params})
+                    extracted.append(
+                        {"type": "button/quick_reply", "name": button_name, "content": button_text, "params": params}
+                    )
 
                 elif button_type == "URL":
                     button_url = button.get("url", "")
                     params = _extract_params(button_text) + _extract_params(button_url)
                     extracted.append(
-                        {"type": "button/url", "content": button_url, "display": button_text, "params": params}
+                        {
+                            "type": "button/url",
+                            "name": button_name,
+                            "content": button_url,
+                            "display": button_text,
+                            "params": params,
+                        }
                     )
 
                 elif button_type == "PHONE_NUMBER":
                     phone_number = button.get("phone_number", "")
                     extracted.append(
-                        {"type": "button/phone_number", "content": phone_number, "display": button_text, "params": []}
+                        {
+                            "type": "button/phone_number",
+                            "name": button_name,
+                            "content": phone_number,
+                            "display": button_text,
+                            "params": [],
+                        }
                     )
 
                 else:
