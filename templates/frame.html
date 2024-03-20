@@ -15,7 +15,7 @@
       {% endblock head-title %}
     </title>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
     <meta name="description"
           content="{% block page-description %}{{ branding.name }} lets you visually build interactive SMS applications and launch them anywhere in the world.{% endblock page-description %}">
     <meta name="author" content="Nyaruka Ltd">
@@ -50,9 +50,6 @@
         }
       }
 
-      
-
-
       var static_url = "{{ STATIC_URL }}";
       var org_id = {% if active_org %}{{ active_org.id }}{% else %}null{% endif %};
       var tembaVersion = "{{ temba_version }}";
@@ -83,6 +80,14 @@
         }
 
         updateFrameForMobile();
+
+        if (isMobile()) {
+          var menu = document.querySelector("temba-menu");
+          if (menu) {
+            menu.collapsed = true;
+          }
+        }
+
         window.addEventListener('resize', function(event) {
           updateFrameForMobile();
         });
@@ -161,7 +166,7 @@
           </temba-dialog>
           <div class="ajax-scripts"></div>
           <div class="flex-col">
-            <div style="height:100vh;overflow:hidden" class="flex widget-container">
+            <div style="height:100vh;width:100%;overflow:hidden" class="flex widget-container">
               {% if request.user.is_staff and request.session.servicing %}
                 <div style="z-index:999999;
                             right:0;
