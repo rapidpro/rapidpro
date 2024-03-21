@@ -12,7 +12,6 @@ from temba.channels.types.whatsapp_legacy.views import ClaimView
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
-from temba.templates.views import SyncLogsView, TemplatesView
 from temba.utils.whatsapp import update_api_version
 from temba.utils.whatsapp.views import RefreshView
 
@@ -47,14 +46,12 @@ class WhatsAppLegacyType(ChannelType):
 
     config_ui = ConfigUI()  # has own template
 
-    menu_items = [dict(label=_("Message Templates"), view_name="channels.types.whatsapp_legacy.templates")]
+    menu_items = [dict(label=_("Message Templates"), view_name="templates.templatetranslation_channel")]
 
     def get_urls(self):
         return [
             self.get_claim_url(),
             re_path(r"^(?P<uuid>[a-z0-9\-]+)/refresh$", RefreshView.as_view(channel_type=self), name="refresh"),
-            re_path(r"^(?P<uuid>[a-z0-9\-]+)/templates$", TemplatesView.as_view(channel_type=self), name="templates"),
-            re_path(r"^(?P<uuid>[a-z0-9\-]+)/sync_logs$", SyncLogsView.as_view(channel_type=self), name="sync_logs"),
         ]
 
     def deactivate(self, channel):

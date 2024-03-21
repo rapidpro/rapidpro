@@ -33,6 +33,10 @@
           </td>
           <td class="text-right whitespace-nowrap">{% format_datetime obj.created_on seconds=True %}</td>
         </tr>
+      {% empty %}
+        <tr>
+          <td colspan="99" class="text-center">{% trans "No webhook calls yet" %}</td>
+        </tr>
       {% endfor %}
     </tbody>
   </table>

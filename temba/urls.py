@@ -33,6 +33,7 @@ urlpatterns += [
     re_path(r"^", include("temba.notifications.urls")),
     re_path(r"^", include("temba.public.urls")),
     re_path(r"^", include("temba.request_logs.urls")),
+    re_path(r"^", include("temba.templates.urls")),
     re_path(r"^", include("temba.tickets.urls")),
     re_path(r"^", include("temba.triggers.urls")),
     re_path(r"^", include("temba.orgs.urls")),

@@ -101,6 +101,49 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertReadFetch(log_url, [self.editor], context_object=l1)
         self.assertEqual("/flow/history/webhooks", response.headers.get(TEMBA_MENU_SELECTION))
 
+    def test_channel(self):
+        ch1 = self.create_channel("WAC", "WhatsApp: 1234", "1234")
+        ch2 = self.create_channel("WAC", "WhatsApp: 2345", "2345")
+
+        l1 = HTTPLog.objects.create(
+            channel=ch1,
+            url="http://org1.bar/zap/?text=" + ("0123456789" * 30),
+            request="GET /zap\nHost: org1.bar\n\n",
+            response=" OK 200",
+            is_error=False,
+            log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
+            request_time=10,
+            org=self.org,
+        )
+        l2 = HTTPLog.objects.create(
+            channel=ch1,
+            url="http://org2.bar/zap",
+            request="GET /zap\nHost: org2.bar\n\n",
+            response=" OK 200",
+            is_error=False,
+            log_type=HTTPLog.WHATSAPP_CONTACTS_REFRESHED,
+            request_time=10,
+            org=self.org,
+        )
+        HTTPLog.objects.create(
+            channel=ch2,
+            url="http://org2.bar/zap",
+            request="GET /zap\nHost: org2.bar\n\n",
+            response=" OK 200",
+            is_error=False,
+            log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED,
+            request_time=10,
+            org=self.org,
+        )
+
+        list_url = reverse("request_logs.httplog_channel", args=[ch1.uuid])
+
+        self.assertListFetch(
+            list_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[l2, l1]
+        )
+
+        self.assertContentMenu(list_url, self.admin, ["Message Templates"])
+
     def test_classifier(self):
         c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)
         c2 = Classifier.create(self.org, self.admin, WitType.slug, "Old Booker", {}, sync=False)
