@@ -61,10 +61,10 @@ django-imagekit = "^5.0.0"
 [tool.poetry.group.dev.dependencies]
 black = "^24.3.0"
 coverage = {extras = ["toml"], version = "^7.2.7"}
-isort = "^5.12.0"
+isort = "^5.13.2"
 responses = "^0.12.1"
-ruff = "^0.0.278"
-djlint = "^1.31.1"
+ruff = "^0.3.3"
+djlint = "^1.34.1"
 
 [tool.poetry_bumpversion.file."temba/__init__.py"]
 
@@ -73,9 +73,11 @@ line-length = 120
 
 [tool.ruff]
 line-length = 120
+fix = true
+
+[tool.ruff.lint]
 select = ["E", "F", "W"]
 ignore = ["E741", "E501", "F405"]
-fix = true
 
 [tool.isort]
 multi_line_output = 3
