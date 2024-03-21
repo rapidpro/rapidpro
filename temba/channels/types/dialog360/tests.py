@@ -38,7 +38,7 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
 
         # will fail with invalid phone number
         response = self.client.post(url, post_data)
-        self.assertFormError(response, "form", None, ["Please enter a valid phone number"])
+        self.assertFormError(response.context["form"], None, ["Please enter a valid phone number"])
 
         # valid number
         post_data["address"] = "0788123123"

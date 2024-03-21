@@ -141,4 +141,4 @@ class TwilioMessagingServiceTypeTest(TembaTest):
             mock_check_credentials.return_value = False
 
             response = self.client.post(update_url, post_data)
-            self.assertFormError(response, "form", None, "Credentials don't appear to be valid.")
+            self.assertFormError(response.context["form"], None, "Credentials don't appear to be valid.")

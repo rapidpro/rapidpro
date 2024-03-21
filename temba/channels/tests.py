@@ -2216,7 +2216,7 @@ class FacebookWhitelistTest(TembaTest, CRUDLTestMixin):
         with patch("requests.post") as mock:
             mock.return_value = MockResponse(400, '{"error": { "message": "FB Error" } }')
             response = self.client.post(whitelist_url, dict(whitelisted_domain="https://foo.bar"))
-            self.assertFormError(response, "form", None, "FB Error")
+            self.assertFormError(response.context["form"], None, "FB Error")
 
         with patch("requests.post") as mock:
             mock.return_value = MockResponse(200, '{ "ok": "true" }')

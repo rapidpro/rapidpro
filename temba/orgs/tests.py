@@ -259,8 +259,7 @@ class UserTest(TembaTest):
         response = self.client.post(login_url, {"username": "jim", "password": "pass123"})
         self.assertEqual(200, response.status_code)
         self.assertFormError(
-            response,
-            "form",
+            response.context["form"],
             None,
             "Please enter a correct username and password. Note that both fields may be case-sensitive.",
         )
@@ -295,7 +294,7 @@ class UserTest(TembaTest):
 
         # enter invalid OTP
         response = self.client.post(verify_url, {"otp": "nope"})
-        self.assertFormError(response, "form", "otp", "Incorrect OTP. Please try again.")
+        self.assertFormError(response.context["form"], "otp", "Incorrect OTP. Please try again.")
 
         # enter valid OTP
         with patch("pyotp.TOTP.verify", return_value=True):
@@ -315,7 +314,7 @@ class UserTest(TembaTest):
 
         # enter invalid backup token
         response = self.client.post(backup_url, {"token": "nope"})
-        self.assertFormError(response, "form", "token", "Invalid backup token. Please try again.")
+        self.assertFormError(response.context["form"], "token", "Invalid backup token. Please try again.")
 
         # enter valid backup token
         response = self.client.post(backup_url, {"token": self.admin.backup_tokens.first()})
@@ -344,8 +343,7 @@ class UserTest(TembaTest):
         # now we're allowed to make failed logins again
         response = self.client.post(login_url, {"username": "admin@nyaruka.com", "password": "pass123"})
         self.assertFormError(
-            response,
-            "form",
+            response.context["form"],
             None,
             "Please enter a correct username and password. Note that both fields may be case-sensitive.",
         )
@@ -441,13 +439,13 @@ class UserTest(TembaTest):
 
         # try to submit with no OTP or password
         response = self.client.post(enable_url, {})
-        self.assertFormError(response, "form", "otp", "This field is required.")
-        self.assertFormError(response, "form", "confirm_password", "This field is required.")
+        self.assertFormError(response.context["form"], "otp", "This field is required.")
+        self.assertFormError(response.context["form"], "confirm_password", "This field is required.")
 
         # try to submit with invalid OTP and password
         response = self.client.post(enable_url, {"otp": "nope", "confirm_password": "wrong"})
-        self.assertFormError(response, "form", "otp", "OTP incorrect. Please try again.")
-        self.assertFormError(response, "form", "confirm_password", "Password incorrect.")
+        self.assertFormError(response.context["form"], "otp", "OTP incorrect. Please try again.")
+        self.assertFormError(response.context["form"], "confirm_password", "Password incorrect.")
 
         # submit with valid OTP and password
         with patch("pyotp.TOTP.verify", return_value=True):
@@ -474,11 +472,11 @@ class UserTest(TembaTest):
 
         # try to submit with no password
         response = self.client.post(disable_url, {})
-        self.assertFormError(response, "form", "confirm_password", "This field is required.")
+        self.assertFormError(response.context["form"], "confirm_password", "This field is required.")
 
         # try to submit with invalid password
         response = self.client.post(disable_url, {"confirm_password": "wrong"})
-        self.assertFormError(response, "form", "confirm_password", "Password incorrect.")
+        self.assertFormError(response.context["form"], "confirm_password", "Password incorrect.")
 
         # submit with valid password
         response = self.client.post(disable_url, {"confirm_password": "Qwerty123"})
@@ -532,7 +530,7 @@ class UserTest(TembaTest):
 
         # try to submit with incorrect password
         response = self.client.post(confirm_url, {"password": "nope"})
-        self.assertFormError(response, "form", "password", "Password incorrect.")
+        self.assertFormError(response.context["form"], "password", "Password incorrect.")
 
         # submit with real password
         response = self.client.post(confirm_url, {"password": "Qwerty123"})
@@ -557,7 +555,7 @@ class UserTest(TembaTest):
 
         # try to submit with incorrect password
         response = self.client.post(confirm_url, {"password": "nope"})
-        self.assertFormError(response, "form", "password", "Password incorrect.")
+        self.assertFormError(response.context["form"], "password", "Password incorrect.")
 
         # 2 more times..
         self.client.post(confirm_url, {"password": "nope"})
@@ -572,7 +570,7 @@ class UserTest(TembaTest):
 
         # can once again submit incorrect passwords
         response = self.client.post(confirm_url, {"password": "nope"})
-        self.assertFormError(response, "form", "password", "Password incorrect.")
+        self.assertFormError(response.context["form"], "password", "Password incorrect.")
 
         # and also correct ones
         response = self.client.post(confirm_url, {"password": "Qwerty123"})
@@ -1074,7 +1072,7 @@ class OrgTest(TembaTest):
                 "invite_role": "A",
             },
         )
-        self.assertFormError(response, "form", "invite_emails", "One of the emails you entered is invalid.")
+        self.assertFormError(response.context["form"], "invite_emails", "One of the emails you entered is invalid.")
 
         # try again with valid email
         response = self.client.post(
@@ -1166,7 +1164,7 @@ class OrgTest(TembaTest):
                 "invite_role": "V",
             },
         )
-        self.assertFormError(response, "form", None, "A workspace must have at least one administrator.")
+        self.assertFormError(response.context["form"], None, "A workspace must have at least one administrator.")
 
         # try to downgrade ourselves to an editor
         response = self.client.post(
@@ -1180,7 +1178,7 @@ class OrgTest(TembaTest):
                 "invite_role": "V",
             },
         )
-        self.assertFormError(response, "form", None, "A workspace must have at least one administrator.")
+        self.assertFormError(response.context["form"], None, "A workspace must have at least one administrator.")
 
         # finally upgrade agent to admin, downgrade editor to agent, remove ourselves entirely and remove last invite
         last_invite = Invitation.objects.last()
@@ -1242,7 +1240,7 @@ class OrgTest(TembaTest):
         )
 
         self.assertFormError(
-            response, "form", "invite_emails", "One of the emails you entered has an existing user on the workspace."
+            response.context["form"], "invite_emails", "One of the emails you entered has an existing user on the workspace."
         )
 
         # do not allow multiple invite on the same email
@@ -1260,7 +1258,7 @@ class OrgTest(TembaTest):
         )
 
         self.assertFormError(
-            response, "form", "invite_emails", "One of the emails you entered has an existing user on the workspace."
+            response.context["form"], "invite_emails", "One of the emails you entered has an existing user on the workspace."
         )
 
         # no error for inactive invite
@@ -1277,7 +1275,7 @@ class OrgTest(TembaTest):
             },
         )
 
-        self.assertFormError(response, "form", "invite_emails", "One of the emails you entered is duplicated.")
+        self.assertFormError(response.context["form"], "invite_emails", "One of the emails you entered is duplicated.")
 
         # no error for inactive invite
         response = self.client.post(
@@ -1364,7 +1362,9 @@ class OrgTest(TembaTest):
 
         # try to create one with name that's too long
         response = self.client.post(resthook_url, {"new_slug": "x" * 100})
-        self.assertFormError(response, "form", "new_slug", "Ensure this value has at most 50 characters (it has 100).")
+        self.assertFormError(
+            response.context["form"], "new_slug", "Ensure this value has at most 50 characters (it has 100)."
+        )
 
         # now try to create with valid name/slug
         response = self.client.post(resthook_url, {"new_slug": "mother-registration "})
@@ -1385,7 +1385,7 @@ class OrgTest(TembaTest):
 
         # let's try to create a repeat, should fail due to duplicate slug
         response = self.client.post(resthook_url, {"new_slug": "Mother-Registration"})
-        self.assertFormError(response, "form", "new_slug", "This event name has already been used.")
+        self.assertFormError(response.context["form"], "new_slug", "This event name has already been used.")
 
         # add a subscriber
         subscriber = mother_reg.add_subscriber("http://foo", self.admin)
@@ -2112,16 +2112,16 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # try submitting without any data
         response = self.client.post(config_url, {})
-        self.assertFormError(response, "form", "from_email", "This field is required.")
-        self.assertFormError(response, "form", "host", "This field is required.")
-        self.assertFormError(response, "form", "username", "This field is required.")
-        self.assertFormError(response, "form", "password", "This field is required.")
-        self.assertFormError(response, "form", "port", "This field is required.")
+        self.assertFormError(response.context["form"], "from_email", "This field is required.")
+        self.assertFormError(response.context["form"], "host", "This field is required.")
+        self.assertFormError(response.context["form"], "username", "This field is required.")
+        self.assertFormError(response.context["form"], "password", "This field is required.")
+        self.assertFormError(response.context["form"], "port", "This field is required.")
         self.assertEqual(len(mail.outbox), 0)
 
         # try submitting an invalid from address
         response = self.client.post(config_url, {"from_email": "foobar.com"})
-        self.assertFormError(response, "form", "from_email", "Not a valid email address.")
+        self.assertFormError(response.context["form"], "from_email", "Not a valid email address.")
         self.assertEqual(len(mail.outbox), 0)
 
         # mock email sending so test send fails
@@ -2138,7 +2138,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                     "port": "465",
                 },
             )
-            self.assertFormError(response, "form", None, "SMTP settings test failed with error: boom")
+            self.assertFormError(response.context["form"], None, "SMTP settings test failed with error: boom")
             self.assertEqual(len(mail.outbox), 0)
 
             mock_send.side_effect = Exception("Unexpected Error")
@@ -2153,7 +2153,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 },
                 follow=True,
             )
-            self.assertFormError(response, "form", None, "SMTP settings test failed.")
+            self.assertFormError(response.context["form"], None, "SMTP settings test failed.")
             self.assertEqual(len(mail.outbox), 0)
 
         # submit with valid fields
@@ -2264,9 +2264,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(["first_name", "last_name", "password", "loc"], list(response.context["form"].fields.keys()))
 
         response = self.client.post(join_signup_url, {})
-        self.assertFormError(response, "form", "first_name", "This field is required.")
-        self.assertFormError(response, "form", "last_name", "This field is required.")
-        self.assertFormError(response, "form", "password", "This field is required.")
+        self.assertFormError(response.context["form"], "first_name", "This field is required.")
+        self.assertFormError(response.context["form"], "last_name", "This field is required.")
+        self.assertFormError(response.context["form"], "password", "This field is required.")
 
         response = self.client.post(join_signup_url, {"first_name": "Ed", "last_name": "Edits", "password": "Flows123"})
         self.assertRedirect(response, "/org/start/")
@@ -2398,7 +2398,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             password="dukenukem",
         )
         response = self.client.post(grant_url, post_data)
-        self.assertFormError(response, "form", "email", "This field is required.")
+        self.assertFormError(response.context["form"], "email", "This field is required.")
 
         post_data = dict(
             email="this-is-not-a-valid-email",
@@ -2410,7 +2410,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             password="dukenukem",
         )
         response = self.client.post(grant_url, post_data)
-        self.assertFormError(response, "form", "email", "Enter a valid email address.")
+        self.assertFormError(response.context["form"], "email", "Enter a valid email address.")
 
         response = self.client.post(
             grant_url,
@@ -2425,15 +2425,16 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
         self.assertFormError(
-            response, "form", "first_name", "Ensure this value has at most 150 characters (it has 159)."
+            response.context["form"], "first_name", "Ensure this value has at most 150 characters (it has 159)."
         )
         self.assertFormError(
-            response, "form", "last_name", "Ensure this value has at most 150 characters (it has 162)."
+            response.context["form"], "last_name", "Ensure this value has at most 150 characters (it has 162)."
         )
-        self.assertFormError(response, "form", "name", "Ensure this value has at most 128 characters (it has 136).")
         self.assertFormError(
-            response,
-            "form",
+            response.context["form"], "name", "Ensure this value has at most 128 characters (it has 136)."
+        )
+        self.assertFormError(
+            response.context["form"],
             "email",
             ["Enter a valid email address.", "Ensure this value has at most 150 characters (it has 159)."],
         )
@@ -2459,7 +2460,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "password": "password",
             },
         )
-        self.assertFormError(response, "form", None, "Login already exists, please do not include password.")
+        self.assertFormError(response.context["form"], None, "Login already exists, please do not include password.")
 
         # try to create a new user with empty password
         response = self.client.post(
@@ -2474,7 +2475,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "password": "",
             },
         )
-        self.assertFormError(response, "form", None, "Password required for new login.")
+        self.assertFormError(response.context["form"], None, "Password required for new login.")
 
         # try to create a new user with invalid password
         response = self.client.post(
@@ -2490,7 +2491,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
         self.assertFormError(
-            response, "form", None, "This password is too short. It must contain at least 8 characters."
+            response.context["form"], None, "This password is too short. It must contain at least 8 characters."
         )
 
     @patch("temba.orgs.views.OrgCRUDL.Signup.pre_process")
@@ -2556,12 +2557,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # submit with missing fields
         response = self.client.post(signup_url, {})
-        self.assertFormError(response, "form", "name", "This field is required.")
-        self.assertFormError(response, "form", "first_name", "This field is required.")
-        self.assertFormError(response, "form", "last_name", "This field is required.")
-        self.assertFormError(response, "form", "email", "This field is required.")
-        self.assertFormError(response, "form", "password", "This field is required.")
-        self.assertFormError(response, "form", "timezone", "This field is required.")
+        self.assertFormError(response.context["form"], "name", "This field is required.")
+        self.assertFormError(response.context["form"], "first_name", "This field is required.")
+        self.assertFormError(response.context["form"], "last_name", "This field is required.")
+        self.assertFormError(response.context["form"], "email", "This field is required.")
+        self.assertFormError(response.context["form"], "password", "This field is required.")
+        self.assertFormError(response.context["form"], "timezone", "This field is required.")
 
         # submit with invalid password and email
         response = self.client.post(
@@ -2575,9 +2576,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "timezone": "Africa/Kigali",
             },
         )
-        self.assertFormError(response, "form", "email", "Enter a valid email address.")
+        self.assertFormError(response.context["form"], "email", "Enter a valid email address.")
         self.assertFormError(
-            response, "form", "password", "This password is too short. It must contain at least 8 characters."
+            response.context["form"], "password", "This password is too short. It must contain at least 8 characters."
         )
 
         # submit with password that is too common
@@ -2592,7 +2593,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "timezone": "Africa/Kigali",
             },
         )
-        self.assertFormError(response, "form", "password", "This password is too common.")
+        self.assertFormError(response.context["form"], "password", "This password is too common.")
 
         # submit with password that is all numerical
         response = self.client.post(
@@ -2606,7 +2607,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "timezone": "Africa/Kigali",
             },
         )
-        self.assertFormError(response, "form", "password", "This password is entirely numeric.")
+        self.assertFormError(response.context["form"], "password", "This password is entirely numeric.")
 
         # submit with valid data (long email)
         response = self.client.post(
@@ -2666,7 +2667,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
                 "timezone": "Africa/Kigali",
             },
         )
-        self.assertFormError(response, "form", "email", "That email address is already used")
+        self.assertFormError(response.context["form"], "email", "That email address is already used")
 
         # if we hit /login we'll be taken back to the channel page
         response = self.client.get(reverse("users.user_check_login"))
@@ -2706,7 +2707,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         post_data = dict(email="bill@msn.com", current_password="HelloWorld1")
         response = self.client.post(reverse("orgs.user_edit"), post_data)
         self.assertEqual(200, response.status_code)
-        self.assertFormError(response, "form", "email", "Sorry, that email address is already taken.")
+        self.assertFormError(response.context["form"], "email", "Sorry, that email address is already taken.")
 
         post_data = dict(
             email="myal@wr.org",
@@ -3022,7 +3023,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit for an org we don't belong to
         response = self.client.post(choose_url, {"organization": org4.id})
         self.assertFormError(
-            response, "form", "organization", "Select a valid choice. That choice is not one of the available choices."
+            response.context["form"], "organization", "Select a valid choice. That choice is not one of the available choices."
         )
 
         # user clicks org 2...
@@ -3051,15 +3052,15 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             reverse("orgs.org_edit"),
             {"name": "", "timezone": "Bad/Timezone", "date_format": "X", "language": "klingon"},
         )
-        self.assertFormError(response, "form", "name", "This field is required.")
+        self.assertFormError(response.context["form"], "name", "This field is required.")
         self.assertFormError(
-            response, "form", "timezone", "Select a valid choice. Bad/Timezone is not one of the available choices."
+            response.context["form"], "timezone", "Select a valid choice. Bad/Timezone is not one of the available choices."
         )
         self.assertFormError(
-            response, "form", "date_format", "Select a valid choice. X is not one of the available choices."
+            response.context["form"], "date_format", "Select a valid choice. X is not one of the available choices."
         )
         self.assertFormError(
-            response, "form", "language", "Select a valid choice. klingon is not one of the available choices."
+            response.context["form"], "language", "Select a valid choice. klingon is not one of the available choices."
         )
 
         response = self.client.post(
@@ -3564,10 +3565,10 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit without required fields
         response = self.client.post(edit_url, {})
         self.assertEqual(200, response.status_code)
-        self.assertFormError(response, "form", "email", "This field is required.")
-        self.assertFormError(response, "form", "first_name", "This field is required.")
-        self.assertFormError(response, "form", "last_name", "This field is required.")
-        self.assertFormError(response, "form", "language", "This field is required.")
+        self.assertFormError(response.context["form"], "email", "This field is required.")
+        self.assertFormError(response.context["form"], "first_name", "This field is required.")
+        self.assertFormError(response.context["form"], "last_name", "This field is required.")
+        self.assertFormError(response.context["form"], "language", "This field is required.")
 
         # change the name and language
         response = self.client.post(
@@ -3607,7 +3608,9 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
         self.assertEqual(200, response.status_code)
-        self.assertFormError(response, "form", "current_password", "Please enter your password to save changes.")
+        self.assertFormError(
+            response.context["form"], "current_password", "Please enter your password to save changes."
+        )
 
         response = self.client.post(
             edit_url,
@@ -3813,7 +3816,7 @@ class BulkExportTest(TembaTest):
         post_data = dict(file=open("%s/test_flows/too_old.json" % settings.MEDIA_ROOT, "rb"))
         response = self.client.post(reverse("orgs.orgimport_create"), post_data)
         self.assertFormError(
-            response, "form", "file", "This file is no longer valid. Please export a new version and try again."
+            response.context["form"], "file", "This file is no longer valid. Please export a new version and try again."
         )
 
         # try a file which can be migrated forwards
@@ -3840,12 +3843,12 @@ class BulkExportTest(TembaTest):
         junk_binary_data = io.BytesIO(b"\x00!\x00b\xee\x9dh^\x01\x00\x00\x04\x00\x02[Content_Types].xml \xa2\x04\x02(")
         post_data = dict(file=junk_binary_data)
         response = self.client.post(reverse("orgs.orgimport_create"), post_data)
-        self.assertFormError(response, "form", "file", "This file is not a valid flow definition file.")
+        self.assertFormError(response.context["form"], "file", "This file is not a valid flow definition file.")
 
         junk_json_data = io.BytesIO(b'{"key": "data')
         post_data = dict(file=junk_json_data)
         response = self.client.post(reverse("orgs.orgimport_create"), post_data)
-        self.assertFormError(response, "form", "file", "This file is not a valid flow definition file.")
+        self.assertFormError(response.context["form"], "file", "This file is not a valid flow definition file.")
 
     def test_import_errors(self):
         self.login(self.admin)

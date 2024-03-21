@@ -95,7 +95,7 @@ class AndroidTypeTest(TembaTest, CRUDLTestMixin):
             reverse("channels.types.android.claim"), dict(claim_code=android1.claim_code, phone_number="078123")
         )
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", "phone_number", "Invalid phone number, try again.")
+        self.assertFormError(response.context["form"], "phone_number", "Invalid phone number, try again.")
 
         # Add a Dialog360 whatsapp channel and bulk sender channel that should not block us to claim an Android channel
         channel = self.create_channel(
@@ -201,7 +201,7 @@ class AndroidTypeTest(TembaTest, CRUDLTestMixin):
         # try to claim a bogus channel
         response = self.client.post(reverse("channels.types.android.claim"), dict(claim_code="Your Mom"))
         self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", "claim_code", "Invalid claim code, please check and try again.")
+        self.assertFormError(response.context["form"], "claim_code", "Invalid claim code, please check and try again.")
 
         # check our primary tel channel is the same as our outgoing
         default_sender = self.org.get_send_channel(URN.TEL_SCHEME)
@@ -279,7 +279,9 @@ class AndroidTypeTest(TembaTest, CRUDLTestMixin):
             reverse("channels.types.android.claim"), dict(claim_code=claim_code, phone_number="+250788123124")
         )
         self.assertFormError(
-            response, "form", "phone_number", "Another channel has this number. Please remove that channel first."
+            response.context["form"],
+            "phone_number",
+            "Another channel has this number. Please remove that channel first.",
         )
 
         # create channel in another org

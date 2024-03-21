@@ -34,7 +34,7 @@ class MailgunTypeTest(TembaTest):
             },
             follow=True,
         )
-        self.assertFormError(response, "form", "address", "Enter a valid email address.")
+        self.assertFormError(response.context["form"], "address", "Enter a valid email address.")
 
         response = self.client.post(
             claim_url,

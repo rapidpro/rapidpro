@@ -45,7 +45,7 @@ class VKTypeTest(TembaTest):
 
         response = self.client.post(url, data, follow=True)
         self.assertFormError(
-            response, "form", "community_name", "Ensure this value has at most 64 characters (it has 100)."
+            response.context["form"], "community_name", "Ensure this value has at most 64 characters (it has 100)."
         )
 
         data = {

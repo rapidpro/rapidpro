@@ -55,7 +55,7 @@ class MessagebirdTypeTest(TembaTest):
 
         # assert our channel failed to create due to invalid country
         self.assertFormError(
-            response, "form", "country", "Select a valid choice. PK is not one of the available choices."
+            response.context["form"], "country", "Select a valid choice. PK is not one of the available choices."
         )
 
         # update country and try again
@@ -78,5 +78,5 @@ class MessagebirdTypeTest(TembaTest):
         post_data["number"] = "33333"
         response = self.client.post(url, post_data, follow=True)
         self.assertFormError(
-            response, "form", "country", "Select a valid choice. PK is not one of the available choices."
+            response.context["form"], "country", "Select a valid choice. PK is not one of the available choices."
         )

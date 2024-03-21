@@ -43,10 +43,10 @@ class SomlengTypeTest(TembaTest):
         self.assertTrue(response.context["form"].errors)
 
         self.assertFormError(
-            response, "form", "country", "Select a valid choice. AA is not one of the available choices."
+            response.context["form"], "country", "Select a valid choice. AA is not one of the available choices."
         )
-        self.assertFormError(response, "form", "url", "This field is required.")
-        self.assertFormError(response, "form", "role", "This field is required.")
+        self.assertFormError(response.context["form"], "url", "This field is required.")
+        self.assertFormError(response.context["form"], "role", "This field is required.")
 
     @patch("twilio.rest.Client", MockTwilioClient)
     @patch("twilio.request_validator.RequestValidator", MockRequestValidator)

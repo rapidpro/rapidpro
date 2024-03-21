@@ -62,8 +62,7 @@ class KannelTypeTest(TembaTest):
         with override_settings(ORG_LIMIT_DEFAULTS={"channels": 1}):
             response = self.client.post(url, post_data)
             self.assertFormError(
-                response,
-                "form",
+                response.context["form"],
                 None,
                 "This workspace has reached its limit of 1 channels. You must delete existing ones before you can create new ones.",
             )
