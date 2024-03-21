@@ -9,8 +9,8 @@ from temba.channels.models import Channel
 from temba.channels.types.dialog360_legacy.views import ClaimView
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
+from temba.templates.views import SyncLogsView, TemplatesView
 from temba.utils.whatsapp import update_api_version
-from temba.utils.whatsapp.views import SyncLogsView, TemplatesView
 
 from ...models import ChannelType, ConfigUI
 

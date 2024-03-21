@@ -9,7 +9,7 @@ from temba.channels.models import Channel
 from temba.channels.types.dialog360.views import ClaimView
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
-from temba.utils.whatsapp.views import SyncLogsView, TemplatesView
+from temba.templates.views import SyncLogsView, TemplatesView
 
 from ...models import ChannelType, ConfigUI
 
