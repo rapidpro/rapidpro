@@ -12,8 +12,9 @@ from temba.channels.types.whatsapp_legacy.views import ClaimView
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
+from temba.templates.views import SyncLogsView, TemplatesView
 from temba.utils.whatsapp import update_api_version
-from temba.utils.whatsapp.views import RefreshView, SyncLogsView, TemplatesView
+from temba.utils.whatsapp.views import RefreshView
 
 from ...models import ChannelType, ConfigUI
 

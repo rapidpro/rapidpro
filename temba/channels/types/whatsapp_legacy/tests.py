@@ -8,9 +8,10 @@ from django.urls import reverse
 
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
+from temba.templates.tasks import refresh_templates
 from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
 from temba.utils.views import TEMBA_MENU_SELECTION
-from temba.utils.whatsapp.tasks import refresh_whatsapp_contacts, refresh_whatsapp_templates
+from temba.utils.whatsapp.tasks import refresh_whatsapp_contacts
 
 from ...models import Channel
 from .tasks import refresh_whatsapp_tokens
@@ -172,7 +173,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
         # clear our FB ids, should cause refresh to be noop (but not fail)
         del channel.config[CONFIG_FB_BUSINESS_ID]
         channel.save(update_fields=["config", "modified_on"])
-        refresh_whatsapp_templates()
+        refresh_templates()
 
         # deactivate our channel
         channel.release(self.admin)

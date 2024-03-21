@@ -8,7 +8,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
-from temba.utils.whatsapp.views import SyncLogsView, TemplatesView
+from temba.templates.views import SyncLogsView, TemplatesView
 
 from ...models import ChannelType
 from .views import ClaimView, ClearSessionToken, Connect, RequestCode, VerifyCode
