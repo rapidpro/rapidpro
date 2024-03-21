@@ -1098,6 +1098,7 @@ class MenuMixin(OrgPermsMixin):
         event=False,
         posterize=False,
         bubble=None,
+        mobile=False,
     ):
         if perm and not self.has_org_perm(perm):  # pragma: no cover
             return
@@ -1108,6 +1109,8 @@ class MenuMixin(OrgPermsMixin):
         menu_item["popup"] = popup
         menu_item["avatar"] = avatar
         menu_item["posterize"] = posterize
+        menu_item["event"] = event
+        menu_item["mobile"] = mobile
 
         if bubble:
             menu_item["bubble"] = bubble

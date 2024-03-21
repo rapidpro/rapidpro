@@ -281,9 +281,11 @@ function handleMenuClicked(event) {
   var parent = items.parent;
   var selection = items.selection;
 
-  if (item.trigger) {
+  if (item.trigger || item.event) {
     if (item.href) {
       window.open(item.href, '_blank');
+    } else {
+      document.dispatchEvent(new CustomEvent(item.trigger || item.event, { detail: item }));  
     }
     return;
   }
