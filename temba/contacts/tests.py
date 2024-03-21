@@ -713,13 +713,13 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                     },
                     {
                         "type": "scheduled_broadcast",
-                        "scheduled": bcast1.schedule.next_fire.astimezone(timezone.utc).isoformat(),
+                        "scheduled": bcast1.schedule.next_fire.astimezone(tzone.utc).isoformat(),
                         "repeat_period": "D",
                         "message": "Hi again",
                     },
                     {
                         "type": "scheduled_trigger",
-                        "scheduled": trigger1.schedule.next_fire.astimezone(timezone.utc).isoformat(),
+                        "scheduled": trigger1.schedule.next_fire.astimezone(tzone.utc).isoformat(),
                         "repeat_period": "W",
                         "flow": {"uuid": str(trigger1_flow.uuid), "name": "Favorites 1"},
                     },
@@ -732,7 +732,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                     },
                     {
                         "type": "scheduled_trigger",
-                        "scheduled": trigger2.schedule.next_fire.astimezone(timezone.utc).isoformat(),
+                        "scheduled": trigger2.schedule.next_fire.astimezone(tzone.utc).isoformat(),
                         "repeat_period": "M",
                         "flow": {"uuid": str(trigger2_flow.uuid), "name": "Favorites 2"},
                     },

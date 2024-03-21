@@ -739,8 +739,8 @@ class OrgTest(TembaTest):
             self.assertEqual(is_suspended, org.is_suspended)
 
         self.org.features += [Org.FEATURE_CHILD_ORGS]
-        org1_child1 = self.org.create_new(self.admin, "Child 1", timezone.utc, as_child=True)
-        org1_child2 = self.org.create_new(self.admin, "Child 2", timezone.utc, as_child=True)
+        org1_child1 = self.org.create_new(self.admin, "Child 1", tzone.utc, as_child=True)
+        org1_child2 = self.org.create_new(self.admin, "Child 2", tzone.utc, as_child=True)
 
         self.org.suspend()
 
@@ -1240,7 +1240,9 @@ class OrgTest(TembaTest):
         )
 
         self.assertFormError(
-            response.context["form"], "invite_emails", "One of the emails you entered has an existing user on the workspace."
+            response.context["form"],
+            "invite_emails",
+            "One of the emails you entered has an existing user on the workspace.",
         )
 
         # do not allow multiple invite on the same email
@@ -1258,7 +1260,9 @@ class OrgTest(TembaTest):
         )
 
         self.assertFormError(
-            response.context["form"], "invite_emails", "One of the emails you entered has an existing user on the workspace."
+            response.context["form"],
+            "invite_emails",
+            "One of the emails you entered has an existing user on the workspace.",
         )
 
         # no error for inactive invite
@@ -3023,7 +3027,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # try to submit for an org we don't belong to
         response = self.client.post(choose_url, {"organization": org4.id})
         self.assertFormError(
-            response.context["form"], "organization", "Select a valid choice. That choice is not one of the available choices."
+            response.context["form"],
+            "organization",
+            "Select a valid choice. That choice is not one of the available choices.",
         )
 
         # user clicks org 2...
@@ -3054,7 +3060,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertFormError(response.context["form"], "name", "This field is required.")
         self.assertFormError(
-            response.context["form"], "timezone", "Select a valid choice. Bad/Timezone is not one of the available choices."
+            response.context["form"],
+            "timezone",
+            "Select a valid choice. Bad/Timezone is not one of the available choices.",
         )
         self.assertFormError(
             response.context["form"], "date_format", "Select a valid choice. X is not one of the available choices."

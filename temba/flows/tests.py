@@ -3283,7 +3283,9 @@ msgstr "Bluuu"
         )
         response = self.requestView(step1_url, self.admin, post_data={"po_file": po_file})
         self.assertFormError(
-            response.context["form"], "po_file", "Contains translations in English which is the base language of this flow."
+            response.context["form"],
+            "po_file",
+            "Contains translations in English which is the base language of this flow.",
         )
 
         # submit with something that's in the base language of the flow
