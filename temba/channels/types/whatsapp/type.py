@@ -8,7 +8,6 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
-from temba.templates.views import SyncLogsView
 
 from ...models import ChannelType
 from .views import ClaimView, ClearSessionToken, Connect, RequestCode, VerifyCode
@@ -43,7 +42,6 @@ class WhatsAppType(ChannelType):
         return [
             self.get_claim_url(),
             re_path(r"^clear_session_token$", ClearSessionToken.as_view(channel_type=self), name="clear_session_token"),
-            re_path(r"^(?P<uuid>[a-z0-9\-]+)/sync_logs$", SyncLogsView.as_view(channel_type=self), name="sync_logs"),
             re_path(
                 r"^(?P<uuid>[a-z0-9\-]+)/request_code$", RequestCode.as_view(channel_type=self), name="request_code"
             ),

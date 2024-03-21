@@ -1,4 +1,4 @@
-from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
+from smartmin.views import SmartCRUDL, SmartListView
 
 from django.http import Http404
 from django.urls import reverse
@@ -6,9 +6,7 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
-from temba.channels.views import ChannelTypeMixin
-from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
-from temba.request_logs.models import HTTPLog
+from temba.orgs.views import OrgObjPermsMixin
 from temba.utils.views import ContentMenuMixin, SpaMixin
 
 from .models import TemplateTranslation
@@ -26,9 +24,7 @@ class TemplateTranslationCRUDL(SmartCRUDL):
             return r"^%s/%s/(?P<channel>[^/]+)/$" % (path, action)
 
         def build_content_menu(self, menu):
-            menu.add_link(
-                _("Sync Logs"), reverse(f"channels.types.{self.channel.type.slug}.sync_logs", args=[self.channel.uuid])
-            )
+            menu.add_link(_("Sync Logs"), reverse("request_logs.httplog_channel", args=[self.channel.uuid]))
 
         def derive_menu_path(self):
             return f"/settings/channels/{self.channel.uuid}"
@@ -55,46 +51,3 @@ class TemplateTranslationCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["channel"] = self.channel
             return context
-
-
-class SyncLogsView(ChannelTypeMixin, ContentMenuMixin, OrgPermsMixin, SmartReadView):
-    """
-    Displays a simple table of the WhatsApp Templates Synced requests for this channel
-    """
-
-    model = Channel
-    fields = ()
-    permission = "channels.channel_read"
-    slug_url_kwarg = "uuid"
-    template_name = "templates/sync_logs.html"
-
-    def build_content_menu(self, menu):
-        obj = self.get_object()
-
-        menu.add_link(_("Message Templates"), reverse(f"channels.types.{obj.type.slug}.templates", args=[obj.uuid]))
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        return queryset.filter(org=self.request.org)
-
-    def derive_menu_path(self):
-        return f"/settings/channels/{self.get_object().uuid}"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        # include all our http sync logs as well
-        context["sync_logs"] = (
-            HTTPLog.objects.filter(
-                log_type__in=[
-                    HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
-                    HTTPLog.WHATSAPP_TOKENS_SYNCED,
-                    HTTPLog.WHATSAPP_CONTACTS_REFRESHED,
-                    HTTPLog.WHATSAPP_CHECK_HEALTH,
-                ],
-                channel=self.object,
-            )
-            .order_by("-created_on")
-            .prefetch_related("channel")
-        )
-        return context
