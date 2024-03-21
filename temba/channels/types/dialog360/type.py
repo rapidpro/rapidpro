@@ -9,7 +9,7 @@ from temba.channels.models import Channel
 from temba.channels.types.dialog360.views import ClaimView
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
-from temba.templates.views import SyncLogsView, TemplatesView
+from temba.templates.views import SyncLogsView
 
 from ...models import ChannelType, ConfigUI
 
@@ -35,12 +35,11 @@ class Dialog360Type(ChannelType):
 
     config_ui = ConfigUI()  # has own template
 
-    menu_items = [dict(label=_("Message Templates"), view_name="channels.types.dialog360.templates")]
+    menu_items = [dict(label=_("Message Templates"), view_name="templates.templatetranslation_channel")]
 
     def get_urls(self):
         return [
             self.get_claim_url(),
-            re_path(r"^(?P<uuid>[a-z0-9\-]+)/templates$", TemplatesView.as_view(channel_type=self), name="templates"),
             re_path(r"^(?P<uuid>[a-z0-9\-]+)/sync_logs$", SyncLogsView.as_view(channel_type=self), name="sync_logs"),
         ]
 

@@ -3,12 +3,14 @@ from zoneinfo import ZoneInfo
 
 import requests
 
+from django.urls import reverse
+
 from temba.channels.models import Channel
 from temba.notifications.incidents.builtin import ChannelTemplatesFailedIncidentType
 from temba.notifications.models import Incident
 from temba.orgs.models import Org, OrgRole
 from temba.request_logs.models import HTTPLog
-from temba.tests import TembaTest
+from temba.tests import CRUDLTestMixin, TembaTest
 
 from .models import Template, TemplateTranslation
 from .tasks import refresh_templates
@@ -681,6 +683,52 @@ class TemplateTest(TembaTest):
 
         tt = TemplateTranslation.objects.filter(channel=channel, external_id="en/hello").first()
         self.assertEqual("xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx", tt.namespace)
+
+
+class TemplateTranslationCRUDLTest(CRUDLTestMixin, TembaTest):
+    def test_channel(self):
+        channel = self.create_channel("D3C", "360Dialog channel", address="1234", country="BR")
+        tt1 = TemplateTranslation.get_or_create(
+            channel,
+            "hello",
+            locale="eng-US",
+            status=TemplateTranslation.STATUS_APPROVED,
+            external_id="1234",
+            external_locale="en_US",
+            namespace="foo_namespace",
+            components=[{"type": "body", "name": "body", "content": "Hello {{1}}", "params": [{"type": "text"}]}],
+        )
+        tt2 = TemplateTranslation.get_or_create(
+            channel,
+            "goodbye",
+            locale="eng-US",
+            status=TemplateTranslation.STATUS_PENDING,
+            external_id="2345",
+            external_locale="en_US",
+            namespace="foo_namespace",
+            components=[{"type": "body", "name": "body", "content": "Goodbye {{1}}", "params": [{"type": "text"}]}],
+        )
+
+        # and one for another channel
+        TemplateTranslation.get_or_create(
+            self.channel,
+            "hello",
+            locale="eng-US",
+            status=TemplateTranslation.STATUS_PENDING,
+            external_id="5678",
+            external_locale="en_US",
+            namespace="foo_namespace",
+            components=[{"type": "body", "name": "body", "content": "Goodbye {{1}}", "params": [{"type": "text"}]}],
+        )
+
+        channel_url = reverse("templates.templatetranslation_channel", args=[channel.uuid])
+
+        response = self.assertListFetch(
+            channel_url, allow_viewers=True, allow_editors=True, allow_org2=False, context_objects=[tt2, tt1]
+        )
+
+        self.assertContains(response, "Hello")
+        self.assertContentMenu(channel_url, self.admin, ["Sync Logs"])
 
 
 class WhatsAppUtilsTest(TembaTest):

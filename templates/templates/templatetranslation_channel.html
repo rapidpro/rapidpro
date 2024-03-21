@@ -1,16 +1,15 @@
-{% extends "channels/channel_read.html" %}
-{% load smartmin temba compress humanize channels %}
-{% load i18n tz %}
+{% extends "smartmin/list.html" %}
+{% load i18n %}
 
-{% block fields %}
-{% endblock fields %}
+{% block title-text %}
+  {{ channel.name }} - {% trans "Templates" %}
+{% endblock title-text %}
 {% block subtitle %}
-  {{ object.get_channel_type_display }}
-  {% trans "Templates are synced from your account every 15 minutes." %}
+  {% trans "Templates are refreshed every 15 minutes." %}
 {% endblock subtitle %}
 {% block content %}
   <div class="card p-0 overflow-y-scroll" id="templates">
-    {% for translation in translations %}
+    {% for translation in object_list %}
       {% ifchanged translation.template.name %}
         <div class="p-4 font-bold">{{ translation.template.name }}</div>
       {% endifchanged %}

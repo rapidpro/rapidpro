@@ -9,7 +9,7 @@ from temba.channels.models import Channel
 from temba.channels.types.dialog360_legacy.views import ClaimView
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
-from temba.templates.views import SyncLogsView, TemplatesView
+from temba.templates.views import SyncLogsView
 from temba.utils.whatsapp import update_api_version
 
 from ...models import ChannelType, ConfigUI
@@ -34,12 +34,11 @@ class Dialog360LegacyType(ChannelType):
 
     config_ui = ConfigUI()  # has own template
 
-    menu_items = [dict(label=_("Message Templates"), view_name="channels.types.dialog360_legacy.templates")]
+    menu_items = [dict(label=_("Message Templates"), view_name="templates.templatetranslation_channel")]
 
     def get_urls(self):
         return [
             self.get_claim_url(),
-            re_path(r"^(?P<uuid>[a-z0-9\-]+)/templates$", TemplatesView.as_view(channel_type=self), name="templates"),
             re_path(r"^(?P<uuid>[a-z0-9\-]+)/sync_logs$", SyncLogsView.as_view(channel_type=self), name="sync_logs"),
         ]
 
