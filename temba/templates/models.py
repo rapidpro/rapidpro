@@ -110,9 +110,6 @@ class TemplateTranslation(models.Model):
     external_locale = models.CharField(null=True, max_length=6)  # e.g. en_US
     is_active = models.BooleanField(default=True)
 
-    # TODO remove
-    comps_as_dict = models.JSONField(null=True)
-
     @classmethod
     def trim(cls, channel, existing):
         """
@@ -121,10 +118,10 @@ class TemplateTranslation(models.Model):
         ids = [tc.id for tc in existing]
 
         # mark any that weren't included as inactive
-        TemplateTranslation.objects.filter(channel=channel).exclude(id__in=ids).update(is_active=False)
+        cls.objects.filter(channel=channel).exclude(id__in=ids).update(is_active=False)
 
         # Make sure the seen one are active
-        TemplateTranslation.objects.filter(channel=channel, id__in=ids, is_active=False).update(is_active=True)
+        cls.objects.filter(channel=channel, id__in=ids, is_active=False).update(is_active=True)
 
     @classmethod
     def get_or_create(
