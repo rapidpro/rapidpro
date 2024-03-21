@@ -75,7 +75,7 @@ class TemplateTranslation(models.Model):
     is_active = models.BooleanField(default=True)
 
     # TODO remove
-    comps_as_dict = models.JSONField(default=dict)
+    comps_as_dict = models.JSONField(null=True)
 
     @classmethod
     def trim(cls, channel, existing):
@@ -105,9 +105,6 @@ class TemplateTranslation(models.Model):
     ):
         existing = TemplateTranslation.objects.filter(channel=channel, external_id=external_id).first()
 
-        # convert components to dict format that mailroom and editor still use
-        comps_as_dict = {c["name"]: c for c in components}
-
         if not existing:
             template = Template.objects.filter(org=channel.org, name=name).first()
             if not template:
@@ -124,7 +121,6 @@ class TemplateTranslation(models.Model):
                 namespace=namespace,
                 locale=locale,
                 components=components,
-                comps_as_dict=comps_as_dict,
                 status=status,
                 external_id=external_id,
                 external_locale=external_locale,
@@ -137,18 +133,9 @@ class TemplateTranslation(models.Model):
                 existing.status = status
                 existing.is_active = True
                 existing.components = components
-                existing.comps_as_dict = comps_as_dict
                 existing.external_locale = external_locale
                 existing.save(
-                    update_fields=[
-                        "namespace",
-                        "locale",
-                        "status",
-                        "is_active",
-                        "components",
-                        "comps_as_dict",
-                        "external_locale",
-                    ]
+                    update_fields=["namespace", "locale", "status", "components", "external_locale", "is_active"]
                 )
 
                 existing.template.modified_on = timezone.now()
