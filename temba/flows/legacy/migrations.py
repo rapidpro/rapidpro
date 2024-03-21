@@ -112,7 +112,7 @@ def migrate_to_version_11_11(json_flow, flow=None):
 
     def remap_label(label):
         # labels can be single string expressions
-        if type(label) is dict:
+        if isinstance(label, dict):
             # we haven't been mapped yet (also, non-uuid labels can't be mapped)
             if ("uuid" not in label or label["uuid"] not in uuid_map) and Label.is_valid_name(label["name"]):
                 label_instance, _ = Label.import_def(flow.org, flow.created_by, {"name": label["name"]})
@@ -463,7 +463,7 @@ def migrate_to_version_11_6(json_flow, flow=None):
     uuid_map = {}
 
     def remap_group(group):
-        if type(group) is dict:
+        if isinstance(group, dict):
             # we haven't been mapped yet (also, non-uuid groups can't be mapped)
             if "uuid" not in group or group["uuid"] not in uuid_map and group.get("name"):
                 group_instance = ContactGroup.get_group_by_name(flow.org, group["name"])

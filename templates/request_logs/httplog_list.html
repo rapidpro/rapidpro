@@ -14,11 +14,8 @@
   </style>
 {% endblock extra-style %}
 {% block table %}
-  <table class="rounded-b-lg shadow bg-white">
+  <table class="rounded-b-lg shadow bg-white w-full">
     <tbody>
-      <tr>
-        <td class="p-1"></td>
-      </tr>
       {% for obj in object_list %}
         <tr class="{% if obj.is_error %}warning{% endif %}">
           <td class="w-full clickable">
@@ -38,10 +35,11 @@
           </td>
           <td class="text-right whitespace-nowrap">{% format_datetime obj.created_on seconds=True %}</td>
         </tr>
+      {% empty %}
+        <tr>
+          <td colspan="99" class="text-center">{% trans "No sync events yet" %}</td>
+        </tr>
       {% endfor %}
-      <tr>
-        <td class="p-1"></td>
-      </tr>
     </tbody>
   </table>
 {% endblock table %}

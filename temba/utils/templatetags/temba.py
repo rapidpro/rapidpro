@@ -143,7 +143,7 @@ def to_json(value):
 
     https://stackoverflow.com/a/14290542
     """
-    if type(value) != str:
+    if not isinstance(value, str):
         raise ValueError(f"Expected str got {type(value)} for to_json")
 
     escaped_output = escapejs(value)

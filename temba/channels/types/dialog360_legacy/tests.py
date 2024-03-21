@@ -7,7 +7,6 @@ from django.forms import ValidationError
 from django.urls import reverse
 
 from temba.request_logs.models import HTTPLog
-from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
 
 from ...models import Channel
@@ -128,50 +127,6 @@ class Dialog360LegacyTypeTest(CRUDLTestMixin, TembaTest):
                 "Content-Type": "application/json",
             },
         )
-
-    def test_message_templates_and_logs_views(self):
-        channel = self.create_channel(
-            "D3",
-            "360Dialog channel",
-            address="1234",
-            country="BR",
-            config={
-                Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
-                Channel.CONFIG_AUTH_TOKEN: "123456789",
-            },
-        )
-
-        TemplateTranslation.get_or_create(
-            channel,
-            "hello",
-            locale="eng-US",
-            status=TemplateTranslation.STATUS_APPROVED,
-            external_id="1234",
-            external_locale="en_US",
-            namespace="foo_namespace",
-            components=[{"type": "body", "name": "body", "content": "Hello {{1}}", "params": [{"type": "text"}]}],
-        )
-
-        sync_url = reverse("channels.types.dialog360_legacy.sync_logs", args=[channel.uuid])
-        templates_url = reverse("channels.types.dialog360_legacy.templates", args=[channel.uuid])
-
-        self.login(self.admin)
-        response = self.client.get(templates_url)
-
-        # should have our template translations
-        self.assertContains(response, "Hello")
-        self.assertContentMenu(templates_url, self.admin, ["Sync Logs"])
-
-        # check if message templates link are in sync_logs view
-        self.assertContentMenu(sync_url, self.admin, ["Message Templates"])
-
-        # sync logs not accessible by user from other org
-        self.login(self.admin2)
-        response = self.client.get(templates_url)
-        self.assertEqual(404, response.status_code)
-
-        response = self.client.get(sync_url)
-        self.assertEqual(404, response.status_code)
 
     def test_check_health(self):
         channel = self.create_channel(

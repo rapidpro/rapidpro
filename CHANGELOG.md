@@ -1,3 +1,10 @@
+v9.1.60 (2024-03-21)
+-------------------------
+ * Update to latest ruff, isort and djlint
+ * Drop TemplateTranslation.comps_as_dict
+ * Get rid of channel typed owned sync log views and use new channel view on HTTP log CRUDL
+ * Convert templates views to actual CRUDL and fix permissions
+
 v9.1.59 (2024-03-21)
 -------------------------
  * Move template code into templates app

@@ -10,7 +10,6 @@ from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
 from temba.templates.tasks import refresh_templates
 from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
-from temba.utils.views import TEMBA_MENU_SELECTION
 from temba.utils.whatsapp.tasks import refresh_whatsapp_contacts
 
 from ...models import Channel
@@ -508,68 +507,6 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
                 ),
             ]
         )
-
-    def test_message_templates_and_logs_views(self):
-        channel = self.create_channel("WA", "Channel", "1234", config={"fb_namespace": "foo_namespace"})
-
-        TemplateTranslation.get_or_create(
-            channel,
-            "hello",
-            locale="eng-US",
-            status=TemplateTranslation.STATUS_APPROVED,
-            external_id="1234",
-            external_locale="en_US",
-            namespace="foo_namespace",
-            components=[{"type": "body", "name": "body", "content": "Hello {{1}}", "params": [{"type": "text"}]}],
-        )
-
-        foo = TemplateTranslation.get_or_create(
-            channel,
-            "hi",
-            locale="eng-US",
-            status=TemplateTranslation.STATUS_APPROVED,
-            external_id="1235",
-            external_locale="en_US",
-            namespace="foo_namespace",
-            components=[{"type": "body", "name": "body", "content": "Goodbye {{1}}", "params": [{"type": "text"}]}],
-        )
-
-        sync_url = reverse("channels.types.whatsapp_legacy.sync_logs", args=[channel.uuid])
-        templates_url = reverse("channels.types.whatsapp_legacy.templates", args=[channel.uuid])
-
-        self.login(self.admin)
-        response = self.client.get(templates_url)
-
-        # should have our template translations
-        self.assertContains(response, "Hello")
-        self.assertContains(response, "Goodbye")
-        # check if templates view contains the sync logs link menu item
-        self.assertContentMenu(templates_url, self.admin, ["Sync Logs"])
-
-        response = self.client.get(templates_url)
-        self.assertEqual(f"/settings/channels/{channel.uuid}", response.context[TEMBA_MENU_SELECTION])
-
-        foo.is_active = False
-        foo.save()
-        response = self.client.get(templates_url)
-
-        # should have our template translations
-        self.assertContains(response, "Hello")
-        self.assertNotContains(response, "Goodbye")
-        # check if sync_logs view contains the message templates link menu item
-        response = self.client.get(sync_url)
-        self.assertContains(response, channel.name)
-        self.assertContentMenu(sync_url, self.admin, ["Message Templates"])
-
-        response = self.client.get(sync_url)
-        self.assertEqual(f"/settings/channels/{channel.uuid}", response.context[TEMBA_MENU_SELECTION])
-
-        # sync logs and message templates not accessible by user from other org
-        self.login(self.admin2)
-        response = self.client.get(templates_url)
-        self.assertEqual(404, response.status_code)
-        response = self.client.get(sync_url)
-        self.assertEqual(404, response.status_code)
 
     def test_check_health(self):
         channel = self.create_channel(
