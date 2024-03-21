@@ -1,7 +1,7 @@
 import requests
 
 from django.forms import ValidationError
-from django.urls import re_path, reverse
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 

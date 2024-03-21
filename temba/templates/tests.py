@@ -730,6 +730,9 @@ class TemplateTranslationCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContains(response, "Hello")
         self.assertContentMenu(channel_url, self.admin, ["Sync Logs"])
 
+        response = self.client.get(reverse("templates.templatetranslation_channel", args=["1234567890-1234"]))
+        self.assertEqual(404, response.status_code)
+
 
 class WhatsAppUtilsTest(TembaTest):
     def test_parse_language(self):

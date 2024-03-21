@@ -1,3 +1,8 @@
+v9.1.59 (2024-03-21)
+-------------------------
+ * Move template code into templates app
+ * Stop writing TemplateTranslation.comps_as_dict
+
 v9.1.58 (2024-03-20)
 -------------------------
  * Some fixes for on-device mobile issues
