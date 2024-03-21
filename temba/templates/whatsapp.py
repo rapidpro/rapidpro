@@ -1,7 +1,8 @@
 import re
 
-from temba.templates.models import TemplateTranslation
 from temba.utils.languages import alpha2_to_alpha3
+
+from .models import TemplateTranslation
 
 VARIABLE_RE = re.compile(r"{{(\d+)}}")
 
@@ -27,7 +28,7 @@ def _extract_params(content, _type="text") -> list:
     return params
 
 
-def _extract_components(components) -> tuple:
+def extract_components(components) -> tuple:
     """
     Extracts components in our simplified format from payload of WhatsApp template components
     """
@@ -104,40 +105,6 @@ def _extract_components(components) -> tuple:
             all_supported = False
 
     return extracted, all_supported
-
-
-def update_local_templates(channel, wa_templates):
-    channel_namespace = channel.config.get("fb_namespace", "")
-
-    # run through all our templates making sure they are present in our DB
-    seen = []
-    for template in wa_templates:
-        template_status = template["status"].upper()
-        if template_status not in STATUS_MAPPING:  # ignore if this is a status we don't know about
-            continue
-
-        components, all_supported = _extract_components(template["components"])
-
-        status = STATUS_MAPPING[template_status]
-        if not all_supported:
-            status = TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
-
-        missing_external_id = f"{template['language']}/{template['name']}"
-        translation = TemplateTranslation.get_or_create(
-            channel,
-            template["name"],
-            locale=parse_language(template["language"]),
-            status=status,
-            external_locale=template["language"],
-            external_id=template.get("id", missing_external_id[:64]),
-            namespace=template.get("namespace", channel_namespace),
-            components=components,
-        )
-
-        seen.append(translation)
-
-    # trim any translations we didn't see
-    TemplateTranslation.trim(channel, seen)
 
 
 def parse_language(lang) -> str:
