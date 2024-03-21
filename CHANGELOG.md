@@ -1,3 +1,7 @@
+v9.1.61 (2024-03-21)
+-------------------------
+ * Support for menu events
+
 v9.1.60 (2024-03-21)
 -------------------------
  * Update to latest ruff, isort and djlint
