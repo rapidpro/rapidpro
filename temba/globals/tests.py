@@ -88,8 +88,9 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_list_views(self):
         list_url = reverse("globals.global_list")
 
+        self.assertRequestDisallowed(list_url, [None, self.agent])
         response = self.assertListFetch(
-            list_url, allow_viewers=True, allow_editors=True, context_objects=[self.global2, self.global1]
+            list_url, [self.user, self.editor, self.admin], context_objects=[self.global2, self.global1]
         )
         self.assertContains(response, "Acme Ltd")
         self.assertContains(response, "23464373")
@@ -100,8 +101,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
 
         unused_url = reverse("globals.global_unused")
 
-        self.assertListFetch(unused_url, allow_viewers=True, allow_editors=True, context_objects=[self.global2])
-
+        self.assertListFetch(unused_url, [self.user, self.editor, self.admin], context_objects=[self.global2])
         self.assertContentMenu(list_url, self.admin, ["New Global"])
 
     @override_settings(ORG_LIMIT_DEFAULTS={"globals": 4})

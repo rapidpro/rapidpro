@@ -71,7 +71,9 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
     def test_menu(self):
         menu_url = reverse("contacts.contact_menu")
-        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+
+        self.assertRequestDisallowed(menu_url, [None, self.agent])
+        response = self.assertListFetch(menu_url, [self.user, self.editor, self.admin])
         menu = response.json()["results"]
         self.assertEqual(8, len(menu))
 
@@ -217,9 +219,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         blocked_url = reverse("contacts.contact_blocked")
 
-        response = self.assertListFetch(
-            blocked_url, allow_viewers=True, allow_editors=True, context_objects=[billy, frank, joe]
-        )
+        self.assertRequestDisallowed(blocked_url, [None, self.agent])
+        response = self.assertListFetch(blocked_url, [self.editor, self.admin], context_objects=[billy, frank, joe])
         self.assertEqual(["restore", "archive"], list(response.context["actions"]))
         self.assertContentMenu(blocked_url, self.admin, ["Export"])
 
@@ -256,8 +257,9 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         stopped_url = reverse("contacts.contact_stopped")
 
+        self.assertRequestDisallowed(stopped_url, [None, self.agent])
         response = self.assertListFetch(
-            stopped_url, allow_viewers=True, allow_editors=True, context_objects=[billy, frank, joe]
+            stopped_url, [self.user, self.editor, self.admin], context_objects=[billy, frank, joe]
         )
         self.assertEqual(["restore", "archive"], list(response.context["actions"]))
         self.assertContentMenu(stopped_url, self.admin, ["Export"])
@@ -296,8 +298,9 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         archived_url = reverse("contacts.contact_archived")
 
+        self.assertRequestDisallowed(archived_url, [None, self.agent])
         response = self.assertListFetch(
-            archived_url, allow_viewers=True, allow_editors=True, context_objects=[billy, frank, joe]
+            archived_url, [self.user, self.editor, self.admin], context_objects=[billy, frank, joe]
         )
         self.assertEqual(["restore", "delete"], list(response.context["actions"]))
         self.assertContentMenu(archived_url, self.admin, ["Export", "Delete All"])
@@ -3666,12 +3669,9 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_list(self):
         list_url = reverse("contacts.contactfield_list")
 
+        self.assertRequestDisallowed(list_url, [None, self.agent])
         self.assertListFetch(
-            list_url,
-            allow_viewers=True,
-            allow_editors=True,
-            allow_agents=False,
-            context_objects=[self.age, self.gender, self.state],
+            list_url, [self.user, self.editor, self.admin], context_objects=[self.age, self.gender, self.state]
         )
 
     def test_create_warnings(self):

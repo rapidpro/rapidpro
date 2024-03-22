@@ -509,11 +509,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         with self.assertNumQueries(12):
             self.client.get(inbox_url)
 
+        self.assertRequestDisallowed(inbox_url, [None, self.agent])
         response = self.assertListFetch(
-            inbox_url + "?refresh=10000",
-            allow_viewers=True,
-            allow_editors=True,
-            context_objects=[msg4, msg3, msg2, msg1],
+            inbox_url + "?refresh=10000", [self.user, self.editor, self.admin], context_objects=[msg4, msg3, msg2, msg1]
         )
 
         # check that we have the appropriate bulk actions
@@ -594,7 +592,8 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         with self.assertNumQueries(12):
             self.client.get(flows_url)
 
-        response = self.assertListFetch(flows_url, allow_viewers=True, allow_editors=True, context_objects=[msg2, msg1])
+        self.assertRequestDisallowed(flows_url, [None, self.agent])
+        response = self.assertListFetch(flows_url, [self.user, self.editor, self.admin], context_objects=[msg2, msg1])
 
         self.assertEqual(("archive", "label"), response.context["actions"])
 
@@ -614,8 +613,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         with self.assertNumQueries(12):
             self.client.get(archived_url)
 
+        self.assertRequestDisallowed(archived_url, [None, self.agent])
         response = self.assertListFetch(
-            archived_url + "?refresh=10000", allow_viewers=True, allow_editors=True, context_objects=[msg3, msg2, msg1]
+            archived_url + "?refresh=10000", [self.user, self.editor, self.admin], context_objects=[msg3, msg2, msg1]
         )
         self.assertEqual(("restore", "label", "delete"), response.context["actions"])
 
@@ -661,7 +661,8 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             self.client.get(outbox_url)
 
         # messages sorted by created_on
-        response = self.assertListFetch(outbox_url, allow_viewers=True, allow_editors=True, context_objects=[msg1])
+        self.assertRequestDisallowed(outbox_url, [None, self.agent])
+        response = self.assertListFetch(outbox_url, [self.user, self.editor, self.admin], context_objects=[msg1])
         self.assertEqual((), response.context["actions"])
 
         # create another broadcast this time with 3 messages
@@ -682,9 +683,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         broadcast4.schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
         broadcast4.save(update_fields=("schedule",))
 
-        response = self.assertListFetch(
-            outbox_url, allow_viewers=True, allow_editors=True, context_objects=[msg4, msg3, msg2, msg1]
-        )
+        response = self.assertListFetch(outbox_url, [self.admin], context_objects=[msg4, msg3, msg2, msg1])
 
         # should see queued broadcast but not the scheduled one
         self.assertEqual([broadcast3], list(response.context_data["queued_broadcasts"]))
@@ -719,8 +718,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
             self.client.get(sent_url)
 
         # messages sorted by sent_on
+        self.assertRequestDisallowed(sent_url, [None, self.agent])
         response = self.assertListFetch(
-            sent_url, allow_viewers=True, allow_editors=True, context_objects=[msg1, msg3, msg2]
+            sent_url, [self.user, self.editor, self.admin], context_objects=[msg1, msg3, msg2]
         )
 
         self.assertContains(response, reverse("channels.channellog_msg", args=[msg1.channel.uuid, msg1.id]))
@@ -748,8 +748,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         with self.assertNumQueries(10):
             self.client.get(failed_url)
 
+        self.assertRequestDisallowed(failed_url, [None, self.agent])
         response = self.assertListFetch(
-            failed_url, allow_viewers=True, allow_editors=True, context_objects=[msg3, msg2, msg1]
+            failed_url, [self.user, self.editor, self.admin], context_objects=[msg3, msg2, msg1]
         )
 
         self.assertEqual(("resend",), response.context["actions"])
@@ -2387,7 +2388,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_list(self):
         list_url = reverse("msgs.broadcast_list")
 
-        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[])
+        self.assertRequestDisallowed(list_url, [None, self.agent])
+        self.assertListFetch(list_url, [self.user, self.editor, self.admin], context_objects=[])
         self.assertContentMenu(list_url, self.user, [])
         self.assertContentMenu(list_url, self.admin, ["New Broadcast"])
 
@@ -2397,12 +2399,13 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             contacts=[self.joe],
         )
 
-        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[broadcast])
+        self.assertListFetch(list_url, [self.admin], context_objects=[broadcast])
 
     def test_scheduled(self):
         scheduled_url = reverse("msgs.broadcast_scheduled")
 
-        self.assertListFetch(scheduled_url, allow_viewers=True, allow_editors=True, context_objects=[])
+        self.assertRequestDisallowed(scheduled_url, [None, self.agent])
+        self.assertListFetch(scheduled_url, [self.user, self.editor, self.admin], context_objects=[])
         self.assertContentMenu(scheduled_url, self.user, [])
         self.assertContentMenu(scheduled_url, self.admin, ["New Broadcast"])
 
@@ -2427,12 +2430,12 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             schedule=Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
 
-        self.assertListFetch(scheduled_url, allow_viewers=True, allow_editors=True, context_objects=[bc3, bc2, bc1])
+        self.assertListFetch(scheduled_url, [self.editor], context_objects=[bc3, bc2, bc1])
 
         bc3.is_active = False
         bc3.save(update_fields=("is_active",))
 
-        self.assertListFetch(scheduled_url, allow_viewers=True, allow_editors=True, context_objects=[bc2, bc1])
+        self.assertListFetch(scheduled_url, [self.editor], context_objects=[bc2, bc1])
 
     def test_scheduled_read(self):
         schedule = Schedule.create(self.org, timezone.now(), "D", repeat_days_of_week="MWF")

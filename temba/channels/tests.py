@@ -1582,14 +1582,11 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         msg1_url = reverse("channels.channellog_msg", args=[self.channel.uuid, msg1.id])
 
-        response = self.assertListFetch(
-            msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[]
-        )
+        self.assertRequestDisallowed(msg1_url, [None, self.user, self.editor, self.agent, self.admin2])
+        response = self.assertListFetch(msg1_url, [self.admin], context_objects=[])
         self.assertEqual(2, len(response.context["logs"]))
         self.assertEqual("https://foo.bar/send1", response.context["logs"][0]["http_logs"][0]["url"])
         self.assertEqual("https://foo.bar/send2", response.context["logs"][1]["http_logs"][0]["url"])
-
-        self.login(self.admin)
 
         response = self.client.get(msg1_url)
         self.assertEqual(f"/settings/channels/{self.channel.uuid}", response.headers[TEMBA_MENU_SELECTION])
@@ -1606,9 +1603,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
             io.StringIO(json.dumps(log2._get_json())),
         )
 
-        response = self.assertListFetch(
-            msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[]
-        )
+        response = self.assertListFetch(msg1_url, [self.admin], context_objects=[])
         self.assertEqual(2, len(response.context["logs"]))
         self.assertEqual("https://foo.bar/send1", response.context["logs"][0]["http_logs"][0]["url"])
         self.assertEqual("https://foo.bar/send2", response.context["logs"][1]["http_logs"][0]["url"])
@@ -1616,9 +1611,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         # missing logs are logged as errors and ignored
         storages["logs"].delete(f"channels/{self.channel.uuid}/{str(log2.uuid)[:4]}/{log2.uuid}.json")
 
-        response = self.assertListFetch(
-            msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[]
-        )
+        response = self.assertListFetch(msg1_url, [self.admin], context_objects=[])
         self.assertEqual(1, len(response.context["logs"]))
 
     def test_call(self):
@@ -1652,9 +1645,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         call1_url = reverse("channels.channellog_call", args=[self.channel.uuid, call1.id])
 
-        response = self.assertListFetch(
-            call1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[]
-        )
+        self.assertRequestDisallowed(call1_url, [None, self.user, self.editor, self.agent, self.admin2])
+        response = self.assertListFetch(call1_url, [self.admin], context_objects=[])
         self.assertEqual(2, len(response.context["logs"]))
         self.assertEqual("https://acme-calls.com/reply", response.context["logs"][0]["http_logs"][0]["url"])
         self.assertEqual("https://foo.bar/call2", response.context["logs"][1]["http_logs"][0]["url"])
@@ -1727,13 +1719,8 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
 
         list_url = reverse("channels.channellog_list", args=[self.channel.uuid])
 
-        response = self.assertListFetch(
-            list_url,
-            allow_viewers=False,
-            allow_editors=False,
-            allow_org2=False,
-            context_objects=[other_log, failed_log, success_log],
-        )
+        self.assertRequestDisallowed(list_url, [None, self.user, self.editor, self.agent, self.admin2])
+        response = self.assertListFetch(list_url, [self.admin], context_objects=[other_log, failed_log, success_log])
         self.assertEqual(f"/settings/channels/{self.channel.uuid}", response.headers[TEMBA_MENU_SELECTION])
 
         # try viewing the failed message log

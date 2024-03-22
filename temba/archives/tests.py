@@ -213,16 +213,10 @@ class ArchiveTest(TembaTest):
 
 class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_empty_list(self):
-        response = self.assertListFetch(
-            reverse("archives.archive_run"), allow_viewers=False, allow_editors=True, context_objects=[]
-        )
-
+        response = self.assertListFetch(reverse("archives.archive_run"), [self.editor], context_objects=[])
         self.assertContains(response, "No archives found")
 
-        response = self.assertListFetch(
-            reverse("archives.archive_message"), allow_viewers=False, allow_editors=True, context_objects=[]
-        )
-
+        response = self.assertListFetch(reverse("archives.archive_message"), [self.editor], context_objects=[])
         self.assertContains(response, "No archives found")
 
     def test_archive_type_filter(self):
@@ -238,10 +232,13 @@ class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
         runs_url = reverse("archives.archive_run")
         msgs_url = reverse("archives.archive_message")
 
-        response = self.assertListFetch(runs_url, allow_viewers=False, allow_editors=True, context_objects=[d3])
+        self.assertRequestDisallowed(runs_url, [None, self.user, self.agent])
+        self.assertRequestDisallowed(msgs_url, [None, self.user, self.agent])
+
+        response = self.assertListFetch(runs_url, [self.editor, self.admin], context_objects=[d3])
         self.assertContains(response, f"/archive/read/{d3.id}/")
 
-        response = self.assertListFetch(msgs_url, allow_viewers=False, allow_editors=True, context_objects=[d2, m1])
+        response = self.assertListFetch(msgs_url, [self.editor, self.admin], context_objects=[d2, m1])
         self.assertContains(response, f"/archive/read/{d2.id}/")
         self.assertContains(response, f"/archive/read/{m1.id}/")
 
