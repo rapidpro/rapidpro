@@ -1171,7 +1171,8 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
 
         create_url = reverse("campaigns.campaign_create")
 
-        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=["name", "group"])
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
+        self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=["name", "group"])
 
         # try to submit with no data
         self.assertCreateSubmit(
@@ -1249,8 +1250,9 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
 
         update_url = reverse("campaigns.campaign_update", args=[campaign.id])
 
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
         self.assertUpdateFetch(
-            update_url, allow_viewers=False, allow_editors=True, form_fields={"name": "Welcomes", "group": group1.id}
+            update_url, [self.editor, self.admin], form_fields={"name": "Welcomes", "group": group1.id}
         )
 
         # try to submit with empty name
@@ -1388,9 +1390,9 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
             "message_start_mode",
         ]
 
-        response = self.assertCreateFetch(
-            create_url, allow_viewers=False, allow_editors=True, form_fields=non_lang_fields + ["eng"]
-        )
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
+
+        response = self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=non_lang_fields + ["eng"])
         self.assertEqual(3, len(response.context["form"].fields["message_start_mode"].choices))
 
         # try to submit with missing fields
@@ -1445,9 +1447,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.set_flow_languages(self.admin, ["eng", "kin"])
         # self.org2.set_flow_languages(self.admin, ["fra", "spa"])
 
-        response = self.assertCreateFetch(
-            create_url, allow_viewers=False, allow_editors=True, form_fields=non_lang_fields + ["eng", "kin"]
-        )
+        response = self.assertCreateFetch(create_url, [self.admin], form_fields=non_lang_fields + ["eng", "kin"])
 
         # and our language list should be there
         self.assertContains(response, "show_language")
@@ -1606,9 +1606,11 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         event = CampaignEvent.objects.all().order_by("id").last()
         update_url = reverse("campaigns.campaignevent_update", args=[event.id])
 
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
+
         # should get new org primary language but also base language of flow
         response = self.assertUpdateFetch(
-            update_url, allow_viewers=False, allow_editors=True, form_fields=non_lang_fields + ["por", "kin", "eng"]
+            update_url, [self.editor, self.admin], form_fields=non_lang_fields + ["por", "kin", "eng"]
         )
 
         self.assertEqual(response.context["form"].fields["por"].initial, "")

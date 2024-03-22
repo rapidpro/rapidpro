@@ -258,6 +258,10 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
             object_unchanged=system_topic,
         )
 
+        # check permissions
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
+        self.assertUpdateFetch(update_url, [self.editor, self.admin], form_fields=["name"])
+
         # names must be unique
         update_url = reverse("tickets.topic_update", args=[user_topic.uuid])
         self.assertUpdateSubmit(
@@ -267,9 +271,6 @@ class TopicCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={"name": "Topic already exists, please try another name"},
             object_unchanged=user_topic,
         )
-
-        # check permissions
-        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=["name"])
 
         # edit successfully
         self.assertUpdateSubmit(update_url, self.admin, {"name": "Boring Tickets"}, success_status=302)
@@ -349,9 +350,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         update_url = reverse("tickets.ticket_update", args=[ticket.uuid])
 
-        self.assertUpdateFetch(
-            update_url, allow_viewers=False, allow_editors=True, allow_agents=True, form_fields=["topic", "body"]
-        )
+        self.assertRequestDisallowed(update_url, [None, self.user, self.admin2])
+        self.assertUpdateFetch(update_url, [self.agent, self.editor, self.admin], form_fields=["topic", "body"])
 
         user_topic = Topic.objects.create(org=self.org, name="Hot Topic", created_by=self.admin, modified_by=self.admin)
 
@@ -582,9 +582,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         update_url = reverse("tickets.ticket_note", args=[ticket.uuid])
 
-        self.assertUpdateFetch(
-            update_url, allow_viewers=False, allow_editors=True, allow_agents=True, form_fields=["note"]
-        )
+        self.assertRequestDisallowed(update_url, [None, self.user, self.admin2])
+        self.assertUpdateFetch(update_url, [self.agent, self.editor, self.admin], form_fields=["note"])
 
         self.assertUpdateSubmit(
             update_url,
@@ -617,11 +616,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_export(self, mr_mocks):
         export_url = reverse("tickets.ticket_export")
 
+        self.assertRequestDisallowed(export_url, [None, self.agent])
         response = self.assertUpdateFetch(
             export_url,
-            allow_viewers=True,
-            allow_editors=True,
-            allow_org2=True,
+            [self.user, self.editor, self.admin],
             form_fields=("start_date", "end_date", "with_fields", "with_groups"),
         )
         self.assertNotContains(response, "already an export in progress")

@@ -636,10 +636,10 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         group1 = self.create_group("Group 1", contacts=[])
         group2 = self.create_group("Group 2", contacts=[])
 
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
         response = self.assertCreateFetch(
             create_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields=["keywords", "match_type", "flow", "channel", "groups", "exclude_groups"],
         )
 
@@ -752,10 +752,10 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_flow("Flow 4", flow_type=Flow.TYPE_SURVEY)
         self.create_flow("Flow 5", is_system=True)
 
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
         response = self.assertCreateFetch(
             create_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields=[
                 "start_datetime",
                 "repeat_period",
@@ -871,10 +871,10 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         create_url = reverse("triggers.trigger_create_inbound_call")
 
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
         response = self.assertCreateFetch(
             create_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields=["action", "voice_flow", "msg_flow", "channel", "groups", "exclude_groups"],
         )
 
@@ -941,8 +941,9 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         create_url = reverse("triggers.trigger_create_missed_call")
 
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
         response = self.assertCreateFetch(
-            create_url, allow_viewers=False, allow_editors=True, form_fields=["flow", "groups", "exclude_groups"]
+            create_url, [self.editor, self.admin], form_fields=["flow", "groups", "exclude_groups"]
         )
 
         # flow options should be messaging and voice flows
@@ -980,11 +981,9 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         channel2 = self.create_channel("VP", "Viber Channel", "1234567")
         self.create_channel("A", "Android Channel", "+1234")
 
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
         response = self.assertCreateFetch(
-            create_url,
-            allow_viewers=False,
-            allow_editors=True,
-            form_fields=["flow", "channel", "groups", "exclude_groups"],
+            create_url, [self.editor, self.admin], form_fields=["flow", "channel", "groups", "exclude_groups"]
         )
 
         # flow options should show messaging and voice flows
@@ -1040,10 +1039,10 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         channel2 = self.create_channel("FB", "Facebook 2", "2345678")
         self.create_channel("A", "Android Channel", "+1234")
 
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
         response = self.assertCreateFetch(
             create_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields=["referrer_id", "flow", "channel", "groups", "exclude_groups"],
         )
 
@@ -1117,11 +1116,9 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         group1 = self.create_group("Group 1", contacts=[])
         group2 = self.create_group("Group 2", contacts=[])
 
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
         response = self.assertCreateFetch(
-            create_url,
-            allow_viewers=False,
-            allow_editors=True,
-            form_fields=["flow", "channel", "groups", "exclude_groups"],
+            create_url, [self.editor, self.admin], form_fields=["flow", "channel", "groups", "exclude_groups"]
         )
 
         # flow options should show messaging and voice flows
@@ -1184,8 +1181,9 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         create_url = reverse("triggers.trigger_create_closed_ticket")
 
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
         response = self.assertCreateFetch(
-            create_url, allow_viewers=False, allow_editors=True, form_fields=["flow", "groups", "exclude_groups"]
+            create_url, [self.editor, self.admin], form_fields=["flow", "groups", "exclude_groups"]
         )
 
         # flow options should be messaging, voice and background flows
@@ -1222,11 +1220,9 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         create_url = reverse("triggers.trigger_create_opt_in")
 
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
         response = self.assertCreateFetch(
-            create_url,
-            allow_viewers=False,
-            allow_editors=True,
-            form_fields=["flow", "channel", "groups", "exclude_groups"],
+            create_url, [self.editor, self.admin], form_fields=["flow", "channel", "groups", "exclude_groups"]
         )
 
         # flow options should be messaging and background flows
@@ -1284,11 +1280,9 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         create_url = reverse("triggers.trigger_create_opt_out")
 
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
         response = self.assertCreateFetch(
-            create_url,
-            allow_viewers=False,
-            allow_editors=True,
-            form_fields=["flow", "channel", "groups", "exclude_groups"],
+            create_url, [self.editor, self.admin], form_fields=["flow", "channel", "groups", "exclude_groups"]
         )
 
         # flow options should be messaging and background flows
@@ -1349,10 +1343,10 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         update_url = reverse("triggers.trigger_update", args=[trigger.id])
 
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
         self.assertUpdateFetch(
             update_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields={
                 "keywords": ["join", "start"],
                 "match_type": "O",
@@ -1412,10 +1406,10 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         update_url = reverse("triggers.trigger_update", args=[trigger.id])
 
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
         self.assertUpdateFetch(
             update_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields={
                 "action": "answer",
                 "voice_flow": flow2,
@@ -1441,8 +1435,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # check form shows correct initial values now
         self.assertUpdateFetch(
             update_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.admin],
             form_fields={
                 "action": "hangup",
                 "voice_flow": None,
@@ -1483,10 +1476,10 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         update_url = reverse("triggers.trigger_update", args=[trigger.id])
 
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
         self.assertUpdateFetch(
             update_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields={
                 "start_datetime": schedule.next_fire,
                 "repeat_period": "W",

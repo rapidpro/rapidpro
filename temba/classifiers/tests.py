@@ -156,8 +156,10 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_delete(self):
         delete_url = reverse("classifiers.classifier_delete", args=[self.c2.uuid])
 
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.editor, self.agent, self.admin2])
+
         # fetch delete modal
-        response = self.assertDeleteFetch(delete_url)
+        response = self.assertDeleteFetch(delete_url, [self.admin])
         self.assertContains(response, "You are about to delete")
 
         response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=self.c2, success_status=200)
@@ -168,7 +170,7 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertFalse(self.flow.has_issues)
 
-        response = self.assertDeleteFetch(delete_url)
+        response = self.assertDeleteFetch(delete_url, [self.admin])
         self.assertContains(response, "is used by the following items but can still be deleted:")
         self.assertContains(response, "Color Flow")
 

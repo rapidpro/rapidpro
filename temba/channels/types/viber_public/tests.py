@@ -77,11 +77,9 @@ class ViberPublicTypeTest(TembaTest, CRUDLTestMixin):
         update_url = reverse("channels.channel_update", args=[self.channel.id])
         read_url = reverse("channels.channel_read", args=[self.channel.uuid])
 
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
         self.assertUpdateFetch(
-            update_url,
-            allow_viewers=False,
-            allow_editors=True,
-            form_fields={"name": "Viber", "welcome_message": ""},
+            update_url, [self.editor, self.admin], form_fields={"name": "Viber", "welcome_message": ""}
         )
 
         self.assertUpdateSubmit(
@@ -94,8 +92,7 @@ class ViberPublicTypeTest(TembaTest, CRUDLTestMixin):
 
         self.assertUpdateFetch(
             update_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields={"name": "Updated", "welcome_message": "Welcome, please subscribe for more"},
         )
 
@@ -103,11 +100,11 @@ class ViberPublicTypeTest(TembaTest, CRUDLTestMixin):
         self.assertContentMenu(read_url, self.admin, ["Configuration", "Logs", "Edit", "Delete"])
 
         # staff users see extra log policy field
-        self.login(self.customer_support, choose_org=self.org)
-        response = self.client.get(update_url)
-        self.assertEqual(
-            ["name", "log_policy", "welcome_message", "loc"],
-            list(response.context["form"].fields.keys()),
+        self.assertUpdateFetch(
+            update_url,
+            [self.customer_support],
+            form_fields=["name", "log_policy", "welcome_message"],
+            choose_org=self.org,
         )
 
     def test_get_error_ref_url(self):
