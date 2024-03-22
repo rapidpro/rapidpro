@@ -1,4 +1,5 @@
 from iso639 import Lang
+from iso639.exceptions import InvalidLanguageValue
 
 # As iso639-1 languages can be broad, not all iso639-2 languages have direct translations to iso639-3. This table
 # maps country and iso639-1 codes to a specific iso639-3 language code. It isn't inclusive but covers the cases
@@ -54,7 +55,7 @@ def iso6391_to_iso6393(iso_code, country_code=None):
         else:
             try:
                 lang = Lang(iso_code)
-            except KeyError:
+            except InvalidLanguageValue:
                 lang = None
 
             if lang and lang.pt3:

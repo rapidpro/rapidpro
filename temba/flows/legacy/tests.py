@@ -1,4 +1,3 @@
-from iso639.exceptions import InvalidLanguageValue
 from packaging.version import Version
 
 from temba.contacts.models import ContactField, ContactGroup
@@ -1277,4 +1276,4 @@ class MigrationUtilsTest(TembaTest):
         # test behavior with unknown values
         self.assertIsNone(iso6391_to_iso6393(iso_code=None))
         self.assertRaises(ValueError, iso6391_to_iso6393, iso_code="")
-        self.assertRaises(InvalidLanguageValue, iso6391_to_iso6393, iso_code="123")
+        self.assertRaises(ValueError, iso6391_to_iso6393, iso_code="123")
