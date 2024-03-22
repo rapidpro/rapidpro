@@ -1480,7 +1480,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         menu_url = reverse("flows.flow_menu")
         FlowLabel.create(self.org, self.admin, "Important")
 
-        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        self.assertRequestDisallowed(menu_url, [None, self.agent])
+        response = self.assertListFetch(menu_url, [self.user, self.editor, self.admin])
         menu = response.json()["results"]
         self.assertEqual(
             ["Active", "Archived", "divider", "Globals", "History", "Labels"],
@@ -5460,8 +5461,9 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         other_org_flow = self.create_flow("Test", org=self.org2)
         FlowStart.create(other_org_flow, self.admin2)
 
+        self.assertRequestDisallowed(list_url, [None, self.agent])
         response = self.assertListFetch(
-            list_url, allow_viewers=True, allow_editors=True, context_objects=[start3, start2, start1]
+            list_url, [self.user, self.editor, self.admin], context_objects=[start3, start2, start1]
         )
 
         self.assertContains(response, "was started by admin@nyaruka.com")
@@ -5470,9 +5472,7 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Skip contacts currently in a flow")
         self.assertContains(response, "<b>1,234</b> runs")
 
-        response = self.assertListFetch(
-            list_url + "?type=manual", allow_viewers=True, allow_editors=True, context_objects=[start1]
-        )
+        response = self.assertListFetch(list_url + "?type=manual", [self.admin], context_objects=[start1])
         self.assertTrue(response.context["filtered"])
         self.assertEqual(response.context["url_params"], "?type=manual&")
 

@@ -723,9 +723,8 @@ class TemplateTranslationCRUDLTest(CRUDLTestMixin, TembaTest):
 
         channel_url = reverse("templates.templatetranslation_channel", args=[channel.uuid])
 
-        response = self.assertListFetch(
-            channel_url, allow_viewers=True, allow_editors=True, allow_org2=False, context_objects=[tt2, tt1]
-        )
+        self.assertRequestDisallowed(channel_url, [None, self.agent, self.admin2])
+        response = self.assertListFetch(channel_url, [self.user, self.editor, self.admin], context_objects=[tt2, tt1])
 
         self.assertContains(response, "Hello")
         self.assertContentMenu(channel_url, self.admin, ["Sync Logs"])

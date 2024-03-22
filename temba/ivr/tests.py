@@ -104,7 +104,8 @@ class CallCRUDLTest(CRUDLTestMixin, TembaTest):
         with self.assertNumQueries(10):
             self.client.get(list_url)
 
-        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[call2, call1])
+        self.assertRequestDisallowed(list_url, [None, self.agent])
+        self.assertListFetch(list_url, [self.user, self.editor, self.admin], context_objects=[call2, call1])
 
 
 class IVRTest(TembaTest):

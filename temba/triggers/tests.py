@@ -529,9 +529,10 @@ class TriggerTest(TembaTest):
 
 class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_menu(self):
-        self.login(self.admin)
         menu_url = reverse("triggers.trigger_menu")
-        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+
+        self.assertRequestDisallowed(menu_url, [None, self.agent])
+        response = self.assertListFetch(menu_url, [self.user, self.editor, self.admin])
         menu = response.json()["results"]
         self.assertEqual(4, len(menu))
 
@@ -546,8 +547,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             success_status=200,
         )
 
-        menu_url = reverse("triggers.trigger_menu")
-        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        response = self.assertListFetch(menu_url, [self.admin])
         menu = response.json()["results"]
 
         # our keyword trigger should force a keywords section
@@ -566,8 +566,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             match_type=Trigger.MATCH_ONLY_WORD,
         )
 
-        menu_url = reverse("triggers.trigger_menu")
-        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        response = self.assertListFetch(menu_url, [self.admin])
         menu = response.json()["results"]
 
         # should have 2 keyword triggers
@@ -576,8 +575,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         trigger.archive(self.admin)
 
-        menu_url = reverse("triggers.trigger_menu")
-        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        response = self.assertListFetch(menu_url, [self.admin])
         menu = response.json()["results"]
 
         # the archived trigger not counted
@@ -1595,25 +1593,20 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             self.org2, self.admin, Trigger.TYPE_KEYWORD, flow3, keywords=["other"], match_type=Trigger.MATCH_ONLY_WORD
         )
 
+        self.assertRequestDisallowed(list_url, [None, self.agent])
         response = self.assertListFetch(
-            list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger4, trigger3, trigger2, trigger1]
+            list_url, [self.user, self.editor, self.admin], context_objects=[trigger4, trigger3, trigger2, trigger1]
         )
         self.assertEqual(("archive",), response.context["actions"])
 
         # can search by keyword
-        self.assertListFetch(
-            list_url + "?search=Start", allow_viewers=True, allow_editors=True, context_objects=[trigger3]
-        )
+        self.assertListFetch(list_url + "?search=Start", [self.admin], context_objects=[trigger3])
 
         # can search by keyword
-        self.assertListFetch(
-            list_url + "?search=begin", allow_viewers=True, allow_editors=True, context_objects=[trigger3]
-        )
+        self.assertListFetch(list_url + "?search=begin", [self.admin], context_objects=[trigger3])
 
         # or flow name
-        self.assertListFetch(
-            list_url + "?search=VEY", allow_viewers=True, allow_editors=True, context_objects=[trigger2]
-        )
+        self.assertListFetch(list_url + "?search=VEY", [self.admin], context_objects=[trigger2])
 
         # can archive it
         self.client.post(list_url, {"action": "archive", "objects": trigger3.id})
@@ -1622,9 +1615,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(trigger3.is_archived)
 
         # no longer appears in list
-        self.assertListFetch(
-            list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger4, trigger2, trigger1]
-        )
+        self.assertListFetch(list_url, [self.admin], context_objects=[trigger4, trigger2, trigger1])
 
         # test when archiving fails
         mock_deactivate_trigger.side_effect = ValueError("boom")
@@ -1695,8 +1686,9 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         archived_url = reverse("triggers.trigger_archived")
         list_url = reverse("triggers.trigger_list")
 
+        self.assertRequestDisallowed(archived_url, [None, self.agent])
         response = self.assertListFetch(
-            archived_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1]
+            archived_url, [self.user, self.editor, self.admin], context_objects=[trigger2, trigger1]
         )
         self.assertEqual(("restore", "delete"), response.context["actions"])
 
@@ -1882,16 +1874,18 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         referral_url = reverse("triggers.trigger_folder", kwargs={"folder": "referral"})
         tickets_url = reverse("triggers.trigger_folder", kwargs={"folder": "tickets"})
 
+        self.assertRequestDisallowed(messages_url, [None, self.agent])
+        self.assertRequestDisallowed(referral_url, [None, self.agent])
+        self.assertRequestDisallowed(tickets_url, [None, self.agent])
+
         response = self.assertListFetch(
-            messages_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1, trigger5]
+            messages_url, [self.user, self.editor, self.admin], context_objects=[trigger2, trigger1, trigger5]
         )
         self.assertEqual("/trigger/messages", response.headers[TEMBA_MENU_SELECTION])
         self.assertEqual(("archive",), response.context["actions"])
 
         # can search by keywords
-        self.assertListFetch(
-            messages_url + "?search=TEST", allow_viewers=True, allow_editors=True, context_objects=[trigger1]
-        )
+        self.assertListFetch(messages_url + "?search=TEST", [self.admin], context_objects=[trigger1])
 
-        self.assertListFetch(referral_url, allow_viewers=True, allow_editors=True, context_objects=[trigger4, trigger3])
-        self.assertListFetch(tickets_url, allow_viewers=True, allow_editors=True, context_objects=[])
+        self.assertListFetch(referral_url, [self.admin], context_objects=[trigger4, trigger3])
+        self.assertListFetch(tickets_url, [self.admin], context_objects=[])

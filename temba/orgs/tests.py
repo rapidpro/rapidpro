@@ -1940,6 +1940,8 @@ class AnonOrgTest(TembaTest):
 
 class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_manage_sub_orgs(self):
+        children_url = reverse("orgs.org_sub_orgs")
+
         # give our org the multi users feature
         self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS]
         self.org.save()
@@ -1956,15 +1958,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.child.initialize()
         self.child.add_user(self.admin, OrgRole.ADMINISTRATOR)
 
-        self.assertListFetch(reverse("orgs.org_sub_orgs"), allow_viewers=False, allow_editors=False)
-        response = self.client.get(reverse("orgs.org_sub_orgs"), HTTP_TEMBA_SPA=True)
+        self.assertRequestDisallowed(children_url, [None, self.user, self.editor, self.agent])
+        response = self.assertListFetch(children_url, [self.admin], choose_org=self.org)
         self.assertContains(response, "Child Workspace")
         self.assertContains(response, reverse("orgs.org_manage_accounts_sub_org"))
 
     def test_menu(self):
-        self.login(self.admin)
+        menu_url = reverse("orgs.org_menu")
 
-        # add a sub org
         self.child = Org.objects.create(
             name="Child Workspace",
             timezone=ZoneInfo("US/Pacific"),
@@ -1975,10 +1976,11 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.child.initialize()
         self.child.add_user(self.admin, OrgRole.ADMINISTRATOR)
-        menu_url = reverse("orgs.org_menu")
 
-        self.assertMenu(menu_url, 10, ["Workspace/Child Workspace"])
-        self.assertMenu(f"{menu_url}settings/", 6)
+        self.assertPageMenu(
+            menu_url, self.admin, count=10, contains_names=["Workspace/Child Workspace"], choose_org=self.org
+        )
+        self.assertPageMenu(f"{menu_url}settings/", self.admin, count=6, choose_org=self.org)
 
         # agents should only see tickets and settings
         self.login(self.agent)
@@ -2012,7 +2014,10 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         # if our org has new orgs but not child orgs, we should have a New Workspace button in the menu
         self.org.features = [Org.FEATURE_NEW_ORGS]
         self.org.save()
-        self.assertMenu(menu_url, 10, ["Workspace/New Workspace"])
+
+        self.assertPageMenu(
+            menu_url, self.admin, count=10, contains_names=["Workspace/New Workspace"], choose_org=self.org
+        )
 
         # confirm no notifications
         self.login(self.admin)
@@ -2055,11 +2060,12 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_workspace(self):
         workspace_url = reverse("orgs.org_workspace")
 
-        response = self.assertListFetch(workspace_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        self.assertRequestDisallowed(workspace_url, [None, self.agent])
+        response = self.assertListFetch(workspace_url, [self.user, self.editor, self.admin])
 
         # make sure we have the appropriate number of sections
         self.assertEqual(6, len(response.context["formax"].sections))
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 6)
+        self.assertPageMenu(f"{reverse('orgs.org_menu')}settings/", self.admin, count=6)
 
         # enable child workspaces and users
         self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS]
@@ -2078,7 +2084,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             response = self.client.get(workspace_url)
 
         # should have an extra menu options for workspaces and users
-        self.assertMenu(f"{reverse('orgs.org_menu')}settings/", 8)
+        self.assertPageMenu(f"{reverse('orgs.org_menu')}settings/", self.admin, count=8)
 
     @override_settings(SEND_EMAILS=True)
     def test_flow_smtp(self):
@@ -2910,7 +2916,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, sub_orgs_url)
 
         response = self.assertListFetch(
-            sub_orgs_url, allow_viewers=False, allow_editors=False, context_objects=[child1, child2]
+            sub_orgs_url, [self.admin], context_objects=[child1, child2], choose_org=self.org
         )
 
         child1_edit_url = reverse("orgs.org_edit_sub_org") + f"?org={child1.id}"

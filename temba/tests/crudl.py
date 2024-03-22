@@ -53,52 +53,35 @@ class CRUDLTestMixin:
         for user in users:
             self.requestView(url, user, checks=[LoginRedirectOr404()])
 
-    def assertReadFetch(self, url, users: list, *, context_object=None, status=200):
+    def assertReadFetch(self, url, users: list, *, context_object=None, status=200, choose_org=None):
         """
         Asserts that the given users can fetch the given read page
         """
 
-        for user in users:
-            checks = [StatusCode(status)]
-            if context_object:
-                checks.append(ContextObject(context_object))
+        checks = [StatusCode(status)]
+        if context_object:
+            checks.append(ContextObject(context_object))
 
-            resp = self.requestView(url, user, checks=checks, choose_org=self.org)
-        return resp
+        response = None
+        for user in users:
+            response = self.requestView(url, user, checks=checks, choose_org=choose_org)
+
+        return response
 
     def assertListFetch(
-        self,
-        url,
-        *,
-        allow_viewers,
-        allow_editors,
-        allow_agents=False,
-        allow_org2=True,  # by default list view URLs are not org specific
-        context_objects=None,
-        context_object_count=None,
-        status=200,
+        self, url, users, *, context_objects=None, context_object_count=None, status=200, choose_org=None
     ):
-        viewer, editor, agent, admin, org2_admin = self.user, self.editor, self.agent, self.admin, self.admin2
+        checks = [StatusCode(status)]
+        if context_objects is not None:
+            checks.append(ContextObjectList(context_objects))
+        elif context_object_count is not None:
+            checks.append(ContextObjectCount(context_object_count))
 
-        def as_user(user, allowed):
-            if allowed:
-                checks = [StatusCode(status)]
-                if user != org2_admin:
-                    if context_objects is not None:
-                        checks.append(ContextObjectList(context_objects))
-                    elif context_object_count is not None:
-                        checks.append(ContextObjectCount(context_object_count))
-            else:
-                checks = [LoginRedirect()]
+        response = None
+        for user in users:
+            response = self.requestView(url, user, checks=checks, choose_org=choose_org)
 
-            return self.requestView(url, user, checks=checks, choose_org=self.org)
-
-        as_user(None, allowed=False)
-        as_user(viewer, allowed=allow_viewers)
-        as_user(editor, allowed=allow_editors)
-        as_user(agent, allowed=allow_agents)
-        as_user(org2_admin, allowed=allow_org2)
-        return as_user(admin, allowed=True)
+        return response
 
     def assertCreateFetch(self, url, users, *, form_fields=(), status=200, choose_org=None):
         checks = [StatusCode(status), FormFields(form_fields)]
@@ -179,8 +162,10 @@ class CRUDLTestMixin:
 
         return self.requestView(url, self.customer_support, checks=[StatusCode(200)], choose_org=choose_org)
 
-    def assertMenu(self, url, count, contains_names=[], allow_viewers=True):
-        response = self.assertListFetch(url, allow_viewers=allow_viewers, allow_editors=True, allow_agents=True)
+    def assertPageMenu(self, url, user, *, count, contains_names=(), choose_org=None):
+        response = self.requestView(
+            url, user, checks=[StatusCode(200), ContentType("application/json")], choose_org=choose_org
+        )
         menu = response.json()["results"]
         self.assertEqual(count, len(menu))
 

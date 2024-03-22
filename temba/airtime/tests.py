@@ -44,8 +44,9 @@ class AirtimeCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_list(self):
         list_url = reverse("airtime.airtimetransfer_list")
 
+        self.assertRequestDisallowed(list_url, [None, self.user, self.agent])
         response = self.assertListFetch(
-            list_url, allow_viewers=False, allow_editors=True, context_objects=[self.transfer2, self.transfer1]
+            list_url, [self.editor, self.admin], context_objects=[self.transfer2, self.transfer1]
         )
         self.assertContains(response, "Ben Haggerty")
         self.assertContains(response, "+250 700 000 003")

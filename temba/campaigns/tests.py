@@ -1155,14 +1155,16 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_menu(self):
         menu_url = reverse("campaigns.campaign_menu")
-        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        self.assertRequestDisallowed(menu_url, [None, self.agent])
+
+        response = self.assertListFetch(menu_url, [self.user, self.editor, self.admin])
         menu = response.json()["results"]
         self.assertEqual(2, len(menu))
 
         # cerate a campaign, it should show in our list, with a divider
         group = self.create_group("My Group", contacts=[])
         self.create_campaign(self.org, "My Campaign", group)
-        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        response = self.assertListFetch(menu_url, [self.user, self.editor, self.admin])
         menu = response.json()["results"]
         self.assertEqual(2, len(menu))
 
@@ -1303,8 +1305,8 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
 
         list_url = reverse("campaigns.campaign_list")
 
-        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[campaign2, campaign1])
-
+        self.assertRequestDisallowed(list_url, [None, self.agent])
+        self.assertListFetch(list_url, [self.user, self.editor, self.admin], context_objects=[campaign2, campaign1])
         self.assertContentMenu(list_url, self.user, [])
         self.assertContentMenu(list_url, self.admin, ["New Campaign"])
 
