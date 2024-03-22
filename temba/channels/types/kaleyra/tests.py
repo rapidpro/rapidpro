@@ -55,10 +55,10 @@ class KaleyraViewTest(TembaTest):
 
         response = self.submit_form({})
         self.assertEqual(200, response.status_code)
-        self.assertFormError(response, "form", "number", "This field is required.")
-        self.assertFormError(response, "form", "country", "This field is required.")
-        self.assertFormError(response, "form", "account_sid", "This field is required.")
-        self.assertFormError(response, "form", "api_key", "This field is required.")
+        self.assertFormError(response.context["form"], "number", "This field is required.")
+        self.assertFormError(response.context["form"], "country", "This field is required.")
+        self.assertFormError(response.context["form"], "account_sid", "This field is required.")
+        self.assertFormError(response.context["form"], "api_key", "This field is required.")
 
     def test_invalid_phone_number(self):
         self.login(self.admin)
@@ -67,4 +67,4 @@ class KaleyraViewTest(TembaTest):
         post_data["number"] = "1234"  # invalid
         response = self.submit_form(post_data)
         self.assertEqual(200, response.status_code)
-        self.assertFormError(response, "form", "number", ["Please enter a valid phone number"])
+        self.assertFormError(response.context["form"], "number", ["Please enter a valid phone number"])

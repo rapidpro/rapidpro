@@ -55,7 +55,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
 
         # will fail with invalid phone number
         response = self.client.post(url, post_data)
-        self.assertFormError(response, "form", None, ["Please enter a valid phone number"])
+        self.assertFormError(response.context["form"], None, ["Please enter a valid phone number"])
 
         # valid number
         post_data["address"] = "0788123123"
@@ -229,7 +229,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
 
             response = self.client.post(url, post_data)
             self.assertEqual(200, response.status_code)
-            self.assertFormError(response, "form", None, "This channel is already connected in this workspace.")
+            self.assertFormError(response.context["form"], None, "This channel is already connected in this workspace.")
 
         channel.org = self.org2
         channel.save()
@@ -244,8 +244,7 @@ class WhatsAppLegacyTypeTest(CRUDLTestMixin, TembaTest):
             response = self.client.post(url, post_data)
             self.assertEqual(200, response.status_code)
             self.assertFormError(
-                response,
-                "form",
+                response.context["form"],
                 None,
                 "This channel is already connected in another workspace.",
             )

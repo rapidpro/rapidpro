@@ -89,7 +89,7 @@ class WitTypeTest(TembaTest):
 
         # will fail as we don't have anything filled out
         response = self.client.post(url, post_data)
-        self.assertFormError(response, "form", "app_id", ["This field is required."])
+        self.assertFormError(response.context["form"], "app_id", ["This field is required."])
 
         # ok, will everything out
         post_data["name"] = "Booker"

@@ -34,7 +34,9 @@ class LineTypeTest(TembaTest):
         payload = {"access_token": "abcdef123456", "secret": "123456", "address": "123456789", "name": "Temba" * 20}
 
         response = self.client.post(url, payload, follow=True)
-        self.assertFormError(response, "form", "name", "Ensure this value has at most 64 characters (it has 100).")
+        self.assertFormError(
+            response.context["form"], "name", "Ensure this value has at most 64 characters (it has 100)."
+        )
 
         payload = {"access_token": "abcdef123456", "secret": "123456", "address": "123456789", "name": "Temba"}
 

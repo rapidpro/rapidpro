@@ -45,7 +45,9 @@ class FreshChatTypeTest(TembaTest):
         post_data["title"] = "FreshChat" * 20
 
         response = self.client.post(url, post_data, follow=True)
-        self.assertFormError(response, "form", "title", "Ensure this value has at most 64 characters (it has 180).")
+        self.assertFormError(
+            response.context["form"], "title", "Ensure this value has at most 64 characters (it has 180)."
+        )
 
         post_data["title"] = "FreshChat"
 

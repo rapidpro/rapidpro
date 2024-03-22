@@ -166,7 +166,9 @@ class TwilioTypeTest(TembaTest):
 
                 # claim it
                 response = self.client.post(claim_twilio, dict(country="US", phone_number="12062345678"))
-                self.assertFormError(response, "form", None, "This channel is already connected in this workspace.")
+                self.assertFormError(
+                    response.context["form"], None, "This channel is already connected in this workspace."
+                )
 
                 # make sure the schemes do not overlap, having a WA channel with the same number
                 channel = Channel.objects.get(channel_type="T", org=self.org)
@@ -346,7 +348,7 @@ class TwilioTypeTest(TembaTest):
             mock_check_credentials.return_value = False
 
             response = self.client.post(update_url, post_data)
-            self.assertFormError(response, "form", None, "Credentials don't appear to be valid.")
+            self.assertFormError(response.context["form"], None, "Credentials don't appear to be valid.")
 
         # staff users see extra log policy field
         self.login(self.customer_support, choose_org=self.org)
@@ -412,7 +414,7 @@ class TwilioTypeTest(TembaTest):
             # try posting without an account token
             post_data = {"account_sid": "AccountSid"}
             response = self.client.post(connect_url, post_data)
-            self.assertFormError(response, "form", "account_token", "This field is required.")
+            self.assertFormError(response.context["form"], "account_token", "This field is required.")
 
             # now add the account token and try again
             post_data["account_token"] = "AccountToken"

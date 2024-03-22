@@ -857,9 +857,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # try to submit with no values
         response = self.client.post(export_url + "?l=I", {})
-        self.assertFormError(response, "form", "start_date", "This field is required.")
-        self.assertFormError(response, "form", "end_date", "This field is required.")
-        self.assertFormError(response, "form", "export_all", "This field is required.")
+        self.assertFormError(response.context["form"], "start_date", "This field is required.")
+        self.assertFormError(response.context["form"], "end_date", "This field is required.")
+        self.assertFormError(response.context["form"], "export_all", "This field is required.")
 
         # submit for inbox export
         response = self.client.post(
@@ -2657,8 +2657,7 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         with override_settings(ORG_LIMIT_DEFAULTS={"labels": current_count}):
             response = self.client.post(create_url, {"name": "CoolStuff"})
             self.assertFormError(
-                response,
-                "form",
+                response.context["form"],
                 "name",
                 "This workspace has reached its limit of 2 labels. "
                 "You must delete existing ones before you can create new ones.",
