@@ -1,3 +1,7 @@
+v9.1.63 (2024-03-22)
+-------------------------
+ * Add open tab event
+
 v9.1.62 (2024-03-22)
 -------------------------
  * Make workspace selection use common event pattern
