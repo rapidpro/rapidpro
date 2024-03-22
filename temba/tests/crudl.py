@@ -162,28 +162,27 @@ class CRUDLTestMixin:
 
         return self.requestView(url, self.customer_support, checks=[StatusCode(200)], choose_org=choose_org)
 
-    def assertPageMenu(self, url, user, *, count, contains_names=(), choose_org=None):
+    def assertPageMenu(self, url, user, items: list, *, choose_org=None):
         response = self.requestView(
             url, user, checks=[StatusCode(200), ContentType("application/json")], choose_org=choose_org
         )
-        menu = response.json()["results"]
-        self.assertEqual(count, len(menu))
 
-        # check the content if we have them
-        if contains_names:
-            for name in contains_names:
-                steps = name.split("/")
-                while steps:
-                    step = steps.pop(0)
-                    menu_names = [m["name"] for m in menu if "name" in m]
-                    try:
-                        idx = menu_names.index(step)
-                        if "items" in menu[idx]:
-                            menu = menu[idx]["items"]
-                    except ValueError:
-                        self.fail(f"Couldn't find {step} in {menu_names}")
+        def matcher(i):
+            m = i["name"]
+            if "count" in i:
+                m = f"{m} ({i['count']})"
+            if "items" in i:
+                m = (m, [matcher(c) for c in i["items"] if "name" in c])
+            return m
 
-    def assertContentMenu(self, url: str, user, items: list = None):
+        actual = []
+        for item in response.json()["results"]:
+            if "name" in item:
+                actual.append(matcher(item))
+
+        self.assertEqual(items, actual)
+
+    def assertContentMenu(self, url: str, user, items: list):
         response = self.requestView(
             url,
             user,

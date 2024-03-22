@@ -372,8 +372,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_ticket(self.contact, "Test 4", closed_on=timezone.now())
 
         self.assertRequestDisallowed(menu_url, [None])
-        self.assertListFetch(menu_url, [self.user, self.editor, self.admin, self.agent])
-        self.assertPageMenu(menu_url, self.user, count=5, contains_names=["My Tickets", "Unassigned", "All", "General"])
+        self.assertPageMenu(menu_url, self.admin, ["My Tickets (2)", "Unassigned (1)", "All (3)", "General (3)"])
+        self.assertPageMenu(menu_url, self.agent, ["My Tickets (0)", "Unassigned (1)", "All (3)", "General (3)"])
 
     @mock_mailroom
     def test_folder(self, mr_mocks):

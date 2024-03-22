@@ -1155,18 +1155,12 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_menu(self):
         menu_url = reverse("campaigns.campaign_menu")
-        self.assertRequestDisallowed(menu_url, [None, self.agent])
 
-        response = self.assertListFetch(menu_url, [self.user, self.editor, self.admin])
-        menu = response.json()["results"]
-        self.assertEqual(2, len(menu))
-
-        # cerate a campaign, it should show in our list, with a divider
         group = self.create_group("My Group", contacts=[])
         self.create_campaign(self.org, "My Campaign", group)
-        response = self.assertListFetch(menu_url, [self.user, self.editor, self.admin])
-        menu = response.json()["results"]
-        self.assertEqual(2, len(menu))
+
+        self.assertRequestDisallowed(menu_url, [None, self.agent])
+        self.assertPageMenu(menu_url, self.admin, ["Active (1)", "Archived (0)"])
 
     def test_create(self):
         group = self.create_group("Reporters", contacts=[])
