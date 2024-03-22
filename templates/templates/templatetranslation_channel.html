@@ -11,7 +11,7 @@
   <div class="card p-0 overflow-y-scroll" id="templates">
     {% for translation in object_list %}
       {% ifchanged translation.template.name %}
-        <div class="p-4 font-bold">{{ translation.template.name }}</div>
+        <div class="p-4 font-bold max-w-6xl truncate">{{ translation.template.name }}</div>
       {% endifchanged %}
       <div max-width="100%" class="flex translation">
         <div width="70%" class="flex-grow p-4">

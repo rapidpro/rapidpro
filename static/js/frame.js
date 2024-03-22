@@ -281,11 +281,11 @@ function handleMenuClicked(event) {
   var parent = items.parent;
   var selection = items.selection;
 
-  if (item.trigger || item.event) {
+  if (item.event) {
     if (item.href) {
       window.open(item.href, '_blank');
     } else {
-      document.dispatchEvent(new CustomEvent(item.trigger || item.event, { detail: item }));  
+      document.dispatchEvent(new CustomEvent(item.event, { detail: item }));  
     }
     return;
   }
@@ -304,20 +304,10 @@ function handleMenuClicked(event) {
     }
   }
 
-  // clicked inside our workspace popup
-  if (parent && parent.id == 'workspace') {
-    if (item.id == 'settings') {
-      fetchURL('/org/workspace');
-      var menu = document.querySelector('temba-menu');
-      if (menu) {
-        menu.click();
-      }
-    } else if (item.posterize) {
-      posterize(item.href);
-    } else {
-      handleWorkspaceChanged(item.id);
-    }
-  }
+  // posterize if called for
+  if (item.href && item.posterize) {
+    posterize(item.href);
+  } 
 }
 
 function handleMenuChanged(event) {

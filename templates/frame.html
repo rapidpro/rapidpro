@@ -92,6 +92,19 @@
           updateFrameForMobile();
         });
       });
+
+      document.addEventListener("temba-workspace-choosen", function(event) {
+        const item = event.detail;
+        handleWorkspaceChanged(item.id);
+      });
+
+      document.addEventListener("temba-workspace-settings", function(event) {
+        fetchURL('/org/workspace');
+        var menu = document.querySelector('temba-menu');
+        if (menu) {
+          menu.click();
+        }
+      });
     </script>
     {% block scripts %}
       {% compress js %}

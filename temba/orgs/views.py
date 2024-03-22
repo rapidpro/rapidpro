@@ -1095,7 +1095,7 @@ class MenuMixin(OrgPermsMixin):
         inline=False,
         bottom=False,
         popup=False,
-        event=False,
+        event=None,
         posterize=False,
         bubble=None,
         mobile=False,
@@ -1348,7 +1348,12 @@ class OrgCRUDL(SmartCRUDL):
             if org:
                 other_orgs = User.get_orgs_for_request(self.request).exclude(id=org.id).order_by("-parent", "name")
                 other_org_items = [
-                    self.create_menu_item(menu_id=other_org.id, name=other_org.name, avatar=other_org.name, event=True)
+                    self.create_menu_item(
+                        menu_id=other_org.id,
+                        name=other_org.name,
+                        avatar=other_org.name,
+                        event="temba-workspace-choosen",
+                    )
                     for other_org in other_orgs
                 ]
 
@@ -1370,7 +1375,9 @@ class OrgCRUDL(SmartCRUDL):
                         popup=True,
                         items=[
                             self.create_space(),
-                            self.create_menu_item(menu_id="settings", name=org.name, avatar=org.name, event=True),
+                            self.create_menu_item(
+                                menu_id="settings", name=org.name, avatar=org.name, event="temba-workspace-settings"
+                            ),
                             self.create_divider(),
                             self.create_menu_item(
                                 menu_id="logout",
