@@ -1016,25 +1016,18 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         vonage_url = reverse("channels.channel_update", args=[vonage_channel.id])
         telegram_url = reverse("channels.channel_update", args=[telegram_channel.id])
 
+        self.assertRequestDisallowed(android_url, [None, self.user, self.agent, self.admin2])
+
         # fields shown depend on scheme and role
         self.assertUpdateFetch(
-            android_url,
-            allow_viewers=False,
-            allow_editors=True,
-            form_fields={"name": "My Android", "allow_international": False},
+            android_url, [self.editor, self.admin], form_fields={"name": "My Android", "allow_international": False}
         )
         self.assertUpdateFetch(
             vonage_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields={"name": "My Vonage", "allow_international": False, "machine_detection": False},
         )
-        self.assertUpdateFetch(
-            telegram_url,
-            allow_viewers=False,
-            allow_editors=True,
-            form_fields={"name": "My Telegram"},
-        )
+        self.assertUpdateFetch(telegram_url, [self.editor, self.admin], form_fields={"name": "My Telegram"})
 
         # name can't be empty
         self.assertUpdateSubmit(
@@ -1060,24 +1053,24 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertUpdateFetch(
             vonage_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields={"name": "Updated Name", "allow_international": True, "machine_detection": True},
         )
 
         # staff users see extra log policy field
-        self.login(self.customer_support, choose_org=self.org)
-        response = self.client.get(vonage_url)
-        self.assertEqual(
-            ["name", "log_policy", "allow_international", "machine_detection", "loc"],
-            list(response.context["form"].fields.keys()),
+        self.assertUpdateFetch(
+            vonage_url,
+            [self.customer_support],
+            form_fields=["name", "log_policy", "allow_international", "machine_detection"],
+            choose_org=self.org,
         )
 
     def test_delete(self):
         delete_url = reverse("channels.channel_delete", args=[self.ex_channel.uuid])
 
-        # fetch delete modal
-        response = self.assertDeleteFetch(delete_url, allow_editors=True)
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.agent, self.admin2])
+
+        response = self.assertDeleteFetch(delete_url, [self.editor, self.admin])
         self.assertContains(response, "You are about to delete")
 
         # submit to delete it
@@ -1095,7 +1088,7 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.channel_dependencies.add(self.ex_channel)
         self.assertFalse(flow.has_issues)
 
-        response = self.assertDeleteFetch(delete_url, allow_editors=True)
+        response = self.assertDeleteFetch(delete_url, [self.admin])
         self.assertContains(response, "is used by the following items but can still be deleted:")
         self.assertContains(response, "Color Flow")
 

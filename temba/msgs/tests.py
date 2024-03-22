@@ -822,11 +822,10 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         testers = self.create_group("Testers", contacts=[])
         gender = self.create_field("gender", "Gender")
 
+        self.assertRequestDisallowed(export_url, [None, self.agent])
         response = self.assertUpdateFetch(
             export_url + "?l=I",
-            allow_viewers=True,
-            allow_editors=True,
-            allow_org2=True,
+            [self.user, self.editor, self.admin],
             form_fields=(
                 "start_date",
                 "end_date",
@@ -2008,8 +2007,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             process=False,
         )
 
-        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=("omnibox",))
-        self.login(self.admin)
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
+        self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=("omnibox",))
 
         # initialize form based on a contact
         response = self.client.get(f"{create_url}?c={self.joe.uuid}")
@@ -2128,7 +2127,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         update_url = reverse("msgs.broadcast_update", args=[broadcast.id])
 
-        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=("omnibox",))
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
+        self.assertUpdateFetch(update_url, [self.editor, self.admin], form_fields=("omnibox",))
         self.login(self.admin)
 
         response = self.process_wizard(
@@ -2349,12 +2349,11 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             .save()
         ).session.runs.get()
 
+        self.assertRequestDisallowed(to_node_url, [None, self.user, self.agent])
+
         # initialize form based on a flow node UUID
         self.assertCreateFetch(
-            f"{to_node_url}?node={color_split['uuid']}&count=1",
-            allow_viewers=False,
-            allow_editors=True,
-            form_fields=["text"],
+            f"{to_node_url}?node={color_split['uuid']}&count=1", [self.editor, self.admin], form_fields=["text"]
         )
 
         response = self.assertCreateSubmit(
@@ -2378,6 +2377,12 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertEqual("hide", response["Temba-Success"])
         self.assertEqual(1, Broadcast.objects.count())
+
+        # if org has no send channel, show blocker
+        response = self.assertCreateFetch(
+            f"{to_node_url}?node=4ba8fcfa-f213-4164-a8d4-daede0a02144&count=1", [self.admin2], form_fields=["text"]
+        )
+        self.assertContains(response, "To get started you need to")
 
     def test_list(self):
         list_url = reverse("msgs.broadcast_list")
@@ -2492,8 +2497,10 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         delete_url = reverse("msgs.broadcast_scheduled_delete", args=[broadcast.id])
 
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.agent, self.admin2])
+
         # fetch the delete modal
-        response = self.assertDeleteFetch(delete_url, allow_editors=True, as_modal=True)
+        response = self.assertDeleteFetch(delete_url, [self.editor, self.admin], as_modal=True)
         self.assertContains(response, "You are about to delete")
 
         # submit the delete modal
@@ -2626,7 +2633,8 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create(self):
         create_url = reverse("msgs.label_create")
 
-        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=("name", "messages"))
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
+        self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=("name", "messages"))
 
         # try to create label with invalid name
         self.assertCreateSubmit(
@@ -2670,9 +2678,8 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         label1_url = reverse("msgs.label_update", args=[label1.id])
         label2_url = reverse("msgs.label_update", args=[label2.id])
 
-        self.assertUpdateFetch(
-            label2_url, allow_viewers=False, allow_editors=True, form_fields={"name": "Sales", "messages": None}
-        )
+        self.assertRequestDisallowed(label2_url, [None, self.user, self.agent, self.admin2])
+        self.assertUpdateFetch(label2_url, [self.editor, self.admin], form_fields={"name": "Sales", "messages": None})
 
         # try to update to invalid name
         self.assertUpdateSubmit(
@@ -2694,8 +2701,10 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
 
         delete_url = reverse("msgs.label_delete", args=[label.uuid])
 
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.agent, self.admin2])
+
         # fetch delete modal
-        response = self.assertDeleteFetch(delete_url, allow_editors=True)
+        response = self.assertDeleteFetch(delete_url, [self.editor, self.admin], as_modal=True)
         self.assertContains(response, "You are about to delete")
 
         # submit to delete it
@@ -2711,7 +2720,7 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.label_dependencies.add(label)
         self.assertFalse(flow.has_issues)
 
-        response = self.assertDeleteFetch(delete_url, allow_editors=True)
+        response = self.assertDeleteFetch(delete_url, [self.admin])
         self.assertContains(response, "is used by the following items but can still be deleted:")
         self.assertContains(response, "Color Flow")
 

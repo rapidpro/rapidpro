@@ -1491,10 +1491,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         create_url = reverse("flows.flow_create")
         self.create_flow("Registration")
 
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
         response = self.assertCreateFetch(
             create_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields=["name", "keyword_triggers", "flow_type", "base_language"],
         )
 
@@ -1512,8 +1512,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         with self.settings(FEATURES={"surveyor"}):
             response = self.assertCreateFetch(
                 create_url,
-                allow_viewers=False,
-                allow_editors=True,
+                [self.admin],
                 form_fields=["name", "keyword_triggers", "flow_type", "base_language"],
             )
             self.assertEqual(
@@ -1867,10 +1866,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             actual = list(flow.triggers.filter(trigger_type="K", is_active=True).values("keywords", "is_archived"))
             self.assertCountEqual(actual, expected)
 
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
         self.assertUpdateFetch(
             update_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields={
                 "name": "Colors",
                 "keyword_triggers": [],
@@ -1973,11 +1972,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow = self.get_flow("ivr")
         update_url = reverse("flows.flow_update", args=[flow.id])
 
-        # check fields
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
         self.assertUpdateFetch(
             update_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields=["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "ivr_retry"],
         )
 
@@ -2023,9 +2021,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         update_url = reverse("flows.flow_update", args=[flow.id])
 
         # we should only see name and contact creation option on form
-        self.assertUpdateFetch(
-            update_url, allow_viewers=False, allow_editors=True, form_fields=["name", "contact_creation"]
-        )
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
+        self.assertUpdateFetch(update_url, [self.editor, self.admin], form_fields=["name", "contact_creation"])
 
         # update name and contact creation option to be per login
         self.assertUpdateSubmit(update_url, self.admin, {"name": "New Name", "contact_creation": "login"})
@@ -2039,7 +2036,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         update_url = reverse("flows.flow_update", args=[flow.id])
 
         # we should only see name on form
-        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=["name"])
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
+        self.assertUpdateFetch(update_url, [self.editor, self.admin], form_fields=["name"])
 
         # update name and contact creation option to be per login
         self.assertUpdateSubmit(update_url, self.admin, {"name": "New Name"})
@@ -2690,18 +2688,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEquals(response.json()["warnings"], [])
 
     @mock_mailroom
-    def test_broadcast(self, mr_mocks):
+    def test_start(self, mr_mocks):
         contact = self.create_contact("Bob", phone="+593979099111")
         flow = self.create_flow("Test")
         start_url = f"{reverse('flows.flow_start', args=[])}?flow={flow.id}"
 
-        self.assertUpdateFetch(
-            start_url,
-            allow_viewers=False,
-            allow_editors=True,
-            allow_org2=True,
-            form_fields=["flow", "contact_search"],
-        )
+        self.assertRequestDisallowed(start_url, [None, self.user, self.agent])
+        self.assertUpdateFetch(start_url, [self.editor, self.admin], form_fields=["flow", "contact_search"])
 
         # create flow start with a query
         mr_mocks.parse_query("frank", cleaned='name ~ "frank"')
@@ -3127,11 +3120,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         testers = self.create_group("Testers", contacts=[])
         gender = self.create_field("gender", "Gender")
 
+        self.assertRequestDisallowed(export_url, [None, self.agent])
         response = self.assertUpdateFetch(
             export_url + f"?ids={flow1.id},{flow2.id}",
-            allow_viewers=True,
-            allow_editors=True,
-            allow_org2=True,
+            [self.user, self.editor, self.admin],
             form_fields=(
                 "start_date",
                 "end_date",
@@ -3211,7 +3203,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow = self.get_flow("favorites")
         export_url = reverse("flows.flow_export_translation", args=[flow.id])
 
-        self.assertUpdateFetch(export_url, allow_viewers=False, allow_editors=True, form_fields=["language"])
+        self.assertRequestDisallowed(export_url, [None, self.user, self.agent, self.admin2])
+        self.assertUpdateFetch(export_url, [self.editor, self.admin], form_fields=["language"])
 
         # submit with no language
         response = self.assertUpdateSubmit(export_url, self.admin, {})
@@ -3252,7 +3245,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         step1_url = reverse("flows.flow_import_translation", args=[flow.id])
 
         # check step 1 is just a file upload
-        self.assertUpdateFetch(step1_url, allow_viewers=False, allow_editors=True, form_fields=["po_file"])
+        self.assertRequestDisallowed(step1_url, [None, self.user, self.agent, self.admin2])
+        self.assertUpdateFetch(step1_url, [self.editor, self.admin], form_fields=["po_file"])
 
         # submit with no file
         self.assertUpdateSubmit(
@@ -3321,9 +3315,7 @@ msgstr "Azul"
         self.assertEqual(302, response.status_code)
         self.assertIn(f"/flow/import_translation/{flow.id}/?po=", response.url)
 
-        response = self.assertUpdateFetch(
-            response.url, allow_viewers=False, allow_editors=True, form_fields=["language"]
-        )
+        response = self.assertUpdateFetch(response.url, [self.admin], form_fields=["language"])
         self.assertContains(response, "Unknown")
 
         # submit a different PO that does have language set
@@ -3351,7 +3343,7 @@ msgstr "Azul"
 
         step2_url = response.url
 
-        response = self.assertUpdateFetch(step2_url, allow_viewers=False, allow_editors=True, form_fields=["language"])
+        response = self.assertUpdateFetch(step2_url, [self.admin], form_fields=["language"])
         self.assertContains(response, "Spanish (spa)")
         self.assertEqual({"language": "spa"}, response.context["form"].initial)
 
@@ -5196,7 +5188,8 @@ class FlowLabelCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create(self):
         create_url = reverse("flows.flowlabel_create")
 
-        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=("name", "flows"))
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
+        self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=("name", "flows"))
 
         # try to submit without a name
         self.assertCreateSubmit(create_url, self.admin, {}, form_errors={"name": "This field is required."})
@@ -5222,7 +5215,8 @@ class FlowLabelCRUDLTest(TembaTest, CRUDLTestMixin):
 
         update_url = reverse("flows.flowlabel_update", args=[label.id])
 
-        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=("name", "flows"))
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
+        self.assertUpdateFetch(update_url, [self.editor, self.admin], form_fields=("name", "flows"))
 
         # try to update to an invalid name
         self.assertUpdateSubmit(
@@ -5252,7 +5246,9 @@ class FlowLabelCRUDLTest(TembaTest, CRUDLTestMixin):
 
         delete_url = reverse("flows.flowlabel_delete", args=[label.id])
 
-        self.assertDeleteFetch(delete_url, allow_editors=True)
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.agent, self.admin2])
+
+        self.assertDeleteFetch(delete_url, [self.editor, self.admin])
         self.assertDeleteSubmit(delete_url, self.admin, object_deleted=label, success_status=200)
 
 

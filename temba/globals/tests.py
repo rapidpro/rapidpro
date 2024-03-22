@@ -108,7 +108,8 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create(self):
         create_url = reverse("globals.global_create")
 
-        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=["name", "value"])
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
+        self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=["name", "value"])
 
         # try to submit with invalid name and missing value
         self.assertCreateSubmit(
@@ -159,7 +160,8 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_update(self):
         update_url = reverse("globals.global_update", args=[self.global1.id])
 
-        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=["value"])
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
+        self.assertUpdateFetch(update_url, [self.editor, self.admin], form_fields=["value"])
 
         # try to submit with missing value
         self.assertUpdateSubmit(
@@ -196,8 +198,10 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_delete(self):
         delete_url = reverse("globals.global_delete", args=[self.global2.uuid])
 
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.agent, self.admin2])
+
         # fetch delete modal
-        response = self.assertDeleteFetch(delete_url, allow_editors=True)
+        response = self.assertDeleteFetch(delete_url, [self.editor, self.admin])
         self.assertContains(response, "You are about to delete")
 
         response = self.assertDeleteSubmit(delete_url, self.admin, object_deactivated=self.global2, success_status=200)
@@ -208,7 +212,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertFalse(self.flow.has_issues)
 
-        response = self.assertDeleteFetch(delete_url, allow_editors=True)
+        response = self.assertDeleteFetch(delete_url, [self.admin])
         self.assertContains(response, "is used by the following items but can still be deleted:")
         self.assertContains(response, "Color Flow")
 

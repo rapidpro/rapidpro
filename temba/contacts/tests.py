@@ -480,10 +480,10 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         update_url = reverse("contacts.contact_update", args=[contact.id])
 
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
         self.assertUpdateFetch(
             update_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields={
                 "name": "Bob",
                 "status": "A",
@@ -525,8 +525,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # for non-active contacts, shouldn't see groups on form
         self.assertUpdateFetch(
             update_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields={
                 "name": "Bobby",
                 "status": "B",
@@ -562,8 +561,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         response = self.assertUpdateFetch(
             update_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.admin],
             form_fields={
                 "name": "Bobby",
                 "status": "B",
@@ -598,9 +596,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
     def test_export(self, mr_mocks):
         export_url = reverse("contacts.contact_export")
 
-        response = self.assertUpdateFetch(
-            export_url, allow_viewers=True, allow_editors=True, allow_org2=True, form_fields=("with_groups",)
-        )
+        self.assertRequestDisallowed(export_url, [None, self.agent])
+        response = self.assertUpdateFetch(export_url, [self.editor, self.admin], form_fields=("with_groups",))
         self.assertNotContains(response, "already an export in progress")
 
         # create a dummy export task so that we won't be able to export
@@ -753,9 +750,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         general = self.org.default_ticket_topic
         open_url = reverse("contacts.contact_open_ticket", args=[contact.id])
 
-        self.assertUpdateFetch(
-            open_url, allow_viewers=False, allow_editors=True, form_fields=("topic", "body", "assignee")
-        )
+        self.assertRequestDisallowed(open_url, [None, self.user, self.agent, self.admin2])
+        self.assertUpdateFetch(open_url, [self.editor, self.admin], form_fields=("topic", "body", "assignee"))
 
         # can submit with no assignee
         response = self.assertUpdateSubmit(open_url, self.admin, {"topic": general.id, "body": "Help", "assignee": ""})
@@ -861,13 +857,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         contact = self.create_contact("Joe", phone="+593979000111")
         start_url = f"{reverse('flows.flow_start', args=[])}?flow={sample_flows[0].id}&c={contact.uuid}"
 
-        response = self.assertUpdateFetch(
-            start_url,
-            allow_viewers=False,
-            allow_editors=True,
-            allow_org2=True,
-            form_fields=["flow", "contact_search"],
-        )
+        self.assertRequestDisallowed(start_url, [None, self.user, self.agent])
+        response = self.assertUpdateFetch(start_url, [self.editor, self.admin], form_fields=["flow", "contact_search"])
 
         self.assertEqual([background_flow] + sample_flows, list(response.context["form"].fields["flow"].queryset))
 
@@ -1499,8 +1490,10 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         delete_group3_url = reverse("contacts.contactgroup_delete", args=[group3.uuid])
         delete_group4_url = reverse("contacts.contactgroup_delete", args=[group4.uuid])
 
+        self.assertRequestDisallowed(delete_group1_url, [None, self.user, self.agent, self.admin2])
+
         # a group with no dependents can be deleted
-        response = self.assertDeleteFetch(delete_group1_url, allow_editors=True)
+        response = self.assertDeleteFetch(delete_group1_url, [self.editor, self.admin])
 
         self.assertEqual({}, response.context["soft_dependents"])
         self.assertEqual({}, response.context["hard_dependents"])
@@ -1510,7 +1503,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertDeleteSubmit(delete_group1_url, self.admin, object_deactivated=group1, success_status=200)
 
         # a group with only soft dependents can be deleted but we give warnings
-        response = self.assertDeleteFetch(delete_group2_url, allow_editors=True)
+        response = self.assertDeleteFetch(delete_group2_url, [self.editor])
 
         self.assertEqual({"flow"}, set(response.context["soft_dependents"].keys()))
         self.assertEqual({}, response.context["hard_dependents"])
@@ -1526,7 +1519,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotIn(group2, flow1.field_dependencies.all())
 
         # a group with only soft dependents can be deleted but we give warnings
-        response = self.assertDeleteFetch(delete_group3_url, allow_editors=True)
+        response = self.assertDeleteFetch(delete_group3_url, [self.admin])
 
         self.assertEqual({"flow", "trigger"}, set(response.context["soft_dependents"].keys()))
         self.assertEqual({}, response.context["hard_dependents"])
@@ -1547,7 +1540,7 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFalse(trigger1.is_active)
 
         # a group with hard dependents can't be deleted
-        response = self.assertDeleteFetch(delete_group4_url, allow_editors=True)
+        response = self.assertDeleteFetch(delete_group4_url, [self.admin])
 
         self.assertEqual({"flow", "trigger"}, set(response.context["soft_dependents"].keys()))
         self.assertEqual({"campaign"}, set(response.context["hard_dependents"].keys()))
@@ -3460,12 +3453,13 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create(self):
         create_url = reverse("contacts.contactfield_create")
 
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
+
         # for a deploy that doesn't have locations feature, don't show location field types
         with override_settings(FEATURES={}):
             response = self.assertCreateFetch(
                 create_url,
-                allow_viewers=False,
-                allow_editors=True,
+                [self.editor, self.admin],
                 form_fields=["name", "value_type", "show_in_table", "agent_access"],
             )
             self.assertEqual(
@@ -3475,8 +3469,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.assertCreateFetch(
             create_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields=["name", "value_type", "show_in_table", "agent_access"],
         )
         self.assertEqual(
@@ -3554,20 +3547,20 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_update(self):
         update_url = reverse("contacts.contactfield_update", args=[self.age.key])
 
+        self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
+
         # for a deploy that doesn't have locations feature, don't show location field types
         with override_settings(FEATURES={}):
             response = self.assertUpdateFetch(
                 update_url,
-                allow_viewers=False,
-                allow_editors=True,
+                [self.editor, self.admin],
                 form_fields={"name": "Age", "value_type": "N", "show_in_table": True, "agent_access": "V"},
             )
             self.assertEqual(3, len(response.context["form"].fields["value_type"].choices))
 
         response = self.assertUpdateFetch(
             update_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields={"name": "Age", "value_type": "N", "show_in_table": True, "agent_access": "V"},
         )
         self.assertEqual(6, len(response.context["form"].fields["value_type"].choices))
@@ -3644,8 +3637,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertUpdateFetch(
             update_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields={"name": "Registered", "value_type": "D", "show_in_table": False, "agent_access": "V"},
         )
 
@@ -3765,8 +3757,10 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         delete_joined_url = reverse("contacts.contactfield_delete", args=[joined_on.key])
         delete_age_url = reverse("contacts.contactfield_delete", args=[self.age.key])
 
+        self.assertRequestDisallowed(delete_gender_url, [None, self.user, self.agent, self.admin2])
+
         # a field with no dependents can be deleted
-        response = self.assertDeleteFetch(delete_gender_url, allow_editors=True)
+        response = self.assertDeleteFetch(delete_gender_url, [self.editor, self.admin])
         self.assertEqual({}, response.context["soft_dependents"])
         self.assertEqual({}, response.context["hard_dependents"])
         self.assertContains(response, "You are about to delete")
@@ -3784,7 +3778,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFalse(self.gender.is_active)
 
         # a field with only soft dependents can also be deleted but we give warnings
-        response = self.assertDeleteFetch(delete_joined_url, allow_editors=True)
+        response = self.assertDeleteFetch(delete_joined_url, [self.admin])
         self.assertEqual({"flow", "campaign_event"}, set(response.context["soft_dependents"].keys()))
         self.assertEqual({}, response.context["hard_dependents"])
         self.assertContains(response, "is used by the following items but can still be deleted:")
@@ -3803,7 +3797,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFalse(campaign_event.is_active)
 
         # a field with hard dependents can't be deleted
-        response = self.assertDeleteFetch(delete_age_url, allow_editors=True)
+        response = self.assertDeleteFetch(delete_age_url, [self.admin])
         self.assertEqual({"flow"}, set(response.context["soft_dependents"].keys()))
         self.assertEqual({"group"}, set(response.context["hard_dependents"].keys()))
         self.assertContains(response, "can't be deleted as it is still used by the following items:")
@@ -4549,7 +4543,8 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create_and_preview(self):
         create_url = reverse("contacts.contactimport_create")
 
-        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=["file"])
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
+        self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=["file"])
 
         # try posting with nothing
         response = self.client.post(create_url, {})
@@ -4679,11 +4674,12 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         imp = self.create_contact_import("media/test_imports/extra_fields_and_group.xlsx")
         preview_url = reverse("contacts.contactimport_preview", args=[imp.id])
 
+        self.assertRequestDisallowed(preview_url, [None, self.user, self.agent, self.admin2])
+
         # columns 4 and 5 are a non-existent field so will have controls to create a new one
         self.assertUpdateFetch(
             preview_url,
-            allow_viewers=False,
-            allow_editors=True,
+            [self.editor, self.admin],
             form_fields=[
                 "add_to_group",
                 "group_mode",

@@ -2761,7 +2761,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org2.save(update_fields=("features",))
 
         # since we can only create new orgs, we don't show type as an option
-        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=False, form_fields=["name", "timezone"])
+        self.assertRequestDisallowed(create_url, [None, self.user, self.editor, self.agent])
+        self.assertCreateFetch(create_url, [self.admin], form_fields=["name", "timezone"])
 
         # try to submit an empty form
         response = self.assertCreateSubmit(
@@ -2814,7 +2815,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org2.save(update_fields=("features",))
 
         # since we can only create child orgs, we don't show type as an option
-        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=False, form_fields=["name", "timezone"])
+        self.assertRequestDisallowed(create_url, [None, self.user, self.editor, self.agent])
+        self.assertCreateFetch(create_url, [self.admin], form_fields=["name", "timezone"])
 
         # try to submit an empty form
         response = self.assertCreateSubmit(
@@ -2853,12 +2855,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org2.save(update_fields=("features",))
 
         # because we can create both new orgs and child orgs, type is an option
-        self.assertCreateFetch(
-            create_url,
-            allow_viewers=False,
-            allow_editors=False,
-            form_fields=["type", "name", "timezone"],
-        )
+        self.assertRequestDisallowed(create_url, [None, self.user, self.editor, self.agent])
+        self.assertCreateFetch(create_url, [self.admin], form_fields=["type", "name", "timezone"])
 
         # create new org
         self.assertCreateSubmit(
@@ -3090,7 +3088,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         child = self.org.create_new(self.admin, "Child Workspace", self.org.timezone, as_child=True)
         delete_url = reverse("orgs.org_delete_child", args=[child.id])
 
-        self.assertDeleteFetch(delete_url)
+        self.assertRequestDisallowed(delete_url, [None, self.user, self.editor, self.agent, self.admin2])
+        self.assertDeleteFetch(delete_url, [self.admin], choose_org=self.org)
 
         # schedule for deletion
         response = self.client.get(delete_url)
@@ -3329,13 +3328,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("English", response.context["primary_lang"])
         self.assertEqual([], response.context["other_langs"])
 
-        self.assertUpdateFetch(
-            langs_url,
-            allow_viewers=False,
-            allow_editors=False,
-            allow_org2=True,  # is same URL across orgs
-            form_fields=["primary_lang", "other_langs", "input_collation"],
-        )
+        self.assertRequestDisallowed(langs_url, [None, self.user, self.editor, self.agent])
+        self.assertUpdateFetch(langs_url, [self.admin], form_fields=["primary_lang", "other_langs", "input_collation"])
 
         # initial should do a match on code only
         response = self.client.get(f"{langs_url}?initial=fra", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
