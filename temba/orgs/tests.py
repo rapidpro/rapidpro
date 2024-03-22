@@ -3089,8 +3089,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         delete_url = reverse("orgs.org_delete_child", args=[child.id])
 
         self.assertRequestDisallowed(delete_url, [None, self.user, self.editor, self.agent, self.admin2])
-
-        self.assertDeleteFetch(delete_url, [self.admin])
+        self.assertDeleteFetch(delete_url, [self.admin], choose_org=self.org)
 
         # schedule for deletion
         response = self.client.get(delete_url)

@@ -825,7 +825,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRequestDisallowed(export_url, [None, self.agent])
         response = self.assertUpdateFetch(
             export_url + "?l=I",
-            [self.user, self.editor, self.admin, self.admin2],
+            [self.user, self.editor, self.admin],
             form_fields=(
                 "start_date",
                 "end_date",
