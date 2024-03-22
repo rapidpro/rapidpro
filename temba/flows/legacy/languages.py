@@ -1,4 +1,5 @@
-import iso639
+from iso639 import Lang
+from iso639.exceptions import InvalidLanguageValue
 
 # As iso639-1 languages can be broad, not all iso639-2 languages have direct translations to iso639-3. This table
 # maps country and iso639-1 codes to a specific iso639-3 language code. It isn't inclusive but covers the cases
@@ -52,28 +53,14 @@ def iso6391_to_iso6393(iso_code, country_code=None):
             return override
 
         else:
-            # first try looking up by part 2 bibliographic (which is what we use when available)
             try:
-                lang = iso639.languages.get(part2b=iso_code)
-            except KeyError:
+                lang = Lang(iso_code)
+            except InvalidLanguageValue:
                 lang = None
 
-            # if not found, back down to typographical
-            if lang is None:
-                try:
-                    lang = iso639.languages.get(part2t=iso_code)
-                except KeyError:
-                    pass
-            # if not found, maybe it's already a iso639-3 code
-            if lang is None:
-                try:
-                    lang = iso639.languages.get(part3=iso_code)
-                except KeyError:
-                    pass
-
-            if lang and lang.part3:
-                migration_lang_cache[cache_key] = lang.part3
-                return lang.part3
+            if lang and lang.pt3:
+                migration_lang_cache[cache_key] = lang.pt3
+                return lang.pt3
     else:
         return migration_lang_cache[cache_key]
 
