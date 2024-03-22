@@ -105,6 +105,13 @@
           menu.click();
         }
       });
+
+      document.addEventListener('temba-open-tab', function(event) {
+        const item = event.detail;
+        if (item.href) {
+          window.open(item.href, '_blank');
+        }
+      });
     </script>
     {% block scripts %}
       {% compress js %}
