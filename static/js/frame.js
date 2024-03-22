@@ -278,15 +278,10 @@ function handleMenuClicked(event) {
   var items = event.detail;
 
   var item = items.item;
-  var parent = items.parent;
   var selection = items.selection;
 
   if (item.event) {
-    if (item.href) {
-      window.open(item.href, '_blank');
-    } else {
-      document.dispatchEvent(new CustomEvent(item.event, { detail: item }));  
-    }
+    document.dispatchEvent(new CustomEvent(item.event, { detail: item }));  
     return;
   }
 
