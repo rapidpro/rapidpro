@@ -1,3 +1,10 @@
+v9.1.62 (2024-03-22)
+-------------------------
+ * Make workspace selection use common event pattern
+ * Truncate long template name to not break the page
+ * Replace iso630 with iso639-lang package
+ * Fix non Django 5 compatible code
+
 v9.1.61 (2024-03-21)
 -------------------------
  * Support for menu events
