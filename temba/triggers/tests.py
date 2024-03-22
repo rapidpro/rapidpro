@@ -532,9 +532,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         menu_url = reverse("triggers.trigger_menu")
 
         self.assertRequestDisallowed(menu_url, [None, self.agent])
-        response = self.assertListFetch(menu_url, [self.user, self.editor, self.admin])
-        menu = response.json()["results"]
-        self.assertEqual(4, len(menu))
+        self.assertPageMenu(menu_url, self.user, ["Active (0)", "Archived (0)"])
 
         # create a trigger with no groups
         create_url = reverse("triggers.trigger_create_keyword")
@@ -547,12 +545,8 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             success_status=200,
         )
 
-        response = self.assertListFetch(menu_url, [self.admin])
-        menu = response.json()["results"]
-
-        # our keyword trigger should force a keywords section
-        self.assertEqual(5, len(menu))
-        self.assertEqual(1, menu[-1]["count"])
+        # our keyword trigger should force a messages section
+        self.assertPageMenu(menu_url, self.user, ["Active (1)", "Archived (0)", "Messages (1)"])
 
         # have an archived keyword trigger
         trigger = Trigger.create(
@@ -566,21 +560,12 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             match_type=Trigger.MATCH_ONLY_WORD,
         )
 
-        response = self.assertListFetch(menu_url, [self.admin])
-        menu = response.json()["results"]
-
-        # should have 2 keyword triggers
-        self.assertEqual(5, len(menu))
-        self.assertEqual(2, menu[-1]["count"])
+        self.assertPageMenu(menu_url, self.user, ["Active (2)", "Archived (0)", "Messages (2)"])
 
         trigger.archive(self.admin)
 
-        response = self.assertListFetch(menu_url, [self.admin])
-        menu = response.json()["results"]
-
         # the archived trigger not counted
-        self.assertEqual(5, len(menu))
-        self.assertEqual(1, menu[-1]["count"])
+        self.assertPageMenu(menu_url, self.user, ["Active (1)", "Archived (1)", "Messages (1)"])
 
     def test_create(self):
         create_url = reverse("triggers.trigger_create")

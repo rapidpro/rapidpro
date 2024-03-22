@@ -1478,14 +1478,20 @@ class FlowTest(TembaTest, CRUDLTestMixin):
 class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_menu(self):
         menu_url = reverse("flows.flow_menu")
+
         FlowLabel.create(self.org, self.admin, "Important")
 
         self.assertRequestDisallowed(menu_url, [None, self.agent])
-        response = self.assertListFetch(menu_url, [self.user, self.editor, self.admin])
-        menu = response.json()["results"]
-        self.assertEqual(
-            ["Active", "Archived", "divider", "Globals", "History", "Labels"],
-            [m.get("name") or m.get("type") for m in menu],
+        self.assertPageMenu(
+            menu_url,
+            self.admin,
+            [
+                "Active",
+                "Archived",
+                "Globals",
+                ("History", ["Webhooks", "Flow Starts"]),
+                ("Labels", ["Important (0)"]),
+            ],
         )
 
     def test_create(self):

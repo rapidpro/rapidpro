@@ -73,9 +73,19 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         menu_url = reverse("contacts.contact_menu")
 
         self.assertRequestDisallowed(menu_url, [None, self.agent])
-        response = self.assertListFetch(menu_url, [self.user, self.editor, self.admin])
-        menu = response.json()["results"]
-        self.assertEqual(8, len(menu))
+        self.assertPageMenu(
+            menu_url,
+            self.admin,
+            [
+                "Active (0)",
+                "Archived (0)",
+                "Blocked (0)",
+                "Stopped (0)",
+                "Import",
+                "Fields (2)",
+                ("Groups", ["Open Tickets (0)", "Survey Audience (0)", "Unsatisfied Customers (0)"]),
+            ],
+        )
 
     @mock_mailroom
     def test_list(self, mr_mocks):

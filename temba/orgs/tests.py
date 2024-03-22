@@ -1978,45 +1978,71 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.child.add_user(self.admin, OrgRole.ADMINISTRATOR)
 
         self.assertPageMenu(
-            menu_url, self.admin, count=10, contains_names=["Workspace/Child Workspace"], choose_org=self.org
+            menu_url,
+            self.admin,
+            [
+                ("Workspace", ["Nyaruka", "Sign Out", "Child Workspace"]),
+                "Messages",
+                "Contacts",
+                "Flows",
+                "Triggers",
+                "Campaigns",
+                "Tickets",
+                ("Notifications", []),
+                "Settings",
+            ],
+            choose_org=self.org,
         )
-        self.assertPageMenu(f"{menu_url}settings/", self.admin, count=6, choose_org=self.org)
+        self.assertPageMenu(
+            f"{menu_url}settings/",
+            self.admin,
+            [
+                "Nyaruka",
+                "Account",
+                "Resthooks",
+                "Incidents",
+                ("Channels", ["Test Channel"]),
+                ("Archives", ["Messages", "Flow Runs"]),
+            ],
+            choose_org=self.org,
+        )
 
         # agents should only see tickets and settings
-        self.login(self.agent)
-
-        with self.assertNumQueries(10):
-            response = self.client.get(menu_url)
-
-        menu = response.json()["results"]
-        self.assertEqual(5, len(menu))
-        self.assertEqual("Workspace", menu[0]["name"])
-        self.assertEqual("space", menu[1]["type"])
-        self.assertEqual("Tickets", menu[2]["name"])
-        self.assertEqual("Notifications", menu[3]["name"])
-        self.assertEqual("Settings", menu[4]["name"])
-        self.assertEqual("/user/account/", menu[4]["href"])
+        self.assertPageMenu(
+            menu_url,
+            self.agent,
+            [
+                ("Workspace", ["Nyaruka", "Sign Out"]),
+                "Tickets",
+                ("Notifications", []),
+                "Settings",
+            ],
+        )
 
         # customer support without an org will see settings as profile, and staff section
-        self.login(self.customer_support)
-        menu = self.client.get(menu_url).json()["results"]
-        self.assertEqual(3, len(menu))
-        self.assertEqual("space", menu[0]["type"])
-        self.assertEqual("Settings", menu[1]["name"])
-        self.assertEqual("/user/account/", menu[1]["href"])
-        self.assertEqual("Staff", menu[2]["name"])
+        self.assertPageMenu(menu_url, self.customer_support, ["Settings", "Staff"])
 
-        menu = self.client.get(f"{menu_url}staff/").json()["results"]
-        self.assertEqual(2, len(menu))
-        self.assertEqual("Workspaces", menu[0]["name"])
-        self.assertEqual("Users", menu[1]["name"])
+        self.assertPageMenu(f"{menu_url}staff/", self.customer_support, ["Workspaces", "Users"])
 
         # if our org has new orgs but not child orgs, we should have a New Workspace button in the menu
         self.org.features = [Org.FEATURE_NEW_ORGS]
         self.org.save()
 
         self.assertPageMenu(
-            menu_url, self.admin, count=10, contains_names=["Workspace/New Workspace"], choose_org=self.org
+            menu_url,
+            self.admin,
+            [
+                ("Workspace", ["Nyaruka", "Sign Out", "Child Workspace", "New Workspace"]),
+                "Messages",
+                "Contacts",
+                "Flows",
+                "Triggers",
+                "Campaigns",
+                "Tickets",
+                ("Notifications", []),
+                "Settings",
+            ],
+            choose_org=self.org,
         )
 
         # confirm no notifications
@@ -2065,7 +2091,19 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # make sure we have the appropriate number of sections
         self.assertEqual(6, len(response.context["formax"].sections))
-        self.assertPageMenu(f"{reverse('orgs.org_menu')}settings/", self.admin, count=6)
+
+        self.assertPageMenu(
+            f"{reverse('orgs.org_menu')}settings/",
+            self.admin,
+            [
+                "Nyaruka",
+                "Account",
+                "Resthooks",
+                "Incidents",
+                ("Channels", ["Test Channel"]),
+                ("Archives", ["Messages", "Flow Runs"]),
+            ],
+        )
 
         # enable child workspaces and users
         self.org.features = [Org.FEATURE_USERS, Org.FEATURE_CHILD_ORGS]
@@ -2084,7 +2122,20 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             response = self.client.get(workspace_url)
 
         # should have an extra menu options for workspaces and users
-        self.assertPageMenu(f"{reverse('orgs.org_menu')}settings/", self.admin, count=8)
+        self.assertPageMenu(
+            f"{reverse('orgs.org_menu')}settings/",
+            self.admin,
+            [
+                "Nyaruka",
+                "Workspaces (1)",
+                "Account",
+                "Users (5)",
+                "Resthooks",
+                "Incidents",
+                ("Channels", ["Test Channel"]),
+                ("Archives", ["Messages", "Flow Runs"]),
+            ],
+        )
 
     @override_settings(SEND_EMAILS=True)
     def test_flow_smtp(self):
