@@ -570,11 +570,8 @@ class MailroomQueueTest(TembaTest):
             msg.contact,
             {
                 "type": "msg_event",
-                "org_id": self.org.id,
                 "task": {
-                    "org_id": self.org.id,
                     "channel_id": self.channel.id,
-                    "contact_id": msg.contact_id,
                     "msg_id": msg.id,
                     "msg_uuid": str(msg.uuid),
                     "msg_external_id": None,
@@ -590,7 +587,7 @@ class MailroomQueueTest(TembaTest):
 
     @mock_mailroom(queue=False)
     def test_queue_mo_miss_event(self, mr_mocks):
-        event = sync.create_event(self.channel, "tel:12065551212", ChannelEvent.TYPE_CALL_OUT, timezone.now())
+        event = sync.create_event(self.channel, "tel:12065551212", ChannelEvent.TYPE_CALL_OUT, timezone.now(), extra={})
 
         r = get_redis_connection()
 
@@ -599,25 +596,24 @@ class MailroomQueueTest(TembaTest):
         self.assertEqual(0, r.zcard(f"handler:{self.org.id}"))
         self.assertEqual(0, r.llen(f"c:{self.org.id}:{event.contact_id}"))
 
-        event = sync.create_event(self.channel, "tel:12065551515", ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now())
+        event = sync.create_event(
+            self.channel, "tel:12065551515", ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), extra={}
+        )
 
         self.assert_org_queued(self.org, "handler")
         self.assert_contact_queued(event.contact)
         self.assert_queued_handler_task(
             event.contact,
             {
-                "type": "mo_miss",
-                "org_id": event.contact.org.id,
+                "type": "channel_event",
                 "task": {
-                    "channel_id": self.channel.id,
-                    "contact_id": event.contact.id,
+                    "event_id": event.id,
                     "event_type": "mo_miss",
-                    "extra": None,
-                    "id": event.id,
-                    "new_contact": False,
-                    "occurred_on": matchers.ISODate(),
-                    "org_id": event.contact.org.id,
+                    "channel_id": self.channel.id,
                     "urn_id": event.contact.urns.get().id,
+                    "extra": {},
+                    "new_contact": False,
+                    "created_on": matchers.ISODate(),
                 },
                 "queued_on": matchers.ISODate(),
             },
@@ -644,7 +640,6 @@ class MailroomQueueTest(TembaTest):
             self.org,
             {
                 "type": "send_broadcast",
-                "org_id": self.org.id,
                 "task": {
                     "translations": {
                         "eng": {"text": "Welcome to mailroom!"},
@@ -685,7 +680,6 @@ class MailroomQueueTest(TembaTest):
             self.org,
             {
                 "type": "start_flow",
-                "org_id": self.org.id,
                 "task": {
                     "start_id": start.id,
                     "start_type": "M",
@@ -712,7 +706,6 @@ class MailroomQueueTest(TembaTest):
             self.org,
             {
                 "type": "import_contact_batch",
-                "org_id": self.org.id,
                 "task": {"contact_import_batch_id": imp.batches.get().id},
                 "queued_on": matchers.ISODate(),
             },
@@ -726,7 +719,6 @@ class MailroomQueueTest(TembaTest):
             self.org,
             {
                 "type": "interrupt_channel",
-                "org_id": self.org.id,
                 "task": {"channel_id": self.channel.id},
                 "queued_on": matchers.ISODate(),
             },
@@ -743,7 +735,6 @@ class MailroomQueueTest(TembaTest):
             self.org,
             {
                 "type": "interrupt_sessions",
-                "org_id": self.org.id,
                 "task": {"contact_ids": [jim.id, bob.id]},
                 "queued_on": matchers.ISODate(),
             },
@@ -756,12 +747,7 @@ class MailroomQueueTest(TembaTest):
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
             self.org,
-            {
-                "type": "interrupt_sessions",
-                "org_id": self.org.id,
-                "task": {"flow_ids": [flow.id]},
-                "queued_on": matchers.ISODate(),
-            },
+            {"type": "interrupt_sessions", "task": {"flow_ids": [flow.id]}, "queued_on": matchers.ISODate()},
         )
 
     def test_queue_interrupt_by_session(self):
@@ -788,12 +774,7 @@ class MailroomQueueTest(TembaTest):
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
             self.org,
-            {
-                "type": "interrupt_sessions",
-                "org_id": self.org.id,
-                "task": {"session_ids": [session.id]},
-                "queued_on": matchers.ISODate(),
-            },
+            {"type": "interrupt_sessions", "task": {"session_ids": [session.id]}, "queued_on": matchers.ISODate()},
         )
 
     def assert_org_queued(self, org, queue):
@@ -817,12 +798,7 @@ class MailroomQueueTest(TembaTest):
 
         self.assertEqual(
             task,
-            {
-                "type": "handle_contact_event",
-                "org_id": contact.org.id,
-                "task": {"contact_id": contact.id},
-                "queued_on": matchers.ISODate(),
-            },
+            {"type": "handle_contact_event", "task": {"contact_id": contact.id}, "queued_on": matchers.ISODate()},
         )
 
     def assert_queued_handler_task(self, contact, expected_task):

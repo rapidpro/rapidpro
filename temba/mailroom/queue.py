@@ -23,9 +23,9 @@ class HandlerTask(Enum):
     CONTACT_EVENT = "handle_contact_event"
 
 
-class ContactEvent(Enum):
-    MSG = "msg_event"
-    MO_MISS = "mo_miss"
+class ContactTask(Enum):
+    MSG_EVENT = "msg_event"
+    CHANNEL_EVENT = "channel_event"
 
 
 class BatchTask(Enum):
@@ -44,9 +44,7 @@ def queue_msg_handling(msg):
     """
 
     msg_task = {
-        "org_id": msg.org_id,
         "channel_id": msg.channel.id,
-        "contact_id": msg.contact_id,
         "msg_id": msg.id,
         "msg_uuid": str(msg.uuid),
         "msg_external_id": msg.external_id,
@@ -57,7 +55,7 @@ def queue_msg_handling(msg):
         "new_contact": False,  # only used by courier
     }
 
-    _queue_handler_task(msg.org_id, msg.contact_id, ContactEvent.MSG, msg_task)
+    _queue_handler_task(msg.org_id, msg.contact_id, ContactTask.MSG_EVENT, msg_task)
 
 
 def queue_mo_miss_event(event):
@@ -66,18 +64,16 @@ def queue_mo_miss_event(event):
     """
 
     event_task = {
-        "id": event.id,
-        "event_type": ContactEvent.MO_MISS.value,
-        "org_id": event.org_id,
+        "event_id": event.id,
+        "event_type": "mo_miss",
         "channel_id": event.channel_id,
-        "contact_id": event.contact_id,
         "urn_id": event.contact_urn_id,
         "extra": event.extra,
-        "occurred_on": event.occurred_on,
+        "created_on": event.created_on,
         "new_contact": False,  # only used by courier
     }
 
-    _queue_handler_task(event.org_id, event.contact_id, ContactEvent.MO_MISS, event_task)
+    _queue_handler_task(event.org_id, event.contact_id, ContactTask.CHANNEL_EVENT, event_task)
 
 
 def queue_broadcast(broadcast):
@@ -200,7 +196,7 @@ def _queue_handler_task(org_id, contact_id, task_type, task):
     """
 
     contact_queue = CONTACT_QUEUE % (org_id, contact_id)
-    contact_task = _create_mailroom_task(org_id, task_type, task)
+    contact_task = _create_mailroom_task(task_type, task)
 
     r = get_redis_connection("default")
     pipe = r.pipeline()
@@ -232,7 +228,7 @@ def _queue_task(pipe, org_id, queue, task_type, task, priority):
     score = int(round(time.time() * 1000)) + priority
 
     # create our payload
-    payload = _create_mailroom_task(org_id, task_type, task)
+    payload = _create_mailroom_task(task_type, task)
 
     org_queue = QUEUE_PATTERN % (queue, org_id)
     active_queue = ACTIVE_PATTERN % queue
@@ -244,8 +240,8 @@ def _queue_task(pipe, org_id, queue, task_type, task, priority):
     pipe.zincrby(active_queue, 0, org_id)
 
 
-def _create_mailroom_task(org_id, task_type, task):
+def _create_mailroom_task(task_type, task):
     """
     Returns a mailroom format task job based on the task type and passed in task
     """
-    return {"type": task_type.value, "org_id": org_id, "task": task, "queued_on": timezone.now()}
+    return {"type": task_type.value, "task": task, "queued_on": timezone.now()}
