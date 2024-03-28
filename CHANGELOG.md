@@ -1,3 +1,7 @@
+v9.1.66 (2024-03-28)
+-------------------------
+ * Update format of tasks queued to mailroom
+
 v9.1.65 (2024-03-28)
 -------------------------
  * Update to django 5.0 and DRF 3.15.1
