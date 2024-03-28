@@ -109,7 +109,7 @@ def create_incoming(org, channel, urn, text, received_on, attachments=None):
     return msg
 
 
-def create_event(channel, urn, event_type, occurred_on, extra=None):
+def create_event(channel, urn, event_type, occurred_on, extra):
     contact, contact_urn = Contact.resolve(channel, urn)
 
     event = ChannelEvent.objects.create(
