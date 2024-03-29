@@ -410,7 +410,7 @@ class Command(BaseCommand):
                                 "display": "Plat B",
                                 "params": [{"type": "text"}],
                             },
-                            {"type": "button/quick_reply", "content": "Pas Faim", "params": [{"type": "text"}]},
+                            { "name": "button.2", "type": "button/quick_reply", "content": "Pas Faim", "params": [{"type": "text"}]},
                         ],
                     )
                     TemplateTranslation.get_or_create(

@@ -28,7 +28,6 @@ class TemplateReadSerializer(serializers.ModelSerializer):
                     "components": components,
                 }
             )
-
         return translations
 
     class Meta:
