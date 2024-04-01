@@ -87,7 +87,7 @@ def create_incoming(org, channel, urn, text, received_on, attachments=None):
     if existing:
         return existing
 
-    msg = Msg.objects.create(
+    return Msg.objects.create(
         org=org,
         channel=channel,
         contact=contact,
@@ -102,11 +102,6 @@ def create_incoming(org, channel, urn, text, received_on, attachments=None):
         status=Msg.STATUS_PENDING,
         msg_type=Msg.TYPE_TEXT,
     )
-
-    # pass off handling of the message after we commit
-    on_transaction_commit(lambda: msg.handle())
-
-    return msg
 
 
 def create_event(channel, urn, event_type, occurred_on, extra):

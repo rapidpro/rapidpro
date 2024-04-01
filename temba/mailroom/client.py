@@ -251,7 +251,12 @@ class MailroomClient:
         response = self._request("msg/broadcast_preview", payload, encode_json=True)
         return BroadcastPreview(query=response["query"], total=response["total"])
 
-    def msg_resend(self, org_id, msg_ids):
+    def msg_handle(self, org_id: int, msg_ids: list):
+        payload = {"org_id": org_id, "msg_ids": msg_ids}
+
+        return self._request("msg/handle", payload)
+
+    def msg_resend(self, org_id: int, msg_ids: list):
         payload = {"org_id": org_id, "msg_ids": msg_ids}
 
         return self._request("msg/resend", payload)

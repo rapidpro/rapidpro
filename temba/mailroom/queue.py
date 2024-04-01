@@ -24,7 +24,6 @@ class HandlerTask(Enum):
 
 
 class ContactTask(Enum):
-    MSG_EVENT = "msg_event"
     CHANNEL_EVENT = "channel_event"
 
 
@@ -36,26 +35,6 @@ class BatchTask(Enum):
     SCHEDULE_CAMPAIGN_EVENT = "schedule_campaign_event"
     IMPORT_CONTACT_BATCH = "import_contact_batch"
     INTERRUPT_CHANNEL = "interrupt_channel"
-
-
-def queue_msg_handling(msg):
-    """
-    Queues the passed in message for handling in mailroom
-    """
-
-    msg_task = {
-        "channel_id": msg.channel.id,
-        "msg_id": msg.id,
-        "msg_uuid": str(msg.uuid),
-        "msg_external_id": msg.external_id,
-        "urn": str(msg.contact_urn),
-        "urn_id": msg.contact_urn_id,
-        "text": msg.text,
-        "attachments": msg.attachments,
-        "new_contact": False,  # only used by courier
-    }
-
-    _queue_handler_task(msg.org_id, msg.contact_id, ContactTask.MSG_EVENT, msg_task)
 
 
 def queue_mo_miss_event(event):

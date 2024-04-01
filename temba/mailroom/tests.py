@@ -400,6 +400,19 @@ class MailroomClientTest(TembaTest):
         )
 
     @patch("requests.post")
+    def test_msg_handle(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"msg_ids": [12345]}')
+        response = get_client().msg_handle(org_id=self.org.id, msg_ids=[12345, 67890])
+
+        self.assertEqual({"msg_ids": [12345]}, response)
+
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/msg/handle",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "msg_ids": [12345, 67890]},
+        )
+
+    @patch("requests.post")
     def test_msg_resend(self, mock_post):
         mock_post.return_value = MockResponse(200, '{"msg_ids": [12345]}')
         response = get_client().msg_resend(org_id=self.org.id, msg_ids=[12345, 67890])
@@ -558,33 +571,6 @@ class MailroomClientTest(TembaTest):
 
 
 class MailroomQueueTest(TembaTest):
-    @mock_mailroom(queue=False)
-    def test_queue_msg_handling(self, mr_mocks):
-        with override_settings(TESTING=False):
-            msg = sync.create_incoming(self.org, self.channel, "tel:12065551212", "Hello World", timezone.now())
-
-        self.assertEqual(msg.msg_type, Msg.TYPE_TEXT)
-        self.assert_org_queued(self.org, "handler")
-        self.assert_contact_queued(msg.contact)
-        self.assert_queued_handler_task(
-            msg.contact,
-            {
-                "type": "msg_event",
-                "task": {
-                    "channel_id": self.channel.id,
-                    "msg_id": msg.id,
-                    "msg_uuid": str(msg.uuid),
-                    "msg_external_id": None,
-                    "urn": "tel:+12065551212",
-                    "urn_id": msg.contact.urns.get().id,
-                    "text": "Hello World",
-                    "attachments": None,
-                    "new_contact": False,
-                },
-                "queued_on": matchers.ISODate(),
-            },
-        )
-
     @mock_mailroom(queue=False)
     def test_queue_mo_miss_event(self, mr_mocks):
         event = sync.create_event(self.channel, "tel:12065551212", ChannelEvent.TYPE_CALL_OUT, timezone.now(), extra={})

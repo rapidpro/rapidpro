@@ -10,9 +10,10 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
+from temba import mailroom
 from temba.contacts.models import URN
 from temba.msgs.models import Msg
-from temba.utils import analytics, json
+from temba.utils import analytics, json, on_transaction_commit
 
 from ..models import Channel, SyncEvent
 from .claim import UnsupportedAndroidChannelError, get_or_create_channel
@@ -107,6 +108,7 @@ def sync(request, channel_id):
         return JsonResponse({"error_id": 4, "error": "Can't sync unclaimed channel", "cmds": []}, status=401)
 
     unique_calls = set()
+    msgs_to_handle = []
 
     for cmd in cmds:
         handled = False
@@ -140,6 +142,7 @@ def sync(request, channel_id):
 
                     if "msg" in cmd:
                         msg = create_incoming(channel.org, channel, urn, cmd["msg"], date)
+                        msgs_to_handle.append(msg)
                         extra = dict(msg_id=msg.id)
                 except ValueError:
                     pass
@@ -206,6 +209,9 @@ def sync(request, channel_id):
                 ack["extra"] = extra
 
             commands.append(ack)
+
+    if msgs_to_handle:
+        on_transaction_commit(lambda: mailroom.get_client(channel.org_id, [m.id for m in msgs_to_handle]))
 
     outgoing_cmds = get_channel_commands(channel, commands, sync_event)
     result = dict(cmds=outgoing_cmds)
