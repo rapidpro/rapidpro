@@ -411,8 +411,8 @@ class Command(BaseCommand):
                                 "params": [{"type": "text"}],
                             },
                             {
-                                "name": "button.2",
                                 "type": "button/quick_reply",
+                                "name": "button.2",
                                 "content": "Pas Faim",
                                 "params": [{"type": "text"}],
                             },
