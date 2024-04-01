@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone as tzone
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -8,13 +8,12 @@ from django.test import override_settings
 from django.utils import timezone
 
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-from temba.channels.android import sync
 from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowRun, FlowStart
 from temba.ivr.models import Call
 from temba.mailroom.client import ContactSpec, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
-from temba.tests import MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import TicketEvent
 from temba.utils import json
@@ -30,6 +29,58 @@ class MailroomClientTest(TembaTest):
             version = get_client().version()
 
         self.assertEqual("5.3.4", version)
+
+    @patch("requests.post")
+    def test_android_event(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"id": 12345}')
+        response = get_client().android_event(
+            org_id=self.org.id,
+            channel_id=12,
+            urn="tel:+1234567890",
+            event_type="mo_miss",
+            extra={"duration": 45},
+            occurred_on=datetime(2024, 4, 1, 16, 28, 30, 0, tzone.utc),
+        )
+
+        self.assertEqual({"id": 12345}, response)
+
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/android/event",
+            headers={"User-Agent": "Temba"},
+            json={
+                "org_id": self.org.id,
+                "channel_id": 12,
+                "urn": "tel:+1234567890",
+                "event_type": "mo_miss",
+                "extra": {"duration": 45},
+                "occurred_on": "2024-04-01T16:28:30+00:00",
+            },
+        )
+
+    @patch("requests.post")
+    def test_android_message(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"id": 12345}')
+        response = get_client().android_message(
+            org_id=self.org.id,
+            channel_id=12,
+            urn="tel:+1234567890",
+            text="hello",
+            received_on=datetime(2024, 4, 1, 16, 28, 30, 0, tzone.utc),
+        )
+
+        self.assertEqual({"id": 12345}, response)
+
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/android/message",
+            headers={"User-Agent": "Temba"},
+            json={
+                "org_id": self.org.id,
+                "channel_id": 12,
+                "urn": "tel:+1234567890",
+                "text": "hello",
+                "received_on": "2024-04-01T16:28:30+00:00",
+            },
+        )
 
     @patch("requests.post")
     def test_contact_create(self, mock_post):
@@ -190,20 +241,6 @@ class MailroomClientTest(TembaTest):
                     ],
                 },
             )
-
-    @patch("requests.post")
-    def test_contact_resolve(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234}, "urn": {"id": 2345}}')
-
-        # try with empty contact spec
-        response = get_client().contact_resolve(self.org.id, 345, "tel:+1234567890")
-
-        self.assertEqual({"contact": {"id": 1234}, "urn": {"id": 2345}}, response)
-        mock_post.assert_called_once_with(
-            "http://localhost:8090/mr/contact/resolve",
-            headers={"User-Agent": "Temba"},
-            json={"org_id": self.org.id, "channel_id": 345, "urn": "tel:+1234567890"},
-        )
 
     @patch("requests.post")
     def test_contact_search(self, mock_post):
@@ -571,40 +608,6 @@ class MailroomClientTest(TembaTest):
 
 
 class MailroomQueueTest(TembaTest):
-    @mock_mailroom(queue=False)
-    def test_queue_mo_miss_event(self, mr_mocks):
-        event = sync.create_event(self.channel, "tel:12065551212", ChannelEvent.TYPE_CALL_OUT, timezone.now(), extra={})
-
-        r = get_redis_connection()
-
-        # noop, this event isn't handled by mailroom
-        self.assertEqual(0, r.zcard("handler:active"))
-        self.assertEqual(0, r.zcard(f"handler:{self.org.id}"))
-        self.assertEqual(0, r.llen(f"c:{self.org.id}:{event.contact_id}"))
-
-        event = sync.create_event(
-            self.channel, "tel:12065551515", ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), extra={}
-        )
-
-        self.assert_org_queued(self.org, "handler")
-        self.assert_contact_queued(event.contact)
-        self.assert_queued_handler_task(
-            event.contact,
-            {
-                "type": "channel_event",
-                "task": {
-                    "event_id": event.id,
-                    "event_type": "mo_miss",
-                    "channel_id": self.channel.id,
-                    "urn_id": event.contact.urns.get().id,
-                    "extra": {},
-                    "new_contact": False,
-                    "created_on": matchers.ISODate(),
-                },
-                "queued_on": matchers.ISODate(),
-            },
-        )
-
     def test_queue_broadcast(self):
         jim = self.create_contact("Jim", phone="+12065551212")
         bobs = self.create_group("Bobs", [self.create_contact("Bob", phone="+12065551313")])
@@ -772,31 +775,6 @@ class MailroomQueueTest(TembaTest):
         queued_org = json.loads(r.zrange(f"{queue}:active", 0, 1)[0])
 
         self.assertEqual(queued_org, org.id)
-
-    def assert_contact_queued(self, contact):
-        r = get_redis_connection()
-
-        # check we have one contact handle event queued for its org
-        self.assertEqual(r.zcard(f"handler:{contact.org.id}"), 1)
-
-        # load and check that task
-        task = json.loads(r.zrange(f"handler:{contact.org.id}", 0, 1)[0])
-
-        self.assertEqual(
-            task,
-            {"type": "handle_contact_event", "task": {"contact_id": contact.id}, "queued_on": matchers.ISODate()},
-        )
-
-    def assert_queued_handler_task(self, contact, expected_task):
-        r = get_redis_connection()
-
-        # check we have one task in the contact's queue
-        self.assertEqual(r.llen(f"c:{contact.org.id}:{contact.id}"), 1)
-
-        # load and check that task
-        actual_task = json.loads(r.rpop(f"c:{contact.org.id}:{contact.id}"))
-
-        self.assertEqual(actual_task, expected_task)
 
     def assert_queued_batch_task(self, org, expected_task):
         r = get_redis_connection()

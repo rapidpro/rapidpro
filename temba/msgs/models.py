@@ -584,7 +584,7 @@ class Msg(models.Model):
         Queues this message to be handled. Only used for manual retries of failed handling.
         """
 
-        mailroom.get_client().msg_handle(self.org.id, [self.id])
+        mailroom.get_client().msg_handle(self.org_id, [self.id])
 
     def archive(self):
         """

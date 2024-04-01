@@ -3,15 +3,10 @@ from datetime import datetime, timezone as tzone
 from pyfcm import FCMNotification
 
 from django.conf import settings
-from django.utils import timezone
 
-from temba import mailroom
-from temba.contacts.models import Contact
 from temba.msgs.models import Msg
-from temba.utils import on_transaction_commit
-from temba.utils.text import clean_string
 
-from ..models import Channel, ChannelEvent
+from ..models import Channel
 
 
 def get_sync_commands(msgs):
@@ -71,57 +66,6 @@ def sync_channel_fcm(registration_id, channel=None):  # pragma: no cover
             # this fcm id is invalid now, clear it out
             channel.config.pop(Channel.CONFIG_FCM_ID, None)
             channel.save(update_fields=["config"])
-
-
-def create_incoming(org, channel, urn, text, received_on, attachments=None):
-    contact, contact_urn = Contact.resolve(channel, urn)
-
-    # we limit our text message length and remove any invalid chars
-    if text:
-        text = clean_string(text[: Msg.MAX_TEXT_LEN])
-
-    now = timezone.now()
-
-    # don't create duplicate messages
-    existing = Msg.objects.filter(text=text, sent_on=received_on, contact=contact, direction="I").first()
-    if existing:
-        return existing
-
-    return Msg.objects.create(
-        org=org,
-        channel=channel,
-        contact=contact,
-        contact_urn=contact_urn,
-        text=text,
-        sent_on=received_on,
-        created_on=now,
-        modified_on=now,
-        queued_on=now,
-        direction=Msg.DIRECTION_IN,
-        attachments=attachments,
-        status=Msg.STATUS_PENDING,
-        msg_type=Msg.TYPE_TEXT,
-    )
-
-
-def create_event(channel, urn, event_type, occurred_on, extra):
-    contact, contact_urn = Contact.resolve(channel, urn)
-
-    event = ChannelEvent.objects.create(
-        org=channel.org,
-        channel=channel,
-        contact=contact,
-        contact_urn=contact_urn,
-        occurred_on=occurred_on,
-        event_type=event_type,
-        extra=extra,
-    )
-
-    if event_type == ChannelEvent.TYPE_CALL_IN_MISSED:
-        # pass off handling of the message to mailroom after we commit
-        on_transaction_commit(lambda: mailroom.queue_mo_miss_event(event))
-
-    return event
 
 
 def update_message(msg, cmd):

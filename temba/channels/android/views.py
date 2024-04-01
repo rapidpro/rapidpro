@@ -4,6 +4,7 @@ import hmac
 import time
 from datetime import datetime, timedelta, timezone as tzone
 
+from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
@@ -13,11 +14,11 @@ from django.views.decorators.csrf import csrf_exempt
 from temba import mailroom
 from temba.contacts.models import URN
 from temba.msgs.models import Msg
-from temba.utils import analytics, json, on_transaction_commit
+from temba.utils import analytics, json
 
 from ..models import Channel, SyncEvent
 from .claim import UnsupportedAndroidChannelError, get_or_create_channel
-from .sync import create_event, create_incoming, get_channel_commands, update_message
+from .sync import get_channel_commands, update_message
 
 
 @csrf_exempt
@@ -44,6 +45,7 @@ def register(request):
 
 
 @csrf_exempt
+@transaction.non_atomic_requests
 def sync(request, channel_id):
     start = time.time()
 
@@ -108,7 +110,6 @@ def sync(request, channel_id):
         return JsonResponse({"error_id": 4, "error": "Can't sync unclaimed channel", "cmds": []}, status=401)
 
     unique_calls = set()
-    msgs_to_handle = []
 
     for cmd in cmds:
         handled = False
@@ -141,9 +142,10 @@ def sync(request, channel_id):
                     urn = URN.normalize(URN.from_tel(tel), channel.country.code)
 
                     if "msg" in cmd:
-                        msg = create_incoming(channel.org, channel, urn, cmd["msg"], date)
-                        msgs_to_handle.append(msg)
-                        extra = dict(msg_id=msg.id)
+                        msg_id = mailroom.get_client().android_message(
+                            channel.org_id, channel.id, urn, cmd["msg"], received_on=date
+                        )
+                        extra = dict(msg_id=msg_id)
                 except ValueError:
                     pass
 
@@ -164,7 +166,9 @@ def sync(request, channel_id):
                 if cmd["phone"] and call_tuple not in unique_calls:
                     urn = URN.from_tel(cmd["phone"])
                     try:
-                        create_event(channel, urn, cmd["type"], date, extra={"duration": duration})
+                        mailroom.get_client().android_event(
+                            channel.org_id, channel.id, urn, cmd["type"], extra={"duration": duration}, occurred_on=date
+                        )
                     except ValueError:
                         # in some cases Android passes us invalid URNs, in those cases just ignore them
                         pass
@@ -209,9 +213,6 @@ def sync(request, channel_id):
                 ack["extra"] = extra
 
             commands.append(ack)
-
-    if msgs_to_handle:
-        on_transaction_commit(lambda: mailroom.get_client(channel.org_id, [m.id for m in msgs_to_handle]))
 
     outgoing_cmds = get_channel_commands(channel, commands, sync_event)
     result = dict(cmds=outgoing_cmds)
