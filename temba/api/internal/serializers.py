@@ -18,14 +18,13 @@ class TemplateReadSerializer(serializers.ModelSerializer):
     def get_translations(self, obj):
         translations = []
         for trans in obj.translations.all():
-            components = trans.components if self.context["comps_as_list"] else {c["name"]: c for c in trans.components}
             translations.append(
                 {
                     "channel": {"uuid": str(trans.channel.uuid), "name": trans.channel.name},
                     "namespace": trans.namespace,
                     "locale": trans.locale,
                     "status": trans.get_status_display(),
-                    "components": components,
+                    "components": trans.components,
                 }
             )
         return translations
