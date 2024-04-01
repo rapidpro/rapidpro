@@ -1,3 +1,8 @@
+v9.1.67 (2024-04-01)
+-------------------------
+ * Update template editor to work with comps as list
+ * Add task to trim old channel events
+
 v9.1.66 (2024-03-28)
 -------------------------
  * Update format of tasks queued to mailroom
