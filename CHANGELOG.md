@@ -1,3 +1,10 @@
+v9.1.69 (2024-04-02)
+-------------------------
+ * Remove no longer used template tag as_icon
+ * Fix export blocking due to multiple users exporting at same time
+ * Switch formax to expand vertically
+ * Add ChannelEvent.status field and prevent creating channel events of unknown types from Android syncs
+
 v9.1.68 (2024-04-02)
 -------------------------
  * Use mailroom endpoints to create messages and events during Android syncing
