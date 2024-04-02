@@ -1,8 +1,6 @@
 from django import template
 from django.utils.safestring import mark_safe
 
-from temba.channels.models import ChannelEvent
-
 register = template.Library()
 
 PLAYABLE_CONTENT_TYPES = {
@@ -17,43 +15,6 @@ PLAYABLE_CONTENT_TYPES = {
     "video/mp4",
     "video/webm",
 }
-
-
-@register.filter
-def as_icon(contact_event):
-    icon = "icon-bubble-dots-2 green"
-    direction = getattr(contact_event, "direction", "O")
-    msg_type = getattr(contact_event, "msg_type", "T")
-
-    if hasattr(contact_event, "status"):
-        status = contact_event.status
-    elif isinstance(contact_event, ChannelEvent):
-        status = contact_event.event_type
-    else:
-        status = None
-
-    if msg_type == "V":
-        icon = "icon-phone"
-    elif direction == "I":
-        icon = "icon-bubble-user primary"
-    elif status in ["P", "Q"]:
-        icon = "icon-bubble-dots-2 green"
-    elif status == "D":
-        icon = "icon-bubble-check green"
-    elif status in ["W", "S"]:
-        icon = "icon-bubble-right green"
-    elif status in ["E", "F"]:
-        icon = "icon-bubble-notification red"
-    elif status == ChannelEvent.TYPE_CALL_IN:
-        icon = "icon-call-incoming green"
-    elif status == ChannelEvent.TYPE_CALL_IN_MISSED:
-        icon = "icon-call-incoming red"
-    elif status == ChannelEvent.TYPE_CALL_OUT:
-        icon = "icon-call-outgoing green"
-    elif status == ChannelEvent.TYPE_CALL_OUT_MISSED:
-        icon = "icon-call-outgoing red"
-
-    return mark_safe('<span class="glyph %s"></span>' % icon)
 
 
 @register.tag(name="render")

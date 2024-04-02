@@ -24,7 +24,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
-from temba.channels.models import Channel, ChannelEvent
+from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Export, ExportType, Org, OrgRole
@@ -1414,8 +1414,8 @@ class ContactURN(models.Model):
         return existing
 
     def release(self):
-        for event in ChannelEvent.objects.filter(contact_urn=self):
-            event.release()
+        delete_in_batches(self.channel_events.all())
+
         self.delete()
 
     def ensure_number_normalization(self, country_code):

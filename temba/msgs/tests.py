@@ -12,8 +12,8 @@ from django.utils import timezone
 
 from temba import mailroom
 from temba.archives.models import Archive
-from temba.channels.models import ChannelCount, ChannelEvent, ChannelLog
-from temba.contacts.models import URN, ContactURN
+from temba.channels.models import ChannelCount, ChannelLog
+from temba.contacts.models import ContactURN
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.msgs.models import (
@@ -40,7 +40,6 @@ from temba.utils.compose import compose_deserialize_attachments, compose_seriali
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .tasks import fail_old_messages, squash_msg_counts
-from .templatetags.sms import as_icon
 
 
 class AttachmentTest(TembaTest):
@@ -2927,48 +2926,6 @@ class TagsTest(TembaTest):
 
     def assertHasClass(self, text, clazz):
         self.assertTrue(text.find(clazz) >= 0)
-
-    def test_as_icon(self):
-        msg = self.create_outgoing_msg(self.joe, "How is it going?", status=Msg.STATUS_QUEUED)
-        now = timezone.now()
-        two_hours_ago = now - timedelta(hours=2)
-
-        self.assertHasClass(as_icon(msg), "icon-bubble-dots-2 green")
-        msg.created_on = two_hours_ago
-        self.assertHasClass(as_icon(msg), "icon-bubble-dots-2 green")
-        msg.status = "S"
-        self.assertHasClass(as_icon(msg), "icon-bubble-right green")
-        msg.status = "D"
-        self.assertHasClass(as_icon(msg), "icon-bubble-check green")
-        msg.status = "E"
-        self.assertHasClass(as_icon(msg), "icon-bubble-notification red")
-        msg.direction = "I"
-        self.assertHasClass(as_icon(msg), "icon-bubble-user primary")
-        msg.msg_type = "V"
-        self.assertHasClass(as_icon(msg), "icon-phone")
-
-        # default cause is pending sent
-        self.assertHasClass(as_icon(None), "icon-bubble-dots-2 green")
-
-        in_call = self.create_channel_event(
-            self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN
-        )
-        self.assertHasClass(as_icon(in_call), "icon-call-incoming green")
-
-        in_miss = self.create_channel_event(
-            self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED
-        )
-        self.assertHasClass(as_icon(in_miss), "icon-call-incoming red")
-
-        out_call = self.create_channel_event(
-            self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT
-        )
-        self.assertHasClass(as_icon(out_call), "icon-call-outgoing green")
-
-        out_miss = self.create_channel_event(
-            self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED
-        )
-        self.assertHasClass(as_icon(out_miss), "icon-call-outgoing red")
 
     def test_render(self):
         template_src = "{% load sms %}{% render as foo %}123<a>{{ bar }}{% endrender %}-{{ foo }}-"
