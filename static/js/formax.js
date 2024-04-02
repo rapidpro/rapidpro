@@ -2,12 +2,10 @@
     var _bindToggle, _initializeForm, _submitFormax, hideSection, showSection;
   
     showSection = function(section) {
-      var ie;
-      ie = section.parents("html").hasClass("ie");
       if (section.data("readonly")) {
         return;
       }
-      if (ie || section.data("action") === 'fixed') {
+      if (section.data("action") === 'fixed') {
         section.find(".formax-form").show();
         return section.find(".formax-icon").css({
           "font-size": "80px",
@@ -25,18 +23,11 @@
      */
   
     hideSection = function(section) {
-      var ie;
       if (section.data("action") === 'fixed') {
         return;
       }
-      ie = section.parents("html").hasClass("ie");
-      if (ie) {
-        section.find(".formax-summary").show();
-        return section.find(".formax-form").hide();
-      } else {
-        section[0].classList.remove("open");
-        return section.find(".formax-summary").show();
-      }
+      section[0].classList.remove("open");
+      return true;
     };
   
   

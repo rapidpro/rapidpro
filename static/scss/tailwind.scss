@@ -728,7 +728,7 @@ code {
 
 .formax {
   .formax-section {
-    transition: all 200ms ease-in-out;
+    
     margin-left: 0px;
     margin-right: 0px;
 
@@ -767,7 +767,6 @@ code {
 
     .formax-icon {
       @apply bg-gray-200 text-gray-600 cursor-pointer;
-      transition: all 200ms ease-in-out;
       font-size: 30px;
       flex-basis: 90px;
       flex-grow: 0;
@@ -787,7 +786,13 @@ code {
     }
 
     .formax-container {
+      display: grid;
+      grid-template-rows: min-content 0fr;
+      transition: grid-template-rows .5s;
+      transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
       .formax-summary {
+        overflow: hidden;
         @apply p-8 cursor-pointer;
 
         b {
@@ -796,12 +801,19 @@ code {
       }
 
       .formax-form {
-        @apply hidden p-8;
-
+        overflow: hidden;
         .smartmin-form-buttons {
           @apply hidden;
         }
       }
+
+      .formax-form > div {
+        @apply p-8;
+      }
+    }
+
+    &.open .formax-container {
+      grid-template-rows: min-content 1fr;
     }
 
 
@@ -821,8 +833,9 @@ code {
         }
       }
     }
-
+    
     &.open {
+      flex-direction: column;
       margin-left: -30px;
       margin-right: -30px;
       @apply shadow-lg;
@@ -831,21 +844,16 @@ code {
         @apply shadow-lg;
       }
 
-      .formax-summary {
-        @apply hidden;
-      }
-
       .formax-icon {
-        font-size: 80px;
-        flex-basis: 160px;
-        padding-top: 10px;
-
+        padding:.5em 1em !important;
+        flex-basis:0 !important;
+    
         .margin-wrapper {
-          margin-top: 0px;
+          margin: 0px !important;
         }
 
         .i-container {
-          width: 80px;
+
         }
 
         @apply bg-primary text-white p-12;
@@ -855,8 +863,9 @@ code {
         }
       }
 
-      .formax-form {
-        @apply block;
+      .formax-summary {
+        height: 0px;
+        padding:0px;
       }
     }
   }
