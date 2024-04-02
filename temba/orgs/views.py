@@ -2685,7 +2685,7 @@ class OrgCRUDL(SmartCRUDL):
         form_class = CountryForm
 
     class Languages(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class Form(forms.ModelForm):
+        class LanguageForm(forms.ModelForm):
             primary_lang = ArbitraryJsonChoiceField(
                 required=True,
                 label=_("Default Flow Language"),
@@ -2729,8 +2729,9 @@ class OrgCRUDL(SmartCRUDL):
                 model = Org
                 fields = ("primary_lang", "other_langs", "input_collation")
 
+        success_url = "@orgs.org_languages"
         success_message = ""
-        form_class = Form
+        form_class = LanguageForm
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -2761,7 +2762,9 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def get(self, request, *args, **kwargs):
-            if self.request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest":
+            if self.request.META.get("HTTP_X_REQUESTED_WITH") == "XMLHttpRequest" and not self.request.META.get(
+                "HTTP_X_FORMAX", False
+            ):
                 initial = self.request.GET.get("initial", "").split(",")
                 matches = []
 
