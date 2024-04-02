@@ -836,7 +836,6 @@ class ChannelEvent(models.Model):
     An event other than a message that occurs between a channel and a contact. Can be used to trigger flows etc.
     """
 
-    TYPE_UNKNOWN = "unknown"
     TYPE_CALL_OUT = "mt_call"
     TYPE_CALL_OUT_MISSED = "mt_miss"
     TYPE_CALL_IN = "mo_call"
@@ -850,7 +849,6 @@ class ChannelEvent(models.Model):
 
     # single char flag, human readable name, API readable name
     TYPE_CONFIG = (
-        (TYPE_UNKNOWN, _("Unknown Call Type"), "unknown"),
         (TYPE_CALL_OUT, _("Outgoing Call"), "call-out"),
         (TYPE_CALL_OUT_MISSED, _("Missed Outgoing Call"), "call-out-missed"),
         (TYPE_CALL_IN, _("Incoming Call"), "call-in"),
@@ -865,11 +863,17 @@ class ChannelEvent(models.Model):
 
     TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
 
+    ALL_TYPES = {t[0] for t in TYPE_CONFIG}
     CALL_TYPES = {TYPE_CALL_OUT, TYPE_CALL_OUT_MISSED, TYPE_CALL_IN, TYPE_CALL_IN_MISSED}
+
+    STATUS_PENDING = "P"
+    STATUS_HANDLED = "H"
+    STATUS_CHOICES = ((STATUS_PENDING, "Pending"), (STATUS_HANDLED, "Handled"))
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT)
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT)
     event_type = models.CharField(max_length=16, choices=TYPE_CHOICES)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, null=True)
     contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="channel_events")
     contact_urn = models.ForeignKey(
         "contacts.ContactURN", on_delete=models.PROTECT, null=True, related_name="channel_events"
@@ -881,8 +885,9 @@ class ChannelEvent(models.Model):
 
     log_uuids = ArrayField(models.UUIDField(), null=True)
 
-    def release(self):
-        self.delete()
+    @classmethod
+    def is_valid_type(cls, event_type: str) -> bool:
+        return event_type in cls.ALL_TYPES
 
 
 class ChannelLog(models.Model):
