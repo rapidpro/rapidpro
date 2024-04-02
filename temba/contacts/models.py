@@ -650,20 +650,6 @@ class Contact(LegacyUUIDMixin, SmartModel):
         return Contact.objects.get(id=response["contact"]["id"])
 
     @classmethod
-    def resolve(cls, channel, urn):
-        """
-        Resolves a contact and URN from a channel interaction. Only used for relayer endpoints.
-        """
-        try:
-            response = mailroom.get_client().contact_resolve(channel.org_id, channel.id, urn)
-        except mailroom.MailroomException as e:
-            raise ValueError(e.response.get("error"))
-
-        contact = Contact.objects.get(id=response["contact"]["id"])
-        contact_urn = ContactURN.objects.get(id=response["urn"]["id"])
-        return contact, contact_urn
-
-    @classmethod
     def from_urn(cls, org, urn_as_string, country=None):
         """
         Looks up a contact by a URN string (which will be normalized)

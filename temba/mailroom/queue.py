@@ -13,20 +13,6 @@ DEFAULT_PRIORITY = 0
 QUEUE_PATTERN = "%s:%d"
 ACTIVE_PATTERN = "%s:active"
 
-# task queues
-CONTACT_QUEUE = "c:%d:%d"
-BATCH_QUEUE = "batch"
-HANDLER_QUEUE = "handler"
-
-
-class HandlerTask(Enum):
-    CONTACT_EVENT = "handle_contact_event"
-
-
-class ContactTask(Enum):
-    MSG_EVENT = "msg_event"
-    CHANNEL_EVENT = "channel_event"
-
 
 class BatchTask(Enum):
     START_FLOW = "start_flow"
@@ -36,44 +22,6 @@ class BatchTask(Enum):
     SCHEDULE_CAMPAIGN_EVENT = "schedule_campaign_event"
     IMPORT_CONTACT_BATCH = "import_contact_batch"
     INTERRUPT_CHANNEL = "interrupt_channel"
-
-
-def queue_msg_handling(msg):
-    """
-    Queues the passed in message for handling in mailroom
-    """
-
-    msg_task = {
-        "channel_id": msg.channel.id,
-        "msg_id": msg.id,
-        "msg_uuid": str(msg.uuid),
-        "msg_external_id": msg.external_id,
-        "urn": str(msg.contact_urn),
-        "urn_id": msg.contact_urn_id,
-        "text": msg.text,
-        "attachments": msg.attachments,
-        "new_contact": False,  # only used by courier
-    }
-
-    _queue_handler_task(msg.org_id, msg.contact_id, ContactTask.MSG_EVENT, msg_task)
-
-
-def queue_mo_miss_event(event):
-    """
-    Queues the passed in channel event to mailroom for handling
-    """
-
-    event_task = {
-        "event_id": event.id,
-        "event_type": "mo_miss",
-        "channel_id": event.channel_id,
-        "urn_id": event.contact_urn_id,
-        "extra": event.extra,
-        "created_on": event.created_on,
-        "new_contact": False,  # only used by courier
-    }
-
-    _queue_handler_task(event.org_id, event.contact_id, ContactTask.CHANNEL_EVENT, event_task)
 
 
 def queue_broadcast(broadcast):
@@ -186,27 +134,7 @@ def _queue_batch_task(org_id, task_type, task, priority):
 
     r = get_redis_connection("default")
     pipe = r.pipeline()
-    _queue_task(pipe, org_id, BATCH_QUEUE, task_type, task, priority)
-    pipe.execute()
-
-
-def _queue_handler_task(org_id, contact_id, task_type, task):
-    """
-    Adds the passed in task to the contact's queue for mailroom to process
-    """
-
-    contact_queue = CONTACT_QUEUE % (org_id, contact_id)
-    contact_task = _create_mailroom_task(task_type, task)
-
-    r = get_redis_connection("default")
-    pipe = r.pipeline()
-
-    # push our concrete task to the contact's queue
-    pipe.rpush(contact_queue, json.dumps(contact_task))
-
-    # then push a contact handling event to the org queue
-    event_task = {"contact_id": contact_id}
-    _queue_task(pipe, org_id, HANDLER_QUEUE, HandlerTask.CONTACT_EVENT, event_task, HIGH_PRIORITY)
+    _queue_task(pipe, org_id, "batch", task_type, task, priority)
     pipe.execute()
 
 

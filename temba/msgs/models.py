@@ -579,12 +579,12 @@ class Msg(models.Model):
     def get_logs(self) -> list:
         return ChannelLog.get_logs(self.channel, self.log_uuids or [])
 
-    def handle(self):
+    def handle(self):  # pragma: no cover
         """
-        Queues this message to be handled
+        Queues this message to be handled. Only used for manual retries of failed handling.
         """
 
-        mailroom.queue_msg_handling(self)
+        mailroom.get_client().msg_handle(self.org_id, [self.id])
 
     def archive(self):
         """

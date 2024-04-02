@@ -124,6 +124,29 @@ class MailroomClient:
     def version(self):
         return self._request("", post=False).get("version")
 
+    def android_event(self, org_id: int, channel_id: int, urn: str, event_type: str, extra: dict, occurred_on):
+        payload = {
+            "org_id": org_id,
+            "channel_id": channel_id,
+            "urn": urn,
+            "event_type": event_type,
+            "extra": extra,
+            "occurred_on": occurred_on.isoformat(),
+        }
+
+        return self._request("android/event", payload)
+
+    def android_message(self, org_id: int, channel_id: int, urn: str, text: str, received_on):
+        payload = {
+            "org_id": org_id,
+            "channel_id": channel_id,
+            "urn": urn,
+            "text": text,
+            "received_on": received_on.isoformat(),
+        }
+
+        return self._request("android/message", payload)
+
     def contact_create(self, org_id: int, user_id: int, contact: ContactSpec):
         payload = {"org_id": org_id, "user_id": user_id, "contact": asdict(contact)}
 
@@ -153,11 +176,6 @@ class MailroomClient:
         }
 
         return self._request("contact/modify", payload)
-
-    def contact_resolve(self, org_id: int, channel_id: int, urn: str):
-        payload = {"org_id": org_id, "channel_id": channel_id, "urn": urn}
-
-        return self._request("contact/resolve", payload)
 
     def contact_search(
         self, org_id: int, group_id: int, query: str, sort: str, offset=0, exclude_ids=()
@@ -251,7 +269,12 @@ class MailroomClient:
         response = self._request("msg/broadcast_preview", payload, encode_json=True)
         return BroadcastPreview(query=response["query"], total=response["total"])
 
-    def msg_resend(self, org_id, msg_ids):
+    def msg_handle(self, org_id: int, msg_ids: list):
+        payload = {"org_id": org_id, "msg_ids": msg_ids}
+
+        return self._request("msg/handle", payload)
+
+    def msg_resend(self, org_id: int, msg_ids: list):
         payload = {"org_id": org_id, "msg_ids": msg_ids}
 
         return self._request("msg/resend", payload)

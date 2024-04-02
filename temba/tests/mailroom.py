@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from temba import mailroom
 from temba.campaigns.models import CampaignEvent, EventFire
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import FlowRun, FlowSession
 from temba.locations.models import AdminBoundary
@@ -133,6 +133,51 @@ class TestClient(MailroomClient):
 
         super().__init__(settings.MAILROOM_URL, settings.MAILROOM_AUTH_TOKEN)
 
+    def android_event(self, org_id: int, channel_id: int, urn: str, event_type: str, extra: dict, occurred_on):
+        org = Org.objects.get(id=org_id)
+        channel = Channel.objects.get(id=channel_id)
+        contact, contact_urn = contact_resolve(org, urn)
+
+        event = ChannelEvent.objects.create(
+            org=channel.org,
+            channel=channel,
+            contact=contact,
+            contact_urn=contact_urn,
+            occurred_on=occurred_on,
+            event_type=event_type,
+            extra=extra,
+        )
+        return {"id": event.id}
+
+    def android_message(self, org_id: int, channel_id: int, urn: str, text: str, received_on):
+        org = Org.objects.get(id=org_id)
+        channel = Channel.objects.get(id=channel_id)
+        contact, contact_urn = contact_resolve(org, urn)
+        text = text[: Msg.MAX_TEXT_LEN]
+
+        now = timezone.now()
+
+        # don't create duplicate messages
+        existing = Msg.objects.filter(text=text, sent_on=received_on, contact=contact, direction="I").first()
+        if existing:
+            return {"id": existing.id, "duplicate": True}
+
+        msg = Msg.objects.create(
+            org=org,
+            channel=channel,
+            contact=contact,
+            contact_urn=contact_urn,
+            text=text,
+            sent_on=received_on,
+            created_on=now,
+            modified_on=now,
+            queued_on=now,
+            direction=Msg.DIRECTION_IN,
+            status=Msg.STATUS_PENDING,
+            msg_type=Msg.TYPE_TEXT,
+        )
+        return {"id": msg.id, "duplicate": False}
+
     @_client_method
     def contact_create(self, org_id: int, user_id: int, contact: ContactSpec):
         org = Org.objects.get(id=org_id)
@@ -160,30 +205,6 @@ class TestClient(MailroomClient):
         apply_modifiers(org, user, contacts, modifiers)
 
         return {str(c.id): {"contact": {}, "events": []} for c in contacts}
-
-    @_client_method
-    def contact_resolve(self, org_id: int, channel_id: int, urn: str):
-        org = Org.objects.get(id=org_id)
-        user = get_anonymous_user()
-
-        try:
-            urn = URN.normalize(urn, org.default_country_code)
-            if not URN.validate(urn, org.default_country_code):
-                raise ValueError()
-        except ValueError:
-            raise MailroomException("contact/resolve", None, {"error": "invalid URN"})
-
-        contact_urn = ContactURN.lookup(org, urn)
-        if contact_urn:
-            contact = contact_urn.contact
-        else:
-            contact = create_contact_locally(org, user, name="", language="", urns=[urn], fields={}, group_uuids=[])
-            contact_urn = ContactURN.lookup(org, urn)
-
-        return {
-            "contact": {"id": contact.id, "uuid": str(contact.uuid), "name": contact.name},
-            "urn": {"id": contact_urn.id, "identity": contact_urn.identity},
-        }
 
     @_client_method
     def contact_inspect(self, org_id: int, contact_ids: list[int]):
@@ -470,6 +491,23 @@ def apply_modifiers(org, user, contacts, modifiers: list):
             for c in contacts:
                 for g in c.get_groups():
                     g.contacts.remove(c)
+
+
+def contact_resolve(org, urn: str) -> tuple:
+    user = get_anonymous_user()
+
+    urn = URN.normalize(urn, org.default_country_code)
+    if not URN.validate(urn, org.default_country_code):
+        raise ValueError("urn isn't valid")
+
+    contact_urn = ContactURN.lookup(org, urn)
+    if contact_urn:
+        contact = contact_urn.contact
+    else:
+        contact = create_contact_locally(org, user, name="", language="", urns=[urn], fields={}, group_uuids=[])
+        contact_urn = ContactURN.lookup(org, urn)
+
+    return contact, contact_urn
 
 
 def create_contact_locally(
