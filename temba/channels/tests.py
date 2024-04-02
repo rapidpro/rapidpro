@@ -916,41 +916,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertIsNotNone(r0)
         self.assertEqual(r0["cmd"], "ack")
 
-    @mock_mailroom
-    def test_inbox_duplication(self, mr_mocks):
-        # if the connection gets interrupted but some messages succeed, we want to make sure subsequent
-        # syncs do not result in duplication of messages from the inbox
-        date = timezone.now()
-        date = int(time.mktime(date.timetuple())) * 1000
-
-        response = self.sync(
-            self.tel_channel,
-            cmds=[
-                dict(cmd="mo_sms", phone="0788383383", msg="First message", p_id="1", ts=date),
-                dict(cmd="mo_sms", phone="0788383383", msg="First message", p_id="2", ts=date),
-                dict(cmd="mo_sms", phone="0788383383", msg="A second message", p_id="3", ts=date),
-            ],
-        )
-        self.assertEqual(200, response.status_code)
-
-        responses = response.json()
-        cmds = responses["cmds"]
-
-        # check the server gave us responses for our messages
-        r0 = self.get_response(cmds, "1")
-        r1 = self.get_response(cmds, "2")
-        r2 = self.get_response(cmds, "3")
-
-        self.assertIsNotNone(r0)
-        self.assertIsNotNone(r1)
-        self.assertIsNotNone(r2)
-
-        # first two should have the same server id
-        self.assertEqual(r0["extra"], r1["extra"])
-
-        # One was a duplicate, should only have 2
-        self.assertEqual(2, Msg.objects.filter(direction="I").count())
-
     def get_response(self, responses, p_id):
         for response in responses:
             if "p_id" in response and response["p_id"] == p_id:

@@ -1,3 +1,8 @@
+v9.1.68 (2024-04-02)
+-------------------------
+ * Use mailroom endpoints to create messages and events during Android syncing
+ * Drop support for returning template components as dict
+
 v9.1.67 (2024-04-01)
 -------------------------
  * Update template editor to work with comps as list
