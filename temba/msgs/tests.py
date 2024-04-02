@@ -845,11 +845,12 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(export_url + "?l=I")
         self.assertContains(response, "already an export in progress")
 
-        # we don't given them the option to start the export but check it can't be started anyway
-        with self.assertRaises(AssertionError):
-            response = self.client.post(
-                export_url + "?l=I", {"start_date": "2022-06-28", "end_date": "2022-09-28", "export_all": 1}
-            )
+        # check we can't submit in case a user opens the form and whilst another user is starting an export
+        response = self.client.post(
+            export_url + "?l=I", {"start_date": "2022-06-28", "end_date": "2022-09-28", "export_all": 1}
+        )
+        self.assertContains(response, "already an export in progress")
+        self.assertEqual(1, Export.objects.count())
 
         # mark that one as finished so it's no longer a blocker
         blocking_export.status = Export.STATUS_COMPLETE

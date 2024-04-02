@@ -2997,7 +2997,8 @@ class BaseExportView(ModalMixin, OrgPermsMixin, SmartFormView):
         return ""
 
     def form_valid(self, form):
-        assert not self.get_blocker()
+        if self.get_blocker():
+            return self.form_invalid(form)
 
         user = self.request.user
         org = self.request.org
