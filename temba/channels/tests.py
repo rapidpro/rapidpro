@@ -799,18 +799,18 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             dict(cmd="mt_fail", msg_id=msg5.pk, ts=date),
             dict(cmd="mt_fail", msg_id=(msg6.pk - 4294967296), ts=date),  # simulate a negative integer from relayer
             # a missed call
-            dict(cmd="call", phone="0788381212", type="miss", ts=date),
+            dict(cmd="call", phone="0788381212", type="mo_miss", ts=date),
             # repeated missed calls should be skipped
-            dict(cmd="call", phone="0788381212", type="miss", ts=date),
-            dict(cmd="call", phone="0788381212", type="miss", ts=date),
+            dict(cmd="call", phone="0788381212", type="mo_miss", ts=date),
+            dict(cmd="call", phone="0788381212", type="mo_miss", ts=date),
             # incoming
-            dict(cmd="call", phone="0788381212", type="mt", dur=10, ts=date),
+            dict(cmd="call", phone="0788381212", type="mt_call", dur=10, ts=date),
             # repeated calls should be skipped
-            dict(cmd="call", phone="0788381212", type="mt", dur=10, ts=date),
+            dict(cmd="call", phone="0788381212", type="mt_call", dur=10, ts=date),
             # incoming, invalid URN
-            dict(cmd="call", phone="*", type="mt", dur=10, ts=date),
+            dict(cmd="call", phone="*", type="mt_call", dur=10, ts=date),
             # outgoing
-            dict(cmd="call", phone="+250788383383", type="mo", dur=5, ts=date),
+            dict(cmd="call", phone="+250788383383", type="mo_call", dur=5, ts=date),
             # a new incoming message
             dict(cmd="mo_sms", phone="+250788383383", msg="This is giving me trouble", p_id="1", ts=date),
             # an incoming message from an empty contact

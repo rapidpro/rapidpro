@@ -24,13 +24,13 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
-from temba.channels.models import Channel, ChannelEvent
+from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import DependencyMixin, Export, ExportType, Org, OrgRole
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import MultiSheetExporter
-from temba.utils.models import JSONField, LegacyUUIDMixin, SquashableModel, TembaModel
+from temba.utils.models import JSONField, LegacyUUIDMixin, SquashableModel, TembaModel, delete_in_batches
 from temba.utils.text import decode_stream, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
 from temba.utils.uuid import uuid4
@@ -1177,8 +1177,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
                 urn.release()
 
             # release our channel events
-            for event in self.channel_events.all():  # pragma: needs cover
-                event.release()
+            delete_in_batches(self.channel_events.all())
 
             for run in self.runs.all():
                 run.delete(interrupt=False)  # don't try interrupting sessions that are about to be deleted
@@ -1415,8 +1414,8 @@ class ContactURN(models.Model):
         return existing
 
     def release(self):
-        for event in ChannelEvent.objects.filter(contact_urn=self):
-            event.release()
+        delete_in_batches(self.channel_events.all())
+
         self.delete()
 
     def ensure_number_normalization(self, country_code):

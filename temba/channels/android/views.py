@@ -12,6 +12,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from temba import mailroom
+from temba.channels.models import ChannelEvent
 from temba.contacts.models import URN
 from temba.msgs.models import Msg
 from temba.utils import analytics, json
@@ -155,15 +156,12 @@ def sync(request, channel_id):
             elif keyword == "call":
                 call_tuple = (cmd["ts"], cmd["type"], cmd["phone"])
                 date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=tzone.utc)
-
-                duration = 0
-                if cmd["type"] != "miss":
-                    duration = cmd["dur"]
+                duration = cmd.get("dur", 0)
 
                 # Android sometimes will pass us a call from an 'unknown number', which is null
                 # ignore these events on our side as they have no purpose and break a lot of our
                 # assumptions
-                if cmd["phone"] and call_tuple not in unique_calls:
+                if cmd["phone"] and call_tuple not in unique_calls and ChannelEvent.is_valid_type(cmd["type"]):
                     urn = URN.from_tel(cmd["phone"])
                     try:
                         mailroom.get_client().android_event(
