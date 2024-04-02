@@ -5485,29 +5485,6 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
 
 
 class AssetServerTest(TembaTest):
-    def test_environment(self):
-        self.login(self.admin)
-
-        date_formats = {"D": "DD-MM-YYYY", "M": "MM-DD-YYYY", "Y": "YYYY-MM-DD"}
-
-        for org_date_format, date_format in date_formats.items():
-            self.org.date_format = org_date_format
-            self.org.save()
-
-            response = self.client.get("/flow/assets/%d/1234/environment/" % self.org.id)
-            self.assertEqual(
-                response.json(),
-                {
-                    "date_format": date_format,
-                    "time_format": "tt:mm",
-                    "timezone": "Africa/Kigali",
-                    "allowed_languages": ["eng", "kin"],
-                    "default_country": "RW",
-                    "redaction_policy": "none",
-                    "input_collation": "default",
-                },
-            )
-
     def test_languages(self):
         self.login(self.admin)
         response = self.client.get("/flow/assets/%d/1234/language/" % self.org.id)

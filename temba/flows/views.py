@@ -1720,12 +1720,12 @@ class FlowCRUDL(SmartCRUDL):
 
     class Assets(OrgPermsMixin, SmartTemplateView):
         """
-        Provides environment and languages to the new editor
+        TODO update editor to use API endpoint instead of this
         """
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return rf"^{path}/{action}/(?P<org>\d+)/(?P<fingerprint>[\w-]+)/(?P<type>environment|language)/((?P<uuid>[a-z0-9-]{{36}})/)?$"
+            return rf"^{path}/{action}/(?P<org>\d+)/(?P<fingerprint>[\w-]+)/(?P<type>language)/((?P<uuid>[a-z0-9-]{{36}})/)?$"
 
         def derive_org(self):
             if not hasattr(self, "org"):
@@ -1734,13 +1734,9 @@ class FlowCRUDL(SmartCRUDL):
 
         def get(self, *args, **kwargs):
             org = self.derive_org()
-            asset_type_name = kwargs["type"]
 
-            if asset_type_name == "environment":
-                return JsonResponse(org.as_environment_def())
-            else:
-                results = [{"iso": code, "name": languages.get_name(code)} for code in org.flow_languages]
-                return JsonResponse({"results": sorted(results, key=lambda lang: lang["name"])})
+            results = [{"iso": code, "name": languages.get_name(code)} for code in org.flow_languages]
+            return JsonResponse({"results": sorted(results, key=lambda lang: lang["name"])})
 
 
 # this is just for adhoc testing of the preprocess url
