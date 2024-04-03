@@ -532,15 +532,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         else:
             return _("Android Phone")
 
-    def get_channel_type_display(self):
-        return self.type.name
-
-    def get_channel_type_name(self):
-        if self.is_android():
-            return _("Android Phone")
-        else:
-            return _("%s Channel" % self.get_channel_type_display())
-
     def get_address_display(self, e164=False):
         from temba.contacts.models import URN
 

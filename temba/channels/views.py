@@ -735,7 +735,7 @@ class ChannelCRUDL(SmartCRUDL):
         submit_button_name = _("Save Changes")
 
         def derive_title(self):
-            return _("%s Channel") % self.object.get_channel_type_display()
+            return _("%s Channel") % self.object.type.name
 
         def derive_exclude(self):
             return [] if self.request.user.is_staff else ["log_policy"]
