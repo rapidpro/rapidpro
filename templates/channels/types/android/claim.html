@@ -34,7 +34,7 @@
     {% if relayer_app %}
       <div class="release-header">
         {% trans "Version" %} {{ relayer_app.version }} {% trans "was released on" %}
-        {% format_datetime relayer_app.created_on %}
+        {{ relayer_app.created_on|day }}
       </div>
       {% if relayer_app.description %}<div class="release-description">{{ relayer_app.markdown_description }}</div>{% endif %}
     {% endif %}

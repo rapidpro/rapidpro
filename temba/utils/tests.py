@@ -11,18 +11,13 @@ from django_redis import get_redis_connection
 
 from django import forms
 from django.forms import ValidationError
-from django.template import Context, Template
 from django.test import TestCase, override_settings
 from django.urls import reverse
-from django.utils import timezone, translation
+from django.utils import timezone
 
-from temba.campaigns.models import Campaign
-from temba.flows.models import Flow
 from temba.tests import TembaTest, matchers, override_brand
-from temba.triggers.models import Trigger
 from temba.utils import json, uuid
 from temba.utils.compose import compose_serialize
-from temba.utils.templatetags.temba import format_datetime, icon
 
 from . import (
     chunk_list,
@@ -40,7 +35,6 @@ from .checks import storage
 from .crons import clear_cron_stats, cron_task
 from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .fields import ExternalURLField, NameValidator
-from .templatetags.temba import short_datetime
 from .text import clean_string, decode_stream, generate_secret, generate_token, slugify_with, truncate, unsnakify
 from .timezones import TimeZoneFormField, timezone_to_country_code
 
@@ -210,243 +204,6 @@ class TimezonesTest(TembaTest):
         # GMT and UTC give empty
         self.assertEqual("", timezone_to_country_code(ZoneInfo("GMT")))
         self.assertEqual("", timezone_to_country_code(ZoneInfo("UTC")))
-
-
-class TemplateTagTest(TembaTest):
-    def _render(self, template, context=None):
-        context = context or {}
-        context = Context(context)
-        return Template("{% load temba %}" + template).render(context)
-
-    def test_icon(self):
-        campaign = Campaign.create(self.org, self.admin, "Test Campaign", self.create_group("Test group", []))
-        flow = Flow.create(self.org, self.admin, "Test Flow")
-        trigger = Trigger.create(
-            self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keywords=["trigger"], match_type=Trigger.MATCH_FIRST_WORD
-        )
-
-        self.assertEqual("icon-campaign", icon(campaign))
-        self.assertEqual("icon-feed", icon(trigger))
-        self.assertEqual("icon-flow", icon(flow))
-        self.assertEqual("", icon(None))
-
-    def test_format_datetime(self):
-        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, tzone.utc)):
-            self.org.date_format = "D"
-            self.org.save()
-
-            # date without timezone and no user org in context
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 30, 0)
-            self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
-            self.assertEqual("20-07-2012 17:05:30", format_datetime(dict(), test_date, seconds=True))
-
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 30, 0).replace(tzinfo=tzone.utc)
-            self.assertEqual("20-07-2012 17:05", format_datetime(dict(), test_date))
-            self.assertEqual("20-07-2012 17:05:30", format_datetime(dict(), test_date, seconds=True))
-
-            context = dict(user_org=self.org)
-
-            # date without timezone
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
-            self.assertEqual("20-07-2012 19:05", format_datetime(context, test_date))
-
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
-            self.assertEqual("20-07-2012 19:05", format_datetime(context, test_date))
-
-            # the org has month first configured
-            self.org.date_format = "M"
-            self.org.save()
-
-            # date without timezone
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
-            self.assertEqual("07-20-2012 19:05", format_datetime(context, test_date))
-
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
-            self.assertEqual("07-20-2012 19:05", format_datetime(context, test_date))
-
-            # the org has year first configured
-            self.org.date_format = "Y"
-            self.org.save()
-
-            # date without timezone
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
-            self.assertEqual("2012-07-20 19:05", format_datetime(context, test_date))
-
-            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
-            self.assertEqual("2012-07-20 19:05", format_datetime(context, test_date))
-
-    def test_short_datetime(self):
-        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, tzone.utc)):
-            self.org.date_format = "D"
-            self.org.save()
-
-            context = dict(user_org=self.org)
-
-            # date without timezone
-            test_date = datetime.datetime.now()
-            modified_now = test_date.replace(hour=17, minute=5)
-            self.assertEqual("19:05", short_datetime(context, modified_now))
-
-            # given the time as now, should display as 24 hour time
-            now = timezone.now()
-            self.assertEqual("08:10", short_datetime(context, now.replace(hour=6, minute=10)))
-            self.assertEqual("19:05", short_datetime(context, now.replace(hour=17, minute=5)))
-
-            # given the time beyond 12 hours ago within the same month, should display "DayOfMonth MonthName" eg. "2 Jan"
-            test_date = now.replace(day=2)
-            self.assertEqual("2 " + test_date.strftime("%b"), short_datetime(context, test_date))
-
-            # last February should still be pretty
-            test_date = test_date.replace(month=2)
-            self.assertEqual("2 " + test_date.strftime("%b"), short_datetime(context, test_date))
-
-            # but a different year is different
-            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
-            self.assertEqual("20/7/12", short_datetime(context, jan_2))
-
-            # the org has month first configured
-            self.org.date_format = "M"
-            self.org.save()
-
-            # given the time as now, should display "Hour:Minutes AM|PM" eg. "5:05 pm"
-            now = timezone.now()
-            modified_now = now.replace(hour=17, minute=5)
-            self.assertEqual("7:05 pm", short_datetime(context, modified_now))
-
-            # given the time beyond 12 hours ago within the same month, should display "MonthName DayOfMonth" eg. "Jan 2"
-            test_date = now.replace(day=2)
-            self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
-
-            # last February should still be pretty
-            test_date = test_date.replace(month=2)
-            self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
-
-            # but a different year is different
-            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
-            self.assertEqual("7/20/12", short_datetime(context, jan_2))
-
-            # the org has year first configured
-            self.org.date_format = "Y"
-            self.org.save()
-
-            # date without timezone
-            test_date = datetime.datetime.now()
-            modified_now = test_date.replace(hour=17, minute=5)
-            self.assertEqual("19:05", short_datetime(context, modified_now))
-
-            # given the time as now, should display as 24 hour time
-            now = timezone.now()
-            self.assertEqual("08:10", short_datetime(context, now.replace(hour=6, minute=10)))
-            self.assertEqual("19:05", short_datetime(context, now.replace(hour=17, minute=5)))
-
-            # given the time beyond 12 hours ago within the same month, should display "MonthName DayOfMonth" eg. "Jan 2"
-            test_date = now.replace(day=2)
-            self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
-
-            # last February should still be pretty
-            test_date = test_date.replace(month=2)
-            self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
-
-            # but a different year is different
-            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
-            self.assertEqual("2012/7/20", short_datetime(context, jan_2))
-
-    def test_delta(self):
-        from temba.utils.templatetags.temba import delta_filter
-
-        # empty
-        self.assertEqual("", delta_filter(datetime.timedelta(seconds=0)))
-
-        # in the future
-        self.assertEqual("0 seconds", delta_filter(datetime.timedelta(seconds=-10)))
-
-        # some valid times
-        self.assertEqual("2 minutes, 40 seconds", delta_filter(datetime.timedelta(seconds=160)))
-        self.assertEqual("5 minutes", delta_filter(datetime.timedelta(seconds=300)))
-        self.assertEqual("10 minutes, 1 second", delta_filter(datetime.timedelta(seconds=601)))
-
-        # non-delta arg
-        self.assertEqual("", delta_filter("Invalid"))
-
-    def test_oxford(self):
-        self.assertEqual(
-            "",
-            self._render(
-                "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
-                {"words": []},
-            ),
-        )
-        self.assertEqual(
-            "one",
-            self._render(
-                "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
-                {"words": ["one"]},
-            ),
-        )
-        self.assertEqual(
-            "one and two",
-            self._render(
-                "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
-                {"words": ["one", "two"]},
-            ),
-        )
-        with translation.override("es"):
-            self.assertEqual(
-                "one y two",
-                self._render(
-                    "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
-                    {"words": ["one", "two"]},
-                ),
-            )
-        with translation.override("fr"):
-            self.assertEqual(
-                "one et two",
-                self._render(
-                    "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
-                    {"words": ["one", "two"]},
-                ),
-            )
-        self.assertEqual(
-            "one or two",
-            self._render(
-                '{% for word in words %}{{ word }}{{ forloop|oxford:"or" }}{% endfor %}',
-                {"words": ["one", "two"]},
-            ),
-        )
-        with translation.override("es"):
-            self.assertEqual(
-                "uno o dos",
-                self._render(
-                    '{% for word in words %}{{ word }}{{ forloop|oxford:_("or") }}{% endfor %}',
-                    {"words": ["uno", "dos"]},
-                ),
-            )
-        self.assertEqual(
-            "one, two, and three",
-            self._render(
-                "{% for word in words %}{{ word }}{{ forloop|oxford }}{% endfor %}",
-                {"words": ["one", "two", "three"]},
-            ),
-        )
-
-    def test_to_json(self):
-        from temba.utils.templatetags.temba import to_json
-
-        # only works with plain str objects
-        self.assertRaises(ValueError, to_json, dict())
-
-        self.assertEqual(to_json(json.dumps({})), 'JSON.parse("{}")')
-        self.assertEqual(to_json(json.dumps({"a": 1})), 'JSON.parse("{\\u0022a\\u0022: 1}")')
-        self.assertEqual(
-            to_json(json.dumps({"special": '"'})),
-            'JSON.parse("{\\u0022special\\u0022: \\u0022\\u005C\\u0022\\u0022}")',
-        )
-
-        # ecapes special <script>
-        self.assertEqual(
-            to_json(json.dumps({"special": '<script>alert("XSS");</script>'})),
-            'JSON.parse("{\\u0022special\\u0022: \\u0022\\u003Cscript\\u003Ealert(\\u005C\\u0022XSS\\u005C\\u0022)\\u003B\\u003C/script\\u003E\\u0022}")',
-        )
 
 
 class JsonTest(TembaTest):

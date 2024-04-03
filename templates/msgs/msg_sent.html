@@ -2,7 +2,5 @@
 {% load temba %}
 
 {% block message_time %}
-  {% if object.sent_on %}
-    {% short_datetime object.sent_on %}
-  {% endif %}
+  {% if object.sent_on %}{{ object.sent_on|timedate }}{% endif %}
 {% endblock message_time %}
