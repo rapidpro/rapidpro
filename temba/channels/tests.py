@@ -24,7 +24,7 @@ from temba.notifications.incidents.builtin import ChannelDisconnectedIncidentTyp
 from temba.notifications.tasks import send_notification_emails
 from temba.orgs.models import Org
 from temba.request_logs.models import HTTPLog
-from temba.tests import CRUDLTestMixin, MockResponse, MigrationTest, TembaTest, matchers, mock_mailroom, override_brand
+from temba.tests import CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
 from temba.tests.crudl import StaffRedirect
 from temba.triggers.models import Trigger
 from temba.utils import json

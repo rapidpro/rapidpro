@@ -3,7 +3,6 @@
 from django.db import migrations
 from django.db.models import Q
 
-
 DEFAULT_NAMES = {
     "JC": lambda c: "JioChat",
     "TQ": lambda c: c.address or "Thinq",
@@ -22,6 +21,7 @@ def backfill_empty_names(apps, schema_editor):
         name_func = DEFAULT_NAMES.get(channel.channel_type)
         channel.name = name_func(channel) if name_func else (channel.address or channel.channel_type)
         channel.save(update_fields=("name",))
+        num_updated += 1
 
     if num_updated:
         print(f"Updated {num_updated} channels with empty names")

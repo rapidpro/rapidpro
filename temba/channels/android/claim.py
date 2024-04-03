@@ -70,7 +70,7 @@ def get_or_create_channel(registration_data, status):
         anon,
         country,
         Channel.get_type_from_code("A"),
-        name=device or "Android",
+        name=device[:64] if device else "Android",
         address=None,
         config=config,
         uuid=uuid,
