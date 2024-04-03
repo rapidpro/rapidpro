@@ -317,8 +317,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="channels", null=True)
     channel_type = models.CharField(max_length=3)
-    name = models.CharField(max_length=64, null=True)
-
+    name = models.CharField(max_length=64)
     address = models.CharField(
         verbose_name=_("Address"),
         max_length=255,
@@ -381,7 +380,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
             org=org,
             country=country,
             channel_type=channel_type.code,
-            name=name,
+            name=name or address,
             address=address,
             config=config,
             role=role,
@@ -483,7 +482,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
             user,
             country,
             channel_type,
-            name=name or address,
+            name=name or address[:64],
             address=address,
             config=config,
             role=role,
@@ -523,14 +522,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     def supports_ivr(self):
         return Channel.ROLE_CALL in self.role or Channel.ROLE_ANSWER in self.role
-
-    def get_name(self):  # pragma: no cover
-        if self.name:
-            return self.name
-        elif self.device:
-            return self.device
-        else:
-            return _("Android Phone")
 
     def get_address_display(self, e164=False):
         from temba.contacts.models import URN

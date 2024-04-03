@@ -1,5 +1,5 @@
 {% extends "channels/channellog_owned_base.html" %}
-{% load i18n contacts %}
+{% load i18n temba contacts %}
 
 {% block title-text %}
   {% trans "Message Log" %}
@@ -23,7 +23,7 @@
         </temba-anchor>
       </span>
       <span>{% trans "on" %}</span>
-      <span>{% format_datetime msg.created_on seconds=True %}</span>
+      <span>{{ msg.created_on|datetime }}</span>
     </div>
   </div>
 {% endblock group_object %}

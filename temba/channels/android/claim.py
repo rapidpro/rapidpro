@@ -70,8 +70,8 @@ def get_or_create_channel(registration_data, status):
         anon,
         country,
         Channel.get_type_from_code("A"),
-        None,
-        None,
+        name=device[:64] if device else "Android",
+        address=None,
         config=config,
         uuid=uuid,
         device=device,
@@ -81,7 +81,7 @@ def get_or_create_channel(registration_data, status):
     )
 
 
-def claim_channel(org, user, channel, phone):
+def claim_channel(org, channel, phone: str):
     """
     Claims this channel for the given org/user
     """

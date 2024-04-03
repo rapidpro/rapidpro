@@ -1,5 +1,5 @@
 {% extends "channels/channellog_owned_base.html" %}
-{% load i18n %}
+{% load i18n temba %}
 
 {% block title-text %}
   {% trans "Call Log" %}
@@ -17,7 +17,7 @@
   </div>
   <div class="inline-flex mr-8">
     <div class="font-normal mr-2">{% trans "Date" %}</div>
-    {% format_datetime call.created_on seconds=True %}
+    {{ call.created_on|datetime }}
   </div>
   <div class="inline-flex mr-8">
     <div class="font-normal mr-2">{% trans "Status" %}</div>

@@ -1,3 +1,9 @@
+v9.1.72 (2024-04-03)
+-------------------------
+ * Update temba-components
+ * Add data migration to backfill empty channel names
+ * Ensure Android channels get a default name when registering
+
 v9.1.71 (2024-04-03)
 -------------------------
  * Ignore empty messages from Android relayers

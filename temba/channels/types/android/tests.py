@@ -32,6 +32,7 @@ class AndroidTypeTest(TembaTest, CRUDLTestMixin):
         android1 = Channel.objects.get()
         self.assertIsNone(android1.org)
         self.assertIsNone(android1.address)
+        self.assertEqual(android1.name, "Nexus")
         self.assertEqual(android1.country, "RW")
         self.assertEqual(android1.device, "Nexus")
         self.assertEqual(android1.config["FCM_ID"], "FCM111")

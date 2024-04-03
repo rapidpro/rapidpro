@@ -277,42 +277,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         # and FCM ID now cleared
         self.assertIsNone(android.config.get(Channel.CONFIG_FCM_ID))
 
-    def test_list(self):
-        # de-activate existing channels
-        Channel.objects.all().update(is_active=False)
-
-        # list page redirects to claim page
-        self.login(self.user)
-        response = self.client.get(reverse("channels.channel_list"))
-        self.assertRedirect(response, reverse("channels.channel_claim"))
-
-        # re-activate one of the channels so org has a single channel
-        self.tel_channel.is_active = True
-        self.tel_channel.save()
-
-        # list page now redirects to channel read page
-        self.login(self.user)
-        response = self.client.get(reverse("channels.channel_list"))
-        self.assertRedirect(response, reverse("channels.channel_read", args=[self.tel_channel.uuid]))
-
-        # re-activate other channel so org now has two channels
-        self.twitter_channel.is_active = True
-        self.twitter_channel.save()
-
-        # no-more redirection for anyone
-        self.login(self.user)
-        response = self.client.get(reverse("channels.channel_list"))
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(set(response.context["object_list"]), {self.tel_channel, self.twitter_channel})
-
-        # clear out the phone and name for the Android channel
-        self.tel_channel.name = None
-        self.tel_channel.address = None
-        self.tel_channel.save()
-        response = self.client.get(reverse("channels.channel_list"))
-        self.assertContains(response, "Unknown")
-        self.assertContains(response, "Android Phone")
-
     def sync(self, channel, *, cmds, signature=None, auto_add_fcm=True):
         # prepend FCM command if not included
         if auto_add_fcm and (not cmds or cmds[0]["cmd"] != "fcm"):
@@ -2164,7 +2128,7 @@ class FacebookWhitelistTest(TembaTest, CRUDLTestMixin):
             self.user,
             None,
             "FB",
-            None,
+            "Facebook",
             "1234",
             config={Channel.CONFIG_AUTH_TOKEN: "auth"},
             uuid="00000000-0000-0000-0000-000000001234",

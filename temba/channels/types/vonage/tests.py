@@ -223,7 +223,7 @@ class VonageTypeTest(TembaTest):
             self.user,
             "RW",
             "NX",
-            None,
+            "Vonage",
             "+250788123123",
             uuid="00000000-0000-0000-0000-000000001234",
             config={VonageType.CONFIG_API_KEY: "1234", VonageType.CONFIG_API_SECRET: "secret"},

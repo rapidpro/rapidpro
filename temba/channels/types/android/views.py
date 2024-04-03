@@ -96,7 +96,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         if phone_country and phone_country != country:  # pragma: needs cover
             self.object.country = phone_country
 
-        claim_channel(org, self.request.user, self.object, self.form.cleaned_data["phone_number"])
+        claim_channel(org, self.object, self.form.cleaned_data["phone_number"])
 
         # trigger a sync
         self.object.trigger_sync()

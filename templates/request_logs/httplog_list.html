@@ -33,7 +33,7 @@
               {{ "--" }}
             {% endif %}
           </td>
-          <td class="text-right whitespace-nowrap">{% format_datetime obj.created_on seconds=True %}</td>
+          <td class="text-right whitespace-nowrap">{{ obj.created_on|datetime }}</td>
         </tr>
       {% empty %}
         <tr>
