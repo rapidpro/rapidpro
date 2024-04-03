@@ -351,23 +351,6 @@ class TemplateTagTest(TembaTest):
             jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
             self.assertEqual("2012/7/20", short_datetime(context, jan_2))
 
-    def test_delta(self):
-        from temba.utils.templatetags.temba import delta_filter
-
-        # empty
-        self.assertEqual("", delta_filter(datetime.timedelta(seconds=0)))
-
-        # in the future
-        self.assertEqual("0 seconds", delta_filter(datetime.timedelta(seconds=-10)))
-
-        # some valid times
-        self.assertEqual("2 minutes, 40 seconds", delta_filter(datetime.timedelta(seconds=160)))
-        self.assertEqual("5 minutes", delta_filter(datetime.timedelta(seconds=300)))
-        self.assertEqual("10 minutes, 1 second", delta_filter(datetime.timedelta(seconds=601)))
-
-        # non-delta arg
-        self.assertEqual("", delta_filter("Invalid"))
-
     def test_oxford(self):
         self.assertEqual(
             "",

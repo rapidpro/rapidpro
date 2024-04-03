@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import escapejs
 from django.utils.safestring import mark_safe
-from django.utils.translation import gettext, gettext_lazy as _, ngettext_lazy
+from django.utils.translation import gettext_lazy as _, ngettext_lazy
 
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.contacts.models import ContactGroup
@@ -98,34 +98,6 @@ def annotated_field(field, label, help_text):
     attrs["help_text"] = help_text
     attrs["errors"] = json.dumps([str(error) for error in field.errors])
     return field.as_widget(attrs=attrs)
-
-
-@register.filter("delta", is_safe=False)
-def delta_filter(delta):
-    """Humanizes a timedelta object on template (i.e. "2 months, 2 weeks")."""
-    if not delta:
-        return ""
-    try:
-        # ignore microseconds
-        since = delta.days * 24 * 60 * 60 + delta.seconds
-        if since <= 0:
-            # d is in the future compared to now, stop processing.
-            return gettext("0 seconds")
-        for i, (seconds, name) in enumerate(TIME_SINCE_CHUNKS):
-            count = since // seconds
-            if count != 0:
-                break
-        result = name % count
-        if i + 1 < len(TIME_SINCE_CHUNKS):
-            # Now get the second item
-            seconds2, name2 = TIME_SINCE_CHUNKS[i + 1]
-            count2 = (since - (seconds * count)) // seconds2
-            if count2 != 0:
-                result += ", " + name2 % count2
-        return result
-
-    except Exception:
-        return ""
 
 
 @register.filter
