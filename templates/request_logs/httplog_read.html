@@ -21,7 +21,7 @@
     </div>
     <div class="inline-flex mr-8">
       <div class="font-normal mr-2">{% trans "Date" %}</div>
-      {% format_datetime object.created_on seconds=True %}
+      {{ obj.created_on|datetime }}
     </div>
   </div>
   {% include "includes/http_log.html" with log=object.get_display %}

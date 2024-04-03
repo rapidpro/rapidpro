@@ -1,5 +1,5 @@
 {% extends "smartmin/list.html" %}
-{% load smartmin i18n %}
+{% load i18n temba %}
 
 {% block content %}
   <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
@@ -15,7 +15,7 @@
           <tr>
             <td>{{ obj.type.title }}</td>
             <td>{% include obj.template with incident=obj %}</td>
-            <td class="text-right whitespace-nowrap">{% format_datetime obj.started_on %}</td>
+            <td class="text-right whitespace-nowrap">{{ obj.started_on|datetime }}</td>
           </tr>
         {% empty %}
           <tr>
@@ -38,7 +38,7 @@
           <tr>
             <td>{{ obj.type.title }}</td>
             <td>{% include obj.template with incident=obj %}</td>
-            <td class="text-right whitespace-nowrap">{% format_datetime obj.started_on %}</td>
+            <td class="text-right whitespace-nowrap">{{ obj.started_on|datetime }} &rarr; {{ obj.ended_on|datetime }}</td>
           </tr>
         {% empty %}
           <tr>

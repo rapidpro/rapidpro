@@ -95,8 +95,7 @@
                 <div class="flex w-full items-center justify-end pr-4">
                   <div class="time whitespace-nowrap">
                     {% block message_time %}
-                      <temba-date value="{{ object.created_on.isoformat }}" display="timedate">
-                      </temba-date>
+                      {{ object.created_on|timedate }}
                     {% endblock message_time %}
                   </div>
                   {% channel_log_link object %}

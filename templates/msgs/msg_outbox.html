@@ -31,7 +31,7 @@
               {% endif %}
             </td>
             <td class="created_on">
-              <span class="time">{% short_datetime broadcast.created_on %}</span>
+              <span class="time">{{ broadcast.created_on|timedate }}</span>
             </td>
           </tr>
         {% endwith %}
@@ -61,7 +61,7 @@
             {% endif %}
           </td>
           <td class="created_on">
-            <span class="time">{% short_datetime object.created_on %}</span>
+            <span class="time">{{ object.created_on|timedate }}</span>
             {% channel_log_link object %}
           </td>
         </tr>

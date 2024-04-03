@@ -249,18 +249,14 @@
               <td class="value-received field_received">
                 <div class="whitespace-nowrap">
                   {% if object.last_seen_on %}
-                    <temba-date value="{{ object.last_seen_on.isoformat }}" display="date">
-                    </temba-date>
+                    {{ object.last_seen_on|day }}
                   {% else %}
                     {{ "--" }}
                   {% endif %}
                 </div>
               </td>
               <td class="value-received field_received">
-                <div class="whitespace-nowrap">
-                  <temba-date value="{{ object.created_on.isoformat }}" display="date">
-                  </temba-date>
-                </div>
+                <div class="whitespace-nowrap">{{ object.created_on|day }}</div>
               </td>
               <!-- This is needed for action buttons -->
               <td class="hide">

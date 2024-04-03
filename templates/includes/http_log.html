@@ -22,7 +22,7 @@
         <div class="time whitespace-nowrap text-right flex-grow">
           {% if log.retries %}<div class="mr-4">({{ log.retries }} retries)</div>{% endif %}
         </div>
-        <div class="text-right whitespace-nowrap">{% format_datetime log.created_on|parse_isodate seconds=True %}</div>
+        <div class="text-right whitespace-nowrap">{{ log.created_on|datetime }}</div>
       </div>
     </div>
   </div>
