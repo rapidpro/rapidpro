@@ -15,7 +15,7 @@
           <tr>
             <td>{{ obj.type.title }}</td>
             <td>{% include obj.template with incident=obj %}</td>
-            <td class="text-right whitespace-nowrap">{% obj.started_on|datetime %}</td>
+            <td class="text-right whitespace-nowrap">{{ obj.started_on|datetime }}</td>
           </tr>
         {% empty %}
           <tr>

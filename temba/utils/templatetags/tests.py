@@ -31,11 +31,6 @@ class TembaTagLibraryTest(TembaTest):
         self.assertEqual("CampaignEvent", tags.object_class_name(CampaignEvent()))
         self.assertEqual("Trigger", tags.object_class_name(Trigger()))
 
-    def test_first_word(self):
-        self.assertEqual("First", tags.first_word("First Second"))
-        self.assertEqual("First", tags.first_word("First"))
-        self.assertEqual("", tags.first_word(""))
-
     def test_unsnake(self):
         self.assertEqual("Rapid Pro", tags.unsnake("rapid_pro"))
         self.assertEqual("Contact Birth Year", tags.unsnake("contact_birth_year"))

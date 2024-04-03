@@ -1,8 +1,6 @@
 import json
 from datetime import timedelta, timezone as tzone
 
-import iso8601
-
 from django.template.defaultfilters import register
 from django.urls import reverse
 from django.utils import timezone
@@ -229,16 +227,6 @@ def format_datetime(context, dt, seconds: bool = False):
 
     fmt = "%d-%m-%Y %H:%M:%S" if seconds else "%d-%m-%Y %H:%M"
     return datetime_to_str(dt, fmt, tz)
-
-
-@register.filter
-def parse_isodate(value):
-    return iso8601.parse_date(value)
-
-
-@register.filter
-def first_word(value):
-    return str(value).split(" ", maxsplit=1)[0]
 
 
 @register.simple_tag(takes_context=True)
