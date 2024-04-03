@@ -1,3 +1,8 @@
+v9.1.70 (2024-04-03)
+-------------------------
+ * Update flow editor
+ * Remove unused option on assets endpoint to return environment
+
 v9.1.69 (2024-04-02)
 -------------------------
  * Remove no longer used template tag as_icon
