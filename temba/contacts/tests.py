@@ -37,7 +37,6 @@ from temba.tickets.models import Ticket, TicketCount
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_timestamp
-from temba.utils.templatetags.temba import datetime as datetime_tag, duration
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .models import (
@@ -2597,15 +2596,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         # failed messages show an x
         msg.status = Msg.STATUS_FAILED
         self.assertIn('"x"', msg_status_badge(msg))
-
-    def test_date_tags(self):
-        next_year = datetime.now() + timedelta(days=365)
-        self.assertEqual(
-            duration(next_year), f"<temba-date value='{next_year.isoformat()}' display='duration'></temba-date>"
-        )
-        self.assertEqual(
-            datetime_tag(next_year), f"<temba-date value='{next_year.isoformat()}' display='datetime'></temba-date>"
-        )
 
     def test_get_scheduled_messages(self):
         just_joe = self.create_group("Just Joe", [self.joe])

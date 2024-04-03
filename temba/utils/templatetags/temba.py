@@ -153,17 +153,23 @@ def to_json(value):
 
 @register.filter
 def duration(date):
-    return mark_safe(f"<temba-date value='{date.isoformat()}' display='duration'></temba-date>")
+    return mark_safe(
+        f'<temba-date value="{date if isinstance(date, str) else date.isoformat()}" display="duration"></temba-date>'
+    )
 
 
 @register.filter
 def datetime(date):
-    return mark_safe(f"<temba-date value='{date.isoformat()}' display='datetime'></temba-date>")
+    return mark_safe(
+        f'<temba-date value="{date if isinstance(date, str) else date.isoformat()}" display="datetime"></temba-date>'
+    )
 
 
 @register.filter
 def day(date):
-    return mark_safe(f"<temba-date value='{date.isoformat()}' display='date'></temba-date>")
+    return mark_safe(
+        f'<temba-date value="{date if isinstance(date, str) else date.isoformat()}" display="date"></temba-date>'
+    )
 
 
 @register.simple_tag(takes_context=True)
