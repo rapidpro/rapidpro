@@ -1,3 +1,8 @@
+v9.1.73 (2024-04-03)
+-------------------------
+ * Make Channel.name non-null and remove unused channel list view
+ * Replace format_datetime and short_datetime tags with day or datetime filters
+
 v9.1.72 (2024-04-03)
 -------------------------
  * Update temba-components
