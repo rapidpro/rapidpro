@@ -24,7 +24,7 @@ from temba.notifications.incidents.builtin import ChannelDisconnectedIncidentTyp
 from temba.notifications.tasks import send_notification_emails
 from temba.orgs.models import Org
 from temba.request_logs.models import HTTPLog
-from temba.tests import CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
+from temba.tests import CRUDLTestMixin, MockResponse, MigrationTest, TembaTest, matchers, mock_mailroom, override_brand
 from temba.tests.crudl import StaffRedirect
 from temba.triggers.models import Trigger
 from temba.utils import json
@@ -2213,3 +2213,39 @@ class CourierTest(TembaTest):
         response = self.client.get(reverse("courier.t", args=[self.channel.uuid, "receive"]))
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.content, b"this URL should be mapped to a Courier instance")
+
+
+class BackfillChannelNamesTest(MigrationTest):
+    app = "channels"
+    migrate_from = "0183_channelevent_status_alter_channelevent_event_type"
+    migrate_to = "0184_backfill_names"
+
+    def setUpBeforeMigration(self, apps):
+        def create_channel(typ, name, address, device=None):
+            return Channel.objects.create(
+                org=self.org,
+                channel_type=typ,
+                name=name,
+                address=address,
+                device=device,
+                config={},
+                role=Channel.DEFAULT_ROLE,
+                created_by=self.admin,
+                modified_by=self.admin,
+            )
+
+        self.tests = [
+            (create_channel("A", "My Pixel", address="234567", device="Pixel 4"), "My Pixel"),  # should be unchanged
+            (create_channel("A", "", address="547574", device="Pixel 5"), "Pixel 5"),
+            (create_channel("A", "", address="547574"), "547574"),
+            (create_channel("A", None, address="547574"), "547574"),
+            (create_channel("EX", "", address="547574"), "547574"),
+            (create_channel("EX", "", address=""), "External"),
+            (create_channel("XX", "", address="34636"), "34636"),
+            (create_channel("XX", "", address=""), "XX"),
+        ]
+
+    def test_migration(self):
+        for i, test in enumerate(self.tests):
+            test[0].refresh_from_db()
+            self.assertEqual(test[0].name, test[1], f"name mismatch in test {i}")
