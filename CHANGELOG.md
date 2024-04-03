@@ -1,3 +1,7 @@
+v9.1.71 (2024-04-03)
+-------------------------
+ * Ignore empty messages from Android relayers
+
 v9.1.70 (2024-04-03)
 -------------------------
  * Update flow editor
