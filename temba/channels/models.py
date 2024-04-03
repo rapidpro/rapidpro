@@ -483,7 +483,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
             user,
             country,
             channel_type,
-            name=name or address,
+            name=name or address[:64],
             address=address,
             config=config,
             role=role,
