@@ -49,20 +49,6 @@ def oxford(forloop, conjunction=_("and")):
 
 
 @register.filter
-def icon(o):
-    if isinstance(o, Campaign):
-        return "icon-campaign"
-
-    if isinstance(o, Trigger):
-        return "icon-feed"
-
-    if isinstance(o, Flow):
-        return "icon-flow"
-
-    return ""
-
-
-@register.filter
 def unsnake(str):
     return unsnakify(str)
 
