@@ -13,7 +13,7 @@ DEFAULT_NAMES = {
 }
 
 
-def backfill_empty_names(apps, schema_editor):
+def backfill_empty_names(apps, schema_editor):  # pragma: no cover
     Channel = apps.get_model("channels", "Channel")
 
     num_updated = 0
@@ -27,7 +27,7 @@ def backfill_empty_names(apps, schema_editor):
         print(f"Updated {num_updated} channels with empty names")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
