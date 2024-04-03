@@ -135,20 +135,21 @@ def sync(request, channel_id):
 
             # creating a new message
             elif keyword == "mo_sms":
+                text = cmd.get("msg")
                 date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=tzone.utc)
 
                 # it is possible to receive spam SMS messages from no number on some carriers
                 tel = cmd["phone"] if cmd["phone"] else "empty"
-                try:
-                    urn = URN.normalize(URN.from_tel(tel), channel.country.code)
 
-                    if "msg" in cmd:
+                if text:  # ignore empty messages
+                    try:
+                        urn = URN.normalize(URN.from_tel(tel), channel.country.code)
                         msg_id = mailroom.get_client().android_message(
-                            channel.org_id, channel.id, urn, cmd["msg"], received_on=date
+                            channel.org_id, channel.id, urn, text, received_on=date
                         )
                         extra = dict(msg_id=msg_id)
-                except ValueError:
-                    pass
+                    except ValueError:
+                        pass
 
                 handled = True
 
