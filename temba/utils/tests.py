@@ -40,7 +40,6 @@ from .checks import storage
 from .crons import clear_cron_stats, cron_task
 from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .fields import ExternalURLField, NameValidator
-from .templatetags.temba import short_datetime
 from .text import clean_string, decode_stream, generate_secret, generate_token, slugify_with, truncate, unsnakify
 from .timezones import TimeZoneFormField, timezone_to_country_code
 
@@ -274,82 +273,6 @@ class TemplateTagTest(TembaTest):
 
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
             self.assertEqual("2012-07-20 19:05", format_datetime(context, test_date))
-
-    def test_short_datetime(self):
-        with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, tzone.utc)):
-            self.org.date_format = "D"
-            self.org.save()
-
-            context = dict(user_org=self.org)
-
-            # date without timezone
-            test_date = datetime.datetime.now()
-            modified_now = test_date.replace(hour=17, minute=5)
-            self.assertEqual("19:05", short_datetime(context, modified_now))
-
-            # given the time as now, should display as 24 hour time
-            now = timezone.now()
-            self.assertEqual("08:10", short_datetime(context, now.replace(hour=6, minute=10)))
-            self.assertEqual("19:05", short_datetime(context, now.replace(hour=17, minute=5)))
-
-            # given the time beyond 12 hours ago within the same month, should display "DayOfMonth MonthName" eg. "2 Jan"
-            test_date = now.replace(day=2)
-            self.assertEqual("2 " + test_date.strftime("%b"), short_datetime(context, test_date))
-
-            # last February should still be pretty
-            test_date = test_date.replace(month=2)
-            self.assertEqual("2 " + test_date.strftime("%b"), short_datetime(context, test_date))
-
-            # but a different year is different
-            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
-            self.assertEqual("20/7/12", short_datetime(context, jan_2))
-
-            # the org has month first configured
-            self.org.date_format = "M"
-            self.org.save()
-
-            # given the time as now, should display "Hour:Minutes AM|PM" eg. "5:05 pm"
-            now = timezone.now()
-            modified_now = now.replace(hour=17, minute=5)
-            self.assertEqual("7:05 pm", short_datetime(context, modified_now))
-
-            # given the time beyond 12 hours ago within the same month, should display "MonthName DayOfMonth" eg. "Jan 2"
-            test_date = now.replace(day=2)
-            self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
-
-            # last February should still be pretty
-            test_date = test_date.replace(month=2)
-            self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
-
-            # but a different year is different
-            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
-            self.assertEqual("7/20/12", short_datetime(context, jan_2))
-
-            # the org has year first configured
-            self.org.date_format = "Y"
-            self.org.save()
-
-            # date without timezone
-            test_date = datetime.datetime.now()
-            modified_now = test_date.replace(hour=17, minute=5)
-            self.assertEqual("19:05", short_datetime(context, modified_now))
-
-            # given the time as now, should display as 24 hour time
-            now = timezone.now()
-            self.assertEqual("08:10", short_datetime(context, now.replace(hour=6, minute=10)))
-            self.assertEqual("19:05", short_datetime(context, now.replace(hour=17, minute=5)))
-
-            # given the time beyond 12 hours ago within the same month, should display "MonthName DayOfMonth" eg. "Jan 2"
-            test_date = now.replace(day=2)
-            self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
-
-            # last February should still be pretty
-            test_date = test_date.replace(month=2)
-            self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
-
-            # but a different year is different
-            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=tzone.utc)
-            self.assertEqual("2012/7/20", short_datetime(context, jan_2))
 
     def test_oxford(self):
         self.assertEqual(

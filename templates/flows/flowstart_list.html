@@ -63,7 +63,7 @@
           </td>
           <td style="text-align: right">
             <div class="flex flex-col">
-              <div>{% short_datetime obj.created_on %}</div>
+              <div>{{ obj.created_on|timedate }}</div>
               <div style="padding-top: 10px; font-size: 11px">
                 {% blocktrans trimmed with count=obj.run_count|intcomma count counter=obj.run_count %}
                   <b>{{ count }}</b> run

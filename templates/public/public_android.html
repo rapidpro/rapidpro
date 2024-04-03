@@ -12,7 +12,7 @@
     </p>
     <div class="latest-release-date">
       {% trans "Latest released on" %}
-      {% short_datetime relayer_app.created_on %}
+      {{ relayer_app.created_on|day }}
     </div>
     <p>
       <a href="{% url 'apks.apk_download' relayer_app.id %}" class="btn-download">{% trans "Download Relayer" %}</a>

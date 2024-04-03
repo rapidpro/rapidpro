@@ -64,3 +64,13 @@ class TembaTagLibraryTest(TembaTest):
             '<temba-date value="2024-04-03T14:45:30+00:00" display="duration"></temba-date>',
             tags.duration("2024-04-03T14:45:30+00:00"),
         )
+
+    def test_timedate(self):
+        self.assertEqual(
+            '<temba-date value="2024-04-03T14:45:30+00:00" display="timedate"></temba-date>',
+            tags.timedate(datetime(2024, 4, 3, 14, 45, 30, 0, tzone.utc)),
+        )
+        self.assertEqual(
+            '<temba-date value="2024-04-03T14:45:30+00:00" display="timedate"></temba-date>',
+            tags.timedate("2024-04-03T14:45:30+00:00"),
+        )
