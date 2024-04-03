@@ -462,7 +462,6 @@ class UpdateTelChannelForm(UpdateChannelForm):
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = (
-        "list",
         "chart",
         "claim",
         "claim_all",
@@ -864,34 +863,6 @@ class ChannelCRUDL(SmartCRUDL):
             context["ip_addresses"] = settings.IP_ADDRESSES if self.object.type.config_ui.show_public_ips else None
 
             return context
-
-    class List(OrgPermsMixin, SmartListView):
-        title = _("Channels")
-        fields = ("name", "address", "last_seen")
-        search_fields = ("name", "address", "org__created_by__email")
-
-        def lookup_field_link(self, context, field, obj):
-            return reverse("channels.channel_read", args=[obj.uuid])
-
-        def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).filter(org=self.request.org, is_active=True)
-
-        def pre_process(self, *args, **kwargs):
-            # everybody else goes to a different page depending how many channels there are
-            channels = list(self.request.org.channels.filter(is_active=True).only("uuid"))
-
-            if len(channels) == 0:
-                return HttpResponseRedirect(reverse("channels.channel_claim"))
-            elif len(channels) == 1:
-                return HttpResponseRedirect(reverse("channels.channel_read", args=[channels[0].uuid]))
-            else:
-                return super().pre_process(*args, **kwargs)
-
-        def get_name(self, obj):
-            return obj.get_name()
-
-        def get_address(self, obj):
-            return obj.address if obj.address else _("Unknown")
 
 
 class ChannelLogCRUDL(SmartCRUDL):
