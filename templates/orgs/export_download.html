@@ -37,11 +37,6 @@
           location.href = "{% url "orgs.export_download" object.uuid %}?raw=1"
         }
       });
-
-      // temporary workaround to make inline temba-dates
-      document.querySelectorAll('temba-date').forEach((e) => {
-        e.shadowRoot.querySelector('.date').setAttribute('style', 'display:inline-block; overflow: visible');
-      });
     });
   </script>
 {% endblock extra-script %}
