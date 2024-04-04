@@ -1,3 +1,9 @@
+v9.1.75 (2024-04-04)
+-------------------------
+ * Add data migration to archive campaigns with deleted groups
+ * Fix rendering of campaigns with deleted groups
+ * Improve styling on template list page
+
 v9.1.74 (2024-04-04)
 -------------------------
  * Update temba-components
