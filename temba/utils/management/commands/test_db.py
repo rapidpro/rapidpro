@@ -69,7 +69,7 @@ CHANNELS = (
     {"name": "Facebook", "channel_type": "FBA", "scheme": "facebook", "address": "fb243152352"},
     {"name": "WhatsApp", "channel_type": "WAC", "scheme": "whatsapp", "address": "3456"},
     {"name": "Vonage", "channel_type": "NX", "scheme": "tel", "address": "2345"},
-    {"name": "Web Chat", "channel_type": "TWC", "scheme": "webchat", "address": ""},
+    {"name": "Web Chat", "channel_type": "TWC", "scheme": "webchat", "address": "", "config": {"secret": "sesame"}},
 )
 FIELDS = (
     {"key": "gender", "name": "Gender", "value_type": ContactField.TYPE_TEXT},
@@ -338,6 +338,7 @@ class Command(BaseCommand):
                     channel_type=c["channel_type"],
                     address=c["address"],
                     schemes=[c["scheme"]],
+                    config=c.get("config", {}),
                     created_by=user,
                     modified_by=user,
                 )
