@@ -249,14 +249,14 @@
               <td class="value-received field_received">
                 <div class="whitespace-nowrap">
                   {% if object.last_seen_on %}
-                    {{ object.last_seen_on|day }}
+                    {{ object.last_seen_on|timedate }}
                   {% else %}
                     {{ "--" }}
                   {% endif %}
                 </div>
               </td>
               <td class="value-received field_received">
-                <div class="whitespace-nowrap">{{ object.created_on|day }}</div>
+                <div class="whitespace-nowrap">{{ object.created_on|timedate }}</div>
               </td>
               <!-- This is needed for action buttons -->
               <td class="hide">

@@ -281,8 +281,6 @@ BRAND = {
     "landing": {
         "hero": "brands/rapidpro/splash.jpg",
     },
-    "docs_link": "http://docs.rapidpro.io",
-    "ticket_domain": "tickets.rapidpro.io",
     "features": ["signups"],
 }
 
