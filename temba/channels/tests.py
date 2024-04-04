@@ -119,11 +119,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("channels.channel_read", args=[self.tel_channel.uuid]))
         self.assertEqual(404, response.status_code)
 
-    def test_get_channel_type_name(self):
-        self.assertEqual(self.tel_channel.get_channel_type_name(), "Android Phone")
-        self.assertEqual(self.twitter_channel.get_channel_type_name(), "Twitter Channel")
-        self.assertEqual(self.unclaimed_channel.get_channel_type_name(), "Vonage Channel")
-
     def test_get_address_display(self):
         self.assertEqual("+250 785 551 212", self.tel_channel.get_address_display())
         self.assertEqual("+250785551212", self.tel_channel.get_address_display(e164=True))
@@ -134,6 +129,9 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.tel_channel.address = "EATRIGHT"
         self.assertEqual("EATRIGHT", self.tel_channel.get_address_display())
         self.assertEqual("EATRIGHT", self.tel_channel.get_address_display(e164=True))
+
+        self.tel_channel.address = ""
+        self.assertEqual("", self.tel_channel.get_address_display())
 
     def test_ensure_normalization(self):
         self.tel_channel.country = "RW"

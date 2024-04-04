@@ -1,31 +1,19 @@
 {% extends "smartmin/read.html" %}
-{% load smartmin temba compress humanize channels i18n tz %}
+{% load smartmin temba humanize channels i18n tz %}
 
 {% block title %}
-  <temba-urn scheme="{{ channel.schemes|first }}" class="mr-2">
-  </temba-urn>
+  <temba-icon name="{{ object.type.icon }}" class="mr-2">
+  </temba-icon>
   <div class="flex items-start flex-col">
-    <div class="name" id="title-text">
-      {% if object.parent %}
-        {{ object.parent.name }}
-      {% else %}
-        {{ object.name|default:object.get_address_display }}
-      {% endif %}
-    </div>
+    <div class="name" id="title-text">{{ object.name }}</div>
   </div>
 {% endblock title %}
 {% block subtitle %}
-  {% if object.get_channel_type_display != object.name %}
-    <div class="flex mt-2">
-      <div class="flex flex-col">
-        <div class="channel_type">
-          {% if object.parent %}{{ object.name }}{% endif %}
-        </div>
-      </div>
-    </div>
-  {% endif %}
-  {% if object.name %}<div class="text-gray-500 text-xl">{{ object.get_address_display }}</div>{% endif %}
-  {% if object.get_country_display %}<div class="text-gray-500 text-base">{{ object.get_country_display }}</div>{% endif %}
+  <div class="text-gray-500 text-xl">
+    {{ object.type.name }}:
+    {{ object.get_address_display }}
+    {% if object.country %}({{ object.get_country_display }}){% endif %}
+  </div>
   <div class="mb-4 text-base">
     {% if delayed_sync_event or unsent_msgs_count %}
       <div class="flex items-center text-error">
@@ -70,8 +58,9 @@
           {% trans "Not synced yet" %}
         {% endif %}
       {% else %}
-        {% trans "Activated" %}
-        {{ object.created_on }}
+        {% blocktrans trimmed with date=object.created_on|day %}
+          Activated on {{ date }}
+        {% endblocktrans %}
       {% endif %}
     {% endif %}
   </div>
@@ -224,7 +213,7 @@
 {% block extra-script %}
   {{ block.super }}
   <script type="text/javascript">
-    var chartUrl = "{% url 'channels.channel_chart' channel.uuid %}";
+    var chartUrl = "{% url 'channels.channel_chart' object.uuid %}";
     var chart;
     onSpload(function() {
 

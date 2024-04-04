@@ -146,6 +146,10 @@ class ChannelType(metaclass=ABCMeta):
         else:
             return False
 
+    @property
+    def icon(self):
+        return f"channel_{self.code.lower()}"
+
     def get_claim_blurb(self):
         """
         Gets the blurb for use on the claim page list of channel types
@@ -217,9 +221,6 @@ class ChannelType(metaclass=ABCMeta):
         """
         Resolves an error code from a channel log into a docs URL for that error.
         """
-
-    def get_icon(self):
-        return f"channel_{self.code.lower()}"
 
     def __str__(self):
         return self.name
@@ -522,15 +523,6 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     def supports_ivr(self):
         return Channel.ROLE_CALL in self.role or Channel.ROLE_ANSWER in self.role
-
-    def get_channel_type_display(self):
-        return self.type.name
-
-    def get_channel_type_name(self):
-        if self.is_android():
-            return _("Android Phone")
-        else:
-            return _("%s Channel" % self.get_channel_type_display())
 
     def get_address_display(self, e164=False):
         from temba.contacts.models import URN

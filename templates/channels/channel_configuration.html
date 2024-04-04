@@ -2,20 +2,20 @@
 {% load i18n channels %}
 
 {% block title-text %}
-  {{ object.get_channel_type_display }} Configuration
+  {{ object.name }} Configuration
 {% endblock title-text %}
 {% block subtitle %}
-  {{ object.get_address_display }}
-  {% if object.get_country_display %}<div class="text-base">{{ object.get_country_display }}</div>{% endif %}
+  <div class="text-gray-500 text-xl">
+    {{ object.type.name }}:
+    {{ object.get_address_display }}
+  </div>
 {% endblock subtitle %}
 {% block content %}
   {{ blurb }}
   {% for endpoint in endpoints %}
     <div class="card mt-3 p-4 flex-shrink-0">
       <div class="text-xl">{{ endpoint.label }}</div>
-      {% if url.help %}
-      <div class="mt-2">{{ endpoint.help }}</div>
-      {% endif %}
+      {% if url.help %}<div class="mt-2">{{ endpoint.help }}</div>{% endif %}
       <div class="code block mt-3 mx-0 whitespace-normal">{{ endpoint.url }}</div>
     </div>
   {% endfor %}
@@ -26,7 +26,7 @@
     </div>
   {% endif %}
   {% if ip_addresses %}
-  <div class="card mt-3 p-4 flex-shrink-0">
+    <div class="card mt-3 p-4 flex-shrink-0">
       <div class="text-xl">{% trans "IP Addresses" %}</div>
       <div class="mt-2">{% trans "Ensure the following IP addresses are whitelisted." %}</div>
       <div class="mt-2">

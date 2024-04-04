@@ -53,7 +53,7 @@ def migrate_to_version_11_12(json_flow, flow=None):
                     continue
                 else:
                     action["channel"] = channel.uuid
-                    action["name"] = "%s: %s" % (channel.get_channel_type_display(), channel.get_address_display())
+                    action["name"] = "%s: %s" % (channel.type.name, channel.get_address_display())
 
             # the action is valid append it
             valid_actions.append(action)

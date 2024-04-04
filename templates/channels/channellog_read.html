@@ -5,7 +5,7 @@
   {% trans "Channel Log" %}
 {% endblock title-text %}
 {% block subtitle %}
-  {{ object.channel.get_channel_type_display }}
+  {{ object.channel.type.name }}
 {% endblock subtitle %}
 {% block content %}
   {% include "channels/channellog.html" with log=log %}
