@@ -53,7 +53,10 @@
             {% endif %}
             <td class="w-full">{{ obj.name }}</td>
             <td class="whitespace-nowrap">
-              <div class="recipients inline-block">{% include "includes/recipients_group.html" with group=obj.group %}</div>
+              {# in the past we let users delete groups used by campaigns #}
+              {% if obj.group.is_active %}
+                <div class="recipients inline-block">{% include "includes/recipients_group.html" with group=obj.group %}</div>
+              {% endif %}
             </td>
             <td class="whitespace-nowrap">{{ obj.get_events|length }} event{{ obj.get_events|length|pluralize }}</td>
           </tr>
