@@ -18,6 +18,12 @@ class TemplateTranslationCRUDL(SmartCRUDL):
 
     class Channel(SpaMixin, ContentMenuMixin, OrgObjPermsMixin, SmartListView):
         permission = "channels.channel_read"
+        status_icons = {
+            TemplateTranslation.STATUS_PENDING: "template_pending",
+            TemplateTranslation.STATUS_APPROVED: "template_approved",
+            TemplateTranslation.STATUS_REJECTED: "template_rejected",
+            TemplateTranslation.STATUS_UNSUPPORTED: "template_unsupported",
+        }
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -50,4 +56,5 @@ class TemplateTranslationCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["channel"] = self.channel
+            context["status_icons"] = self.status_icons
             return context

@@ -2,7 +2,7 @@ from datetime import timezone as tzone
 
 from rest_framework import serializers
 
-from temba.templates.models import Template
+from temba.templates.models import Template, TemplateTranslation
 
 
 class ModelAsJsonSerializer(serializers.BaseSerializer):
@@ -11,6 +11,13 @@ class ModelAsJsonSerializer(serializers.BaseSerializer):
 
 
 class TemplateReadSerializer(serializers.ModelSerializer):
+    STATUSES = {
+        TemplateTranslation.STATUS_APPROVED: "approved",
+        TemplateTranslation.STATUS_PENDING: "pending",
+        TemplateTranslation.STATUS_REJECTED: "rejected",
+        TemplateTranslation.STATUS_UNSUPPORTED: "unsupported",
+    }
+
     translations = serializers.SerializerMethodField()
     modified_on = serializers.DateTimeField(default_timezone=tzone.utc)
     created_on = serializers.DateTimeField(default_timezone=tzone.utc)
@@ -23,7 +30,7 @@ class TemplateReadSerializer(serializers.ModelSerializer):
                     "channel": {"uuid": str(trans.channel.uuid), "name": trans.channel.name},
                     "namespace": trans.namespace,
                     "locale": trans.locale,
-                    "status": trans.get_status_display(),
+                    "status": self.STATUSES[trans.status],
                     "components": trans.components,
                 }
             )
