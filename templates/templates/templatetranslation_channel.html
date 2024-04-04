@@ -32,9 +32,11 @@
             {% endfor %}
           </div>
         </div>
-        <div class="p-4 whitespace-nowrap">{{ translation.locale }}</div>
-        <div class="p-4">
-          <temba-label icon="{{ status_icons|field:translation.status }}">
+        <div class="p-4 whitespace-nowrap">
+          <temba-label icon="language">
+            {{ translation.locale }}
+          </temba-label>
+          <temba-label icon="{{ status_icons|field:translation.status }}" class="ml-2">
             {{ translation.get_status_display }}
           </temba-label>
         </div>
