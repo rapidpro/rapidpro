@@ -1,3 +1,10 @@
+v9.1.74 (2024-04-04)
+-------------------------
+ * Update temba-components
+ * Use timedate formatting for last_seen_on / created_on on contact list pages
+ * Remove unused BRAND properties
+ * Cleanup displaying of channel name, address and type
+
 v9.1.73 (2024-04-03)
 -------------------------
  * Make Channel.name non-null and remove unused channel list view
