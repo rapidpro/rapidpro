@@ -2,8 +2,14 @@
 {% load i18n channels %}
 
 {% block title-text %}
-  {{ object.type.name }} Configuration
+  {{ object.name }} Configuration
 {% endblock title-text %}
+{% block subtitle %}
+  <div class="text-gray-500 text-xl">
+    {{ object.type.name }}:
+    {{ object.get_address_display }}
+  </div>
+{% endblock subtitle %}
 {% block content %}
   {{ blurb }}
   {% for endpoint in endpoints %}
