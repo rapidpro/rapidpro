@@ -11,6 +11,7 @@ from smartmin.views import (
 from django import forms
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.db.models.functions import Lower
 from django.http import Http404, HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -38,7 +39,7 @@ class CampaignForm(forms.ModelForm):
     def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.fields["group"].queryset = ContactGroup.get_groups(org)
+        self.fields["group"].queryset = ContactGroup.get_groups(org).order_by(Lower("name"))
 
     class Meta:
         model = Campaign

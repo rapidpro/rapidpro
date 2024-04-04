@@ -53,7 +53,16 @@
             {% endif %}
             <td class="w-full">{{ obj.name }}</td>
             <td class="whitespace-nowrap">
-              <div class="recipients inline-block">{% include "includes/recipients_group.html" with group=obj.group %}</div>
+              {# in the past we let users delete groups used by campaigns #}
+              {% if obj.group.is_active %}
+                <div class="recipients inline-block">{% include "includes/recipients_group.html" with group=obj.group %}</div>
+              {% else %}
+                <div class="flex items-center">
+                  <temba-icon name="issue" class="mr-2">
+                  </temba-icon>
+                  <div>{% trans "Group no longer exists" %}</div>
+                </div>
+              {% endif %}
             </td>
             <td class="whitespace-nowrap">{{ obj.get_events|length }} event{{ obj.get_events|length|pluralize }}</td>
           </tr>

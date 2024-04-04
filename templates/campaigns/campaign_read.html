@@ -8,7 +8,11 @@
         {% if object.group.is_active %}
           {% include "includes/recipients_group.html" with group=object.group %}
         {% else %}
-          {% trans "No group assigned to this campaign" %}
+          <div class="flex items-center">
+            <temba-icon name="issue" class="mr-2">
+            </temba-icon>
+            <div>{% trans "Group no longer exists" %}</div>
+          </div>
         {% endif %}
       </div>
     </div>
