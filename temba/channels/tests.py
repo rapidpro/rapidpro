@@ -130,6 +130,9 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("EATRIGHT", self.tel_channel.get_address_display())
         self.assertEqual("EATRIGHT", self.tel_channel.get_address_display(e164=True))
 
+        self.tel_channel.address = ""
+        self.assertEqual("", self.tel_channel.get_address_display())
+
     def test_ensure_normalization(self):
         self.tel_channel.country = "RW"
         self.tel_channel.save()
