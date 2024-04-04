@@ -2,8 +2,8 @@
 {% load smartmin temba humanize channels i18n tz %}
 
 {% block title %}
-  <temba-urn scheme="{{ channel.schemes|first }}" class="mr-2">
-  </temba-urn>
+  <temba-icon name="{{ object.type.icon }}" class="mr-2">
+  </temba-icon>
   <div class="flex items-start flex-col">
     <div class="name" id="title-text">{{ object.name }}</div>
   </div>
@@ -58,8 +58,9 @@
           {% trans "Not synced yet" %}
         {% endif %}
       {% else %}
-        {% trans "Activated" %}
-        {{ object.created_on }}
+        {% blocktrans trimmed with date=object.created_on|day %}
+          Activated on {{ date }}
+        {% endblocktrans %}
       {% endif %}
     {% endif %}
   </div>
@@ -212,7 +213,7 @@
 {% block extra-script %}
   {{ block.super }}
   <script type="text/javascript">
-    var chartUrl = "{% url 'channels.channel_chart' channel.uuid %}";
+    var chartUrl = "{% url 'channels.channel_chart' object.uuid %}";
     var chart;
     onSpload(function() {
 

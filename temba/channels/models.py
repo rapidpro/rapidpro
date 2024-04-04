@@ -146,6 +146,10 @@ class ChannelType(metaclass=ABCMeta):
         else:
             return False
 
+    @property
+    def icon(self):
+        return f"channel_{self.code.lower()}"
+
     def get_claim_blurb(self):
         """
         Gets the blurb for use on the claim page list of channel types
@@ -217,9 +221,6 @@ class ChannelType(metaclass=ABCMeta):
         """
         Resolves an error code from a channel log into a docs URL for that error.
         """
-
-    def get_icon(self):
-        return f"channel_{self.code.lower()}"
 
     def __str__(self):
         return self.name

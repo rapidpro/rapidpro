@@ -1285,7 +1285,7 @@ class OrgCRUDL(SmartCRUDL):
                                 menu_id=str(channel.uuid),
                                 name=channel.name,
                                 href=get_channel_read_url(channel),
-                                icon=channel.type.get_icon(),
+                                icon=channel.type.icon,
                             )
                         )
 

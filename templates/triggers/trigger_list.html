@@ -72,7 +72,7 @@
                   <div class="text-sm mt-2">
                     {% if obj.channel %}
                       {# djlint:off #}
-                      <a href="{% url 'channels.channel_read' obj.channel.uuid %}" onclick="goto(event, this)"><temba-label icon="{{ obj.channel.type.get_icon }}" clickable class="mr-1 mb-1">{{ obj.channel }}</temba-label></a>
+                      <a href="{% url 'channels.channel_read' obj.channel.uuid %}" onclick="goto(event, this)"><temba-label icon="{{ obj.channel.type.icon }}" clickable class="mr-1 mb-1">{{ obj.channel }}</temba-label></a>
                       {# djlint:on #}
                     {% endif %}
                     {% include "includes/recipients.html" with contacts=obj.contacts.all groups=obj.groups.all exclude_groups=obj.exclude_groups.all groups_as_filters=True %}
