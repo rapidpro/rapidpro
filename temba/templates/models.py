@@ -2,6 +2,7 @@ import uuid
 
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.orgs.models import Org
@@ -45,7 +46,7 @@ class Template(models.Model):
 
             status = STATUS_MAPPING[template_status]
             if not all_supported:
-                status = TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
+                status = TemplateTranslation.STATUS_UNSUPPORTED
 
             missing_external_id = f"{template['language']}/{template['name']}"
             translation = TemplateTranslation.get_or_create(
@@ -90,13 +91,12 @@ class TemplateTranslation(models.Model):
     STATUS_APPROVED = "A"
     STATUS_PENDING = "P"
     STATUS_REJECTED = "R"
-    STATUS_UNSUPPORTED_COMPONENTS = "X"
-
+    STATUS_UNSUPPORTED = "X"
     STATUS_CHOICES = (
-        (STATUS_APPROVED, "approved"),
-        (STATUS_PENDING, "pending"),
-        (STATUS_REJECTED, "rejected"),
-        (STATUS_UNSUPPORTED_COMPONENTS, "unsupported_components"),
+        (STATUS_APPROVED, _("Approved")),
+        (STATUS_PENDING, _("Pending")),
+        (STATUS_REJECTED, _("Rejected")),
+        (STATUS_UNSUPPORTED, _("Unsupported")),
     )
 
     template = models.ForeignKey(Template, on_delete=models.PROTECT, related_name="translations")

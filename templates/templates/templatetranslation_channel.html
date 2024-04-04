@@ -1,5 +1,5 @@
 {% extends "smartmin/list.html" %}
-{% load i18n %}
+{% load i18n smartmin %}
 
 {% block title-text %}
   {{ channel.name }} - {% trans "Templates" %}
@@ -8,7 +8,7 @@
   {% trans "Templates are refreshed every 15 minutes." %}
 {% endblock subtitle %}
 {% block content %}
-  <div class="card p-0 overflow-y-scroll" id="templates">
+  <div class="card p-0 overflow-y-scroll">
     {% for translation in object_list %}
       {% ifchanged translation.template.name %}
         <div class="p-4 font-bold max-w-6xl truncate">{{ translation.template.name }}</div>
@@ -32,8 +32,12 @@
             {% endfor %}
           </div>
         </div>
-        <div class="p-4 locale">{{ translation.locale }}</div>
-        <div class="tr-{{ translation.get_status_display }} p-4 font-mono">{{ translation.get_status_display }}</div>
+        <div class="p-4 whitespace-nowrap">{{ translation.locale }}</div>
+        <div class="p-4">
+          <temba-label icon="{{ status_icons|field:translation.status }}">
+            {{ translation.get_status_display }}
+          </temba-label>
+        </div>
       </div>
     {% empty %}
       <tr class="empty">
@@ -47,18 +51,6 @@
   <style type="text/css">
     .translation {
       border-bottom: 1px solid #e6e6e6;
-    }
-
-    .tr-pending {
-      color: #faa732;
-    }
-
-    .tr-rejected {
-      color: #b81900;
-    }
-
-    .tr-approved {
-      color: #4ca20b;
     }
   </style>
 {% endblock extra-style %}
