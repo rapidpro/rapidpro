@@ -364,7 +364,7 @@ class TemplateTest(TembaTest):
             {"1233", "1235", "9020", "9030"},
             set(
                 TemplateTranslation.objects.filter(
-                    channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
+                    channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED
                 ).values_list("external_id", flat=True)
             ),
         )
@@ -410,13 +410,13 @@ class TemplateTest(TembaTest):
 
         ct = TemplateTranslation.objects.get(template__name="invalid_component", is_active=True)
         self.assertEqual("fra", ct.locale)
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS, ct.status)
+        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual([], ct.components)
 
         ct = TemplateTranslation.objects.get(template__name="login", is_active=True)
         self.assertEqual("fra", ct.locale)
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS, ct.status)
+        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
             [
@@ -428,7 +428,7 @@ class TemplateTest(TembaTest):
 
         ct = TemplateTranslation.objects.get(template__name="order_template", is_active=True)
         self.assertEqual("eng", ct.locale)
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS, ct.status)
+        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, ct.status)
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
             [
@@ -673,13 +673,13 @@ class TemplateTest(TembaTest):
             {"en/order_template", "en/missing_text_component", "fr/invalid_component", "fr/login"},
             set(
                 TemplateTranslation.objects.filter(
-                    channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS
+                    channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED
                 ).values_list("external_id", flat=True)
             ),
         )
 
         tt = TemplateTranslation.objects.filter(channel=channel, external_id="fr/invalid_component").first()
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_COMPONENTS, tt.status)
+        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, tt.status)
 
         tt = TemplateTranslation.objects.filter(channel=channel, external_id="en/hello").first()
         self.assertEqual("xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx", tt.namespace)
