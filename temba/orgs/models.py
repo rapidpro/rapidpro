@@ -276,11 +276,6 @@ class User(AuthUser):
     def settings(self):
         assert self.is_authenticated, "can't fetch user settings for anonymous users"
 
-        try:
-            self.usersettings
-        except User.usersettings.RelatedObjectDoesNotExist:
-            self.usersettings = UserSettings.objects.get_or_create(user=self)[0]
-
         return self.usersettings
 
     def get_api_token(self, org) -> str:
