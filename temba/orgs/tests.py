@@ -51,7 +51,7 @@ from temba.utils.uuid import uuid4
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .context_processors import RolePermsWrapper
-from .models import BackupToken, Export, Invitation, Org, OrgImport, OrgMembership, OrgRole, User
+from .models import BackupToken, Export, Invitation, Org, OrgImport, OrgMembership, OrgRole, User, UserSettings
 from .tasks import delete_released_orgs, restart_stalled_exports, send_user_verification_email, trim_exports
 
 
@@ -131,6 +131,24 @@ class InvitationTest(TembaTest):
 class UserTest(TembaTest):
     def test_model(self):
         user = User.create("jim@rapidpro.io", "Jim", "McFlow", password="super")
+
+        self.assertTrue(UserSettings.objects.filter(user=user).exists())  # created by signal
+
+        with self.assertNumQueries(0):
+            self.assertIsNone(user.settings.last_auth_on)
+
+        # reload the user instance - now accessing settings should lazily trigger a query
+        user = User.objects.get(id=user.id)
+        with self.assertNumQueries(1):
+            self.assertIsNone(user.settings.last_auth_on)
+        with self.assertNumQueries(0):
+            self.assertIsNone(user.settings.last_auth_on)
+
+        # unless we prefetch
+        user = User.objects.select_related("usersettings").get(id=user.id)
+        with self.assertNumQueries(0):
+            self.assertIsNone(user.settings.last_auth_on)
+
         self.org.add_user(user, OrgRole.EDITOR)
         self.org2.add_user(user, OrgRole.AGENT)
 
