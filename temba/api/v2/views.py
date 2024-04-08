@@ -3639,7 +3639,7 @@ class UsersEndpoint(ListAPIMixin, BaseEndpoint):
         else:
             roles = None
 
-        return org.get_users(roles=roles).prefetch_related("usersettings")
+        return org.get_users(roles=roles).prefetch_related("settings")
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

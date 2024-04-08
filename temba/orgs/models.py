@@ -272,12 +272,6 @@ class User(AuthUser):
 
         return role.has_perm(permission)
 
-    @cached_property
-    def settings(self):
-        assert self.is_authenticated, "can't fetch user settings for anonymous users"
-
-        return self.usersettings
-
     def get_api_token(self, org) -> str:
         from temba.api.models import APIToken
 
@@ -353,7 +347,7 @@ class UserSettings(models.Model):
         (STATUS_FAILING, _("Failing")),
     )
 
-    user = models.OneToOneField(User, on_delete=models.PROTECT, related_name="usersettings")
+    user = models.OneToOneField(User, on_delete=models.PROTECT, related_name="settings")
     language = models.CharField(max_length=8, choices=settings.LANGUAGES, default=settings.DEFAULT_LANGUAGE)
     team = models.ForeignKey("tickets.Team", on_delete=models.PROTECT, null=True)
     otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
@@ -373,7 +367,7 @@ def on_user_post_save(sender, instance: User, created: bool, *args, **kwargs):
     """
 
     if created:
-        instance.usersettings = UserSettings.objects.create(user=instance)
+        instance.settings = UserSettings.objects.create(user=instance)
 
 
 class OrgRole(Enum):

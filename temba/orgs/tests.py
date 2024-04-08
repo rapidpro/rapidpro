@@ -145,7 +145,7 @@ class UserTest(TembaTest):
             self.assertIsNone(user.settings.last_auth_on)
 
         # unless we prefetch
-        user = User.objects.select_related("usersettings").get(id=user.id)
+        user = User.objects.select_related("settings").get(id=user.id)
         with self.assertNumQueries(0):
             self.assertIsNone(user.settings.last_auth_on)
 
@@ -3666,8 +3666,6 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("Admin User", self.admin.name)
         self.assertTrue("V", self.admin.settings.email_status)  # unchanged
         self.assertIsNotNone(self.admin.settings.avatar)
-
-        del self.admin.settings  # clear cached_property
         self.assertEqual("pt-br", self.admin.settings.language)
 
         self.admin.settings.language = "en-us"
