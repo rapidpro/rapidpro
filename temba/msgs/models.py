@@ -519,15 +519,13 @@ class Msg(models.Model):
     locale = models.CharField(max_length=6, null=True)  # eng, eng-US, por-BR, und etc
 
     created_on = models.DateTimeField(db_index=True)
-    modified_on = models.DateTimeField(null=True, blank=True, auto_now=True)
+    modified_on = models.DateTimeField()
     sent_on = models.DateTimeField(null=True)
-    queued_on = models.DateTimeField(null=True)
 
     msg_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
     visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE)
-
     labels = models.ManyToManyField("Label", related_name="msgs")
 
     # the number of actual messages the channel sent this as (outgoing only)
@@ -544,6 +542,9 @@ class Msg(models.Model):
 
     metadata = JSONAsTextField(null=True, default=dict)
     log_uuids = ArrayField(models.UUIDField(), null=True)
+
+    # deprecated
+    queued_on = models.DateTimeField(null=True)
 
     def as_archive_json(self):
         """

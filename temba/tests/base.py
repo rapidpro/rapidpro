@@ -447,6 +447,7 @@ class TembaTest(SmartminTest):
             high_priority=high_priority,
             created_on=created_on or timezone.now(),
             created_by=created_by,
+            modified_on=timezone.now(),
             sent_on=sent_on,
             broadcast=broadcast,
             optin=optin,
@@ -620,6 +621,7 @@ class TembaTest(SmartminTest):
             msg_type=Msg.TYPE_VOICE,
             sent_on=timezone.now(),
             created_on=timezone.now(),
+            modified_on=timezone.now(),
         )
 
         return call
