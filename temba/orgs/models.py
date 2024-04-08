@@ -27,6 +27,8 @@ from django.core.files import File
 from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models import Prefetch
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_str
@@ -274,11 +276,6 @@ class User(AuthUser):
     def settings(self):
         assert self.is_authenticated, "can't fetch user settings for anonymous users"
 
-        try:
-            self.usersettings
-        except User.usersettings.RelatedObjectDoesNotExist:
-            self.usersettings = UserSettings.objects.get_or_create(user=self)[0]
-
         return self.usersettings
 
     def get_api_token(self, org) -> str:
@@ -367,6 +364,16 @@ class UserSettings(models.Model):
     email_status = models.CharField(max_length=1, default=STATUS_UNVERIFIED, choices=STATUS_CHOICES)
     email_verification_secret = models.CharField(max_length=64, null=True, db_index=True)
     avatar = models.ImageField(upload_to=UploadToIdPathAndRename("avatars/"), storage=public_file_storage, null=True)
+
+
+@receiver(post_save, sender=User)
+def on_user_post_save(sender, instance: User, created: bool, *args, **kwargs):
+    """
+    Handle user post-save signals so that we can create user settings for them.
+    """
+
+    if created:
+        instance.usersettings = UserSettings.objects.create(user=instance)
 
 
 class OrgRole(Enum):

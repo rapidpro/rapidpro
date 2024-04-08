@@ -41,7 +41,7 @@ from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
-from temba.tests import CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, ESMockWithScroll, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import TicketExport
@@ -51,7 +51,7 @@ from temba.utils.uuid import uuid4
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .context_processors import RolePermsWrapper
-from .models import BackupToken, Export, Invitation, Org, OrgImport, OrgMembership, OrgRole, User
+from .models import BackupToken, Export, Invitation, Org, OrgImport, OrgMembership, OrgRole, User, UserSettings
 from .tasks import delete_released_orgs, restart_stalled_exports, send_user_verification_email, trim_exports
 
 
@@ -131,6 +131,24 @@ class InvitationTest(TembaTest):
 class UserTest(TembaTest):
     def test_model(self):
         user = User.create("jim@rapidpro.io", "Jim", "McFlow", password="super")
+
+        self.assertTrue(UserSettings.objects.filter(user=user).exists())  # created by signal
+
+        with self.assertNumQueries(0):
+            self.assertIsNone(user.settings.last_auth_on)
+
+        # reload the user instance - now accessing settings should lazily trigger a query
+        user = User.objects.get(id=user.id)
+        with self.assertNumQueries(1):
+            self.assertIsNone(user.settings.last_auth_on)
+        with self.assertNumQueries(0):
+            self.assertIsNone(user.settings.last_auth_on)
+
+        # unless we prefetch
+        user = User.objects.select_related("usersettings").get(id=user.id)
+        with self.assertNumQueries(0):
+            self.assertIsNone(user.settings.last_auth_on)
+
         self.org.add_user(user, OrgRole.EDITOR)
         self.org2.add_user(user, OrgRole.AGENT)
 
@@ -4564,3 +4582,19 @@ class ExportCRUDLTest(TembaTest):
         self.assertEqual(
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", response.headers["content-type"]
         )
+
+
+class BackfillUserSettingsTest(MigrationTest):
+    app = "orgs"
+    migrate_from = "0140_alter_usersettings_user"
+    migrate_to = "0141_backfill_user_settings"
+
+    def setUpBeforeMigration(self, apps):
+        self.user1 = self.create_user("ann@nyaruka.com")
+        self.user2 = self.create_user("bob@nyaruka.com")
+
+        UserSettings.objects.filter(user=self.user2).delete()
+
+    def test_migrate(self):
+        self.assertTrue(UserSettings.objects.filter(user=self.user1).exists())
+        self.assertTrue(UserSettings.objects.filter(user=self.user2).exists())
