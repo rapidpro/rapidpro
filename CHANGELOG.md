@@ -1,3 +1,8 @@
+v9.1.76 (2024-04-08)
+-------------------------
+ * Add data migration to backfill missing user settings
+ * Add signal receiver to ensure new users always have settings
+
 v9.1.75 (2024-04-04)
 -------------------------
  * Add data migration to archive campaigns with deleted groups
