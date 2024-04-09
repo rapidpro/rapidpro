@@ -1,3 +1,7 @@
+v9.1.78 (2024-04-09)
+-------------------------
+ * Use new components bundle
+
 v9.1.77 (2024-04-09)
 -------------------------
  * Deprecate Msg.queued_on as it isn't used and make Msg.modified_on non-null
