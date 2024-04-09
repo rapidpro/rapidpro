@@ -367,6 +367,7 @@ class MockSessionWriter:
             text=event["msg"]["text"],
             attachments=attachments,
             created_on=event["created_on"],
+            modified_on=timezone.now(),
             msg_type=Msg.TYPE_TEXT,
             status=Msg.STATUS_SENT,
             sent_on=event["created_on"],

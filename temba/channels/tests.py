@@ -1175,6 +1175,7 @@ class ChannelCountTest(TembaTest):
                     direction="O",
                     msg_type="T",
                     created_on=datetime(2023, 6, 1, 13, 0, 30, 0, tzone.utc),
+                    modified_on=datetime(2023, 6, 1, 13, 0, 30, 0, tzone.utc),
                 ),
                 Msg(
                     org=self.org,
@@ -1184,6 +1185,7 @@ class ChannelCountTest(TembaTest):
                     direction="O",
                     msg_type="T",
                     created_on=datetime(2023, 6, 1, 13, 0, 30, 0, tzone.utc),
+                    modified_on=datetime(2023, 6, 1, 13, 0, 30, 0, tzone.utc),
                 ),
                 Msg(
                     org=self.org,
@@ -1193,6 +1195,7 @@ class ChannelCountTest(TembaTest):
                     direction="O",
                     msg_type="V",
                     created_on=datetime(2023, 6, 1, 13, 0, 30, 0, tzone.utc),
+                    modified_on=datetime(2023, 6, 1, 13, 0, 30, 0, tzone.utc),
                 ),
             ]
         )

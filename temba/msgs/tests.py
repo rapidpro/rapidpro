@@ -465,6 +465,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
             visibility="V",
             log_uuids=[log.uuid],
             created_on=timezone.now(),
+            modified_on=timezone.now(),
         )
         spam = self.create_label("Spam")
         msg.labels.add(spam)
