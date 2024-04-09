@@ -31,6 +31,7 @@
       <script src="{{ STATIC_URL }}highcharts/modules/drilldown.js"></script>
       <script src="{{ STATIC_URL }}qrious/dist/qrious.min.js"></script>
       <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
+      <script src="{{ STATIC_URL }}croppie/croppie.js"></script>
     {% endcompress %}
     {% if not debug and not testing %}<script src="{{ STATIC_URL }}lib/raven.min.js"></script>{% endif %}
     {% compress js %}
@@ -124,9 +125,6 @@
     {% endblock scripts %}
     {% for script in flow_editor_scripts %}<script type="text/javascript" src="{{script}}"></script>{% endfor %}
     {% for style in flow_editor_styles %}<link rel="stylesheet" href="{{ style }}" type="text/css">{% endfor %}
-    {% if not COMPONENTS_DEV_MODE %}
-      {% include "components-head.html" %}
-    {% endif %}
     {% block favico %}
       <link type="image/ico" rel="shortcut icon" href="{{ STATIC_URL }}images/favicon.ico">
     {% endblock favico %}
@@ -152,7 +150,9 @@
           import '/out-tsc/temba-modules.js';
         </script>
       {% else %}
-        {% include "components-body.html" %}
+        {% compress js %}
+          <script src="{{ STATIC_URL }}@nyaruka/temba-components/dist/temba-components.js"></script>
+        {% endcompress %}
       {% endif %}
       {% if user_org %}
         <temba-store {% if org_perms.globals.global_list %}globals="/api/v2/globals.json"{% endif %}

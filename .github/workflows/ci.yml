@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       python-version: "3.10.x"
-      node-version: "12"
+      node-version: "20"
       mailroom-version: "9.1.16"
       DJANGO_SETTINGS_MODULE: temba.settings_ci
 
