@@ -739,6 +739,10 @@ class Msg(models.Model):
         ]
         constraints = [
             models.CheckConstraint(
+                name="incoming_has_channel_and_urn",
+                check=Q(direction="O") | Q(channel__isnull=False, contact_urn__isnull=False),
+            ),
+            models.CheckConstraint(
                 name="no_sent_status_without_sent_on",
                 check=(~Q(status__in=("W", "S", "D"), sent_on__isnull=True)),
             ),
