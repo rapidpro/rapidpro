@@ -1,3 +1,8 @@
+v9.1.82 (2024-04-10)
+-------------------------
+ * Unpublicize the channel events API endpoint
+ * Drop unused Msg.queued_on field
+
 v9.1.81 (2024-04-10)
 -------------------------
  * Update temba-components
