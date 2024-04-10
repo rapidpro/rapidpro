@@ -20,6 +20,12 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name="msg",
             constraint=models.CheckConstraint(
+                check=models.Q(("direction", "I"), ("direction", "O"), _connector="OR"), name="direction_is_in_or_out"
+            ),
+        ),
+        migrations.AddConstraint(
+            model_name="msg",
+            constraint=models.CheckConstraint(
                 check=models.Q(
                     ("direction", "O"),
                     models.Q(("channel__isnull", False), ("contact_urn__isnull", False)),
