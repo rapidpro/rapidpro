@@ -115,7 +115,6 @@ class ExplorerView(OrgPermsMixin, SmartTemplateView):
             CampaignEventsEndpoint.get_write_explorer(),
             CampaignEventsEndpoint.get_delete_explorer(),
             ChannelsEndpoint.get_read_explorer(),
-            ChannelEventsEndpoint.get_read_explorer(),
             ClassifiersEndpoint.get_read_explorer(),
             ContactsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_write_explorer(),
@@ -179,7 +178,6 @@ class RootView(BaseEndpoint):
      * [/api/v2/campaigns](/api/v2/campaigns) - to list, create, or update campaigns
      * [/api/v2/campaign_events](/api/v2/campaign_events) - to list, create, update or delete campaign events
      * [/api/v2/channels](/api/v2/channels) - to list channels
-     * [/api/v2/channel_events](/api/v2/channel_events) - to list channel events
      * [/api/v2/classifiers](/api/v2/classifiers) - to list classifiers
      * [/api/v2/contacts](/api/v2/contacts) - to list, create, update or delete contacts
      * [/api/v2/contact_actions](/api/v2/contact_actions) - to perform bulk contact actions
@@ -289,7 +287,6 @@ class RootView(BaseEndpoint):
                 "campaigns": reverse("api.v2.campaigns", request=request),
                 "campaign_events": reverse("api.v2.campaign_events", request=request),
                 "channels": reverse("api.v2.channels", request=request),
-                "channel_events": reverse("api.v2.channel_events", request=request),
                 "classifiers": reverse("api.v2.classifiers", request=request),
                 "contacts": reverse("api.v2.contacts", request=request),
                 "contact_actions": reverse("api.v2.contact_actions", request=request),
@@ -1057,41 +1054,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseEndpoint):
 
 class ChannelEventsEndpoint(ListAPIMixin, BaseEndpoint):
     """
-    This endpoint allows you to list channel events in your account.
-
-    ## Listing Channel Events
-
-    A **GET** returns the channel events for your organization, most recent first.
-
-     * **id** - the ID of the event (int), filterable as `id`.
-     * **channel** - the UUID and name of the channel that handled this call (object).
-     * **type** - the type of event (one of "call-in", "call-in-missed", "call-out", "call-out-missed").
-     * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
-     * **extra** - any extra attributes collected for this event
-     * **occurred_on** - when this event happened on the channel (datetime).
-     * **created_on** - when this event was created (datetime), filterable as `before` and `after`.
-
-    Example:
-
-        GET /api/v2/channel_events.json
-
-    Response:
-
-        {
-            "next": null,
-            "previous": null,
-            "results": [
-            {
-                "id": 4,
-                "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Vonage"},
-                "type": "call-in"
-                "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
-                "extra": { "duration": 606 },
-                "occurred_on": "2013-02-27T09:06:12.123"
-                "created_on": "2013-02-27T09:06:15.456"
-            },
-            ...
-
+    Deprecated endpoint for listing channel events on your account.
     """
 
     model = ChannelEvent
@@ -1122,33 +1085,6 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseEndpoint):
         )
 
         return self.filter_before_after(queryset, "created_on")
-
-    @classmethod
-    def get_read_explorer(cls):
-        return {
-            "method": "GET",
-            "title": "List Channel Events",
-            "url": reverse("api.v2.channel_events"),
-            "slug": "channel-event-list",
-            "params": [
-                {"name": "id", "required": False, "help": "An event ID to filter by. ex: 12345"},
-                {
-                    "name": "contact",
-                    "required": False,
-                    "help": "A contact UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
-                },
-                {
-                    "name": "before",
-                    "required": False,
-                    "help": "Only return events created before this date, ex: 2015-01-28T18:00:00.000",
-                },
-                {
-                    "name": "after",
-                    "required": False,
-                    "help": "Only return events created after this date, ex: 2015-01-28T18:00:00.000",
-                },
-            ],
-        }
 
 
 class ClassifiersEndpoint(ListAPIMixin, BaseEndpoint):
@@ -1554,57 +1490,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
 
 class DefinitionsEndpoint(BaseEndpoint):
     """
-    This endpoint allows you to export definitions of flows, campaigns and triggers in your account. Note that the
-    schema of flow definitions may change over time.
-
-    ## Exporting Definitions
-
-    A **GET** exports a set of flows and campaigns, and can automatically include dependencies for the requested items,
-    such as groups, triggers and other flows.
-
-      * **flow** - the UUIDs of flows to include (string, repeatable)
-      * **campaign** - the UUIDs of campaigns to include (string, repeatable)
-      * **dependencies** - whether to include dependencies (all, flows, none, default: all)
-
-    Example:
-
-        GET /api/v2/definitions.json?flow=f14e4ff0-724d-43fe-a953-1d16aefd1c0b&flow=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab
-
-    Response is a collection of definitions:
-
-        {
-            "version": "13",
-            "site": "https://app.rapidpro.io",
-            "flows": [
-                {
-                    "uuid": "7adbf194-a05c-4fe0-bd22-a178e24bee5e",
-                    "name": "My Flow",
-                    "spec_version": "13.1.0",
-                    "language": "eng",
-                    "type": "messaging",
-                    "nodes": [
-                        {
-                            "uuid": "d2240abf-8c70-4cb4-96e9-c7e67ccb0e2a",
-                            "actions": [
-                                {
-                                    "attachments": [],
-                                    "text": "Hi @contact! Which state do you live in?",
-                                    "type": "send_msg",
-                                    "quick_replies": [],
-                                    "uuid": "9012e709-76c8-4f2f-aea9-c1f7a31e7bb0"
-                                }
-                            ],
-                            "exits": [
-                                {
-                                    "uuid": "81683d94-9623-4706-8878-e314beb9325c"
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ],
-            ...
-        }
+    Deprecated endpoint for exporting definitions of flows, campaigns and triggers in your account.
     """
 
     permission = "orgs.org_export"
