@@ -14,7 +14,7 @@ from temba.tests import CRUDLTestMixin, TembaTest
 
 from .models import Template, TemplateTranslation
 from .tasks import refresh_templates
-from .whatsapp import _extract_params, parse_language
+from .whatsapp import _extract_variables, parse_language
 
 
 class TemplateTest(TembaTest):
@@ -27,7 +27,16 @@ class TemplateTest(TembaTest):
             external_id="1234",
             external_locale="en_US",
             namespace="",
-            components=[{"type": "body", "name": "body", "content": "Hello {{1}}", "params": [{"type": "text"}]}],
+            components=[
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "Hello {{1}}",
+                    "variables": {"1": 0},
+                    "params": [{"type": "text"}],
+                }
+            ],
+            variables=[{"type": "text"}],
         )
         tt2 = TemplateTranslation.get_or_create(
             self.channel,
@@ -37,7 +46,16 @@ class TemplateTest(TembaTest):
             external_id="5678",
             external_locale="fr_FR",
             namespace="",
-            components=[{"type": "body", "name": "body", "content": "Bonjour {{1}}", "params": [{"type": "text"}]}],
+            components=[
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "Bonjour {{1}}",
+                    "variables": {"1": 0},
+                    "params": [{"type": "text"}],
+                }
+            ],
+            variables=[{"type": "text"}],
         )
 
         self.assertEqual(tt1.template, tt2.template)
@@ -51,7 +69,16 @@ class TemplateTest(TembaTest):
             external_id="5678",
             external_locale="fr_FR",
             namespace="foo_namespace",
-            components=[{"type": "body", "name": "body", "content": "Salut {{1}}", "params": [{"type": "text"}]}],
+            components=[
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "Salut {{1}}",
+                    "variables": {"1": 0},
+                    "params": [{"type": "text"}],
+                }
+            ],
+            variables=[{"type": "text"}],
         )
 
         self.assertTrue(tt3.template.modified_on > modified_on)
@@ -318,7 +345,7 @@ class TemplateTest(TembaTest):
                     {
                         "type": "BUTTONS",
                         "buttons": [
-                            {"type": "QUICK_REPLY", "text": "Yes"},
+                            {"type": "QUICK_REPLY", "text": "Yes {{1}}"},
                             {"type": "QUICK_REPLY", "text": "No"},
                             {"type": "PHONE_NUMBER", "text": "Call center", "phone_number": "+1234"},
                             {
@@ -379,11 +406,13 @@ class TemplateTest(TembaTest):
                     "type": "body",
                     "name": "body",
                     "content": "Goodbye {{1}}, see you on {{2}}. See you later {{1}}",
+                    "variables": {"1": 0, "2": 1},
                     "params": [{"type": "text"}, {"type": "text"}],
                 }
             ],
             ct.components,
         )
+        self.assertEqual([{"type": "text"}, {"type": "text"}], ct.variables)
 
         ct = TemplateTranslation.objects.get(template__name="workout_activity", is_active=True)
         self.assertEqual("eng", ct.locale)
@@ -395,18 +424,27 @@ class TemplateTest(TembaTest):
                     "type": "header",
                     "name": "header",
                     "content": "Workout challenge week extra points!",
+                    "variables": {},
                     "params": [],
                 },
                 {
                     "type": "body",
                     "name": "body",
                     "content": "Hey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.",
+                    "variables": {"1": 0, "2": 1, "3": 2},
                     "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
                 },
-                {"type": "footer", "name": "footer", "content": "Remember to drink water.", "params": []},
+                {
+                    "type": "footer",
+                    "name": "footer",
+                    "content": "Remember to drink water.",
+                    "variables": {},
+                    "params": [],
+                },
             ],
             ct.components,
         )
+        self.assertEqual([{"type": "text"}, {"type": "text"}, {"type": "text"}], ct.variables)
 
         ct = TemplateTranslation.objects.get(template__name="invalid_component", is_active=True)
         self.assertEqual("fra", ct.locale)
@@ -420,8 +458,8 @@ class TemplateTest(TembaTest):
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
             [
-                {"type": "body", "name": "body", "content": "", "params": []},
-                {"type": "footer", "name": "footer", "content": "", "params": []},
+                {"type": "body", "name": "body", "content": "", "variables": {}, "params": []},
+                {"type": "footer", "name": "footer", "content": "", "variables": {}, "params": []},
             ],
             ct.components,
         )
@@ -432,21 +470,35 @@ class TemplateTest(TembaTest):
         self.assertEqual("foo_namespace", ct.namespace)
         self.assertEqual(
             [
-                {"type": "header", "name": "header", "content": "", "params": []},
+                {"type": "header", "name": "header", "content": "", "variables": {}, "params": []},
                 {
                     "type": "body",
                     "name": "body",
                     "content": "Sorry your order {{1}} took longer to deliver than expected.\nWe'll notify you about updates in the next {{2}} days.\n\nDo you have more question?",
+                    "variables": {"1": 0, "2": 1},
                     "params": [{"type": "text"}, {"type": "text"}],
                 },
-                {"type": "footer", "name": "footer", "content": "Thanks for your patience", "params": []},
-                {"type": "button/quick_reply", "name": "button.0", "content": "Yes", "params": []},
-                {"type": "button/quick_reply", "name": "button.1", "content": "No", "params": []},
+                {
+                    "type": "footer",
+                    "name": "footer",
+                    "content": "Thanks for your patience",
+                    "variables": {},
+                    "params": [],
+                },
+                {
+                    "type": "button/quick_reply",
+                    "name": "button.0",
+                    "content": "Yes {{1}}",
+                    "variables": {"1": 2},
+                    "params": [{"type": "text"}],
+                },
+                {"type": "button/quick_reply", "name": "button.1", "content": "No", "variables": {}, "params": []},
                 {
                     "type": "button/phone_number",
                     "name": "button.2",
                     "content": "+1234",
                     "display": "Call center",
+                    "variables": {},
                     "params": [],
                 },
                 {
@@ -454,6 +506,7 @@ class TemplateTest(TembaTest):
                     "name": "button.3",
                     "content": r"https:\/\/example.com\/?wa_customer={{1}}",
                     "display": "Check website",
+                    "variables": {"1": 3},
                     "params": [{"type": "text"}],
                 },
                 {
@@ -461,11 +514,13 @@ class TemplateTest(TembaTest):
                     "name": "button.4",
                     "content": r"https:\/\/example.com\/help",
                     "display": "Check website",
+                    "variables": {},
                     "params": [],
                 },
             ],
             ct.components,
         )
+        self.assertEqual([{"type": "text"}, {"type": "text"}, {"type": "text"}, {"type": "text"}], ct.variables)
 
     def test_update_local_templates_dialog360(self):
         # no namespace in channel config
@@ -696,7 +751,16 @@ class TemplateTranslationCRUDLTest(CRUDLTestMixin, TembaTest):
             external_id="1234",
             external_locale="en_US",
             namespace="foo_namespace",
-            components=[{"type": "body", "name": "body", "content": "Hello {{1}}", "params": [{"type": "text"}]}],
+            components=[
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "Hello {{1}}",
+                    "variables": {"1": 0},
+                    "params": [{"type": "text"}],
+                }
+            ],
+            variables=[{"type": "text"}],
         )
         tt2 = TemplateTranslation.get_or_create(
             channel,
@@ -706,7 +770,16 @@ class TemplateTranslationCRUDLTest(CRUDLTestMixin, TembaTest):
             external_id="2345",
             external_locale="en_US",
             namespace="foo_namespace",
-            components=[{"type": "body", "name": "body", "content": "Goodbye {{1}}", "params": [{"type": "text"}]}],
+            components=[
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "Goodbye {{1}}",
+                    "variables": {"1": 0},
+                    "params": [{"type": "text"}],
+                }
+            ],
+            variables=[{"type": "text"}],
         )
 
         # and one for another channel
@@ -718,7 +791,16 @@ class TemplateTranslationCRUDLTest(CRUDLTestMixin, TembaTest):
             external_id="5678",
             external_locale="en_US",
             namespace="foo_namespace",
-            components=[{"type": "body", "name": "body", "content": "Goodbye {{1}}", "params": [{"type": "text"}]}],
+            components=[
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "Goodbye {{1}}",
+                    "variables": {"1": 0},
+                    "params": [{"type": "text"}],
+                }
+            ],
+            variables=[{"type": "text"}],
         )
 
         channel_url = reverse("templates.templatetranslation_channel", args=[channel.uuid])
@@ -739,7 +821,7 @@ class WhatsAppUtilsTest(TembaTest):
         self.assertEqual("eng-US", parse_language("en_US"))
         self.assertEqual("fil", parse_language("fil"))
 
-    def test_extract_params(self):
-        self.assertEqual([{"type": "text"}, {"type": "text"}], _extract_params("Hi {{1}} how are you? {{2}}"))
-        self.assertEqual([{"type": "text"}, {"type": "text"}], _extract_params("Hi {{1}} how are you? {{2}} {{1}}"))
-        self.assertEqual([], _extract_params("Hi there."))
+    def test_extract_variables(self):
+        self.assertEqual(["1", "2"], _extract_variables("Hi {{2}} how are you? {{ 1 }}"))
+        self.assertEqual(["1", "2"], _extract_variables("Hi {{1}} how are you? {{2}} {{1}}"))
+        self.assertEqual([], _extract_variables("Hi {there}. {{x}}"))

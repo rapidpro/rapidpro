@@ -42,10 +42,10 @@ class Template(models.Model):
             if template_status not in STATUS_MAPPING:  # ignore if this is a status we don't know about
                 continue
 
-            components, all_supported = extract_components(template["components"])
+            components, variables, supported = extract_components(template["components"])
 
             status = STATUS_MAPPING[template_status]
-            if not all_supported:
+            if not supported:
                 status = TemplateTranslation.STATUS_UNSUPPORTED
 
             missing_external_id = f"{template['language']}/{template['name']}"
@@ -58,6 +58,7 @@ class Template(models.Model):
                 external_id=template.get("id", missing_external_id[:64]),
                 namespace=template.get("namespace", channel_namespace),
                 components=components,
+                variables=variables,
             )
 
             seen.append(translation)
@@ -105,6 +106,7 @@ class TemplateTranslation(models.Model):
     namespace = models.CharField(max_length=36, default="")
     locale = models.CharField(null=True, max_length=6)  # e.g. eng-US
     components = models.JSONField(default=list)
+    variables = models.JSONField(default=list)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, null=False)
     external_id = models.CharField(null=True, max_length=64)
     external_locale = models.CharField(null=True, max_length=6)  # e.g. en_US
@@ -133,8 +135,9 @@ class TemplateTranslation(models.Model):
         status,
         external_id,
         external_locale,
-        namespace,
+        namespace: str,
         components: list,
+        variables: list,
     ):
         existing = TemplateTranslation.objects.filter(channel=channel, external_id=external_id).first()
 
@@ -154,6 +157,7 @@ class TemplateTranslation(models.Model):
                 namespace=namespace,
                 locale=locale,
                 components=components,
+                variables=variables,
                 status=status,
                 external_id=external_id,
                 external_locale=external_locale,
@@ -166,9 +170,18 @@ class TemplateTranslation(models.Model):
                 existing.status = status
                 existing.is_active = True
                 existing.components = components
+                existing.variables = variables
                 existing.external_locale = external_locale
                 existing.save(
-                    update_fields=["namespace", "locale", "status", "components", "external_locale", "is_active"]
+                    update_fields=[
+                        "namespace",
+                        "locale",
+                        "status",
+                        "components",
+                        "variables",
+                        "external_locale",
+                        "is_active",
+                    ]
                 )
 
                 existing.template.modified_on = timezone.now()
