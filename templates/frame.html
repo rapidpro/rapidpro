@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-{% load humanize i18n smartmin sms compress %}
+{% load humanize i18n smartmin sms compress static %}
 
 {% block html-tag %}
   <html lang="{{ LANGUAGE_CODE }}">
@@ -151,7 +151,7 @@
         </script>
       {% else %}
         {% compress js %}
-          <script src="{{ STATIC_URL }}@nyaruka/temba-components/dist/temba-components.js"></script>
+          <script src="{% static '@nyaruka/temba-components/dist/temba-components.js' %}"></script>
         {% endcompress %}
       {% endif %}
       {% if user_org %}

@@ -1,6 +1,5 @@
 import json
 from datetime import timezone as tzone
-
 from django.template.defaultfilters import register
 from django.urls import reverse
 from django.utils.html import escapejs
