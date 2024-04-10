@@ -4064,7 +4064,7 @@ class EndpointsTest(APITest):
             {
                 "id": msg.id,
                 "type": "text",
-                "channel": {"uuid": str(self.twitter.uuid), "name": "Twitter Channel"},
+                "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                 "contact": {"uuid": str(self.joe.uuid), "name": "Joe Blow"},
                 "urn": "tel:+250788123123",
                 "text": "Interesting",

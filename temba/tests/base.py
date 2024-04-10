@@ -32,7 +32,7 @@ from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
 
-from .mailroom import create_contact_locally, update_field_locally
+from .mailroom import create_contact_locally, resolve_destination, update_field_locally
 from .s3 import jsonlgz_encode
 
 
@@ -419,13 +419,7 @@ class TembaTest(SmartminTest):
             channel = None
             contact_urn = None
         else:
-            # a simplified version of how channels are chosen
-            channel = None
-            contact_urn = None
-            for contact_urn in contact.urns.all():
-                channel = org.channels.filter(is_active=True, schemes__contains=[contact_urn.scheme]).first()
-                if channel:
-                    break
+            channel, contact_urn = resolve_destination(org, contact, channel)
 
             assert channel and contact_urn, "messages require a channel and contact URN, except for failed_reason=D"
 
