@@ -171,7 +171,6 @@ class TestClient(MailroomClient):
             sent_on=received_on,
             created_on=now,
             modified_on=now,
-            queued_on=now,
             direction=Msg.DIRECTION_IN,
             status=Msg.STATUS_PENDING,
             msg_type=Msg.TYPE_TEXT,
