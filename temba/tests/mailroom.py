@@ -794,6 +794,7 @@ def send_to_contact(org, contact, text, attachments) -> Msg:
         channel=channel,
         contact=contact,
         contact_urn=contact_urn,
+        direction=Msg.DIRECTION_OUT,
         status=status,
         failed_reason=failed_reason,
         text=text or "",
