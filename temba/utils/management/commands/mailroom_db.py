@@ -404,6 +404,7 @@ class Command(BaseCommand):
                     external_locale=tt["external_locale"],
                     namespace=tt["namespace"],
                     components=tt["components"],
+                    variables=tt["variables"],
                 )
 
         self._log(self.style.SUCCESS("OK") + "\n")

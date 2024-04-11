@@ -358,6 +358,7 @@ class Command(BaseCommand):
                                 "type": "body",
                                 "name": "body",
                                 "content": "Hi there {{1}}! We are in the process of preparing our world class menu. Would you like {{2}} or {{3}}",
+                                "variables": {"1": 0, "2": 1, "3": 2},
                                 "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
                             },
                             {
@@ -365,6 +366,7 @@ class Command(BaseCommand):
                                 "name": "button.0",
                                 "content": "https://example.com/?wa_customer={{1}}",
                                 "display": "Dish A",
+                                "variables": {"1": 3},
                                 "params": [{"type": "text"}],
                             },
                             {
@@ -372,6 +374,7 @@ class Command(BaseCommand):
                                 "name": "button.1",
                                 "content": "https://example.com/?wa_organization={{1}}",
                                 "display": "Dish B",
+                                "variables": {"1": 4},
                                 "params": [{"type": "text"}],
                             },
                             {
@@ -380,6 +383,13 @@ class Command(BaseCommand):
                                 "content": "Not Hungry",
                                 "params": [{"type": "text"}],
                             },
+                        ],
+                        variables=[
+                            {"type": "text"},
+                            {"type": "text"},
+                            {"type": "text"},
+                            {"type": "text"},
+                            {"type": "text"},
                         ],
                     )
                     TemplateTranslation.get_or_create(
@@ -395,6 +405,7 @@ class Command(BaseCommand):
                                 "type": "body",
                                 "name": "body",
                                 "content": "Bonjour {{1}} ! Nous sommes en train de préparer notre menu de classe mondiale. Souhaitez-vous {{2}} ou {{3}}",
+                                "variables": {"1": 0, "2": 1, "3": 2},
                                 "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
                             },
                             {
@@ -402,6 +413,7 @@ class Command(BaseCommand):
                                 "name": "button.0",
                                 "content": "https://example.com/?wa_customer={{1}}",
                                 "display": "Plat A",
+                                "variables": {"1": 3},
                                 "params": [{"type": "text"}],
                             },
                             {
@@ -415,8 +427,16 @@ class Command(BaseCommand):
                                 "type": "button/quick_reply",
                                 "name": "button.2",
                                 "content": "Pas Faim",
+                                "variables": {"1": 4},
                                 "params": [{"type": "text"}],
                             },
+                        ],
+                        variables=[
+                            {"type": "text"},
+                            {"type": "text"},
+                            {"type": "text"},
+                            {"type": "text"},
+                            {"type": "text"},
                         ],
                     )
                     TemplateTranslation.get_or_create(
@@ -432,9 +452,11 @@ class Command(BaseCommand):
                                 "type": "body",
                                 "name": "body",
                                 "content": "We have reserved a table for you at {{1}}. See you soon!",
+                                "variables": {"1": 0},
                                 "params": [{"type": "text"}],
                             }
                         ],
+                        variables=[{"type": "text"}],
                     )
 
             self._log(self.style.SUCCESS("OK") + "\n")

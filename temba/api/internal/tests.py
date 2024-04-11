@@ -93,7 +93,16 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_id="1234",
             external_locale="en_US",
             namespace="foo_namespace",
-            components=[{"type": "body", "name": "body", "content": "Hi {{1}}", "params": [{"type": "text"}]}],
+            components=[
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "Hi {{1}}",
+                    "variables": {"1": 0},
+                    "params": [{"type": "text"}],
+                }
+            ],
+            variables=[{"type": "text"}],
         ).template
         TemplateTranslation.get_or_create(
             self.channel,
@@ -103,7 +112,16 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_id="5678",
             external_locale="fr_FR",
             namespace="foo_namespace",
-            components=[{"type": "body", "name": "body", "content": "Bonjour {{1}}", "params": [{"type": "text"}]}],
+            components=[
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "Bonjour {{1}}",
+                    "variables": {"1": 0},
+                    "params": [{"type": "text"}],
+                }
+            ],
+            variables=[{"type": "text"}],
         )
         tt = TemplateTranslation.get_or_create(
             self.channel,
@@ -118,9 +136,11 @@ class EndpointsTest(APITestMixin, TembaTest):
                     "type": "body",
                     "name": "body",
                     "content": "This is a template translation for a deleted channel {{1}}",
+                    "variables": {"1": 0},
                     "params": [{"type": "text"}],
                 }
             ],
+            variables=[{"type": "text"}],
         )
         tt.is_active = False
         tt.save()
@@ -133,7 +153,16 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_id="6789",
             external_locale="en_US",
             namespace="foo_namespace",
-            components=[{"type": "body", "name": "body", "content": "Goodbye {{1}}", "params": [{"type": "text"}]}],
+            components=[
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "Goodbye {{1}}",
+                    "variables": {"1": 0},
+                    "params": [{"type": "text"}],
+                }
+            ],
+            variables=[{"type": "text"}],
         ).template
 
         # templates on other org to test filtering
@@ -145,7 +174,16 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_id="1234",
             external_locale="en_US",
             namespace="bar_namespace",
-            components=[{"type": "body", "name": "body", "content": "Goodbye {{1}}", "params": [{"type": "text"}]}],
+            components=[
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "Goodbye {{1}}",
+                    "variables": {"1": 0},
+                    "params": [{"type": "text"}],
+                }
+            ],
+            variables=[{"type": "text"}],
         )
         TemplateTranslation.get_or_create(
             org2channel,
@@ -155,7 +193,16 @@ class EndpointsTest(APITestMixin, TembaTest):
             external_id="5678",
             external_locale="fr_FR",
             namespace="bar_namespace",
-            components=[{"type": "body", "name": "body", "content": "Salut {{1}}", "params": [{"type": "text"}]}],
+            components=[
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "Salut {{1}}",
+                    "variables": {"1": 0},
+                    "params": [{"type": "text"}],
+                }
+            ],
+            variables=[{"type": "text"}],
         )
 
         tpl1.refresh_from_db()
@@ -180,9 +227,11 @@ class EndpointsTest(APITestMixin, TembaTest):
                                     "type": "body",
                                     "name": "body",
                                     "content": "Goodbye {{1}}",
+                                    "variables": {"1": 0},
                                     "params": [{"type": "text"}],
                                 }
                             ],
+                            "variables": [{"type": "text"}],
                         },
                     ],
                     "created_on": matchers.ISODate(),
@@ -202,9 +251,11 @@ class EndpointsTest(APITestMixin, TembaTest):
                                     "type": "body",
                                     "name": "body",
                                     "content": "Hi {{1}}",
+                                    "variables": {"1": 0},
                                     "params": [{"type": "text"}],
                                 }
                             ],
+                            "variables": [{"type": "text"}],
                         },
                         {
                             "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
@@ -216,9 +267,11 @@ class EndpointsTest(APITestMixin, TembaTest):
                                     "type": "body",
                                     "name": "body",
                                     "content": "Bonjour {{1}}",
+                                    "variables": {"1": 0},
                                     "params": [{"type": "text"}],
                                 }
                             ],
+                            "variables": [{"type": "text"}],
                         },
                     ],
                     "created_on": matchers.ISODate(),
