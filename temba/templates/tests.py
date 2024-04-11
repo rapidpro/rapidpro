@@ -14,7 +14,6 @@ from temba.tests import CRUDLTestMixin, TembaTest
 
 from .models import Template, TemplateTranslation
 from .tasks import refresh_templates
-from .whatsapp import _extract_variables, parse_language
 
 
 class TemplateTest(TembaTest):
@@ -93,7 +92,7 @@ class TemplateTest(TembaTest):
         tt2.refresh_from_db()
         self.assertFalse(tt2.is_active)
 
-    @patch("temba.templates.models.Template.update_local")
+    @patch("temba.templates.models.TemplateTranslation.update_local")
     @patch("temba.channels.types.dialog360.Dialog360Type.fetch_templates")
     @patch("temba.channels.types.dialog360_legacy.Dialog360LegacyType.fetch_templates")
     def test_refresh_task(self, mock_d3_fetch_templates, mock_d3c_fetch_templates, mock_update_local):
@@ -382,7 +381,7 @@ class TemplateTest(TembaTest):
             },
         ]
 
-        Template.update_local(channel, wa_templates)
+        TemplateTranslation.update_local(channel, wa_templates)
 
         self.assertEqual(8, Template.objects.filter(org=self.org).count())
         self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel).count())
@@ -697,7 +696,7 @@ class TemplateTest(TembaTest):
             },
         ]
 
-        Template.update_local(channel, D3_templates_data)
+        TemplateTranslation.update_local(channel, D3_templates_data)
 
         self.assertEqual(10, Template.objects.filter(org=self.org).count())
         self.assertEqual(12, TemplateTranslation.objects.filter(channel=channel).count())
@@ -813,15 +812,3 @@ class TemplateTranslationCRUDLTest(CRUDLTestMixin, TembaTest):
 
         response = self.client.get(reverse("templates.templatetranslation_channel", args=["1234567890-1234"]))
         self.assertEqual(404, response.status_code)
-
-
-class WhatsAppUtilsTest(TembaTest):
-    def test_parse_language(self):
-        self.assertEqual("eng", parse_language("en"))
-        self.assertEqual("eng-US", parse_language("en_US"))
-        self.assertEqual("fil", parse_language("fil"))
-
-    def test_extract_variables(self):
-        self.assertEqual(["1", "2"], _extract_variables("Hi {{2}} how are you? {{ 1 }}"))
-        self.assertEqual(["1", "2"], _extract_variables("Hi {{1}} how are you? {{2}} {{1}}"))
-        self.assertEqual([], _extract_variables("Hi {there}. {{x}}"))

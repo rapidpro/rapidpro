@@ -29,6 +29,7 @@ class WhatsAppType(ChannelType):
 
     courier_url = r"^wac/receive"
     schemes = [URN.WHATSAPP_SCHEME]
+    template_type = "whatsapp"
 
     claim_blurb = _("If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts")
     claim_view = ClaimView
