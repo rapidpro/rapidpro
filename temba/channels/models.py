@@ -125,6 +125,9 @@ class ChannelType(metaclass=ABCMeta):
     redact_request_keys = ()
     redact_response_keys = ()
 
+    # for channels that support templates this is the type slug and the channel type must define fetch_templates
+    template_type: str = None
+
     def is_available_to(self, org, user):
         """
         Determines whether this channel type is available to the given user considering the region and when not considering region, e.g. check timezone
@@ -434,6 +437,12 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
     @property
     def type(self) -> ChannelType:
         return self.get_type_from_code(self.channel_type)
+
+    @property
+    def template_type(self):
+        from temba.templates.types import TYPES
+
+        return TYPES.get(self.type.template_type)
 
     @classmethod
     def add_authenticated_external_channel(

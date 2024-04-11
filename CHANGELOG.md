@@ -1,3 +1,14 @@
+v9.1.83 (2024-04-11)
+-------------------------
+ * Add TemplateType and rework whatsapp to be a type
+ * Remove special treatment for exports of surveyor flows
+ * Add TemplateTranslation.variables
+
+v9.1.82 (2024-04-10)
+-------------------------
+ * Unpublicize the channel events API endpoint
+ * Drop unused Msg.queued_on field
+
 v9.1.81 (2024-04-10)
 -------------------------
  * Update temba-components

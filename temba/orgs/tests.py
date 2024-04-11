@@ -1653,7 +1653,8 @@ class OrgDeleteTest(TembaTest):
                 external_id="1234",
                 external_locale="en_US",
                 namespace="foo_namespace",
-                components=[{"type": "body", "name": "body", "content": "Hello {{1}}", "params": [{"type": "text"}]}],
+                components=[{"type": "body", "name": "body", "content": "Hello", "variables": {}, "params": []}],
+                variables=[],
             )
         )
         add(template_trans1.template)

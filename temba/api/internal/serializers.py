@@ -32,6 +32,7 @@ class TemplateReadSerializer(serializers.ModelSerializer):
                     "locale": trans.locale,
                     "status": self.STATUSES[trans.status],
                     "components": trans.components,
+                    "variables": trans.variables,
                 }
             )
         return translations

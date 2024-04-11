@@ -2662,7 +2662,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             external_id="id1",
             external_locale="en_US",
             namespace="foo_namespace",
-            components=[{"type": "body", "name": "body", "content": "Hello {{1}}", "params": [{"type": "text"}]}],
+            components=[{"type": "body", "name": "body", "content": "Hello", "variables": {}, "params": []}],
+            variables=[],
         )
 
         # will be warned again
@@ -3514,7 +3515,6 @@ class FlowRunTest(TembaTest):
                     "modified_on",
                     "exited_on",
                     "exit_type",
-                    "submitted_by",
                 ]
             ),
         )
@@ -3552,7 +3552,6 @@ class FlowRunTest(TembaTest):
         self.assertEqual(run.modified_on.isoformat(), run_json["modified_on"])
         self.assertIsNone(run_json["exit_type"])
         self.assertIsNone(run_json["exited_on"])
-        self.assertIsNone(run_json["submitted_by"])
 
     def _check_deletion(self, by_archiver: bool, expected: dict, session_completed=True):
         """
@@ -5065,91 +5064,6 @@ class ResultsExportTest(TembaTest):
                 "",
                 "",
                 "",
-            ],
-            tz,
-        )
-
-    def test_surveyor_msgs(self):
-        today = timezone.now().astimezone(self.org.timezone).date()
-
-        flow = self.get_flow("color_v13")
-        flow.flow_type = Flow.TYPE_SURVEY
-        flow.save()
-
-        flow_nodes = flow.get_definition()["nodes"]
-        color_prompt = flow_nodes[0]
-        color_split = flow_nodes[4]
-
-        # no urn or channel
-        in1 = self.create_incoming_msg(self.contact, "blue", surveyor=True)
-
-        run = (
-            MockSessionWriter(self.contact, flow)
-            .visit(color_prompt)
-            .send_msg("What is your favorite color?", self.channel)
-            .visit(color_split)
-            .wait()
-            .resume(msg=in1)
-            .set_result("Color", "blue", "Blue", "blue")
-            .send_msg("That is a funny color. Try again.", self.channel)
-            .complete()
-            .save()
-        ).session.runs.get()
-
-        workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
-        tz = self.org.timezone
-
-        (sheet_runs,) = workbook.worksheets
-
-        run.refresh_from_db()
-
-        # no submitter for our run
-        self.assertExcelRow(
-            sheet_runs,
-            1,
-            [
-                "",
-                run.contact.uuid,
-                "Eric",
-                "tel",
-                "+250788382382",
-                run.created_on,
-                run.modified_on,
-                run.exited_on,
-                run.uuid,
-                "Blue",
-                "blue",
-                "blue",
-            ],
-            tz,
-        )
-
-        # now try setting a submitted by on our run
-        run.submitted_by = self.admin
-        run.save(update_fields=("submitted_by",))
-
-        workbook = self._export(flow, start_date=today - timedelta(days=7), end_date=today)
-        tz = self.org.timezone
-
-        (sheet_runs,) = workbook.worksheets
-
-        # now the Administrator should show up
-        self.assertExcelRow(
-            sheet_runs,
-            1,
-            [
-                "admin@nyaruka.com",
-                run.contact.uuid,
-                "Eric",
-                "tel",
-                "+250788382382",
-                run.created_on,
-                run.modified_on,
-                run.exited_on,
-                run.uuid,
-                "Blue",
-                "blue",
-                "blue",
             ],
             tz,
         )

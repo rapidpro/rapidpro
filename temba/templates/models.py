@@ -8,6 +8,17 @@ from temba.channels.models import Channel
 from temba.orgs.models import Org
 
 
+class TemplateType:
+    slug: str
+    variable_regex: str
+
+    def update_local(self, channel, raw: dict):  # pragma: no cover
+        pass
+
+    def _extract_variables(self, text: str) -> list:
+        return list(sorted({m for m in self.variable_regex.findall(text)}))
+
+
 class Template(models.Model):
     """
     Templates represent messages that can be used in flows and have template variables substituted into them. These
@@ -28,42 +39,6 @@ class Template(models.Model):
 
     # when this template was created
     created_on = models.DateTimeField(default=timezone.now)
-
-    @classmethod
-    def update_local(cls, channel, wa_templates):
-        from .whatsapp import STATUS_MAPPING, extract_components, parse_language
-
-        channel_namespace = channel.config.get("fb_namespace", "")
-
-        # run through all our templates making sure they are present in our DB
-        seen = []
-        for template in wa_templates:
-            template_status = template["status"].upper()
-            if template_status not in STATUS_MAPPING:  # ignore if this is a status we don't know about
-                continue
-
-            components, all_supported = extract_components(template["components"])
-
-            status = STATUS_MAPPING[template_status]
-            if not all_supported:
-                status = TemplateTranslation.STATUS_UNSUPPORTED
-
-            missing_external_id = f"{template['language']}/{template['name']}"
-            translation = TemplateTranslation.get_or_create(
-                channel,
-                template["name"],
-                locale=parse_language(template["language"]),
-                status=status,
-                external_locale=template["language"],
-                external_id=template.get("id", missing_external_id[:64]),
-                namespace=template.get("namespace", channel_namespace),
-                components=components,
-            )
-
-            seen.append(translation)
-
-        # trim any translations we didn't see
-        TemplateTranslation.trim(channel, seen)
 
     def is_approved(self):
         """
@@ -105,10 +80,26 @@ class TemplateTranslation(models.Model):
     namespace = models.CharField(max_length=36, default="")
     locale = models.CharField(null=True, max_length=6)  # e.g. eng-US
     components = models.JSONField(default=list)
+    variables = models.JSONField(default=list)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, null=False)
     external_id = models.CharField(null=True, max_length=64)
     external_locale = models.CharField(null=True, max_length=6)  # e.g. en_US
     is_active = models.BooleanField(default=True)
+
+    @classmethod
+    def update_local(cls, channel, raw_templates: list):
+        """
+        Updates the local translations against the fetched raw templates from the given channel
+        """
+        refreshed = []
+        for raw_template in raw_templates:
+            translation = channel.template_type.update_local(channel, raw_template)
+
+            if translation:
+                refreshed.append(translation)
+
+        # trim any translations we didn't keep
+        cls.trim(channel, refreshed)
 
     @classmethod
     def trim(cls, channel, existing):
@@ -133,8 +124,9 @@ class TemplateTranslation(models.Model):
         status,
         external_id,
         external_locale,
-        namespace,
+        namespace: str,
         components: list,
+        variables: list,
     ):
         existing = TemplateTranslation.objects.filter(channel=channel, external_id=external_id).first()
 
@@ -154,6 +146,7 @@ class TemplateTranslation(models.Model):
                 namespace=namespace,
                 locale=locale,
                 components=components,
+                variables=variables,
                 status=status,
                 external_id=external_id,
                 external_locale=external_locale,
@@ -166,9 +159,18 @@ class TemplateTranslation(models.Model):
                 existing.status = status
                 existing.is_active = True
                 existing.components = components
+                existing.variables = variables
                 existing.external_locale = external_locale
                 existing.save(
-                    update_fields=["namespace", "locale", "status", "components", "external_locale", "is_active"]
+                    update_fields=[
+                        "namespace",
+                        "locale",
+                        "status",
+                        "components",
+                        "variables",
+                        "external_locale",
+                        "is_active",
+                    ]
                 )
 
                 existing.template.modified_on = timezone.now()

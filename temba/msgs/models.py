@@ -518,7 +518,7 @@ class Msg(models.Model):
     optin = models.ForeignKey("msgs.OptIn", on_delete=models.DO_NOTHING, null=True, db_index=False, db_constraint=False)
     locale = models.CharField(max_length=6, null=True)  # eng, eng-US, por-BR, und etc
 
-    created_on = models.DateTimeField(db_index=True)
+    created_on = models.DateTimeField(db_index=True)  # for flow messages this uses event time to keep histories ordered
     modified_on = models.DateTimeField()
     sent_on = models.DateTimeField(null=True)
 
@@ -542,9 +542,6 @@ class Msg(models.Model):
 
     metadata = JSONAsTextField(null=True, default=dict)
     log_uuids = ArrayField(models.UUIDField(), null=True)
-
-    # deprecated
-    queued_on = models.DateTimeField(null=True)
 
     def as_archive_json(self):
         """

@@ -355,6 +355,7 @@
                   "type": "body",
                   "name": "body",
                   "content": "Hi {{1}}, are you still experiencing problems with {{2}}?",
+                  "variables": {"1": 0, "2": 1},
                   "params": [
                     {
                       "type": "text"
@@ -364,7 +365,8 @@
                     }
                   ]
                 }
-              ]
+              ],
+              "variables": [{"type": "text"}, {"type": "text"}]
             },
             {
               "channel_uuid": "0f661e8b-ea9d-4bd3-9953-d368340acf91",
@@ -378,6 +380,7 @@
                   "type": "body",
                   "name": "body",
                   "content": "Bonjour {{1}}, a tu des problems avec {{2}}?",
+                  "variables": {"1": 0, "2": 1},
                   "params": [
                     {
                       "type": "text"
@@ -387,7 +390,8 @@
                     }
                   ]
                 }
-              ]
+              ],
+              "variables": [{"type": "text"}, {"type": "text"}]
             }
           ]
         },
@@ -407,11 +411,13 @@
                   "type": "body",
                   "name": "body",
                   "content": "Salut!",
+                  "variables": {},
                   "params": []
                 }
               ]
             }
-          ]
+          ],
+          "variables": []
         }
       ],
       "topics": [

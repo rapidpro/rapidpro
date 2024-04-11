@@ -8,7 +8,7 @@ from temba.request_logs.models import HTTPLog
 from temba.utils.crons import cron_task
 from temba.utils.whatsapp import update_api_version
 
-from .models import Template
+from .models import TemplateTranslation
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +21,10 @@ def refresh_templates():
 
     num_refreshed, num_errored = 0, 0
 
-    template_types = [t.code for t in Channel.get_types() if hasattr(t, "fetch_templates")]
-
+    # get all active channels for types that use templates
+    channel_types = [t.code for t in Channel.get_types() if t.template_type]
     channels = Channel.objects.filter(
-        is_active=True,
-        channel_type__in=template_types,
-        org__is_active=True,
-        org__is_suspended=False,
+        is_active=True, channel_type__in=channel_types, org__is_active=True, org__is_suspended=False
     )
 
     for channel in channels:
@@ -36,9 +33,9 @@ def refresh_templates():
             update_api_version(channel)
 
         try:
-            templates = channel.type.fetch_templates(channel)
+            raw_templates = channel.type.fetch_templates(channel)
 
-            Template.update_local(channel, templates)
+            TemplateTranslation.update_local(channel, raw_templates)
 
             num_refreshed += 1
 

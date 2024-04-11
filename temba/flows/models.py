@@ -1162,9 +1162,6 @@ class FlowRun(models.Model):
     # flow start which started the session this run belongs to
     start = models.ForeignKey("flows.FlowStart", on_delete=models.PROTECT, null=True, related_name="runs")
 
-    # if this run is part of a Surveyor session, the user that submitted it
-    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, db_index=False)
-
     # results collected in this run keyed by snakified result name
     results = JSONAsTextField(null=True, default=dict)
 
@@ -1176,6 +1173,9 @@ class FlowRun(models.Model):
 
     # set when deleting to signal to db triggers that result category counts should be decremented
     delete_from_results = models.BooleanField(null=True)
+
+    # deprecated
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, db_index=False)
 
     def as_archive_json(self):
         from temba.api.v2.views import FlowRunReadSerializer
@@ -1205,7 +1205,6 @@ class FlowRun(models.Model):
             "modified_on": self.modified_on.isoformat(),
             "exited_on": self.exited_on.isoformat() if self.exited_on else None,
             "exit_type": FlowRunReadSerializer.EXIT_TYPES.get(self.status),
-            "submitted_by": self.submitted_by.username if self.submitted_by else None,
         }
 
     def delete(self, interrupt: bool = True):
@@ -1647,13 +1646,8 @@ class ResultsExport(ExportType):
 
         return export.org.flows.filter(id__in=flow_ids, is_active=True)
 
-    def get_runs_columns(self, export, extra_urn_columns, result_fields, show_submitted_by=False):
-        columns = []
-
-        if show_submitted_by:
-            columns.append("Submitted By")
-
-        columns += export.get_contact_headers()
+    def get_runs_columns(self, export, extra_urn_columns, result_fields):
+        columns = export.get_contact_headers()
 
         for extra_urn in extra_urn_columns:
             columns.append(extra_urn["label"])
@@ -1677,7 +1671,6 @@ class ResultsExport(ExportType):
         responded_only = export.config.get("responded_only", True)
         extra_urns = export.config.get("extra_urns", [])
 
-        show_submitted_by = False
         result_fields = []
         for flow in flows:
             for result_field in flow.metadata["results"]:
@@ -1687,25 +1680,16 @@ class ResultsExport(ExportType):
                     result_field["flow_name"] = flow.name
                     result_fields.append(result_field)
 
-            if flow.flow_type == Flow.TYPE_SURVEY:
-                show_submitted_by = True
-
         extra_urn_columns = []
         if not export.org.is_anon:
             for extra_urn in extra_urns:
                 label = f"URN:{extra_urn.capitalize()}"
                 extra_urn_columns.append(dict(label=label, scheme=extra_urn))
 
-        runs_columns = self.get_runs_columns(
-            export, extra_urn_columns, result_fields, show_submitted_by=show_submitted_by
-        )
+        runs_columns = self.get_runs_columns(export, extra_urn_columns, result_fields)
 
         # create our exporter
-        exporter = MultiSheetExporter(
-            "Runs",
-            runs_columns,
-            export.org.timezone,
-        )
+        exporter = MultiSheetExporter("Runs", runs_columns, export.org.timezone)
         num_records = 0
 
         for batch in self._get_run_batches(export, start_date, end_date, flows, responded_only):
@@ -1714,7 +1698,6 @@ class ResultsExport(ExportType):
                 exporter,
                 batch,
                 extra_urn_columns,
-                show_submitted_by,
                 result_fields,
             )
 
@@ -1781,15 +1764,7 @@ class ResultsExport(ExportType):
             # convert this batch of runs to same format as records in our archives
             yield [run.as_archive_json() for run in run_batch if run.id not in seen]
 
-    def _write_runs(
-        self,
-        export,
-        exporter,
-        runs,
-        extra_urn_columns,
-        show_submitted_by,
-        result_fields,
-    ):
+    def _write_runs(self, export, exporter, runs, extra_urn_columns, result_fields):
         """
         Writes a batch of run JSON blobs to the export
         """
@@ -1837,12 +1812,7 @@ class ResultsExport(ExportType):
                 result_values += [node_category, node_value, node_input]
 
             # build the whole row
-            runs_sheet_row = []
-
-            if show_submitted_by:
-                runs_sheet_row.append(run.get("submitted_by") or "")
-
-            runs_sheet_row += contact_values
+            runs_sheet_row = contact_values
             runs_sheet_row += [
                 iso8601.parse_date(run["created_on"]),
                 iso8601.parse_date(run["modified_on"]),
