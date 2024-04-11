@@ -18,79 +18,85 @@ from .tasks import refresh_templates
 
 class TemplateTest(TembaTest):
     def test_templates(self):
-        tt1 = TemplateTranslation.get_or_create(
-            self.channel,
+        channel1 = self.create_channel("WA", "Channel 1", "1234")
+        channel2 = self.create_channel("WA", "Channel 2", "2345")
+
+        hello_eng = TemplateTranslation.get_or_create(
+            channel1,
             "hello",
             locale="eng-US",
             status=TemplateTranslation.STATUS_PENDING,
             external_id="1234",
             external_locale="en_US",
             namespace="",
-            components=[
-                {
-                    "type": "body",
-                    "name": "body",
-                    "content": "Hello {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
-            ],
-            variables=[{"type": "text"}],
+            components=[],
+            variables=[],
         )
-        tt2 = TemplateTranslation.get_or_create(
-            self.channel,
+        self.assertIsNotNone(hello_eng.template)  # should have a template with name hello
+        self.assertEqual("hello", hello_eng.template.name)
+
+        modified_on = hello_eng.template.modified_on
+
+        hello_fra = TemplateTranslation.get_or_create(
+            channel1,
             "hello",
             locale="fra-FR",
             status=TemplateTranslation.STATUS_PENDING,
             external_id="5678",
             external_locale="fr_FR",
             namespace="",
-            components=[
-                {
-                    "type": "body",
-                    "name": "body",
-                    "content": "Bonjour {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
-            ],
-            variables=[{"type": "text"}],
+            components=[],
+            variables=[],
         )
+        self.assertEqual(hello_fra.template, hello_fra.template)
+        self.assertGreater(hello_fra.template.modified_on, modified_on)  # should be updated
 
-        self.assertEqual(tt1.template, tt2.template)
-        modified_on = tt1.template.modified_on
-
-        tt3 = TemplateTranslation.get_or_create(
-            self.channel,
-            "hello",
+        goodbye_fra = TemplateTranslation.get_or_create(
+            channel1,
+            "goodbye",
             locale="fra-FR",
             status=TemplateTranslation.STATUS_PENDING,
-            external_id="5678",
+            external_id="6789",
             external_locale="fr_FR",
             namespace="foo_namespace",
-            components=[
-                {
-                    "type": "body",
-                    "name": "body",
-                    "content": "Salut {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
-            ],
-            variables=[{"type": "text"}],
+            components=[],
+            variables=[],
         )
+        self.assertNotEqual(hello_fra.template, goodbye_fra.template)
+        self.assertTrue("goodbye", goodbye_fra.template.name)
 
-        self.assertTrue(tt3.template.modified_on > modified_on)
-        self.assertEqual(tt3.namespace, "foo_namespace")
-        self.assertEqual(1, Template.objects.filter(org=self.org).count())
-        self.assertEqual(2, TemplateTranslation.objects.filter(channel=self.channel).count())
+        goodbye_fra_other_channel = TemplateTranslation.get_or_create(
+            channel2,
+            "goodbye",
+            locale="fra-FR",
+            status=TemplateTranslation.STATUS_PENDING,
+            external_id="6789",
+            external_locale="fr_FR",
+            namespace="foo_namespace",
+            components=[],
+            variables=[],
+        )
+        self.assertNotEqual(goodbye_fra, goodbye_fra_other_channel)
+        self.assertEqual(goodbye_fra.template, goodbye_fra_other_channel.template)
+
+        self.assertEqual(2, Template.objects.filter(org=self.org).count())
+        self.assertEqual(3, TemplateTranslation.objects.filter(channel=channel1).count())
+        self.assertEqual(1, TemplateTranslation.objects.filter(channel=channel2).count())
 
         # trim them
-        TemplateTranslation.trim(self.channel, [tt1])
+        TemplateTranslation.trim(channel1, [hello_eng, hello_fra])
 
-        # tt2 should be inactive now
-        tt2.refresh_from_db()
-        self.assertFalse(tt2.is_active)
+        # non-included translations should be inactive now
+        hello_eng.refresh_from_db()
+        self.assertTrue(hello_eng.is_active)
+        hello_fra.refresh_from_db()
+        self.assertTrue(hello_fra.is_active)
+        goodbye_fra.refresh_from_db()
+        self.assertFalse(goodbye_fra.is_active)
+
+        # but not for other channels
+        goodbye_fra_other_channel.refresh_from_db()
+        self.assertTrue(hello_eng.is_active)
 
     @patch("temba.templates.models.TemplateTranslation.update_local")
     @patch("temba.channels.types.dialog360.Dialog360Type.fetch_templates")
@@ -231,512 +237,6 @@ class TemplateTest(TembaTest):
             refresh_templates()
             self.assertEqual(1, mock_log_error.call_count)
             self.assertEqual("Error refreshing whatsapp templates: boom", mock_log_error.call_args[0][0])
-
-    def test_update_local_templates_whatsapp(self):
-        # channel has namespace in the channel config
-        channel = self.create_channel("WA", "channel", "1234", config={"fb_namespace": "foo_namespace"})
-
-        self.assertEqual(0, Template.objects.filter(org=self.org).count())
-        self.assertEqual(0, TemplateTranslation.objects.filter(channel=channel).count())
-
-        # no namespace in template data, use channel config namespace
-        wa_templates = [
-            {
-                "name": "hello",
-                "components": [{"type": "BODY", "text": "Hello {{1}}"}],
-                "language": "en",
-                "status": "PENDING",
-                "category": "ISSUE_RESOLUTION",
-                "id": "1234",
-            },
-            {
-                "name": "hello",
-                "components": [{"type": "BODY", "text": "Hi {{1}}"}],
-                "language": "en_GB",
-                "status": "PENDING",
-                "category": "ISSUE_RESOLUTION",
-                "id": "4321",
-            },
-            {
-                "name": "hello",
-                "components": [{"type": "BODY", "text": "Bonjour {{1}}"}],
-                "language": "fr",
-                "status": "APPROVED",
-                "category": "ISSUE_RESOLUTION",
-                "id": "5678",
-            },
-            {
-                "name": "goodbye",
-                "components": [{"type": "BODY", "text": "Goodbye {{1}}, see you on {{2}}. See you later {{1}}"}],
-                "language": "en",
-                "status": "PENDING",
-                "category": "ISSUE_RESOLUTION",
-                "id": "9012",
-            },
-            {
-                "name": "workout_activity",
-                "components": [
-                    {"type": "HEADER", "text": "Workout challenge week extra points!"},
-                    {
-                        "type": "BODY",
-                        "text": "Hey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.",
-                    },
-                    {"type": "FOOTER", "text": "Remember to drink water."},
-                ],
-                "language": "en",
-                "status": "PENDING",
-                "category": "ISSUE_RESOLUTION",
-                "id": "9014",
-            },
-            {
-                "name": "workout_activity_with_variables",
-                "components": [
-                    {"type": "HEADER", "text": "Workout challenge week {{2}}, {{4}} extra points!"},
-                    {
-                        "type": "BODY",
-                        "text": "Hey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.",
-                    },
-                    {"type": "FOOTER", "text": "Remember to drink water."},
-                ],
-                "language": "en",
-                "status": "PENDING",
-                "category": "ISSUE_RESOLUTION",
-                "id": "9015",
-            },
-            {
-                "name": "missing_text_component",
-                "components": [{"type": "HEADER", "format": "IMAGE", "example": {"header_handle": ["FOO"]}}],
-                "language": "en",
-                "status": "APPROVED",
-                "category": "ISSUE_RESOLUTION",
-                "id": "1235",
-            },
-            {
-                "name": "invalid_component",
-                "components": [{"type": "RANDOM", "text": "Bonjour {{1}}"}],
-                "language": "fr",
-                "status": "APPROVED",
-                "category": "ISSUE_RESOLUTION",
-                "id": "1233",
-            },
-            {
-                "name": "invalid_status",
-                "components": [{"type": "BODY", "text": "This is an unknown status, it will be ignored"}],
-                "language": "en",
-                "status": "UNKNOWN",
-                "category": "ISSUE_RESOLUTION",
-                "id": "9012",
-            },
-            {
-                "name": "order_template",
-                "components": [
-                    {
-                        "type": "HEADER",
-                        "format": "IMAGE",
-                        "example": {"header_handle": [r"http://example.com/test.jpg"]},
-                    },
-                    {
-                        "type": "BODY",
-                        "text": "Sorry your order {{1}} took longer to deliver than expected.\nWe'll notify you about updates in the next {{2}} days.\n\nDo you have more question?",
-                        "example": {"body_text": [["#123 for shoes", "3"]]},
-                    },
-                    {"type": "FOOTER", "text": "Thanks for your patience"},
-                    {
-                        "type": "BUTTONS",
-                        "buttons": [
-                            {"type": "QUICK_REPLY", "text": "Yes {{1}}"},
-                            {"type": "QUICK_REPLY", "text": "No"},
-                            {"type": "PHONE_NUMBER", "text": "Call center", "phone_number": "+1234"},
-                            {
-                                "type": "URL",
-                                "text": "Check website",
-                                "url": r"https:\/\/example.com\/?wa_customer={{1}}",
-                                "example": [r"https:\/\/example.com\/?wa_customer=id_123"],
-                            },
-                            {
-                                "type": "URL",
-                                "text": "Check website",
-                                "url": r"https:\/\/example.com\/help",
-                                "example": [r"https:\/\/example.com\/help"],
-                            },
-                        ],
-                    },
-                ],
-                "language": "en",
-                "status": "APPROVED",
-                "category": "UTILITY",
-                "id": "9020",
-            },
-            {
-                "category": "UTILITY",
-                "components": [
-                    {"add_security_recommendation": "True", "type": "BODY"},
-                    {"type": "FOOTER"},
-                    {"buttons": [{"otp_type": "COPY_CODE", "text": "copy", "type": "OTP"}], "type": "BUTTONS"},
-                ],
-                "language": "fr",
-                "name": "login",
-                "status": "approved",
-                "id": "9030",
-            },
-        ]
-
-        TemplateTranslation.update_local(channel, wa_templates)
-
-        self.assertEqual(8, Template.objects.filter(org=self.org).count())
-        self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel).count())
-        self.assertEqual(10, TemplateTranslation.objects.filter(channel=channel, namespace="foo_namespace").count())
-        self.assertEqual(
-            {"1233", "1235", "9020", "9030"},
-            set(
-                TemplateTranslation.objects.filter(
-                    channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED
-                ).values_list("external_id", flat=True)
-            ),
-        )
-
-        ct = TemplateTranslation.objects.get(template__name="goodbye", is_active=True)
-        self.assertEqual("eng", ct.locale)
-        self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
-        self.assertEqual("foo_namespace", ct.namespace)
-        self.assertEqual(
-            [
-                {
-                    "type": "body",
-                    "name": "body",
-                    "content": "Goodbye {{1}}, see you on {{2}}. See you later {{1}}",
-                    "variables": {"1": 0, "2": 1},
-                    "params": [{"type": "text"}, {"type": "text"}],
-                }
-            ],
-            ct.components,
-        )
-        self.assertEqual([{"type": "text"}, {"type": "text"}], ct.variables)
-
-        ct = TemplateTranslation.objects.get(template__name="workout_activity", is_active=True)
-        self.assertEqual("eng", ct.locale)
-        self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
-        self.assertEqual("foo_namespace", ct.namespace)
-        self.assertEqual(
-            [
-                {
-                    "type": "header",
-                    "name": "header",
-                    "content": "Workout challenge week extra points!",
-                    "variables": {},
-                    "params": [],
-                },
-                {
-                    "type": "body",
-                    "name": "body",
-                    "content": "Hey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.",
-                    "variables": {"1": 0, "2": 1, "3": 2},
-                    "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
-                },
-                {
-                    "type": "footer",
-                    "name": "footer",
-                    "content": "Remember to drink water.",
-                    "variables": {},
-                    "params": [],
-                },
-            ],
-            ct.components,
-        )
-        self.assertEqual([{"type": "text"}, {"type": "text"}, {"type": "text"}], ct.variables)
-
-        ct = TemplateTranslation.objects.get(template__name="invalid_component", is_active=True)
-        self.assertEqual("fra", ct.locale)
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, ct.status)
-        self.assertEqual("foo_namespace", ct.namespace)
-        self.assertEqual([], ct.components)
-
-        ct = TemplateTranslation.objects.get(template__name="login", is_active=True)
-        self.assertEqual("fra", ct.locale)
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, ct.status)
-        self.assertEqual("foo_namespace", ct.namespace)
-        self.assertEqual(
-            [
-                {"type": "body", "name": "body", "content": "", "variables": {}, "params": []},
-                {"type": "footer", "name": "footer", "content": "", "variables": {}, "params": []},
-            ],
-            ct.components,
-        )
-
-        ct = TemplateTranslation.objects.get(template__name="order_template", is_active=True)
-        self.assertEqual("eng", ct.locale)
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, ct.status)
-        self.assertEqual("foo_namespace", ct.namespace)
-        self.assertEqual(
-            [
-                {"type": "header", "name": "header", "content": "", "variables": {}, "params": []},
-                {
-                    "type": "body",
-                    "name": "body",
-                    "content": "Sorry your order {{1}} took longer to deliver than expected.\nWe'll notify you about updates in the next {{2}} days.\n\nDo you have more question?",
-                    "variables": {"1": 0, "2": 1},
-                    "params": [{"type": "text"}, {"type": "text"}],
-                },
-                {
-                    "type": "footer",
-                    "name": "footer",
-                    "content": "Thanks for your patience",
-                    "variables": {},
-                    "params": [],
-                },
-                {
-                    "type": "button/quick_reply",
-                    "name": "button.0",
-                    "content": "Yes {{1}}",
-                    "variables": {"1": 2},
-                    "params": [{"type": "text"}],
-                },
-                {"type": "button/quick_reply", "name": "button.1", "content": "No", "variables": {}, "params": []},
-                {
-                    "type": "button/phone_number",
-                    "name": "button.2",
-                    "content": "+1234",
-                    "display": "Call center",
-                    "variables": {},
-                    "params": [],
-                },
-                {
-                    "type": "button/url",
-                    "name": "button.3",
-                    "content": r"https:\/\/example.com\/?wa_customer={{1}}",
-                    "display": "Check website",
-                    "variables": {"1": 3},
-                    "params": [{"type": "text"}],
-                },
-                {
-                    "type": "button/url",
-                    "name": "button.4",
-                    "content": r"https:\/\/example.com\/help",
-                    "display": "Check website",
-                    "variables": {},
-                    "params": [],
-                },
-            ],
-            ct.components,
-        )
-        self.assertEqual([{"type": "text"}, {"type": "text"}, {"type": "text"}, {"type": "text"}], ct.variables)
-
-    def test_update_local_templates_dialog360(self):
-        # no namespace in channel config
-        channel = self.create_channel("D3", "channel", "1234", config={})
-
-        # no template id, use language/name as external ID
-        # template data have namespaces
-        D3_templates_data = [
-            {
-                "name": "hello",
-                "components": [{"type": "BODY", "text": "Hello {{1}}"}],
-                "language": "en",
-                "status": "pending",
-                "namespace": "xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx",
-                "rejected_reason": "NONE",
-                "category": "ISSUE_RESOLUTION",
-            },
-            {
-                "name": "hello",
-                "components": [{"type": "BODY", "text": "Hi {{1}}"}],
-                "language": "en_GB",
-                "status": "pending",
-                "namespace": "xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx",
-                "rejected_reason": "NONE",
-                "category": "ISSUE_RESOLUTION",
-            },
-            {
-                "name": "hello",
-                "components": [{"type": "BODY", "text": "Bonjour {{1}}"}],
-                "language": "fr",
-                "status": "approved",
-                "namespace": "xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx",
-                "rejected_reason": "NONE",
-                "category": "ISSUE_RESOLUTION",
-            },
-            {
-                "name": "goodbye",
-                "components": [{"type": "BODY", "text": "Goodbye {{1}}, see you on {{2}}. See you later {{1}}"}],
-                "language": "en",
-                "status": "PENDING",
-                "namespace": "xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx",
-                "rejected_reason": "NONE",
-                "category": "ISSUE_RESOLUTION",
-            },
-            {
-                "name": "workout_activity",
-                "components": [
-                    {"type": "HEADER", "text": "Workout challenge week extra points!"},
-                    {
-                        "type": "BODY",
-                        "text": "Hey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.",
-                    },
-                    {"type": "FOOTER", "text": "Remember to drink water."},
-                ],
-                "language": "en",
-                "status": "PENDING",
-                "namespace": "xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx",
-                "rejected_reason": "NONE",
-                "category": "ISSUE_RESOLUTION",
-            },
-            {
-                "name": "workout_activity_with_variables",
-                "components": [
-                    {"type": "HEADER", "text": "Workout challenge week {{2}}, {{4}} extra points!"},
-                    {
-                        "type": "BODY",
-                        "text": "Hey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.",
-                    },
-                    {"type": "FOOTER", "text": "Remember to drink water."},
-                ],
-                "language": "en",
-                "status": "PENDING",
-                "namespace": "xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx",
-                "rejected_reason": "NONE",
-                "category": "ISSUE_RESOLUTION",
-            },
-            {
-                "name": "missing_text_component",
-                "components": [{"type": "HEADER", "format": "IMAGE", "example": {"header_handle": ["FOO"]}}],
-                "language": "en",
-                "status": "APPROVED",
-                "namespace": "xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx",
-                "rejected_reason": "NONE",
-                "category": "ISSUE_RESOLUTION",
-            },
-            {
-                "name": "invalid_component",
-                "components": [{"type": "RANDOM", "text": "Bonjour {{1}}"}],
-                "language": "fr",
-                "status": "APPROVED",
-                "namespace": "xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx",
-                "rejected_reason": "NONE",
-                "category": "ISSUE_RESOLUTION",
-            },
-            {
-                "name": "invalid_status",
-                "components": [{"type": "BODY", "text": "This is an unknown status, it will be ignored"}],
-                "language": "en",
-                "status": "UNKNOWN",
-                "namespace": "xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx",
-                "rejected_reason": "NONE",
-                "category": "ISSUE_RESOLUTION",
-            },
-            {
-                "name": "invalid_language",
-                "components": [{"type": "BODY", "text": "This is an unknown language, it will be ignored"}],
-                "language": "kli",
-                "status": "APPROVED",
-                "namespace": "xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx",
-                "rejected_reason": "NONE",
-                "category": "ISSUE_RESOLUTION",
-            },
-            {
-                "name": "this_is_template_has_a_very_long_name,_and_not_having_an_id,_we_generate_the_external_id_from_the_name_and_truncate_that_to_64_characters",
-                "components": [
-                    {
-                        "type": "BODY",
-                        "text": "This is template has a very long name, and not having an id, we generate the external_id from the name and truncate that to 64 characters",
-                    }
-                ],
-                "language": "en_US",
-                "status": "APPROVED",
-                "namespace": "xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx",
-                "rejected_reason": "NONE",
-                "category": "UTILITY",
-            },
-            {
-                "name": "order_template",
-                "components": [
-                    {
-                        "type": "HEADER",
-                        "format": "IMAGE",
-                        "example": {"header_handle": [r"http://example.com/test.jpg"]},
-                    },
-                    {
-                        "type": "BODY",
-                        "text": "Sorry your order {{1}} took longer to deliver than expected.\nWe'll notify you about updates in the next {{2}} days.\n\nDo you have more question?",
-                        "example": {"body_text": [["#123 for shoes", "3"]]},
-                    },
-                    {"type": "FOOTER", "text": "Thanks for your patience"},
-                    {
-                        "type": "BUTTONS",
-                        "buttons": [
-                            {"type": "QUICK_REPLY", "text": "Yes"},
-                            {"type": "QUICK_REPLY", "text": "No"},
-                            {"type": "PHONE_NUMBER", "text": "Call center", "phone_number": "+1234"},
-                            {
-                                "type": "URL",
-                                "text": "Check website",
-                                "url": r"https:\/\/example.com\/?wa_customer={{1}}",
-                                "example": [r"https:\/\/example.com\/?wa_customer=id_123"],
-                            },
-                        ],
-                    },
-                ],
-                "language": "en",
-                "status": "APPROVED",
-                "namespace": "xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx",
-                "rejected_reason": "NONE",
-                "category": "UTILITY",
-            },
-            {
-                "category": "UTILITY",
-                "components": [
-                    {"add_security_recommendation": "True", "type": "BODY"},
-                    {"type": "FOOTER"},
-                    {"buttons": [{"otp_type": "COPY_CODE", "text": "copy", "type": "OTP"}], "type": "BUTTONS"},
-                ],
-                "language": "fr",
-                "name": "login",
-                "namespace": "xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx",
-                "rejected_reason": "NONE",
-                "status": "approved",
-            },
-        ]
-
-        TemplateTranslation.update_local(channel, D3_templates_data)
-
-        self.assertEqual(10, Template.objects.filter(org=self.org).count())
-        self.assertEqual(12, TemplateTranslation.objects.filter(channel=channel).count())
-        self.assertEqual(0, TemplateTranslation.objects.filter(channel=channel, namespace="").count())
-        self.assertEqual(0, TemplateTranslation.objects.filter(channel=channel, namespace=None).count())
-        self.assertEqual(
-            {
-                "en/hello",
-                "en_GB/hello",
-                "fr/hello",
-                "en/goodbye",
-                "en/order_template",
-                "en_US/this_is_template_has_a_very_long_name,_and_not_having_an_i",
-                "en/workout_activity",
-                "kli/invalid_language",
-                "en/missing_text_component",
-                "en/workout_activity_with_variables",
-                "fr/invalid_component",
-                "fr/login",
-            },
-            set(
-                TemplateTranslation.objects.filter(channel=channel, is_active=True).values_list(
-                    "external_id", flat=True
-                )
-            ),
-        )
-        self.assertEqual(
-            {"en/order_template", "en/missing_text_component", "fr/invalid_component", "fr/login"},
-            set(
-                TemplateTranslation.objects.filter(
-                    channel=channel, status=TemplateTranslation.STATUS_UNSUPPORTED
-                ).values_list("external_id", flat=True)
-            ),
-        )
-
-        tt = TemplateTranslation.objects.filter(channel=channel, external_id="fr/invalid_component").first()
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, tt.status)
-
-        tt = TemplateTranslation.objects.filter(channel=channel, external_id="en/hello").first()
-        self.assertEqual("xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx", tt.namespace)
 
 
 class TemplateTranslationCRUDLTest(CRUDLTestMixin, TembaTest):
