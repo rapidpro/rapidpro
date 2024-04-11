@@ -4,7 +4,7 @@ from temba.utils.languages import alpha2_to_alpha3
 
 from .models import TemplateTranslation
 
-VARIABLE_RE = re.compile(r"{{(\d+)}}")
+VARIABLE_RE = re.compile(r"{{\s*(\d+)\s*}}")
 
 STATUS_MAPPING = {
     "PENDING": TemplateTranslation.STATUS_PENDING,
@@ -13,51 +13,74 @@ STATUS_MAPPING = {
 }
 
 
-def _extract_params(content, _type="text") -> list:
+def _extract_variables(content) -> list:
     """
-    Creates a parameter for each variable placeholder in the given content
+    Extracts the unique and sorted variable names from a content string using handlebars syntax.
     """
-    params = []
-    seen = set()
-
-    for match in VARIABLE_RE.findall(content):
-        if match not in seen:
-            params.append({"type": _type})
-            seen.add(match)
-
-    return params
+    return list(sorted({m for m in VARIABLE_RE.findall(content)}))
 
 
-def extract_components(components) -> tuple:
+def extract_components(raw: list) -> tuple:
     """
     Extracts components in our simplified format from payload of WhatsApp template components
     """
 
-    extracted = []
-    all_supported = True
+    components = []
+    variables = []
+    supported = True
 
-    for component in components:
+    def add_variables(names: list, typ: str) -> dict:
+        map = {}
+        for name in names:
+            variables.append({"type": typ})
+            map[name] = len(variables) - 1
+        return map
+
+    for component in raw:
         comp_type = component["type"].upper()
         comp_text = component.get("text", "")
 
         if comp_type == "HEADER":
-            format = component.get("format", "TEXT")
-            params = []
+            comp_vars = {}
 
-            if format == "TEXT":
-                params = _extract_params(comp_text)
+            if component.get("format", "TEXT") == "TEXT":
+                comp_vars = add_variables(_extract_variables(comp_text), "text")
             else:
-                all_supported = False
+                supported = False
 
-            extracted.append({"type": "header", "name": "header", "content": comp_text, "params": params})
+            components.append(
+                {
+                    "type": "header",
+                    "name": "header",
+                    "content": comp_text,
+                    "variables": comp_vars,
+                    "params": [{"type": "text"} for v in comp_vars],  # deprecated
+                }
+            )
 
         elif comp_type == "BODY":
-            params = _extract_params(comp_text)
+            comp_vars = add_variables(_extract_variables(comp_text), "text")
 
-            extracted.append({"type": "body", "name": "body", "content": comp_text, "params": params})
+            components.append(
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": comp_text,
+                    "variables": comp_vars,
+                    "params": [{"type": "text"} for v in comp_vars],  # deprecated
+                }
+            )
 
         elif comp_type == "FOOTER":
-            extracted.append({"type": "footer", "name": "footer", "content": comp_text, "params": []})
+            components.append(
+                {
+                    "type": "footer",
+                    "name": "footer",
+                    "content": comp_text,
+                    "variables": {},
+                    "params": [],  # deprecated
+                }
+            )
 
         elif comp_type == "BUTTONS":
             for idx, button in enumerate(component["buttons"]):
@@ -66,45 +89,50 @@ def extract_components(components) -> tuple:
                 button_text = button.get("text", "")
 
                 if button_type == "QUICK_REPLY":
-                    extracted.append(
+                    button_vars = add_variables(_extract_variables(button_text), "text")
+                    components.append(
                         {
                             "type": "button/quick_reply",
                             "name": button_name,
                             "content": button_text,
-                            "params": _extract_params(button_text),
+                            "variables": button_vars,
+                            "params": [{"type": "text"} for v in button_vars],  # deprecated
                         }
                     )
 
                 elif button_type == "URL":
                     button_url = button.get("url", "")
-                    extracted.append(
+                    button_vars = add_variables(_extract_variables(button_url), "text")
+                    components.append(
                         {
                             "type": "button/url",
                             "name": button_name,
                             "content": button_url,
                             "display": button_text,
-                            "params": _extract_params(button_url),
+                            "variables": button_vars,
+                            "params": [{"type": "text"} for v in button_vars],  # deprecated
                         }
                     )
 
                 elif button_type == "PHONE_NUMBER":
                     phone_number = button.get("phone_number", "")
-                    extracted.append(
+                    components.append(
                         {
                             "type": "button/phone_number",
                             "name": button_name,
                             "content": phone_number,
                             "display": button_text,
-                            "params": [],
+                            "variables": {},
+                            "params": [],  # deprecated
                         }
                     )
 
                 else:
-                    all_supported = False
+                    supported = False
         else:
-            all_supported = False
+            supported = False
 
-    return extracted, all_supported
+    return components, variables, supported
 
 
 def parse_language(lang) -> str:
