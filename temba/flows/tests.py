@@ -3514,7 +3514,6 @@ class FlowRunTest(TembaTest):
                     "modified_on",
                     "exited_on",
                     "exit_type",
-                    "submitted_by",
                 ]
             ),
         )
@@ -3552,7 +3551,6 @@ class FlowRunTest(TembaTest):
         self.assertEqual(run.modified_on.isoformat(), run_json["modified_on"])
         self.assertIsNone(run_json["exit_type"])
         self.assertIsNone(run_json["exited_on"])
-        self.assertIsNone(run_json["submitted_by"])
 
     def _check_deletion(self, by_archiver: bool, expected: dict, session_completed=True):
         """

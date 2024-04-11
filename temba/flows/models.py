@@ -1162,9 +1162,6 @@ class FlowRun(models.Model):
     # flow start which started the session this run belongs to
     start = models.ForeignKey("flows.FlowStart", on_delete=models.PROTECT, null=True, related_name="runs")
 
-    # if this run is part of a Surveyor session, the user that submitted it
-    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, db_index=False)
-
     # results collected in this run keyed by snakified result name
     results = JSONAsTextField(null=True, default=dict)
 
@@ -1176,6 +1173,9 @@ class FlowRun(models.Model):
 
     # set when deleting to signal to db triggers that result category counts should be decremented
     delete_from_results = models.BooleanField(null=True)
+
+    # deprecated
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, db_index=False)
 
     def as_archive_json(self):
         from temba.api.v2.views import FlowRunReadSerializer
@@ -1205,7 +1205,6 @@ class FlowRun(models.Model):
             "modified_on": self.modified_on.isoformat(),
             "exited_on": self.exited_on.isoformat() if self.exited_on else None,
             "exit_type": FlowRunReadSerializer.EXIT_TYPES.get(self.status),
-            "submitted_by": self.submitted_by.username if self.submitted_by else None,
         }
 
     def delete(self, interrupt: bool = True):
