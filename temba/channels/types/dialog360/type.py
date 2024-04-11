@@ -26,6 +26,7 @@ class Dialog360Type(ChannelType):
 
     courier_url = r"^d3c/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
     schemes = [URN.WHATSAPP_SCHEME]
+    template_type = "whatsapp"
 
     claim_blurb = _(
         "Activate your own enterprise WhatsApp account in %(link)s (Cloud) to communicate with your contacts. "
