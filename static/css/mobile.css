@@ -1,0 +1,22 @@
+/* Mobile Styling */
+.mobile .widget-container {
+  flex-direction: column;
+  height: 100% !important;
+  position: fixed;
+}
+
+.mobile .folders {
+  width: 100%;
+}
+
+.mobile temba-menu {
+  border-right: none;
+}
+
+.mobile .folders {
+  z-index: 1;
+}
+
+.mobile .spa-footer {
+  display: none;
+}

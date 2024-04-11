@@ -153,7 +153,7 @@ function recheckIds() {
       row.classList.add('checked');
     }
     var listButtons = document.querySelector('.list-buttons-container');
-    listButtons.classList.add('visible');
+    listButtons.classList.remove('hide');
     updateLabelMenu();
   }
 }
@@ -216,9 +216,9 @@ function handleRowSelection(checkbox) {
   }
 
   if (document.querySelector('tr.checked')) {
-    listButtons.add('visible');
+    listButtons.remove('hide');
   } else {
-    listButtons.remove('visible');
+    listButtons.add('hide');
   }
   updateLabelMenu();
 

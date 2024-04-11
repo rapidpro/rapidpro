@@ -556,15 +556,6 @@ video {
   }
 }
 
-html {
-  background: #f9f9f9;
-}
-
-html body {
-    --tw-text-opacity: 1;
-    color: rgba(26, 26, 26, var(--tw-text-opacity));
-  }
-
 .bg-gradient {
   background-repeat: no-repeat;
   background-attachment: fixed;

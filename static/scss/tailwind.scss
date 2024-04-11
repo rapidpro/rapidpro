@@ -1,13 +1,7 @@
 @tailwind base;
 @tailwind components;
 
-html {
-  background: #f9f9f9;
 
-  body {
-    @apply text-gray-900;
-  }
-}
 
 .bg-gradient {
   background-repeat: no-repeat;
@@ -992,5 +986,7 @@ code {
 
 
 }
+
+
 
 @tailwind utilities;

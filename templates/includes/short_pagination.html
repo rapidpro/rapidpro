@@ -2,13 +2,13 @@
 
 <div class="paging flex flex-row items-center h-10">
   {% if actions|length and paginator.count %}
-    <div style="padding-left: 0.55em" class="check">
+    <div style="padding-left: 1em;margin-bottom:-0.4em" class="check">
       <temba-checkbox onclick="handleSelectAll(this)" class="select-all">
       </temba-checkbox>
     </div>
   {% endif %}
   <div class="action-buttons flex-grow">
-    <div class="list-buttons-container">
+    <div class="list-buttons-container hide">
       <div class="list-buttons flex items-center h-full -mx-1">
         {% if 'label' in actions %}
           <temba-dropdown offsety="8" offsetx="-8" class="ml-4">
