@@ -797,7 +797,7 @@ class FlowCRUDL(SmartCRUDL):
                 menu.add_link(_("Export"), reverse("orgs.org_export"))
 
     class Archived(BaseList):
-        title = _("Archived Flows")
+        title = _("Archived")
         bulk_actions = ("restore",)
         default_order = ("-created_on",)
 
@@ -805,7 +805,7 @@ class FlowCRUDL(SmartCRUDL):
             return super().derive_queryset(*args, **kwargs).filter(is_active=True, is_archived=True)
 
     class List(BaseList):
-        title = _("Active Flows")
+        title = _("Active")
         bulk_actions = ("archive", "label", "download-results")
         menu_path = "/flow/active"
 

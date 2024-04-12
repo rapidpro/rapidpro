@@ -181,13 +181,11 @@ class CampaignCRUDL(SmartCRUDL):
             return context
 
     class List(BaseList):
+        title = _("Active")
         fields = ("name", "group")
         bulk_actions = ("archive",)
         search_fields = ("name__icontains", "group__name__icontains")
         menu_path = "/campaign/active"
-
-        def derive_title(self):
-            return _("Active Campaigns")
 
         def get_queryset(self, *args, **kwargs):
             qs = super().get_queryset(*args, **kwargs)
@@ -205,12 +203,10 @@ class CampaignCRUDL(SmartCRUDL):
                 )
 
     class Archived(BaseList):
+        title = _("Archived")
         fields = ("name",)
         bulk_actions = ("restore",)
         menu_path = "/campaign/archived"
-
-        def derive_title(self):
-            return _("Archived Campaigns")
 
         def get_queryset(self, *args, **kwargs):
             qs = super().get_queryset(*args, **kwargs)
