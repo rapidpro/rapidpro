@@ -1017,21 +1017,20 @@ class FlowRunReadSerializer(ReadSerializer):
             return None
 
         def convert_step(step):
-            arrived_on = iso8601.parse_date(step[FlowRun.PATH_ARRIVED_ON])
-            return {"node": step[FlowRun.PATH_NODE_UUID], "time": format_datetime(arrived_on)}
+            arrived_on = iso8601.parse_date(step["arrived_on"])
+            return {"node": step["node_uuid"], "time": format_datetime(arrived_on)}
 
         return [convert_step(s) for s in obj.path]
 
     def get_values(self, obj):
         def convert_result(result):
-            created_on = iso8601.parse_date(result[FlowRun.RESULT_CREATED_ON])
             return {
-                "value": result[FlowRun.RESULT_VALUE],
-                "category": result.get(FlowRun.RESULT_CATEGORY),
-                "node": result[FlowRun.RESULT_NODE_UUID],
-                "time": format_datetime(created_on),
-                "input": result.get(FlowRun.RESULT_INPUT),
-                "name": result.get(FlowRun.RESULT_NAME),
+                "value": result["value"],
+                "category": result.get("category"),
+                "node": result["node_uuid"],
+                "time": format_datetime(iso8601.parse_date(result["created_on"])),
+                "input": result.get("input"),
+                "name": result.get("name"),
             }
 
         return {k: convert_result(r) for k, r in obj.results.items()}
