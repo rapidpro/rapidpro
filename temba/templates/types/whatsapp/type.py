@@ -2,7 +2,7 @@ import re
 
 from temba.utils.languages import alpha2_to_alpha3
 
-from ..models import TemplateTranslation, TemplateType
+from ...models import TemplateTranslation, TemplateType
 
 
 class WhatsAppType(TemplateType):

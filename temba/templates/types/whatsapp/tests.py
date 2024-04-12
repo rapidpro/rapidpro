@@ -1,7 +1,7 @@
 from temba.tests import TembaTest
 
-from ..models import TemplateTranslation
-from .whatsapp import WhatsAppType
+from ...models import TemplateTranslation
+from .type import WhatsAppType
 
 
 class WhatsAppTypeTest(TembaTest):
