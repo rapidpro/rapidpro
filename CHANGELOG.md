@@ -1,3 +1,15 @@
+v9.1.85 (2024-04-12)
+-------------------------
+ * Drop support for Submitted By in results exports
+ * Add constraint to limit Msg.DIRECTION to I or O
+ * Add constraint to incoming messages have channel and URN
+
+v9.1.83 (2024-04-11)
+-------------------------
+ * Add TemplateType and rework whatsapp to be a type
+ * Remove special treatment for exports of surveyor flows
+ * Add TemplateTranslation.variables
+
 v9.1.82 (2024-04-10)
 -------------------------
  * Unpublicize the channel events API endpoint

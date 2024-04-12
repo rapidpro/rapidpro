@@ -32,7 +32,7 @@ from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
 
-from .mailroom import create_contact_locally, update_field_locally
+from .mailroom import create_contact_locally, resolve_destination, update_field_locally
 from .s3 import jsonlgz_encode
 
 
@@ -294,7 +294,6 @@ class TembaTest(SmartminTest):
         created_on=None,
         external_id=None,
         voice=False,
-        surveyor=False,
         flow=None,
         logs=None,
     ):
@@ -310,7 +309,6 @@ class TembaTest(SmartminTest):
             created_on=created_on,
             visibility=visibility,
             external_id=external_id,
-            surveyor=surveyor,
             flow=flow,
             logs=logs,
         )
@@ -332,13 +330,15 @@ class TembaTest(SmartminTest):
         sent_on=None,
         high_priority=False,
         voice=False,
-        surveyor=False,
         next_attempt=None,
         failed_reason=None,
         flow=None,
         ticket=None,
         logs=None,
     ):
+        if failed_reason:
+            status = Msg.STATUS_FAILED
+
         if status in (Msg.STATUS_WIRED, Msg.STATUS_SENT, Msg.STATUS_DELIVERED) and not sent_on:
             sent_on = timezone.now()
 
@@ -359,7 +359,6 @@ class TembaTest(SmartminTest):
             created_by=created_by,
             sent_on=sent_on,
             high_priority=high_priority,
-            surveyor=surveyor,
             flow=flow,
             ticket=ticket,
             metadata=metadata,
@@ -402,7 +401,6 @@ class TembaTest(SmartminTest):
         visibility=Msg.VISIBILITY_VISIBLE,
         external_id=None,
         high_priority=False,
-        surveyor=False,
         flow=None,
         ticket=None,
         broadcast=None,
@@ -413,22 +411,17 @@ class TembaTest(SmartminTest):
         failed_reason=None,
         logs=None,
     ):
-        assert not (surveyor and channel), "surveyor messages don't have channels"
         assert not channel or channel.org == contact.org, "channel belong to different org than contact"
 
         org = contact.org
 
-        if surveyor:
-            contact_urn = None
+        if failed_reason == Msg.FAILED_NO_DESTINATION:
             channel = None
+            contact_urn = None
         else:
-            # a simplified version of how channels are chosen
-            contact_urn = contact.get_urn()
-            if not channel:
-                if contact_urn and contact_urn.channel:
-                    channel = contact_urn.channel
-                else:
-                    channel = org.channels.filter(is_active=True, schemes__contains=[contact_urn.scheme]).first()
+            channel, contact_urn = resolve_destination(org, contact, channel)
+
+            assert channel and contact_urn, "messages require a channel and contact URN, except for failed_reason=D"
 
         return Msg.objects.create(
             org=org,

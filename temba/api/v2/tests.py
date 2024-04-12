@@ -3898,8 +3898,8 @@ class EndpointsTest(APITest):
         frank_msg3 = self.create_incoming_msg(self.frank, "Bien", channel=self.twitter, visibility="A")
         frank_msg4 = self.create_outgoing_msg(self.frank, "Ça va?", status="F")
 
-        # add a surveyor message (no URN etc)
-        joe_msg4 = self.create_outgoing_msg(self.joe, "Surveys!", surveyor=True)
+        # add a failed message with no URN or channel
+        joe_msg4 = self.create_outgoing_msg(self.joe, "Sorry", failed_reason=Msg.FAILED_NO_DESTINATION)
 
         # add an unhandled message
         self.create_incoming_msg(self.joe, "Just in!", status="P")
@@ -3973,8 +3973,8 @@ class EndpointsTest(APITest):
         self.assertGet(endpoint_url + "?folder=flows", [self.admin], results=[joe_msg3, joe_msg1])
         self.assertGet(endpoint_url + "?folder=archived", [self.admin], results=[frank_msg3])
         self.assertGet(endpoint_url + "?folder=outbox", [self.admin], results=[joe_msg2])
-        self.assertGet(endpoint_url + "?folder=sent", [self.admin], results=[frank_msg2, joe_msg4])
-        self.assertGet(endpoint_url + "?folder=failed", [self.admin], results=[frank_msg4])
+        self.assertGet(endpoint_url + "?folder=sent", [self.admin], results=[frank_msg2])
+        self.assertGet(endpoint_url + "?folder=failed", [self.admin], results=[joe_msg4, frank_msg4])
 
         # filter by invalid folder
         self.assertGet(endpoint_url + "?folder=invalid", [self.admin], results=[])
@@ -4064,7 +4064,7 @@ class EndpointsTest(APITest):
             {
                 "id": msg.id,
                 "type": "text",
-                "channel": {"uuid": str(self.twitter.uuid), "name": "Twitter Channel"},
+                "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                 "contact": {"uuid": str(self.joe.uuid), "name": "Joe Blow"},
                 "urn": "tel:+250788123123",
                 "text": "Interesting",
