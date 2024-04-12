@@ -555,7 +555,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         mailroom.queue_interrupt(self.org, flow=self)
 
         # archive our triggers as well
-        for trigger in self.triggers.all():
+        for trigger in self.triggers.filter(is_active=True):
             trigger.archive(user)
 
     def restore(self, user):
@@ -902,7 +902,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             event.release(user)
 
         # release any triggers that depend on this flow
-        for trigger in self.triggers.all():
+        for trigger in self.triggers.filter(is_active=True):
             trigger.release(user)
 
         self.channel_dependencies.clear()

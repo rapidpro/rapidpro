@@ -650,7 +650,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
             self.trigger_sync(registration_id)
 
         # any triggers associated with our channel get archived and released
-        for trigger in self.triggers.all():
+        for trigger in self.triggers.filter(is_active=True):
             trigger.archive(user)
             trigger.release(user)
 
