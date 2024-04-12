@@ -1,3 +1,7 @@
+v9.1.86 (2024-04-12)
+-------------------------
+ * Prune unnecessary styles, move to heavier fonts
+
 v9.1.85 (2024-04-12)
 -------------------------
  * Drop support for Submitted By in results exports
