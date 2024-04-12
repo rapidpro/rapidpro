@@ -1,79 +1,52 @@
-html input {
-  font-weight: 300;
-}
-
-html.dragging * {
-  user-select: none;
-  pointer-events: none;
-}
-
 html {
-
   --font-family: 'Roboto', Helvetica, Arial, sans-serif;
+  --font-size: 14px;
+
+  --disabled-opacity: 0.6;
+
+  /* Animations */
+  --transition-speed: 250ms;
+  --bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* Smoothness */
+  --curvature: 6px;
+  --curvature-widget: 6px;
+
+  /* RGB values */
   --primary-rgb: 58, 102, 150;
   --secondary-rgb: 140, 51, 140;
   --tertiary-rgb: 135, 202, 35;
-
   --focus-rgb: 82, 168, 236;
   --error-rgb: 255, 99, 71;
   --success-rgb: 102, 186, 104;
-
   --selection-light-rgb: 240, 240, 240;
   --selection-dark-rgb: 180, 180, 180;
 
-  --select-input-height: inherit;
-
-  --disabled-opacity: 0.6;
-  --curvature: 6px;
-  --curvature-widget: 6px;
-  --color-focus: #a4cafe;
-  --color-widget-bg: #fff;
-  --color-widget-bg-focused: #fff;
-  --color-widget-border: rgb(225, 225, 225);
-
-  --color-options-bg: var(--color-widget-bg);
-
-  /* primary colors, should be dark */
-  --color-selection: #f0f6ff;
-  --color-row-hover: rgba(var(--selection-light-rgb), .4);
-
-  --widget-box-shadow-focused: 0 0 0 3px rgba(164, 202, 254, .45);
-  --widget-box-shadow-focused-error: 0 0 0 3px rgba(var(--error-rgb), 0.3);
-
-  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  --shadow-widget: 0 3px 20px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02);
-
-  /* page text, borders, widgets */
+  /* Colors */
+  --color-text-dark: #555;
   --color-text: #555;
   --color-widget-text: #555;
   --color-borders: rgba(0, 0, 0, 0.07);
   --color-placeholder: #ccc;
-
-  /* light colors, panel backgrounds, selection, etc */
   --color-primary-light: #eee;
-  --color-secondary-light: #ccc;
-
-  /* dark colors, nav bar, buttons, etc */
+  --color-secondary-light: rgba(var(--secondary-rgb), .3);
   --color-primary-dark: rgb(var(--primary-rgb));
   --color-secondary-dark: rgb(var(--secondary-rgb));
-  --color-secondary-light: rgba(var(--secondary-rgb), .3);
-
+  --color-focus: #a4cafe;
+  --color-widget-bg: #fff;
+  --color-widget-bg-focused: #fff;
+  --color-widget-border: rgb(225, 225, 225);
+  --color-options-bg: var(--color-widget-bg);
+  --color-selection: #f0f6ff;
+  --color-row-hover: rgba(var(--selection-light-rgb), .4);
   --color-available: #00f100;
-
   --color-tertiary: rgb(var(--tertiary-rgb));
-
-  /* light text goes over dark, dark over lights */
   --color-text-light: rgba(255, 255, 255, 1);
-  --color-text-dark: rgba(0, 0, 0, 0.5);
   --color-text-dark-secondary: rgba(0, 0, 0, 0.25);
-
-  /* solid overlays with text */
   --color-overlay-dark: rgba(0, 0, 0, 0.2);
   --color-overlay-dark-text: rgba(255, 255, 255, 0.9);
   --color-overlay-light: rgba(0, 0, 0, 0.035);
   --color-overlay-light-text: rgba(0, 0, 0, 0.6);
-
-  /* links, buttons, and label badges */
   --color-link-primary: rgba(var(--primary-rgb), 0.8);
   --color-link-primary-hover: rgba(var(--primary-rgb), 0.9);
   --color-link-secondary: rgba(var(--secondary-rgb), 0.8);
@@ -84,159 +57,75 @@ html {
   --color-button-light-text: rgb(36, 41, 47);
   --color-button-secondary: var(--color-secondary-light);
   --color-button-secondary-text: var(--color-text-dark);
-
   --color-button-destructive: rgb(var(--error-rgb));
   --color-button-destructive-text: var(--color-text-light);
-
   --color-button-attention: #2ecc71;
-
   --color-label-primary: var(--color-primary-dark);
   --color-label-primary-text: var(--color-text-light);
   --color-label-secondary: var(--color-secondary-dark);
   --color-label-secondary-text: var(--color-text-light);
   --color-label-tertiary: var(--color-tertiary);
   --color-label-tertiary-text: var(--color-text-light);
-
   --color-nav-unselected: #fff;
   --color-nav-selected-bg: #fff;
   --color-nav-selected-text: var(--color-primary-dark);
-
   --color-info: rgb(238, 246, 255);
   --color-info-border: rgb(74, 163, 223);
-
   --color-warning: rgb(255, 253, 218);
   --color-warning-border: rgb(251, 246, 176);
-
   --color-error: rgb(var(--error-rgb));
   --color-alert: rgb(var(--error-rgb));
-
-  --font-size: 14px;
-  --button-font-size: 1.125rem;
-
   --icon-color: var(--text-color);
   --icon-color-circle: rgb(240, 240, 240);
   --icon-color-circle-hover: rgba(245, 245, 245, .8);
-
-  --transition-speed: 250ms;
-  --event-padding: 0.5em 1em;
-  --temba-select-selected-padding: 9px;
-  --temba-select-selected-line-height: 16px;
-  --temba-select-selected-font-size: 13px;
-
-  --help-text-margin-top: 0px;
-  --help-text-margin-left: 0.3em;
-  --help-text-size: 0.85em;
-  --color-text-help: rgb(120, 120, 120);
-  --label-size: 14px;
-
   --header-bg: var(--color-primary-dark);
   --header-text: var(--color-text-light);
+  --color-text-help: rgb(120, 120, 120);
+  --color-automated: rgb(78, 205, 106);
 
-  --temba-textinput-padding: 9px;
-  --temba-textinput-font-size: 13px;
 
+  /* Shadows */
+  --widget-box-shadow: rgba(0, 0, 0, 0.05) 0px 3px 7px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+  --widget-box-shadow-focused: 0 0 0 3px rgba(164, 202, 254, .45), rgba(0, 0, 0, 0.05) 0px 3px 7px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+  --widget-box-shadow-focused-error: 0 0 0 3px rgba(var(--error-rgb), 0.3);
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-widget: 0 3px 20px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+
+  /* temba-select */
+  --select-input-height: inherit;
+  --temba-select-selected-font-size: 1em;
+  --temba-select-selected-padding: .6em .8em;
+  --temba-select-selected-line-height: 1.2em;
   --options-block-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
   --options-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --dropdown-shadow: rgb(0 0 0 / 15%) 0px 0px 30px, rgb(0 0 0 / 12%) 0px 2px 6px;
 
-  font-size: var(--font-size);
-  font-weight: 300;
-  font-family: var(--font-family);
+  /* buttons */
+  --button-font-size: 1.125rem;
+  --button-y: 0.2em;
+  --button-x: 1.5em;
 
-  --button-y: 6px;
-  --button-x: 14px;
+  /* textinput */
+  --temba-textinput-padding: 0.6em .8em;
+  --temba-textinput-font-size: 1;
 
-  --control-margin-bottom: 15px;
-
-  --menu-padding: 1em;
-  --bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-
+  /* charcount */
   --temba-charcount-counts-margin-top: 4px;
   --temba-charcount-summary-margin-top: 5px;
   --temba-charcount-summary-position: absolute;
   --temba-charcount-summary-right: 0px;
   --temba-charcount-summary-bottom: 0px;
 
-  --color-automated: rgb(78, 205, 106);
+  /* help-text */
+  --help-text-margin-top: 0px;
+  --help-text-margin-left: 0.3em;
+  --help-text-size: 0.85em;
 
-}
-
-temba-button {
-  --button-bg: var(--color-primary-dark);
-  --button-text: var(--color-text-light);
-  --button-border: none;
-  --button-shadow: var(--widget-box-shadow);
-}
-
-temba-button:hover {
-  --button-bg-img: linear-gradient(to bottom, rgba(var(--primary-rgb), .1), transparent, transparent);
-}
-
-temba-button.active {
-  --button-bg-img: linear-gradient(to bottom, transparent, rgba(0, 0, 0, .05));
-}
-
-temba-button.light {
-  --button-bg: #fff;
-  --button-text: #999;
-  --button-border: none;
-  --button-shadow: var(--widget-box-shadow);
-
-}
-
-temba-button.light:hover {
-  --button-bg-img: linear-gradient(to bottom, transparent, rgba(0, 0, 0, .001));
-}
-
-temba-button.light.active {
-  --button-bg-img: linear-gradient(to bottom, transparent, rgba(0, 0, 0, .02));
-}
+  /* Other */
+  --label-size: 14px;
+  --event-padding: 0.5em 1em;
+  --control-margin-bottom: 15px;
+  --menu-padding: 1em;
 
 
-temba-select:focus {
-  outline: none;
-  box-shadow: none;
-}
-
-.flatpickr-calendar {
-  margin-top: 28px;
-  margin-bottom: 28px;
-  margin-left: -13px;
-}
-
-.input {
-  border-radius: var(--curvature-widget);
-  cursor: text;
-  background: var(--color-widget-bg);
-  border: 1px solid var(--color-widget-border);
-  transition: all ease-in-out 200ms;
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  box-shadow: var(--widget-box-shadow);
-  caret-color: var(--input-caret);
-  padding: var(--temba-textinput-padding);
-}
-
-.input:focus {
-  outline: none;
-  border-color: var(--color-focus);
-  background: var(--color-widget-bg-focused);
-  box-shadow: var(--widget-box-shadow-focused);
-}
-
-temba-dropdown {
-  opacity: 0;
-}
-
-temba-dropdown:defined {
-  opacity: 1;
-}
-
-temba-menu {
-  display: none;
-}
-
-temba-menu:defined {
-  display: block;
 }

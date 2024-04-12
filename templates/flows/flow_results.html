@@ -365,7 +365,10 @@
   </div>
   <temba-flow-details flow="{{ object.uuid }}" -temba-refreshed="handleFlowRefreshed">
   </temba-flow-details>
-  <temba-tabs -temba-context-changed="handleTabChanged" collapses="true" class="flex-grow">
+  <temba-tabs -temba-context-changed="handleTabChanged"
+              collapses="true"
+              class="flex-grow"
+              index="{{ request.GET.tab }}">
     <temba-tab name="{{ _("Overview") |escapejs }}" icon="overview">
       <div class="flex flex-wrap overflow-y-scroll overflow-x-hidden" id="overview-charts"></div>
     </temba-tab>
