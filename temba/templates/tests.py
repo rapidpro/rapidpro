@@ -17,7 +17,7 @@ from .tasks import refresh_templates
 
 
 class TemplateTest(TembaTest):
-    def test_templates(self):
+    def test_model(self):
         channel1 = self.create_channel("WA", "Channel 1", "1234")
         channel2 = self.create_channel("WA", "Channel 2", "2345")
 
@@ -97,6 +97,56 @@ class TemplateTest(TembaTest):
         # but not for other channels
         goodbye_fra_other_channel.refresh_from_db()
         self.assertTrue(hello_eng.is_active)
+
+    def test_update_local(self):
+        channel = self.create_channel("WA", "Channel 1", "1234")
+
+        TemplateTranslation.update_local(
+            channel,
+            [
+                {
+                    "name": "hello",
+                    "components": [{"type": "BODY", "text": "Hello"}],
+                    "language": "en",
+                    "status": "APPROVED",
+                    "id": "1234",
+                },
+                {
+                    "name": "hello",
+                    "components": [{"type": "BODY", "text": "Hola"}],
+                    "language": "es",
+                    "status": "PENDING",
+                    "id": "2345",
+                },
+                {
+                    "name": "goodbye",
+                    "components": [{"type": "BODY", "text": "Goodbye"}],
+                    "language": "en",
+                    "status": "PENDING",
+                    "id": "3456",
+                },
+            ],
+        )
+
+        self.assertEqual({"hello", "goodbye"}, set(Template.objects.values_list("name", flat=True)))
+        self.assertEqual(3, TemplateTranslation.objects.filter(channel=channel, is_active=True).count())
+
+        TemplateTranslation.update_local(
+            channel,
+            [
+                {
+                    "name": "hello",
+                    "components": [{"type": "BODY", "text": "Hello"}],
+                    "language": "en",
+                    "status": "APPROVED",
+                    "id": "1234",
+                }
+            ],
+        )
+
+        self.assertEqual({"hello", "goodbye"}, set(Template.objects.values_list("name", flat=True)))
+        self.assertEqual(1, TemplateTranslation.objects.filter(channel=channel, is_active=True).count())
+        self.assertEqual(2, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
 
     @patch("temba.templates.models.TemplateTranslation.update_local")
     @patch("temba.channels.types.dialog360.Dialog360Type.fetch_templates")

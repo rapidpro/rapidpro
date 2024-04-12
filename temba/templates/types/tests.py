@@ -52,11 +52,7 @@ class WhatsAppTypeTest(TembaTest):
             {
                 "name": "order_template",
                 "components": [
-                    {
-                        "type": "HEADER",
-                        "format": "IMAGE",
-                        "example": {"header_handle": [r"http://example.com/test.jpg"]},
-                    },
+                    {"type": "HEADER", "format": "TEXT", "text": "Your order!"},
                     {
                         "type": "BODY",
                         "text": "Sorry your order {{1}} took longer to deliver than expected.\nWe'll notify you about updates in the next {{2}} days.\n\nDo you have more question?",
@@ -93,7 +89,7 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual("order_template", trans.template.name)
         self.assertEqual(
             [
-                {"type": "header", "name": "header", "content": "", "variables": {}, "params": []},
+                {"type": "header", "name": "header", "content": "Your order!", "variables": {}, "params": []},
                 {
                     "type": "body",
                     "name": "body",
