@@ -1,3 +1,8 @@
+v9.1.87 (2024-04-12)
+-------------------------
+ * Add inline attachment style and wrapping on logs
+ * Don't re-release released triggers
+
 v9.1.86 (2024-04-12)
 -------------------------
  * Prune unnecessary styles, move to heavier fonts
