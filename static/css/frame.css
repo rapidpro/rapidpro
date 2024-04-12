@@ -11,8 +11,42 @@ html.dragging * {
   pointer-events: none;
 }
 
+pre.prettyprint {
+  text-wrap: wrap;
+  word-break: break-word;
+}
+
 body {
   height: 100%;
+}
+
+/* inline attachment pills */
+.attachment {
+  display: flex;
+  margin-right: 5px;
+  font-size: 0;
+  white-space: nowrap;
+}
+
+.attachment .attachment-preview {
+  background-color: #EAEAEA;
+  border: 0;
+  color: #777;
+  display: flex;
+  font-size: 12px;
+  height: 18px;
+  padding: 3px 8px;
+  text-decoration: none;
+  overflow: hidden;
+}
+
+.attachment .attachment-download {
+  background-color: #E0E0E0;
+  border: 0;
+  color: #666;
+  display: inline-block;
+  font-size: 12px;
+  padding: 3px;
 }
 
 .ReactModalPortal p {
