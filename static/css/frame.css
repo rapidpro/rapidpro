@@ -3,11 +3,16 @@ html {
   overflow: hidden;
   font-size: var(--font-size);
   font-family: var(--font-family);
+  height: 100%;
 }
 
 html.dragging * {
   user-select: none;
   pointer-events: none;
+}
+
+body {
+  height: 100%;
 }
 
 .ReactModalPortal p {
