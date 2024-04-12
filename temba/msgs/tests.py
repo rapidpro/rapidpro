@@ -771,8 +771,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_filter(self):
         flow = self.create_flow("Flow")
         joe = self.create_contact("Joe Blow", phone="+250788000001")
-        frank = self.create_contact("Frank Blow", phone="250788000002")
-        billy = self.create_contact("Billy Bob", urns=["twitter:billy_bob"])
+        frank = self.create_contact("Frank Blow", phone="+250788000002")
 
         # create labels
         label1 = self.create_label("label1")
@@ -782,7 +781,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         # create some messages
         msg1 = self.create_incoming_msg(joe, "test1")
         msg2 = self.create_incoming_msg(frank, "test2")
-        msg3 = self.create_incoming_msg(billy, "test3")
+        msg3 = self.create_incoming_msg(frank, "test3")
         msg4 = self.create_incoming_msg(joe, "test4", visibility=Msg.VISIBILITY_ARCHIVED)
         msg5 = self.create_incoming_msg(joe, "test5", visibility=Msg.VISIBILITY_DELETED_BY_USER)
         msg6 = self.create_incoming_msg(joe, "IVR test", flow=flow)
@@ -956,9 +955,12 @@ class MessageExportTest(TembaTest):
         )
         msg3 = self.create_incoming_msg(self.joe, "hello 3", created_on=datetime(2017, 1, 3, 10, tzinfo=tzone.utc))
 
-        # inbound message that looks like a surveyor message
-        msg4 = self.create_incoming_msg(
-            self.joe, "hello 4", surveyor=True, created_on=datetime(2017, 1, 4, 10, tzinfo=tzone.utc)
+        # outbound message that has no channel or URN
+        msg4 = self.create_outgoing_msg(
+            self.joe,
+            "hello 4",
+            failed_reason=Msg.FAILED_NO_DESTINATION,
+            created_on=datetime(2017, 1, 4, 10, tzinfo=tzone.utc),
         )
 
         # inbound message with media attached, such as an ivr recording
@@ -1086,7 +1088,7 @@ class MessageExportTest(TembaTest):
                     "Test Channel",
                     "",
                 ],
-                [msg4.created_on, msg1.contact.uuid, "Joe Blow", "", "", "", "IN", "hello 4", "", "handled", "", ""],
+                [msg4.created_on, msg1.contact.uuid, "Joe Blow", "", "", "", "OUT", "hello 4", "", "failed", "", ""],
                 [
                     msg5.created_on,
                     msg5.contact.uuid,
@@ -1205,6 +1207,20 @@ class MessageExportTest(TembaTest):
             [
                 expected_headers,
                 [
+                    msg4.created_on,
+                    msg4.contact.uuid,
+                    "Joe Blow",
+                    "",
+                    "",
+                    "",
+                    "OUT",
+                    "hello 4",
+                    "",
+                    "failed",
+                    "",
+                    "",
+                ],
+                [
                     msg9.created_on,
                     msg9.contact.uuid,
                     "Joe Blow",
@@ -1299,9 +1315,12 @@ class MessageExportTest(TembaTest):
             bob, "hello 3", created_on=datetime(2017, 1, 3, 10, tzinfo=tzone.utc), channel=telegram
         )
 
-        # inbound message that looks like a surveyor message
-        msg4 = self.create_incoming_msg(
-            self.joe, "hello 4", surveyor=True, created_on=datetime(2017, 1, 4, 10, tzinfo=tzone.utc)
+        # outbound message that doesn't have a channel or URN
+        msg4 = self.create_outgoing_msg(
+            self.joe,
+            "hello 4",
+            failed_reason=Msg.FAILED_NO_DESTINATION,
+            created_on=datetime(2017, 1, 4, 10, tzinfo=tzone.utc),
         )
 
         # inbound message with media attached, such as an ivr recording
@@ -1396,10 +1415,10 @@ class MessageExportTest(TembaTest):
                         "",
                         "",
                         "",
-                        "IN",
+                        "OUT",
                         "hello 4",
                         "",
-                        "handled",
+                        "failed",
                         "",
                         "",
                     ],
@@ -1660,10 +1679,10 @@ class MessageExportTest(TembaTest):
                         "",
                         self.joe.anon_display,
                         "",
-                        "IN",
+                        "OUT",
                         "hello 4",
                         "",
-                        "handled",
+                        "failed",
                         "",
                         "",
                     ],

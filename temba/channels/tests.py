@@ -18,7 +18,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes
 
-from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
+from temba.contacts.models import URN, Contact
 from temba.msgs.models import Msg
 from temba.notifications.incidents.builtin import ChannelDisconnectedIncidentType
 from temba.notifications.tasks import send_notification_emails
@@ -76,31 +76,6 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
 
         android.refresh_from_db()
         return android
-
-    def send_message(self, numbers, message, org=None, user=None):
-        org = org or self.org
-        user = user or self.user
-
-        group = ContactGroup.get_or_create(org, user, "Numbers: %s" % ",".join(numbers))
-
-        contacts = []
-        for number in numbers:
-            urn = URN.from_tel(number)
-            urn_obj = ContactURN.lookup(org, urn)
-            if urn_obj:
-                contacts.append(urn_obj.contact)
-            else:
-                contacts.append(self.create_contact("", urns=[urn]))
-
-        group.contacts.add(*contacts)
-
-        broadcast = self.create_broadcast(user, message, groups=[group], msg_status="Q")
-
-        msg = Msg.objects.filter(broadcast=broadcast).order_by("text", "pk")
-        if len(numbers) == 1:
-            return msg.first()
-        else:
-            return list(msg)
 
     def assertHasCommand(self, cmd_name, response):
         self.assertEqual(200, response.status_code)
@@ -656,10 +631,11 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         contact2_urn.channel = channel2
         contact2_urn.save()
 
-        # send a broadcast to urn that have different preferred channels
-        self.send_message(["250788382382", "250788383383"], "How is it going?")
+        # send a broadcast to urns that have different preferred channels
+        self.create_outgoing_msg(contact1, "How is it going?", status=Msg.STATUS_QUEUED)
+        self.create_outgoing_msg(contact2, "How is it going?", status=Msg.STATUS_QUEUED)
 
-        # Should contain messages for the the channel only
+        # should contain messages for the the channel only
         response = self.sync(self.tel_channel, cmds=[])
         self.assertEqual(200, response.status_code)
 
@@ -688,21 +664,33 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         date = timezone.now()
         date = int(time.mktime(date.timetuple())) * 1000
 
-        contact = self.create_contact("Bob", phone="+250788382382")
+        contact1 = self.create_contact("Ann", phone="+250788382382")
+        contact2 = self.create_contact("Bob", phone="+250788383383")
 
         # create a payload from the client
-        bcast = self.send_message(["250788382382", "250788383383"], "How is it going?")
-        msg1 = bcast[0]
-        msg2 = bcast[1]
-        msg3 = self.send_message(["250788382382"], "What is your name?")
-        msg4 = self.send_message(["250788382382"], "Do you have any children?")
-        msg5 = self.send_message(["250788382382"], "What's my dog's name?")
-        msg6 = self.send_message(["250788382382"], "from when?")
+        msg1 = self.create_outgoing_msg(
+            contact1, "How is it going?", channel=self.tel_channel, status=Msg.STATUS_QUEUED
+        )
+        msg2 = self.create_outgoing_msg(
+            contact2, "How is it going?", channel=self.tel_channel, status=Msg.STATUS_QUEUED
+        )
+        msg3 = self.create_outgoing_msg(
+            contact2, "What is your name?", channel=self.tel_channel, status=Msg.STATUS_QUEUED
+        )
+        msg4 = self.create_outgoing_msg(
+            contact2, "Do you have any children?", channel=self.tel_channel, status=Msg.STATUS_QUEUED
+        )
+        msg5 = self.create_outgoing_msg(
+            contact2, "What's my dog's name?", channel=self.tel_channel, status=Msg.STATUS_QUEUED
+        )
+        msg6 = self.create_outgoing_msg(contact2, "from when?", channel=self.tel_channel, status=Msg.STATUS_QUEUED)
 
         # an incoming message that should not be included even if it is still pending
-        incoming_message = self.create_incoming_msg(contact, "hey", channel=self.tel_channel, status=Msg.STATUS_PENDING)
+        incoming_message = self.create_incoming_msg(
+            contact2, "hey", channel=self.tel_channel, status=Msg.STATUS_PENDING
+        )
 
-        # Check our sync point has all three messages queued for delivery
+        # check our sync point has all three messages queued for delivery
         response = self.sync(self.tel_channel, cmds=[])
         self.assertEqual(200, response.status_code)
 
@@ -723,13 +711,16 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(msg2.pk in [m["id"] for m in cmd["to"]])
 
         # add another message we'll pretend is in retry to see that we exclude them from sync
-        msg6 = self.send_message(
-            ["250788382382"], "Pretend this message is in retry on the client, don't send it on sync"
+        msg6 = self.create_outgoing_msg(
+            contact1,
+            "Pretend this message is in retry on the client, don't send it on sync",
+            channel=self.tel_channel,
+            status=Msg.STATUS_QUEUED,
         )
 
         # a pending outgoing message should be included
         self.create_outgoing_msg(
-            msg6.contact, "Hello, we heard from you.", channel=self.tel_channel, status=Msg.STATUS_QUEUED
+            contact1, "Hello, we heard from you.", channel=self.tel_channel, status=Msg.STATUS_QUEUED
         )
 
         six_mins_ago = timezone.now() - timedelta(minutes=6)
@@ -1154,7 +1145,7 @@ class ChannelCountTest(TembaTest):
         self.assertEqual(0, ChannelCount.objects.count())
 
         # message without a channel won't be recorded
-        self.create_incoming_msg(contact, "X", surveyor=True)
+        self.create_outgoing_msg(contact, "X", failed_reason=Msg.FAILED_NO_DESTINATION)
         self.assertEqual(0, ChannelCount.objects.count())
 
         # create some messages...
@@ -2085,43 +2076,6 @@ Content-Type: application/json
 
             # when we can't identify the contact, request, and response body
             self.assertContains(response, HTTPLog.REDACT_MASK, count=3)
-
-    def test_channellog_anonymous_org_missing_urn(self):
-        contact = self.create_contact("Nic Pottier")
-        channel = self.create_channel("TG", "Test TG Channel", "234567")
-        log = ChannelLog.objects.create(
-            channel=channel,
-            log_type=ChannelLog.LOG_TYPE_MSG_SEND,
-            is_error=False,
-            http_logs=[
-                {
-                    "url": "https://api.telegram.org/65474/sendMessage",
-                    "status_code": 400,
-                    "request": "POST /65474/sendMessage HTTP/1.1\r\nHost: api.telegram.org\r\nUser-Agent: Courier/1.2.159\r\nContent-Length: 231\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nchat_id=3&reply_markup=%7B%22resize_keyboard%22%3Atrue%2C%22one_time_keyboard%22%3Atrue%2C%22keyboard%22%3A%5B%5B%7B%22text%22%3A%22blackjack%22%7D%2C%7B%22text%22%3A%22balance%22%7D%5D%5D%7D&text=Your+balance+is+now+%246.00.",
-                    "elapsed_ms": 0,
-                    "retries": 0,
-                    "created_on": "2022-01-01T00:00:00Z",
-                }
-            ],
-        )
-        msg = self.create_incoming_msg(contact, "incoming msg", channel=channel, logs=[log])
-
-        self.login(self.admin)
-
-        read_url = reverse("channels.channellog_msg", args=[channel.uuid, msg.id])
-        response = self.client.get(read_url)
-        self.assertEqual(200, response.status_code)
-
-        # but for anon org we see redaction...
-        with self.anonymous(self.org):
-            response = self.client.get(read_url)
-            self.assertEqual(200, response.status_code)
-
-            # even as customer support
-            self.login(self.customer_support, choose_org=self.org)
-
-            response = self.client.get(read_url)
-            self.assertEqual(200, response.status_code)
 
 
 class FacebookWhitelistTest(TembaTest, CRUDLTestMixin):
