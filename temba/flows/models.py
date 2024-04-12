@@ -1693,13 +1693,7 @@ class ResultsExport(ExportType):
         num_records = 0
 
         for batch in self._get_run_batches(export, start_date, end_date, flows, responded_only):
-            self._write_runs(
-                export,
-                exporter,
-                batch,
-                extra_urn_columns,
-                result_fields,
-            )
+            self._write_runs(export, exporter, batch, extra_urn_columns, result_fields)
 
             num_records += len(batch)
 

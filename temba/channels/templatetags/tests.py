@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.template import Context
 from django.utils import timezone
 
+from temba.msgs.models import Msg
 from temba.tests import TembaTest
 
 from .channels import channel_log_link
@@ -15,7 +16,7 @@ class ChannelsTest(TembaTest):
         msg = self.create_incoming_msg(joe, "Hi")
         call = self.create_incoming_call(flow, joe)
         old_msg = self.create_incoming_msg(joe, "Hi", created_on=timezone.now() - timedelta(days=15))
-        surveyor_msg = self.create_incoming_msg(joe, "Submitted", surveyor=True)
+        channel_less_msg = self.create_outgoing_msg(joe, "Submitted", failed_reason=Msg.FAILED_NO_DESTINATION)
 
         call_logs_url = f"/channels/{self.channel.uuid}/logs/call/{call.id}/"
         msg_logs_url = f"/channels/{self.channel.uuid}/logs/msg/{msg.id}/"
@@ -38,7 +39,7 @@ class ChannelsTest(TembaTest):
 
         # no log link for channel-less messages or older messages
         self.assertEqual(
-            {"logs_url": None}, channel_log_link(Context({"user_org": self.org, "user": self.admin}), surveyor_msg)
+            {"logs_url": None}, channel_log_link(Context({"user_org": self.org, "user": self.admin}), channel_less_msg)
         )
         self.assertEqual(
             {"logs_url": None}, channel_log_link(Context({"user_org": self.org, "user": self.admin}), old_msg)

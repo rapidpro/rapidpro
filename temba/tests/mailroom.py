@@ -776,9 +776,22 @@ def exit_sessions(session_ids: list, status: str):
         session.contact.save(update_fields=("current_flow", "modified_on"))
 
 
+def resolve_destination(org, contact, channel=None) -> tuple:
+    for urn in contact.urns.order_by("priority"):
+        if channel:
+            return channel, urn
+        if urn.channel:
+            return urn.channel, urn
+
+        channel = org.channels.filter(is_active=True, schemes__contains=[urn.scheme]).first()
+        if channel:
+            return channel, urn
+
+    return None, None
+
+
 def send_to_contact(org, contact, text, attachments) -> Msg:
-    contact_urn = contact.get_urn()
-    channel = Channel.objects.filter(org=org).first()
+    channel, contact_urn = resolve_destination(org, contact)
 
     if contact_urn and channel:
         status = "Q"
@@ -794,6 +807,7 @@ def send_to_contact(org, contact, text, attachments) -> Msg:
         channel=channel,
         contact=contact,
         contact_urn=contact_urn,
+        direction=Msg.DIRECTION_OUT,
         status=status,
         failed_reason=failed_reason,
         text=text or "",

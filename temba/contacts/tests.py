@@ -1723,7 +1723,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         urn.save(update_fields=("contact",))
         group = self.create_group("Test Group", contacts=[contact])
 
-        contact2 = self.create_contact("Billy", urns=["twitter:billy"])
+        contact2 = self.create_contact("Billy", urns=["tel:1234567"])
 
         # create scheduled and regular broadcasts which send to both contacts
         schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
