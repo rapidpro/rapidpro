@@ -517,6 +517,7 @@ class Msg(models.Model):
     quick_replies = ArrayField(models.CharField(max_length=64), null=True)
     optin = models.ForeignKey("msgs.OptIn", on_delete=models.DO_NOTHING, null=True, db_index=False, db_constraint=False)
     locale = models.CharField(max_length=6, null=True)  # eng, eng-US, por-BR, und etc
+    templating = models.JSONField(null=True)
 
     created_on = models.DateTimeField(db_index=True)  # for flow messages this uses event time to keep histories ordered
     modified_on = models.DateTimeField()
