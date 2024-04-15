@@ -26,28 +26,26 @@
       </temba-alert>
     </div>
   {% endif %}
-  <div class="channel-options mt-8">
+  <div class="mt-8">
     {% if recommended_channels %}
       <div class="title">{% trans "Recommendations" %}</div>
-      <div class="channel-options-recommended">
-        {% for ch_type in recommended_channels %}
-          <div href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"
-               onclick="goto(event, this)"
-               class="card link">
-            <div class="relative">
-              <temba-icon name="{{ ch_type.icon }}" class="text-base absolute text-gray-100 bg-icon">
-              </temba-icon>
-            </div>
-            <div class="flex flex-col mx-20 relative">
-              <div class="title">{{ ch_type.name }}</div>
-              <div class="mt-2">{% include ch_type.get_claim_blurb %}</div>
-            </div>
+      {% for ch_type in recommended_channels %}
+        <div href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"
+             onclick="goto(event, this)"
+             class="card link">
+          <div class="relative">
+            <temba-icon name="{{ ch_type.icon }}" class="text-base absolute text-gray-100 bg-icon">
+            </temba-icon>
           </div>
-        {% endfor %}
-      </div>
+          <div class="flex flex-col mx-20 relative">
+            <div class="title">{{ ch_type.name }}</div>
+            <div class="mt-2">{% include ch_type.get_claim_blurb %}</div>
+          </div>
+        </div>
+      {% endfor %}
     {% endif %}
-    <div class="bg-gray-200 -mx-6 px-6 py-12 mt-16 overflow-hidden">
-      <div class="title mb-4">{% trans "Social Network Channels" %}</div>
+    <div class="mt-8">
+      <div class="title">{% trans "Social Network Channels" %}</div>
       {% for ch_type in channel_types.SOCIAL_MEDIA %}
         <div href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"
              onclick="goto(event, this)"
@@ -62,6 +60,8 @@
           </div>
         </div>
       {% endfor %}
+    </div>
+    <div class="mt-8">
       <div class="title mb-4 mt-8">{% trans "SMS and Voice Channels" %}</div>
       {% for ch_type in channel_types.PHONE %}
         <div href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"
@@ -77,7 +77,9 @@
           </div>
         </div>
       {% endfor %}
-      <div class="title mt-8">{% trans "API Channels" %}</div>
+    </div>
+    <div class="mt-8">
+      <div class="title">{% trans "API Channels" %}</div>
       {% for ch_type in channel_types.API %}
         <div href="{% url 'channels.types.'|add:ch_type.slug|add:'.claim' %}"
              onclick="goto(event, this)"
@@ -92,54 +94,21 @@
           </div>
         </div>
       {% endfor %}
-      {% if only_regional_channels %}
-        <div class="title mt-8">{% trans "All Channels" %}</div>
+    </div>
+    {% if only_regional_channels %}
+      <div class="mt-8">
         {% url 'channels.channel_claim_all' as claim_all_url %}
         {% blocktrans trimmed %}
           The channels above are the available channels for your region, but you can also <a class="inline" href="{{ claim_all_url }}">view all channels</a>.
         {% endblocktrans %}
-      {% endif %}
-    </div>
+      </div>
+    {% endif %}
   </div>
 {% endblock content %}
 {% block form-buttons %}
 {% endblock form-buttons %}
 {% block extra-style %}
   {{ block.super }}
-  <style type="text/css">
-    .channel-options h3 {
-      margin-top: 30px;
-    }
-
-    .checking-recommendations {
-      margin-bottom: 10px;
-    }
-
-    .recommended .btn-primary {
-      background: #5ca869;
-      border-color: #4b9758;
-    }
-
-    .recommended .recommendation {
-      padding: 5px;
-      margin-top: 5px;
-      margin-bottom: 10px;
-      display: inline-block;
-    }
-
-    .recommended .recommendation h3 {
-      margin-top: 0px;
-    }
-
-    .recommended .recommendation .icon-star-2 {
-      color: #9ba1a5;
-      font-size: 22px;
-      float: left;
-      position: relative;
-      top: -3px;
-      margin-right: 16px;
-    }
-  </style>
   <style type="text/css">
     .card:hover .bg-icon {
       color: rgb(var(--focus-rgb), .3);
@@ -148,70 +117,6 @@
     .bg-icon {
       transform: translate(-65px, -35px) rotate(0deg);
       font-size: 120px;
-    }
-
-    .horizontal-channel {
-      margin-top: 30px;
-    }
-
-    .claim-description {
-      padding: 25px 40px;
-      height: 50px;
-      width: 95%;
-      background: #f5f5f5;
-      font-size: 16px;
-    }
-
-    .align-text-center {
-      text-align: center;
-    }
-
-    .claim-text {
-      margin-top: 10px;
-    }
-
-    .btn-container {
-      margin-right: 10px;
-    }
-
-    .external {
-      text-align: center;
-    }
-
-    .btn-claim {
-      padding: 10px 10px;
-      width: 95%;
-      height: 78px;
-    }
-
-    .claim-row {
-      clear: both;
-      margin-bottom: 10px;
-    }
-
-    .icon-everywhere {
-      font-size: 68px;
-    }
-
-    .icon-channel-kannel {
-      font-size: 55px;
-      margin-top: -5px;
-    }
-
-    .icon-facebook-official {
-      font-size: 48px;
-    }
-
-    ul {
-      list-style-type: none;
-    }
-
-    a:hover {
-      text-decoration: none;
-    }
-
-    .claim-row .span8 {
-      margin-left: 0px;
     }
   </style>
 {% endblock extra-style %}
