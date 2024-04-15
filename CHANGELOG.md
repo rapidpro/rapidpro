@@ -1,3 +1,9 @@
+v9.1.88 (2024-04-15)
+-------------------------
+ * Drop FlowRun.submitted_by and cleanup superfulous constants
+ * Make whatsapp template type an actual package
+ * Simplify page titles so section isn't repeated in title
+
 v9.1.87 (2024-04-12)
 -------------------------
  * Add inline attachment style and wrapping on logs
