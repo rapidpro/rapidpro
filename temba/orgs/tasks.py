@@ -2,6 +2,7 @@ import logging
 from datetime import timedelta
 
 from celery import shared_task
+from django_redis import get_redis_connection
 
 from django.conf import settings
 from django.utils import timezone
@@ -36,12 +37,18 @@ def send_invitation_email_task(invitation_id):
 
 @shared_task
 def send_user_verification_email(org_id, user_id):
+    r = get_redis_connection()
     org = Org.objects.get(id=org_id)
     user = User.objects.get(id=user_id)
 
     assert user in org.get_users()
 
     if user.settings.email_status == UserSettings.STATUS_VERIFIED:
+        return
+
+    key = f"send_verification_email:{timezone.now().replace(tzinfo=None, microsecond=0, second=0).isoformat()}"
+
+    if r.hexists(key, user.email):
         return
 
     verification_secret = user.settings.email_verification_secret
@@ -58,6 +65,9 @@ def send_user_verification_email(org_id, user_id):
         "orgs/email/email_verification",
         {"org": org, "secret": verification_secret},
     )
+
+    r.hset(key, user.email, "1")
+    r.expire(key, 60 * 60)
 
 
 @shared_task
