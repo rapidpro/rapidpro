@@ -414,10 +414,10 @@
                   "variables": {},
                   "params": []
                 }
-              ]
+              ],
+              "variables": []
             }
-          ],
-          "variables": []
+          ]
         }
       ],
       "topics": [
