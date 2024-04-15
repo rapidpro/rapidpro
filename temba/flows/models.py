@@ -1122,23 +1122,6 @@ class FlowRun(models.Model):
         (EXIT_TYPE_FAILED, "Failed"),
     )
 
-    RESULT_NAME = "name"
-    RESULT_NODE_UUID = "node_uuid"
-    RESULT_CATEGORY = "category"
-    RESULT_CATEGORY_LOCALIZED = "category_localized"
-    RESULT_VALUE = "value"
-    RESULT_INPUT = "input"
-    RESULT_CREATED_ON = "created_on"
-
-    PATH_STEP_UUID = "uuid"
-    PATH_NODE_UUID = "node_uuid"
-    PATH_ARRIVED_ON = "arrived_on"
-    PATH_EXIT_UUID = "exit_uuid"
-
-    EVENT_TYPE = "type"
-    EVENT_STEP_UUID = "step_uuid"
-    EVENT_CREATED_ON = "created_on"
-
     id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(unique=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="runs", db_index=False)
@@ -1174,23 +1157,20 @@ class FlowRun(models.Model):
     # set when deleting to signal to db triggers that result category counts should be decremented
     delete_from_results = models.BooleanField(null=True)
 
-    # deprecated
-    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, db_index=False)
-
     def as_archive_json(self):
         from temba.api.v2.views import FlowRunReadSerializer
 
         def convert_step(step):
-            return {"node": step[FlowRun.PATH_NODE_UUID], "time": step[FlowRun.PATH_ARRIVED_ON]}
+            return {"node": step["node_uuid"], "time": step["arrived_on"]}
 
         def convert_result(result):
             return {
-                "name": result.get(FlowRun.RESULT_NAME),
-                "node": result.get(FlowRun.RESULT_NODE_UUID),
-                "time": result[FlowRun.RESULT_CREATED_ON],
-                "input": result.get(FlowRun.RESULT_INPUT),
-                "value": result[FlowRun.RESULT_VALUE],
-                "category": result.get(FlowRun.RESULT_CATEGORY),
+                "name": result.get("name"),
+                "node": result.get("node_uuid"),
+                "time": result["created_on"],
+                "input": result.get("input"),
+                "value": result["value"],
+                "category": result.get("category"),
             }
 
         return {
