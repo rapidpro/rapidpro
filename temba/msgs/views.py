@@ -653,21 +653,21 @@ class MsgCRUDL(SmartCRUDL):
                 menu = [
                     self.create_menu_item(
                         menu_id="inbox",
-                        name="Inbox",
+                        name=_("Inbox"),
                         href=reverse("msgs.msg_inbox"),
                         count=counts[SystemLabel.TYPE_INBOX],
                         icon="inbox",
                     ),
                     self.create_menu_item(
                         menu_id="handled",
-                        name="Handled",
+                        name=_("Handled"),
                         href=reverse("msgs.msg_flow"),
                         count=counts[SystemLabel.TYPE_FLOWS],
                         icon="flow",
                     ),
                     self.create_menu_item(
                         menu_id="archived",
-                        name="Archived",
+                        name=_("Archived"),
                         href=reverse("msgs.msg_archived"),
                         count=counts[SystemLabel.TYPE_ARCHIVED],
                         icon="archive",
@@ -675,38 +675,38 @@ class MsgCRUDL(SmartCRUDL):
                     self.create_divider(),
                     self.create_menu_item(
                         menu_id="outbox",
-                        name="Outbox",
+                        name=_("Outbox"),
                         href=reverse("msgs.msg_outbox"),
                         count=counts[SystemLabel.TYPE_OUTBOX] + Broadcast.get_queued(org).count(),
                     ),
                     self.create_menu_item(
                         menu_id="sent",
-                        name="Sent",
+                        name=_("Sent"),
                         href=reverse("msgs.msg_sent"),
                         count=counts[SystemLabel.TYPE_SENT],
                     ),
                     self.create_menu_item(
                         menu_id="failed",
-                        name="Failed",
+                        name=_("Failed"),
                         href=reverse("msgs.msg_failed"),
                         count=counts[SystemLabel.TYPE_FAILED],
                     ),
                     self.create_divider(),
                     self.create_menu_item(
                         menu_id="scheduled",
-                        name="Scheduled",
+                        name=_("Scheduled"),
                         href=reverse("msgs.broadcast_scheduled"),
                         count=counts[SystemLabel.TYPE_SCHEDULED],
                     ),
                     self.create_menu_item(
                         menu_id="broadcasts",
-                        name="Broadcasts",
+                        name=_("Broadcasts"),
                         href=reverse("msgs.broadcast_list"),
                     ),
                     self.create_divider(),
                     self.create_menu_item(
                         menu_id="calls",
-                        name="Calls",
+                        name=_("Calls"),
                         href=reverse("ivr.call_list"),
                         count=counts[SystemLabel.TYPE_CALLS],
                     ),
@@ -789,7 +789,7 @@ class MsgCRUDL(SmartCRUDL):
             return r"^%s/inbox/$" % (path)
 
     class Inbox(MsgListView):
-        title = _("Inbox Messages")
+        title = _("Inbox")
         template_name = "msgs/message_box.html"
         system_label = SystemLabel.TYPE_INBOX
         bulk_actions = ("archive", "label")
@@ -805,7 +805,7 @@ class MsgCRUDL(SmartCRUDL):
             return qs.prefetch_related("labels").select_related("contact", "channel")
 
     class Flow(MsgListView):
-        title = _("Flow Messages")
+        title = _("Handled")
         template_name = "msgs/message_box.html"
         system_label = SystemLabel.TYPE_FLOWS
         bulk_actions = ("archive", "label")
@@ -817,7 +817,7 @@ class MsgCRUDL(SmartCRUDL):
             return qs.prefetch_related("labels").select_related("contact", "channel", "flow")
 
     class Archived(MsgListView):
-        title = _("Archived Messages")
+        title = _("Archived")
         template_name = "msgs/msg_archived.html"
         system_label = SystemLabel.TYPE_ARCHIVED
         bulk_actions = ("restore", "label", "delete")
@@ -828,7 +828,7 @@ class MsgCRUDL(SmartCRUDL):
             return qs.prefetch_related("labels").select_related("contact", "channel", "flow")
 
     class Outbox(MsgListView):
-        title = _("Outbox Messages")
+        title = _("Outbox")
         template_name = "msgs/msg_outbox.html"
         system_label = SystemLabel.TYPE_OUTBOX
         bulk_actions = ()
@@ -850,7 +850,7 @@ class MsgCRUDL(SmartCRUDL):
             return super().get_queryset(**kwargs).select_related("contact", "channel", "flow")
 
     class Sent(MsgListView):
-        title = _("Sent Messages")
+        title = _("Sent")
         template_name = "msgs/msg_sent.html"
         system_label = SystemLabel.TYPE_SENT
         bulk_actions = ()
@@ -861,7 +861,7 @@ class MsgCRUDL(SmartCRUDL):
             return super().get_queryset(**kwargs).select_related("contact", "channel", "flow")
 
     class Failed(MsgListView):
-        title = _("Failed Messages")
+        title = _("Failed")
         template_name = "msgs/msg_failed.html"
         success_message = ""
         system_label = SystemLabel.TYPE_FAILED

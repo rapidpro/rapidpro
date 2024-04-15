@@ -785,7 +785,7 @@ class ContactCRUDL(SmartCRUDL):
             return JsonResponse(summary)
 
     class List(ContentMenuMixin, ContactListView):
-        title = _("Active Contacts")
+        title = _("Active")
         system_group = ContactGroup.TYPE_DB_ACTIVE
         menu_path = "/contact/active"
 
@@ -838,7 +838,7 @@ class ContactCRUDL(SmartCRUDL):
             return context
 
     class Blocked(ContentMenuMixin, ContactListView):
-        title = _("Blocked Contacts")
+        title = _("Blocked")
         system_group = ContactGroup.TYPE_DB_BLOCKED
 
         def get_bulk_actions(self):
@@ -854,7 +854,7 @@ class ContactCRUDL(SmartCRUDL):
             return context
 
     class Stopped(ContentMenuMixin, ContactListView):
-        title = _("Stopped Contacts")
+        title = _("Stopped")
         template_name = "contacts/contact_stopped.html"
         system_group = ContactGroup.TYPE_DB_STOPPED
 
@@ -871,7 +871,7 @@ class ContactCRUDL(SmartCRUDL):
             return context
 
     class Archived(ContentMenuMixin, ContactListView):
-        title = _("Archived Contacts")
+        title = _("Archived")
         template_name = "contacts/contact_archived.html"
         system_group = ContactGroup.TYPE_DB_ARCHIVED
         bulk_action_permissions = {"delete": "contacts.contact_delete"}
