@@ -11,7 +11,7 @@
               index="{{ request.GET.tab }}"
               collapses="true"
               class="flex-grow -mt-2">
-    <temba-tab icon="message" name="{{ _("Chat") |escapejs }}">
+    <temba-tab class="chat" icon="message" name="{{ _("Chat") |escapejs }}">
       <div style="border-top-right-radius: var(--curvature);" class="flex flex-grow flex-col overflow-y-auto">
         <temba-contact-chat contact="{{ object.uuid }}" monitor="true">
         </temba-contact-chat>
@@ -88,12 +88,11 @@
 
     function handlePendingRefreshed(evt) {
       var pendingEvents = evt.detail.data;
-
       var tabs = document.querySelector("temba-tabs");
-      var pendingTab = tabs.getTab(idxPending);
-      pendingTab.count = pendingEvents.length;
-      pendingTab.hidden = pendingTab.count == 0;
-      tabs.requestUpdate();
+      tabs.setTabDetails(idxPending, {
+        count: pendingEvents.length,
+        hidden: pendingEvents.length == 0
+      });
     }
 
     function handleContactRefreshed(evt) {
@@ -105,14 +104,11 @@
         return !!contact.fields[key]
       });
 
-      var fieldTab = tabs.getTab(idxFields);
-      fieldTab.count = fields.length;
-
-      // render our tabs
-      tabs.requestUpdate();
+      tabs.setTabDetails(idxFields, {
+        count: fields.length
+      });
 
       var store = document.querySelector("temba-store");
-
       var featured = document.querySelector(".featured-fields");
       var all = document.querySelector(".all-fields");
 
@@ -141,11 +137,10 @@
       });
 
       var tabs = document.querySelector("temba-tabs");
-      var ticketsTab = tabs.getTab(idxTickets);
-      ticketsTab.count = openTickets.length;
-      ticketsTab.hidden = evt.detail.data == 0;
-      tabs.requestUpdate();
-
+      tabs.setTabDetails(idxTickets, {
+        count: openTickets.length,
+        hidden: evt.detail.data == 0
+      });
     }
 
     function handleTabChanged() {

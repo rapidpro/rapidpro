@@ -397,11 +397,9 @@
         return !!contact.fields[key]
       });
 
-      var fieldTab = tabs.getTab(1);
-      fieldTab.count = fields.length;
-
-      // render our tabs
-      tabs.requestUpdate();
+      tabs.setTabDetails(1, {
+        count: fields.length
+      }); 
     }
 
     function handleTicketsRefreshed(event) {
