@@ -1,3 +1,7 @@
+v9.1.90 (2024-04-16)
+-------------------------
+ * Fix race on initial load for select and tabs
+
 v9.1.89 (2024-04-16)
 -------------------------
  * Fix API docs scrolling
