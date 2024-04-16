@@ -6,6 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.orgs.models import Org
+from temba.utils.languages import alpha2_to_alpha3
 
 
 class TemplateType:
@@ -17,6 +18,17 @@ class TemplateType:
 
     def _extract_variables(self, text: str) -> list:
         return list(sorted({m for m in self.variable_regex.findall(text)}))
+
+    def _parse_language(self, lang: str) -> str:
+        """
+        Converts a WhatsApp language code which can be alpha2 ('en') or alpha2_country ('en_US') or alpha3 ('fil')
+        to our locale format ('eng' or 'eng-US').
+        """
+        language, country = lang.split("_") if "_" in lang else [lang, None]
+        if len(language) == 2:
+            language = alpha2_to_alpha3(language)
+
+        return f"{language}-{country}" if country else language
 
 
 class Template(models.Model):
