@@ -1,3 +1,10 @@
+v9.1.89 (2024-04-16)
+-------------------------
+ * Fix API docs scrolling
+ * Fix mailroom_db data file
+ * Simplify channel claim page styling and remove unused styles
+ * Add Msg.templating
+
 v9.1.88 (2024-04-15)
 -------------------------
  * Drop FlowRun.submitted_by and cleanup superfulous constants
