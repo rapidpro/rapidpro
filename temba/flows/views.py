@@ -1510,10 +1510,6 @@ class FlowCRUDL(SmartCRUDL):
         }
 
         warnings = {
-            "facebook_topic": _(
-                "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who "
-                "have not sent an incoming message in the last 24 hours may not receive it."
-            ),
             "no_templates": _(
                 "This flow does not use message templates. You may still start this flow but WhatsApp contacts who "
                 "have not sent an incoming message in the last 24 hours may not receive it."
@@ -1551,11 +1547,6 @@ class FlowCRUDL(SmartCRUDL):
             if "last_seen_on" not in query and threshold > 0 and total > threshold:
                 warnings.append(self.warnings["inactive_threshold"])
 
-            # facebook channels need to warn if no topic is set
-            facebook_channel = flow.org.get_channel(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
-            if facebook_channel and not self.has_facebook_topic(flow):
-                warnings.append(self.warnings["facebook_topic"])
-
             # if we have a whatsapp channel that requires a message template; exclude twilio whatsApp
             whatsapp_channel = flow.org.channels.filter(
                 role__contains=Channel.ROLE_SEND, schemes__contains=[URN.WHATSAPP_SCHEME], is_active=True
@@ -1576,14 +1567,6 @@ class FlowCRUDL(SmartCRUDL):
                     elif not template.is_approved():
                         warnings.append(_(f"Your message template {template.name} is not approved and cannot be sent."))
             return warnings
-
-        def has_facebook_topic(self, flow):
-            if not flow.is_legacy():
-                definition = flow.get_current_revision().get_migrated_definition()
-                for node in definition.get("nodes", []):
-                    for action in node.get("actions", []):
-                        if action.get("type", "") == "send_msg" and action.get("topic", ""):
-                            return True
 
         def post(self, request, *args, **kwargs):
             payload = json.loads(request.body)

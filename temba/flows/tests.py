@@ -2507,56 +2507,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             )
 
     @mock_mailroom
-    def test_facebook_warnings(self, mr_mocks):
-        no_topic = self.get_flow("pick_a_number")
-        with_topic = self.get_flow("with_message_topic")
-
-        self.login(self.admin)
-
-        mr_mocks.flow_start_preview(query="age > 30", total=2)
-        response = self.client.post(
-            reverse("flows.flow_preview_start", args=[no_topic.id]),
-            {
-                "query": "age > 30",
-            },
-            content_type="application/json",
-        )
-
-        # no warning, we don't have a facebook channel
-        self.assertEqual(response.json()["warnings"], [])
-
-        # change our channel to use a facebook scheme
-        self.channel.schemes = [URN.FACEBOOK_SCHEME]
-        self.channel.save()
-
-        # should see a warning for no topic now
-        mr_mocks.flow_start_preview(query="age > 30", total=2)
-        response = self.client.post(
-            reverse("flows.flow_preview_start", args=[no_topic.id]),
-            {
-                "query": "age > 30",
-            },
-            content_type="application/json",
-        )
-
-        self.assertEqual(
-            response.json()["warnings"][0],
-            "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it.",
-        )
-
-        # warning shouldn't be present for flow with a topic
-        mr_mocks.flow_start_preview(query="age > 30", total=2)
-        response = self.client.post(
-            reverse("flows.flow_preview_start", args=[with_topic.id]),
-            {
-                "query": "age > 30",
-            },
-            content_type="application/json",
-        )
-
-        self.assertEqual(response.json()["warnings"], [])
-
-    @mock_mailroom
     def test_template_warnings(self, mr_mocks):
         self.login(self.admin)
         flow = self.get_flow("whatsapp_template")
