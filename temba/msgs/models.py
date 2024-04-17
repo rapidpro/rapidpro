@@ -541,8 +541,10 @@ class Msg(models.Model):
     # the id of this message on the other side of its channel
     external_id = models.CharField(max_length=255, null=True)
 
-    metadata = JSONAsTextField(null=True, default=dict)
     log_uuids = ArrayField(models.UUIDField(), null=True)
+
+    # deprecated - only used now for Facebook topic
+    metadata = JSONAsTextField(null=True, default=dict)
 
     def as_archive_json(self):
         """
