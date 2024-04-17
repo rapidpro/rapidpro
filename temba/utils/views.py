@@ -274,7 +274,7 @@ class BulkActionMixin:
 
         response = self.get(request, *args, **kwargs)
         if action_error:
-            response["Temba-Toast"] = HEADER_VALUE_RE.sub("", str(action_error))
+            response["Temba-Toast"] = HEADER_VALUE_RE.fullmatch(str(action_error)).group(0)
 
         return response
 
