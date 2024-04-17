@@ -15,6 +15,7 @@ from .models import TemplateTranslation
 class TemplateTranslationCRUDL(SmartCRUDL):
     model = TemplateTranslation
     actions = ("channel",)
+    path = "template"
 
     class Channel(SpaMixin, ContentMenuMixin, OrgObjPermsMixin, SmartListView):
         permission = "channels.channel_read"
