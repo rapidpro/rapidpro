@@ -1154,7 +1154,7 @@ def migrate_to_version_6(json_flow, flow=None):
             for rule in ruleset.get("rules"):
                 # betweens haven't always required a category name, create one
                 rule_test = rule["test"]
-                if rule_test["type"] == "between" and "category" not in rule:
+                if rule_test["type"] == "between" and "category" not in rule:  # pragma: no cover
                     rule["category"] = "%s-%s" % (rule_test["min"], rule_test["max"])
 
                 # convert the category name
@@ -1209,7 +1209,7 @@ def migrate_to_version_5(json_flow, flow=None):
 
             # determine our type from our operand
             operand = ruleset.get("operand")
-            if not operand:
+            if not operand:  # pragma: no cover
                 operand = "@step.value"
 
             operand = operand.strip()
