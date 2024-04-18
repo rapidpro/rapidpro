@@ -252,6 +252,13 @@
       var contactTickets = document.querySelector("temba-contact-tickets");
       var chat = document.querySelector("temba-contact-chat");
 
+      // components can load before the document is ready,
+      // TODO: components should maybe queue custom events if DOMContentLoaded hasn't fired
+      if (tickets == null) {
+        setTimeout(updateTicketList, 100);
+        return;
+      }
+
       // if we have auto selecting, dont clear the chat
       var ticketsEndpoint = `/ticket/folder/${folder}/${status}/${initialTicket || ''}`;
       if (ticketsEndpoint != tickets.endpoint) {
@@ -399,7 +406,7 @@
 
       tabs.setTabDetails(1, {
         count: fields.length
-      }); 
+      });
     }
 
     function handleTicketsRefreshed(event) {
