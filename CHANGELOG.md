@@ -1,3 +1,9 @@
+v9.1.91 (2024-04-18)
+-------------------------
+ * Fix select race
+ * Fix header matching
+ * Simplify URL for template list page
+
 v9.1.90 (2024-04-16)
 -------------------------
  * Fix race on initial load for select and tabs
