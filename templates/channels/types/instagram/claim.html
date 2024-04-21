@@ -37,7 +37,7 @@
       <input type="text" name="page_name" id="page-name">
     </form>
   </div>
-  <div style="display:none;" class="mt-4 card" id="fb-channel-options">
+  <div class="mt-4 card hide" id="fb-channel-options">
     <p style="font-size:1rem;">{% trans "Select the page you want to add as a channel:" %}</p>
   </div>
 {% endblock form %}
@@ -64,14 +64,18 @@
 {% block extra-script %}
   {{ block.super }}
   <script type="text/javascript">
-    $(document).ready(function() {
+    onSpload(function() {
       {% if facebook_login_instagram_config_id %}
-      $(".connect-facebook").click(function(evt) {
-        location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&config_id={{ facebook_login_instagram_config_id }}&response_type=token&override_default_response_type=true")
+      document.querySelectorAll('.connect-facebook').forEach(function(element) {
+        element.addEventListener('click', function(evt) {
+          location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&config_id={{ facebook_login_instagram_config_id }}&response_type=token&override_default_response_type=true");
+        });
       });
       {% else %}
-      $(".connect-facebook").click(function(evt) {
-        location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&scope=instagram_basic,instagram_manage_messages,pages_manage_metadata,pages_messaging,pages_read_engagement,pages_show_list&response_type=token")
+      document.querySelectorAll('.connect-facebook').forEach(function(element) {
+        element.addEventListener('click', function(evt) {
+          location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + window.location.pathname + "&scope=instagram_basic,instagram_manage_messages,pages_manage_metadata,pages_messaging,pages_read_engagement,pages_show_list&response_type=token");
+        });
       });
       {% endif %}
 
@@ -86,32 +90,43 @@
       if (accessToken) {
         getFBPages(accessToken);
       }
-
-      $("#fb-channel-options").on('click', ".fb-page-channel-option", function(e) {
-        $("#user-access-token").val($(this).data("fb-access-token"));
-        $("#page-id").val($(this).data("fb-id"));
-        $("#page-name").val($(this).data("fb-name"));
-        $("#claim-form").submit();
-      });
     });
 
-    function getFBPages(token) {
-      $.ajax({
-        type: "GET",
-        url: "https://graph.facebook.com/me/accounts?access_token=" + token + "&limit=200",
-        dataType: "json",
-        success: function(response, status, xhr) {
-          data = response.data;
-          if (data.length > 0) {
-            for (var i = 0; i < data.length; i++) {
-              $("#fb-channel-options").append("<div class='fb-page-channel-option lbl mt-3 mr-2 p-2 linked' data-fb-id='" + data[i].id + "' data-fb-name='" + data[i].name + "' data-fb-access-token='" + data[i].access_token + "'>" + data[i].name + " </div>");
-            }
-          }
-          $("#fb-channel-options").show();
-          $("#fb-app-connect").hide();
+    function handlePageClicked(event) {
+      var element = event.target;
+      document.getElementById("user-access-token").value = this.getAttribute("data-fb-access-token");
+      document.getElementById("page-id").value = this.getAttribute("data-fb-id");
+      document.getElementById("page-name").value = this.getAttribute("data-fb-name");
+      document.getElementById("claim-form").submit();
+    });
 
-        },
-        failure: function(req) {}
+
+    function getFBPages(token) {
+      fetchAjax({
+        url: "https://graph.facebook.com/v18.0/me?fields=id,name&access_token=" + token,
+        method: "GET",
+        onSuccess: function(response) {
+          response.json().then(function(result) {
+            const data = result.data;
+            if (data.length > 0) {
+              for (var i = 0; i < data.length; i++) {
+
+                var fbChannelOptions = document.getElementById("fb-channel-options");
+
+                var div = document.createElement("div");
+                div.className = 'fb-page-channel-option lbl mt-3 mr-2 p-2 linked';
+                div.setAttribute("onClick", "handlePageClicked(event)");
+                div.setAttribute('data-fb-id', data[i].id);
+                div.setAttribute('data-fb-name', data[i].name);
+                div.setAttribute('data-fb-access-token', data[i].access_token);
+                div.textContent = data[i].name;
+                fbChannelOptions.appendChild(div);
+              }
+            }
+            document.querySelector("#fb-channel-options").classList.remove('hide');
+            document.querySelector("#fb-app-connect").classList.add('hide');
+          });
+        }
       });
     }
   </script>

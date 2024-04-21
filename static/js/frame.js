@@ -81,7 +81,7 @@ function fetchAjax(url, container, options) {
         return;
       }
 
-      if (org != org_id) {
+      if (response.type !== 'cors' && options.org != org_id) {
         document.location.href = toFetch;
         return;
       }
@@ -478,117 +478,25 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 });
 
-function fetchPJAXContent(url, container, options) {
-  options = options || {};
-
-  // hijack any pjax requests made from spa pages and route the content there instead
-  if (container == '#pjax' && document.querySelector('.spa-content')) {
-    container = '.spa-content';
-    options['headers'] = options['headers'] || {};
-    options['headers']['TEMBA-SPA'] = 1;
-  }
-
-  var triggerEvents = true;
-  if (!!options['ignoreEvents']) {
-    triggerEvents = false;
-  }
-
-  var type = 'GET';
-  var data = undefined;
-  var processData = true;
-  var contentType = 'application/x-www-form-urlencoded; charset=UTF-8';
-
-  if (options) {
-    if ('postData' in options) {
-      type = 'POST';
-      data = options['postData'];
-    }
-
-    if ('formData' in options) {
-      type = 'POST';
-      processData = false;
-      data = options['formData'];
-      contentType = false;
-    }
-  }
-
-  var headers = { 'X-PJAX': true };
-  if (options && 'headers' in options) {
-    for (key in options['headers']) {
-      headers[key] = options['headers'][key];
-    }
-  }
-
-  if (triggerEvents) {
-    document.dispatchEvent(new Event('temba-pjax-begin'));
-  }
-
-  // see if we should skip our fetch
-  if (options) {
-    if ('shouldIgnore' in options && options['shouldIgnore']()) {
-      if ('onIgnore' in options) {
-        options['onIgnore']();
-      }
-      return;
-    }
-  }
-
-  var request = {
-    headers: headers,
-    type: type,
-    url: url,
-    contentType: contentType,
-    processData: processData,
-    data: data,
-    success: function (response, status, jqXHR) {
-      if ('followRedirects' in options && options['followRedirects'] == true) {
-        var redirect = jqXHR.getResponseHeader('REDIRECT');
-        if (redirect) {
-          window.document.location.href = redirect;
-          return;
-        }
-      }
-
-      // double check before replacing content
-      if (options) {
-        if ('shouldIgnore' in options && options['shouldIgnore'](response)) {
-          if ('onIgnore' in options) {
-            options['onIgnore'](jqXHR);
-          }
-
-          return;
-        }
-      }
-
-      $(container).html(response);
-
-      if (triggerEvents) {
-        document.dispatchEvent(new Event('temba-pjax-complete'));
-      }
-
-      if (options) {
-        if ('onSuccess' in options) {
-          options['onSuccess'](jqXHR);
-        }
-      }
-    },
-  };
-  $.ajax(request);
-}
-
 function posterize(href) {
-  var url = $.url(href);
-  $('#posterizer').attr('action', url.attr('path'));
-  for (var key in url.param()) {
-    $('#posterizer').append(
-      "<input type='hidden' name='" +
-        key +
-        "' value='" +
-        url.param(key) +
-        "'></input>"
-    );
-  }
-  $('#posterizer').submit();
+  // Parse the URL from the href argument
+  var url = new URL(href);
+
+  // Select the form and set its action attribute to the pathname of the URL
+  var form = document.getElementById('posterizer');
+  form.setAttribute('action', url.pathname);
+
+  // Iterate over the search parameters of the URL and create hidden input fields for each parameter
+  url.searchParams.forEach((value, key) => {
+    var input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = key;
+    input.value = value;
+    form.appendChild(input);
+  });
+
+  // Submit the form
+  form.submit();
 }
 
 function handlePosterize(ele) {

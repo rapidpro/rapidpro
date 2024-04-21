@@ -518,16 +518,6 @@ jasmine-core@2.5.0:
   resolved "https://registry.npmjs.org/jasmine-core/-/jasmine-core-2.5.0.tgz#0b2e1f4d9babb66f4510681511ff0435e6b68340"
   integrity sha512-HwTg5JfJ8Lpby1LKKspd4/oA1TXpNSjB9tCBj6afO9AiBEn0gDPsc10JK5BMlPVcMR9Weirswt4mciDnGIuogQ==
 
-jquery-migrate@1.4.1:
-  version "1.4.1"
-  resolved "https://registry.npmjs.org/jquery-migrate/-/jquery-migrate-1.4.1.tgz#85152f3ec99a95625f4f7d0bcf62e9b8638f5a76"
-  integrity sha512-RwIqqAaEC1gQ9KFtdw69wse2bUGQnGNwbkZBkCwSCYkAICMlpVxAbHmfvWaS7SfLGJrYd13FZTuuQgZ6gBotJQ==
-
-jquery@2.1.0:
-  version "2.1.0"
-  resolved "https://registry.npmjs.org/jquery/-/jquery-2.1.0.tgz#1c9a8c971d2b53dae10d72e16cbb5a1df16a4ace"
-  integrity sha512-QyJAvw0LUlUPci88C5LTFNtg4WFs70Dkqmwq4rZyOBflduKnHZakpIIDjhZVygAQbUqaghv6msUyP5TmRoNevQ==
-
 "js-tokens@^3.0.0 || ^4.0.0", js-tokens@^4.0.0:
   version "4.0.0"
   resolved "https://registry.npmjs.org/js-tokens/-/js-tokens-4.0.0.tgz#19203fb59991df98e3a287050d4647cdeaf32499"

@@ -17,8 +17,6 @@
     "highcharts": "9.3.0",
     "intercooler": "1.2.3",
     "is-core-module": "2.4.0",
-    "jquery": "2.1.0",
-    "jquery-migrate": "1.4.1",
     "less": "2.7.1",
     "qrious": "4.0.2",
     "queue-microtask": "1.2.3",
