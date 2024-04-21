@@ -480,7 +480,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function posterize(href) {
   // Parse the URL from the href argument
-  var url = new URL(href);
+  var url = new URL(href, window.location.origin);
 
   // Select the form and set its action attribute to the pathname of the URL
   var form = document.getElementById('posterizer');
