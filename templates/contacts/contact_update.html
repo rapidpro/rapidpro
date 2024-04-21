@@ -39,28 +39,36 @@
 {% block modal-script %}
   {{ block.super }}
   <script type="text/javascript">
-    $(document).ready(function() {
+    onSpload(function() {
       createMoveLinks();
-    });
+    })
 
     function createMoveLinks() {
       var body = getModax("#edit-contact").shadowRoot.querySelector(".modax-body");
-      $(body).find('.order-helper').remove();
+      body.querySelectorAll('.order-helper').forEach(function(elem) {
+        elem.remove();
+      });
 
       var idx = 0;
       var first = true;
-      $(body).find(".control-group temba-textinput[id^=id_urn__]").each(function() {
-        var input = $('#' + this.id);
-        var parts = this.id.split('__');
+      body.querySelectorAll(".control-group temba-textinput[id^=id_urn__]").forEach(function(input) {
+        var parts = input.id.split('__');
 
-        // store a hidden value to track our order
-        $(this).after('<input class="order-helper" type=hidden name="order__' + this.name + '" value="' + idx + '" />')
+        // Creating a hidden input to track order
+        var hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.className = 'order-helper';
+        hiddenInput.name = 'order__' + input.name;
+        hiddenInput.value = idx;
+        input.parentNode.insertBefore(hiddenInput, input.nextSibling);
 
-        // add a link to increase the priority
+        // Creating a link to move up
         if (!first) {
-          var link = 'javascript:moveUp("' + this.id + '");';
-          link = "<temba-icon class='order-helper' name='arrow_up' onclick='" + link + "' />"
-          $(this).parents('.control-group').prepend(link);
+          var link = document.createElement('temba-icon');
+          link.className = 'order-helper';
+          link.setAttribute('name', 'arrow_up');
+          link.setAttribute('onclick', 'javascript:moveUp("' + input.id + '");');
+          input.closest('.control-group').prepend(link);
         }
 
         idx++;
@@ -70,9 +78,14 @@
 
     function moveUp(link) {
       var body = getModax("#edit-contact").shadowRoot.querySelector(".modax-body");
-      var group = $(body).find('#' + link).parents('.control-group');
-      var previous = group.prev();
-      previous.before(group);
+      var group = body.querySelector('#' + link).closest('.control-group');
+      var previous = group.previousElementSibling;
+
+      if (previous) {
+        // Move the group before the previous sibling
+        previous.parentNode.insertBefore(group, previous);
+      }
+
       createMoveLinks();
     }
   </script>

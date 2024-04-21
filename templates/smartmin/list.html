@@ -81,22 +81,6 @@
     current_label_id = 0;
     {% endif %}
   </script>
-  <script>
-    $(document).ready(function() {
-      $("th.header").click(function(evt) {
-        // build up our ordering
-        var field = evt.target.id.substr(evt.target.id.indexOf("-") + 1)
-
-        {% if order_asc %}
-        if (field == "{{order}}") {
-          field = "-" + field;
-        }
-        {% endif %}
-
-        document.location = "{{url_params|urlencode}}_order=" + field;
-      });
-    });
-  </script>
 {% endblock extra-script %}
 {% block extra-style %}
   {{ block.super }}

@@ -64,6 +64,7 @@ function fetchAjax(url, container, options) {
   pendingRequests.push(controller);
   options['signal'] = controller.signal;
   var toFetch = url;
+
   fetch(toFetch, options)
     .then(function (response) {
       // remove our controller
@@ -104,28 +105,36 @@ function fetchAjax(url, container, options) {
         return;
       }
 
-      response.text().then(function (body) {
-        var containerEle = document.querySelector(container);
-        if (containerEle) {
-          // special care to unmount the editor
-          var editor = document.querySelector('#rp-flow-editor');
-          if (editor) {
-            window.unmountEditor(editor);
-          }
+      if (container) {
+        response.text().then(function (body) {
+          var containerEle = document.querySelector(container);
+          if (containerEle) {
+            // special care to unmount the editor
+            var editor = document.querySelector('#rp-flow-editor');
+            if (editor) {
+              window.unmountEditor(editor);
+            }
 
-          setInnerHTML(containerEle, body);
-          var title = document.querySelector('#title-text');
-          if (title) {
-            document.title = title.innerText;
-          }
+            setInnerHTML(containerEle, body);
+            var title = document.querySelector('#title-text');
+            if (title) {
+              document.title = title.innerText;
+            }
 
-          if (options) {
-            if ('onSuccess' in options) {
-              options['onSuccess'](response);
+            if (options) {
+              if ('onSuccess' in options) {
+                options['onSuccess'](response);
+              }
             }
           }
+        });
+      } else {
+        if (options) {
+          if ('onSuccess' in options) {
+            options['onSuccess'](response);
+          }
         }
-      });
+      }
     })
     .catch(function (e) {
       // canceled
@@ -454,8 +463,7 @@ document.addEventListener('DOMContentLoaded', function () {
               .then(function (response) {
                 var content = document.querySelector('.spa-content');
 
-                // remove jquery use here
-                $(content).html(response.body);
+                setInnerHTML(content, response.body);
 
                 if (response.redirected) {
                   addToHistory(response.url);
@@ -629,18 +637,6 @@ function formatContact(item) {
     return name;
   }
   return item.text;
-}
-
-function createContactChoice(term, data) {
-  if (
-    $(data).filter(function () {
-      return this.text.localeCompare(term) === 0;
-    }).length === 0
-  ) {
-    if (!isNaN(parseFloat(term)) && isFinite(term)) {
-      return { id: 'number-' + term, text: term };
-    }
-  }
 }
 
 function handleNewWorkspaceClicked(evt) {

@@ -30,7 +30,7 @@
 {% block extra-script %}
   {% if not file_error %}
     <script type="text/javascript">
-      $(document).ready(function() {
+      onSpload(function() {
         window.location.href = "{{ download_url }}";
       });
     </script>
