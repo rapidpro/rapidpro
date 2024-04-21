@@ -12,7 +12,7 @@
 {% endrender %}
 {% if 'HTTP_X_FORMAX' in request.META %}
   {{ scripts }}
-  <div class="formax-summary">
+  <div class="formax-summary" onClick="handleSectionClicked(event)">
     {% block summary %}
     {% endblock summary %}
   </div>

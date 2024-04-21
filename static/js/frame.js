@@ -73,12 +73,14 @@ function fetchAjax(url, container, options) {
 
       // if we have a version mismatch, reload the page
       var version = response.headers.get('x-temba-version');
-      if (tembaVersion != version) {
+      var org = response.headers.get('x-temba-org');
+
+      if (version && tembaVersion != version) {
         document.location.href = toFetch;
         return;
       }
 
-      if (org_id != response.headers.get('x-temba-org')) {
+      if (org != org_id) {
         document.location.href = toFetch;
         return;
       }
@@ -89,12 +91,14 @@ function fetchAjax(url, container, options) {
 
       if (response.redirected) {
         var url = response.url;
-        window.history.replaceState({ url: url }, '', url);
+        if (url) {
+          window.history.replaceState({ url: url }, '', url);
+        }
       }
 
       if (response.headers.get('x-temba-content-only') != 1) {
-        document.location.href = url;
-        return;
+        // document.location.href = url;
+        // return;
       }
 
       response.text().then(function (body) {
@@ -281,7 +285,7 @@ function handleMenuClicked(event) {
   var selection = items.selection;
 
   if (item.event) {
-    document.dispatchEvent(new CustomEvent(item.event, { detail: item }));  
+    document.dispatchEvent(new CustomEvent(item.event, { detail: item }));
     return;
   }
 
@@ -302,7 +306,7 @@ function handleMenuClicked(event) {
   // posterize if called for
   if (item.href && item.posterize) {
     posterize(item.href);
-  } 
+  }
 }
 
 function handleMenuChanged(event) {
