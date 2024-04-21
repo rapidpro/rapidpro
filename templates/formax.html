@@ -1,4 +1,8 @@
-<script src="{{ STATIC_URL }}js/formax.js"></script>
+{% load compress %}
+
+{% compress js %}
+  <script src="{{ STATIC_URL }}js/formax.js"></script>
+{% endcompress %}
 <div class="formax">
   {% for section in formax.sections %}
     <div data-dependents="{{ section.dependents }}"
