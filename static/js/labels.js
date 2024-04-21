@@ -36,35 +36,37 @@ function getObjectRowLabels(objectId) {
   );
   var labels = row.querySelectorAll('.lbl, temba-label');
   for (var i = 0; i < labels.length; i++) {
-    labelIds.push(parseInt($(labels[i]).data('id')));
+    labelIds.push(parseInt(labels[i].dataset.id));
   }
   return labelIds.sort(numericComparator);
 }
 
-function runActionOnObjectRows(action, onSuccess) {
+function runActionOnObjectRows(action, onSuccess, options = {}) {
   var objectIds = getCheckedIds();
-  jQuery.ajaxSettings.traditional = true;
-  fetchPJAXContent(document.location.href, '#pjax', {
-    postData: { objects: objectIds, action: action, pjax: 'true' },
+  const headers = {
+    'X-PJAX': true,
+    'X-CSRFToken': getCookie('csrftoken'),
+  };
+
+  const formData = new FormData();
+  for (var i = 0; i < objectIds.length; i++) {
+    formData.append('objects', objectIds[i]);
+  }
+  formData.append('action', action);
+  formData.append('pjax', 'true');
+
+  fetchAjax(document.location.href, '#pjax', {
+    headers: headers,
+    method: 'POST',
+    skipContentCheck: true,
+    body: formData,
     onSuccess: onSuccess,
+    ...options,
   });
 }
 
 function unlabelObjectRows(labelId, onSuccess) {
-  var objectsIds = getCheckedIds();
-  var addLabel = false;
-
-  jQuery.ajaxSettings.traditional = true;
-  fetchPJAXContent(document.location.href, '#pjax', {
-    postData: {
-      objects: objectsIds,
-      label: labelId,
-      add: addLabel,
-      action: 'unlabel',
-      pjax: 'true',
-    },
-    onSuccess: onSuccess,
-  });
+  runActionOnObjectRows('unlabel', onSuccess, { label: labelId, add: false });
 }
 
 function postLabelChanges(
@@ -75,21 +77,34 @@ function postLabelChanges(
   onError,
   onSuccess
 ) {
-  fetchPJAXContent(document.location.href, '#pjax', {
-    postData: {
-      objects: smsIds,
-      label: labelId,
-      add: addLabel,
-      action: 'label',
-      pjax: 'true',
-      number: number,
-    },
-    onSuccess: function (data, textStatus) {
-      recheckIds();
-      if (onSuccess) {
-        onSuccess();
-      }
-    },
+  const onSuccessFn = function (data, textStatus) {
+    recheckIds();
+    if (onSuccess) {
+      onSuccess();
+    }
+  };
+
+  const headers = {
+    'X-PJAX': true,
+    'X-CSRFToken': getCookie('csrftoken'),
+  };
+
+  const formData = new FormData();
+  for (var i = 0; i < smsIds.length; i++) {
+    formData.append('objects', smsIds[i]);
+  }
+  formData.append('action', 'label');
+  formData.append('pjax', 'true');
+  formData.append('label', labelId);
+  formData.append('add', addLabel);
+  formData.append('number', number);
+
+  fetchAjax(document.location.href, '#pjax', {
+    method: 'POST',
+    headers: headers,
+    body: formData,
+    skipContentCheck: true,
+    onSuccess: onSuccessFn,
     onError: onError,
   });
 }
@@ -125,7 +140,6 @@ function labelObjectRows(labelId, forceRemove, onSuccess) {
     addLabel = false;
   }
 
-  jQuery.ajaxSettings.traditional = true;
   window.lastChecked = getCheckedIds();
 
   if (objectRowsIds.length == 0) {
