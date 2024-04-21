@@ -81,7 +81,7 @@ function fetchAjax(url, container, options) {
         return;
       }
 
-      if (response.type !== 'cors' && options.org != org_id) {
+      if (response.type !== 'cors' && org != org_id) {
         document.location.href = toFetch;
         return;
       }

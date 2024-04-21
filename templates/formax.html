@@ -1,11 +1,4 @@
 <script src="{{ STATIC_URL }}js/formax.js"></script>
-<script>
-  onSpload(function() {
-    document.querySelectorAll('.formax .formax-section').forEach(function(ele) {
-      return _initializeForm(ele);
-    });
-  });
-</script>
 <div class="formax">
   {% for section in formax.sections %}
     <div data-dependents="{{ section.dependents }}"

@@ -178,3 +178,9 @@ var _submitFormax = function (e) {
   };
   fetchAjax(section.dataset.href, id, options);
 };
+
+onSpload(function () {
+  document.querySelectorAll('.formax .formax-section').forEach(function (ele) {
+    return _initializeForm(ele);
+  });
+});
