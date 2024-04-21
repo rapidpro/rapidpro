@@ -58,7 +58,11 @@ const handleSectionClicked = function (event) {
       url = section.dataset.href;
 
       const id = '#' + section.id + ' > .formax-container';
-      const options = { headers: headers, method: 'GET' };
+      const options = {
+        headers: headers,
+        method: 'GET',
+        skipContentCheck: true,
+      };
       options.onSuccess = function () {
         section.dataset.loaded = true;
         _initializeForm(section);
@@ -137,7 +141,12 @@ const handleSectionClicked = function (event) {
 
     var formData = new FormData(form);
     const id = '#' + section.id + ' > .formax-container';
-    const options = { headers: headers, method: 'POST', body: formData };
+    const options = {
+      headers: headers,
+      method: 'POST',
+      body: formData,
+      skipContentCheck: true,
+    };
 
     if (followRedirects) {
       options.redirect = 'follow';

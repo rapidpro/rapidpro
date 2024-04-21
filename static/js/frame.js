@@ -96,9 +96,12 @@ function fetchAjax(url, container, options) {
         }
       }
 
-      if (response.headers.get('x-temba-content-only') != 1) {
-        // document.location.href = url;
-        // return;
+      if (
+        !options.skipContentCheck &&
+        response.headers.get('x-temba-content-only') != 1
+      ) {
+        document.location.href = url;
+        return;
       }
 
       response.text().then(function (body) {
