@@ -43,7 +43,8 @@
 {% block extra-script %}
   {{ block.super }}
   <script type="text/javascript">
-    function wireHandlers() {
+    onSpload(function() {
+
       // hide our password field by default
       var passwordContainer = document.getElementById("current-password");
       var passwordField = passwordContainer.querySelector(".field_current_password");
@@ -66,15 +67,6 @@
         email.addEventListener("change", listener);
         newPw.addEventListener("change", listener);
       }, 0);
-
-    }
-
-    onSpload(function() {
-      wireHandlers();
-      // also wire them if our formax submits
-      document.addEventListener("temba-formax-ready", function() {
-        wireHandlers();
-      });
     });
   </script>
 {% endblock extra-script %}

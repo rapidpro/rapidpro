@@ -1,4 +1,4 @@
-const showSection = function (section) {
+var showSection = function (section) {
   if (section.dataset.readonly) {
     return;
   }
@@ -7,7 +7,7 @@ const showSection = function (section) {
   }
 };
 
-const hideSection = function (section) {
+var hideSection = function (section) {
   if (section.dataset.action === 'fixed') {
     return;
   }
@@ -16,7 +16,7 @@ const hideSection = function (section) {
   return true;
 };
 
-const handleSectionClicked = function (event) {
+var handleSectionClicked = function (event) {
   let section = event.target.closest('.formax-section');
 
   if (section.dataset.action === 'fixed') {
@@ -39,153 +39,142 @@ const handleSectionClicked = function (event) {
   }
 };
 
-(function () {
-  var _initializeForm, _submitFormax;
-  window.fetchData = function (section) {
-    var url;
+window.fetchData = function (section) {
+  var url;
 
-    const headers = {
-      'X-FORMAX': true,
-      'X-PJAX': true,
-      'X-FORMAX-ACTION': section.dataset.action,
-    };
-
-    if (section.closest('.spa-container')) {
-      headers['TEMBA-SPA'] = 1;
-    }
-
-    if (section.dataset.href) {
-      url = section.dataset.href;
-
-      const id = '#' + section.id + ' > .formax-container';
-      const options = {
-        headers: headers,
-        method: 'GET',
-        skipContentCheck: true,
-      };
-      options.onSuccess = function () {
-        section.dataset.loaded = true;
-        _initializeForm(section);
-        if (section.dataset.fixed) {
-          showSection(section);
-        }
-        document.dispatchEvent(
-          new CustomEvent('temba-formax-ready', { bubbles: true })
-        );
-        return section.classList.remove('hide');
-      };
-
-      return fetchAjax(url, id, options);
-    } else {
-      return (section.dataset.loaded = true);
-    }
+  const headers = {
+    'X-FORMAX': true,
+    'X-PJAX': true,
+    'X-FORMAX-ACTION': section.dataset.action,
   };
 
-  _initializeForm = function (section) {
-    var action, buttonName, form, onLoad;
+  if (section.closest('.spa-container')) {
+    headers['TEMBA-SPA'] = 1;
+  }
 
-    action = section.dataset.action;
-    form = section.querySelector('form');
-    if (action === 'formax' || action === 'redirect' || action === 'open') {
-      buttonName = section.dataset.button;
-      if (!buttonName) {
-        buttonName = gettext('Save');
-      }
+  if (section.dataset.href) {
+    url = section.dataset.href;
 
-      form.addEventListener('submit', _submitFormax);
-      if (!section.dataset.nobutton) {
-        form.append(
-          '<input type="submit" class="button-primary" value="' +
-            buttonName +
-            '"/>'
-        );
-        form.querySelector('.form-actions').remove();
-      }
-      const submitButton = form.querySelector('.submit-button');
-      if (submitButton) {
-        submitButton.addEventListener('click', function () {
-          this.attributes['enabled'] = false;
-          this.classList.add('disabled');
-        });
-      }
-      onLoad = section.dataset.onload;
-      if (onLoad) {
-        eval_(onLoad)();
-      }
-
-      if (action === 'open') {
-        showSection(section);
-        window.scrollTo(0, section.offset().top);
-      }
-    }
-    if (action === 'fixed') {
-      return form.attr('action', section.dataset.href);
-    }
-  };
-
-  _submitFormax = function (e) {
-    e.preventDefault();
-    const form = this;
-    const section = form.closest('.formax-section');
-    const followRedirects = section.dataset.action === 'redirect';
-
-    const headers = {
-      'X-FORMAX': true,
-      'X-PJAX': true,
-      'X-FORMAX-ACTION': section.dataset.action,
-    };
-
-    if (section.closest('.spa-container')) {
-      headers['TEMBA-SPA'] = 1;
-    }
-
-    var formData = new FormData(form);
     const id = '#' + section.id + ' > .formax-container';
     const options = {
       headers: headers,
-      method: 'POST',
-      body: formData,
+      method: 'GET',
       skipContentCheck: true,
     };
+    options.onSuccess = function () {
+      section.dataset.loaded = true;
+      _initializeForm(section);
+      if (section.dataset.fixed) {
+        showSection(section);
+      }
+      document.dispatchEvent(
+        new CustomEvent('temba-formax-ready', { bubbles: true })
+      );
+      return section.classList.remove('hide');
+    };
 
-    if (followRedirects) {
-      options.redirect = 'follow';
+    return fetchAjax(url, id, options);
+  } else {
+    return (section.dataset.loaded = true);
+  }
+};
+
+var _initializeForm = function (section) {
+  var action, buttonName, form, onLoad;
+
+  action = section.dataset.action;
+  form = section.querySelector('form');
+  if (action === 'formax' || action === 'redirect' || action === 'open') {
+    buttonName = section.dataset.button;
+    if (!buttonName) {
+      buttonName = gettext('Save');
     }
 
-    options.onSuccess = function (resp) {
-      const redirect = resp.headers.get('REDIRECT');
-      if (redirect) {
-        if (section.dataset.action === 'redirect') {
-          gotoURL(redirect);
-          return;
-        } else {
-          hideSection(section);
-          fetchData(section);
-        }
-      } else {
-        _initializeForm(section);
-        var formax_form = section.querySelector('.formax-form');
-        if (formax_form.classList.contains('errors')) {
-          section.querySelector('.formax-summary').classList.add('hide');
-          formax_form.classList.remove('hide');
-        } else {
-          if (section.dataset.action !== 'fixed') {
-            hideSection(section);
-          }
-        }
-        document.dispatchEvent(
-          new CustomEvent('temba-formax-ready', { bubbles: true })
-        );
-      }
-    };
-    fetchAjax(section.dataset.href, id, options);
+    form.addEventListener('submit', _submitFormax);
+    if (!section.dataset.nobutton) {
+      form.append(
+        '<input type="submit" class="button-primary" value="' +
+          buttonName +
+          '"/>'
+      );
+      form.querySelector('.form-actions').remove();
+    }
+    const submitButton = form.querySelector('.submit-button');
+    if (submitButton) {
+      submitButton.addEventListener('click', function () {
+        this.attributes['enabled'] = false;
+        this.classList.add('disabled');
+      });
+    }
+    onLoad = section.dataset.onload;
+    if (onLoad) {
+      eval_(onLoad)();
+    }
+
+    if (action === 'open') {
+      showSection(section);
+      window.scrollTo(0, section.offset().top);
+    }
+  }
+  if (action === 'fixed') {
+    return form.attr('action', section.dataset.href);
+  }
+};
+
+var _submitFormax = function (e) {
+  e.preventDefault();
+  const form = this;
+  const section = form.closest('.formax-section');
+  const followRedirects = section.dataset.action === 'redirect';
+
+  const headers = {
+    'X-FORMAX': true,
+    'X-PJAX': true,
+    'X-FORMAX-ACTION': section.dataset.action,
   };
 
-  document.addEventListener('DOMContentLoaded', function () {
-    document
-      .querySelectorAll('.formax .formax-section')
-      .forEach(function (ele) {
-        return _initializeForm(ele);
-      });
-  });
-}).call(this);
+  if (section.closest('.spa-container')) {
+    headers['TEMBA-SPA'] = 1;
+  }
+
+  var formData = new FormData(form);
+  const id = '#' + section.id + ' > .formax-container';
+  const options = {
+    headers: headers,
+    method: 'POST',
+    body: formData,
+    skipContentCheck: true,
+  };
+
+  if (followRedirects) {
+    options.redirect = 'follow';
+  }
+
+  options.onSuccess = function (resp) {
+    const redirect = resp.headers.get('REDIRECT');
+    if (redirect) {
+      if (section.dataset.action === 'redirect') {
+        gotoURL(redirect);
+        return;
+      } else {
+        hideSection(section);
+        fetchData(section);
+      }
+    } else {
+      _initializeForm(section);
+      var formax_form = section.querySelector('.formax-form');
+      if (formax_form.classList.contains('errors')) {
+        section.querySelector('.formax-summary').classList.add('hide');
+        formax_form.classList.remove('hide');
+      } else {
+        if (section.dataset.action !== 'fixed') {
+          hideSection(section);
+        }
+      }
+      document.dispatchEvent(
+        new CustomEvent('temba-formax-ready', { bubbles: true })
+      );
+    }
+  };
+  fetchAjax(section.dataset.href, id, options);
+};
