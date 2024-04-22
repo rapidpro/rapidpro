@@ -462,6 +462,7 @@ GROUP_PERMISSIONS = {
         "notifications.incident.*",
         "notifications.notification.*",
         "orgs.export.*",
+        "orgs.invitation.*",
         "orgs.org_country",
         "orgs.org_create",
         "orgs.org_dashboard",

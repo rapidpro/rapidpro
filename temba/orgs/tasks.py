@@ -12,7 +12,7 @@ from temba.utils.crons import cron_task
 from temba.utils.email import EmailSender
 from temba.utils.text import generate_secret
 
-from .models import Export, Invitation, Org, OrgImport, User, UserSettings
+from .models import Export, Org, OrgImport, User, UserSettings
 
 
 @shared_task
@@ -26,12 +26,6 @@ def perform_export(export_id):
     Perform an export
     """
     Export.objects.select_related("org", "created_by").get(id=export_id).perform()
-
-
-@shared_task
-def send_invitation_email_task(invitation_id):
-    invitation = Invitation.objects.get(id=invitation_id)
-    invitation.send_email()
 
 
 @shared_task
