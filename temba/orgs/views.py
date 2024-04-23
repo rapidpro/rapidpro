@@ -35,7 +35,7 @@ from django.db import IntegrityError
 from django.db.models.functions import Lower
 from django.forms import ModelChoiceField
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
-from django.shortcuts import resolve_url
+from django.shortcuts import get_object_or_404, resolve_url
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_str
@@ -2078,7 +2078,7 @@ class OrgCRUDL(SmartCRUDL):
 
         @cached_property
         def target_org(self):
-            return self.request.org.children.filter(id=int(self.request.GET.get("org", 0))).get()
+            return get_object_or_404(self.request.org.children.filter(id=int(self.request.GET.get("org", 0))))
 
         def get_success_url(self):  # pragma: needs cover
             org_id = self.request.GET.get("org")

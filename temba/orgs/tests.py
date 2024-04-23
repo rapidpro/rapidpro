@@ -1779,7 +1779,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.admin.refresh_from_db()
         self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 0)
 
-    def test_manage_sub_orgs(self):
+    def test_manage_children(self):
         children_url = reverse("orgs.org_sub_orgs")
 
         # give our org the multi users feature
@@ -1787,7 +1787,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.save()
 
         # add a sub org
-        self.child = Org.objects.create(
+        child = Org.objects.create(
             name="Child Workspace",
             timezone=ZoneInfo("US/Pacific"),
             flow_languages=["eng"],
@@ -1795,13 +1795,25 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             modified_by=self.admin,
             parent=self.org,
         )
-        self.child.initialize()
-        self.child.add_user(self.admin, OrgRole.ADMINISTRATOR)
+        child.initialize()
+        child.add_user(self.admin, OrgRole.ADMINISTRATOR)
+
+        child_accounts_url = reverse("orgs.org_manage_accounts_sub_org") + f"?org={child.id}"
 
         self.assertRequestDisallowed(children_url, [None, self.user, self.editor, self.agent])
         response = self.assertListFetch(children_url, [self.admin], choose_org=self.org)
         self.assertContains(response, "Child Workspace")
-        self.assertContains(response, reverse("orgs.org_manage_accounts_sub_org"))
+        self.assertContains(response, child_accounts_url)
+
+        # only admin for parent can see account page for child
+        self.assertRequestDisallowed(child_accounts_url, [None, self.user, self.editor, self.agent, self.admin2])
+
+        self.assertUpdateFetch(
+            child_accounts_url,
+            [self.admin],
+            form_fields=[f"user_{self.admin.id}_role", f"user_{self.admin.id}_remove"],
+            choose_org=self.org,
+        )
 
     def test_menu(self):
         menu_url = reverse("orgs.org_menu")
