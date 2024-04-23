@@ -375,7 +375,7 @@ class OrgRole(Enum):
     EDITOR = ("E", _("Editor"), _("Editors"), "Editors", "msgs.msg_inbox")
     VIEWER = ("V", _("Viewer"), _("Viewers"), "Viewers", "msgs.msg_inbox")
     AGENT = ("T", _("Agent"), _("Agents"), "Agents", "tickets.ticket_list")
-    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors", "orgs.org_surveyor")
+    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors", "users.login")
 
     def __init__(self, code: str, display: str, display_plural: str, group_name: str, start_view: str):
         self.code = code
