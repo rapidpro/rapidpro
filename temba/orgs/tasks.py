@@ -46,9 +46,9 @@ def send_user_verification_email(org_id, user_id):
     if user.settings.email_status == UserSettings.STATUS_VERIFIED:
         return
 
-    key = f"send_verification_email:{timezone.now().replace(tzinfo=None, microsecond=0, second=0).isoformat()}"
+    key = f"send_verification_email:{user.email}"
 
-    if r.hexists(key, user.email):
+    if r.exists(key):
         return
 
     verification_secret = user.settings.email_verification_secret
@@ -66,8 +66,7 @@ def send_user_verification_email(org_id, user_id):
         {"org": org, "secret": verification_secret},
     )
 
-    r.hset(key, user.email, "1")
-    r.expire(key, 60 * 60)
+    r.set(key, "1", ex=60 * 10)
 
 
 @shared_task

@@ -3809,15 +3809,14 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(send_verification_email_url)
         self.assertEqual(405, response.status_code)
 
-        key = f"send_verification_email:{timezone.now().replace(tzinfo=None, microsecond=0, second=0).isoformat()}"
+        key = f"send_verification_email:{self.admin.email}"
 
         # simulate haivng the redis key already set
-        r.hset(key, self.admin.email, "1")
-        r.expire(key, 60 * 60)
+        r.set(key, "1", ex=60 * 10)
 
         response = self.client.post(send_verification_email_url, {}, follow=True)
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Verification email sent")
+        self.assertContains(response, "Verification email already sent. You can retry in 10 minutes.")
 
         self.assertEqual(0, len(mail.outbox))
 
@@ -3826,7 +3825,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(0, len(mail.outbox))
 
         # remove the redis key, as the key expired
-        r.hdel(key, self.admin.email)
+        r.delete(key)
 
         response = self.client.post(send_verification_email_url, {}, follow=True)
         self.assertEqual(200, response.status_code)
