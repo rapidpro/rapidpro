@@ -3618,40 +3618,44 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         edit_url = reverse("orgs.user_edit")
 
         # no access if anonymous
-        response = self.client.get(edit_url)
-        self.assertLoginRedirect(response)
+        self.assertRequestDisallowed(edit_url, [None])
 
-        self.login(self.admin)
-
-        response = self.client.get(edit_url)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            ["first_name", "last_name", "email", "avatar", "current_password", "new_password", "language", "loc"],
-            list(response.context["form"].fields.keys()),
+        self.assertUpdateFetch(
+            edit_url,
+            [self.admin],
+            form_fields=["first_name", "last_name", "email", "avatar", "current_password", "new_password", "language"],
         )
 
         # language is only shown if there are multiple options
         with override_settings(LANGUAGES=(("en-us", "English"),)):
-            response = self.client.get(edit_url)
-            self.assertEqual(
-                ["first_name", "last_name", "email", "avatar", "current_password", "new_password", "loc"],
-                list(response.context["form"].fields.keys()),
+            self.assertUpdateFetch(
+                edit_url,
+                [self.admin],
+                form_fields=["first_name", "last_name", "email", "avatar", "current_password", "new_password"],
             )
 
         self.admin.settings.email_status = "V"  # mark user email as verified
         self.admin.settings.save()
 
         # try to submit without required fields
-        response = self.client.post(edit_url, {})
-        self.assertEqual(200, response.status_code)
-        self.assertFormError(response.context["form"], "email", "This field is required.")
-        self.assertFormError(response.context["form"], "first_name", "This field is required.")
-        self.assertFormError(response.context["form"], "last_name", "This field is required.")
-        self.assertFormError(response.context["form"], "language", "This field is required.")
+        self.assertUpdateSubmit(
+            edit_url,
+            self.admin,
+            {},
+            form_errors={
+                "email": "This field is required.",
+                "first_name": "This field is required.",
+                "last_name": "This field is required.",
+                "language": "This field is required.",
+                "current_password": "Please enter your password to save changes.",
+            },
+            object_unchanged=self.admin,
+        )
 
         # change the name and language
-        response = self.client.post(
+        self.assertUpdateSubmit(
             edit_url,
+            self.admin,
             {
                 "avatar": self.getMockImageUpload(),
                 "language": "pt-br",
@@ -3662,20 +3666,21 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
 
-        self.assertEqual(302, response.status_code)
-
         self.admin.refresh_from_db()
         self.assertEqual("Admin User", self.admin.name)
         self.assertTrue("V", self.admin.settings.email_status)  # unchanged
         self.assertIsNotNone(self.admin.settings.avatar)
         self.assertEqual("pt-br", self.admin.settings.language)
 
+        self.assertEqual(0, self.admin.notifications.count())
+
         self.admin.settings.language = "en-us"
         self.admin.settings.save()
 
         # try to change email without entering password
-        response = self.client.post(
+        self.assertUpdateSubmit(
             edit_url,
+            self.admin,
             {
                 "language": "en-us",
                 "first_name": "Admin",
@@ -3683,14 +3688,14 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
                 "email": "admin@trileet.com",
                 "current_password": "",
             },
-        )
-        self.assertEqual(200, response.status_code)
-        self.assertFormError(
-            response.context["form"], "current_password", "Please enter your password to save changes."
+            form_errors={"current_password": "Please enter your password to save changes."},
+            object_unchanged=self.admin,
         )
 
-        response = self.client.post(
+        # submit with current password
+        self.assertUpdateSubmit(
             edit_url,
+            self.admin,
             {
                 "language": "en-us",
                 "first_name": "Admin",
@@ -3699,22 +3704,61 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
                 "current_password": "Qwerty123",
             },
         )
-        self.assertEqual(302, response.status_code)
 
+        self.admin.refresh_from_db()
         self.admin.settings.refresh_from_db()
+        self.assertEqual("admin@trileet.com", self.admin.username)
+        self.assertEqual("admin@trileet.com", self.admin.email)
         self.assertEqual("U", self.admin.settings.email_status)  # because email changed
+
+        self.assertEqual(0, self.admin.notifications.count())
+
+        # try to change password without entering current password
+        self.assertUpdateSubmit(
+            edit_url,
+            self.admin,
+            {
+                "language": "en-us",
+                "first_name": "Admin",
+                "last_name": "User",
+                "email": "admin@trileet.com",
+                "new_password": "Sesame765",
+                "current_password": "",
+            },
+            form_errors={"current_password": "Please enter your password to save changes."},
+            object_unchanged=self.admin,
+        )
+
+        # submit with current password
+        self.assertUpdateSubmit(
+            edit_url,
+            self.admin,
+            {
+                "language": "en-us",
+                "first_name": "Admin",
+                "last_name": "User",
+                "email": "admin@trileet.com",
+                "new_password": "Sesame765",
+                "current_password": "Qwerty123",
+            },
+        )
+
+        self.assertEqual(1, self.admin.notifications.count())  # should have a password changed notification
+
+        self.admin.set_password("Qwerty123")
+        self.admin.save()
 
         # submit when language isn't an option
         with override_settings(LANGUAGES=(("en-us", "English"),)):
-            response = self.client.post(
+            self.assertUpdateSubmit(
                 edit_url,
+                self.admin,
                 {
                     "first_name": "Andy",
                     "last_name": "Flows",
                     "email": "admin@trileet.com",
                 },
             )
-            self.assertEqual(302, response.status_code)
 
             self.admin.refresh_from_db()
             self.admin.settings.refresh_from_db()

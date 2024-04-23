@@ -99,6 +99,34 @@ class IncidentStartedNotificationType(NotificationType):
         return json
 
 
+class PasswordChangedNotificationType(NotificationType):
+    """
+    Notification that a user's password has been changed.
+    """
+
+    slug = "password:changed"
+
+    @classmethod
+    def create(cls, org, user):
+        Notification.create_all(
+            org,
+            cls.slug,
+            scope=str(user.id),
+            users=[user],
+            medium=Notification.MEDIUM_EMAIL,
+            email_status=Notification.EMAIL_STATUS_PENDING,
+        )
+
+    def get_target_url(self, notification) -> str:
+        pass
+
+    def get_email_subject(self, notification) -> str:
+        return _("Your password has been changed")
+
+    def get_email_template(self, notification) -> str:
+        return "notifications/email/user_password_changed"
+
+
 class TicketsOpenedNotificationType(NotificationType):
     """
     Notification that a new ticket has been opened - created by mailroom.

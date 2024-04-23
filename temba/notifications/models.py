@@ -131,11 +131,11 @@ class NotificationType:
         """
         return ""
 
-    def get_email_context(self, notification):
+    def get_email_context(self, notification, branding: dict):
         return {
             "org": notification.org,
             "user": notification.user,
-            "target_url": self.get_target_url(notification),
+            "target_url": f"https://{branding['domain']}{self.get_target_url(notification)}",
         }
 
     def as_json(self, notification) -> dict:
@@ -184,21 +184,21 @@ class Notification(models.Model):
     incident = models.ForeignKey(Incident, null=True, on_delete=models.PROTECT, related_name="notifications")
 
     @classmethod
-    def create_all(cls, org, notification_type: str, *, scope: str, users, **kwargs):
+    def create_all(cls, org, notification_type: str, *, scope: str, users, medium: str, **kwargs):
         for user in users:
             cls.objects.get_or_create(
                 org=org,
                 notification_type=notification_type,
                 scope=scope,
                 user=user,
-                is_seen=False,
+                is_seen=cls.MEDIUM_UI not in medium,
                 defaults=kwargs,
             )
 
     def send_email(self):
         subject = self.type.get_email_subject(self)
         template = self.type.get_email_template(self)
-        context = self.type.get_email_context(self)
+        context = self.type.get_email_context(self, self.org.branding)
 
         if subject and template:
             sender = EmailSender.from_email_type(self.org.branding, "notifications")

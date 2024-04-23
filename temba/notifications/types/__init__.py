@@ -2,6 +2,7 @@ from .builtin import (
     ExportFinishedNotificationType,
     ImportFinishedNotificationType,
     IncidentStartedNotificationType,
+    PasswordChangedNotificationType,
     TicketActivityNotificationType,
     TicketsOpenedNotificationType,
 )
@@ -23,5 +24,6 @@ def register_notification_type(typ):
 register_notification_type(ExportFinishedNotificationType())
 register_notification_type(ImportFinishedNotificationType())
 register_notification_type(IncidentStartedNotificationType())
+register_notification_type(PasswordChangedNotificationType())
 register_notification_type(TicketsOpenedNotificationType())
 register_notification_type(TicketActivityNotificationType())
