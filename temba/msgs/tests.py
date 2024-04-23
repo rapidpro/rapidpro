@@ -3010,9 +3010,16 @@ class MediaCRUDLTest(CRUDLTestMixin, TembaTest):
                 "size": 46468,
             },
         )
+        with open(f"{settings.MEDIA_ROOT}/test_media/fake_jpg_svg_pencil.jpg", "rb") as data:
+            response = self.client.post(upload_url, {"file": data}, HTTP_X_FORWARDED_HTTPS="https")
+            self.assertEqual({"error": "Unsupported file type"}, response.json())
 
         # error message if you upload something unsupported
         with open(f"{settings.MEDIA_ROOT}/test_imports/simple.xls", "rb") as data:
+            response = self.client.post(upload_url, {"file": data}, HTTP_X_FORWARDED_HTTPS="https")
+            self.assertEqual({"error": "Unsupported file type"}, response.json())
+
+        with open(f"{settings.MEDIA_ROOT}/test_media/pencil.svg", "rb") as data:
             response = self.client.post(upload_url, {"file": data}, HTTP_X_FORWARDED_HTTPS="https")
             self.assertEqual({"error": "Unsupported file type"}, response.json())
 
