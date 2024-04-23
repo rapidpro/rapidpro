@@ -184,7 +184,7 @@ class Notification(models.Model):
     incident = models.ForeignKey(Incident, null=True, on_delete=models.PROTECT, related_name="notifications")
 
     @classmethod
-    def create_all(cls, org, notification_type: str, *, scope: str, users, medium: str, **kwargs):
+    def create_all(cls, org, notification_type: str, *, scope: str, users, medium: str = MEDIUM_UI, **kwargs):
         for user in users:
             cls.objects.get_or_create(
                 org=org,
@@ -192,6 +192,7 @@ class Notification(models.Model):
                 scope=scope,
                 user=user,
                 is_seen=cls.MEDIUM_UI not in medium,
+                medium=medium,
                 defaults=kwargs,
             )
 
