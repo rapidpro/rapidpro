@@ -30,7 +30,6 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
-from django.core.validators import validate_email
 from django.db import IntegrityError
 from django.db.models.functions import Lower
 from django.forms import ModelChoiceField
@@ -1930,34 +1929,6 @@ class OrgCRUDL(SmartCRUDL):
                         }
                     )
 
-            def clean_invite_emails(self):
-                emails = self.cleaned_data["invite_emails"].lower().strip()
-                existing_users_emails = set(
-                    list(self.org.users.values_list("username", flat=True))
-                    + list(self.org.invitations.filter(is_active=True).values_list("email", flat=True))
-                )
-                cleaned_emails = []
-                if emails:
-                    email_list = emails.split(",")
-                    for email in email_list:
-                        email = email.strip()
-                        try:
-                            validate_email(email)
-                        except ValidationError:
-                            raise forms.ValidationError(_("One of the emails you entered is invalid."))
-
-                        if email in existing_users_emails:
-                            raise forms.ValidationError(
-                                _("One of the emails you entered has an existing user on the workspace.")
-                            )
-
-                        if email in cleaned_emails:
-                            raise forms.ValidationError(_("One of the emails you entered is duplicated."))
-
-                        cleaned_emails.append(email)
-
-                return ",".join(cleaned_emails)
-
             def get_submitted_roles(self) -> dict:
                 """
                 Returns a dict of users to roles from the current form data. None role means removal.
@@ -2007,12 +1978,6 @@ class OrgCRUDL(SmartCRUDL):
         def pre_process(self, request, *args, **kwargs):
             if Org.FEATURE_USERS not in request.org.features:
                 return HttpResponseRedirect(reverse("orgs.org_workspace"))
-
-        def derive_title(self):
-            if self.object.is_child:
-                return self.object.name
-            else:
-                return super().derive_title()
 
         def build_content_menu(self, menu):
             menu.add_modax(_("Invite"), "invite-create", reverse("orgs.invitation_create"), as_button=True)
@@ -2072,6 +2037,9 @@ class OrgCRUDL(SmartCRUDL):
                 reverse("orgs.invitation_create") + f"?org={self.target_org.id}",
                 as_button=True,
             )
+
+        def derive_title(self):
+            return self.target_org.name
 
         def get_object(self, *args, **kwargs):
             return self.target_org
@@ -2839,10 +2807,7 @@ class InvitationCRUDL(SmartCRUDL):
         def get_dest_org(self):
             org_id = self.request.GET.get("org")
             if org_id:
-                try:
-                    return self.request.org.children.get(id=org_id)
-                except Org.DoesNotExist:
-                    raise Http404(_("No such child workspace"))
+                return get_object_or_404(self.request.org.children.filter(id=org_id))
 
             return self.request.org
 

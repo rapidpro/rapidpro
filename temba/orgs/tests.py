@@ -4392,6 +4392,14 @@ class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
         # check invitation email has been sent
         self.assertEqual(1, len(mail.outbox))
 
+        # try submitting for same email again
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"email": "newguy@nyaruka.com", "role": "E"},
+            form_errors={"email": "User has already been invited to this workspace."},
+        )
+
         # view can create invitations in child orgs
         child1 = self.org.create_new(self.admin, "Child 1", tzone.utc, as_child=True)
         child1.features = [Org.FEATURE_USERS]
