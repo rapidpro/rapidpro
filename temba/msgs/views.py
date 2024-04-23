@@ -1,7 +1,10 @@
+import mimetypes
+import os
 from datetime import timedelta
 from functools import cached_property
 from urllib.parse import quote_plus
 
+import magic
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -1031,7 +1034,13 @@ class MediaCRUDL(SmartCRUDL):
         def post(self, request, *args, **kwargs):
             file = request.FILES["file"]
 
-            if not Media.is_allowed_type(file.content_type):
+            filename, file_extension = os.path.splitext(file.name)
+            detected_type = magic.from_buffer(next(file.chunks(chunk_size=2048)), mime=True)
+            possible_extensions = mimetypes.guess_all_extensions(detected_type)
+            if len(possible_extensions) > 0 and file_extension not in possible_extensions:
+                return JsonResponse({"error": _("Unsupported file type")})
+
+            if not Media.is_allowed_type(detected_type):
                 return JsonResponse({"error": _("Unsupported file type")})
             if file.size > Media.MAX_UPLOAD_SIZE:
                 limit_MB = Media.MAX_UPLOAD_SIZE / (1024 * 1024)
