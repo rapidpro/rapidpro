@@ -46,7 +46,7 @@ def send_user_verification_email(org_id, user_id):
     if user.settings.email_status == UserSettings.STATUS_VERIFIED:
         return
 
-    key = f"send_verification_email:{user.email}"
+    key = f"send_verification_email:{user.email}".lower()
 
     if r.exists(key):
         return

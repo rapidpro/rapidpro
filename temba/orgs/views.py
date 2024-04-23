@@ -838,7 +838,7 @@ class UserCRUDL(SmartCRUDL):
             r = get_redis_connection()
             if request.user.settings.email_status == UserSettings.STATUS_VERIFIED:
                 return HttpResponseRedirect(reverse("orgs.user_account"))
-            elif r.exists(f"send_verification_email:{request.user.email}"):
+            elif r.exists(f"send_verification_email:{request.user.email}".lower()):
                 messages.info(request, _("Verification email already sent. You can retry in 10 minutes."))
                 return HttpResponseRedirect(reverse("orgs.user_account"))
 

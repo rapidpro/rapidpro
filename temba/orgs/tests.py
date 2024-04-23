@@ -3809,7 +3809,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(send_verification_email_url)
         self.assertEqual(405, response.status_code)
 
-        key = f"send_verification_email:{self.admin.email}"
+        key = f"send_verification_email:{self.admin.email}".lower()
 
         # simulate haivng the redis key already set
         r.set(key, "1", ex=60 * 10)
