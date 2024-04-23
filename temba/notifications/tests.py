@@ -15,7 +15,7 @@ from temba.tickets.models import TicketExport
 from .incidents.builtin import ChannelTemplatesFailedIncidentType, OrgFlaggedIncidentType
 from .models import Incident, Notification
 from .tasks import send_notification_emails, squash_notification_counts, trim_notifications
-from .types.builtin import ExportFinishedNotificationType
+from .types.builtin import ExportFinishedNotificationType, PasswordChangedNotificationType
 
 
 class IncidentTest(TembaTest):
@@ -458,6 +458,26 @@ class NotificationTest(TembaTest):
 
         self.assertTrue(self.editor.notifications.get().is_seen)
         self.assertFalse(self.admin.notifications.get().is_seen)
+
+    def test_password_changed(self):
+        PasswordChangedNotificationType.create(self.org, self.editor)
+
+        self.assert_notifications(
+            expected_json={
+                "type": "password:changed",
+                "created_on": matchers.ISODate(),
+                "target_url": None,
+                "is_seen": True,
+            },
+            expected_users={self.editor},
+            email=True,
+        )
+
+        send_notification_emails()
+
+        self.assertEqual(1, len(mail.outbox))
+        self.assertEqual("[Nyaruka] Your password has been changed", mail.outbox[0].subject)
+        self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
 
     def test_get_unseen_count(self):
         imp = ContactImport.objects.create(
