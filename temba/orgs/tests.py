@@ -5,6 +5,7 @@ from unittest.mock import patch
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
+from django_redis import get_redis_connection
 from smartmin.users.models import FailedLogin, RecoveryToken
 
 from django.conf import settings
@@ -3796,6 +3797,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @override_settings(SEND_EMAILS=True)
     def test_send_verification_email(self):
+        r = get_redis_connection()
         send_verification_email_url = reverse("orgs.user_send_verification_email")
 
         # try to access before logging in
@@ -3806,6 +3808,24 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.get(send_verification_email_url)
         self.assertEqual(405, response.status_code)
+
+        key = f"send_verification_email:{self.admin.email}".lower()
+
+        # simulate haivng the redis key already set
+        r.set(key, "1", ex=60 * 10)
+
+        response = self.client.post(send_verification_email_url, {}, follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "Verification email already sent. You can retry in 10 minutes.")
+
+        self.assertEqual(0, len(mail.outbox))
+
+        # no email when the redis key is set even with the task itself
+        send_user_verification_email.delay(self.org.id, self.admin.id)
+        self.assertEqual(0, len(mail.outbox))
+
+        # remove the redis key, as the key expired
+        r.delete(key)
 
         response = self.client.post(send_verification_email_url, {}, follow=True)
         self.assertEqual(200, response.status_code)

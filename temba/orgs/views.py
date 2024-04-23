@@ -5,6 +5,7 @@ from urllib.parse import quote, quote_plus
 
 import iso8601
 import pyotp
+from django_redis import get_redis_connection
 from packaging.version import Version
 from smartmin.users.models import FailedLogin, PasswordHistory
 from smartmin.users.views import Login, UserUpdateForm
@@ -834,7 +835,11 @@ class UserCRUDL(SmartCRUDL):
             return request.user.is_authenticated
 
         def pre_process(self, request, *args, **kwargs):
+            r = get_redis_connection()
             if request.user.settings.email_status == UserSettings.STATUS_VERIFIED:
+                return HttpResponseRedirect(reverse("orgs.user_account"))
+            elif r.exists(f"send_verification_email:{request.user.email}".lower()):
+                messages.info(request, _("Verification email already sent. You can retry in 10 minutes."))
                 return HttpResponseRedirect(reverse("orgs.user_account"))
 
             return super().pre_process(request, *args, **kwargs)
