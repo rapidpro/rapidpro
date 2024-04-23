@@ -740,17 +740,12 @@ class UserCRUDL(SmartCRUDL):
             new_password = forms.CharField(
                 required=False,
                 label=_("New Password"),
+                validators=[validate_password],
                 widget=InputWidget(attrs={"placeholder": _("Optional"), "password": True}),
             )
             language = forms.ChoiceField(
                 choices=settings.LANGUAGES, required=True, label=_("Website Language"), widget=SelectWidget()
             )
-
-            def clean_new_password(self):
-                password = self.cleaned_data["new_password"]
-                if password and not len(password) >= 8:
-                    raise forms.ValidationError(_("Passwords must have at least 8 letters."))
-                return password
 
             def clean_current_password(self):
                 user = self.instance
