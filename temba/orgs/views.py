@@ -809,14 +809,16 @@ class UserCRUDL(SmartCRUDL):
             return obj
 
         def post_save(self, obj):
-            from temba.notifications.types.builtin import PasswordChangedNotificationType
+            from temba.notifications.types.builtin import UserEmailNotificationType, UserPasswordNotificationType
 
             obj = super().post_save(obj)
 
             if obj._email_changed:
                 obj.settings.email_status = UserSettings.STATUS_UNVERIFIED
+
+                UserEmailNotificationType.create(self.request.org, self.request.user)
             if obj._password_changed:
-                PasswordChangedNotificationType.create(self.request.org, self.request.user)
+                UserPasswordNotificationType.create(self.request.org, self.request.user)
 
             language = self.form.cleaned_data.get("language")
             if language:

@@ -15,7 +15,7 @@ from temba.tickets.models import TicketExport
 from .incidents.builtin import ChannelTemplatesFailedIncidentType, OrgFlaggedIncidentType
 from .models import Incident, Notification
 from .tasks import send_notification_emails, squash_notification_counts, trim_notifications
-from .types.builtin import ExportFinishedNotificationType, PasswordChangedNotificationType
+from .types.builtin import ExportFinishedNotificationType, UserEmailNotificationType, UserPasswordNotificationType
 
 
 class IncidentTest(TembaTest):
@@ -459,12 +459,32 @@ class NotificationTest(TembaTest):
         self.assertTrue(self.editor.notifications.get().is_seen)
         self.assertFalse(self.admin.notifications.get().is_seen)
 
-    def test_password_changed(self):
-        PasswordChangedNotificationType.create(self.org, self.editor)
+    def test_user_email(self):
+        UserEmailNotificationType.create(self.org, self.editor)
 
         self.assert_notifications(
             expected_json={
-                "type": "password:changed",
+                "type": "user:email",
+                "created_on": matchers.ISODate(),
+                "target_url": None,
+                "is_seen": True,
+            },
+            expected_users={self.editor},
+            email=True,
+        )
+
+        send_notification_emails()
+
+        self.assertEqual(1, len(mail.outbox))
+        self.assertEqual("[Nyaruka] Your email has been changed", mail.outbox[0].subject)
+        self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
+
+    def test_user_password(self):
+        UserPasswordNotificationType.create(self.org, self.editor)
+
+        self.assert_notifications(
+            expected_json={
+                "type": "user:password",
                 "created_on": matchers.ISODate(),
                 "target_url": None,
                 "is_seen": True,

@@ -3543,7 +3543,8 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("admin@trileet.com", self.admin.email)
         self.assertEqual("U", self.admin.settings.email_status)  # because email changed
 
-        self.assertEqual(0, self.admin.notifications.count())
+        # should have a email changed notification
+        self.assertEqual({"user:email"}, set(self.admin.notifications.values_list("notification_type", flat=True)))
 
         # try to change password without entering current password
         self.assertUpdateSubmit(
@@ -3575,7 +3576,10 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
 
-        self.assertEqual(1, self.admin.notifications.count())  # should have a password changed notification
+        # should have a password changed notification
+        self.assertEqual(
+            {"user:email", "user:password"}, set(self.admin.notifications.values_list("notification_type", flat=True))
+        )
 
         self.admin.set_password("Qwerty123")
         self.admin.save()
