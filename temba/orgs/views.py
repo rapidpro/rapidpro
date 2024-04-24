@@ -25,7 +25,7 @@ from smartmin.views import (
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.views import LoginView as AuthLoginView
@@ -816,6 +816,8 @@ class UserCRUDL(SmartCRUDL):
 
                 UserEmailNotificationType.create(self.request.org, self.request.user, obj._prev_email)
             if obj._password_changed:
+                update_session_auth_hash(self.request, self.request.user)
+
                 UserPasswordNotificationType.create(self.request.org, self.request.user)
 
             language = self.form.cleaned_data.get("language")

@@ -3622,6 +3622,10 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
             {"user:email", "user:password"}, set(self.admin.notifications.values_list("notification_type", flat=True))
         )
 
+        # check that user still has a valid session
+        self.assertEqual(200, self.client.get(reverse("msgs.msg_inbox")).status_code)
+
+        # reset password as test suite assumes this password
         self.admin.set_password("Qwerty123")
         self.admin.save()
 
