@@ -30,12 +30,11 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
-from django.core.validators import validate_email
 from django.db import IntegrityError
 from django.db.models.functions import Lower
 from django.forms import ModelChoiceField
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
-from django.shortcuts import resolve_url
+from django.shortcuts import get_object_or_404, resolve_url
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_str
@@ -1878,21 +1877,12 @@ class OrgCRUDL(SmartCRUDL):
             self.object.release(request.user)
             return self.render_modal_response()
 
-    class ManageAccounts(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class ManageAccounts(SpaMixin, InferOrgMixin, ContentMenuMixin, OrgPermsMixin, SmartUpdateView):
         class AccountsForm(forms.ModelForm):
-            invite_emails = forms.CharField(
-                required=False, widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")})
-            )
-            invite_role = forms.ChoiceField(
-                choices=[], required=True, initial="V", label=_("Role"), widget=SelectWidget()
-            )
-
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
                 role_choices = [(r.code, r.display) for r in org.get_allowed_user_roles()]
-
-                self.fields["invite_role"].choices = role_choices
 
                 self.org = org
                 self.user_rows = []
@@ -1947,34 +1937,6 @@ class OrgCRUDL(SmartCRUDL):
                         }
                     )
 
-            def clean_invite_emails(self):
-                emails = self.cleaned_data["invite_emails"].lower().strip()
-                existing_users_emails = set(
-                    list(self.org.users.values_list("username", flat=True))
-                    + list(self.org.invitations.filter(is_active=True).values_list("email", flat=True))
-                )
-                cleaned_emails = []
-                if emails:
-                    email_list = emails.split(",")
-                    for email in email_list:
-                        email = email.strip()
-                        try:
-                            validate_email(email)
-                        except ValidationError:
-                            raise forms.ValidationError(_("One of the emails you entered is invalid."))
-
-                        if email in existing_users_emails:
-                            raise forms.ValidationError(
-                                _("One of the emails you entered has an existing user on the workspace.")
-                            )
-
-                        if email in cleaned_emails:
-                            raise forms.ValidationError(_("One of the emails you entered is duplicated."))
-
-                        cleaned_emails.append(email)
-
-                return ",".join(cleaned_emails)
-
             def get_submitted_roles(self) -> dict:
                 """
                 Returns a dict of users to roles from the current form data. None role means removal.
@@ -2012,7 +1974,7 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Invitation
-                fields = ("invite_emails", "invite_role")
+                fields = ()
 
         form_class = AccountsForm
         success_url = "@orgs.org_manage_accounts"
@@ -2025,11 +1987,8 @@ class OrgCRUDL(SmartCRUDL):
             if Org.FEATURE_USERS not in request.org.features:
                 return HttpResponseRedirect(reverse("orgs.org_workspace"))
 
-        def derive_title(self):
-            if self.object.is_child:
-                return self.object.name
-            else:
-                return super().derive_title()
+        def build_content_menu(self, menu):
+            menu.add_modax(_("Invite"), "invite-create", reverse("orgs.invitation_create"), as_button=True)
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -2039,19 +1998,12 @@ class OrgCRUDL(SmartCRUDL):
         def post_save(self, obj):
             obj = super().post_save(obj)
 
-            cleaned_data = self.form.cleaned_data
             org = self.get_object()
             allowed_roles = org.get_allowed_user_roles()
 
             # delete any invitations which have been checked for removal
             for invite in self.form.get_submitted_invite_removals():
                 org.invitations.filter(id=invite.id).delete()
-
-            # handle any requests for new invitations
-            invite_emails = cleaned_data["invite_emails"]
-            if invite_emails:
-                invite_role = OrgRole.from_code(cleaned_data["invite_role"])
-                Invitation.bulk_create_or_update(org, self.request.user, invite_emails.split(","), invite_role)
 
             # update org users with new roles
             for user, new_role in self.form.get_submitted_roles().items():
@@ -2086,15 +2038,23 @@ class OrgCRUDL(SmartCRUDL):
         def pre_process(self, request, *args, **kwargs):
             pass
 
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            org_id = self.request.GET.get("org")
-            context["parent"] = Org.objects.filter(id=org_id, parent=self.request.org).first()
-            return context
+        def build_content_menu(self, menu):
+            menu.add_modax(
+                _("Invite"),
+                "invite-create",
+                reverse("orgs.invitation_create") + f"?org={self.target_org.id}",
+                as_button=True,
+            )
+
+        def derive_title(self):
+            return self.target_org.name
 
         def get_object(self, *args, **kwargs):
-            org_id = self.request.GET.get("org")
-            return Org.objects.filter(id=org_id, parent=self.request.org).first()
+            return self.target_org
+
+        @cached_property
+        def target_org(self):
+            return get_object_or_404(self.request.org.children.filter(id=int(self.request.GET.get("org", 0))))
 
         def get_success_url(self):  # pragma: needs cover
             org_id = self.request.GET.get("org")
@@ -2813,6 +2773,71 @@ class OrgCRUDL(SmartCRUDL):
                 perm = "orgs.org_languages"
 
             return self.request.user.has_perm(perm) or self.has_org_perm(perm)
+
+
+class InvitationCRUDL(SmartCRUDL):
+    model = Invitation
+    actions = ("create",)
+
+    class Create(SpaMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
+        class Form(forms.ModelForm):
+            ROLE_CHOICES = [(r.code, r.display) for r in (OrgRole.AGENT, OrgRole.EDITOR, OrgRole.ADMINISTRATOR)]
+
+            email = forms.EmailField(widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")}))
+            role = forms.ChoiceField(
+                choices=ROLE_CHOICES, initial=OrgRole.EDITOR.code, label=_("Role"), widget=SelectWidget()
+            )
+
+            def __init__(self, org, *args, **kwargs):
+                self.org = org
+
+                super().__init__(*args, **kwargs)
+
+            def clean_email(self):
+                email = self.cleaned_data["email"]
+
+                if self.org.users.filter(email__iexact=email).exists():
+                    raise ValidationError(_("User is already a member of this workspace."))
+
+                if self.org.invitations.filter(email__iexact=email, is_active=True).exists():
+                    raise ValidationError(_("User has already been invited to this workspace."))
+
+                return email
+
+            class Meta:
+                model = Invitation
+                fields = ("email", "role")
+
+        form_class = Form
+        title = ""
+        success_url = "@orgs.org_manage_accounts"
+
+        def get_dest_org(self):
+            org_id = self.request.GET.get("org")
+            if org_id:
+                return get_object_or_404(self.request.org.children.filter(id=org_id))
+
+            return self.request.org
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.get_dest_org()
+            return kwargs
+
+        def pre_save(self, obj):
+            org = self.get_dest_org()
+
+            assert Org.FEATURE_USERS in org.features
+
+            obj.org = org
+            obj.user_group = self.form.cleaned_data["role"]
+
+            return super().pre_save(obj)
+
+        def post_save(self, obj):
+            obj.send()
+
+            return super().post_save(obj)
 
 
 class OrgImportCRUDL(SmartCRUDL):
