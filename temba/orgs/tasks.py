@@ -13,7 +13,7 @@ from temba.utils.crons import cron_task
 from temba.utils.email import EmailSender
 from temba.utils.text import generate_secret
 
-from .models import Export, Org, OrgImport, User, UserSettings
+from .models import Export, Invitation, Org, OrgImport, User, UserSettings
 
 
 @shared_task
@@ -96,6 +96,17 @@ def restart_stalled_exports():
     )
     for export in exports:
         perform_export.delay(export.id)
+
+
+@cron_task(lock_timeout=7200)
+def expire_invitations():
+    # delete any invitations that are unaccepted after 30 days
+    num_expired = 0
+    for invitation in Invitation.objects.filter(created_on__lt=timezone.now() - timedelta(days=30), is_active=True):
+        invitation.release()
+        num_expired += 1
+
+    return {"expired": num_expired}
 
 
 @cron_task(lock_timeout=7 * 24 * 60 * 60)
