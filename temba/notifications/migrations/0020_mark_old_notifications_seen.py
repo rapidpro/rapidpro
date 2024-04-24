@@ -6,7 +6,7 @@ from django.db import migrations
 from django.utils import timezone
 
 
-def mark_old_seen(apps, schema_editor):
+def mark_old_seen(apps, schema_editor):  # pragma: no cover
     Notification = apps.get_model("notifications", "Notification")
     three_weeks_ago = timezone.now() - timedelta(days=21)
     old_unseen = Notification.objects.filter(created_on__lt=three_weeks_ago, is_seen=False)
@@ -24,7 +24,7 @@ def mark_old_seen(apps, schema_editor):
         print(f"Marked {num_updated} old notifications as seen")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

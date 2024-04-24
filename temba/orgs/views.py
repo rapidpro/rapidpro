@@ -796,19 +796,32 @@ class UserCRUDL(SmartCRUDL):
 
             # keep our username and email in sync and record if email is changing
             obj.username = obj.email
-            obj._email_changed = obj.email != User.objects.get(id=obj.id).email
 
-            if self.form.cleaned_data["new_password"]:
+            # get existing email address to know if it's changing
+            obj._prev_email = User.objects.get(id=obj.id).email
+
+            # figure out if password is being changed and if so update it
+            new_password = self.form.cleaned_data["new_password"]
+            current_password = self.form.cleaned_data["current_password"]
+            if new_password and new_password != current_password:
                 obj.set_password(self.form.cleaned_data["new_password"])
+                obj._password_changed = True
+            else:
+                obj._password_changed = False
 
             return obj
 
         def post_save(self, obj):
-            # save the user settings as well
+            from temba.notifications.types.builtin import UserEmailNotificationType, UserPasswordNotificationType
+
             obj = super().post_save(obj)
 
-            if obj._email_changed:
+            if obj.email != obj._prev_email:
                 obj.settings.email_status = UserSettings.STATUS_UNVERIFIED
+
+                UserEmailNotificationType.create(self.request.org, self.request.user, obj._prev_email)
+            if obj._password_changed:
+                UserPasswordNotificationType.create(self.request.org, self.request.user)
 
             language = self.form.cleaned_data.get("language")
             if language:

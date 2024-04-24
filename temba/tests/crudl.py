@@ -4,6 +4,8 @@ from django.db.models import QuerySet
 from django.forms import model_to_dict
 from django.urls import reverse
 
+from temba.orgs.models import User
+
 
 class CRUDLTestMixin:
     def requestView(self, url, user, *, post_data=None, checks=(), choose_org=None, **kwargs):
@@ -275,6 +277,11 @@ class ObjectUnchanged(BaseCheck):
             # don't consider list ordering as significant
             if isinstance(v, list):
                 d[k] = list(sorted(v, key=lambda x: str(x)))
+
+        # logging in to request the view changes a user object so ignore that
+        if isinstance(obj, User) and "last_login" in d:
+            del d["last_login"]
+
         return d
 
 
