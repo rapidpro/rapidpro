@@ -176,6 +176,7 @@ class Notification(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="notifications")
     is_seen = models.BooleanField(default=False)
+    email_address = models.EmailField(null=True)  # only used when dest email != current user email
     email_status = models.CharField(choices=EMAIL_STATUS_CHOICES, max_length=1, default=EMAIL_STATUS_NONE)
     created_on = models.DateTimeField(default=timezone.now)
 
@@ -203,7 +204,7 @@ class Notification(models.Model):
 
         if subject and template:
             sender = EmailSender.from_email_type(self.org.branding, "notifications")
-            sender.send([self.user.email], f"[{self.org.name}] {subject}", template, context)
+            sender.send([self.email_address or self.user.email], f"[{self.org.name}] {subject}", template, context)
         else:  # pragma: no cover
             logger.error(f"pending emails for notification type {self.type.slug} not configured for email")
 
