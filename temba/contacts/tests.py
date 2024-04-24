@@ -5220,122 +5220,117 @@ class ContactExportTest(TembaTest):
         )
 
         # export a search
-        mock_es_data = [
-            {"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact2.id}},
-            {"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact3.id}},
-        ]
-        with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(24):
-                sheets, export = self._export(
-                    self.org.active_contacts_group, "name has adam or name has deng", with_groups=[group1]
-                )
-                self.assertExcelSheet(
-                    sheets[0],
+        mr_mocks.contact_export([contact2.id, contact3.id])
+        with self.assertNumQueries(22):
+            sheets, export = self._export(
+                self.org.active_contacts_group, "name has adam or name has deng", with_groups=[group1]
+            )
+            self.assertExcelSheet(
+                sheets[0],
+                [
                     [
-                        [
-                            "Contact UUID",
-                            "Name",
-                            "Language",
-                            "Status",
-                            "Created On",
-                            "Last Seen On",
-                            "URN:Mailto",
-                            "URN:Tel",
-                            "URN:Tel",
-                            "URN:Telegram",
-                            "URN:Twitter",
-                            "Field:Third",
-                            "Field:Second",
-                            "Field:First",
-                            "Group:Poppin Tags",
-                        ],
-                        [
-                            contact2.uuid,
-                            "Adam Sumner",
-                            "eng",
-                            "Active",
-                            contact2.created_on,
-                            "",
-                            "adam@sumner.com",
-                            "+12067799191",
-                            "",
-                            "1234",
-                            "adam",
-                            "",
-                            "",
-                            "",
-                            True,
-                        ],
-                        [
-                            contact3.uuid,
-                            "Luol Deng",
-                            "",
-                            "Active",
-                            contact3.created_on,
-                            "",
-                            "",
-                            "+12078776655",
-                            "",
-                            "",
-                            "deng",
-                            "",
-                            "",
-                            "",
-                            False,
-                        ],
+                        "Contact UUID",
+                        "Name",
+                        "Language",
+                        "Status",
+                        "Created On",
+                        "Last Seen On",
+                        "URN:Mailto",
+                        "URN:Tel",
+                        "URN:Tel",
+                        "URN:Telegram",
+                        "URN:Twitter",
+                        "Field:Third",
+                        "Field:Second",
+                        "Field:First",
+                        "Group:Poppin Tags",
                     ],
-                    tz=self.org.timezone,
-                )
-
-                assertReimport(export)
-
-        # export a search within a specified group of contacts
-        mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
-        with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(22):
-                sheets, export = self._export(group1, search="Hagg", with_groups=[group1])
-                self.assertExcelSheet(
-                    sheets[0],
                     [
-                        [
-                            "Contact UUID",
-                            "Name",
-                            "Language",
-                            "Status",
-                            "Created On",
-                            "Last Seen On",
-                            "URN:Mailto",
-                            "URN:Tel",
-                            "URN:Tel",
-                            "URN:Telegram",
-                            "URN:Twitter",
-                            "Field:Third",
-                            "Field:Second",
-                            "Field:First",
-                            "Group:Poppin Tags",
-                        ],
-                        [
-                            contact.uuid,
-                            "Ben Haggerty",
-                            "",
-                            "Active",
-                            contact.created_on,
-                            datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=tzone.utc),
-                            "",
-                            "+12067799294",
-                            "+12062233445",
-                            "",
-                            "",
-                            "20-12-2015 08:30",
-                            "",
-                            "One",
-                            True,
-                        ],
+                        contact2.uuid,
+                        "Adam Sumner",
+                        "eng",
+                        "Active",
+                        contact2.created_on,
+                        "",
+                        "adam@sumner.com",
+                        "+12067799191",
+                        "",
+                        "1234",
+                        "adam",
+                        "",
+                        "",
+                        "",
+                        True,
                     ],
-                    tz=self.org.timezone,
-                )
+                    [
+                        contact3.uuid,
+                        "Luol Deng",
+                        "",
+                        "Active",
+                        contact3.created_on,
+                        "",
+                        "",
+                        "+12078776655",
+                        "",
+                        "",
+                        "deng",
+                        "",
+                        "",
+                        "",
+                        False,
+                    ],
+                ],
+                tz=self.org.timezone,
+            )
 
             assertReimport(export)
+
+        # export a search within a specified group of contacts
+        mr_mocks.contact_export([contact.id])
+        with self.assertNumQueries(20):
+            sheets, export = self._export(group1, search="Hagg", with_groups=[group1])
+            self.assertExcelSheet(
+                sheets[0],
+                [
+                    [
+                        "Contact UUID",
+                        "Name",
+                        "Language",
+                        "Status",
+                        "Created On",
+                        "Last Seen On",
+                        "URN:Mailto",
+                        "URN:Tel",
+                        "URN:Tel",
+                        "URN:Telegram",
+                        "URN:Twitter",
+                        "Field:Third",
+                        "Field:Second",
+                        "Field:First",
+                        "Group:Poppin Tags",
+                    ],
+                    [
+                        contact.uuid,
+                        "Ben Haggerty",
+                        "",
+                        "Active",
+                        contact.created_on,
+                        datetime(2020, 1, 1, 12, 0, 0, 0, tzinfo=tzone.utc),
+                        "",
+                        "+12067799294",
+                        "+12062233445",
+                        "",
+                        "",
+                        "20-12-2015 08:30",
+                        "",
+                        "One",
+                        True,
+                    ],
+                ],
+                tz=self.org.timezone,
+            )
+
+        assertReimport(export)
 
         # now try with an anonymous org
         with self.anonymous(self.org):

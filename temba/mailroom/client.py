@@ -152,6 +152,11 @@ class MailroomClient:
 
         return self._request("contact/create", payload)
 
+    def contact_export(self, org_id: int, group_id: int, query: str):
+        payload = {"org_id": org_id, "group_id": group_id, "query": query}
+
+        return self._request("contact/export", payload)
+
     def contact_export_preview(self, org_id: int, group_id: int, query: str):
         payload = {"org_id": org_id, "group_id": group_id, "query": query}
 

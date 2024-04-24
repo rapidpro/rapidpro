@@ -1,5 +1,4 @@
 import logging
-import time
 from datetime import date, datetime, timedelta, timezone as tzone
 from decimal import Decimal
 from itertools import chain
@@ -35,7 +34,7 @@ from temba.utils.text import decode_stream, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
 from temba.utils.uuid import uuid4
 
-from .search import SearchException, elastic, parse_query
+from .search import SearchException, parse_query
 
 logger = logging.getLogger(__name__)
 
@@ -1936,8 +1935,9 @@ class ContactExport(ExportType):
         include_group_memberships = bool(len(group_fields) > 0)
 
         if search:
-            contact_ids = elastic.query_contact_ids(export.org, search, group=group)
+            contact_ids = mailroom.get_client().contact_export(export.org.id, group.id, query=search)["contact_ids"]
         else:
+            # TODO use id ordering
             contact_ids = group.contacts.using("readonly").order_by("name", "id").values_list("id", flat=True)
 
         # create our exporter
@@ -1946,7 +1946,6 @@ class ContactExport(ExportType):
         )
 
         num_records = 0
-        time.time()
 
         # write out contacts in batches to limit memory usage
         for batch_ids in chunk_list(contact_ids, 1000):
