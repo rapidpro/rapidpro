@@ -133,8 +133,7 @@ class NotificationType:
 
     def get_email_context(self, notification, branding: dict):
         return {
-            "org": notification.org,
-            "user": notification.user,
+            "notification": notification,
             "target_url": f"https://{branding['domain']}{self.get_target_url(notification)}",
         }
 

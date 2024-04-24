@@ -1,6 +1,6 @@
 {% load i18n %}
 {% block body %}
-{% trans "Hi" %} {{ user.first_name }}
+{% trans "Hi" %} {{ notification.user.first_name }}
 
 {% block notification-body %}{% endblock notification-body %}
 
