@@ -1937,8 +1937,7 @@ class ContactExport(ExportType):
         if search:
             contact_ids = mailroom.get_client().contact_export(export.org.id, group.id, query=search)["contact_ids"]
         else:
-            # TODO use id ordering
-            contact_ids = group.contacts.using("readonly").order_by("name", "id").values_list("id", flat=True)
+            contact_ids = group.contacts.using("readonly").order_by("id").values_list("id", flat=True)
 
         # create our exporter
         exporter = MultiSheetExporter(
