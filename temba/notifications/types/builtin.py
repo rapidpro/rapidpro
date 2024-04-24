@@ -129,7 +129,7 @@ class UserEmailNotificationType(NotificationType):
     slug = "user:email"
 
     @classmethod
-    def create(cls, org, user):
+    def create(cls, org, user, prev_email: str):
         Notification.create_all(
             org,
             cls.slug,
@@ -137,6 +137,7 @@ class UserEmailNotificationType(NotificationType):
             users=[user],
             medium=Notification.MEDIUM_EMAIL,
             email_status=Notification.EMAIL_STATUS_PENDING,
+            email_address=prev_email,
         )
 
     def get_target_url(self, notification) -> str:

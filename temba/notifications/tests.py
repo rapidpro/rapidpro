@@ -9,7 +9,7 @@ from temba.contacts.models import ContactExport, ContactImport
 from temba.flows.models import ResultsExport
 from temba.msgs.models import MessageExport
 from temba.orgs.models import OrgRole
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers
+from temba.tests import CRUDLTestMixin, TembaTest, matchers
 from temba.tickets.models import TicketExport
 
 from .incidents.builtin import ChannelTemplatesFailedIncidentType, OrgFlaggedIncidentType
@@ -460,7 +460,7 @@ class NotificationTest(TembaTest):
         self.assertFalse(self.admin.notifications.get().is_seen)
 
     def test_user_email(self):
-        UserEmailNotificationType.create(self.org, self.editor)
+        UserEmailNotificationType.create(self.org, self.editor, "prevaddr@trileet.com")
 
         self.assert_notifications(
             expected_json={
@@ -477,7 +477,7 @@ class NotificationTest(TembaTest):
 
         self.assertEqual(1, len(mail.outbox))
         self.assertEqual("[Nyaruka] Your email has been changed", mail.outbox[0].subject)
-        self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertEqual(["prevaddr@trileet.com"], mail.outbox[0].recipients())
 
     def test_user_password(self):
         UserPasswordNotificationType.create(self.org, self.editor)
@@ -564,40 +564,3 @@ class NotificationTest(TembaTest):
 
         self.assertFalse(Notification.objects.filter(id=notification1.id).exists())
         self.assertTrue(Notification.objects.filter(id=notification2.id).exists())
-
-
-class MarkOldAsSeenTest(MigrationTest):
-    app = "notifications"
-    migrate_from = "0019_notification_export"
-    migrate_to = "0020_mark_old_notifications_seen"
-
-    def setUpBeforeMigration(self, apps):
-        # create incident notification
-        self.org.suspend()
-        self.org.unsuspend()
-
-        # make it look 30 days old
-        self.notification1 = Notification.objects.last()
-        self.notification1.created_on = timezone.now() - timedelta(days=30)
-        self.notification1.save(update_fields=("created_on",))
-
-        self.org.suspend()
-        self.org.unsuspend()
-
-        self.notification2 = Notification.objects.last()
-
-        self.org.suspend()
-        self.org.unsuspend()
-
-        self.notification3 = Notification.objects.last()
-        self.notification3.is_seen = True
-        self.notification3.save(update_fields=("is_seen",))
-
-    def test_migration(self):
-        self.notification1.refresh_from_db()
-        self.notification2.refresh_from_db()
-        self.notification3.refresh_from_db()
-
-        self.assertTrue(self.notification1.is_seen)  # updated
-        self.assertFalse(self.notification2.is_seen)
-        self.assertTrue(self.notification3.is_seen)  # unchanged
