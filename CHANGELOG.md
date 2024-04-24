@@ -1,3 +1,10 @@
+v9.1.92 (2024-04-23)
+-------------------------
+ * Remove start url for surveyors and instead do login redirect
+ * Fix to disallow content type vs extension mismatching for media uploads
+ * Fix to limit sending user verification email to 1 per 10 minutes
+ * Remove warning for flows that don't specify Facebook topic
+
 v9.1.91 (2024-04-18)
 -------------------------
  * Fix select race
