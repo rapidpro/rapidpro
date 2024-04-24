@@ -1,3 +1,8 @@
+v9.1.94 (2024-04-24)
+-------------------------
+ * Fix changing password so user isn't logged out
+ * Fix user edit form allowing insecure passwords
+
 v9.1.93 (2024-04-24)
 -------------------------
  * Add notification types for when email or password is changed
