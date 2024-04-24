@@ -2669,14 +2669,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFalse(User.objects.filter(username="myal@relieves.org"))
         self.assertFalse(User.objects.filter(email="myal@relieves.org"))
 
-        post_data["current_password"] = "HelloWorld1"
-        post_data["new_password"] = "Password123"
-        response = self.client.post(reverse("orgs.user_edit"), post_data, HTTP_X_FORMAX=True)
-        self.assertEqual(200, response.status_code)
-
-        user = User.objects.get(username="myal@wr.org")
-        self.assertTrue(user.check_password("Password123"))
-
     def test_create_new(self):
         children_url = reverse("orgs.org_sub_orgs")
         create_url = reverse("orgs.org_create")
@@ -3592,6 +3584,22 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
                 "current_password": "",
             },
             form_errors={"current_password": "Please enter your password to save changes."},
+            object_unchanged=self.admin,
+        )
+
+        # try to change password to something too simple
+        self.assertUpdateSubmit(
+            edit_url,
+            self.admin,
+            {
+                "language": "en-us",
+                "first_name": "Admin",
+                "last_name": "User",
+                "email": "admin@trileet.com",
+                "new_password": "123",
+                "current_password": "Qwerty123",
+            },
+            form_errors={"new_password": "This password is too short. It must contain at least 8 characters."},
             object_unchanged=self.admin,
         )
 
