@@ -477,7 +477,8 @@ class NotificationTest(TembaTest):
 
         self.assertEqual(1, len(mail.outbox))
         self.assertEqual("[Nyaruka] Your email has been changed", mail.outbox[0].subject)
-        self.assertEqual(["prevaddr@trileet.com"], mail.outbox[0].recipients())
+        self.assertEqual(["prevaddr@trileet.com"], mail.outbox[0].recipients())  # previous address
+        self.assertIn("Your email has been changed to editor@nyaruka.com", mail.outbox[0].body)  # new address
 
     def test_user_password(self):
         UserPasswordNotificationType.create(self.org, self.editor)
@@ -498,6 +499,7 @@ class NotificationTest(TembaTest):
         self.assertEqual(1, len(mail.outbox))
         self.assertEqual("[Nyaruka] Your password has been changed", mail.outbox[0].subject)
         self.assertEqual(["editor@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertIn("Your password has been changed.", mail.outbox[0].body)
 
     def test_get_unseen_count(self):
         imp = ContactImport.objects.create(
