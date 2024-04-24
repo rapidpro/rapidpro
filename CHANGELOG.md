@@ -1,3 +1,9 @@
+v9.1.93 (2024-04-24)
+-------------------------
+ * Add notification types for when email or password is changed
+ * Expire unaccepted invitations after 30 days
+ * Move invitation form into modal
+
 v9.1.92 (2024-04-23)
 -------------------------
  * Remove start url for surveyors and instead do login redirect
