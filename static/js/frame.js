@@ -479,14 +479,11 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function posterize(href) {
-  // Parse the URL from the href argument
+  // use our posterizer form to submit the query string as a post
   var url = new URL(href, window.location.origin);
-
-  // Select the form and set its action attribute to the pathname of the URL
   var form = document.getElementById('posterizer');
   form.setAttribute('action', url.pathname);
 
-  // Iterate over the search parameters of the URL and create hidden input fields for each parameter
   url.searchParams.forEach((value, key) => {
     var input = document.createElement('input');
     input.type = 'hidden';
@@ -495,7 +492,6 @@ function posterize(href) {
     form.appendChild(input);
   });
 
-  // Submit the form
   form.submit();
 }
 
