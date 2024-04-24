@@ -53,7 +53,13 @@ from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .context_processors import RolePermsWrapper
 from .models import BackupToken, Export, Invitation, Org, OrgImport, OrgMembership, OrgRole, User, UserSettings
-from .tasks import delete_released_orgs, restart_stalled_exports, send_user_verification_email, trim_exports
+from .tasks import (
+    delete_released_orgs,
+    expire_invitations,
+    restart_stalled_exports,
+    send_user_verification_email,
+    trim_exports,
+)
 
 
 class OrgRoleTest(TembaTest):
@@ -127,6 +133,32 @@ class InvitationTest(TembaTest):
         invitation.release()
 
         self.assertFalse(invitation.is_active)
+
+    def test_expire_task(self):
+        invitation1 = Invitation.objects.create(
+            org=self.org,
+            user_group="E",
+            email="neweditor@nyaruka.com",
+            created_by=self.admin,
+            created_on=timezone.now() - timedelta(days=31),
+            modified_by=self.admin,
+        )
+        invitation2 = Invitation.objects.create(
+            org=self.org,
+            user_group="T",
+            email="newagent@nyaruka.com",
+            created_by=self.admin,
+            created_on=timezone.now() - timedelta(days=29),
+            modified_by=self.admin,
+        )
+
+        expire_invitations()
+
+        invitation1.refresh_from_db()
+        invitation2.refresh_from_db()
+
+        self.assertFalse(invitation1.is_active)
+        self.assertTrue(invitation2.is_active)
 
 
 class UserTest(TembaTest):

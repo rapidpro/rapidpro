@@ -1,0 +1,10 @@
+{% extends "includes/modax.html" %}
+{% load i18n %}
+
+{% block pre-form %}
+  <div class="mb-8">
+    {% blocktrans trimmed with days=validity_days %}
+      This will send an email with a link to join this workspace. The link is valid for {{ days }} days.
+    {% endblocktrans %}
+  </div>
+{% endblock pre-form %}

@@ -2815,6 +2815,7 @@ class InvitationCRUDL(SmartCRUDL):
 
         form_class = Form
         title = ""
+        submit_button_name = _("Send")
         success_url = "@orgs.org_manage_accounts"
 
         def get_dest_org(self):
@@ -2828,6 +2829,11 @@ class InvitationCRUDL(SmartCRUDL):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.get_dest_org()
             return kwargs
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["validity_days"] = settings.INVITATION_VALIDITY.days
+            return context
 
         def pre_save(self, obj):
             org = self.get_dest_org()
