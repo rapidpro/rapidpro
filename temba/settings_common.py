@@ -698,6 +698,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 ANONYMOUS_USER_NAME = "AnonymousUser"
 
+INVITATION_VALIDITY = timedelta(days=30)
+
 _db_host = "localhost"
 _redis_host = "localhost"
 

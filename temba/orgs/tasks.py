@@ -100,9 +100,10 @@ def restart_stalled_exports():
 
 @cron_task(lock_timeout=7200)
 def expire_invitations():
-    # delete any invitations that are unaccepted after 30 days
+    # delete any invitations that are no longer valid
+    expire_before = timezone.now() - settings.INVITATION_VALIDITY
     num_expired = 0
-    for invitation in Invitation.objects.filter(created_on__lt=timezone.now() - timedelta(days=30), is_active=True):
+    for invitation in Invitation.objects.filter(created_on__lt=expire_before, is_active=True):
         invitation.release()
         num_expired += 1
 
