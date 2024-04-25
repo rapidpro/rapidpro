@@ -24,8 +24,6 @@
     {% endblock extra-meta %}
     <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
     {% compress js %}
-      <script src="{{ STATIC_URL }}jquery/dist/jquery.min.js"></script>
-      <script src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
       <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
       <script src="{{ STATIC_URL }}highcharts/highstock.js?v=9.3.0"></script>
       <script src="{{ STATIC_URL }}highcharts/modules/drilldown.js"></script>

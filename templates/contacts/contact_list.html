@@ -358,76 +358,9 @@
       } else {
         sendModal.setAttribute("endpoint", sendEndpoint);
       }
-
       sendModal.open = true;
     }
 
-    // keeps track if we are on a link or not
-    var onLink = false;
-
-    {% if org_perms.contacts.contact_update %}
-
-    function addContactToGroup(groupId) {
-      window.lastChecked = getCheckedIds();
-      var groupedIds = getLabeledIds(groupId);
-
-      var addGroup = true;
-
-      // find the intersection of contactIds and groupedIds
-      var contactIdsWithGroup = intersect(window.lastChecked, groupedIds);
-
-      // they all belong to the group, so we are actually removing these contacts from the group
-      if (contactIdsWithGroup.length == window.lastChecked.length) {
-        addGroup = false;
-      }
-      jQuery.ajaxSettings.traditional = true;
-      fetchPJAXContent(document.location.href, "#pjax", {
-        postData: {
-          objects: window.lastChecked,
-          label: groupId,
-          add: addGroup,
-          action: 'label',
-          pjax: 'true'
-        },
-        forceReload: true,
-        onSuccess: function() {
-          recheckIds();
-          wireTableListeners()
-        }
-      });
-    }
-    {% endif %}
-
-    {% if org_perms.contacts.contact_block %}
-    $(".lp-frame").on('click', ".object-btn-unblock", function() {
-      runActionOnObjectRows("unblock", wireTableListeners);
-    });
-    $(".lp-frame").on('click', ".object-btn-block", function() {
-      runActionOnObjectRows("block", wireTableListeners);
-    });
-    {% endif %}
-
-    {% if org_perms.contacts.contact_unstop %}
-    $(".lp-frame").on('click', ".object-btn-unstop", function() {
-      runActionOnObjectRows("unstop", wireTableListeners);
-    });
-    {% endif %}
-
-    function handleCreateGroupModalLoaded(event) {
-      window.lastChecked = getCheckedIds();
-      var body = event.detail.body;
-      body.querySelector("#id_preselected_contacts").value = window.lastChecked.join();
-    }
-
-    function handleCreateGroupModalSubmitted(event) {
-      refresh(function() {
-        recheckIds();
-      }, true);
-    }
-
-    function handleAddGroupClicked() {
-      document.getElementById("create-group-modal").open = true;
-    }
 
     {% if org_perms.contacts.contact_delete %}
 
@@ -443,11 +376,8 @@
 
     function deleteAllArchivedContacts(event) {
       var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
-
       if (event.detail.button.attributes.destructive) {
-        jQuery.ajaxSettings.traditional = true;
         var url = "{% url 'contacts.contact_archived' %}";
-
         var store = document.querySelector("temba-store");
         store.postForm(url, {
           action: "delete",

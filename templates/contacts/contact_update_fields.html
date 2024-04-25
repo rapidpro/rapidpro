@@ -23,8 +23,9 @@
     var fieldSelect = body.querySelector("temba-select[name='contact_field']");
     fieldSelect.addEventListener('change', function(event) {
       var selectedField = event.target.values[0].value;
-      $(body).find('.rendered-field-input').attr('ic-src', input_url + selectedField);
-      Intercooler.triggerRequest($(body).find('.rendered-field-input'));
+      var input = body.querySelector('.rendered-field-input');
+      input.setAttribute('ic-src', input_url + selectedField);
+      Intercooler.triggerRequest(input);
     });
 
     {% if contact_field %}

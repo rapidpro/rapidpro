@@ -1,3 +1,23 @@
+v9.1.98 (2024-04-25)
+-------------------------
+ * Fix ticket status selection
+
+v9.1.97 (2024-04-25)
+-------------------------
+ * Include url for org chooser
+
+v9.1.96 (2024-04-25)
+-------------------------
+ * Remove jQuery
+
+v9.1.95 (2024-04-25)
+-------------------------
+ * Change ordering of non-search based exports to be id to match search based
+ * Use mailroom endpoint for search based contact exports
+ * Remove cancel button from contact import page and remove duplicate styles
+ * Tweak layout of user edit form
+ * Email notification that account email has changed should include the new email address
+
 v9.1.94 (2024-04-24)
 -------------------------
  * Fix changing password so user isn't logged out

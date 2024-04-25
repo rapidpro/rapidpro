@@ -149,8 +149,8 @@
     });
 
     function handleEditorLoaded() {
-      $('.editor-loader').hide();
-      $('#rp-flow-editor > div').css('opacity', '1');
+      document.querySelector('.editor-loader').classList.add('hide');
+      document.querySelector('#rp-flow-editor').style.opacity = '1';
     }
 
     function handleActivityClicked(nodeUUID, count) {

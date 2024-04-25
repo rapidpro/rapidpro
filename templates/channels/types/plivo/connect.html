@@ -14,8 +14,8 @@
 {% block extra-script %}
   {{ block.super }}
   <script type="text/javascript">
-    $(document).ready(function() {
-      $("form.smartmin-form").attr('autocomplete', 'off');
+    onSpload(function() {
+      document.querySelector("form.smartmin-form").setAttribute('autocomplete', 'off');
     });
   </script>
 {% endblock extra-script %}

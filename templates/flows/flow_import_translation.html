@@ -91,11 +91,14 @@
   {{ block.super }}
   <script>
     function updatePOFile() {
-      var file = $("#id_po_file").val();
+      var fileInput = document.getElementById("id_po_file");
+      var file = fileInput.value;
       while (file.indexOf("\\") >= 0) {
-        file = file.substring(file.indexOf("\\") + 1, file.length);
+        file = file.substring(file.indexOf("\\") + 1);
       }
-      $("#file-field").val(file);
+
+      var fileField = document.getElementById("file-field");
+      fileField.value = file;
     }
   </script>
 {% endblock extra-script %}

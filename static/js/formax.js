@@ -1,204 +1,186 @@
-(function() {
-    var _bindToggle, _initializeForm, _submitFormax, hideSection, showSection;
-  
-    showSection = function(section) {
-      if (section.data("readonly")) {
+var showSection = function (section) {
+  if (section.dataset.readonly) {
+    return;
+  }
+  if (section.dataset.action !== 'fixed') {
+    section.classList.add('open');
+  }
+};
+
+var hideSection = function (section) {
+  if (section.dataset.action === 'fixed') {
+    return;
+  }
+
+  section.classList.remove('open');
+  return true;
+};
+
+var handleSectionClicked = function (event) {
+  let section = event.target.closest('.formax-section');
+
+  if (section.dataset.action === 'fixed') {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const isOpen = section.classList.contains('open');
+
+  document.querySelectorAll('.formax > .formax-section').forEach((element) => {
+    hideSection(element);
+  });
+
+  if (isOpen) {
+    return hideSection(section);
+  } else {
+    return showSection(section);
+  }
+};
+
+window.fetchData = function (section) {
+  var url;
+
+  const headers = {
+    'X-FORMAX': true,
+    'X-PJAX': true,
+    'X-FORMAX-ACTION': section.dataset.action,
+  };
+
+  if (section.closest('.spa-container')) {
+    headers['TEMBA-SPA'] = 1;
+  }
+
+  if (section.dataset.href) {
+    url = section.dataset.href;
+
+    const id = '#' + section.id + ' > .formax-container';
+    const options = {
+      headers: headers,
+      method: 'GET',
+      skipContentCheck: true,
+    };
+    options.onSuccess = function () {
+      section.dataset.loaded = true;
+      _initializeForm(section);
+      if (section.dataset.fixed) {
+        showSection(section);
+      }
+      document.dispatchEvent(
+        new CustomEvent('temba-formax-ready', { bubbles: true })
+      );
+      return section.classList.remove('hide');
+    };
+
+    return fetchAjax(url, id, options);
+  } else {
+    return (section.dataset.loaded = true);
+  }
+};
+
+var _initializeForm = function (section) {
+  var action, buttonName, form, onLoad;
+
+  action = section.dataset.action;
+  form = section.querySelector('form');
+  if (action === 'formax' || action === 'redirect' || action === 'open') {
+    buttonName = section.dataset.button;
+    if (!buttonName) {
+      buttonName = gettext('Save');
+    }
+
+    form.addEventListener('submit', _submitFormax);
+    if (!section.dataset.nobutton) {
+      form.append(
+        '<input type="submit" class="button-primary" value="' +
+          buttonName +
+          '"/>'
+      );
+      form.querySelector('.form-actions').remove();
+    }
+    const submitButton = form.querySelector('.submit-button');
+    if (submitButton) {
+      submitButton.addEventListener('click', function () {
+        this.attributes['enabled'] = false;
+        this.classList.add('disabled');
+      });
+    }
+    onLoad = section.dataset.onload;
+    if (onLoad) {
+      eval_(onLoad)();
+    }
+
+    if (action === 'open') {
+      showSection(section);
+      window.scrollTo(0, section.offset().top);
+    }
+  }
+  if (action === 'fixed') {
+    return form.attr('action', section.dataset.href);
+  }
+};
+
+var _submitFormax = function (e) {
+  e.preventDefault();
+  const form = this;
+  const section = form.closest('.formax-section');
+  const followRedirects = section.dataset.action === 'redirect';
+
+  const headers = {
+    'X-FORMAX': true,
+    'X-PJAX': true,
+    'X-FORMAX-ACTION': section.dataset.action,
+  };
+
+  if (section.closest('.spa-container')) {
+    headers['TEMBA-SPA'] = 1;
+  }
+
+  var formData = new FormData(form);
+  const id = '#' + section.id + ' > .formax-container';
+  const options = {
+    headers: headers,
+    method: 'POST',
+    body: formData,
+    skipContentCheck: true,
+  };
+
+  if (followRedirects) {
+    options.redirect = 'follow';
+  }
+
+  options.onSuccess = function (resp) {
+    const redirect = resp.headers.get('REDIRECT');
+    if (redirect) {
+      if (section.dataset.action === 'redirect') {
+        gotoURL(redirect);
         return;
-      }
-      if (section.data("action") === 'fixed') {
-        section.find(".formax-form").show();
-        return section.find(".formax-icon").css({
-          "font-size": "80px",
-          width: "80px",
-          height: "80px"
-        });
       } else {
-        return section[0].classList.add("open");
+        hideSection(section);
+        fetchData(section);
       }
-    };
-  
-  
-    /*
-    Manually contract an expandable section
-     */
-  
-    hideSection = function(section) {
-      if (section.data("action") === 'fixed') {
-        return;
-      }
-      section[0].classList.remove("open");
-      return true;
-    };
-  
-  
-    /*
-    Fetches new data for the given expandable section.
-    Note this will take care of binding all dynamic functions.
-     */
-  
-    window.fetchData = function(section) {
-      var url;
-
-      const headers = {
-        "X-FORMAX": true
-      }
-      
-      if (section.closest(".spa-container")) {
-        headers["TEMBA-SPA"] = 1;
-      }
-
-      if (section.data("href")) {
-        url = section.data('href');
-        return fetchPJAXContent(url, "#" + section.attr("id") + " > .formax-container", {
-          headers: headers,
-          onSuccess: function() {
-            section.data("loaded", true);
-            _initializeForm(section);
-            if (section.data("fixed")) {
-              showSection(section);
-            } else {
-              _bindToggle(section.find(".formax-icon"));
-            }
-            document.dispatchEvent(new CustomEvent("temba-formax-ready", {bubbles: true}));
-            return section.show();
-          }
-        });
+    } else {
+      _initializeForm(section);
+      var formax_form = section.querySelector('.formax-form');
+      if (formax_form.classList.contains('errors')) {
+        section.querySelector('.formax-summary').classList.add('hide');
+        formax_form.classList.remove('hide');
       } else {
-        return section.data("loaded", true);
+        if (section.dataset.action !== 'fixed') {
+          hideSection(section);
+        }
       }
-    };
-  
-    _initializeForm = function(section) {
-      var action, buttonName, form, onLoad;
+      document.dispatchEvent(
+        new CustomEvent('temba-formax-ready', { bubbles: true })
+      );
+    }
+  };
+  fetchAjax(section.dataset.href, id, options);
+};
 
-      action = section.data('action');
-      form = section.find("form");
-      if (action === 'formax' || action === 'redirect' || action === 'open') {
-        buttonName = section.data("button");
-        if (!buttonName) {
-          buttonName = gettext("Save");
-        }
-        form.off("submit").on("submit", _submitFormax);
-        if (!section.data("nobutton")) {
-          form.append("<input type=\"submit\" class=\"button-primary\" value=\"" + buttonName + "\"/>");
-          form.find(".form-actions").remove();
-        }
-        form.find(".submit-button").on("click", function() {
-          return $(this).addClass("disabled").attr("enabled", false);
-        });
-        onLoad = section.data("onload");
-        if (onLoad) {
-          eval_(onLoad)();
-        }
-        if (!section.data("fixed")) {
-          _bindToggle(section.find(".formax-summary"));
-        }
-        if (action === 'open') {
-          showSection(section);
-          window.scrollTo(0, section.offset().top);
-        }
-      }
-      if (action === 'fixed') {
-        return form.attr("action", section.data("href"));
-      }
-    };
-  
-    _submitFormax = function(e) {
-      var followRedirects, form, section;
-      e.preventDefault();
-      form = $(this);
-      section = form.parents(".formax-section");
-      followRedirects = section.data("action") === 'redirect';
-
-      const headers = {
-        "X-FORMAX": true
-      }
-      
-      if (section.closest(".spa-container")) {
-        headers["TEMBA-SPA"] = 1;
-      }
-
-      var formData = new FormData(this);
-      return fetchPJAXContent(section.data("href"), "#" + section.attr("id") + " > .formax-container", {
-        formData: formData,
-        headers: headers,
-        followRedirects: followRedirects,
-        onSuccess: function(resp) {
-          const redirect = resp.getResponseHeader('REDIRECT');
-          if (redirect) {
-            hideSection(section);
-            fetchData(section);
-          } else {
-            var dependents, formax_form;
-            _initializeForm(section);
-            formax_form = section.find(".formax-form");
-            if (formax_form.hasClass("errors")) {
-              section.find(".formax-summary").hide();
-              formax_form.show();
-            } else {
-              if (section.data("action") !== 'fixed') {
-                hideSection(section);              
-              }
-            }
-            dependents = section.data("dependents");
-            if (dependents) {
-              $("#id-" + dependents).each(function() {
-                return fetchData($(this));
-              });
-            }
-            document.dispatchEvent(new CustomEvent("temba-formax-ready", {bubbles: true}));
-          }
-        }
-      });
-    };
-  
-    _bindToggle = function(bindTo) {
-
-      var action, section;
-      section = bindTo.parents(".formax-section");
-      action = section.data('action');
-      if (action === 'fixed') {
-        return showSection(section);
-      } else if (action === 'formax' || action === 'redirect' || action === 'open') {
-        return bindTo.off("click").on("click", function() {
-          section = $(this);
-          if (!bindTo.tagName !== "formax") {
-            section = bindTo.parents(".formax-section");
-          }
-          $(".formax > .formax-section").each(function() {
-            if ($(this).attr("id") !== section.attr("id")) {
-              return hideSection($(this));
-            }
-          });
-          if (section[0].classList.contains("open")) {
-            return hideSection(section);
-          } else {
-            return showSection(section);
-          }
-        });
-      } else if (action === 'link') {
-        return bindTo.off("click").on("click", function() {
-          return document.location.href = section.data('href');
-        });
-      }
-    };
-  
-    $(function() {
-      $('.formax-section .formax-summary').each(function() {
-        var section;
-        section = $(this);
-        return _bindToggle(section);
-      });
-      $('.formax .formax-section').each(function() {
-        var section;
-        section = $(this);
-        return _initializeForm(section);
-      });
-      return $('.formax-section .formax-icon').each(function() {
-        var section;
-        section = $(this);
-        return _bindToggle(section);
-      });
-    });
-  
-  }).call(this);
+onSpload(function () {
+  document.querySelectorAll('.formax .formax-section').forEach(function (ele) {
+    return _initializeForm(ele);
+  });
+});

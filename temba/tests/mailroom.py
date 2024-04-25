@@ -56,6 +56,7 @@ class Mocks:
         self.calls = defaultdict(list)
         self._parse_query = {}
         self._contact_search = {}
+        self._contact_export = []
         self._contact_export_preview = []
         self._flow_start_preview = []
         self._msg_broadcast_preview = []
@@ -84,7 +85,10 @@ class Mocks:
 
         self._contact_search[query] = mock
 
-    def contact_export_preview(self, total):
+    def contact_export(self, contact_ids: list[int]):
+        self._contact_export.append({"contact_ids": contact_ids})
+
+    def contact_export_preview(self, total: int):
         self._contact_export_preview.append({"total": total})
 
     def flow_start_preview(self, query, total):
@@ -194,6 +198,17 @@ class TestClient(MailroomClient):
             return self.mocks._contact_export_preview.pop(0)
 
         return {"total": ContactGroup.objects.get(id=group_id).get_member_count()}
+
+    @_client_method
+    def contact_export(self, org_id: int, group_id: int, query: str):
+        if self.mocks._contact_export:
+            return self.mocks._contact_export.pop(0)
+
+        return {
+            "contact_ids": list(
+                ContactGroup.objects.get(id=group_id).contacts.order_by("id").values_list("id", flat=True)
+            )
+        }
 
     @_client_method
     def contact_modify(self, org_id, user_id, contact_ids, modifiers: list[Modifier]):
