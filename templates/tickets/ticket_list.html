@@ -218,9 +218,9 @@
 
         // whenever our menu changes, reset filter
         if (statusSelect) {
-          statusSelect.value = "open";
           status = "open";
           folder = menuItem.id;
+          statusSelect.setSelectedValue(status)
           updateTicketList();
         }
       }
