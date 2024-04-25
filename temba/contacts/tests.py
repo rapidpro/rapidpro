@@ -30,7 +30,7 @@ from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modi
 from temba.msgs.models import Broadcast, Msg, SystemLabel
 from temba.orgs.models import Export, Org, OrgRole
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, ESMockWithScroll, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticket, TicketCount
@@ -50,7 +50,7 @@ from .models import (
     ContactImportBatch,
     ContactURN,
 )
-from .tasks import check_elasticsearch_lag, squash_group_counts
+from .tasks import squash_group_counts
 from .templatetags.contacts import contact_field, msg_status_badge
 
 
@@ -1181,45 +1181,6 @@ class ContactGroupTest(TembaTest):
         self.assertGreater(contact1.modified_on, t1)
         self.assertGreater(contact2.modified_on, t1)
         self.assertLess(contact3.modified_on, t1)  # unchanged
-
-
-class ElasticSearchLagTest(TembaTest):
-    def test_lag(self):
-        mock_es_data = [
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": 10, "modified_on": timezone.now().isoformat()},
-            }
-        ]
-        with ESMockWithScroll(data=mock_es_data):
-            self.assertFalse(check_elasticsearch_lag())
-
-        frank = self.create_contact("Frank Smith", urns=["tel:1234", "twitter:hola"])
-
-        mock_es_data = [
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": frank.id, "modified_on": frank.modified_on.isoformat()},
-            }
-        ]
-        with ESMockWithScroll(data=mock_es_data):
-            self.assertTrue(check_elasticsearch_lag())
-
-        mock_es_data = [
-            {
-                "_type": "_doc",
-                "_index": "dummy_index",
-                "_source": {"id": frank.id, "modified_on": (frank.modified_on - timedelta(minutes=10)).isoformat()},
-            }
-        ]
-        with ESMockWithScroll(data=mock_es_data):
-            self.assertFalse(check_elasticsearch_lag())
-
-        Contact.objects.filter(id=frank.id).update(modified_on=timezone.now() - timedelta(minutes=6))
-        with ESMockWithScroll():
-            self.assertFalse(check_elasticsearch_lag())
 
 
 class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):

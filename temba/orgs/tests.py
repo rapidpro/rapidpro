@@ -42,7 +42,7 @@ from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
-from temba.tests import CRUDLTestMixin, ESMockWithScroll, MigrationTest, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import TicketExport
@@ -4046,8 +4046,7 @@ class BulkExportTest(TembaTest):
         del data["fields"]
         del data["groups"]
 
-        with ESMockWithScroll():
-            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+        self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
         flow = Flow.objects.get(name="Cataclysmic")
         self.validate_flow_dependencies(flow.get_definition())
@@ -4154,8 +4153,7 @@ class BulkExportTest(TembaTest):
 
         data = self.get_import_json("rating_10")
 
-        with ESMockWithScroll():
-            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+        self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
         # trigger1.refresh_from_db()
         # self.assertFalse(trigger1.is_archived)
@@ -4176,8 +4174,7 @@ class BulkExportTest(TembaTest):
 
         # re import again will restore the trigger
         data = self.get_import_json("rating_10")
-        with ESMockWithScroll():
-            self.org.import_app(data, self.admin, site="http://rapidpro.io")
+        self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
         flow_trigger.refresh_from_db()
 

@@ -758,7 +758,6 @@ CELERY_BROKER_TRANSPORT_OPTIONS = {"socket_timeout": 5}
 
 CELERY_BEAT_SCHEDULE = {
     "check-android-channels": {"task": "check_android_channels", "schedule": timedelta(seconds=300)},
-    "check-elasticsearch-lag": {"task": "check_elasticsearch_lag", "schedule": timedelta(seconds=300)},
     "delete-released-orgs": {"task": "delete_released_orgs", "schedule": crontab(hour=4, minute=0)},
     "expire-invitations": {"task": "expire_invitations", "schedule": crontab(hour=0, minute=10)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},
@@ -926,12 +925,6 @@ NON_ISO6391_LANGUAGES = {"mul", "und"}
 
 MAILROOM_URL = None
 MAILROOM_AUTH_TOKEN = None
-
-# -----------------------------------------------------------------------------------
-# ElasticSearch
-# -----------------------------------------------------------------------------------
-
-ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 
 # -----------------------------------------------------------------------------------
 # Data Model
