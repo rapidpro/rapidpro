@@ -138,9 +138,10 @@
   {{ block.super }}
   <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
   <script>
-    $(function() {
-      $("pre").has("code").addClass("prettyprint");
-      prettyPrint();
+    document.querySelectorAll('pre').forEach(function(pre) {
+      if (pre.querySelector('code')) {
+        prettyPrint();
+      }
     });
   </script>
 {% endblock extra-script %}

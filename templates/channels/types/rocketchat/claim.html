@@ -59,15 +59,26 @@
       return null;
     }
 
-    $("#{{ form.base_url.id_for_label }}").on("change", function() {
-      processURI($(this));
-    }).parents("form").on("submit", function(event) {
-      var input = $("#{{ form.base_url.id_for_label }}");
-      var uri = processURI(input);
-      if (uri == null) {
-        input.parents(".control-group").addClass("error")
-        input.val("");
-        event.preventDefault();
+    document.addEventListener('DOMContentLoaded', function() {
+      var inputElement = document.getElementById('{{ form.base_url.id_for_label }}');
+
+      inputElement.addEventListener('change', function() {
+        processURI(this);
+      });
+
+      var formElement = inputElement.closest('form');
+      if (formElement) {
+        formElement.addEventListener('submit', function(event) {
+          var uri = processURI(inputElement);
+          if (uri == null) {
+            var controlGroup = inputElement.closest('.control-group');
+            if (controlGroup) {
+              controlGroup.classList.add('error');
+            }
+            inputElement.value = "";
+            event.preventDefault();
+          }
+        });
       }
     });
   </script>

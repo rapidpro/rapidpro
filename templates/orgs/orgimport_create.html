@@ -85,11 +85,13 @@
   {{ block.super }}
   <script type="text/javascript">
     function updateFlowImportFile() {
-      var file = $("#file").val();
+      var fileInput = document.getElementById("file");
+      var file = fileInput.value;
       while (file.indexOf("\\") >= 0) {
-        file = file.substring(file.indexOf("\\") + 1, file.length);
+        file = file.substring(file.indexOf("\\") + 1);
       }
-      $("#file-field").val(file);
+      var fileField = document.getElementById("file-field");
+      fileField.value = file;
     }
   </script>
 {% endblock extra-script %}

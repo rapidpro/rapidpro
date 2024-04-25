@@ -64,31 +64,31 @@
   {{ block.super }}
   <script type="text/javascript">
     function updateFormForMethod(method) {
-      var bodyCtrlGroup = $('#id_body').parents('.control-group');
+      var bodyCtrlGroup = document.querySelector('#id_body').closest('.control-group');
       if (method == 'GET') {
-        bodyCtrlGroup.hide();
+        bodyCtrlGroup.classList.add('hide');
       } else {
-        bodyCtrlGroup.show();
+        bodyCtrlGroup.classList.remove('hide');
       }
     }
 
     function updateFormForScheme(scheme) {
-      var numberCtrlGroup = $('#id_number').parents('.control-group');
-      var addressCtrlGroup = $('#id_address').parents('.control-group');
-      var countryCtrlGroup = $('#id_country').parents('.control-group');
+      var numberCtrlGroup = document.querySelector('#id_number').closest('.control-group');
+      var addressCtrlGroup = document.querySelector('#id_address').closest('.control-group');
+      var countryCtrlGroup = document.querySelector('#id_country').closest('.control-group');
 
       if (scheme == 'tel') {
-        numberCtrlGroup.show();
-        addressCtrlGroup.hide();
-        countryCtrlGroup.show();
+        numberCtrlGroup.classList.remove('hide');
+        countryCtrlGroup.classList.remove('hide');
+        addressCtrlGroup.classList.add('hide');
       } else {
-        numberCtrlGroup.hide();
-        addressCtrlGroup.show();
-        countryCtrlGroup.hide();
+        numberCtrlGroup.classLst.add('hide');
+        countryCtrlGroup.classList.add('hide');
+        addressCtrlGroup.classList.remove('hide');
       }
     }
 
-    $(function() {
+    onSpload(function() {
       var methodSelect = document.querySelector("temba-select[name='method']");
       methodSelect.addEventListener('change', function(event) {
         updateFormForMethod(event.target.values[0].value);

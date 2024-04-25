@@ -64,6 +64,7 @@ function fetchAjax(url, container, options) {
   pendingRequests.push(controller);
   options['signal'] = controller.signal;
   var toFetch = url;
+
   fetch(toFetch, options)
     .then(function (response) {
       // remove our controller
@@ -73,12 +74,14 @@ function fetchAjax(url, container, options) {
 
       // if we have a version mismatch, reload the page
       var version = response.headers.get('x-temba-version');
-      if (tembaVersion != version) {
+      var org = response.headers.get('x-temba-org');
+
+      if (version && tembaVersion != version) {
         document.location.href = toFetch;
         return;
       }
 
-      if (org_id != response.headers.get('x-temba-org')) {
+      if (response.type !== 'cors' && org != org_id) {
         document.location.href = toFetch;
         return;
       }
@@ -89,36 +92,49 @@ function fetchAjax(url, container, options) {
 
       if (response.redirected) {
         var url = response.url;
-        window.history.replaceState({ url: url }, '', url);
+        if (url) {
+          window.history.replaceState({ url: url }, '', url);
+        }
       }
 
-      if (response.headers.get('x-temba-content-only') != 1) {
+      if (
+        !options.skipContentCheck &&
+        response.headers.get('x-temba-content-only') != 1
+      ) {
         document.location.href = url;
         return;
       }
 
-      response.text().then(function (body) {
-        var containerEle = document.querySelector(container);
-        if (containerEle) {
-          // special care to unmount the editor
-          var editor = document.querySelector('#rp-flow-editor');
-          if (editor) {
-            window.unmountEditor(editor);
-          }
+      if (container) {
+        response.text().then(function (body) {
+          var containerEle = document.querySelector(container);
+          if (containerEle) {
+            // special care to unmount the editor
+            var editor = document.querySelector('#rp-flow-editor');
+            if (editor) {
+              window.unmountEditor(editor);
+            }
 
-          setInnerHTML(containerEle, body);
-          var title = document.querySelector('#title-text');
-          if (title) {
-            document.title = title.innerText;
-          }
+            setInnerHTML(containerEle, body);
+            var title = document.querySelector('#title-text');
+            if (title) {
+              document.title = title.innerText;
+            }
 
-          if (options) {
-            if ('onSuccess' in options) {
-              options['onSuccess'](response);
+            if (options) {
+              if ('onSuccess' in options) {
+                options['onSuccess'](response);
+              }
             }
           }
+        });
+      } else {
+        if (options) {
+          if ('onSuccess' in options) {
+            options['onSuccess'](response);
+          }
         }
-      });
+      }
     })
     .catch(function (e) {
       // canceled
@@ -281,7 +297,7 @@ function handleMenuClicked(event) {
   var selection = items.selection;
 
   if (item.event) {
-    document.dispatchEvent(new CustomEvent(item.event, { detail: item }));  
+    document.dispatchEvent(new CustomEvent(item.event, { detail: item }));
     return;
   }
 
@@ -302,7 +318,7 @@ function handleMenuClicked(event) {
   // posterize if called for
   if (item.href && item.posterize) {
     posterize(item.href);
-  } 
+  }
 }
 
 function handleMenuChanged(event) {
@@ -447,8 +463,7 @@ document.addEventListener('DOMContentLoaded', function () {
               .then(function (response) {
                 var content = document.querySelector('.spa-content');
 
-                // remove jquery use here
-                $(content).html(response.body);
+                setInnerHTML(content, response.body);
 
                 if (response.redirected) {
                   addToHistory(response.url);
@@ -463,117 +478,21 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 });
 
-function fetchPJAXContent(url, container, options) {
-  options = options || {};
-
-  // hijack any pjax requests made from spa pages and route the content there instead
-  if (container == '#pjax' && document.querySelector('.spa-content')) {
-    container = '.spa-content';
-    options['headers'] = options['headers'] || {};
-    options['headers']['TEMBA-SPA'] = 1;
-  }
-
-  var triggerEvents = true;
-  if (!!options['ignoreEvents']) {
-    triggerEvents = false;
-  }
-
-  var type = 'GET';
-  var data = undefined;
-  var processData = true;
-  var contentType = 'application/x-www-form-urlencoded; charset=UTF-8';
-
-  if (options) {
-    if ('postData' in options) {
-      type = 'POST';
-      data = options['postData'];
-    }
-
-    if ('formData' in options) {
-      type = 'POST';
-      processData = false;
-      data = options['formData'];
-      contentType = false;
-    }
-  }
-
-  var headers = { 'X-PJAX': true };
-  if (options && 'headers' in options) {
-    for (key in options['headers']) {
-      headers[key] = options['headers'][key];
-    }
-  }
-
-  if (triggerEvents) {
-    document.dispatchEvent(new Event('temba-pjax-begin'));
-  }
-
-  // see if we should skip our fetch
-  if (options) {
-    if ('shouldIgnore' in options && options['shouldIgnore']()) {
-      if ('onIgnore' in options) {
-        options['onIgnore']();
-      }
-      return;
-    }
-  }
-
-  var request = {
-    headers: headers,
-    type: type,
-    url: url,
-    contentType: contentType,
-    processData: processData,
-    data: data,
-    success: function (response, status, jqXHR) {
-      if ('followRedirects' in options && options['followRedirects'] == true) {
-        var redirect = jqXHR.getResponseHeader('REDIRECT');
-        if (redirect) {
-          window.document.location.href = redirect;
-          return;
-        }
-      }
-
-      // double check before replacing content
-      if (options) {
-        if ('shouldIgnore' in options && options['shouldIgnore'](response)) {
-          if ('onIgnore' in options) {
-            options['onIgnore'](jqXHR);
-          }
-
-          return;
-        }
-      }
-
-      $(container).html(response);
-
-      if (triggerEvents) {
-        document.dispatchEvent(new Event('temba-pjax-complete'));
-      }
-
-      if (options) {
-        if ('onSuccess' in options) {
-          options['onSuccess'](jqXHR);
-        }
-      }
-    },
-  };
-  $.ajax(request);
-}
-
 function posterize(href) {
-  var url = $.url(href);
-  $('#posterizer').attr('action', url.attr('path'));
-  for (var key in url.param()) {
-    $('#posterizer').append(
-      "<input type='hidden' name='" +
-        key +
-        "' value='" +
-        url.param(key) +
-        "'></input>"
-    );
-  }
-  $('#posterizer').submit();
+  // use our posterizer form to submit the query string as a post
+  var url = new URL(href, window.location.origin);
+  var form = document.getElementById('posterizer');
+  form.setAttribute('action', url.pathname);
+
+  url.searchParams.forEach((value, key) => {
+    var input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = key;
+    input.value = value;
+    form.appendChild(input);
+  });
+
+  form.submit();
 }
 
 function handlePosterize(ele) {
@@ -622,18 +541,6 @@ function formatContact(item) {
     return name;
   }
   return item.text;
-}
-
-function createContactChoice(term, data) {
-  if (
-    $(data).filter(function () {
-      return this.text.localeCompare(term) === 0;
-    }).length === 0
-  ) {
-    if (!isNaN(parseFloat(term)) && isFinite(term)) {
-      return { id: 'number-' + term, text: term };
-    }
-  }
 }
 
 function handleNewWorkspaceClicked(evt) {

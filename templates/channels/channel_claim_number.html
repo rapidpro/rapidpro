@@ -37,7 +37,7 @@
         </div>
       </form>
       <div class="twilio-numbers-title"></div>
-      <div style="display:none;" class="my-6" id="throbber">
+      <div class="hide my-6" id="throbber">
         <temba-loading>
         </temba-loading>
       </div>
@@ -55,7 +55,7 @@
       </temba-alert>
     {% endif %}
   {% endif %}
-  <temba-alert level="warning" style="display:none;margin-top:10px;" id="claim-message">
+  <temba-alert level="warning" class="hide" style="mt-4" id="claim-message">
     {% if error %}{{ error }}{% endif %}
   </temba-alert>
   {% if account_numbers %}
@@ -91,65 +91,84 @@
   {{ block.super }}
   <script type="text/javascript">
     function searchNumbers(e) {
+      e.stopPropagation();
+      e.preventDefault();
+
       var pattern = document.querySelector('#pattern').value;
       var country = document.querySelector("#country").values[0].value;
 
-      $("#claim-message").hide();
-      $("#results").empty();
-      $("#throbber").show();
+      document.getElementById("claim-message").classList.add('hide');
+      document.getElementById("results").innerHTML = '';
+      document.getElementById("throbber").classList.remove('hide');
 
-      $.ajax({
-        type: "POST",
-        url: "{{ search_url }}",
-        data: {
-          pattern: pattern,
-          country: country
-        },
-        dataType: "json",
-        success: function(data, status, xhr) {
-          $("#throbber").hide();
-          if (data.length > 0) {
-            $("#claim-country").val(country);
-            for (var i = 0; i < data.length; i++) {
-              $("#results").append("<div class='lbl phone-number mt-3 mr-2 linked' data-number='" + data[i] + "'>" + data[i] + "</div>");
+      const formData = new FormData();
+      formData.append('pattern', pattern);
+      formData.append('country', country);
+
+      const headers = {
+        "X-CSRFToken": getCookie('csrftoken'),
+        "X-TEMBA-SPA": true
+      }
+      const options = {
+        body: formData,
+        method: 'POST',
+        headers: headers,
+        skipContentCheck: true,
+        onSuccess: function(response) {
+          response.json().then(function(data) {
+            var throbber = document.getElementById("throbber");
+            throbber.classList.add('hide');
+
+            var results = document.getElementById("results");
+            var claimCountry = document.getElementById("claim-country");
+            var claimMessage = document.getElementById("claim-message");
+
+            if (data.length > 0) {
+              claimCountry.value = country; // Assuming 'country' is defined in your context
+              data.forEach(function(item) {
+                var div = document.createElement('div');
+                div.className = 'lbl phone-number mt-3 mr-2 linked';
+                div.setAttribute('data-number', item);
+                div.textContent = item;
+                results.appendChild(div);
+              });
+              results.classList.remove('hide');
+            } else if ('error' in data) {
+              claimMessage.textContent = data['error'];
+              claimMessage.classList.remove('hide');
+            } else {
+              claimMessage.textContent = "{% trans 'Sorry, no numbers found, please enter another pattern and try again.' %}";
+              claimMessage.classList.remove('hide');
             }
-            $("#results").show();
-          } else if ('error' in data) {
-            $("#claim-message").text(data['error']);
-            $("#claim-message").show();
-          } else {
-            $("#claim-message").text("{% trans 'Sorry, no numbers found, please enter another pattern and try again.' %}");
-            $("#claim-message").show();
-          }
-        },
-        failure: function(req) {
-          $("#throbber").hide();
-          $("#claim-message").show();
-        }
-      });
 
-      e.preventDefault();
+          });
+        }
+      };
+
+      fetchAjax("{{search_url}}", null, options);
       return false;
     }
 
     onSpload(function() {
-      // the user has clicked a number from search results
-      $("#results").on('click', ".phone-number", function(e) {
-        var country = document.querySelector("#country").values[0].value;
-
-        $("#phone-number").val($(this).data("number"));
-        $("#claim-country").val(country);
-        $("#claim-form").submit();
+      document.getElementById('results').addEventListener('click', function(e) {
+        if (e.target.classList.contains('phone-number')) {
+          var country = document.querySelector("#country").value; // Assuming there's a single value to fetch
+          document.getElementById("phone-number").value = e.target.getAttribute("data-number");
+          document.getElementById("claim-country").value = country;
+          document.getElementById("claim-form").submit();
+        }
       });
 
-      // the user has clicked an existing number in their account
-      $("#account-numbers").on('click', ".phone-number", function(e) {
-        $("#phone-number").val($(this).data("number"));
-        $("#claim-country").val($(this).data("country"));
-        $("#claim-form").submit();
+      document.getElementById('account-numbers').addEventListener('click', function(e) {
+        if (e.target.classList.contains('phone-number')) {
+          document.getElementById("phone-number").value = e.target.getAttribute("data-number");
+          document.getElementById("claim-country").value = e.target.getAttribute("data-country");
+          document.getElementById("claim-form").submit();
+        }
       });
 
-      $("#search-form").on('submit', searchNumbers);
+      document.getElementById('search-form').addEventListener('submit', searchNumbers);
+
     });
   </script>
 {% endblock extra-script %}

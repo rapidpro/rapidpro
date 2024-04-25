@@ -38,36 +38,38 @@
   </script>
   <script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
   <script type="text/javascript">
-    $(document).ready(function() {
-      $(".connect-facebook").click(function(evt) {
+    onSpload(function() {
+      const connectFB = document.querySelector(".connect-facebook");
+      connectFB.addEventListener('click', function(evt) {
+
         {% if facebook_login_messenger_config_id %}
         FB.login(function(response) {
           if (response.status === 'connected') {
-            $("#fb-user-id").val(response.authResponse.userID);
-            $("#user-access-token").val(response.authResponse.accessToken);
-            $("#refresh-token-form").submit();
+            document.getElementById("fb-user-id").value = response.authResponse.userID;
+            document.getElementById("user-access-token").value = response.authResponse.accessToken;
+            document.getElementById("refresh-token-form").submit();
           } else {
-            $("#fb-status").hide();
-            $("#fb-channel-error").show();
+            document.getElementById("fb-status").style.display = 'none';
+            document.getElementById("fb-channel-error").style.display = 'block';
           }
-
         }, {
           config_id: '{{ facebook_login_messenger_config_id }}'
         });
+
         {% else %}
         FB.login(function(response) {
           if (response.status === 'connected') {
-            $("#fb-user-id").val(response.authResponse.userID);
-            $("#user-access-token").val(response.authResponse.accessToken);
-            $("#refresh-token-form").submit();
+            document.getElementById("fb-user-id").value = response.authResponse.userID;
+            document.getElementById("user-access-token").value = response.authResponse.accessToken;
+            document.getElementById("refresh-token-form").submit();
           } else {
-            $("#fb-status").hide();
-            $("#fb-channel-error").show();
+            document.getElementById("fb-status").style.display = 'none';
+            document.getElementById("fb-channel-error").style.display = 'block';
           }
-
         }, {
           scope: 'pages_messaging,pages_show_list,pages_manage_metadata,pages_read_engagement'
         });
+
         {% endif %}
 
       })

@@ -145,9 +145,7 @@
       var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
 
       if (event.detail.button.attributes.destructive) {
-        jQuery.ajaxSettings.traditional = true;
         var url = "{% url 'triggers.trigger_archived' %}";
-
         var store = document.querySelector("temba-store");
         store.postForm(url, {
           action: "delete",

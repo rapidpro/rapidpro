@@ -1,4 +1,8 @@
-<script src="{{ STATIC_URL }}js/formax.js"></script>
+{% load compress %}
+
+{% compress js %}
+  <script src="{{ STATIC_URL }}js/formax.js"></script>
+{% endcompress %}
 <div class="formax">
   {% for section in formax.sections %}
     <div data-dependents="{{ section.dependents }}"
@@ -9,7 +13,7 @@
          data-action="{{ section.action }}"
          class="action-{{ section.action }} {% if section.wide %}wide{% endif %} formax-section"
          id="id-{{ section.name }}">
-      <div class="formax-icon bg-gray-100 flex flex-row items-stretch">
+      <div class="formax-icon bg-gray-100 flex flex-row items-stretch" onClick="handleSectionClicked(event)">
         <div class="margin-wrapper">
           <temba-icon name="{{ section.icon }}">
           </temba-icon>

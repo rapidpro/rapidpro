@@ -44,39 +44,37 @@
 {% block extra-script %}
   {{ block.super }}
   <script type="text/javascript">
-    $(document).ready(function() {
-      {% if facebook_login_whatsapp_config_id %}
-      $(".connect-facebook").click(function(evt) {
-        $.ajax({
-          type: "GET",
-          url: "{{clear_session_token_url}}"
+    const connectFB = document.querySelector(".connect-facebook");
+    {% if facebook_login_whatsapp_config_id %}
+    connectFB.addEventListener('click', function(evt) {
+      fetchAjax("{{clear_session_token_url}}");
+      location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + "{{connect_whatsapp_url}}" + "&config_id={{ facebook_login_whatsapp_config_id }}&response_type=token&override_default_response_type=true");
+    });
+    {% else %}
+    connectFB.addEventListener('click', function(evt) {
+      fetchAjax("{{clear_session_token_url}}");
+      location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + "{{connect_whatsapp_url}}" + "&scope=business_management,whatsapp_business_management,whatsapp_business_messaging&response_type=token");
+    });
+    {% endif %}
+
+    onSpload(function() {
+      var fbChannelOptions = document.getElementById("fb-channel-options");
+      if (fbChannelOptions) {
+        fbChannelOptions.addEventListener('click', function(e) {
+          var target = e.target.closest('.fb-page-channel-option');
+
+          if (target) {
+            document.getElementById("number").value = target.getAttribute("data-number");
+            document.getElementById("verified_name").value = target.getAttribute("data-verified_name");
+            document.getElementById("phone_number_id").value = target.getAttribute("data-phone_number_id");
+            document.getElementById("business_id").value = target.getAttribute("data-business_id");
+            document.getElementById("waba_id").value = target.getAttribute("data-waba_id");
+            document.getElementById("currency").value = target.getAttribute("data-currency");
+            document.getElementById("message_template_namespace").value = target.getAttribute("data-message_template_namespace");
+            document.getElementById("claim-form").submit();
+          }
         });
-        location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + "{{connect_whatsapp_url}}" + "&config_id={{ facebook_login_whatsapp_config_id }}&response_type=token&override_default_response_type=true")
-
-      });
-      {% else %}
-      $(".connect-facebook").click(function(evt) {
-        $.ajax({
-          type: "GET",
-          url: "{{clear_session_token_url}}"
-        });
-        location.replace("https://www.facebook.com/v18.0/dialog/oauth?client_id={{ facebook_app_id }}&redirect_uri=" + window.location.origin + "{{connect_whatsapp_url}}" + "&scope=business_management,whatsapp_business_management,whatsapp_business_messaging&response_type=token")
-
-      });
-      {% endif %}
-
-
-      $("#fb-channel-options").on('click', ".fb-page-channel-option", function(e) {
-        $("#number").val($(this).data("number"));
-        $("#verified_name").val($(this).data("verified_name"));
-        $("#phone_number_id").val($(this).data("phone_number_id"));
-        $("#business_id").val($(this).data("business_id"));
-        $("#waba_id").val($(this).data("waba_id"));
-        $("#currency").val($(this).data("currency"));
-        $("#message_template_namespace").val($(this).data("message_template_namespace"));
-        $("#claim-form").submit();
-      });
-
+      }
     });
   </script>
 {% endblock extra-script %}
