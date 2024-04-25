@@ -138,7 +138,7 @@ class MailroomClientTest(TembaTest):
     def test_contact_export(self, mock_post):
         mock_post.return_value = MockResponse(200, '{"contact_ids": [123, 234]}')
 
-        response = get_client().contact_export_preview(self.org.id, 234, "age = 42")
+        response = get_client().contact_export(self.org.id, 234, "age = 42")
 
         self.assertEqual({"contact_ids": [123, 234]}, response)
         mock_post.assert_called_once_with(
