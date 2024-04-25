@@ -444,7 +444,7 @@ class Msg(models.Model):
     STATUS_WIRED = "W"  # outgoing msg requested to be sent via channel
     STATUS_SENT = "S"  # outgoing msg having received sent confirmation from channel
     STATUS_DELIVERED = "D"  # outgoing msg having received delivery confirmation from channel
-    STATUS_READ = "R"  # outgoing msg having received delivery confirmation from channel
+    STATUS_READ = "R"  # outgoing msg having received read confirmation from channel
     STATUS_ERRORED = "E"  # outgoing msg which has errored and will be retried
     STATUS_FAILED = "F"  # outgoing msg which has failed permanently
     STATUS_CHOICES = (
@@ -745,7 +745,7 @@ class Msg(models.Model):
             models.Index(
                 name="msgs_sent",
                 fields=["org", "-sent_on", "-id"],
-                condition=Q(direction="O", visibility="V", status__in=("W", "S", "D")),
+                condition=Q(direction="O", visibility="V", status__in=("W", "S", "D", "R")),
             ),
             # used for API incoming folder (unpublicized as could be dropped when CasePro is retired)
             models.Index(
@@ -760,7 +760,7 @@ class Msg(models.Model):
             ),
             models.CheckConstraint(
                 name="no_sent_status_without_sent_on",
-                check=(~Q(status__in=("W", "S", "D"), sent_on__isnull=True)),
+                check=(~Q(status__in=("W", "S", "D", "R"), sent_on__isnull=True)),
             ),
         ]
 
@@ -863,7 +863,7 @@ class SystemLabel:
             qs = Msg.objects.filter(
                 direction=Msg.DIRECTION_OUT,
                 visibility=Msg.VISIBILITY_VISIBLE,
-                status__in=(Msg.STATUS_WIRED, Msg.STATUS_SENT, Msg.STATUS_DELIVERED),
+                status__in=(Msg.STATUS_WIRED, Msg.STATUS_SENT, Msg.STATUS_DELIVERED, Msg.STATUS_READ),
             )
         elif label_type == cls.TYPE_FAILED:
             qs = Msg.objects.filter(
@@ -887,7 +887,7 @@ class SystemLabel:
         elif label_type == cls.TYPE_OUTBOX:
             return dict(direction="out", visibility="visible", status__in=("initializing", "queued", "errored"))
         elif label_type == cls.TYPE_SENT:
-            return dict(direction="out", visibility="visible", status__in=("wired", "sent", "delivered"))
+            return dict(direction="out", visibility="visible", status__in=("wired", "sent", "delivered", "read"))
         elif label_type == cls.TYPE_FAILED:
             return dict(direction="out", visibility="visible", status="failed")
 
