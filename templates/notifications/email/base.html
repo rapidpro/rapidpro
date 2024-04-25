@@ -2,7 +2,7 @@
 {% load i18n %}
 
 {% block body %}
-  <p>{% trans "Hi" %} {{ user.first_name }}</p>
+  <p>{% trans "Hi" %} {{ notification.user.first_name }}</p>
   {% block notification-body %}
   {% endblock notification-body %}
   <p>{% trans "If you have any questions we are always here to help." %}</p>

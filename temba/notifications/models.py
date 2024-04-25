@@ -131,11 +131,10 @@ class NotificationType:
         """
         return ""
 
-    def get_email_context(self, notification):
+    def get_email_context(self, notification, branding: dict):
         return {
-            "org": notification.org,
-            "user": notification.user,
-            "target_url": self.get_target_url(notification),
+            "notification": notification,
+            "target_url": f"https://{branding['domain']}{self.get_target_url(notification)}",
         }
 
     def as_json(self, notification) -> dict:
@@ -176,6 +175,7 @@ class Notification(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="notifications")
     is_seen = models.BooleanField(default=False)
+    email_address = models.EmailField(null=True)  # only used when dest email != current user email
     email_status = models.CharField(choices=EMAIL_STATUS_CHOICES, max_length=1, default=EMAIL_STATUS_NONE)
     created_on = models.DateTimeField(default=timezone.now)
 
@@ -184,25 +184,26 @@ class Notification(models.Model):
     incident = models.ForeignKey(Incident, null=True, on_delete=models.PROTECT, related_name="notifications")
 
     @classmethod
-    def create_all(cls, org, notification_type: str, *, scope: str, users, **kwargs):
+    def create_all(cls, org, notification_type: str, *, scope: str, users, medium: str = MEDIUM_UI, **kwargs):
         for user in users:
             cls.objects.get_or_create(
                 org=org,
                 notification_type=notification_type,
                 scope=scope,
                 user=user,
-                is_seen=False,
+                is_seen=cls.MEDIUM_UI not in medium,
+                medium=medium,
                 defaults=kwargs,
             )
 
     def send_email(self):
         subject = self.type.get_email_subject(self)
         template = self.type.get_email_template(self)
-        context = self.type.get_email_context(self)
+        context = self.type.get_email_context(self, self.org.branding)
 
         if subject and template:
             sender = EmailSender.from_email_type(self.org.branding, "notifications")
-            sender.send([self.user.email], f"[{self.org.name}] {subject}", template, context)
+            sender.send([self.email_address or self.user.email], f"[{self.org.name}] {subject}", template, context)
         else:  # pragma: no cover
             logger.error(f"pending emails for notification type {self.type.slug} not configured for email")
 

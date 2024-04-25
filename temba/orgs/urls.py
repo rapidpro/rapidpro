@@ -5,6 +5,7 @@ from .models import IntegrationType
 from .views import (
     ConfirmAccessView,
     ExportCRUDL,
+    InvitationCRUDL,
     LoginView,
     OrgCRUDL,
     OrgImportCRUDL,
@@ -17,6 +18,7 @@ from .views import (
 urlpatterns = OrgCRUDL().as_urlpatterns()
 urlpatterns += OrgImportCRUDL().as_urlpatterns()
 urlpatterns += UserCRUDL().as_urlpatterns()
+urlpatterns += InvitationCRUDL().as_urlpatterns()
 urlpatterns += ExportCRUDL().as_urlpatterns()
 
 # we iterate all our integration types, finding all the URLs they want to wire in

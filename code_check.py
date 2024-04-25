@@ -42,7 +42,7 @@ if __name__ == "__main__":
     cmd("black temba")
 
     status("Running ruff")
-    cmd("ruff temba")
+    cmd("ruff check temba")
 
     # if any code changes were made, exit with error
     if cmd("git diff temba locale"):

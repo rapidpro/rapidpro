@@ -1,3 +1,29 @@
+v9.1.95 (2024-04-25)
+-------------------------
+ * Change ordering of non-search based exports to be id to match search based
+ * Use mailroom endpoint for search based contact exports
+ * Remove cancel button from contact import page and remove duplicate styles
+ * Tweak layout of user edit form
+ * Email notification that account email has changed should include the new email address
+
+v9.1.94 (2024-04-24)
+-------------------------
+ * Fix changing password so user isn't logged out
+ * Fix user edit form allowing insecure passwords
+
+v9.1.93 (2024-04-24)
+-------------------------
+ * Add notification types for when email or password is changed
+ * Expire unaccepted invitations after 30 days
+ * Move invitation form into modal
+
+v9.1.92 (2024-04-23)
+-------------------------
+ * Remove start url for surveyors and instead do login redirect
+ * Fix to disallow content type vs extension mismatching for media uploads
+ * Fix to limit sending user verification email to 1 per 10 minutes
+ * Remove warning for flows that don't specify Facebook topic
+
 v9.1.91 (2024-04-18)
 -------------------------
  * Fix select race

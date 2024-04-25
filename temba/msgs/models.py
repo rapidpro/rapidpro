@@ -39,7 +39,17 @@ class Media(models.Model):
     An uploaded media file that can be used as an attachment on messages.
     """
 
-    ALLOWED_CONTENT_TYPES = ("image/*", "audio/*", "video/*", "application/pdf")
+    ALLOWED_CONTENT_TYPES = (
+        "image/apng",
+        "image/avif",
+        "image/gif",
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "audio/*",
+        "video/*",
+        "application/pdf",
+    )
     MAX_UPLOAD_SIZE = 1024 * 1024 * 25  # 25MB
 
     STATUS_PENDING = "P"

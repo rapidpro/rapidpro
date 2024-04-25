@@ -6,15 +6,17 @@
 {% endblock extra-style %}
 {% block fields %}
   <div class="mb-4">
-    <div class="field formax-vertical">{% render_field 'first_name' %}</div>
-    <div class="field formax-vertical">{% render_field 'last_name' %}</div>
-    <div class="field formax-vertical">{% render_field 'avatar' %}</div>
+    <div class="flex">
+      <div class="flex-auto mr-4">{% render_field 'first_name' %}</div>
+      <div class="flex-auto">{% render_field 'last_name' %}</div>
+    </div>
+    <div class="field">{% render_field 'avatar' %}</div>
     {% if form.fields.language %}
-      <div class="field formax-vertical">{% render_field 'language' %}</div>
+      <div class="field">{% render_field 'language' %}</div>
     {% endif %}
-    <div class="field formax-vertical">{% render_field 'email' %}</div>
-    <div class="field formax-vertical">{% render_field 'new_password' %}</div>
-    <div class="field formax-vertical p-4 bg-gray-100 rounded-lg mt-4 hidden" id="current-password">
+    <div class="field">{% render_field 'email' %}</div>
+    <div class="field">{% render_field 'new_password' %}</div>
+    <div class="field p-4 bg-gray-100 rounded-lg mt-4 hidden" id="current-password">
       <div class="mb-2">
         {% blocktrans trimmed %}
           Confirm your current password to save these changes

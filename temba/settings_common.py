@@ -462,6 +462,7 @@ GROUP_PERMISSIONS = {
         "notifications.incident.*",
         "notifications.notification.*",
         "orgs.export.*",
+        "orgs.invitation.*",
         "orgs.org_country",
         "orgs.org_create",
         "orgs.org_dashboard",
@@ -697,6 +698,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 ANONYMOUS_USER_NAME = "AnonymousUser"
 
+INVITATION_VALIDITY = timedelta(days=30)
+
 _db_host = "localhost"
 _redis_host = "localhost"
 
@@ -757,6 +760,7 @@ CELERY_BEAT_SCHEDULE = {
     "check-android-channels": {"task": "check_android_channels", "schedule": timedelta(seconds=300)},
     "check-elasticsearch-lag": {"task": "check_elasticsearch_lag", "schedule": timedelta(seconds=300)},
     "delete-released-orgs": {"task": "delete_released_orgs", "schedule": crontab(hour=4, minute=0)},
+    "expire-invitations": {"task": "expire_invitations", "schedule": crontab(hour=0, minute=10)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},
     "interrupt-flow-sessions": {"task": "interrupt_flow_sessions", "schedule": crontab(hour=23, minute=30)},
     "resolve-twitter-ids": {"task": "resolve_twitter_ids", "schedule": timedelta(seconds=900)},

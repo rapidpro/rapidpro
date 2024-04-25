@@ -2,7 +2,7 @@
 {% load i18n %}
 
 {% block notification-body %}
-{% blocktrans trimmed with url="https://"|add:branding.domain|add:target_url %}
+{% blocktrans trimmed with url=target_url %}
 Your WhatsApp channel ({{ url }}) is currently having problems fetching templates.
 {% endblocktrans %}
 {% endblock notification-body %}

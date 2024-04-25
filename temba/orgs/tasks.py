@@ -2,6 +2,7 @@ import logging
 from datetime import timedelta
 
 from celery import shared_task
+from django_redis import get_redis_connection
 
 from django.conf import settings
 from django.utils import timezone
@@ -29,19 +30,19 @@ def perform_export(export_id):
 
 
 @shared_task
-def send_invitation_email_task(invitation_id):
-    invitation = Invitation.objects.get(id=invitation_id)
-    invitation.send_email()
-
-
-@shared_task
 def send_user_verification_email(org_id, user_id):
+    r = get_redis_connection()
     org = Org.objects.get(id=org_id)
     user = User.objects.get(id=user_id)
 
     assert user in org.get_users()
 
     if user.settings.email_status == UserSettings.STATUS_VERIFIED:
+        return
+
+    key = f"send_verification_email:{user.email}".lower()
+
+    if r.exists(key):
         return
 
     verification_secret = user.settings.email_verification_secret
@@ -58,6 +59,8 @@ def send_user_verification_email(org_id, user_id):
         "orgs/email/email_verification",
         {"org": org, "secret": verification_secret},
     )
+
+    r.set(key, "1", ex=60 * 10)
 
 
 @shared_task
@@ -93,6 +96,18 @@ def restart_stalled_exports():
     )
     for export in exports:
         perform_export.delay(export.id)
+
+
+@cron_task(lock_timeout=7200)
+def expire_invitations():
+    # delete any invitations that are no longer valid
+    expire_before = timezone.now() - settings.INVITATION_VALIDITY
+    num_expired = 0
+    for invitation in Invitation.objects.filter(created_on__lt=expire_before, is_active=True):
+        invitation.release()
+        num_expired += 1
+
+    return {"expired": num_expired}
 
 
 @cron_task(lock_timeout=7 * 24 * 60 * 60)

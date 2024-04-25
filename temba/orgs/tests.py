@@ -5,6 +5,7 @@ from unittest.mock import patch
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
+from django_redis import get_redis_connection
 from smartmin.users.models import FailedLogin, RecoveryToken
 
 from django.conf import settings
@@ -52,7 +53,13 @@ from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .context_processors import RolePermsWrapper
 from .models import BackupToken, Export, Invitation, Org, OrgImport, OrgMembership, OrgRole, User, UserSettings
-from .tasks import delete_released_orgs, restart_stalled_exports, send_user_verification_email, trim_exports
+from .tasks import (
+    delete_released_orgs,
+    expire_invitations,
+    restart_stalled_exports,
+    send_user_verification_email,
+    trim_exports,
+)
 
 
 class OrgRoleTest(TembaTest):
@@ -126,6 +133,32 @@ class InvitationTest(TembaTest):
         invitation.release()
 
         self.assertFalse(invitation.is_active)
+
+    def test_expire_task(self):
+        invitation1 = Invitation.objects.create(
+            org=self.org,
+            user_group="E",
+            email="neweditor@nyaruka.com",
+            created_by=self.admin,
+            created_on=timezone.now() - timedelta(days=31),
+            modified_by=self.admin,
+        )
+        invitation2 = Invitation.objects.create(
+            org=self.org,
+            user_group="T",
+            email="newagent@nyaruka.com",
+            created_by=self.admin,
+            created_on=timezone.now() - timedelta(days=29),
+            modified_by=self.admin,
+        )
+
+        expire_invitations()
+
+        invitation1.refresh_from_db()
+        invitation2.refresh_from_db()
+
+        self.assertFalse(invitation1.is_active)
+        self.assertTrue(invitation2.is_active)
 
 
 class UserTest(TembaTest):
@@ -1006,329 +1039,6 @@ class OrgTest(TembaTest):
 
         mock_async_start.assert_called_once()
 
-    @override_settings(SEND_EMAILS=True)
-    def test_manage_accounts(self):
-        url = reverse("orgs.org_manage_accounts")
-        settings_url = reverse("orgs.org_workspace")
-
-        # can't access as editor
-        self.login(self.editor)
-        response = self.client.get(url)
-        self.assertLoginRedirect(response)
-
-        # can't access as admin either because we don't have that feature enabled
-        self.login(self.admin)
-        response = self.client.get(url)
-        self.assertRedirect(response, settings_url)
-
-        self.org.features = [Org.FEATURE_USERS, Org.FEATURE_VIEWERS]
-        self.org.save(update_fields=("features",))
-
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            [("A", "Administrator"), ("E", "Editor"), ("V", "Viewer"), ("T", "Agent"), ("S", "Surveyor")],
-            response.context["form"].fields["invite_role"].choices,
-        )
-
-        # give users an API token and give admin and editor an additional surveyor-role token
-        APIToken.get_or_create(self.org, self.admin)
-        APIToken.get_or_create(self.org, self.editor)
-        APIToken.get_or_create(self.org, self.surveyor)
-        APIToken.get_or_create(self.org, self.admin, role=OrgRole.SURVEYOR)
-        APIToken.get_or_create(self.org, self.editor, role=OrgRole.SURVEYOR)
-
-        actual_fields = response.context["form"].fields
-        expected_fields = ["loc", "invite_emails", "invite_role"]
-        for user in self.org.users.all():
-            expected_fields.extend([f"user_{user.id}_role", f"user_{user.id}_remove"])
-
-        self.assertEqual(set(expected_fields), set(actual_fields.keys()))
-
-        self.assertEqual("A", actual_fields[f"user_{self.admin.id}_role"].initial)
-        self.assertEqual("E", actual_fields[f"user_{self.editor.id}_role"].initial)
-        self.assertEqual(None, actual_fields["invite_emails"].initial)
-        self.assertEqual("V", actual_fields["invite_role"].initial)
-
-        # leave admin, editor and agent as is, but change user to an editor too, and remove the surveyor user
-        response = self.client.post(
-            url,
-            {
-                f"user_{self.admin.id}_role": "A",
-                f"user_{self.editor.id}_role": "E",
-                f"user_{self.user.id}_role": "E",
-                f"user_{self.surveyor.id}_role": "S",
-                f"user_{self.surveyor.id}_remove": "1",
-                f"user_{self.agent.id}_role": "T",
-                "invite_emails": "",
-                "invite_role": "V",
-            },
-        )
-        self.assertRedirect(response, reverse("orgs.org_manage_accounts"))
-
-        self.assertEqual({self.admin, self.agent, self.editor, self.user}, set(self.org.users.all()))
-        self.assertEqual({self.admin}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
-        self.assertEqual({self.user, self.editor}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
-        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
-        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.SURVEYOR])))
-        self.assertEqual({self.agent}, set(self.org.get_users(roles=[OrgRole.AGENT])))
-
-        # our surveyor's API token will have been deleted
-        self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 2)
-        self.assertEqual(self.editor.api_tokens.filter(is_active=True).count(), 2)
-        self.assertEqual(self.surveyor.api_tokens.filter(is_active=True).count(), 0)
-
-        # next we leave existing roles unchanged, but try to invite new user to be admin with an invalid email address
-        response = self.client.post(
-            url,
-            {
-                f"user_{self.admin.id}_role": "A",
-                f"user_{self.editor.id}_role": "E",
-                f"user_{self.user.id}_role": "E",
-                f"user_{self.agent.id}_role": "T",
-                "invite_emails": "norkans7gmail.com",
-                "invite_role": "A",
-            },
-        )
-        self.assertFormError(response.context["form"], "invite_emails", "One of the emails you entered is invalid.")
-
-        # try again with valid email
-        response = self.client.post(
-            url,
-            {
-                f"user_{self.admin.id}_role": "A",
-                f"user_{self.editor.id}_role": "E",
-                f"user_{self.user.id}_role": "E",
-                f"user_{self.agent.id}_role": "T",
-                "invite_emails": "norkans7@gmail.com",
-                "invite_role": "A",
-            },
-        )
-        self.assertRedirect(response, reverse("orgs.org_manage_accounts"))
-
-        # an invitation is created
-        invitation = Invitation.objects.get()
-        self.assertEqual(self.org, invitation.org)
-        self.assertEqual("norkans7@gmail.com", invitation.email)
-        self.assertEqual("A", invitation.user_group)
-
-        # and sent by email
-        self.assertEqual(1, len(mail.outbox))
-
-        # pretend our invite was acted on
-        invitation.is_active = False
-        invitation.save()
-
-        # no longer appears in list
-        response = self.client.get(url)
-        self.assertNotContains(response, "norkans7@gmail.com")
-
-        # include multiple emails on the form
-        self.client.post(
-            url,
-            {
-                f"user_{self.admin.id}_role": "A",
-                f"user_{self.editor.id}_role": "E",
-                f"user_{self.user.id}_role": "E",
-                f"user_{self.agent.id}_role": "T",
-                "invite_emails": "norbert@temba.com,code@temba.com",
-                "invite_role": "A",
-            },
-        )
-
-        # now 2 new invitations are created and sent
-        self.assertEqual(3, Invitation.objects.all().count())
-        self.assertEqual(3, len(mail.outbox))
-
-        response = self.client.get(url)
-
-        # user ordered by email
-        users_on_form = [row["user"] for row in response.context["form"].user_rows]
-        self.assertEqual([self.admin, self.agent, self.editor, self.user], users_on_form)
-
-        # invites ordered by email as well
-        invites_on_form = [row["invite"].email for row in response.context["form"].invite_rows]
-        self.assertEqual(["code@temba.com", "norbert@temba.com"], invites_on_form)
-
-        # users for whom nothing is submitted for remain unchanged
-        response = self.client.post(
-            url,
-            {
-                f"user_{self.admin.id}_role": "A",
-                "invite_emails": "",
-                "invite_role": "A",
-            },
-        )
-        self.assertEqual(200, response.status_code)
-
-        self.org.refresh_from_db()
-        self.assertEqual(set(self.org.users.all()), {self.admin, self.agent, self.editor, self.user})
-        self.assertEqual({self.admin}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
-        self.assertEqual({self.user, self.editor}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
-        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
-        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.SURVEYOR])))
-        self.assertEqual({self.agent}, set(self.org.get_users(roles=[OrgRole.AGENT])))
-
-        # try to remove ourselves as admin
-        response = self.client.post(
-            url,
-            {
-                f"user_{self.admin.id}_role": "A",
-                f"user_{self.admin.id}_remove": "1",
-                f"user_{self.editor.id}_role": "S",
-                f"user_{self.user.id}_role": "E",
-                f"user_{self.agent.id}_role": "T",
-                "invite_emails": "",
-                "invite_role": "V",
-            },
-        )
-        self.assertFormError(response.context["form"], None, "A workspace must have at least one administrator.")
-
-        # try to downgrade ourselves to an editor
-        response = self.client.post(
-            url,
-            {
-                f"user_{self.admin.id}_role": "E",
-                f"user_{self.editor.id}_role": "S",
-                f"user_{self.user.id}_role": "E",
-                f"user_{self.agent.id}_role": "T",
-                "invite_emails": "",
-                "invite_role": "V",
-            },
-        )
-        self.assertFormError(response.context["form"], None, "A workspace must have at least one administrator.")
-
-        # finally upgrade agent to admin, downgrade editor to agent, remove ourselves entirely and remove last invite
-        last_invite = Invitation.objects.last()
-        response = self.client.post(
-            url,
-            {
-                f"user_{self.admin.id}_role": "A",
-                f"user_{self.admin.id}_remove": "1",
-                f"user_{self.editor.id}_role": "T",
-                f"user_{self.user.id}_role": "E",
-                f"user_{self.agent.id}_role": "A",
-                f"invite_{last_invite.id}_remove": "1",
-                "invite_emails": "",
-                "invite_role": "V",
-            },
-        )
-
-        # we should be redirected to chooser page
-        self.assertRedirect(response, reverse("orgs.org_choose"))
-
-        self.assertEqual(2, Invitation.objects.all().count())
-
-        # and removed from this org
-        self.org.refresh_from_db()
-        self.assertEqual(set(self.org.users.all()), {self.agent, self.editor, self.user})
-        self.assertEqual({self.agent}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
-        self.assertEqual({self.user}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
-        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
-        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.SURVEYOR])))
-        self.assertEqual({self.editor}, set(self.org.get_users(roles=[OrgRole.AGENT])))
-
-        # editor will have lost their API tokens
-        self.editor.refresh_from_db()
-        self.assertEqual(0, self.editor.api_tokens.filter(is_active=True).count())
-
-        # and all our API tokens for the admin are deleted
-        self.admin.refresh_from_db()
-        self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 0)
-
-        # make sure an existing user can not be invited again
-        user = self.create_user("admin1@temba.com")
-        self.org.add_user(user, OrgRole.ADMINISTRATOR)
-        self.login(user)
-
-        self.assertEqual(1, Invitation.objects.filter(is_active=True).count())
-
-        # include multiple emails on the form
-        response = self.client.post(
-            url,
-            {
-                f"user_{self.admin.id}_role": "A",
-                f"user_{self.editor.id}_role": "E",
-                f"user_{self.user.id}_role": "E",
-                f"user_{self.agent.id}_role": "T",
-                f"user_{user.id}_role": "A",
-                "invite_emails": "norbert@temba.com,code@temba.com,admin1@temba.com",
-                "invite_role": "A",
-            },
-        )
-
-        self.assertFormError(
-            response.context["form"],
-            "invite_emails",
-            "One of the emails you entered has an existing user on the workspace.",
-        )
-
-        # do not allow multiple invite on the same email
-        response = self.client.post(
-            url,
-            {
-                f"user_{self.admin.id}_role": "A",
-                f"user_{self.editor.id}_role": "E",
-                f"user_{self.user.id}_role": "E",
-                f"user_{self.agent.id}_role": "T",
-                f"user_{user.id}_role": "A",
-                "invite_emails": "norbert@temba.com,code@temba.com",
-                "invite_role": "A",
-            },
-        )
-
-        self.assertFormError(
-            response.context["form"],
-            "invite_emails",
-            "One of the emails you entered has an existing user on the workspace.",
-        )
-
-        # no error for inactive invite
-        response = self.client.post(
-            url,
-            {
-                f"user_{self.admin.id}_role": "A",
-                f"user_{self.editor.id}_role": "E",
-                f"user_{self.user.id}_role": "E",
-                f"user_{self.agent.id}_role": "T",
-                f"user_{user.id}_role": "A",
-                "invite_emails": "code@temba.com, code@temba.com",
-                "invite_role": "A",
-            },
-        )
-
-        self.assertFormError(response.context["form"], "invite_emails", "One of the emails you entered is duplicated.")
-
-        # no error for inactive invite
-        response = self.client.post(
-            url,
-            {
-                f"user_{self.admin.id}_role": "A",
-                f"user_{self.editor.id}_role": "E",
-                f"user_{self.user.id}_role": "E",
-                f"user_{self.agent.id}_role": "T",
-                f"user_{user.id}_role": "A",
-                "invite_emails": "code@temba.com",
-                "invite_role": "A",
-            },
-        )
-
-        self.assertEqual(2, Invitation.objects.filter(is_active=True).count())
-        self.assertTrue(Invitation.objects.filter(is_active=True, email="code@temba.com").exists())
-        self.assertEqual(4, len(mail.outbox))
-
-        # check restriction of roles - remove viewer (org level) and surveyor (deploy level) features
-        self.org.features = [Org.FEATURE_USERS]
-        self.org.save(update_fields=("features",))
-
-        with self.settings(FEATURES=[]):
-            response = self.client.get(url)
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(
-                [("A", "Administrator"), ("E", "Editor"), ("T", "Agent")],
-                response.context["form"].fields["invite_role"].choices,
-            )
-
     def test_prometheus(self):
         # visit as viewer, no prometheus section
         self.login(self.user)
@@ -1958,7 +1668,150 @@ class AnonOrgTest(TembaTest):
 
 
 class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
-    def test_manage_sub_orgs(self):
+    @override_settings(SEND_EMAILS=True)
+    def test_manage_accounts(self):
+        accounts_url = reverse("orgs.org_manage_accounts")
+        settings_url = reverse("orgs.org_workspace")
+
+        # nobody can access if we don't have users feature
+        self.login(self.admin)
+        self.assertRedirect(self.client.get(accounts_url), settings_url)
+
+        self.org.features = [Org.FEATURE_USERS, Org.FEATURE_VIEWERS]
+        self.org.save(update_fields=("features",))
+
+        # create invitations
+        invitation1 = Invitation.objects.create(
+            org=self.org, email="norkans7@gmail.com", user_group="A", created_by=self.admin, modified_by=self.admin
+        )
+        invitation2 = Invitation.objects.create(
+            org=self.org, email="bob@tickets.com", user_group="T", created_by=self.admin, modified_by=self.admin
+        )
+
+        # only admins can access
+        self.assertRequestDisallowed(accounts_url, [None, self.user, self.editor])
+
+        # order should be users by email, then invitations by email
+        expected_fields = []
+        for user in self.org.users.order_by("email"):
+            expected_fields.extend([f"user_{user.id}_role", f"user_{user.id}_remove"])
+        for inv in self.org.invitations.order_by("email"):
+            expected_fields.extend([f"invite_{inv.id}_role", f"invite_{inv.id}_remove"])
+
+        response = self.assertUpdateFetch(accounts_url, [self.admin], form_fields=expected_fields)
+
+        self.assertEqual("A", response.context["form"].fields[f"user_{self.admin.id}_role"].initial)
+        self.assertEqual("E", response.context["form"].fields[f"user_{self.editor.id}_role"].initial)
+
+        self.assertContains(response, "norkans7@gmail.com")
+
+        # give users an API token and give admin and editor an additional surveyor-role token
+        APIToken.get_or_create(self.org, self.admin)
+        APIToken.get_or_create(self.org, self.editor)
+        APIToken.get_or_create(self.org, self.surveyor)
+        APIToken.get_or_create(self.org, self.admin, role=OrgRole.SURVEYOR)
+        APIToken.get_or_create(self.org, self.editor, role=OrgRole.SURVEYOR)
+
+        # leave admin, editor and agent as is, but change user to an editor too, and remove the surveyor user
+        response = self.assertUpdateSubmit(
+            accounts_url,
+            self.admin,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.editor.id}_role": "E",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.surveyor.id}_role": "S",
+                f"user_{self.surveyor.id}_remove": "1",
+                f"user_{self.agent.id}_role": "T",
+            },
+        )
+        self.assertRedirect(response, reverse("orgs.org_manage_accounts"))
+
+        self.assertEqual({self.admin, self.agent, self.editor, self.user}, set(self.org.users.all()))
+        self.assertEqual({self.admin}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
+        self.assertEqual({self.user, self.editor}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
+        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
+        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.SURVEYOR])))
+        self.assertEqual({self.agent}, set(self.org.get_users(roles=[OrgRole.AGENT])))
+
+        # our surveyor's API token will have been deleted
+        self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 2)
+        self.assertEqual(self.editor.api_tokens.filter(is_active=True).count(), 2)
+        self.assertEqual(self.surveyor.api_tokens.filter(is_active=True).count(), 0)
+
+        # pretend our first invite was acted on
+        invitation1.release()
+
+        # no longer appears in list
+        response = self.client.get(accounts_url)
+        self.assertNotContains(response, "norkans7@gmail.com")
+
+        # try to remove ourselves as admin
+        response = self.assertUpdateSubmit(
+            accounts_url,
+            self.admin,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.admin.id}_remove": "1",
+                f"user_{self.editor.id}_role": "E",
+                f"user_{self.user.id}_role": "V",
+                f"user_{self.agent.id}_role": "T",
+            },
+            form_errors={"__all__": "A workspace must have at least one administrator."},
+            object_unchanged=self.org,
+        )
+
+        # try to downgrade ourselves to an editor
+        response = self.assertUpdateSubmit(
+            accounts_url,
+            self.admin,
+            {
+                f"user_{self.admin.id}_role": "E",
+                f"user_{self.editor.id}_role": "E",
+                f"user_{self.user.id}_role": "V",
+                f"user_{self.agent.id}_role": "T",
+            },
+            form_errors={"__all__": "A workspace must have at least one administrator."},
+            object_unchanged=self.org,
+        )
+
+        # finally upgrade agent to admin, downgrade editor to agent, remove ourselves entirely and remove last invite
+        response = self.assertUpdateSubmit(
+            accounts_url,
+            self.admin,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.admin.id}_remove": "1",
+                f"user_{self.editor.id}_role": "T",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.agent.id}_role": "A",
+                f"invite_{invitation2.id}_remove": "1",
+            },
+        )
+
+        # we should be redirected to chooser page
+        self.assertRedirect(response, reverse("orgs.org_choose"))
+
+        self.assertEqual(0, self.org.invitations.filter(is_active=True).count())
+
+        # and removed from this org
+        self.org.refresh_from_db()
+        self.assertEqual(set(self.org.users.all()), {self.agent, self.editor, self.user})
+        self.assertEqual({self.agent}, set(self.org.get_users(roles=[OrgRole.ADMINISTRATOR])))
+        self.assertEqual({self.user}, set(self.org.get_users(roles=[OrgRole.EDITOR])))
+        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.VIEWER])))
+        self.assertEqual(set(), set(self.org.get_users(roles=[OrgRole.SURVEYOR])))
+        self.assertEqual({self.editor}, set(self.org.get_users(roles=[OrgRole.AGENT])))
+
+        # editor will have lost their API tokens
+        self.editor.refresh_from_db()
+        self.assertEqual(0, self.editor.api_tokens.filter(is_active=True).count())
+
+        # and all our API tokens for the admin are deleted
+        self.admin.refresh_from_db()
+        self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 0)
+
+    def test_manage_children(self):
         children_url = reverse("orgs.org_sub_orgs")
 
         # give our org the multi users feature
@@ -1966,7 +1819,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.org.save()
 
         # add a sub org
-        self.child = Org.objects.create(
+        child = Org.objects.create(
             name="Child Workspace",
             timezone=ZoneInfo("US/Pacific"),
             flow_languages=["eng"],
@@ -1974,13 +1827,25 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             modified_by=self.admin,
             parent=self.org,
         )
-        self.child.initialize()
-        self.child.add_user(self.admin, OrgRole.ADMINISTRATOR)
+        child.initialize()
+        child.add_user(self.admin, OrgRole.ADMINISTRATOR)
+
+        child_accounts_url = reverse("orgs.org_manage_accounts_sub_org") + f"?org={child.id}"
 
         self.assertRequestDisallowed(children_url, [None, self.user, self.editor, self.agent])
         response = self.assertListFetch(children_url, [self.admin], choose_org=self.org)
         self.assertContains(response, "Child Workspace")
-        self.assertContains(response, reverse("orgs.org_manage_accounts_sub_org"))
+        self.assertContains(response, child_accounts_url)
+
+        # only admin for parent can see account page for child
+        self.assertRequestDisallowed(child_accounts_url, [None, self.user, self.editor, self.agent, self.admin2])
+
+        self.assertUpdateFetch(
+            child_accounts_url,
+            [self.admin],
+            form_fields=[f"user_{self.admin.id}_role", f"user_{self.admin.id}_remove"],
+            choose_org=self.org,
+        )
 
     def test_menu(self):
         menu_url = reverse("orgs.org_menu")
@@ -2804,14 +2669,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFalse(User.objects.filter(username="myal@relieves.org"))
         self.assertFalse(User.objects.filter(email="myal@relieves.org"))
 
-        post_data["current_password"] = "HelloWorld1"
-        post_data["new_password"] = "Password123"
-        response = self.client.post(reverse("orgs.user_edit"), post_data, HTTP_X_FORMAX=True)
-        self.assertEqual(200, response.status_code)
-
-        user = User.objects.get(username="myal@wr.org")
-        self.assertTrue(user.check_password("Password123"))
-
     def test_create_new(self):
         children_url = reverse("orgs.org_sub_orgs")
         create_url = reverse("orgs.org_create")
@@ -3617,40 +3474,44 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         edit_url = reverse("orgs.user_edit")
 
         # no access if anonymous
-        response = self.client.get(edit_url)
-        self.assertLoginRedirect(response)
+        self.assertRequestDisallowed(edit_url, [None])
 
-        self.login(self.admin)
-
-        response = self.client.get(edit_url)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            ["first_name", "last_name", "email", "avatar", "current_password", "new_password", "language", "loc"],
-            list(response.context["form"].fields.keys()),
+        self.assertUpdateFetch(
+            edit_url,
+            [self.admin],
+            form_fields=["first_name", "last_name", "email", "avatar", "current_password", "new_password", "language"],
         )
 
         # language is only shown if there are multiple options
         with override_settings(LANGUAGES=(("en-us", "English"),)):
-            response = self.client.get(edit_url)
-            self.assertEqual(
-                ["first_name", "last_name", "email", "avatar", "current_password", "new_password", "loc"],
-                list(response.context["form"].fields.keys()),
+            self.assertUpdateFetch(
+                edit_url,
+                [self.admin],
+                form_fields=["first_name", "last_name", "email", "avatar", "current_password", "new_password"],
             )
 
         self.admin.settings.email_status = "V"  # mark user email as verified
         self.admin.settings.save()
 
         # try to submit without required fields
-        response = self.client.post(edit_url, {})
-        self.assertEqual(200, response.status_code)
-        self.assertFormError(response.context["form"], "email", "This field is required.")
-        self.assertFormError(response.context["form"], "first_name", "This field is required.")
-        self.assertFormError(response.context["form"], "last_name", "This field is required.")
-        self.assertFormError(response.context["form"], "language", "This field is required.")
+        self.assertUpdateSubmit(
+            edit_url,
+            self.admin,
+            {},
+            form_errors={
+                "email": "This field is required.",
+                "first_name": "This field is required.",
+                "last_name": "This field is required.",
+                "language": "This field is required.",
+                "current_password": "Please enter your password to save changes.",
+            },
+            object_unchanged=self.admin,
+        )
 
         # change the name and language
-        response = self.client.post(
+        self.assertUpdateSubmit(
             edit_url,
+            self.admin,
             {
                 "avatar": self.getMockImageUpload(),
                 "language": "pt-br",
@@ -3661,20 +3522,21 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
 
-        self.assertEqual(302, response.status_code)
-
         self.admin.refresh_from_db()
         self.assertEqual("Admin User", self.admin.name)
         self.assertTrue("V", self.admin.settings.email_status)  # unchanged
         self.assertIsNotNone(self.admin.settings.avatar)
         self.assertEqual("pt-br", self.admin.settings.language)
 
+        self.assertEqual(0, self.admin.notifications.count())
+
         self.admin.settings.language = "en-us"
         self.admin.settings.save()
 
         # try to change email without entering password
-        response = self.client.post(
+        self.assertUpdateSubmit(
             edit_url,
+            self.admin,
             {
                 "language": "en-us",
                 "first_name": "Admin",
@@ -3682,14 +3544,14 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
                 "email": "admin@trileet.com",
                 "current_password": "",
             },
-        )
-        self.assertEqual(200, response.status_code)
-        self.assertFormError(
-            response.context["form"], "current_password", "Please enter your password to save changes."
+            form_errors={"current_password": "Please enter your password to save changes."},
+            object_unchanged=self.admin,
         )
 
-        response = self.client.post(
+        # submit with current password
+        self.assertUpdateSubmit(
             edit_url,
+            self.admin,
             {
                 "language": "en-us",
                 "first_name": "Admin",
@@ -3698,22 +3560,86 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
                 "current_password": "Qwerty123",
             },
         )
-        self.assertEqual(302, response.status_code)
 
+        self.admin.refresh_from_db()
         self.admin.settings.refresh_from_db()
+        self.assertEqual("admin@trileet.com", self.admin.username)
+        self.assertEqual("admin@trileet.com", self.admin.email)
         self.assertEqual("U", self.admin.settings.email_status)  # because email changed
+
+        # should have a email changed notification using old address
+        self.assertEqual({"user:email"}, set(self.admin.notifications.values_list("notification_type", flat=True)))
+        self.assertEqual("admin@nyaruka.com", self.admin.notifications.get().email_address)
+
+        # try to change password without entering current password
+        self.assertUpdateSubmit(
+            edit_url,
+            self.admin,
+            {
+                "language": "en-us",
+                "first_name": "Admin",
+                "last_name": "User",
+                "email": "admin@trileet.com",
+                "new_password": "Sesame765",
+                "current_password": "",
+            },
+            form_errors={"current_password": "Please enter your password to save changes."},
+            object_unchanged=self.admin,
+        )
+
+        # try to change password to something too simple
+        self.assertUpdateSubmit(
+            edit_url,
+            self.admin,
+            {
+                "language": "en-us",
+                "first_name": "Admin",
+                "last_name": "User",
+                "email": "admin@trileet.com",
+                "new_password": "123",
+                "current_password": "Qwerty123",
+            },
+            form_errors={"new_password": "This password is too short. It must contain at least 8 characters."},
+            object_unchanged=self.admin,
+        )
+
+        # submit with current password
+        self.assertUpdateSubmit(
+            edit_url,
+            self.admin,
+            {
+                "language": "en-us",
+                "first_name": "Admin",
+                "last_name": "User",
+                "email": "admin@trileet.com",
+                "new_password": "Sesame765",
+                "current_password": "Qwerty123",
+            },
+        )
+
+        # should have a password changed notification
+        self.assertEqual(
+            {"user:email", "user:password"}, set(self.admin.notifications.values_list("notification_type", flat=True))
+        )
+
+        # check that user still has a valid session
+        self.assertEqual(200, self.client.get(reverse("msgs.msg_inbox")).status_code)
+
+        # reset password as test suite assumes this password
+        self.admin.set_password("Qwerty123")
+        self.admin.save()
 
         # submit when language isn't an option
         with override_settings(LANGUAGES=(("en-us", "English"),)):
-            response = self.client.post(
+            self.assertUpdateSubmit(
                 edit_url,
+                self.admin,
                 {
                     "first_name": "Andy",
                     "last_name": "Flows",
                     "email": "admin@trileet.com",
                 },
             )
-            self.assertEqual(302, response.status_code)
 
             self.admin.refresh_from_db()
             self.admin.settings.refresh_from_db()
@@ -3796,6 +3722,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @override_settings(SEND_EMAILS=True)
     def test_send_verification_email(self):
+        r = get_redis_connection()
         send_verification_email_url = reverse("orgs.user_send_verification_email")
 
         # try to access before logging in
@@ -3806,6 +3733,24 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.get(send_verification_email_url)
         self.assertEqual(405, response.status_code)
+
+        key = f"send_verification_email:{self.admin.email}".lower()
+
+        # simulate haivng the redis key already set
+        r.set(key, "1", ex=60 * 10)
+
+        response = self.client.post(send_verification_email_url, {}, follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "Verification email already sent. You can retry in 10 minutes.")
+
+        self.assertEqual(0, len(mail.outbox))
+
+        # no email when the redis key is set even with the task itself
+        send_user_verification_email.delay(self.org.id, self.admin.id)
+        self.assertEqual(0, len(mail.outbox))
+
+        # remove the redis key, as the key expired
+        r.delete(key)
 
         response = self.client.post(send_verification_email_url, {}, follow=True)
         self.assertEqual(200, response.status_code)
@@ -4493,6 +4438,81 @@ class BulkExportTest(TembaTest):
         self.assertEqual("M", flow1.flow_type)
         self.assertEqual("B", flow2.flow_type)
         self.assertEqual("Background 2", flow2.name)
+
+
+class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
+    @override_settings(SEND_EMAILS=True)
+    def test_create(self):
+        create_url = reverse("orgs.invitation_create")
+
+        self.org.features = [Org.FEATURE_CHILD_ORGS, Org.FEATURE_USERS]
+        self.org.save(update_fields=("features",))
+
+        self.assertRequestDisallowed(create_url, [None, self.user, self.agent, self.editor])
+        self.assertCreateFetch(create_url, [self.admin], form_fields={"email": None, "role": "E"})
+
+        # try submitting without email
+        self.assertCreateSubmit(
+            create_url, self.admin, {"email": "", "role": "E"}, form_errors={"email": "This field is required."}
+        )
+
+        # try submitting with invalid email
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"email": "@@@@", "role": "E"},
+            form_errors={"email": "Enter a valid email address."},
+        )
+
+        # try submitting the email of an existing user (check is case-insensitive)
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"email": "EDITOR@nyaruka.com", "role": "E"},
+            form_errors={"email": "User is already a member of this workspace."},
+        )
+
+        # submit with valid email
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"email": "newguy@nyaruka.com", "role": "A"},
+            new_obj_query=Invitation.objects.filter(org=self.org, email="newguy@nyaruka.com", user_group="A").exclude(
+                secret=None
+            ),
+        )
+
+        # check invitation email has been sent
+        self.assertEqual(1, len(mail.outbox))
+
+        # try submitting for same email again
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"email": "newguy@nyaruka.com", "role": "E"},
+            form_errors={"email": "User has already been invited to this workspace."},
+        )
+
+        # view can create invitations in child orgs
+        child1 = self.org.create_new(self.admin, "Child 1", tzone.utc, as_child=True)
+        child1.features = [Org.FEATURE_USERS]
+        child1.save(update_fields=("features",))
+
+        self.org.create_new(self.admin, "Child 2", tzone.utc, as_child=True)
+
+        self.assertCreateSubmit(
+            create_url + f"?org={child1.id}",
+            self.admin,
+            {"email": "newguy@nyaruka.com", "role": "A"},
+            new_obj_query=Invitation.objects.filter(org=child1, email="newguy@nyaruka.com", user_group="A").exclude(
+                secret=None
+            ),
+        )
+        self.assertEqual(2, len(mail.outbox))
+
+        # view can't create invitations in other orgs
+        response = self.client.get(create_url + f"?org={self.org2.id}")
+        self.assertEqual(404, response.status_code)
 
 
 class BackupTokenTest(TembaTest):

@@ -375,7 +375,7 @@ class OrgRole(Enum):
     EDITOR = ("E", _("Editor"), _("Editors"), "Editors", "msgs.msg_inbox")
     VIEWER = ("V", _("Viewer"), _("Viewers"), "Viewers", "msgs.msg_inbox")
     AGENT = ("T", _("Agent"), _("Agents"), "Agents", "tickets.ticket_list")
-    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors", "orgs.org_surveyor")
+    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors", "users.login")
 
     def __init__(self, code: str, display: str, display_plural: str, group_name: str, start_view: str):
         self.code = code
@@ -1484,28 +1484,15 @@ class OrgImport(SmartModel):
 
 class Invitation(SmartModel):
     """
-    An Invitation to an e-mail address to join an Org with specific roles.
+    An invitation to an e-mail address to join an org as a specific role.
     """
 
     ROLE_CHOICES = [(r.code, r.display) for r in OrgRole]
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="invitations")
-
     email = models.EmailField()
-
     secret = models.CharField(max_length=64, unique=True)
-
     user_group = models.CharField(max_length=1, choices=ROLE_CHOICES, default=OrgRole.VIEWER.code)
-
-    @classmethod
-    def create(cls, org, user, email, role: OrgRole):
-        return cls.objects.create(org=org, email=email, user_group=role.code, created_by=user, modified_by=user)
-
-    @classmethod
-    def bulk_create_or_update(cls, org, user, emails: list, role: OrgRole):
-        for email in emails:
-            invitation = cls.create(org, user, email, role)
-            invitation.send()
 
     def save(self, *args, **kwargs):
         if not self.secret:
@@ -1518,18 +1505,6 @@ class Invitation(SmartModel):
         return OrgRole.from_code(self.user_group)
 
     def send(self):
-        """
-        Sends this invitation as an email to the user
-        """
-        from .tasks import send_invitation_email_task
-
-        send_invitation_email_task(self.id)
-
-    def send_email(self):
-        # no=op if we do not know the email
-        if not self.email:  # pragma: needs cover
-            return
-
         sender = EmailSender.from_email_type(self.org.branding, "notifications")
         sender.send(
             [self.email],

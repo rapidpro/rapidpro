@@ -45,7 +45,7 @@
       {% endif %}
       {% for row in form.invite_rows %}
         <tr>
-          <td class="opacity-50">{{ row.invite.email }} (Invite Sent)</td>
+          <td class="opacity-50">{{ row.invite.email }}</td>
           <td style="padding-top:6px" class="role w-48 opacity-50">{% render_field row.role_field %}</td>
           <td>
             <div style="width:24px" class="m-auto mt-4">{% render_field row.remove_field %}</div>
@@ -54,13 +54,6 @@
       {% endfor %}
     </tbody>
   </table>
-  <div class="card">
-    <div class="text-xl mb-0 pb-0">{% trans "Invite New Users" %}</div>
-    <div class="flex w-full items-end">
-      <div class="pr-4 flex-grow">{% render_field 'invite_emails' %}</div>
-      <div class="group w-48">{% render_field 'invite_role' %}</div>
-    </div>
-  </div>
 {% endblock fields %}
 {% block form-buttons %}
   <div class="form-actions mt-4 ml-2">

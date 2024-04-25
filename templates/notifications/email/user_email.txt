@@ -1,0 +1,8 @@
+{% extends "notifications/email/base.txt" %}
+{% load i18n %}
+
+{% block notification-body %}
+{% blocktrans with email=notification.user.email %}Your email has been changed to {{ email }}.{% endblocktrans %}
+
+{% trans "If you did not make that change, please get in touch with support." %}
+{% endblock notification-body %}
