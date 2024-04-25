@@ -10,7 +10,7 @@
     <div class="flex flex-col">
       {% for org in orgs %}
         <div class="item">
-          <a href="?organization={{ org.id }}"
+          <a href="{% url 'orgs.org_choose' %}?organization={{ org.id }}"
              onclick="handlePosterizeClick(event)"
              class="button-light m-2 posterize">{{ org.name }}</a>
         </div>
