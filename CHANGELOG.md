@@ -1,3 +1,7 @@
+v9.1.96 (2024-04-25)
+-------------------------
+ * Remove jQuery
+
 v9.1.95 (2024-04-25)
 -------------------------
  * Change ordering of non-search based exports to be id to match search based
