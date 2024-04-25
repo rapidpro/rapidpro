@@ -1265,6 +1265,7 @@ class MsgReadSerializer(ReadSerializer):
         Msg.STATUS_WIRED: "wired",
         Msg.STATUS_SENT: "sent",
         Msg.STATUS_DELIVERED: "delivered",
+        Msg.STATUS_READ: "read",
         Msg.STATUS_ERRORED: "errored",
         Msg.STATUS_FAILED: "failed",
     }

@@ -444,6 +444,7 @@ class Msg(models.Model):
     STATUS_WIRED = "W"  # outgoing msg requested to be sent via channel
     STATUS_SENT = "S"  # outgoing msg having received sent confirmation from channel
     STATUS_DELIVERED = "D"  # outgoing msg having received delivery confirmation from channel
+    STATUS_READ = "R"  # outgoing msg having received delivery confirmation from channel
     STATUS_ERRORED = "E"  # outgoing msg which has errored and will be retried
     STATUS_FAILED = "F"  # outgoing msg which has failed permanently
     STATUS_CHOICES = (
@@ -454,6 +455,7 @@ class Msg(models.Model):
         (STATUS_WIRED, _("Wired")),
         (STATUS_SENT, _("Sent")),
         (STATUS_DELIVERED, _("Delivered")),
+        (STATUS_READ, _("Read")),
         (STATUS_ERRORED, _("Error")),
         (STATUS_FAILED, _("Failed")),
     )
