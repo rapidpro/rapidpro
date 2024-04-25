@@ -1,3 +1,7 @@
+v9.1.98 (2024-04-25)
+-------------------------
+ * Fix ticket status selection
+
 v9.1.97 (2024-04-25)
 -------------------------
  * Include url for org chooser
