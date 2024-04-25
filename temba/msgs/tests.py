@@ -2775,7 +2775,7 @@ class SystemLabelTest(TembaTest):
             ),
             (
                 SystemLabel.TYPE_SENT,
-                "SELECT s.* FROM s3object s WHERE s.direction = 'out' AND s.visibility = 'visible' AND s.status IN ('wired', 'sent', 'delivered')",
+                "SELECT s.* FROM s3object s WHERE s.direction = 'out' AND s.visibility = 'visible' AND s.status IN ('wired', 'sent', 'delivered', 'read')",
             ),
             (
                 SystemLabel.TYPE_FAILED,
