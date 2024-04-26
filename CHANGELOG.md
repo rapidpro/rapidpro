@@ -1,3 +1,8 @@
+v9.1.99 (2024-04-26)
+-------------------------
+ * Remove elastic search
+ * Add support for read msg status
+
 v9.1.98 (2024-04-25)
 -------------------------
  * Fix ticket status selection
