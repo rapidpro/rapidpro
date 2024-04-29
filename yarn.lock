@@ -209,10 +209,10 @@ chalk@^4.1.0:
     ansi-styles "^4.1.0"
     supports-color "^7.1.0"
 
-codemirror@5.18.2:
-  version "5.18.2"
-  resolved "https://registry.npmjs.org/codemirror/-/codemirror-5.18.2.tgz#55b42d0190f72ec86c13f25d945f347cabc16a8e"
-  integrity sha512-xjBalLC1Yj8HqBN0x0NXlkynl7JYLz+Q0e0bbVNUwCKIw2Rr097j8QB0VvQoAHFOOCRge3nQyfoLRMx97TGccQ==
+codemirror@5.58.2:
+  version "5.58.2"
+  resolved "https://registry.yarnpkg.com/codemirror/-/codemirror-5.58.2.tgz#ed54a1796de1498688bea1cdd4e9eeb187565d1b"
+  integrity sha512-K/hOh24cCwRutd1Mk3uLtjWzNISOkm4fvXiMO7LucCrqbh6aJDdtqUziim3MZUI6wOY0rvY1SlL1Ork01uMy6w==
 
 color-convert@^1.9.0, color-convert@^1.9.3:
   version "1.9.3"

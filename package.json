@@ -11,7 +11,7 @@
   "dependencies": {
     "@nyaruka/flow-editor": "1.19.0",
     "@nyaruka/temba-components": "0.35.3",
-    "codemirror": "5.18.2",
+    "codemirror": "5.58.2",
     "colorette": "1.2.2",
     "fa-icons": "0.2.0",
     "highcharts": "5.0.6",
