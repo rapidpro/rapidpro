@@ -325,13 +325,13 @@ class ArchivesEndpoint(ListAPIMixin, BaseEndpoint):
 
     A `GET` returns the archives for your organization with the following fields.
 
-      * **archive_type** - the type of the archive: *message*, *run* (string) (filterable as `archive_type`)
-      * **start_date** - the UTC date of the archive (string) (filterable as `before` and `after`)
-      * **period** - *daily* for daily archives, *monthly* for monthly archives (string) (filterable as `period`)
-      * **record_count** - number of records in the archive (int)
-      * **size** - size of the gziped archive content (int)
-      * **hash** - MD5 hash of the gziped archive (string)
-      * **download_url** - temporary download URL of the archive (string)
+      * **archive_type** - the type of the archive, one of `message`or `run` (filterable as `archive_type`).
+      * **start_date** - the UTC date of the archive (string) (filterable as `before` and `after`).
+      * **period** - `daily` for daily archives, `monthly` for monthly archives (filterable as `period`).
+      * **record_count** - number of records in the archive (int).
+      * **size** - size of the gziped archive content (int).
+      * **hash** - MD5 hash of the gziped archive (string).
+      * **download_url** - temporary download URL of the archive (string).
 
     Example:
 
@@ -411,11 +411,11 @@ class BoundariesEndpoint(ListAPIMixin, BaseEndpoint):
     A `GET` returns the boundaries for your organization with the following fields. To include geometry,
     specify `geometry=true`.
 
-      * **osm_id** - the OSM ID for this boundary prefixed with the element type (string)
-      * **name** - the name of the administrative boundary (string)
-      * **parent** - the id of the containing parent of this boundary or null if this boundary is a country (string)
-      * **level** - the level: 0 for country, 1 for state, 2 for district (int)
-      * **geometry** - the geometry for this boundary, which will usually be a MultiPolygon (GEOJSON)
+      * **osm_id** - the OSM ID for this boundary prefixed with the element type (string).
+      * **name** - the name of the administrative boundary (string).
+      * **parent** - the id of the containing parent of this boundary or null if this boundary is a country (string).
+      * **level** - the level: 0 for country, 1 for state, 2 for district (int).
+      * **geometry** - the geometry for this boundary, which will usually be a MultiPolygon (GEOJSON).
 
     **Note that including geometry may produce a very large result so it is recommended to cache the results on the
     client side.**
@@ -498,13 +498,13 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     A `GET` returns the outgoing message activity for your organization, listing the most recent messages first.
 
      * **id** - the id of the broadcast (int), filterable as `id`.
-     * **urns** - the URNs that received the broadcast (array of strings)
-     * **contacts** - the contacts that received the broadcast (array of objects)
-     * **groups** - the groups that received the broadcast (array of objects)
-     * **text** - the message text translations (dict of strings)
-     * **attachments** - the attachment translations (dict of lists of strings)
-     * **base_language** - the default translation language (string)
-     * **status** - the status of the message (one of "queued", "sent", "failed").
+     * **urns** - the URNs that received the broadcast (array of strings).
+     * **contacts** - the contacts that received the broadcast (array of objects).
+     * **groups** - the groups that received the broadcast (array of objects).
+     * **text** - the message text translations (dict of strings).
+     * **attachments** - the attachment translations (dict of lists of strings).
+     * **base_language** - the default translation language (string).
+     * **status** - the status of the message, one of `queued`, `sent`, `failed`.
      * **created_on** - when this broadcast was either created (datetime) (filterable as `before` and `after`).
 
     Example:
@@ -634,7 +634,7 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
 
      * **uuid** - the UUID of the campaign (string), filterable as `uuid`.
      * **name** - the name of the campaign (string).
-     * **archived** - whether this campaign is archived (boolean)
+     * **archived** - whether this campaign is archived (boolean).
      * **group** - the group this campaign operates on (object).
      * **created_on** - when the campaign was created (datetime), filterable as `before` and `after`.
 
@@ -761,9 +761,9 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEn
      * **campaign** - the UUID and name of the campaign (object), filterable as `campaign` with UUID.
      * **relative_to** - the key and label of the date field this event is based on (object).
      * **offset** - the offset from our contact field (positive or negative integer).
-     * **unit** - the unit for our offset (one of "minutes, "hours", "days", "weeks").
+     * **unit** - the unit for our offset, one of `minutes`, `hours`, `days` or `weeks`.
      * **delivery_hour** - the hour of the day to deliver the message (integer 0-24, -1 indicates send at the same hour as the contact field).
-     * **message** - the message to send to the contact if this is a message event (string or translations object)
+     * **message** - the message to send to the contact by language (object).
      * **flow** - the UUID and name of the flow if this is a flow event (object).
      * **created_on** - when the event was created (datetime).
 
@@ -799,7 +799,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEn
     * **campaign** - the UUID of the campaign this event should be part of (string, can't be changed for existing events)
     * **relative_to** - the field key that this event will be relative to (string)
     * **offset** - the offset from our contact field (positive or negative integer)
-    * **unit** - the unit for our offset (one of "minutes", "hours", "days" or "weeks")
+    * **unit** - the unit for our offset (`minutes`, `hours`, `days` or `weeks`)
     * **delivery_hour** - the hour of the day to deliver the message (integer 0-24, -1 indicates send at the same hour as the field)
     * **message** - the message to send to the contact (string, required if flow is not specified)
     * **flow** - the UUID of the flow to start the contact down (string, required if message is not specified)
@@ -979,7 +979,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseEndpoint):
      * **device** - information about the device if this is an Android channel:
         * **name** - the name of the device (string).
         * **power_level** - the power level of the device (int).
-        * **power_status** - the power status, either ```CHA``` (charging) or ```DIS``` (discharging) (string).
+        * **power_status** - the power status, either `CHA` (charging) or `DIS` (discharging) (string).
         * **power_source** - the source of power as reported by Android (string).
         * **network_type** - the type of network the device is connected to as reported by Android (string).
      * **last_seen** - the datetime when this channel was last seen (datetime).
@@ -1096,10 +1096,10 @@ class ClassifiersEndpoint(ListAPIMixin, BaseEndpoint):
     A **GET** returns the classifiers for your organization, most recent first.
 
      * **uuid** - the UUID of the classifier, filterable as `uuid`.
-     * **name** - the name of the classifier
-     * **intents** - the list of intents this classifier exposes (list of strings)
-     * **type** - the type of the classifier, one of 'wit' or 'luis'
-     * **created_on** - when this classifier was created
+     * **name** - the name of the classifier.
+     * **intents** - the list of intents this classifier exposes (list of strings).
+     * **type** - the type of the classifier, one of `wit`, `luis` or `bothub`.
+     * **created_on** - when this classifier was created.
 
     Example:
 
@@ -1173,11 +1173,11 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint
     ## Listing Contacts
 
     A **GET** returns the list of contacts for your organization, in the order of last activity date. You can return
-    only deleted contacts by passing the "deleted=true" parameter to your call.
+    only deleted contacts by passing the `deleted=true` parameter to your call.
 
      * **uuid** - the UUID of the contact (string), filterable as `uuid`.
      * **name** - the name of the contact (string).
-     * **status** - the status of the contact (one of "active", "blocked", "stopped" or "archived").
+     * **status** - the status of the contact, one of `active`, `blocked`, `stopped` or `archived`.
      * **language** - the preferred language of the contact (string).
      * **urns** - the URNs associated with the contact (string array), filterable as `urn`.
      * **groups** - the UUIDs of any groups the contact is part of (array of objects), filterable as `group` with group name or UUID.
@@ -1219,11 +1219,11 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint
 
     You can add a new contact to your account by sending a **POST** request to this URL with the following JSON data:
 
-    * **name** - the full name of the contact (string, optional)
-    * **language** - the preferred language for the contact (3 letter iso code, optional)
-    * **urns** - a list of URNs you want associated with the contact (array of up to 100 strings, optional)
-    * **groups** - a list of the UUIDs of any groups this contact is part of (array of up to 100 strings, optional)
-    * **fields** - the contact fields you want to set or update on this contact (dictionary of up to 100 items, optional)
+    * **name** - the full name of the contact (string, optional).
+    * **language** - the preferred language for the contact (3 letter iso code, optional).
+    * **urns** - a list of URNs you want associated with the contact (array of up to 100 strings, optional).
+    * **groups** - a list of the UUIDs of any groups this contact is part of (array of up to 100 strings, optional).
+    * **fields** - the contact fields you want to set or update on this contact (dictionary of up to 100 items, optional).
 
     Example:
 
@@ -1444,17 +1444,17 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
 
     A **POST** can be used to perform an action on a set of contacts in bulk.
 
-    * **contacts** - the contact UUIDs or URNs (array of up to 100 strings)
+    * **contacts** - the contact UUIDs or URNs (array of up to 100 strings).
     * **action** - the action to perform, a string one of:
 
-        * _add_ - Add the contacts to the given group
-        * _remove_ - Remove the contacts from the given group
-        * _block_ - Block the contacts
-        * _unblock_ - Un-block the contacts
-        * _interrupt_ - Interrupt and end any of the contacts' active flow runs
-        * _delete_ - Permanently delete the contacts
+        * `add` - add the contacts to the given group.
+        * `remove` - remove the contacts from the given group.
+        * `block` - block the contacts.
+        * `unblock` - unblock the contacts.
+        * `interrupt` - interrupt and end any of the contacts' active flow runs.
+        * `delete` - permanently delete the contacts.
 
-    * **group** - the UUID or name of a contact group (string, optional)
+    * **group** - the UUID or name of a contact group (string, optional).
 
     Example:
 
@@ -1552,9 +1552,9 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
 
     A **GET** returns the list of custom contact fields for your organization, in the order of last created.
 
-     * **key** - the unique key of this field (string), filterable as `key`
-     * **name** - the display name of this field (string)
-     * **type** - the data type of this field (one of "text", "number", "datetime", "state", "district", "ward")
+     * **key** - the unique key of this field (string), filterable as `key`.
+     * **name** - the display name of this field (string).
+     * **type** - the data type of this field, one of `text`, `number`, `datetime`, `state`, `district` or `ward`.
 
     Example:
 
@@ -1679,16 +1679,16 @@ class FlowsEndpoint(ListAPIMixin, BaseEndpoint):
 
     A **GET** returns the list of flows for your organization, in the order of last created.
 
-     * **uuid** - the UUID of the flow (string), filterable as `uuid`
-     * **name** - the name of the flow (string)
-     * **type** - the type of the flow (one of "message", "voice", "survey"), filterable as `type`
-     * **archived** - whether this flow is archived (boolean), filterable as `archived`
-     * **labels** - the labels for this flow (array of objects)
-     * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer)
-     * **runs** - the counts of active, completed, interrupted and expired runs (object)
-     * **results** - the results that this flow may create (array)
-     * **parent_refs** - the keys of the parent flow results referenced in this flow (array)
-     * **created_on** - when this flow was created (datetime)
+     * **uuid** - the UUID of the flow (string), filterable as `uuid`.
+     * **name** - the name of the flow (string).
+     * **type** - the type of the flow (one of "message", "voice", "survey"), filterable as `type`.
+     * **archived** - whether this flow is archived (boolean), filterable as `archived`.
+     * **labels** - the labels for this flow (array of objects).
+     * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer).
+     * **runs** - the counts of active, completed, interrupted and expired runs (object).
+     * **results** - the results that this flow may create (array).
+     * **parent_refs** - the keys of the parent flow results referenced in this flow (array).
+     * **created_on** - when this flow was created (datetime).
      * **modified_on** - when this flow was last modified (datetime), filterable as `before` and `after`.
 
     Example:
@@ -1796,10 +1796,10 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
 
     A **GET** returns the globals for your organization, most recently modified first.
 
-     * **key** - the key of the global
-     * **name** - the name of the global
-     * **value** - the value of the global
-     * **modified_on** - when this global was modified
+     * **key** - the key of the global.
+     * **name** - the name of the global.
+     * **value** - the value of the global.
+     * **modified_on** - when this global was modified.
 
     Example:
 
@@ -1932,12 +1932,12 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint):
 
     A **GET** returns the list of contact groups for your organization, in the order of last created.
 
-     * **uuid** - the UUID of the group (string), filterable as `uuid`
-     * **name** - the name of the group (string), filterable as `name`
-     * **query** - the query if a smart group (string)
-     * **status** - the status (one of "initializing", "evaluating" or "ready")
-     * **system** - whether this is a system group that can't be edited (bool)
-     * **count** - the number of contacts in the group (int)
+     * **uuid** - the UUID of the group (string), filterable as `uuid`.
+     * **name** - the name of the group (string), filterable as `name`.
+     * **query** - the query if a smart group (string).
+     * **status** - the status, one of `initializing`, `evaluating` or `ready`.
+     * **system** - whether this is a system group that can't be edited (bool).
+     * **count** - the number of contacts in the group (int).
 
     Example:
 
@@ -2102,9 +2102,9 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseEndpoint):
 
     A **GET** returns the list of message labels for your organization, in the order of last created.
 
-     * **uuid** - the UUID of the label (string), filterable as `uuid`
-     * **name** - the name of the label (string), filterable as `name`
-     * **count** - the number of messages with this label (int)
+     * **uuid** - the UUID of the label (string), filterable as `uuid`.
+     * **name** - the name of the label (string), filterable as `name`.
+     * **count** - the number of messages with this label (int).
 
     Example:
 
@@ -2281,17 +2281,25 @@ class MessagesEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **urn** - the URN of the sender or receiver, depending on direction (string).
      * **channel** - the UUID and name of the channel that handled this message (object).
-     * **direction** - the direction of the message (one of "incoming" or "outgoing").
-     * **type** - the type of the message (one of "text" or "voice").
-     * **status** - the status of the message (one of "initializing", "queued", "wired", "sent", "delivered", "handled", "errored", "failed", "resent").
-     * **visibility** - the visibility of the message (one of "visible", "archived" or "deleted")
+     * **direction** - the direction of the message (one of `incoming` or `outgoing`).
+     * **type** - the type of the message (one of `text`, `optin` or `voice`).
+     * **status** - the status of the message, one of:
+         * `queued` - incoming that has not yet been handled, or outgoing message that has not yet been sent.
+         * `handled` - incoming that has been handled by a flow or put in the inbox.
+         * `wired` - outgoing that has been wired to a channel.
+         * `sent` - outgoing for which channel has confirmed that it has been sent.
+         * `delivered` - outgoing for which channel has confirmed that it has been delivered to the contact.
+         * `read` - outgoing for which channel has confirmed that it has been read by the contact.
+         * `errored` - outgoing that has errored but will be retried.
+         * `failed` - outgoing that has errored too many times and will no longer be retried.
+     * **visibility** - the visibility of the message (one of `visible`, `archived` or `deleted`)
      * **text** - the text of the message received (string). Note this is the logical view and the message may have been received as multiple physical messages.
      * **attachments** - the attachments on the message (array of objects).
      * **labels** - any labels set on this message (array of objects), filterable as `label` with label name or UUID.
      * **flow** - the UUID and name of the flow if message was part of a flow (object, optional).
      * **created_on** - when this message was either received by the channel or created (datetime) (filterable as `before` and `after`).
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime).
-     * **modified_on** - when the message was last modified (datetime)
+     * **modified_on** - when the message was last modified (datetime).
 
     You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox`, `sent` or `failed`.
     Note that you cannot filter by more than one of `contact`, `folder`, `label` or `broadcast` at the same time.
@@ -2511,17 +2519,17 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
 
     A **POST** can be used to perform an action on a set of messages in bulk.
 
-    * **messages** - the message ids (array of up to 100 integers)
+    * **messages** - the message ids (array of up to 100 integers).
     * **action** - the action to perform, a string one of:
 
-        * _label_ - Apply the given label to the messages
-        * _unlabel_ - Remove the given label from the messages
-        * _archive_ - Archive the messages
-        * _restore_ - Restore the messages if they are archived
-        * _delete_ - Permanently delete the messages
+        * `label` - apply the given label to the messages.
+        * `unlabel` - remove the given label from the messages.
+        * `archive` - archive the messages.
+        * `restore` - restore the messages if they are archived.
+        * `delete` - permanently delete the messages.
 
-    * **label** - the UUID or name of an existing label (string, optional)
-    * **label_name** - the name of a label which can be created if it doesn't exist (string, optional)
+    * **label** - the UUID or name of an existing label (string, optional).
+    * **label_name** - the name of a label which can be created if it doesn't exist (string, optional).
 
     If labelling or unlabelling messages using `label` you will get an error response (400) if the label doesn't exist.
     If labelling with `label_name` the label will be created if it doesn't exist, and if unlabelling it is ignored if
@@ -2636,9 +2644,9 @@ class ResthooksEndpoint(ListAPIMixin, BaseEndpoint):
 
     A `GET` returns the resthooks on your organization. Each resthook has the following attributes:
 
-     * **resthook** - the slug for the resthook (string)
-     * **created_on** - the datetime when this resthook was created (datetime)
-     * **modified_on** - the datetime when this resthook was last modified (datetime)
+     * **resthook** - the slug for the resthook (string).
+     * **created_on** - the datetime when this resthook was created (datetime).
+     * **modified_on** - the datetime when this resthook was last modified (datetime).
 
     Example:
 
@@ -2685,10 +2693,10 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
 
     A `GET` returns the subscribers on your organization. Each resthook subscriber has the following attributes:
 
-     * **id** - the id of the subscriber (integer, filterable)
-     * **resthook** - the resthook they are subscribed to (string, filterable)
-     * **target_url** - the url that will be notified when this event occurs
-     * **created_on** - when this subscriber was added
+     * **id** - the id of the subscriber (integer, filterable).
+     * **resthook** - the resthook they are subscribed to (string, filterable).
+     * **target_url** - the url that will be notified when this event occurs.
+     * **created_on** - when this subscriber was added.
 
     Example:
 
@@ -2927,13 +2935,13 @@ class RunsEndpoint(ListAPIMixin, BaseEndpoint):
      * **uuid** - the ID of the run (string), filterable as `uuid`.
      * **flow** - the UUID and name of the flow (object), filterable as `flow` with UUID.
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
-     * **start** - the UUID of the flow start (object)
+     * **start** - the UUID of the flow start (object).
      * **responded** - whether the contact responded (boolean), filterable as `responded`.
      * **values** - values generated by rulesets in the flow (array of objects).
      * **created_on** - the datetime when this run was started (datetime).
      * **modified_on** - when this run was last modified (datetime), filterable as `before` and `after`.
      * **exited_on** - the datetime when this run exited or null if it is still active (datetime).
-     * **exit_type** - how the run ended (one of "interrupted", "completed", "expired").
+     * **exit_type** - how the run ended, one of `interrupted`, `completed`, `expired`.
 
     Note that you cannot filter by `flow` and `contact` at the same time.
 
@@ -3087,16 +3095,16 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     By making a `GET` request you can list all the manual flow starts on your organization, in the order of last
     modified. Each flow start has the following attributes:
 
-     * **uuid** - the UUID of this flow start (string)
-     * **flow** - the flow which was started (object)
-     * **contacts** - the list of contacts that were started in the flow (objects)
-     * **groups** - the list of groups that were started in the flow (objects)
-     * **restart_participants** - whether the contacts were restarted in this flow (boolean)
-     * **exclude_active** - whether the active contacts in other flows were excluded in this flow start (boolean)
-     * **status** - the status of this flow start
-     * **params** - the dictionary of extra parameters passed to the flow start (object)
-     * **created_on** - the datetime when this flow start was created (datetime)
-     * **modified_on** - the datetime when this flow start was modified (datetime)
+     * **uuid** - the UUID of this flow start (string).
+     * **flow** - the flow which was started (object).
+     * **contacts** - the list of contacts that were started in the flow (objects).
+     * **groups** - the list of groups that were started in the flow (objects).
+     * **restart_participants** - whether the contacts were restarted in this flow (boolean).
+     * **exclude_active** - whether the active contacts in other flows were excluded in this flow start (boolean).
+     * **status** - the status of this flow start.
+     * **params** - the dictionary of extra parameters passed to the flow start (object).
+     * **created_on** - the datetime when this flow start was created (datetime).
+     * **modified_on** - the datetime when this flow start was modified (datetime).
 
     Example:
 
@@ -3265,7 +3273,7 @@ class TicketsEndpoint(ListAPIMixin, BaseEndpoint):
 
      * **uuid** - the UUID of the ticket, filterable as `uuid`.
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
-     * **status** - the status of the ticket, e.g. 'open' or 'closed'.
+     * **status** - the status of the ticket, either `open` or `closed`.
      * **topic** - the topic of the ticket (object).
      * **assignee** - the user assigned to the ticket (object).
      * **body** - the body of the ticket (string).
@@ -3357,16 +3365,16 @@ class TicketActionsEndpoint(BulkWriteAPIMixin, BaseEndpoint):
 
     A **POST** can be used to perform an action on a set of tickets in bulk.
 
-    * **tickets** - the ticket UUIDs (array of up to 100 strings)
+    * **tickets** - the ticket UUIDs (array of up to 100 strings).
     * **action** - the action to perform, a string one of:
 
-        * _assign_ - Assign the tickets to the given user
-        * _note_ - Add the given note to the tickets
-        * _close_ - Close the tickets
-        * _reopen_ - Re-open the tickets
+        * `assign` - assign the tickets to the given user.
+        * `note` - add the given note to the tickets.
+        * `close` - close the tickets.
+        * `reopen` - re-open the tickets.
 
-    * **assignee** - the email of a user (string, optional)
-    * **note** - the note to add to the tickets (string, optional)
+    * **assignee** - the email of a user (string, optional).
+    * **note** - the note to add to the tickets (string, optional).
 
     Example:
 
