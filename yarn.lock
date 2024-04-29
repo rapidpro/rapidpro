@@ -507,10 +507,10 @@ jquery-migrate@1.4.1:
   resolved "https://registry.npmjs.org/jquery-migrate/-/jquery-migrate-1.4.1.tgz#85152f3ec99a95625f4f7d0bcf62e9b8638f5a76"
   integrity sha512-RwIqqAaEC1gQ9KFtdw69wse2bUGQnGNwbkZBkCwSCYkAICMlpVxAbHmfvWaS7SfLGJrYd13FZTuuQgZ6gBotJQ==
 
-jquery@2.1.0:
-  version "2.1.0"
-  resolved "https://registry.npmjs.org/jquery/-/jquery-2.1.0.tgz#1c9a8c971d2b53dae10d72e16cbb5a1df16a4ace"
-  integrity sha512-QyJAvw0LUlUPci88C5LTFNtg4WFs70Dkqmwq4rZyOBflduKnHZakpIIDjhZVygAQbUqaghv6msUyP5TmRoNevQ==
+jquery@3.5.0:
+  version "3.5.0"
+  resolved "https://registry.yarnpkg.com/jquery/-/jquery-3.5.0.tgz#9980b97d9e4194611c36530e7dc46a58d7340fc9"
+  integrity sha512-Xb7SVYMvygPxbFMpTFQiHh1J7HClEaThguL15N/Gg37Lri/qKyhRGZYzHRyLH8Stq3Aow0LsHO2O2ci86fCrNQ==
 
 "js-tokens@^3.0.0 || ^4.0.0", js-tokens@^4.0.0:
   version "4.0.0"
