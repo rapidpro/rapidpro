@@ -1,3 +1,8 @@
+v9.1.100 (2024-04-29)
+-------------------------
+ * Tweak time limit for sessions to 89 days so things are always interrupted before archiver gets to them
+ * Cleanup API endpoint docs
+
 v9.1.99 (2024-04-26)
 -------------------------
  * Remove elastic search
