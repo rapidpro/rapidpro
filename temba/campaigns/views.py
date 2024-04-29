@@ -61,7 +61,7 @@ class CampaignCRUDL(SmartCRUDL):
                     menu_id="active",
                     name=_("Active"),
                     verbose_name=_("Active Campaigns"),
-                    icon="campaign",
+                    icon="icon.active",
                     count=org.campaigns.filter(is_active=True, is_archived=False).count(),
                     href="campaigns.campaign_list",
                 )
@@ -72,7 +72,7 @@ class CampaignCRUDL(SmartCRUDL):
                     menu_id="archived",
                     name=_("Archived"),
                     verbose_name=_("Archived Campaigns"),
-                    icon="archive",
+                    icon="icon.archive",
                     count=org.campaigns.filter(is_active=True, is_archived=True).count(),
                     href="campaigns.campaign_archived",
                 )
@@ -374,11 +374,10 @@ class CampaignEventForm(forms.ModelForm):
 
         # if its a message flow, set that accordingly
         if self.cleaned_data["event_type"] == CampaignEvent.TYPE_MESSAGE:
-
             if self.instance.id:
                 base_language = self.instance.flow.base_language
             else:
-                base_language = org.flow_languages[0] if org.flow_languages else "base"
+                base_language = org.flow_languages[0]
 
             translations = {}
             for language in self.languages:
@@ -433,7 +432,7 @@ class CampaignEventForm(forms.ModelForm):
             insert = None
 
             # if it's our primary language, allow use to steal the 'base' message
-            if org.flow_languages and org.flow_languages[0] == lang_code:
+            if org.flow_languages[0] == lang_code:
                 initial = message.get(lang_code, "")
 
                 if not initial:
@@ -469,7 +468,7 @@ class CampaignEventForm(forms.ModelForm):
                 self.languages.append(field)
 
         # determine our base language if necessary
-        base_language = org.flow_languages[0] if org.flow_languages else "base"
+        base_language = org.flow_languages[0]
 
         # if we are editing, always include the flow base language
         if self.instance.id:
@@ -720,18 +719,12 @@ class CampaignEventCRUDL(SmartCRUDL):
                     raise Http404("Campaign not found")
 
         def derive_fields(self):
-
             from copy import deepcopy
 
             fields = deepcopy(self.default_fields)
 
             # add in all of our flow languages
-            org = self.request.org
-
-            if org.flow_languages:
-                fields += org.flow_languages
-            else:
-                fields.append("base")
+            fields += self.request.org.flow_languages
 
             return fields
 

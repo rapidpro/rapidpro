@@ -149,3 +149,6 @@ class SignalWireType(ChannelType):
             raise ValidationError(
                 "Unable to update your phone number settings, please check your domain, key and token"
             )
+
+    def get_error_ref_url(self, channel, code: str) -> str:
+        return "https://developer.signalwire.com/compatibility-api/rest/overview/error-codes/"

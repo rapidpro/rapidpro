@@ -29,7 +29,7 @@ from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
 
-from .mailroom import create_contact_locally, decrement_credit, update_field_locally
+from .mailroom import create_contact_locally, update_field_locally
 from .s3 import jsonlgz_encode
 
 
@@ -67,11 +67,12 @@ class TembaTestMixin:
         self.org = Org.objects.create(
             name="Nyaruka",
             timezone=pytz.timezone("Africa/Kigali"),
-            brand=settings.DEFAULT_BRAND,
+            brand="rapidpro",
+            flow_languages=["eng", "kin"],
             created_by=self.user,
             modified_by=self.user,
         )
-        self.org.initialize(topup_size=1000)
+        self.org.initialize()
         self.org.add_user(self.admin, OrgRole.ADMINISTRATOR)
         self.org.add_user(self.editor, OrgRole.EDITOR)
         self.org.add_user(self.user, OrgRole.VIEWER)
@@ -83,11 +84,12 @@ class TembaTestMixin:
         self.org2 = Org.objects.create(
             name="Trileet Inc.",
             timezone=pytz.timezone("US/Pacific"),
-            brand="rapidpro.io",
+            brand="rapidpro",
+            flow_languages=["eng"],
             created_by=self.admin2,
             modified_by=self.admin2,
         )
-        self.org2.initialize(topup_size=1000)
+        self.org2.initialize()
         self.org2.add_user(self.admin2, OrgRole.ADMINISTRATOR)
 
         # a single Android channel
@@ -101,6 +103,7 @@ class TembaTestMixin:
             device="Nexus 5X",
             secret="12345",
             config={Channel.CONFIG_FCM_ID: "123"},
+            normalize_urns=False,
         )
 
         # don't cache anon user between tests
@@ -251,12 +254,8 @@ class TembaTestMixin:
                 group.contacts.add(*contacts)
             return group
 
-    def create_label(self, name, *, folder=None, org=None):
-        label = Label.create(org or self.org, self.admin, name)
-        if folder:
-            label.folder = folder
-            label.save(update_fields=("folder",))
-        return label
+    def create_label(self, name, *, org=None):
+        return Label.create(org or self.org, self.admin, name)
 
     def create_field(self, key, name, value_type=ContactField.TYPE_TEXT, priority=0, show_in_table=False, org=None):
         org = org or self.org
@@ -385,7 +384,6 @@ class TembaTestMixin:
         if surveyor:
             contact_urn = None
             channel = None
-            topup_id = None
         else:
             # a simplified version of how channels are chosen
             contact_urn = contact.get_urn()
@@ -395,8 +393,6 @@ class TembaTestMixin:
                 else:
                     channel = org.channels.filter(is_active=True, schemes__contains=[contact_urn.scheme]).first()
 
-            topup_id = decrement_credit(org)
-
         return Msg.objects.create(
             org=org,
             direction=direction,
@@ -404,7 +400,6 @@ class TembaTestMixin:
             contact_urn=contact_urn,
             text=text,
             channel=channel,
-            topup_id=topup_id,
             status=status,
             msg_type=msg_type,
             attachments=attachments,

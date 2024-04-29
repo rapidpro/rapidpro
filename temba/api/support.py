@@ -14,7 +14,24 @@ from .models import APIToken
 logger = logging.getLogger(__name__)
 
 
-class APITokenAuthentication(TokenAuthentication):
+class RequestAttributesMixin:
+    """
+    DRF authentication happens in the view level so request.org won't have been set by OrgMiddleware and needs to be
+    passed back here.
+    """
+
+    def authenticate(self, request):
+        result = super().authenticate(request)
+
+        # result is either tuple of (user,token) or None
+        org = result[1].org if result else None
+
+        # set org on the original wrapped request object
+        request._request.org = org
+        return result
+
+
+class APITokenAuthentication(RequestAttributesMixin, TokenAuthentication):
     """
     Simple token based authentication.
 
@@ -33,16 +50,12 @@ class APITokenAuthentication(TokenAuthentication):
             raise exceptions.AuthenticationFailed("Invalid token")
 
         if token.user.is_active:
-            # set the org on this user
-            token.user.set_org(token.org)
-            token.user.using_token = True
-
             return token.user, token
 
         raise exceptions.AuthenticationFailed("Invalid token")
 
 
-class APIBasicAuthentication(BasicAuthentication):
+class APIBasicAuthentication(RequestAttributesMixin, BasicAuthentication):
     """
     Basic authentication.
 
@@ -61,10 +74,6 @@ class APIBasicAuthentication(BasicAuthentication):
             raise exceptions.AuthenticationFailed("Invalid token or email")
 
         if token.user.is_active:
-            # set the org on this user
-            token.user.set_org(token.org)
-            token.user.using_token = True
-
             return token.user, token
 
         raise exceptions.AuthenticationFailed("Invalid token or email")
@@ -75,45 +84,40 @@ class APISessionAuthentication(SessionAuthentication):
     Session authentication as used by the editor, explorer
     """
 
-    def authenticate(self, request):
-        result = super().authenticate(request)
-        if result:
-            result[0].using_token = False
-        return result
-
 
 class OrgUserRateThrottle(ScopedRateThrottle):
     """
     Throttle class which rate limits at an org level or user level for staff users
     """
 
-    def get_org_rate(self, request):
+    def get_org_rate(self, request, by_token: bool):
         default_rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
         org_rates = {}
-        if request.user.is_authenticated and request.user.using_token:
-            org = request.user.get_org()
-            org_rates = org.api_rates
+        if request.user.is_authenticated and by_token:
+            org_rates = request.org.api_rates
         return {**default_rates, **org_rates}.get(self.scope)
 
     def allow_request(self, request, view):
+        by_token = isinstance(request.auth, APIToken)
+
         # any request not using a token (e.g. editor, explorer) isn't subject to throttling
-        if request.user.is_authenticated and not request.user.using_token:
+        if request.user.is_authenticated and not by_token:
             return True
 
         self.scope = getattr(view, self.scope_attr, None)
 
         # Determine the allowed request rate considering the org config
-        self.rate = self.get_org_rate(request)
+        self.rate = self.get_org_rate(request, by_token)
         self.num_requests, self.duration = self.parse_rate(self.rate)
 
         return super(ScopedRateThrottle, self).allow_request(request, view)
 
     def get_cache_key(self, request, view):
+        org = request.org
         user = request.user
         ident = None
 
         if user.is_authenticated:
-            org = user.get_org()
             ident = f"{org.id if org else 0}"  # scope to org
 
             # but staff users get their own scope within the org
@@ -135,6 +139,9 @@ class DocumentationRenderer(BrowsableAPIRenderer):
         response = renderer_context["response"]
         renderer = self.get_default_renderer(view)
 
+        org = request.org
+        user = request.user
+
         return {
             "content": self.get_content(renderer, data, accepted_media_type, renderer_context),
             "view": view,
@@ -143,6 +150,7 @@ class DocumentationRenderer(BrowsableAPIRenderer):
             "description": view.get_view_description(html=True),
             "name": self.get_name(view),
             "breadcrumblist": self.get_breadcrumbs(request),
+            "api_token": user.get_api_token(org) if (org and user) else None,
         }
 
     def render(self, data, accepted_media_type=None, renderer_context=None):

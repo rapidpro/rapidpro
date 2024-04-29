@@ -278,14 +278,13 @@
      
 -block full-page-script
 
-  %script(src="{{ STATIC_URL }}js/labels.js?4")
-  %script(src="{{ STATIC_URL }}bower/highcharts/highcharts.js")
-  %script(src="{{ STATIC_URL }}bower/highcharts/modules/drilldown.js")
-  %script(src="{{ STATIC_URL }}js/qrious.js")
+  %script(src="{{ STATIC_URL }}js/labels.js")
+  %script(src="{{ STATIC_URL }}highcharts/highcharts.js")
+  %script(src="{{ STATIC_URL }}highcharts/modules/drilldown.js")
+  %script(src="{{ STATIC_URL }}qrious/dist/qrious.min.js")
 
   -for script in scripts
     %script(type="text/javascript" src="{{script}}")
-
 
   -include "full_page_script.haml"
 
@@ -426,10 +425,6 @@
         processData: processData,
         data: data,
         success: function(response, status, jqXHR) {
-          var toast = jqXHR.getResponseHeader('Temba-Toast');
-          if (toast) {
-            toastr.info(toast, '', {"positionClass": "toast-bottom-full-width"});
-          }
 
           if ('followRedirects' in options && options['followRedirects'] == true) {
               var redirect = jqXHR.getResponseHeader('REDIRECT');
@@ -696,7 +691,7 @@
       });
     }
 
-    var toMap = /(msg|contact|flow|ticket|channels|triggers|campaign|org|user|settings|httplog|classifier).*/;
+    var toMap = /(msg|contact|flow|ticket|channels|triggers|campaign|org|user|settings|httplog|classifier|workspace).*/;
 
     function handleNoPath(event) {
       var details = event.detail;
@@ -767,6 +762,7 @@
 
     function showModax(header, endpoint, onSubmit) {
       var modax = document.querySelector("temba-modax#shared-modax");
+      modax["-temba-loaded"] = undefined;
       if (onSubmit) {
         modax["-temba-submitted"] = Function(onSubmit);
       } else {
@@ -834,7 +830,6 @@
    
 
 -block page-container
-  -include "includes/frame_top.html"
   %temba-modax#shared-modax
   %temba-dialog#shared-dialog
   .ajax-scripts
@@ -842,7 +837,7 @@
   .flex-col
     .flex.widget-container(style="height:100vh;overflow:hidden")
       .folders       
-        %temba-menu(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)" -temba-ready="handleMenuReady")
+        %temba-menu#nav(style="height:100%" endpoint="{% url 'orgs.org_menu' %}" onchange="handleMenuChanged(event)" wait="true" -temba-no-path="handleNoPath(event)" -temba-ready="handleMenuReady")
           -block menu-header
 
       .flex-grow.spa-container.flex.flex-col

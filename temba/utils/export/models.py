@@ -68,7 +68,7 @@ class BaseExport(TembaUUIDMixin, SmartModel):
         Performs the actual export. If export generation throws an exception it's caught here and the task is marked
         as failed.
         """
-        from temba.notifications.models import Notification
+        from temba.notifications.types.builtin import ExportFinishedNotificationType
 
         try:
             self.update_status(self.STATUS_PROCESSING)
@@ -100,7 +100,7 @@ class BaseExport(TembaUUIDMixin, SmartModel):
             print(f"Completed {self.analytics_key} with ID {self.id} in {elapsed:.1f} seconds")
             analytics.track(self.created_by, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed))
 
-            Notification.export_finished(self)
+            ExportFinishedNotificationType.create(self)
         finally:
             gc.collect()  # force garbage collection
 

@@ -2,21 +2,19 @@ import logging
 
 from django.conf import settings
 from django.utils import timezone
-from django.utils.timesince import timesince
 
 from temba.campaigns.models import EventFire
 from temba.utils import chunk_list
-from temba.utils.celery import nonoverlapping_task
+from temba.utils.crons import cron_task
 
 logger = logging.getLogger(__name__)
 
 EVENT_FIRES_TO_TRIM = 100_000
 
 
-@nonoverlapping_task(track_started=True, name="trim_event_fires_task")
-def trim_event_fires_task():
+@cron_task()
+def trim_event_fires():
     trim_before = timezone.now() - settings.RETENTION_PERIODS["eventfire"]
-    start = timezone.now()
 
     # first look for unfired fires that belong to inactive events
     trim_ids = list(
@@ -35,4 +33,4 @@ def trim_event_fires_task():
         # use a bulk delete for performance reasons, nothing references EventFire
         EventFire.objects.filter(id__in=batch).delete()
 
-    logger.info(f"Deleted {len(trim_ids)} event fires in {timesince(start)}")
+    return {"deleted": len(trim_ids)}

@@ -8,6 +8,7 @@ from uuid import UUID
 
 import iso8601
 import pytz
+import xlrd
 from openpyxl import load_workbook
 
 from django.conf import settings
@@ -47,6 +48,7 @@ from temba.tickets.models import Ticket, TicketCount, Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_str, datetime_to_timestamp
+from temba.utils.templatetags.temba import datetime as datetime_tag, duration
 
 from .models import (
     URN,
@@ -59,7 +61,7 @@ from .models import (
     ContactURN,
     ExportContactsTask,
 )
-from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
+from .tasks import check_elasticsearch_lag, squash_group_counts
 from .templatetags.contacts import contact_field, history_class, history_icon, msg_status_badge
 
 
@@ -913,7 +915,7 @@ class ContactGroupTest(TembaTest):
         group.save(update_fields=("status",))
 
         # dynamic groups should get their own icon
-        self.assertEqual(group.get_attrs(), {"icon": "atom"})
+        self.assertEqual(group.get_attrs(), {"icon": "icon.group_smart"})
 
         # can't update query again while it is in this state
         with self.assertRaises(AssertionError):
@@ -1056,7 +1058,7 @@ class ContactGroupTest(TembaTest):
         ba.restore(self.user)
 
         # squash all our counts, this shouldn't affect our overall counts, but we should now only have 3
-        squash_contactgroupcounts()
+        squash_group_counts()
         self.assertEqual(ContactGroupCount.objects.all().count(), 3)
 
         counts = Contact.get_status_counts(self.org)
@@ -1178,36 +1180,6 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
 
         self.other_org_group = self.create_group("Customers", contacts=[], org=self.org2)
-
-    @mock_mailroom
-    def test_list(self, mr_mocks):
-        list_url = reverse("contacts.contactgroup_list")
-        response = self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, allow_agents=False)
-        self.assertEqual(
-            [
-                "delete",
-            ],
-            list(response.context["actions"]),
-        )
-
-        group = ContactGroup.create_manual(self.org, self.admin, "My New Group")
-
-        # let's delete it and make sure it's gone
-        self.client.post(list_url, {"action": "delete", "objects": group.id})
-        self.assertFalse(ContactGroup.objects.get(id=group.id).is_active)
-
-        smart_group = ContactGroup.create_smart(self.org, self.admin, "Smart Group", "name ~ Joe")
-
-        # fetch only smart groups
-        list_url = f"{reverse('contacts.contactgroup_list')}?type=smart"
-        response = self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, allow_agents=False)
-
-        self.assertEqual(1, len(response.context["object_list"]))
-        self.assertContains(response, smart_group.name)
-
-        # fetch with spa flag
-        response = self.client.get(list_url, content_type="application/json", HTTP_TEMBA_SPA="1")
-        self.assertEqual(response.context["base_template"], "spa.html")
 
     @override_settings(ORG_LIMIT_DEFAULTS={"groups": 10})
     @mock_mailroom
@@ -1986,7 +1958,6 @@ class ContactTest(TembaTest):
             path=Substr("path", 2), identity=Concat(DbValue("tel:"), Substr("path", 2))
         )
 
-        self.admin.set_org(self.org)
         self.login(self.admin)
 
         def omnibox_request(query, version="1"):
@@ -2687,6 +2658,15 @@ class ContactTest(TembaTest):
         self.assertEqual(history_icon(item), '<span class="glyph icon-cash"></span>')
         self.assertEqual(history_class(item), "non-msg detail-event")
 
+    def test_date_tags(self):
+        next_year = datetime.now() + timedelta(days=365)
+        self.assertEqual(
+            duration(next_year), f"<temba-date value='{next_year.isoformat()}' display='duration'></temba-date>"
+        )
+        self.assertEqual(
+            datetime_tag(next_year), f"<temba-date value='{next_year.isoformat()}' display='datetime'></temba-date>"
+        )
+
     def test_get_scheduled_messages(self):
         self.just_joe = self.create_group("Just Joe", [self.joe])
 
@@ -3154,7 +3134,7 @@ class ContactTest(TembaTest):
 
         self.assertEqual(
             list(response.context["form"].fields.keys()),
-            ["name", "status", "groups", "urn__twitter__0", "urn__tel__1", "loc"],
+            ["name", "status", "language", "groups", "urn__twitter__0", "urn__tel__1", "loc"],
         )
         self.assertEqual(response.context["form"].initial["name"], "Joe Blow")
         self.assertEqual(response.context["form"].fields["urn__tel__1"].initial, "+250781111111")
@@ -3433,7 +3413,7 @@ class ContactTest(TembaTest):
         response = self.client.post(
             reverse("contacts.contact_update", args=[self.joe.id]),
             dict(
-                language="fra",
+                language="eng",
                 name="Muller Awesome",
                 urn__tel__0="+250781111111",
                 urn__twitter__1="blow80",
@@ -3940,8 +3920,18 @@ class ContactFieldTest(TembaTest):
         self.assertEqual("New Key", field7.name)  # generated
 
     def test_contact_templatetag(self):
+        ContactField.get_or_create(
+            self.org, self.admin, "date_joined", name="join date", value_type=ContactField.TYPE_DATETIME
+        )
+
         self.set_contact_field(self.joe, "first", "Starter")
+        self.set_contact_field(self.joe, "date_joined", "01-01-2022 8:30")
+
         self.assertEqual(contact_field(self.joe, "first"), "Starter")
+        self.assertEqual(
+            contact_field(self.joe, "date_joined"),
+            "<temba-date value='2022-01-01T08:30:00+02:00' display='date'></temba-date>",
+        )
         self.assertEqual(contact_field(self.joe, "not_there"), "--")
 
     def test_make_key(self):
@@ -4776,7 +4766,7 @@ class ContactFieldTest(TembaTest):
         self.assertListEqual([10, 0, 20], [cf.priority for cf in org_fields.order_by("id")])
 
         # build valid post data
-        post_data = json.dumps({cf.id: index for index, cf in enumerate(org_fields.order_by("id"))})
+        post_data = json.dumps({cf.key: index for index, cf in enumerate(org_fields.order_by("id"))})
 
         # try to update as admin2
         self.login(self.admin2)
@@ -4835,8 +4825,25 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create(self):
         create_url = reverse("contacts.contactfield_create")
 
-        self.assertCreateFetch(
+        # for a deploy that doesn't have locations feature, don't show location field types
+        with override_settings(FEATURES={}):
+            response = self.assertCreateFetch(
+                create_url,
+                allow_viewers=False,
+                allow_editors=True,
+                form_fields=["name", "value_type", "show_in_table"],
+            )
+            self.assertEqual(
+                [("T", "Text"), ("N", "Number"), ("D", "Date & Time")],
+                response.context["form"].fields["value_type"].choices,
+            )
+
+        response = self.assertCreateFetch(
             create_url, allow_viewers=False, allow_editors=True, form_fields=["name", "value_type", "show_in_table"]
+        )
+        self.assertEqual(
+            [("T", "Text"), ("N", "Number"), ("D", "Date & Time"), ("S", "State"), ("I", "District"), ("W", "Ward")],
+            response.context["form"].fields["value_type"].choices,
         )
 
         # try to submit with empty name
@@ -4900,14 +4907,25 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             )
 
     def test_update(self):
-        update_url = reverse("contacts.contactfield_update", args=[self.age.id])
+        update_url = reverse("contacts.contactfield_update", args=[self.age.key])
 
-        self.assertUpdateFetch(
+        # for a deploy that doesn't have locations feature, don't show location field types
+        with override_settings(FEATURES={}):
+            response = self.assertUpdateFetch(
+                update_url,
+                allow_viewers=False,
+                allow_editors=True,
+                form_fields={"name": "Age", "value_type": "N", "show_in_table": True},
+            )
+            self.assertEqual(3, len(response.context["form"].fields["value_type"].choices))
+
+        response = self.assertUpdateFetch(
             update_url,
             allow_viewers=False,
             allow_editors=True,
             form_fields={"name": "Age", "value_type": "N", "show_in_table": True},
         )
+        self.assertEqual(6, len(response.context["form"].fields["value_type"].choices))
 
         # try submit without change
         self.assertUpdateSubmit(
@@ -4964,7 +4982,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             self.org, self.admin, campaign, registered, offset=1, unit="W", flow=self.create_flow("Test")
         )
 
-        update_url = reverse("contacts.contactfield_update", args=[registered.id])
+        update_url = reverse("contacts.contactfield_update", args=[registered.key])
 
         self.assertUpdateFetch(
             update_url,
@@ -4994,21 +5012,28 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_list(self):
         list_url = reverse("contacts.contactfield_list")
 
-        response = self.assertListFetch(
+        self.assertListFetch(
             list_url, allow_viewers=False, allow_editors=True, context_objects=[self.age, self.gender, self.state]
         )
+
+    def test_create_warnings(self):
+
+        self.login(self.admin)
+        create_url = reverse("contacts.contactfield_create")
+        response = self.client.get(create_url)
+
         self.assertEqual(3, response.context["total_count"])
         self.assertEqual(250, response.context["total_limit"])
         self.assertNotContains(response, "You have reached the limit")
         self.assertNotContains(response, "You are approaching the limit")
 
         with override_settings(ORG_LIMIT_DEFAULTS={"fields": 10}):
-            response = self.requestView(list_url, self.admin)
+            response = self.requestView(create_url, self.admin)
 
             self.assertContains(response, "You are approaching the limit")
 
         with override_settings(ORG_LIMIT_DEFAULTS={"fields": 3}):
-            response = self.requestView(list_url, self.admin)
+            response = self.requestView(create_url, self.admin)
 
             self.assertContains(response, "You have reached the limit")
 
@@ -5046,7 +5071,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         inactive_campaignevent.is_active = False
         inactive_campaignevent.save(update_fields=("is_active",))
 
-        usages_url = reverse("contacts.contactfield_usages", args=[field.uuid])
+        usages_url = reverse("contacts.contactfield_usages", args=[field.key])
 
         response = self.assertReadFetch(usages_url, allow_viewers=True, allow_editors=True, context_object=field)
 
@@ -5070,9 +5095,9 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.field_dependencies.add(self.age)
         group.query_fields.add(self.age)
 
-        delete_gender_url = reverse("contacts.contactfield_delete", args=[self.gender.uuid])
-        delete_joined_url = reverse("contacts.contactfield_delete", args=[joined_on.uuid])
-        delete_age_url = reverse("contacts.contactfield_delete", args=[self.age.uuid])
+        delete_gender_url = reverse("contacts.contactfield_delete", args=[self.gender.key])
+        delete_joined_url = reverse("contacts.contactfield_delete", args=[joined_on.key])
+        delete_age_url = reverse("contacts.contactfield_delete", args=[self.age.key])
 
         # a field with no dependents can be deleted
         response = self.assertDeleteFetch(delete_gender_url, allow_editors=True)
@@ -5272,11 +5297,12 @@ class ESIntegrationTest(TembaNonAtomicTest):
             timezone=pytz.timezone("Africa/Kigali"),
             country=self.country,
             brand=settings.DEFAULT_BRAND,
+            flow_languages=["eng"],
             created_by=self.admin,
             modified_by=self.admin,
         )
 
-        self.org.initialize(topup_size=1000)
+        self.org.initialize()
         self.org.add_user(self.admin, OrgRole.ADMINISTRATOR)
 
         self.client.login(username=self.admin.username, password=self.admin.username)
@@ -5602,6 +5628,13 @@ class ContactImportTest(TembaTest):
             with self.assertRaisesRegexp(ValidationError, r"Import files can contain a maximum of 2 records\."):
                 try_to_parse("simple.xlsx")
 
+        with patch("pyexcel.iget_array") as mock_iget_array:
+            mock_iget_array.side_effect = xlrd.XLRDError("error")
+            with self.assertRaisesRegexp(
+                ValidationError, r"Import file appears to be corrupted. Please save again in Excel and try again."
+            ):
+                try_to_parse("simple.csv")
+
         bad_files = [
             ("empty.csv", "Import file doesn't contain any records."),
             ("empty_header.xls", "Import file contains an empty header."),
@@ -5795,7 +5828,7 @@ class ContactImportTest(TembaTest):
                 "num_updated": 0,
                 "num_errored": 0,
                 "errors": [],
-                "time_taken": matchers.Int(),
+                "time_taken": matchers.Int(min=0),
             },
             imp.get_info(),
         )
@@ -5812,7 +5845,7 @@ class ContactImportTest(TembaTest):
                 "num_updated": 1,
                 "num_errored": 0,
                 "errors": [{"record": 1, "message": "that's wrong"}],
-                "time_taken": matchers.Int(),
+                "time_taken": matchers.Int(min=0),
             },
             imp.get_info(),
         )
@@ -5830,7 +5863,7 @@ class ContactImportTest(TembaTest):
                 "num_updated": 6,
                 "num_errored": 0,
                 "errors": [{"record": 1, "message": "that's wrong"}, {"record": 3, "message": "that's not right"}],
-                "time_taken": matchers.Int(),
+                "time_taken": matchers.Int(min=0),
             },
             imp.get_info(),
         )
@@ -5848,7 +5881,7 @@ class ContactImportTest(TembaTest):
                 "num_updated": 6,
                 "num_errored": 0,
                 "errors": [{"record": 1, "message": "that's wrong"}, {"record": 3, "message": "that's not right"}],
-                "time_taken": matchers.Int(),
+                "time_taken": matchers.Int(min=0),
             },
             imp.get_info(),
         )

@@ -5,5 +5,5 @@ COMPRESS_ENABLED = True
 COMPRESS_OFFLINE = True
 COMPRESS_CSS_HASHING_METHOD = "content"
 COMPRESS_OFFLINE_CONTEXT = dict(
-    STATIC_URL=STATIC_URL, base_template="frame.html", brand=BRANDING[DEFAULT_BRAND], debug=False, testing=False
+    STATIC_URL=STATIC_URL, base_template="frame.html", brand=BRANDS[0], debug=False, testing=False
 )

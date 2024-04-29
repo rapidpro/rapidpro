@@ -256,7 +256,7 @@ def sync(request, channel_id):
         sync_event.save()
 
     # keep track of how long a sync takes
-    analytics.gauge("temba.relayer_sync", time.time() - start)
+    analytics.gauges({"temba.relayer_sync": time.time() - start})
 
     return JsonResponse(result)
 
@@ -1181,7 +1181,7 @@ class ChannelCRUDL(SmartCRUDL):
             org = self.request.org
 
             context["org_timezone"] = str(org.timezone)
-            context["brand"] = org.get_branding()
+            context["brand"] = org.branding
 
             channel_count, org_limit = Channel.get_org_limit_progress(org)
             context["total_count"] = channel_count
@@ -1481,7 +1481,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             return self.msg.org
 
         def derive_queryset(self, **kwargs):
-            return super().derive_queryset(**kwargs).filter(msg=self.msg).order_by("-created_on")
+            return super().derive_queryset(**kwargs).filter(msg=self.msg).order_by("created_on")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -1514,7 +1514,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             return self.call.org
 
         def derive_queryset(self, **kwargs):
-            return super().derive_queryset(**kwargs).filter(call=self.call).order_by("-created_on")
+            return super().derive_queryset(**kwargs).filter(call=self.call).order_by("created_on")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

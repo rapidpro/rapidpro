@@ -1,0 +1,1 @@
+../textit/manage.sh

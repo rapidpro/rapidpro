@@ -7,7 +7,7 @@
 
 -block fields
   .field.api-token(style="padding-bottom: 10px")
-    API Token: <span id="api_token">{{user.api_token}}</span>
+    API Token: <span id="api_token">{{api_token}}</span>
     <a href="javascript:refreshToken()" class='api-token-refresh'><div class="icon-loop"></div></a>
 
 -block form-buttons
@@ -19,7 +19,7 @@
     -trans "API Explorer"
 
 -block summary
-  -blocktrans trimmed with token=user.api_token
+  -blocktrans trimmed with token=api_token
     Your API Token is <b>{{ token }}</b>.
 
 -block extra-script

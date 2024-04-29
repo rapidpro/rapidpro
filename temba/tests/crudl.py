@@ -47,7 +47,7 @@ class CRUDLTestMixin:
             else:
                 checks = [LoginRedirectOr404()]
 
-            return self.requestView(url, user, checks=checks)
+            return self.requestView(url, user, checks=checks, choose_org=self.org)
 
         as_user(None, allowed=False)
         as_user(viewer, allowed=allow_viewers)
@@ -81,7 +81,7 @@ class CRUDLTestMixin:
             else:
                 checks = [LoginRedirect()]
 
-            return self.requestView(url, user, checks=checks)
+            return self.requestView(url, user, checks=checks, choose_org=self.org)
 
         as_user(None, allowed=False)
         as_user(viewer, allowed=allow_viewers)
@@ -90,24 +90,28 @@ class CRUDLTestMixin:
         as_user(org2_admin, allowed=allow_org2)
         return as_user(admin, allowed=True)
 
-    def assertCreateFetch(self, url, *, allow_viewers, allow_editors, allow_agents=False, form_fields=(), status=200):
+    def assertCreateFetch(
+        self, url, *, allow_viewers, allow_editors, allow_agents=False, allow_org2=True, form_fields=(), status=200
+    ):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
-        def as_user(user, allowed):
+        def as_user(user, allowed, check_fields=True):
             if allowed:
-                checks = [StatusCode(status), FormFields(form_fields)]
-                if isinstance(form_fields, dict):
-                    checks.append(FormInitialValues(form_fields))
+                checks = [StatusCode(status)]
+                if check_fields:
+                    checks.append(FormFields(form_fields))
+                    if isinstance(form_fields, dict):
+                        checks.append(FormInitialValues(form_fields))
             else:
                 checks = [LoginRedirect()]
 
-            return self.requestView(url, user, checks=checks)
+            return self.requestView(url, user, checks=checks, choose_org=self.org)
 
         as_user(None, allowed=False)
         as_user(viewer, allowed=allow_viewers)
         as_user(editor, allowed=allow_editors)
         as_user(agent, allowed=allow_agents)
-        as_user(org2_admin, allowed=True)
+        as_user(org2_admin, allowed=allow_org2, check_fields=False)
         return as_user(admin, allowed=True)
 
     def assertCreateSubmit(self, url, data, *, form_errors=None, new_obj_query=None, success_status=302):
@@ -126,7 +130,7 @@ class CRUDLTestMixin:
             else:
                 checks = [LoginRedirect()]
 
-            return self.requestView(url, user, post_data=data, checks=checks)
+            return self.requestView(url, user, post_data=data, checks=checks, choose_org=self.org)
 
         as_user(None, allowed=False)
         return as_user(admin, allowed=True)
@@ -167,21 +171,13 @@ class CRUDLTestMixin:
             else:
                 checks = [LoginRedirect()]
 
-            return self.requestView(url, user, post_data=data, checks=checks)
+            return self.requestView(url, user, post_data=data, checks=checks, choose_org=self.org)
 
         as_user(None, allowed=False)
         return as_user(admin, allowed=True)
 
     def assertDeleteFetch(
-        self,
-        url,
-        *,
-        allow_viewers=False,
-        allow_editors=False,
-        allow_agents=False,
-        status=200,
-        choose_org=None,
-        as_modal=False,
+        self, url, *, allow_viewers=False, allow_editors=False, allow_agents=False, status=200, as_modal=False
     ):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
@@ -192,9 +188,9 @@ class CRUDLTestMixin:
                 checks = [LoginRedirect()]
 
             if as_modal:
-                return self.requestView(url, user, checks=checks, choose_org=choose_org, HTTP_X_PJAX=True)
+                return self.requestView(url, user, checks=checks, choose_org=self.org, HTTP_X_PJAX=True)
             else:
-                return self.requestView(url, user, checks=checks, choose_org=choose_org)
+                return self.requestView(url, user, checks=checks, choose_org=self.org)
 
         as_user(None, allowed=False)
         as_user(viewer, allowed=allow_viewers)

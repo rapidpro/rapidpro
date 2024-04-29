@@ -213,6 +213,11 @@ class ChannelType(metaclass=ABCMeta):
         else:
             return ""
 
+    def get_error_ref_url(self, channel, code: str) -> str:
+        """
+        Resolves an error code from a channel log into a docs URL for that error.
+        """
+
     def __str__(self):
         return self.name
 
@@ -415,6 +420,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         config=None,
         role=DEFAULT_ROLE,
         schemes=None,
+        normalize_urns=True,
         **kwargs,
     ):
         if isinstance(channel_type, str):
@@ -455,7 +461,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         channel = cls.objects.create(**create_args)
 
         # normalize any telephone numbers that we may now have a clue as to country
-        if org and country:
+        if org and country and "tel" in schemes and normalize_urns:
             org.normalize_contact_tels()
 
         # track our creation
@@ -1256,9 +1262,14 @@ class ChannelLog(models.Model):
             }
 
         def redact_error(err: dict) -> dict:
+            ext_code = err.get("ext_code")
+            ref_url = self.channel.type.get_error_ref_url(self.channel, ext_code) if ext_code else None
+
             return {
-                "message": self._get_display_value(user, err["message"], redact_values=redact_values),
                 "code": err["code"],
+                "ext_code": ext_code,
+                "message": self._get_display_value(user, err["message"], redact_values=redact_values),
+                "ref_url": ref_url,
             }
 
         return {
@@ -1590,7 +1601,7 @@ class Alert(SmartModel):
         context["unsent_count"] = Msg.objects.filter(channel=self.channel, status__in=["Q", "P"]).count()
         context["subject"] = subject
 
-        send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.get_branding())
+        send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.branding)
 
 
 def get_alert_user():

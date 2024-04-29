@@ -22,9 +22,9 @@
           -trans "Explorer"
 
       <li style="flex-grow:1"></li>
-      -if request.user.api_token
+      -if api_token
           %li(style="color: #666")
-          API Token: {{ request.user.api_token }}
+          API Token: {{ api_token }}
       -else
         %li
           -trans "Log in to get your API Token"
@@ -79,7 +79,7 @@
               {{brand.link}}{{ endpoint.url }}.json<span class="query-display"></span><br/>
             <b class="font-bold">Authorization:</b>
             .whitespace-nowrap.text-sm(class="md:text-base md:inline")
-              Token {{ request.user.api_token }}
+              Token {{ api_token }}
           -if endpoint.params
             .form-group.mt-4.items-center(class="md:flex")
               %label.control-label.self-start.pt-4.w-56.pr-6(class="md:text-right")
@@ -101,7 +101,7 @@
             %a{ href: '{{ endpoint.url }}' }
               -trans "View Full Documentation"
 
-          -if user.api_token
+          -if api_token
             .button-primary(onclick='javascript:handleRequest("{{ endpoint.slug }}", "{{ endpoint.method }}", "{{ endpoint.url }}.json")') {{ endpoint.method|upper }}
           -else
             %span

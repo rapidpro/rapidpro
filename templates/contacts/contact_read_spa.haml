@@ -49,21 +49,26 @@
 
       var store = document.querySelector("temba-store");
       
-      var pinned = document.querySelector(".pinned-fields");
+      var featured = document.querySelector(".featured-fields");
       var all = document.querySelector(".all-fields");
 
-      var pinnedCount = store.getPinnedFields().length;
+      var featuredCount = store.getFeaturedFields().length;
       var fieldCount = Object.keys(contact.fields).length;
       
-      // pinned.classList.toggle("hidden", pinnedCount == 0);
-      all.classList.toggle("hidden", pinnedCount > 0 && fieldCount-pinnedCount === 0);
+      if (all) {
+        all.classList.toggle("hidden", featuredCount > 0 && fieldCount-featuredCount === 0);
+      }
 
       // if our contact refreshes, refresh our pendingEvents
       var pending = document.querySelector("temba-contact-pending");
-      pending.refresh();
+      if (pending) {
+        pending.refresh();
+      }
 
       var menu = document.querySelector("temba-menu");
-      menu.refresh();
+      if (menu) {
+        menu.refresh();
+      }
     }
 
     function handleTicketsRefreshed(evt) {
@@ -87,6 +92,16 @@
       fetchURL("/contact/?search=" + encodeURIComponent(evt.detail.key) + "+%3D+" + encodeURIComponent("\"" + evt.detail.value + "\""))
     }
 
+    function handlePendingClicked(evt) {
+      var pending = evt.detail;
+      
+      if (pending.type == "campaign_event") {
+        gotoURL("/campaign/read/" + pending.campaign.uuid);
+      } else {
+        gotoURL("/broadcast/scheduled/");
+      }
+    }
+
 -block spa-title
   %temba-contact-name-fetch(contact="{{object.uuid}}" -temba-refreshed="handleContactRefreshed")
 
@@ -97,13 +112,13 @@
 -block content
 
   %temba-tabs.flex-grow.mt-4(-temba-context-changed="handleTabChanged" index="{{request.GET.tab}}" collapses="true")
-    %temba-tab(icon="message-square" name='{{_("Chat")|escapejs}}')
+    %temba-tab(icon="icon.message" name='{{_("Chat")|escapejs}}')
       .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
         %temba-contact-chat(contact="{{object.uuid}}" monitor="true")
 
-    %temba-tab(icon="grid" name='{{_("Fields")|escapejs}}')
+    %temba-tab(icon="icon.fields" name='{{_("Fields")|escapejs}}')
       .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
-        %temba-contact-fields.pinned-fields.pb-4(timezone="{{object.org.timezone}}" contact="{{object.uuid}}" pinned="true" -temba-button-clicked="handleFieldSearch")
+        %temba-contact-fields.featured-fields.pb-4(timezone="{{object.org.timezone}}" contact="{{object.uuid}}" featured="true" -temba-button-clicked="handleFieldSearch")
         %temba-contact-fields.all-fields(timezone="{{object.org.timezone}}" contact="{{object.uuid}}" -temba-button-clicked="handleFieldSearch")
           .no-fields.p-16.text-center(slot="empty")
             .text-xl.mb-4
@@ -112,9 +127,9 @@
             -blocktrans trimmed
               Nothing to see here yet. Create a new field to save data to your contacts.
 
-    %temba-tab(icon="campaign" name='{{_("Next Up")|escapejs}}')
+    %temba-tab(icon="icon.campaign" name='{{_("Next Up")|escapejs}}')
       .flex.flex-grow.flex-col.p-4.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
-        %temba-contact-pending(contact="{{object.uuid}}" -temba-refreshed="handlePendingRefreshed")
+        %temba-contact-pending(contact="{{object.uuid}}" -temba-refreshed="handlePendingRefreshed" -temba-selection="handlePendingClicked")
 
           .no-pending.p-16.text-center(slot="empty")
             .text-xl.mb-4
@@ -123,10 +138,9 @@
             -blocktrans trimmed
               Nothing to see here yet. Any messages or flows scheduled to be sent to this contact in the future will be shown here.  
 
-    %temba-tab(icon="agent" name='{{_("Tickets")|escapejs}}')    
+    %temba-tab(icon="icon.tickets" name='{{_("Tickets")|escapejs}}')    
       .flex.flex-grow.flex-col.overflow-y-auto(style="border-top-right-radius: var(--curvature);")
         %temba-contact-tickets(contact="{{object.uuid}}" -temba-refreshed="handleTicketsRefreshed")
-
           .no-tickets.p-16.text-center(slot="empty")
             .text-xl.mb-4
               -trans "No Tickets"

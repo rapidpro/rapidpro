@@ -26,7 +26,7 @@ from .models import (
     Topic,
     export_ticket_stats,
 )
-from .tasks import squash_ticketcounts
+from .tasks import squash_ticket_counts
 from .types import reload_ticketer_types
 from .types.internal import InternalType
 from .types.mailgun import MailgunType
@@ -178,7 +178,7 @@ class TicketTest(TembaTest):
             contacts={contact1: 2, contact2: 2},
         )
 
-        squash_ticketcounts()  # shouldn't change counts
+        squash_ticket_counts()  # shouldn't change counts
 
         assert_counts(
             self.org,
@@ -270,15 +270,15 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         menu = response.json()["results"]
         self.assertEqual(
             [
-                {"id": "mine", "name": "My Tickets", "icon": "coffee", "count": 2, "verbose_name": None},
+                {"id": "mine", "name": "My Tickets", "icon": "icon.tickets_mine", "count": 2, "verbose_name": None},
                 {
                     "id": "unassigned",
                     "name": "Unassigned",
-                    "icon": "mail",
+                    "icon": "icon.tickets_unassigned",
                     "count": 1,
                     "verbose_name": "Unassigned Tickets",
                 },
-                {"id": "all", "name": "All", "icon": "archive", "count": 3, "verbose_name": "All Tickets"},
+                {"id": "all", "name": "All", "icon": "icon.tickets_all", "count": 3, "verbose_name": "All Tickets"},
             ],
             menu,
         )

@@ -60,8 +60,8 @@
   {{ block.super }}
 
   -if not is_spa
-    %script(src="{{ STATIC_URL }}bower/highcharts/highcharts.js")
-    %script(src="{{ STATIC_URL }}bower/highcharts/modules/drilldown.js")
+    %script(src="{{ STATIC_URL }}highcharts/highcharts.js")
+    %script(src="{{ STATIC_URL }}highcharts/modules/drilldown.js")
 
   :javascript
 
@@ -362,17 +362,17 @@
     .chart-name
     .chart-container
 
-  %temba-flow-details(flow="{{object.uuid}}"  -temba-refreshed="handleFlowRefreshed")
+  %temba-flow-details(flow="{{object.uuid}}" -temba-refreshed="handleFlowRefreshed")
 
-  %temba-tabs.flex-grow(-temba-context-changed="handleTabChanged")
+  %temba-tabs.flex-grow(-temba-context-changed="handleTabChanged" collapses="true")
 
-    %temba-tab(name='{{_("Overview")|escapejs}}')
+    %temba-tab(name='{{_("Overview")|escapejs}}' icon="icon.overview")
       #overview-charts.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
 
-    %temba-tab(name='{{_("Analytics")|escapejs}}' icon="bar-chart")
+    %temba-tab(name='{{_("Analytics")|escapejs}}' icon="icon.analytics")
       #category-charts.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
 
-    %temba-tab(name='{{_("Runs")|escapejs}}')
+    %temba-tab(name='{{_("Runs")|escapejs}}' icon="icon.runs")
       %temba-run-list.p-4.flex.flex-col.flex-grow.overflow-hidden(flow="{{object.uuid}}" -temba-refreshed="handleRunsRefreshed")
 
   %temba-dialog#confirm-run-delete(header='{{ _("Delete Run")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true' -temba-button-clicked="performDelete")

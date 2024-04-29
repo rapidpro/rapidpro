@@ -222,7 +222,7 @@ class TriggerCRUDL(SmartCRUDL):
                     verbose_name=_("Active Triggers"),
                     count=org_triggers.filter(is_archived=False).count(),
                     href=reverse("triggers.trigger_list"),
-                    icon="radio",
+                    icon="icon.active",
                 )
             )
 
@@ -230,7 +230,7 @@ class TriggerCRUDL(SmartCRUDL):
                 self.create_menu_item(
                     name=_("Archived"),
                     verbose_name=_("Archived Triggers"),
-                    icon="archive",
+                    icon="icon.archive",
                     count=org_triggers.filter(is_archived=True).count(),
                     href=reverse("triggers.trigger_archived"),
                 )
@@ -241,7 +241,7 @@ class TriggerCRUDL(SmartCRUDL):
             menu.append(self.create_divider())
 
             for slug, trigger_type in TYPES_BY_SLUG.items():
-                count = org_triggers.filter(trigger_type=trigger_type.code).count()
+                count = org_triggers.filter(trigger_type=trigger_type.code, is_archived=False).count()
                 if count:
                     menu.append(
                         self.create_menu_item(

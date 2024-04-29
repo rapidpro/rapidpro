@@ -238,7 +238,7 @@
                     {{ channel.get_error_log_count|intcomma }}
                 %td.w-0.text-right
                   .inline-block
-                    %temba-icon(onclick="goto(event, this)" clickable="true" name="log" href='{% url "channels.channellog_list" channel.uuid %}?others=1')
+                    %temba-icon(onclick="goto(event, this)" clickable="true" name="icon.log" href='{% url "channels.channellog_list" channel.uuid %}?others=1')
 
 
       .card.pt-8.flex-shrink-0
@@ -334,7 +334,7 @@
   {{ block.super }}
 
   -if start_date and not is_spa
-    <script src="{{ STATIC_URL }}bower/highcharts/highcharts.js"></script>
+    <script src="{{ STATIC_URL }}highcharts/highcharts.js"></script>
 
   :javascript
     {% if start_date %}

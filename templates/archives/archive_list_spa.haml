@@ -49,7 +49,7 @@
             -else
               {{archive.start_date|date:"F Y"}}
           %td(style="--icon-color:#bbb")
-            %temba-icon(clickable="true" name="download" onclick="downloadFile(event, \"{% url 'archives.archive_read' archive.id %}\")")
+            %temba-icon(clickable="true" name="icon.download" onclick="downloadFile(event, \"{% url 'archives.archive_read' archive.id %}\")")
   -else
 
     -blocktrans trimmed

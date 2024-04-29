@@ -15,42 +15,43 @@
     %meta{name:"author", content:"Nyaruka Ltd"}
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
 
-    -if user.is_beta
-      %script(src="{{ STATIC_URL }}js/urls.js")
+    -block ui-switch-js
+      -if user.is_beta
+        %script(src="{{ STATIC_URL }}js/urls.js")
 
-      :javascript
-        window.STATIC_URL = "{{STATIC_URL}}";
-        function loadNewInterface(force) {
-          var location = window.location;
-          var newUrl = mapUrl(location.pathname + (location.search || ""));
-          if (newUrl != window.location.pathname) {
-            window.location = newUrl;
-          } else { 
-            if (force) {
-              window.location = "/messages/";
+        :javascript
+          window.STATIC_URL = "{{STATIC_URL}}";
+          function loadNewInterface(force) {
+            var location = window.location;
+            var newUrl = mapUrl(location.pathname + (location.search || ""));
+            if (newUrl != window.location.pathname) {
+              window.location = newUrl;
+            } else { 
+              if (force) {
+                window.location = "/messages/";
+              }
             }
           }
-        }
-        
-        function getCookie(name) {
-          var value = `; ${document.cookie}`;
-          var parts = value.split(`; ${name}=`);
-          if (parts.length === 2) return parts.pop().split(';').shift();
-        }
+          
+          function getCookie(name) {
+            var value = `; ${document.cookie}`;
+            var parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+          }
 
-        function switchToNewInterface() {
-          document.cookie = "nav=2; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/;";
-          loadNewInterface(true);
-        }
+          function switchToNewInterface() {
+            document.cookie = "nav=2; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/;";
+            loadNewInterface(true);
+          }
 
-      -block auto-route
-        :javascript
-          (function(){
-            var nav = getCookie("nav");
-            if (nav == "2") {
-              loadNewInterface(false);
-            }
-          })();
+        -block auto-route
+          :javascript
+            (function(){
+              var nav = getCookie("nav");
+              if (nav == "2") {
+                loadNewInterface(false);
+              }
+            })();
 
     :javascript
 
@@ -69,8 +70,8 @@
       }
 
     // ==== JQUERY ====
-    <script type="text/javascript" src="{{ STATIC_URL }}bower/jquery/jquery.js"></script>
-    <script type="text/javascript" src="{{ STATIC_URL }}bower/jquery-migrate/jquery-migrate.min.js"></script>
+    <script type="text/javascript" src="{{ STATIC_URL }}jquery/dist/jquery.min.js"></script>
+    // <script type="text/javascript" src="{{ STATIC_URL }}jquery-migrate/dist/jquery-migrate.min.js"></script>
 
     -# this view make it possible to process translations from javascript land
     <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
@@ -79,22 +80,12 @@
         var static_url = '{{STATIC_URL}}';
 
       %script{src:"{{ STATIC_URL }}js/libs/jquery.url.js"}
-      %script{src:"{{ STATIC_URL }}bower/toastr/toastr.js"}
-      %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-modal.js"}
-      %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-dropdown.js"}
-      %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-tooltip.js"}
-      %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-tab.js"}      
-      %script{src:"{{ STATIC_URL }}bower/intercooler-js/src/intercooler.js"}
-      %script{src:"{{ STATIC_URL }}bower/moment/moment.js"}
-      %script{src:"{{ STATIC_URL }}bower/moment-timezone/builds/moment-timezone-with-data.js"}
-      %script{src:"{{ STATIC_URL }}bower/xregexp/xregexp-all.js"}
 
       // expanded nav dropdown
       %script{src:"{{ STATIC_URL }}bower/jquery-hoverintent/jquery.hoverIntent.js"}
 
-      // Non-bower packages
-      %script{src:"{{ STATIC_URL }}lib/uuid.js"}
-      %script{src:"{{ STATIC_URL }}lib/bootstrap-limit.js"}
+      // npm packages
+      %script{src:"{{ STATIC_URL }}intercooler/dist/intercooler.js"}
 
       -if not debug and not testing
         %script{src:"{{ STATIC_URL }}lib/raven.min.js"}
@@ -120,12 +111,9 @@
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/bootstrap-css/css/bootstrap.css',  media:'all' }
 
-      -compress css
-        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/toastr/toastr.css", media:'all'}
 
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/icons/style.css", media:'all'}
-        %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/print.less', media:'print'}
         %link{type:"text/css", rel:"stylesheet", href:"{{ STATIC_URL }}css/temba-components.css"}
 
       -compress css
@@ -157,10 +145,6 @@
     -for incl in brand.head_includes
       -include incl
 
-    <!--[if lt IE 9]>
-      %script{src:"//html5shim.googlecode.com/svn/trunk/html5.js"}
-    <![endif]-->
-
 {% block body %}
 
 %body#pageBody.bg-gradient
@@ -186,9 +170,8 @@
       <!-- Header -->
       -if user_org
         .org-header.self-end
-          -if user_orgs|length > 1
-            .pull-right.toggle
-              .icon-menu-2
+          .pull-right.toggle
+            .icon-menu-2
 
           .org
             {{ user_org.name }}
@@ -199,8 +182,11 @@
                 .org.text-primary
                   %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
                     {{ org.name }}
-
-
+            -if org_perms.orgs.org_create
+              -if "new_orgs" in user_org.features or "child_orgs" in user_org.features
+                %hr
+                .org.text-primary
+                  <a onclick="handleNewWorkspaceClicked(event)">{% trans "New Workspace" %}</a>
 
       #header
         &nbsp;
@@ -366,6 +352,16 @@
         }
       }
 
+      function handleNewWorkspaceClicked(evt) {
+        var modal = getModax();
+        modal.header = '{{_("New Workspace")|escapejs}}';
+        modal.setAttribute("endpoint", "{% url 'orgs.org_create' %}");
+        modal.open = true;
+
+        evt.preventDefault();
+        evt.stopPropagation();
+      }
+
     -block extra-script
 
     -block refresh-fn
@@ -437,9 +433,7 @@
           $("html").addClass("windows");
         }
 
-        $(".btn").tooltip();
-
-        $('.org-header > .toggle').live('click', function(evt) {
+        $('.org-header > .toggle').on('click', function(evt) {
           evt.stopPropagation();
           var header = $('.org-header');
           if (header.hasClass('expanded')) {
@@ -449,7 +443,7 @@
           }
         });
 
-        $('.org-header').live('click', function(evt) {
+        $('.org-header').on('click', function(evt) {
           url = '{% url "orgs.org_home" %}';
           evt.stopPropagation();
           if (evt.ctrlKey || evt.metaKey){

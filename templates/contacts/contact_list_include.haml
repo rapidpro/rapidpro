@@ -146,17 +146,17 @@
               -for field in contact_fields
                 -if field.show_in_table
                   %td.field.truncate(style="max-width:240px")
-                    {{ object|contact_field:field.key }}
-
+                    {% contact_field object field.key %}
+                    
               %td.value-received.field_received
                 .whitespace-nowrap
                   -if object.last_seen_on
-                    {% format_datetime object.last_seen_on %}
+                    %temba-date(value="{{object.last_seen_on.isoformat}}" display="date")
                   -else
                     {{ "--" }}
               %td.value-received.field_received
                 .whitespace-nowrap
-                  {% format_datetime object.created_on %}
+                  %temba-date(value="{{object.created_on.isoformat}}" display="date")
 
               // This is needed for action buttons
               %td.hide

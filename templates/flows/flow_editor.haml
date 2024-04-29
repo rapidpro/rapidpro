@@ -93,16 +93,8 @@
       line-height: 20px;
     }
 
-    #top-menu {
-      z-index: inherit;
-    }
-
-    #top-menu.expanded {
-      z-index: 3000 !important;
-    }
-
-    .gear-menu.open {
-      z-index: 3000;
+    #content-menu {
+      z-index: 20;
     }
 
     #toolbar {
@@ -264,6 +256,7 @@
         environment: base + 'environment',
         activity: '/flow/activity/{{object.uuid}}/',
         recipients: '/contact/omnibox?v=2&types=gc',
+        contacts: '/contact/omnibox?v=2&types=c',
         contact: '/contact/read/',
 
         {% if can_simulate %}
