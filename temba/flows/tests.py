@@ -3757,9 +3757,9 @@ class FlowSessionTest(TembaTest):
                 wait_resume_on_expire=False,
             )
 
-        create_session(self.org, timezone.now() - timedelta(days=89))
-        session2 = create_session(self.org, timezone.now() - timedelta(days=91))
-        session3 = create_session(self.org, timezone.now() - timedelta(days=92))
+        create_session(self.org, timezone.now() - timedelta(days=88))
+        session2 = create_session(self.org, timezone.now() - timedelta(days=90))
+        session3 = create_session(self.org, timezone.now() - timedelta(days=91))
         session4 = create_session(self.org2, timezone.now() - timedelta(days=92))
 
         interrupt_flow_sessions()

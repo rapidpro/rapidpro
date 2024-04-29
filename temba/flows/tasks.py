@@ -78,7 +78,7 @@ def interrupt_flow_sessions():
     Interrupt old flow sessions which have exceeded the absolute time limit
     """
 
-    before = timezone.now() - timedelta(days=90)
+    before = timezone.now() - timedelta(days=89)
     num_interrupted = 0
 
     # get old sessions and organize into lists by org
