@@ -380,7 +380,7 @@ class MineFolder(TicketFolder):
 
     slug = "mine"
     name = _("My Tickets")
-    icon = "coffee"
+    icon = "icon.tickets_mine"
 
     def get_queryset(self, org, user, ordered):
         return super().get_queryset(org, user, ordered).filter(assignee=user)
@@ -394,7 +394,7 @@ class UnassignedFolder(TicketFolder):
     slug = "unassigned"
     name = _("Unassigned")
     verbose_name = _("Unassigned Tickets")
-    icon = "mail"
+    icon = "icon.tickets_unassigned"
 
     def get_queryset(self, org, user, ordered):
         return super().get_queryset(org, user, ordered).filter(assignee=None)
@@ -408,7 +408,7 @@ class AllFolder(TicketFolder):
     slug = "all"
     name = _("All")
     verbose_name = _("All Tickets")
-    icon = "archive"
+    icon = "icon.tickets_all"
 
     def get_queryset(self, org, user, ordered):
         return super().get_queryset(org, user, ordered)

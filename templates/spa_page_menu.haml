@@ -95,7 +95,12 @@
       var shared = document.querySelector("#shared-modax");
       shared.disabled = startDisabled;
 
+      if (onSubmit == "None") {
+        onSubmit = undefined;
+      }
+      
       showModax(modax, href, onSubmit);
+
     } else {
       if (href) {
         fetchURL(href);
@@ -123,9 +128,9 @@
       %temba-button.ml-4(name="{{link.title|escapejs}}" onclick="handleMenuClicked(event)" class='{{ link|gear_link_classes }}' data-success-url='{{ link.success_url }}' data-href='{{link.href}}' data-modax='{{link.modax|escapejs}}' data-on-submit='{{link.on_submit|escapejs}}' data-disabled='{{link.disabled}}')
 
     -if content_menu_links
-      %temba-dropdown.items-stretch.flex.flex-column(arrowoffset="-12" offsetx="24" offsety="6" arrowsize="8")
+      %temba-dropdown#content-menu.items-stretch.flex.flex-column(arrowoffset="-10" arrowsize="8" drop_align="right")
         .menu-button.items-center.flex.flex-column.py-2.px-2.ml-2(slot="toggle")
-          %temba-icon( name="menu" size="1.5")
+          %temba-icon( name="icon.menu" size="1.5")
         .dropdown.px-6.py-4.text-gray-800.z-50(slot="dropdown" style="min-width:200px")
           -for link in content_menu_links
             -if link.divider

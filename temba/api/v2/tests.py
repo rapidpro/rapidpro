@@ -234,7 +234,7 @@ class FieldsTest(TembaTest):
         self.assert_field(
             fields.ContactFieldField(source="test"),
             submissions={"registered": field_obj, "created_on": field_created_on, "xyz": serializers.ValidationError},
-            representations={field_obj: {"key": "registered", "label": "Registered On"}},
+            representations={field_obj: {"key": "registered", "name": "Registered On", "label": "Registered On"}},
         )
 
         self.assert_field(
@@ -293,8 +293,8 @@ class FieldsTest(TembaTest):
         field = fields.TranslatableField(source="test", max_length=10)
         field._context = {"org": self.org}
 
-        self.assertEqual(field.to_internal_value("Hello"), ({"base": "Hello"}, "base"))
-        self.assertEqual(field.to_internal_value({"base": "Hello"}), ({"base": "Hello"}, "base"))
+        self.assertEqual(field.to_internal_value("Hello"), ({"eng": "Hello"}, "eng"))
+        self.assertEqual(field.to_internal_value({"eng": "Hello"}), ({"eng": "Hello"}, "eng"))
 
         self.org.set_flow_languages(self.admin, ["kin"])
         self.org.save()
@@ -511,7 +511,8 @@ class EndpointsTest(TembaTest):
 
         # can fetch campaigns endpoint with valid admin token
         response = request_by_token(campaigns_url, token1.key)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(str(self.org.id), response["X-Temba-Org"])
 
         # but not with surveyor token
         response = request_by_token(campaigns_url, token2.key)
@@ -522,10 +523,11 @@ class EndpointsTest(TembaTest):
 
         # but it can be used to access the contacts endpoint
         response = request_by_token(contacts_url, token2.key)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(200, response.status_code)
 
         response = request_by_basic_auth(contacts_url, self.admin.username, token2.key)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(str(self.org.id), response["X-Temba-Org"])
 
         # simulate the admin user exceeding the rate limit for the v2 scope
         cache.set(f"throttle_v2_{self.org.id}", [time.time() for r in range(10000)])
@@ -599,12 +601,10 @@ class EndpointsTest(TembaTest):
 
         # login as administrator
         self.login(self.admin)
-        token = self.admin.api_token  # generates token for the user
+        token = self.admin.get_api_token(self.org)
         self.assertIsInstance(token, str)
         self.assertEqual(len(token), 40)
-
-        with self.assertNumQueries(0):  # subsequent lookup of token comes from cache
-            self.assertEqual(self.admin.api_token, token)
+        self.assertEqual(token, self.admin.get_api_token(self.org))  # subsequent calls return same token
 
         # browse as HTML
         response = self.fetchHTML(url)
@@ -878,7 +878,7 @@ class EndpointsTest(TembaTest):
                 "urns": [],
                 "contacts": [{"uuid": self.joe.uuid, "name": self.joe.name}],
                 "groups": [],
-                "text": {"base": "Hello 2"},
+                "text": {"eng": "Hello 2"},
                 "status": "queued",
                 "created_on": format_datetime(bcast2.created_on),
             },
@@ -890,7 +890,7 @@ class EndpointsTest(TembaTest):
                 "urns": ["twitter:franky"],
                 "contacts": [{"uuid": self.joe.uuid, "name": self.joe.name}],
                 "groups": [{"uuid": reporters.uuid, "name": reporters.name}],
-                "text": {"base": "Hello 4"},
+                "text": {"eng": "Hello 4"},
                 "status": "failed",
                 "created_on": format_datetime(bcast4.created_on),
             },
@@ -936,7 +936,7 @@ class EndpointsTest(TembaTest):
         )
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
-        self.assertEqual({"base": "Hi @(format_urn(urns.tel))"}, broadcast.text)
+        self.assertEqual({"eng": "Hi @(format_urn(urns.tel))"}, broadcast.text)
         self.assertEqual(["twitter:franky"], broadcast.raw_urns)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
         self.assertEqual({reporters}, set(broadcast.groups.all()))
@@ -946,17 +946,17 @@ class EndpointsTest(TembaTest):
 
         # create new broadcast with translations
         response = self.postJSON(
-            url, None, {"text": {"base": "Hello", "fra": "Bonjour"}, "contacts": [self.joe.uuid, self.frank.uuid]}
+            url, None, {"text": {"eng": "Hello", "fra": "Bonjour"}, "contacts": [self.joe.uuid, self.frank.uuid]}
         )
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
-        self.assertEqual({"base": "Hello", "fra": "Bonjour"}, broadcast.text)
+        self.assertEqual({"eng": "Hello", "fra": "Bonjour"}, broadcast.text)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
 
         # create new broadcast with an expression
         response = self.postJSON(url, None, {"text": "You are @fields.age", "contacts": [self.joe.uuid]})
         broadcast = Broadcast.objects.get(id=response.json()["id"])
-        self.assertEqual({"base": "You are @fields.age"}, broadcast.text)
+        self.assertEqual({"eng": "You are @fields.age"}, broadcast.text)
 
         # try sending as a flagged org
         self.org.flag()
@@ -1255,7 +1255,7 @@ class EndpointsTest(TembaTest):
                 {
                     "uuid": str(event3.uuid),
                     "campaign": {"uuid": str(campaign3.uuid), "name": "Alerts"},
-                    "relative_to": {"key": "created_on", "label": "Created On"},
+                    "relative_to": {"key": "created_on", "name": "Created On", "label": "Created On"},
                     "offset": 6,
                     "unit": "hours",
                     "delivery_hour": 12,
@@ -1266,7 +1266,7 @@ class EndpointsTest(TembaTest):
                 {
                     "uuid": str(event2.uuid),
                     "campaign": {"uuid": str(campaign2.uuid), "name": "Notifications"},
-                    "relative_to": {"key": "registration", "label": "Registration"},
+                    "relative_to": {"key": "registration", "name": "Registration", "label": "Registration"},
                     "offset": 6,
                     "unit": "hours",
                     "delivery_hour": 12,
@@ -1277,12 +1277,12 @@ class EndpointsTest(TembaTest):
                 {
                     "uuid": str(event1.uuid),
                     "campaign": {"uuid": str(campaign1.uuid), "name": "Reminders"},
-                    "relative_to": {"key": "registration", "label": "Registration"},
+                    "relative_to": {"key": "registration", "name": "Registration", "label": "Registration"},
                     "offset": 1,
                     "unit": "days",
                     "delivery_hour": -1,
                     "flow": None,
-                    "message": {"base": "Don't forget to brush your teeth"},
+                    "message": {"eng": "Don't forget to brush your teeth"},
                     "created_on": format_datetime(event1.created_on),
                 },
             ],
@@ -1362,7 +1362,7 @@ class EndpointsTest(TembaTest):
         self.assertEqual(event1.offset, 15)
         self.assertEqual(event1.unit, "W")
         self.assertEqual(event1.delivery_hour, -1)
-        self.assertEqual(event1.message, {"base": "You are @fields.age"})
+        self.assertEqual(event1.message, {"eng": "You are @fields.age"})
         self.assertIsNotNone(event1.flow)
 
         # a message event with an empty message
@@ -1402,7 +1402,7 @@ class EndpointsTest(TembaTest):
         self.assertEqual(event1.offset, 15)
         self.assertEqual(event1.unit, "D")
         self.assertEqual(event1.delivery_hour, -1)
-        self.assertEqual(event1.message, {"base": "Nice unit of work @fields.code"})
+        self.assertEqual(event1.message, {"eng": "Nice unit of work @fields.code"})
         self.assertIsNotNone(event1.flow)
 
         # create a flow event
@@ -1471,14 +1471,14 @@ class EndpointsTest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": {"base": "OK @(format_urn(urns.tel))", "fra": "D'accord"},
+                "message": {"eng": "OK @(format_urn(urns.tel))", "fra": "D'accord"},
             },
         )
         self.assertEqual(response.status_code, 200)
 
         event2 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
-        self.assertEqual(event2.message, {"base": "OK @(format_urn(urns.tel))", "fra": "D'accord"})
+        self.assertEqual(event2.message, {"eng": "OK @(format_urn(urns.tel))", "fra": "D'accord"})
 
         # and update update it's message again
         response = self.postJSON(
@@ -1490,14 +1490,14 @@ class EndpointsTest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": {"base": "OK", "fra": "D'accord", "kin": "Sawa"},
+                "message": {"eng": "OK", "fra": "D'accord", "kin": "Sawa"},
             },
         )
         self.assertEqual(response.status_code, 200)
 
         event2 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
-        self.assertEqual(event2.message, {"base": "OK", "fra": "D'accord", "kin": "Sawa"})
+        self.assertEqual(event2.message, {"eng": "OK", "fra": "D'accord", "kin": "Sawa"})
 
         # try to change an existing event's campaign
         response = self.postJSON(
@@ -2660,12 +2660,24 @@ class EndpointsTest(TembaTest):
             [
                 {
                     "key": "registered",
+                    "name": "Registered On",
+                    "type": "datetime",
+                    "featured": False,
+                    "priority": 0,
+                    "usages": {"campaign_events": 1, "flows": 0, "groups": 0},
                     "label": "Registered On",
                     "value_type": "datetime",
-                    "pinned": False,
-                    "priority": 0,
                 },
-                {"key": "nick_name", "label": "Nick Name", "value_type": "text", "pinned": False, "priority": 0},
+                {
+                    "key": "nick_name",
+                    "name": "Nick Name",
+                    "type": "text",
+                    "featured": False,
+                    "priority": 0,
+                    "usages": {"campaign_events": 0, "flows": 0, "groups": 0},
+                    "label": "Nick Name",
+                    "value_type": "text",
+                },
             ],
         )
 
@@ -2673,35 +2685,54 @@ class EndpointsTest(TembaTest):
         response = self.fetchJSON(url, "key=nick_name")
         self.assertEqual(
             response.json()["results"],
-            [{"key": "nick_name", "label": "Nick Name", "pinned": False, "value_type": "text", "priority": 0}],
+            [
+                {
+                    "key": "nick_name",
+                    "name": "Nick Name",
+                    "type": "text",
+                    "featured": False,
+                    "priority": 0,
+                    "usages": {"campaign_events": 0, "flows": 0, "groups": 0},
+                    "label": "Nick Name",
+                    "value_type": "text",
+                }
+            ],
         )
 
         # try to create empty field
         response = self.postJSON(url, None, {})
-        self.assertResponseError(response, "label", "This field is required.")
-        self.assertResponseError(response, "value_type", "This field is required.")
+        self.assertResponseError(response, "non_field_errors", "Field 'name' is required.")
+
+        # try to create field without type
+        response = self.postJSON(url, None, {"name": "goats"})
+        self.assertResponseError(response, "non_field_errors", "Field 'type' is required.")
 
         # try again with some invalid values
+        response = self.postJSON(url, None, {"name": "!@#$%", "type": "video"})
+        self.assertResponseError(response, "name", "Can only contain letters, numbers and hypens.")
+        self.assertResponseError(response, "type", '"video" is not a valid choice.')
+
+        # try again with some invalid values using deprecated field names
         response = self.postJSON(url, None, {"label": "!@#$%", "value_type": "video"})
         self.assertResponseError(response, "label", "Can only contain letters, numbers and hypens.")
         self.assertResponseError(response, "value_type", '"video" is not a valid choice.')
 
         # try again with a label that would generate an invalid key
-        response = self.postJSON(url, None, {"label": "UUID", "value_type": "text"})
-        self.assertResponseError(response, "label", 'Generated key "uuid" is invalid or a reserved name.')
+        response = self.postJSON(url, None, {"name": "UUID", "type": "text"})
+        self.assertResponseError(response, "name", 'Generated key "uuid" is invalid or a reserved name.')
 
         # try again with a label that's already taken
         response = self.postJSON(url, None, {"label": "nick name", "value_type": "text"})
         self.assertResponseError(response, "label", "This field must be unique.")
 
         # create a new field
-        response = self.postJSON(url, None, {"label": "Age", "value_type": "numeric"})
+        response = self.postJSON(url, None, {"name": "Age", "type": "number"})
         self.assertEqual(response.status_code, 201)
 
         age = ContactField.user_fields.get(org=self.org, name="Age", value_type="N", is_active=True)
 
         # update a field by its key
-        response = self.postJSON(url, "key=age", {"label": "Real Age", "value_type": "datetime"})
+        response = self.postJSON(url, "key=age", {"name": "Real Age", "type": "datetime"})
         self.assertEqual(response.status_code, 200)
 
         age.refresh_from_db()
@@ -2709,18 +2740,16 @@ class EndpointsTest(TembaTest):
         self.assertEqual(age.value_type, "D")
 
         # try to update with key of deleted field
-        response = self.postJSON(url, "key=deleted", {"label": "Something", "value_type": "text"})
+        response = self.postJSON(url, "key=deleted", {"name": "Something", "type": "text"})
         self.assert404(response)
 
         # try to update with non-existent key
-        response = self.postJSON(url, "key=not_ours", {"label": "Something", "value_type": "text"})
+        response = self.postJSON(url, "key=not_ours", {"name": "Something", "type": "text"})
         self.assert404(response)
 
         # try to change type of date field used by campaign event
-        response = self.postJSON(url, "key=registered", {"label": "Registered", "value_type": "text"})
-        self.assertResponseError(
-            response, "value_type", "Can't change type of date field being used by campaign events."
-        )
+        response = self.postJSON(url, "key=registered", {"name": "Registered", "type": "text"})
+        self.assertResponseError(response, "type", "Can't change type of date field being used by campaign events.")
 
         CampaignEvent.objects.all().delete()
         ContactField.objects.filter(is_system=False).delete()
@@ -2775,7 +2804,7 @@ class EndpointsTest(TembaTest):
                     "archived": True,
                     "labels": [],
                     "expires": 720,
-                    "runs": {"active": 0, "completed": 0, "interrupted": 0, "expired": 0},
+                    "runs": {"active": 0, "waiting": 0, "completed": 0, "interrupted": 0, "expired": 0, "failed": 0},
                     "results": [
                         {
                             "key": "color",
@@ -2807,7 +2836,7 @@ class EndpointsTest(TembaTest):
                     "archived": False,
                     "labels": [{"uuid": str(reporting.uuid), "name": "Reporting"}],
                     "expires": 10080,
-                    "runs": {"active": 0, "completed": 1, "interrupted": 0, "expired": 0},
+                    "runs": {"active": 0, "waiting": 0, "completed": 1, "interrupted": 0, "expired": 0, "failed": 0},
                     "results": [
                         {
                             "key": "color",
@@ -2827,7 +2856,7 @@ class EndpointsTest(TembaTest):
                     "archived": False,
                     "labels": [],
                     "expires": 10080,
-                    "runs": {"active": 0, "completed": 0, "interrupted": 0, "expired": 0},
+                    "runs": {"active": 0, "waiting": 0, "completed": 0, "interrupted": 0, "expired": 0, "failed": 0},
                     "results": [
                         {
                             "key": "name",
@@ -3538,8 +3567,8 @@ class EndpointsTest(TembaTest):
                 "uuid": str(self.org.uuid),
                 "name": "Nyaruka",
                 "country": "RW",
-                "languages": [],
-                "primary_language": None,
+                "languages": ["eng", "kin"],
+                "primary_language": "eng",
                 "timezone": "Africa/Kigali",
                 "date_style": "day_first",
                 "credits": {"used": -1, "remaining": -1},
@@ -3547,7 +3576,7 @@ class EndpointsTest(TembaTest):
             },
         )
 
-        self.org.set_flow_languages(self.admin, ["eng", "fra"])
+        self.org.set_flow_languages(self.admin, ["kin"])
 
         response = self.fetchJSON(url)
         self.assertEqual(
@@ -3556,8 +3585,8 @@ class EndpointsTest(TembaTest):
                 "uuid": str(self.org.uuid),
                 "name": "Nyaruka",
                 "country": "RW",
-                "languages": ["eng", "fra"],
-                "primary_language": "eng",
+                "languages": ["kin"],
+                "primary_language": "kin",
                 "timezone": "Africa/Kigali",
                 "date_style": "day_first",
                 "credits": {"used": -1, "remaining": -1},

@@ -26,7 +26,7 @@ from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactURN
-from temba.orgs.models import DependencyMixin, Org, TopUp
+from temba.orgs.models import DependencyMixin, Org
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseItemWithContactExport
@@ -263,7 +263,7 @@ class Broadcast(models.Model):
     ):
         # for convenience broadcasts can still be created with single translation and no base_language
         if isinstance(text, str):
-            base_language = org.flow_languages[0] if org.flow_languages else "base"
+            base_language = org.flow_languages[0]
             text = {base_language: text}
 
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
@@ -327,7 +327,7 @@ class Broadcast(models.Model):
             if contact.language in self.text:
                 return self.text[contact.language]
 
-        if self.org.flow_languages and self.org.flow_languages[0] in self.text:  # try org primary language
+        if self.org.flow_languages[0] in self.text:  # try org primary language
             return self.text[self.org.flow_languages[0]]
 
         return self.text[self.base_language]  # should always be a base language translation
@@ -439,41 +439,37 @@ class Attachment:
 class Msg(models.Model):
     """
     Messages are the main building blocks of a RapidPro application. Channels send and receive
-    these, Triggers and Flows handle them when appropriate.
+    these, triggers and flows handle them when appropriate.
 
     Messages are either inbound or outbound and can have varying states depending on their
     direction. Generally an outbound message will go through the following states:
 
-      INITIALIZING > QUEUED > WIRED > SENT > DELIVERED
+      QUEUED > WIRED > SENT > DELIVERED
 
     If things go wrong, they can be put into an ERRORED state where they can be retried. Once
     we've given up then they can be put in the FAILED state.
 
-    Inbound messages are much simpler. They start as PENDING and the can be picked up by Triggers
+    Inbound messages are much simpler. They start as PENDING and the can be picked up by triggers
     or Flows where they would get set to the HANDLED state once they've been dealt with.
     """
 
-    STATUS_INITIALIZING = "I"  # used to hold off sending the message until the flow is ready to receive a response
-    STATUS_PENDING = "P"  # initial state for all messages
-    STATUS_QUEUED = "Q"
-    STATUS_WIRED = "W"  # message was handed off to the provider and credits were deducted for it
-    STATUS_SENT = "S"  # we have confirmation that a message was sent
-    STATUS_DELIVERED = "D"  # we have confirmation that a message was delivered
-    STATUS_HANDLED = "H"
-    STATUS_ERRORED = "E"  # there was an error during delivery
-    STATUS_FAILED = "F"  # we gave up on sending this message
-    STATUS_RESENT = "R"  # we retried this message (no longer used)
+    STATUS_PENDING = "P"  # incoming msg created but not yet handled, or outgoing message that failed to queue
+    STATUS_HANDLED = "H"  # incoming msg handled
+    STATUS_QUEUED = "Q"  # outgoing msg created and queued to courier
+    STATUS_WIRED = "W"  # outgoing msg requested to be sent via channel
+    STATUS_SENT = "S"  # outgoing msg having received sent confirmation from channel
+    STATUS_DELIVERED = "D"  # outgoing msg having received delivery confirmation from channel
+    STATUS_ERRORED = "E"  # outgoing msg which has errored and will be retried
+    STATUS_FAILED = "F"  # outgoing msg which has failed permanently
     STATUS_CHOICES = (
-        (STATUS_INITIALIZING, _("Initializing")),
         (STATUS_PENDING, _("Pending")),
+        (STATUS_HANDLED, _("Handled")),
         (STATUS_QUEUED, _("Queued")),
         (STATUS_WIRED, _("Wired")),
         (STATUS_SENT, _("Sent")),
         (STATUS_DELIVERED, _("Delivered")),
-        (STATUS_HANDLED, _("Handled")),
         (STATUS_ERRORED, _("Error")),
         (STATUS_FAILED, _("Failed")),
-        (STATUS_RESENT, _("Resent")),
     )
 
     VISIBILITY_VISIBLE = "V"
@@ -563,8 +559,6 @@ class Msg(models.Model):
 
     # the id of this message on the other side of its channel
     external_id = models.CharField(max_length=255, null=True)
-
-    topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT)
 
     metadata = JSONAsTextField(null=True, default=dict)
     log_uuids = ArrayField(models.UUIDField(), null=True)
@@ -852,9 +846,9 @@ class Msg(models.Model):
         indexes = [
             # used for finding errored messages to retry
             models.Index(
-                name="msgs_next_attempt_out_errored",
+                name="msgs_outgoing_to_retry",
                 fields=["next_attempt", "created_on", "id"],
-                condition=Q(direction="O", status="E", next_attempt__isnull=False),
+                condition=Q(direction="O", status__in=("P", "E"), next_attempt__isnull=False),
             ),
             # used for view of sent messages
             models.Index(
@@ -1039,15 +1033,13 @@ class Label(TembaModel, DependencyMixin):
 
     MAX_ORG_FOLDERS = 250
 
-    TYPE_FOLDER = "F"
-    TYPE_LABEL = "L"
-    TYPE_CHOICES = ((TYPE_FOLDER, "Folder of labels"), (TYPE_LABEL, "Regular label"))
+    org_limit_key = Org.LIMIT_LABELS
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs_labels")
-    folder = models.ForeignKey("Label", on_delete=models.PROTECT, null=True, related_name="children")
-    label_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_LABEL)
 
-    org_limit_key = Org.LIMIT_LABELS
+    # TODO drop
+    label_type = models.CharField(max_length=1, null=True)
+    folder = models.ForeignKey("Label", on_delete=models.PROTECT, null=True, related_name="children")
 
     @classmethod
     def create(cls, org, user, name: str):
@@ -1060,48 +1052,13 @@ class Label(TembaModel, DependencyMixin):
     def create_from_import_def(cls, org, user, definition: dict):
         return cls.create(org, user, definition["name"])
 
-    @classmethod
-    def get_hierarchy(cls, org):
-        """
-        Gets labels and folders organized into their hierarchy and with their message counts
-        """
-
-        labels_and_folders = list(Label.get_active_for_org(org).order_by(Lower("name")))
-        label_counts = LabelCount.get_totals([lb for lb in labels_and_folders if not lb.is_folder()])
-
-        folder_nodes = {}
-        all_nodes = []
-        for obj in labels_and_folders:
-            node = {"obj": obj, "count": label_counts.get(obj), "children": []}
-            all_nodes.append(node)
-
-            if obj.is_folder():
-                folder_nodes[obj.id] = node
-
-        top_nodes = []
-        for node in all_nodes:
-            if node["obj"].folder_id is None:
-                top_nodes.append(node)
-            else:
-                folder_nodes[node["obj"].folder_id]["children"].append(node)
-
-        return top_nodes
-
-    def filter_messages(self, queryset):
-        if self.is_folder():
-            return queryset.filter(labels__in=self.children.all()).distinct()
-
-        return queryset.filter(labels=self)
-
     def get_messages(self):
-        # TODO: consider purpose built indexes
-        return self.filter_messages(Msg.objects.all())
+        return self.msgs.all()
 
     def get_visible_count(self):
         """
         Returns the count of visible, non-test message tagged with this label
         """
-        assert not self.is_folder()
 
         return LabelCount.get_totals([self])[self]
 
@@ -1109,8 +1066,6 @@ class Label(TembaModel, DependencyMixin):
         """
         Adds or removes this label from the given messages
         """
-
-        assert not self.is_folder(), "can't assign messages to label folders"
 
         changed = set()
 
@@ -1134,20 +1089,11 @@ class Label(TembaModel, DependencyMixin):
 
         return changed
 
-    def has_child_labels(self):
-        return self.children.filter(is_active=True).exists()
-
-    def is_folder(self):
-        return self.label_type == Label.TYPE_FOLDER
-
     def release(self, user):
-        assert not self.has_child_labels(), "can't release non-empty label folder"
+        super().release(user)  # releases flow dependencies
 
-        if not self.is_folder():
-            super().release(user)  # releases flow dependencies
-
-            # delete labellings of messages with this label (not the actual messages)
-            Msg.labels.through.objects.filter(label=self).delete()
+        # delete labellings of messages with this label (not the actual messages)
+        Msg.labels.through.objects.filter(label=self).delete()
 
         self.counts.all().delete()
 
@@ -1157,8 +1103,6 @@ class Label(TembaModel, DependencyMixin):
         self.save(update_fields=("name", "is_active", "modified_by", "modified_on"))
 
     def __str__(self):
-        if self.folder:
-            return "%s > %s" % (str(self.folder), self.name)
         return self.name
 
     class Meta:

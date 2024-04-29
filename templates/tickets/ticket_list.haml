@@ -101,10 +101,12 @@
         focusNext = null;
         if (folder !== selection) {
           // whenever our menu changes, reset filter
-          statusSelect.setValue("open");
-          status = "open";
-          folder = selection;
-          updateTicketList();
+          if (statusSelect) {
+            statusSelect.setValue("open");
+            status = "open";
+            folder = selection;
+            updateTicketList();
+          }
         }                    
       }     
 
@@ -264,8 +266,7 @@
       } else {
         tickets.refresh();
       }
-
-      // menu.refresh();
+      menu.refresh();
     }
 
 -block page-container
@@ -279,8 +280,8 @@
           
           .ticket-list.flex.flex-col(class="{% if is_spa%} {% else %}m-4 pt-4 mr-2{%endif%}")
             %temba-select(name="ticket-status" onchange="handleStatusChanged(event)" value="{{status}}")
-              %temba-option(name="Open" value="open" icon="inbox")
-              %temba-option(name="Closed" value="closed" icon="check")
+              %temba-option(name="Open" value="open" icon="icon.tickets_open")
+              %temba-option(name="Closed" value="closed" icon="icon.tickets_closed")
 
             .flex.flex-grow(style="max-height:100%;")
               -if uuid

@@ -11,6 +11,7 @@ import phonenumbers
 import pyexcel
 import pytz
 import regex
+import xlrd
 from django_redis import get_redis_connection
 from smartmin.models import SmartModel
 
@@ -354,14 +355,17 @@ class ContactField(TembaModel, DependencyMixin):
     TYPE_DISTRICT = "I"
     TYPE_WARD = "W"
 
-    TYPE_CHOICES = (
+    TYPE_CHOICES_BASIC = (
         (TYPE_TEXT, _("Text")),
         (TYPE_NUMBER, _("Number")),
         (TYPE_DATETIME, _("Date & Time")),
+    )
+    TYPE_CHOICES_LOCATIONS = (
         (TYPE_STATE, _("State")),
         (TYPE_DISTRICT, _("District")),
         (TYPE_WARD, _("Ward")),
     )
+    TYPE_CHOICES = TYPE_CHOICES_BASIC + TYPE_CHOICES_LOCATIONS
 
     ENGINE_TYPES = {
         TYPE_TEXT: "text",
@@ -1626,19 +1630,9 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
             modified_by=user,
         )
 
-    @classmethod
-    def apply_action_delete(cls, user, groups):
-        groups.update(is_active=False, modified_by=user)
-
-        from .tasks import release_group_task
-
-        for group in groups:
-            # release each group in a background task
-            on_transaction_commit(lambda: release_group_task.delay(group.id))
-
     @property
     def icon(self) -> str:
-        return "atom" if self.group_type == self.TYPE_SMART else "users"
+        return "icon.group_smart" if self.group_type == self.TYPE_SMART else "icon.group"
 
     def get_attrs(self):
         return {"icon": self.icon}
@@ -2065,7 +2059,11 @@ class ContactImport(SmartModel):
         if file_type == "csv":
             file = decode_stream(file)
 
-        data = pyexcel.iget_array(file_stream=file, file_type=file_type)
+        try:
+            data = pyexcel.iget_array(file_stream=file, file_type=file_type)
+        except xlrd.XLRDError:
+            raise ValidationError(_("Import file appears to be corrupted. Please save again in Excel and try again."))
+
         try:
             headers = [str(h).strip() for h in next(data)]
         except StopIteration:

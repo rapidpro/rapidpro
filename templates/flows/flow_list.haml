@@ -50,32 +50,11 @@
                   - trans "Labels"
 
                 -for label in labels
-                  -if label.children
-                    .lp-nav-item{ class:'{% if current_label.uuid == label.uuid %}font-normal{% endif %}' }
-                      .name{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.uuid %}'}
-                        {{ label.label }}
-                      .count.-mr-1.text-gray-400
-                        -if current_label.pk == label.pk or current_label.parent_id == label.pk
-                          .glyph.icon-arrow-down-2{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.uuid %}'}
-                        -else
-                          .glyph.icon-arrow-right-8{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.uuid %}'}
-
-                    -if current_label.pk == label.pk or current_label.parent_id == label.pk
-                      .pl-2.mt-1.level2.font-light
-                        -for child in label.children
-                          .lp-nav-item{ class:'{% if current_label.pk == child.pk %}font-normal{% endif %}' }
-                            .name{onclick:"goto(event)",  href:"{% url 'flows.flow_filter' child.uuid %}" }
-                              {{ child.name }}
-                            .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' child.uuid %}" }
-                              {{ child.get_flows_count | intcomma }}
-
-                -for label in labels
-                  -if not label.children
-                    .lp-nav-item{ class:'{% if current_label.pk == label.pk %}font-normal{% endif %}' }
-                      .name{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.uuid %}", class:'{% if current_label.pk == label.pk %}font-normal active{% endif %}' }
-                        {{ label.label }}
-                      .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.uuid %}", class:'{% if current_label.pk == label.pk %}font-normal active{% endif %}' }
-                        {{ label.count | intcomma }}
+                  .lp-nav-item{ class:'{% if current_label.pk == label.pk %}font-normal{% endif %}' }
+                    .name{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.uuid %}", class:'{% if current_label.pk == label.pk %}font-normal active{% endif %}' }
+                      {{ label.name }}
+                    .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.uuid %}", class:'{% if current_label.pk == label.pk %}font-normal active{% endif %}' }
+                      {{ label.count | intcomma }}
 
           .flex-grow
             -if org_perms.flows.flowstart_list
@@ -109,39 +88,20 @@
                         -trans "Archive"
 
                     - if 'label' in actions and org_perms.flows.flow_update
-                      %span.btn-group
-                        .button-action.dropdown-toggle{data-toggle:"dropdown"}
-                          .-mt-1.mr-2.glyph.icon-tag
+
+
+                      %temba-dropdown.items-stretch.flex.flex-column(arrowoffset="14" offsetx="6" offsety="10" arrowsize="8")
+                      
+                        .button-action(slot="toggle")
+                          .-mt-1.mr-2.glyph.icon-tag{style:"width:16px"}
                           -trans "Label"
-
-                        %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
+                        .rounded-lg.border-none.px-4.py-3(slot="dropdown" style="min-width:200px")
                           -for label in labels
-                            -with label.children as children
-                              -if children
-                                %li.dropdown-submenu
-                                  .lbl-menu.object-btn-label{data-id:'{{label.pk}}'}
-                                    .flex.items-center.py-1.linked
-                                      .glyph.message-label
-                                      .name
-                                        = label.label
-                                      .flex-grow.text-right
-                                        .icon-arrow-right-8.text-2xl.-mt-1
-
-                                  %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
-                                    -for child in children
-                                      %li
-                                        .lbl-menu.object-btn-label{data-id:'{{child.pk}}'}
-                                          .flex.items-center.py-1.linked
-                                            .glyph.message-label
-                                            = child.name
-
-                          -for label in labels
-                            -if not label.children
-                              %li
-                                .lbl-menu.object-btn-label{data-id:'{{label.pk}}'}
-                                  .flex.items-center.py-1.linked
-                                    .glyph.message-label
-                                    = label.label
+                            .lbl-menu(href='#' onclick='labelObjectRows({{label.id}}, false, wireTableListeners)' data-id='{{label.id}}')
+                              .flex.items-center.py-1.linked
+                                .glyph.message-label.label-checkbox
+                                .name.px-1.-mb-1
+                                  {{label.name}}
 
                           -if org_perms.flows.flowlabel_create
                             -if labels

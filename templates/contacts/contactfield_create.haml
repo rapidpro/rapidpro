@@ -2,6 +2,18 @@
 -load i18n smartmin
 
 -block fields
+  -if total_count >= total_limit
+    .mb-4
+      %temba-alert(level="warning")
+        -blocktrans trimmed with limit=total_limit
+          You have reached the limit of {{ limit }} fields per workspace. Please remove fields that you are no longer using.
+  -elif total_count >= total_limit|add:-10
+    .mb-4
+      %temba-alert(level="warning")
+        -blocktrans trimmed with limit=total_limit
+          You are approaching the limit of {{ limit }} fields per workspace. You should remove fields that you are no longer using.
+
+
   .flex.items-start.flex-col
     .w-full
       -render_field 'name'

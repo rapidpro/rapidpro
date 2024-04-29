@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timedelta
 
 import pytz
+from celery import shared_task
 from django_redis import get_redis_connection
 
 from django.conf import settings
@@ -9,11 +10,9 @@ from django.db.models import F, Prefetch
 from django.utils import timezone
 from django.utils.timesince import timesince
 
-from celery import shared_task
-
 from temba.contacts.models import ContactField, ContactGroup
 from temba.utils import chunk_list
-from temba.utils.celery import nonoverlapping_task
+from temba.utils.crons import cron_task
 
 from .models import (
     ExportFlowResultsTask,
@@ -23,7 +22,7 @@ from .models import (
     FlowPathCount,
     FlowRevision,
     FlowRun,
-    FlowRunCount,
+    FlowRunStatusCount,
     FlowSession,
     FlowStart,
     FlowStartCount,
@@ -33,7 +32,7 @@ FLOW_TIMEOUT_KEY = "flow_timeouts_%y_%m_%d"
 logger = logging.getLogger(__name__)
 
 
-@shared_task(track_started=True, name="update_session_wait_expires")
+@shared_task
 def update_session_wait_expires(flow_id):
     """
     Update the wait_expires_on of any session currently waiting in the given flow
@@ -47,7 +46,7 @@ def update_session_wait_expires(flow_id):
         batch.update(wait_expires_on=F("wait_started_on") + timedelta(minutes=flow.expires_after_minutes))
 
 
-@shared_task(track_started=True, name="export_flow_results_task")
+@shared_task
 def export_flow_results_task(export_id):
     """
     Export a flow to a file and e-mail a link to the user
@@ -58,16 +57,16 @@ def export_flow_results_task(export_id):
     ).get(id=export_id).perform()
 
 
-@nonoverlapping_task(track_started=True, name="squash_flowcounts", lock_timeout=7200)
-def squash_flowcounts():
+@cron_task(lock_timeout=7200)
+def squash_flow_counts():
     FlowNodeCount.squash()
-    FlowRunCount.squash()
+    FlowRunStatusCount.squash()
     FlowCategoryCount.squash()
     FlowStartCount.squash()
     FlowPathCount.squash()
 
 
-@nonoverlapping_task(track_started=True, name="trim_flow_revisions")
+@cron_task()
 def trim_flow_revisions():
     start = timezone.now()
 
@@ -86,21 +85,14 @@ def trim_flow_revisions():
     logger.info(f"Trimmed {count} flow revisions since {last_trim} in {elapsed}")
 
 
-@nonoverlapping_task(track_started=True, name="trim_flow_sessions_and_starts")
-def trim_flow_sessions_and_starts():
-    trim_flow_sessions()
-    trim_flow_starts()
-
-
+@cron_task()
 def trim_flow_sessions():
     """
     Cleanup old flow sessions
     """
+
     trim_before = timezone.now() - settings.RETENTION_PERIODS["flowsession"]
     num_deleted = 0
-    start = timezone.now()
-
-    logger.info(f"Deleting flow sessions which ended before {trim_before.isoformat()}...")
 
     while True:
         session_ids = list(FlowSession.objects.filter(ended_on__lte=trim_before).values_list("id", flat=True)[:1000])
@@ -113,21 +105,17 @@ def trim_flow_sessions():
         FlowSession.objects.filter(id__in=session_ids).delete()
         num_deleted += len(session_ids)
 
-        if num_deleted % 10000 == 0:  # pragma: no cover
-            print(f" > Deleted {num_deleted} flow sessions")
-
-    logger.info(f"Deleted {num_deleted} flow sessions in {timesince(start)}")
+    return {"deleted": num_deleted}
 
 
-def trim_flow_starts():
+@cron_task()
+def trim_flow_starts() -> int:
     """
     Cleanup completed non-user created flow starts
     """
+
     trim_before = timezone.now() - settings.RETENTION_PERIODS["flowstart"]
     num_deleted = 0
-    start = timezone.now()
-
-    logger.info(f"Deleting completed non-user created flow starts created before {trim_before.isoformat()}")
 
     while True:
         start_ids = list(
@@ -155,7 +143,4 @@ def trim_flow_starts():
         FlowStart.objects.filter(id__in=start_ids).delete()
         num_deleted += len(start_ids)
 
-        if num_deleted % 10000 == 0:  # pragma: no cover
-            logger.debug(f" > Deleted {num_deleted} flow starts")
-
-    logger.info(f"Deleted {num_deleted} completed non-user created flow starts in {timesince(start)}")
+    return {"deleted": num_deleted}
