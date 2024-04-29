@@ -28,7 +28,7 @@ def validate_translations(value, base_language, max_length):
         raise serializers.ValidationError("Must include translation for base language '%s'" % base_language)
 
     for lang, trans in value.items():
-        if not isinstance(lang, str) or (lang != "base" and len(lang) > 3):
+        if not isinstance(lang, str) or len(lang) != 3:
             raise serializers.ValidationError("Language code %s is not valid." % str(lang))
         if not isinstance(trans, str):
             raise serializers.ValidationError("Translations must be strings.")
@@ -61,7 +61,7 @@ class TranslatableField(serializers.Field):
 
     def to_internal_value(self, data):
         org = self.context["org"]
-        base_language = org.flow_languages[0] if org.flow_languages else "base"
+        base_language = org.flow_languages[0]
 
         if isinstance(data, str):
             if len(data) > self.max_length:
@@ -253,7 +253,11 @@ class ContactFieldField(TembaModelField):
     lookup_fields = ("key",)
 
     def to_representation(self, obj):
-        return {"key": obj.key, "label": obj.name}
+        return {
+            "key": obj.key,
+            "name": obj.name,
+            "label": obj.name,  # for backwards compatibility
+        }
 
 
 class ContactGroupField(TembaModelField):

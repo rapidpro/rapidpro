@@ -3,11 +3,10 @@ import re
 import time
 
 import requests
+from celery import shared_task
 from django_redis import get_redis_connection
 
 from django.utils import timezone
-
-from celery import shared_task
 
 from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactURN
@@ -21,7 +20,7 @@ from .constants import LANGUAGE_MAPPING, STATUS_MAPPING
 logger = logging.getLogger(__name__)
 
 
-@shared_task(track_started=True, name="refresh_whatsapp_contacts")
+@shared_task
 def refresh_whatsapp_contacts(channel_id):
     r = get_redis_connection()
     key = "refresh_whatsapp_contacts_%d" % channel_id
@@ -153,7 +152,7 @@ def update_local_templates(channel, templates_data):
     TemplateTranslation.trim(channel, seen)
 
 
-@shared_task(track_started=True, name="refresh_whatsapp_templates")
+@shared_task
 def refresh_whatsapp_templates():
     """
     Runs across all WhatsApp templates that have connected FB accounts and syncs the templates which are active.

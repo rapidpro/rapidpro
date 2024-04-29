@@ -64,8 +64,8 @@ class ConnectView(BaseConnectView):
     def form_valid(self, form):
         from .type import MailgunType
 
-        branding = self.org.get_branding()
-        domain = self.org.get_branding()["ticket_domain"]
+        branding = self.org.branding
+        domain = branding["ticket_domain"]
         api_key = settings.MAILGUN_API_KEY
         verification_code = self.request.session["verification_code"]
 
@@ -75,7 +75,7 @@ class ConnectView(BaseConnectView):
             subject = _("Verify your email address for tickets")
             template = "tickets/types/mailgun/verify_email"
             context = {"verification_code": verification_code}
-            send_template_email(to_address, subject, template, context, self.request.branding)
+            send_template_email(to_address, subject, template, context, branding)
 
             self.request.session["to_address"] = to_address
             return HttpResponseRedirect(reverse("tickets.types.mailgun.connect") + "?verify=true")

@@ -30,7 +30,7 @@ class APIPermission(BasePermission):
             if request.user.is_anonymous:
                 return False
 
-            org = request.user.get_org()
+            org = request.org
 
             if request.auth:
                 # check that user is still allowed to use the token's role
@@ -256,19 +256,15 @@ class APIToken(models.Model):
         return self.key
 
 
-def get_or_create_api_token(user):
+def get_or_create_api_token(org, user):
     """
     Gets or creates an API token for this user. If user doen't have access to the API, this returns None.
     """
-    org = user.get_org()
-    if not org:
-        org = user.get_orgs(roles=[OrgRole.ADMINISTRATOR]).first()
 
-    if org:
-        try:
-            token = APIToken.get_or_create(org, user)
-            return token.key
-        except ValueError:
-            pass
+    try:
+        token = APIToken.get_or_create(org, user)
+        return token.key
+    except ValueError:
+        pass
 
     return None

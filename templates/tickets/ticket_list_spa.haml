@@ -29,8 +29,8 @@
         
         .ticket-list.flex.flex-col(class="{% if is_spa%} {% else %}m-4 pt-4 mr-2{%endif%}")
           %temba-select(name="ticket-status" onchange="handleStatusChanged(event)" value="{{status}}")
-            %temba-option(name="Open" value="open" icon="inbox")
-            %temba-option(name="Closed" value="closed" icon="check")
+            %temba-option(name="Open" value="open" icon="icon.tickets_open")
+            %temba-option(name="Closed" value="closed" icon="icon.tickets_closed")
 
           .flex.flex-grow(style="max-height:100%;")
             -if uuid

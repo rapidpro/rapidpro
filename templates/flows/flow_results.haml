@@ -22,35 +22,9 @@
           font-size: 90%;
           font-color: #666;
         }
-
-        .nav.nav-tabs > li > a:hover {
-          margin-right: 2px;
-          background: transparent;
-          border-color: transparent;
-        }
-
-        .nav.nav-tabs > li.active > a:hover {
-          margin-right: 2px;
-          background: #fff;
-          border-color: inherit;
-          border-bottom: 1px solid #fff;
-        }
          
         .after {
           position: relative;
-        }
-
-        .tab {
-          display: inline-block;
-        }
-
-        .tab .content {
-          display: none;
-          position: absolute;
-        }
-
-        .tab.active .content {
-          display: block;
         }
 
         .chart {
@@ -244,12 +218,26 @@
     {% endlessblock %}
 
 -block extra-script
-  %script{src:"{{ STATIC_URL }}bower/highcharts/highcharts.js"}
-  %script{src:"{{ STATIC_URL }}bower/highcharts/modules/drilldown.js"}
-
   {{ block.super }}
+  %script{src:"{{ STATIC_URL }}highcharts/highcharts.js"}
+  %script{src:"{{ STATIC_URL }}highcharts/modules/drilldown.js"}
 
   :javascript
+    var colors = ['#2387CA', '#8FC93A', '#E18335', '#483C46', '#E4CC37', '#723D46', '#606C38', '#7DCFB6'];
+    Highcharts.setOptions({
+      colors: colors
+    });
+  
+
+    var charts = {}
+    function handleTabChanged(event) {
+      var tabs = document.querySelector("temba-tabs");
+      if(tabs.index == 1) {
+        for (var key of Object.keys(charts)) {
+          charts[key].reflow();
+        }
+      }
+    }
 
     function updateColumnSelect() {
       var select = document.getElementById("select-columns");
@@ -350,10 +338,7 @@
       })
     });
 
-    Highcharts.setOptions({
-      colors: ['#2387CA', '#8FC93A', '#E18335', '#483C46', '#E4CC37', '#723D46', '#606C38', '#7DCFB6']
-    });
-    var colors = Highcharts.getOptions().colors;
+
     function getColor(index) {
       return colors[index % colors.length];
     }
@@ -412,7 +397,11 @@
               return "<b>" + this.x + "</b>: " + this.point.count;
             }
           },
-          series: []
+          plotOptions: {
+            series: {
+              colorByPoint:true
+            }
+          },
         });
       }
 
@@ -434,15 +423,6 @@
         }
         dialog.open = false;
       });
-    });
-
-    $('a[data-toggle="tab"]').on('shown.bs.tab', function(e){
-      // reflow our charts when analytics is shown on the chance their dimensions have changed
-      if (e.currentTarget.innerText == 'Analytics') {
-        for (var key of Object.keys(charts)) {
-          charts[key].reflow();
-        }
-      }
     });
 
     function updateChart(chartData) {
@@ -596,34 +576,19 @@
       });
 
 -block content
-
   %temba-dialog#confirm-run-delete(header='{{ _("Delete Run")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
     .p-6
       -trans "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
 
-  .bg-white.p-4.rounded-lg
-    %ul.nav.nav-tabs.mb-0
-      %li.active
-        %a(href="#overview" data-toggle="tab")
-          -trans "Overview"
-
-      %li
-        %a(href="#analytics" data-toggle="tab")
-          -trans "Analytics"
-
-      %li
-        %a(href="#runs" data-toggle="tab" onclick="updateColumnSelect();")
-          -trans "Runs"
-
-    .tab-content
-      #overview.tab-pane.active.py-4
+  %temba-tabs.flex-grow(-temba-context-changed="handleTabChanged")
+    %temba-tab(name='{{_("Overview")|escapejs}}')
+      #overview.active.p-4.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
         .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
           %i.fa.fa-spinner.fa-spin.fa-2x
 
-      #analytics.tab-pane
-        #category-charts
-
-      #runs.tab-pane
+    %temba-tab(name='{{_("Analytics")|escapejs}}' icon="icon.analytics")
+      #category-charts.flex.flex-wrap.overflow-y-scroll.overflow-x-hidden
+    %temba-tab(name='{{_("Runs")|escapejs}}')
         .scroll-x
           .responded-checkbox.flex.items-center.py-3.w-full
             .runs-show#show-all-runs{

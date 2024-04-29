@@ -1,0 +1,16 @@
+-extends 'smartmin/read.html'
+
+-block content
+  .card
+    .text-xl
+      {{object.email}}
+    .text-normal
+      {{object.date_joined}}
+    
+  %temba-tabs.mt-4(collapses="true")
+    %temba-tab(icon="icon.workspace" name="Workspaces")
+      .p-4
+        -for org in object.get_orgs
+          .member
+            %a(href="{% url 'orgs.org_read' org.id %}")
+              {{org.name}}

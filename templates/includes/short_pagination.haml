@@ -8,7 +8,7 @@
         -if 'groups' in actions
           %temba-dropdown.ml-4(offsety="8")
             %temba-tip(position="top" text='{{_("Groups")|escapejs}}'  slot="toggle")
-              %temba-icon(name="users" clickable="true")
+              %temba-icon(name="icon.users" clickable="true")
             .label-menu.px-6.py-4(slot="dropdown")
               -for group in groups
                 -if not group.is_dynamic
@@ -26,11 +26,11 @@
                     - trans "New Group..."
 
         -if 'label' in actions
-          %temba-dropdown.ml-4(offsety="8")
+          %temba-dropdown.ml-4(offsety="8" offsetx="-8")
             %temba-tip(position="top" text='{{_("Labels")|escapejs}}'  slot="toggle")
-              %temba-icon(name="tag" clickable="true")
-            .label-menu.px-6.py-4(slot="dropdown")
-              -for label in labels_flat
+              %temba-icon(name="icon.label" clickable="true")
+            .label-menu.px-6.py-4(slot="dropdown" style="min-width:200px")
+              -for label in labels
                 .lbl-menu(onclick='labelObjectRows({{label.id}}, false, refreshMenu)' data-id='{{label.id}}')
                   .flex.items-center.py-1.hover-linked
                     .glyph.message-label.label-checkbox
@@ -38,7 +38,7 @@
                       {{ label.name }}
 
               -if org_perms.msgs.label_create
-                -if labels_flat
+                -if labels
                   %li.separator.-mx-4.border-b.my-3
                 %li
                   .lbl-menu.add-label.linked{onclick:"handleAddLabelClicked()"}
@@ -48,44 +48,44 @@
         -if 'restore' in actions
           .linked.ml-4(onclick='runActionOnObjectRows("restore", refreshMenu)')
             %temba-tip(position="top" text='{{_("Reactivate")|escapejs}}')
-              %temba-icon.show-loading(name="publish" size="1.2" clickable="true")
+              %temba-icon.show-loading(name="icon.restore" size="1.2" clickable="true")
 
         -if 'archive' in actions
           .linked.ml-4(onclick='runActionOnObjectRows("archive", refreshMenu)')
             %temba-tip(position="top" text='{{_("Archive")|escapejs}}')
-              %temba-icon.show-loading(name="archive" clickable="true")
+              %temba-icon.show-loading(name="icon.archive" clickable="true")
 
         -if 'send' in actions
           -if org_perms.msgs.broadcast_send and not reply_disabled
             %temba-modax#send-message-modal(header='{{_("Send Message")|escapejs}}' endpoint="{% url 'msgs.broadcast_send' %}")
               .linked.ml-4(onclick='handleSendMessageClicked()')
                 %temba-tip(position="top" text='{{_("Send Message")|escapejs}}')
-                  %temba-icon(name="message-square" clickable="true")
+                  %temba-icon(name="icon.message" clickable="true")
     
         -if 'delete' in actions
           .linked.ml-4(onclick='onDeleteClicked()')
             %temba-tip(position="top" text='{{_("Delete")|escapejs}}')
-              %temba-icon(name="trash-2" clickable="true")
+              %temba-icon(name="icon.delete" clickable="true")
 
         -if 'unlabel' in actions
           .linked.ml-4(onclick="unlabelObjectRows({{current_group.pk}}, false, refreshMenu);")
             %temba-tip(position="top" text='{{_("Remove from group")|escapejs}}')
-              %temba-icon.show-loading(name="x" clickable="true")
+              %temba-icon.show-loading(name="icon.delete_small" clickable="true")
 
         -if 'block' in actions
           .linked.ml-4(onclick='runActionOnObjectRows("block", refreshMenu)')
             %temba-tip(position="top" text='{{_("Block")|escapejs}}')
-              %temba-icon.show-loading(name="slash" clickable="true")
+              %temba-icon.show-loading(name="icon.contact_blocked" clickable="true")
 
         -if 'start-flow' in actions and org_perms.flows.flow_broadcast
           .linked.ml-4(onclick='handleStartFlowClicked(event)')
             %temba-tip(position="top" text='{{_("Start Flow")|escapejs}}')
-              %temba-icon.show-loading(name="flow" clickable="true")
+              %temba-icon.show-loading(name="icon.flow" clickable="true")
 
         -if 'download-results' in actions
           .linked.ml-4(onclick='handleDownloadFlowResults(event)')
             %temba-tip(position="top" text='{{_("Download Results")|escapejs}}')
-              %temba-icon.show-loading(name="download" clickable="true")
+              %temba-icon.show-loading(name="icon.download" clickable="true")
 
   .paging-range.mr-4
     -blocktrans trimmed with start=page_obj.start_index|intcomma end=page_obj.end_index|intcomma total=paginator.count|intcomma
@@ -96,15 +96,15 @@
     .paging-previous.mr-2
       -if page_obj.has_previous 
         .linked(onclick="goto(event, this)" href="{{request.path}}{{url_params|safe}}page={{page_obj.previous_page_number}}")<
-          %temba-icon(size="1.2" name="chevron-left" clickable="true")
+          %temba-icon(size="1.2" name="icon.arrow_left" clickable="true")
       -else 
         .disabled
-          %temba-icon(size="1.2" name="chevron-left")
+          %temba-icon(size="1.2" name="icon.arrow_left")
 
     .paging-next
       -if page_obj.has_next 
         .linked(onclick="goto(event, this)" href="{{request.path}}{{url_params|safe}}page={{page_obj.next_page_number}}")<
-          %temba-icon(size="1.2" name="chevron-right" clickable="true")
+          %temba-icon(size="1.2" name="icon.arrow_right" clickable="true")
       -else 
         .disabled
-          %temba-icon(size="1.2" name="chevron-right")
+          %temba-icon(size="1.2" name="icon.arrow_right")

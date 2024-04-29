@@ -30,12 +30,12 @@ from temba.utils.models import generate_uuid
 
 from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
 from .tasks import (
-    check_channels_task,
-    squash_channelcounts,
-    sync_old_seen_channels_task,
+    check_channel_alerts,
+    squash_channel_counts,
+    sync_old_seen_channels,
     track_org_channel_counts,
-    trim_channel_log_task,
-    trim_sync_events_task,
+    trim_channel_logs,
+    trim_sync_events,
 )
 
 
@@ -792,35 +792,6 @@ class ChannelTest(TembaTest):
         android.refresh_from_db()
         self.assertFalse(android.is_active)
 
-    def test_no_topup_quota_exceeded(self):
-        # reduce out credits to 10
-        self.org.topups.all().update(credits=10)
-        self.org.clear_credit_cache()
-
-        self.assertEqual(10, self.org.get_credits_remaining())
-        self.assertEqual(0, self.org.get_credits_used())
-
-        # if we sync should get one message back
-        self.send_message(["250788382382"], "How is it going?")
-
-        response = self.sync(self.tel_channel, cmds=[])
-        self.assertEqual(200, response.status_code)
-        response = response.json()
-        self.assertEqual(1, len(response["cmds"]))
-
-        self.assertEqual(9, self.org.get_credits_remaining())
-        self.assertEqual(1, self.org.get_credits_used())
-
-        # let's create 10 other messages
-        for i in range(10):
-            self.send_message(["250788382%03d" % i], "This is message # %d" % i)
-
-        # should send all the 11 messages that exist
-        response = self.sync(self.tel_channel, cmds=[])
-        self.assertEqual(200, response.status_code)
-        response = response.json()
-        self.assertEqual(11, len(response["cmds"]))
-
     def test_sync_broadcast_multiple_channels(self):
         channel2 = Channel.create(
             self.org,
@@ -1075,7 +1046,7 @@ class ChannelTest(TembaTest):
 
         # make our events old so we can test trimming them
         SyncEvent.objects.all().update(created_on=timezone.now() - timedelta(days=45))
-        trim_sync_events_task()
+        trim_sync_events()
 
         # should be cleared out
         self.assertEqual(1, SyncEvent.objects.all().count())
@@ -1458,7 +1429,7 @@ class ChannelAlertTest(TembaTest):
         self.channel.last_seen = timezone.now() - timedelta(minutes=40)
         self.channel.save()
 
-        check_channels_task()
+        check_channel_alerts()
         self.assertTrue(len(mail.outbox) == 0)
 
         # add alert email, remove org and set last seen to now to force an resolve email to try to send
@@ -1466,7 +1437,7 @@ class ChannelAlertTest(TembaTest):
         self.channel.org = None
         self.channel.last_seen = timezone.now()
         self.channel.save()
-        check_channels_task()
+        check_channel_alerts()
 
         self.assertTrue(len(mail.outbox) == 0)
 
@@ -1477,19 +1448,19 @@ class ChannelSyncTest(TembaTest):
         self.channel.last_seen = timezone.now() - timedelta(days=40)
         self.channel.save()
 
-        sync_old_seen_channels_task()
+        sync_old_seen_channels()
         self.assertFalse(mock_trigger_sync.called)
 
         self.channel.last_seen = timezone.now() - timedelta(minutes=5)
         self.channel.save()
 
-        sync_old_seen_channels_task()
+        sync_old_seen_channels()
         self.assertFalse(mock_trigger_sync.called)
 
         self.channel.last_seen = timezone.now() - timedelta(hours=3)
         self.channel.save()
 
-        sync_old_seen_channels_task()
+        sync_old_seen_channels()
         self.assertTrue(mock_trigger_sync.called)
 
 
@@ -1501,10 +1472,10 @@ class ChannelClaimTest(TembaTest):
         self.channel.last_seen = timezone.now() - timedelta(minutes=40)
         self.channel.save()
 
-        branding = copy.deepcopy(settings.BRANDING)
-        branding["rapidpro.io"]["from_email"] = "support@mybrand.com"
-        with self.settings(BRANDING=branding):
-            check_channels_task()
+        brands = copy.deepcopy(settings.BRANDS)
+        brands[0]["from_email"] = "support@mybrand.com"
+        with self.settings(BRANDS=brands):
+            check_channel_alerts()
 
             # should have created one alert
             alert = Alert.objects.get()
@@ -1518,7 +1489,7 @@ class ChannelClaimTest(TembaTest):
                 org=self.channel.org,
                 channel=self.channel,
                 now=timezone.now(),
-                branding=self.channel.org.get_branding(),
+                branding=self.channel.org.branding,
                 last_seen=self.channel.last_seen,
                 sync=alert.sync_event,
             )
@@ -1530,7 +1501,7 @@ class ChannelClaimTest(TembaTest):
             self.assertEqual(mail.outbox[0].from_email, "support@mybrand.com")
 
         # call it again
-        check_channels_task()
+        check_channel_alerts()
 
         # still only one alert
         self.assertEqual(1, Alert.objects.all().count())
@@ -1540,7 +1511,7 @@ class ChannelClaimTest(TembaTest):
         self.channel.last_seen = timezone.now() + timedelta(minutes=5)
         self.channel.save()
 
-        check_channels_task()
+        check_channel_alerts()
 
         # still only one alert, but it is now ended
         alert = Alert.objects.get()
@@ -1551,7 +1522,7 @@ class ChannelClaimTest(TembaTest):
             org=self.channel.org,
             channel=self.channel,
             now=timezone.now(),
-            branding=self.channel.org.get_branding(),
+            branding=self.channel.org.branding,
             last_seen=self.channel.last_seen,
             sync=alert.sync_event,
         )
@@ -1582,7 +1553,7 @@ class ChannelClaimTest(TembaTest):
         self.channel.save()
 
         # ok check on our channel
-        check_channels_task()
+        check_channel_alerts()
 
         # we don't have  successfully sent message and we have an alert and only one
         self.assertEqual(Alert.objects.all().count(), 1)
@@ -1606,7 +1577,7 @@ class ChannelClaimTest(TembaTest):
         )
 
         # ok check on our channel
-        check_channels_task()
+        check_channel_alerts()
 
         # if latest_sent_message is after our queued message no alert is created
         self.assertEqual(Alert.objects.all().count(), 1)
@@ -1619,7 +1590,7 @@ class ChannelClaimTest(TembaTest):
         msg1 = self.create_outgoing_msg(contact, "Message One", created_on=two_hours_ago, status="Q")
 
         # check our channel again
-        check_channels_task()
+        check_channel_alerts()
 
         #  no new alert created because we sent one in the past hour
         self.assertEqual(Alert.objects.all().count(), 1)
@@ -1632,7 +1603,7 @@ class ChannelClaimTest(TembaTest):
         alert.save()
 
         # check our channel again
-        check_channels_task()
+        check_channel_alerts()
 
         # this time we have a new alert and should create only one
         self.assertEqual(Alert.objects.all().count(), 2)
@@ -1656,7 +1627,7 @@ class ChannelClaimTest(TembaTest):
 
         # run again, nothing should change
         with self.assertNumQueries(9):
-            check_channels_task()
+            check_channel_alerts()
 
         self.assertEqual(2, Alert.objects.filter(channel=self.channel, ended_on=None).count())
         self.assertTrue(len(mail.outbox) == 2)
@@ -1667,7 +1638,7 @@ class ChannelClaimTest(TembaTest):
         msg1.save(update_fields=("status", "sent_on"))
 
         # run again, our alert should end
-        check_channels_task()
+        check_channel_alerts()
 
         # still only one alert though, and no new email sent, alert must not be ended before one hour
         alert = Alert.objects.all().latest("ended_on")
@@ -1700,7 +1671,7 @@ class ChannelCountTest(TembaTest):
         self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg2.created_on.date())
 
         # squash our counts
-        squash_channelcounts()
+        squash_channel_counts()
 
         # same count
         self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg2.created_on.date())
@@ -1725,7 +1696,7 @@ class ChannelCountTest(TembaTest):
         )
 
         # squash our counts
-        squash_channelcounts()
+        squash_channel_counts()
 
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg3.created_on.date())
         self.assertEqual(ChannelCount.objects.filter(count_type=ChannelCount.SUCCESS_LOG_TYPE).count(), 0)
@@ -1785,7 +1756,7 @@ class ChannelLogTest(TembaTest):
                     "created_on": "2022-08-17T14:07:30Z",
                 }
             ],
-            errors=[{"message": "response not right", "code": ""}],
+            errors=[{"code": "bad_response", "ext_code": "", "message": "response not right"}],
         )
 
         expected_unredacted = {
@@ -1801,7 +1772,7 @@ class ChannelLogTest(TembaTest):
                     "created_on": "2022-08-17T14:07:30Z",
                 }
             ],
-            "errors": [{"message": "response not right", "code": ""}],
+            "errors": [{"code": "bad_response", "ext_code": "", "message": "response not right", "ref_url": None}],
             "created_on": matchers.Datetime(),
         }
 
@@ -1818,7 +1789,7 @@ class ChannelLogTest(TembaTest):
                     "created_on": "2022-08-17T14:07:30Z",
                 }
             ],
-            "errors": [{"message": "response n********", "code": ""}],
+            "errors": [{"code": "bad_response", "ext_code": "", "message": "response n********", "ref_url": None}],
             "created_on": matchers.Datetime(),
         }
 
@@ -1847,7 +1818,7 @@ class ChannelLogTest(TembaTest):
                     "created_on": "2022-08-17T14:07:30Z",
                 }
             ],
-            errors=[{"message": "response not right", "code": ""}],
+            errors=[{"code": "bad_response", "ext_code": "", "message": "response not right"}],
         )
 
         expected_unredacted = {
@@ -1863,7 +1834,7 @@ class ChannelLogTest(TembaTest):
                     "created_on": "2022-08-17T14:07:30Z",
                 }
             ],
-            "errors": [{"message": "response not right", "code": ""}],
+            "errors": [{"code": "bad_response", "ext_code": "", "message": "response not right", "ref_url": None}],
             "created_on": matchers.Datetime(),
         }
 
@@ -1880,7 +1851,7 @@ class ChannelLogTest(TembaTest):
                     "created_on": "2022-08-17T14:07:30Z",
                 }
             ],
-            "errors": [{"message": "response n********", "code": ""}],
+            "errors": [{"code": "bad_response", "ext_code": "", "message": "response n********", "ref_url": None}],
             "created_on": matchers.Datetime(),
         }
 
@@ -1957,7 +1928,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         msg1_url = reverse("channels.channellog_msg", args=[self.channel.uuid, msg1.id])
 
         self.assertListFetch(
-            msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log2, log1]
+            msg1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log1, log2]
         )
 
     def test_call(self):
@@ -1991,7 +1962,7 @@ class ChannelLogCRUDLTest(CRUDLTestMixin, TembaTest):
         call1_url = reverse("channels.channellog_call", args=[self.channel.uuid, call1.id])
 
         self.assertListFetch(
-            call1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log2, log1]
+            call1_url, allow_viewers=False, allow_editors=False, allow_org2=False, context_objects=[log1, log2]
         )
 
     def test_read_and_list(self):
@@ -2829,7 +2800,7 @@ Content-Type: application/json
             created_on=timezone.now() - timedelta(days=2),
         )
 
-        trim_channel_log_task()
+        trim_channel_logs()
 
         # should only have one log remaining and should be l2
         self.assertEqual(1, ChannelLog.objects.all().count())

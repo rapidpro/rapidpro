@@ -46,6 +46,8 @@ RESET_SEQUENCES = (
     "triggers_trigger_id_seq",
 )
 
+PG_DUMP_VERSION = "14"
+
 
 class Command(BaseCommand):
     help = "Generates a database suitable for mailroom testing"
@@ -58,11 +60,13 @@ class Command(BaseCommand):
 
         result = subprocess.run(["pg_dump", "--version"], stdout=subprocess.PIPE)
         version = result.stdout.decode("utf8")
-        if version.split(" ")[-1].find("12.") == 0:
+        if version.split(" ")[-1].find(f"{PG_DUMP_VERSION}.") == 0:
             self._log(self.style.SUCCESS("OK") + "\n")
         else:
             self._log(
-                "\n" + self.style.ERROR("Incorrect pg_dump version, needs version 12.*, found: " + version) + "\n"
+                "\n"
+                + self.style.ERROR(f"Incorrect pg_dump version, needs version {PG_DUMP_VERSION}.*, found: " + version)
+                + "\n"
             )
             sys.exit(1)
 
@@ -150,13 +154,13 @@ class Command(BaseCommand):
             name=spec["name"],
             timezone=pytz.timezone("America/Los_Angeles"),
             flow_languages=spec["languages"],
-            brand="rapidpro.io",
+            brand="rapidpro",
             country=country,
             created_on=timezone.now(),
             created_by=superuser,
             modified_by=superuser,
         )
-        org.initialize(topup_size=100_000, sample_flows=False)
+        org.initialize(sample_flows=False)
 
         # set our sequences to make ids stable across orgs
         self.reset_id_sequences(spec["sequence_start"])

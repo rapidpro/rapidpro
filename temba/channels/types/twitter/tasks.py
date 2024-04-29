@@ -1,15 +1,14 @@
+from celery import shared_task
 from django_redis import get_redis_connection
 from twython import Twython
 
 from django.conf import settings
 
-from celery import shared_task
-
 from temba.contacts.models import URN, Contact, ContactURN
 from temba.utils import chunk_list
 
 
-@shared_task(track_started=True, name="resolve_twitter_ids_task")
+@shared_task
 def resolve_twitter_ids():
     r = get_redis_connection()
     # TODO: we can't use our non-overlapping task decorator as it creates a loop in the celery resolver when registering

@@ -34,7 +34,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.models import URN
 from temba.contacts.search import SearchException, parse_query
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task, update_session_wait_expires
 from temba.ivr.models import Call
 from temba.mailroom import FlowValidationException
@@ -229,12 +229,15 @@ class FlowCRUDL(SmartCRUDL):
             menu = []
             menu.append(
                 self.create_menu_item(
-                    name=_("Active"), verbose_name=_("Active Flows"), icon="flow", href="flows.flow_list"
+                    name=_("Active"), verbose_name=_("Active Flows"), icon="icon.active", href="flows.flow_list"
                 )
             )
             menu.append(
                 self.create_menu_item(
-                    name=_("Archived"), verbose_name=_("Archived Flows"), icon="archive", href="flows.flow_archived"
+                    name=_("Archived"),
+                    verbose_name=_("Archived Flows"),
+                    icon="icon.archive",
+                    href="flows.flow_archived",
                 )
             )
 
@@ -242,11 +245,11 @@ class FlowCRUDL(SmartCRUDL):
             for label in labels:
                 label_items.append(
                     self.create_menu_item(
-                        icon="tag",
+                        icon="icon.label",
                         menu_id=label.uuid,
                         name=label.name,
                         href=reverse("flows.flow_filter", args=[label.uuid]),
-                        count=label.get_flows_count(),
+                        count=label.get_flow_count(),
                     )
                 )
 
@@ -415,7 +418,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 self.fields["base_language"] = forms.ChoiceField(
                     label=_("Language"),
-                    initial=org.flow_languages[0] if org.flow_languages else None,
+                    initial=org.flow_languages[0],
                     choices=language_choices,
                     widget=SelectWidget(attrs={"widget_only": False}),
                 )
@@ -696,11 +699,7 @@ class FlowCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["org_has_flows"] = self.request.org.flows.filter(is_active=True).exists()
             context["folders"] = self.get_folders()
-            if self.is_spa():
-                context["labels_flat"] = self.get_flow_labels_flat()
-            else:
-                context["labels"] = self.get_flow_labels()
-
+            context["labels"] = self.get_flow_labels()
             context["campaigns"] = self.get_campaigns()
             context["request_url"] = self.request.path
 
@@ -747,28 +746,14 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_flow_labels(self):
             labels = []
-            for label in self.request.org.flow_labels.filter(is_active=True, parent=None):
-                labels.append(
-                    dict(
-                        pk=label.id,
-                        uuid=label.uuid,
-                        label=label.name,
-                        count=label.get_flows_count(),
-                        children=label.children.all(),
-                    )
-                )
-            return labels
-
-        def get_flow_labels_flat(self):
-            labels = []
             for label in self.request.org.flow_labels.order_by("name"):
                 labels.append(
-                    dict(
-                        id=label.pk,
-                        uuid=label.uuid,
-                        name=label.name,
-                        count=label.get_flows_count(),
-                    )
+                    {
+                        "id": label.id,
+                        "uuid": label.uuid,
+                        "name": label.name,
+                        "count": label.get_flow_count(),
+                    }
                 )
             return labels
 
@@ -913,19 +898,9 @@ class FlowCRUDL(SmartCRUDL):
         def label(self):
             return FlowLabel.objects.get(uuid=self.kwargs["label_uuid"], org=self.request.org)
 
-        def get_label_filter(self):
-            children = self.label.children.all()
-            if children:  # pragma: needs cover
-                return [lb for lb in FlowLabel.objects.filter(parent=self.label)] + [self.label]
-            else:
-                return [self.label]
-
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            qs = qs.filter(org=self.request.org).order_by("-created_on")
-            qs = qs.filter(labels__in=self.get_label_filter(), is_archived=False).distinct()
-
-            return qs
+            return qs.filter(org=self.request.org, labels=self.label, is_archived=False).order_by("-created_on")
 
     class Editor(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
@@ -1380,14 +1355,6 @@ class FlowCRUDL(SmartCRUDL):
         # the min number of responses to show the period charts
         PERIOD_MIN = 0
 
-        EXIT_TYPES = {
-            None: "active",
-            FlowRun.EXIT_TYPE_COMPLETED: "completed",
-            FlowRun.EXIT_TYPE_INTERRUPTED: "interrupted",
-            FlowRun.EXIT_TYPE_EXPIRED: "expired",
-            FlowRun.EXIT_TYPE_FAILED: "failed",
-        }
-
         def get_context_data(self, *args, **kwargs):
 
             total_responses = 0
@@ -1469,20 +1436,11 @@ class FlowCRUDL(SmartCRUDL):
                 # highcharts works in UTC, but we want to offset our chart according to the org timezone
                 context["min_date"] = min_date
 
-            counts = FlowRunCount.objects.filter(flow=flow).values("exit_type").annotate(Sum("count"))
+            stats = flow.get_run_stats()
+            for status, count in stats["status"].items():
+                context[status] = count
 
-            total_runs = 0
-            for count in counts:
-                key = self.EXIT_TYPES[count["exit_type"]]
-                context[key] = count["count__sum"]
-                total_runs += count["count__sum"]
-
-            # make sure we have a value for each one
-            for state in ("expired", "interrupted", "completed", "active", "failed"):
-                if state not in context:
-                    context[state] = 0
-
-            context["total_runs"] = total_runs
+            context["total_runs"] = stats["total"]
             context["total_responses"] = total_responses
 
             return context
@@ -1533,7 +1491,7 @@ class FlowCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
 
         def render_to_response(self, context, **response_kwargs):
-            return JsonResponse(self.get_object().get_category_counts())
+            return JsonResponse({"counts": self.get_object().get_category_counts()})
 
     class Results(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
@@ -1564,7 +1522,7 @@ class FlowCRUDL(SmartCRUDL):
                     result_fields.append(result_field)
             context["result_fields"] = result_fields
 
-            context["categories"] = flow.get_category_counts()["counts"]
+            context["categories"] = flow.get_category_counts()
             context["utcoffset"] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
             return context
 
@@ -1939,7 +1897,7 @@ class FlowCRUDL(SmartCRUDL):
                 return JsonResponse(org.as_environment_def())
             else:
                 results = [{"iso": code, "name": languages.get_name(code)} for code in org.flow_languages]
-                return JsonResponse({"results": sorted(results, key=lambda l: l["name"])})
+                return JsonResponse({"results": sorted(results, key=lambda lang: lang["name"])})
 
 
 # this is just for adhoc testing of the preprocess url
@@ -1957,13 +1915,6 @@ class PreprocessTest(FormView):  # pragma: no cover
 
 class FlowLabelForm(forms.ModelForm):
     name = forms.CharField(required=True, widget=InputWidget(), label=_("Name"))
-    parent = forms.ModelChoiceField(
-        FlowLabel.objects.none(),
-        required=False,
-        label=_("Parent"),
-        widget=SelectWidget(attrs={"placeholder": _("Select label")}),
-        help_text=_("Optional parent label which can be used to group related labels."),
-    )
     flows = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, org, *args, **kwargs):
@@ -1971,22 +1922,15 @@ class FlowLabelForm(forms.ModelForm):
 
         super().__init__(*args, **kwargs)
 
-        qs = FlowLabel.objects.filter(org=self.org, parent=None)
-
-        if self.instance:
-            qs = qs.exclude(id=self.instance.id)
-
-        self.fields["parent"].queryset = qs
-
     def clean_name(self):
         name = self.cleaned_data["name"].strip()
-        if FlowLabel.objects.filter(org=self.org, name=name).exclude(pk=self.instance.id).exists():
+        if self.org.flow_labels.filter(name=name).exclude(id=self.instance.id).exists():
             raise ValidationError(_("Must be unique."))
         return name
 
     class Meta:
         model = FlowLabel
-        fields = "__all__"
+        fields = ("name",)
 
 
 class FlowLabelCRUDL(SmartCRUDL):
@@ -2017,13 +1961,6 @@ class FlowLabelCRUDL(SmartCRUDL):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.request.org
             return kwargs
-
-        def derive_fields(self):
-            # can't edit parent if this label is already a parent.. or didn't previously have a parent
-            if self.object.children.exists() or not self.object.parent:
-                return ("name",)
-            else:
-                return ("name", "parent")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "flows")
@@ -2058,7 +1995,7 @@ class FlowStartCRUDL(SmartCRUDL):
     model = FlowStart
     actions = ("list",)
 
-    class List(OrgFilterMixin, OrgPermsMixin, ContentMenuMixin, SmartListView):
+    class List(SpaMixin, OrgFilterMixin, OrgPermsMixin, ContentMenuMixin, SmartListView):
         title = _("Flow Start Log")
         ordering = ("-created_on",)
         select_related = ("flow", "created_by")

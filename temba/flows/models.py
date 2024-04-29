@@ -150,38 +150,30 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         TYPE_SURVEY: 0,
     }
 
-    labels = models.ManyToManyField("FlowLabel", related_name="flows")
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flows")
-
+    labels = models.ManyToManyField("FlowLabel", related_name="flows")
     is_archived = models.BooleanField(default=False)
-
     flow_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_MESSAGE)
+    ignore_triggers = models.BooleanField(default=False, help_text=_("Ignore keyword triggers while in this flow."))
 
-    # additional information about the flow, e.g. possible results
-    metadata = JSONAsTextField(null=True, default=dict)
-
+    # properties set from last revision
     expires_after_minutes = models.IntegerField(
         default=EXPIRES_DEFAULTS[TYPE_MESSAGE],
-        help_text=_("Minutes of inactivity that will cause expiration from flow"),
+        help_text=_("Minutes of inactivity that will cause expiration from flow."),
     )
+    base_language = models.CharField(
+        max_length=4,  # until we fix remaining flows with "base"
+        help_text=_("The authoring language, additional languages can be added later."),
+        default="und",
+    )
+    version_number = models.CharField(default="0.0.0", max_length=8)  # no actual spec version until there's a revision
 
-    ignore_triggers = models.BooleanField(default=False, help_text=_("Ignore keyword triggers while in this flow"))
+    # information from flow inspection
+    metadata = JSONAsTextField(null=True, default=dict)  # additional information about the flow, e.g. possible results
+    has_issues = models.BooleanField(default=False)
 
     saved_on = models.DateTimeField(auto_now_add=True)
     saved_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="flow_saves")
-
-    base_language = models.CharField(
-        max_length=4,
-        null=True,
-        blank=True,
-        help_text=_("The authoring language, additional languages can be added later"),
-        default="base",
-    )
-
-    version_number = models.CharField(default=FINAL_LEGACY_VERSION, max_length=8)
-
-    has_issues = models.BooleanField(default=False)
 
     # dependencies on other assets
     channel_dependencies = models.ManyToManyField(Channel, related_name="dependent_flows")
@@ -206,7 +198,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         name,
         flow_type=TYPE_MESSAGE,
         expires_after_minutes=0,
-        base_language="base",
+        base_language="eng",
         create_revision=False,
         **kwargs,
     ):
@@ -218,7 +210,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             name=name,
             flow_type=flow_type,
             expires_after_minutes=expires_after_minutes or cls.EXPIRES_DEFAULTS[flow_type],
-            base_language=base_language,
             saved_by=user,
             created_by=user,
             modified_by=user,
@@ -262,7 +253,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         """
         Creates a special 'join group' flow
         """
-        base_language = org.flow_languages[0] if org.flow_languages else "base"
+        base_language = org.flow_languages[0]
 
         name = Flow.get_unique_name(org, "Join %s" % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
@@ -457,11 +448,11 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     def get_attrs(self):
         icon = (
-            "message-square"
+            "icon.flow_message"
             if self.flow_type == Flow.TYPE_MESSAGE
-            else "phone"
+            else "icon.flow_ivr"
             if self.flow_type == Flow.TYPE_VOICE
-            else "flow"
+            else "icon.flow"
         )
 
         return {"icon": icon, "type": self.flow_type, "uuid": self.uuid}
@@ -491,12 +482,14 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
                 result["total"] += count["count"]
             results[count["result_key"]] = result
 
-        for k, v in results.items():
-            for cat in results[k]["categories"]:
-                if results[k]["total"]:
-                    cat["pct"] = float(cat["count"]) / float(results[k]["total"])
+        for result_key, result_dict in results.items():
+            for cat in result_dict["categories"]:
+                if result_dict["total"]:
+                    cat["pct"] = float(cat["count"]) / float(result_dict["total"])
                 else:
                     cat["pct"] = 0
+
+            result_dict["categories"] = sorted(result_dict["categories"], key=lambda d: d["name"])
 
         # order counts by their place on the flow
         result_list = []
@@ -505,7 +498,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
             if result:
                 result_list.append(result)
 
-        return dict(counts=result_list)
+        return result_list
 
     def lock(self):
         """
@@ -665,17 +658,20 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         self.save_revision(user, definition)
 
     def get_run_stats(self):
-        totals_by_exit = FlowRunCount.get_totals(self)
-        total_runs = sum(totals_by_exit.values())
-        completed = totals_by_exit.get(FlowRun.EXIT_TYPE_COMPLETED, 0)
+        totals_by_status = FlowRunStatusCount.get_totals(self)
+        total_runs = sum(totals_by_status.values())
+        completed = totals_by_status.get(FlowRun.STATUS_COMPLETED, 0)
 
         return {
             "total": total_runs,
-            "active": totals_by_exit.get(None, 0),
-            "completed": completed,
-            "expired": totals_by_exit.get(FlowRun.EXIT_TYPE_EXPIRED, 0),
-            "interrupted": totals_by_exit.get(FlowRun.EXIT_TYPE_INTERRUPTED, 0),
-            "failed": totals_by_exit.get(FlowRun.EXIT_TYPE_FAILED, 0),
+            "status": {
+                "active": totals_by_status.get(FlowRun.STATUS_ACTIVE, 0),
+                "waiting": totals_by_status.get(FlowRun.STATUS_WAITING, 0),
+                "completed": completed,
+                "expired": totals_by_status.get(FlowRun.STATUS_EXPIRED, 0),
+                "interrupted": totals_by_status.get(FlowRun.STATUS_INTERRUPTED, 0),
+                "failed": totals_by_status.get(FlowRun.STATUS_FAILED, 0),
+            },
             "completion": int(completed * 100 // total_runs) if total_runs else 0,
         }
 
@@ -1046,7 +1042,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         self.category_counts.all().delete()
         self.path_counts.all().delete()
         self.node_counts.all().delete()
-        self.exit_counts.all().delete()
+        self.status_counts.all().delete()
         self.labels.clear()
 
         super().delete()
@@ -1608,58 +1604,40 @@ class FlowNodeCount(SquashableModel):
         return {str(t[0]): t[1] for t in totals if t[1]}
 
 
-class FlowRunCount(SquashableModel):
+class FlowRunStatusCount(SquashableModel):
     """
-    Maintains counts of different states of exit types of flow runs on a flow. These are calculated
-    via triggers on the database.
+    Maintains counts of different statuses of flow runs for all flows. These are inserted via triggers on the database.
     """
 
-    squash_over = ("flow_id", "exit_type")
+    squash_over = ("flow_id", "status")
 
-    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="exit_counts")
-
-    # the type of exit
-    exit_type = models.CharField(null=True, max_length=1, choices=FlowRun.EXIT_TYPE_CHOICES)
-
-    # the number of runs that exited with that exit type
+    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="status_counts")
+    status = models.CharField(max_length=1, choices=FlowRun.STATUS_CHOICES)
     count = models.IntegerField(default=0)
 
     @classmethod
     def get_squash_query(cls, distinct_set):
-        if distinct_set.exit_type:
-            sql = """
-            WITH removed as (
-                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "exit_type" = %%s RETURNING "count"
-            )
-            INSERT INTO %(table)s("flow_id", "exit_type", "count", "is_squashed")
-            VALUES (%%s, %%s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-            """ % {
-                "table": cls._meta.db_table
-            }
+        sql = r"""
+        WITH removed as (
+            DELETE FROM flows_flowrunstatuscount WHERE "flow_id" = %s AND "status" = %s RETURNING "count"
+        )
+        INSERT INTO flows_flowrunstatuscount("flow_id", "status", "count", "is_squashed")
+        VALUES (%s, %s, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
+        """
 
-            params = (distinct_set.flow_id, distinct_set.exit_type) * 2
-        else:
-            sql = """
-            WITH removed as (
-                DELETE FROM %(table)s WHERE "flow_id" = %%s AND "exit_type" IS NULL RETURNING "count"
-            )
-            INSERT INTO %(table)s("flow_id", "exit_type", "count", "is_squashed")
-            VALUES (%%s, NULL, GREATEST(0, (SELECT SUM("count") FROM removed)), TRUE);
-            """ % {
-                "table": cls._meta.db_table
-            }
-
-            params = (distinct_set.flow_id,) * 2
-
-        return sql, params
+        return sql, (distinct_set.flow_id, distinct_set.status) * 2
 
     @classmethod
     def get_totals(cls, flow):
-        totals = list(cls.objects.filter(flow=flow).values_list("exit_type").annotate(replies=Sum("count")))
+        totals = list(cls.objects.filter(flow=flow).values_list("status").annotate(total=Sum("count")))
         return {t[0]: t[1] for t in totals}
 
     class Meta:
-        index_together = ("flow", "exit_type")
+        indexes = [
+            models.Index(fields=("flow", "status")),
+            # for squashing task
+            models.Index(name="flowrun_count_unsquashed", fields=("flow", "status"), condition=Q(is_squashed=False)),
+        ]
 
 
 class ExportFlowResultsTask(BaseItemWithContactExport):
@@ -2118,27 +2096,25 @@ class FlowLabel(TembaModel):
     """
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flow_labels")
+
+    # TODO drop
     parent = models.ForeignKey("FlowLabel", on_delete=models.PROTECT, null=True, related_name="children")
 
     @classmethod
-    def create(cls, org, user, name: str, parent=None):
+    def create(cls, org, user, name: str):
         assert cls.is_valid_name(name), f"'{name}' is not a valid flow label name"
         assert not org.flow_labels.filter(name__iexact=name).exists()
 
-        return cls.objects.create(org=org, name=name, parent=parent, created_by=user, modified_by=user)
+        return cls.objects.create(org=org, name=name, created_by=user, modified_by=user)
 
-    def get_flows_count(self):
+    def get_flow_count(self):
         """
         Returns the count of flows tagged with this label or one of its children
         """
         return self.get_flows().count()
 
     def get_flows(self):
-        return (
-            Flow.objects.filter(Q(labels=self) | Q(labels__parent=self))
-            .filter(is_active=True, is_archived=False)
-            .distinct()
-        )
+        return self.flows.filter(is_active=True, is_archived=False)
 
     def toggle_label(self, flows, *, add: bool):
         changed = []
@@ -2158,15 +2134,7 @@ class FlowLabel(TembaModel):
 
         return changed
 
-    def delete(self):
-        for child in self.children.all():
-            child.delete()
-
-        super().delete()
-
     def __str__(self):
-        if self.parent:
-            return "%s > %s" % (self.parent, self.name)
         return self.name
 
     class Meta:
@@ -2186,13 +2154,12 @@ def get_flow_user(org):
     if not __flow_users:
         __flow_users = {}
 
-    branding = org.get_branding()
-    username = "%s_flow" % branding["slug"]
+    username = "%s_flow" % org.branding["slug"]
     flow_user = __flow_users.get(username)
 
     # not cached, let's look it up
     if not flow_user:
-        email = branding["support_email"]
+        email = org.branding["support_email"]
         flow_user = User.objects.filter(username=username).first()
         if flow_user:  # pragma: needs cover
             __flow_users[username] = flow_user

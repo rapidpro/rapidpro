@@ -29,7 +29,7 @@ from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 
-from .tasks import squash_msgcounts
+from .tasks import squash_msg_counts
 from .templatetags.sms import as_icon
 
 
@@ -311,15 +311,12 @@ class MsgTest(TembaTest):
         ChannelLog.objects.create(channel=self.channel, msg=msg1, is_error=False)
         ChannelLog.objects.create(channel=self.channel, msg=msg2, is_error=False)
 
-        # we've used 2 credits
         self.assertEqual(3, Msg.objects.all().count())
-        self.assertEqual(self.org._calculate_credits_used()[0], 3)
 
-        # a soft delete should keep credits the same and clear text
+        # soft delete should clear text
         msg1.delete(soft=True)
         msg1.refresh_from_db()
         self.assertEqual(3, Msg.objects.all().count())
-        self.assertEqual(self.org._calculate_credits_used()[0], 3)
         self.assertEqual(Msg.VISIBILITY_DELETED_BY_USER, msg1.visibility)
         self.assertEqual("", msg1.text)
         self.assertEqual([], msg1.attachments)
@@ -331,7 +328,6 @@ class MsgTest(TembaTest):
         # test a hard delete as part of a contact removal
         msg2.delete()
         self.assertEqual(2, Msg.objects.all().count())
-        self.assertEqual(self.org._calculate_credits_used()[0], 3)  # used credits unchanged
         self.assertEqual(0, msg2.channel_logs.count())  # logs should be gone
 
     def test_get_sync_commands(self):
@@ -462,10 +458,8 @@ class MsgTest(TembaTest):
                 self.admin,
                 "If a broadcast is sent and nobody receives it, does it still send?",
                 contacts=[contact1],
-                quick_replies=[dict(eng="Yes"), dict(eng="No")],
+                quick_replies=[dict(spa="Si"), dict(spa="No")],
             )
-
-        self.org.set_flow_languages(self.admin, ["eng", "fra"])
 
         broadcast = Broadcast.create(
             self.org,
@@ -473,13 +467,13 @@ class MsgTest(TembaTest):
             "If a broadcast is sent and nobody receives it, does it still send?",
             contacts=[contact1, contact2],
             send_all=True,
-            quick_replies=[dict(eng="Yes", fra="Oui"), dict(eng="No")],
+            quick_replies=[dict(eng="Yes", kin="Yego"), dict(eng="No")],
         )
 
         # check metadata was set on the broadcast
         self.assertEqual(
             broadcast.metadata,
-            {"quick_replies": [{"eng": "Yes", "fra": "Oui"}, {"eng": "No"}], "template_state": "legacy"},
+            {"quick_replies": [{"eng": "Yes", "kin": "Yego"}, {"eng": "No"}], "template_state": "legacy"},
         )
 
     @patch("temba.utils.email.send_temba_email")
@@ -905,10 +899,7 @@ class MsgTest(TembaTest):
         self.assertEqual(msg5.get_attachments(), [Attachment("audio", "http://rapidpro.io/audio/sound.mp3")])
 
         # label first message
-        folder = Label.objects.create(
-            org=self.org, name="Folder", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
-        )
-        label = self.create_label("la\02bel1", folder=folder)
+        label = self.create_label("la\02bel1")
         label.toggle_label([msg1], add=True)
 
         # archive last message
@@ -1129,31 +1120,6 @@ class MsgTest(TembaTest):
         self.assertExcelSheet(
             request_export(
                 "?l=%s" % label.uuid, {"export_all": 0, "start_date": "2000-09-01", "end_date": "2022-09-28"}
-            ),
-            [
-                expected_headers,
-                [
-                    msg1.created_on,
-                    msg1.contact.uuid,
-                    "Joe Blow",
-                    "tel",
-                    "123",
-                    "Color Flow",
-                    "IN",
-                    "hello 1",
-                    "",
-                    "handled",
-                    "Test Channel",
-                    "label1",
-                ],
-            ],
-            self.org.timezone,
-        )
-
-        # try export with user label folder
-        self.assertExcelSheet(
-            request_export(
-                "?l=%s" % folder.uuid, {"export_all": 0, "start_date": "2000-09-01", "end_date": "2022-09-28"}
             ),
             [
                 expected_headers,
@@ -1727,12 +1693,9 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         frank = self.create_contact("Frank Blow", phone="250788000002")
         billy = self.create_contact("Billy Bob", urns=["twitter:billy_bob"])
 
-        # create some folders and labels
-        folder = Label.objects.create(
-            org=self.org, name="folder", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
-        )
-        label1 = self.create_label("label1", folder=folder)
-        label2 = self.create_label("label2", folder=folder)
+        # create labels
+        label1 = self.create_label("label1")
+        label2 = self.create_label("label2")
         label3 = self.create_label("label3")
 
         # create some messages
@@ -1750,7 +1713,6 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         label1_url = reverse("msgs.msg_filter", args=[label1.uuid])
         label3_url = reverse("msgs.msg_filter", args=[label3.uuid])
-        folder_url = reverse("msgs.msg_filter", args=[folder.uuid])
 
         # can't visit a filter page as a non-org user
         response = self.requestView(label3_url, self.non_org_user)
@@ -1762,28 +1724,14 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(("label",), response.context["actions"])
         self.assertContentMenu(label3_url, self.user, ["Download", "Usages"])  # no update or delete
 
-        # check that test and non-visible messages are excluded, and messages and ordered newest to oldest
+        # check that non-visible messages are excluded, and messages and ordered newest to oldest
         self.assertEqual([msg6, msg3, msg2, msg1], list(response.context["object_list"]))
-
-        # check viewing a folder
-        response = self.client.get(folder_url)
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(("label",), response.context["actions"])
-        self.assertContentMenu(folder_url, self.user, ["Download", "Usages"])  # no update or delete
-
-        # messages from contained labels are rolled up without duplicates
-        self.assertEqual([msg3, msg2, msg1], list(response.context["object_list"]))
-
-        # search on folder by message text
-        response = self.client.get(f"{folder_url}?search=test2")
-        self.assertEqual({msg2}, set(response.context_data["object_list"]))
 
         # search on label by contact name
         response = self.client.get(f"{label3_url}?search=joe")
         self.assertEqual({msg1, msg6}, set(response.context_data["object_list"]))
 
-        # check admin users see edit and delete options for labels and folders
-        self.assertContentMenu(folder_url, self.admin, ["Edit", "Download", "Usages", "Delete"])
+        # check admin users see edit and delete options for labels
         self.assertContentMenu(label1_url, self.admin, ["Edit", "Download", "Usages", "Delete"])
 
 
@@ -1843,21 +1791,12 @@ class BroadcastTest(TembaTest):
         self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.INCOMING_MSG_TYPE, today), 0)
         self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 1)
 
-        self.org.clear_credit_cache()
-        self.assertEqual(10, self.org.get_credits_used())
-        self.assertEqual(990, self.org.get_credits_remaining())
-
         # delete all our messages save for our flow incoming message
         for m in Msg.objects.exclude(id=msg_in3.id):
             m.delete()
 
         # broadcasts should be unaffected
         self.assertEqual(2, Broadcast.objects.count())
-
-        # credit usage remains the same
-        self.org.clear_credit_cache()
-        self.assertEqual(10, self.org.get_credits_used())
-        self.assertEqual(990, self.org.get_credits_remaining())
 
         # check system label counts have been updated
         self.assertEqual(0, SystemLabel.get_counts(self.org)[SystemLabel.TYPE_INBOX])
@@ -1927,6 +1866,8 @@ class BroadcastTest(TembaTest):
             contacts=[self.kevin, self.lucy],
             schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
         )
+
+        self.org.set_flow_languages(self.admin, ["kin"])
 
         # test resolving the broadcast text in different languages (used to render scheduled ones)
         self.assertEqual("Hello everyone", broadcast.get_text(self.joe))  # uses broadcast base language
@@ -2056,7 +1997,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(200, response.status_code)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual({"base": "Hey Joe, where you goin?"}, broadcast.text)
+        self.assertEqual({"eng": "Hey Joe, where you goin?"}, broadcast.text)
         self.assertEqual({self.joe_and_frank}, set(broadcast.groups.all()))
         self.assertEqual({self.frank}, set(broadcast.contacts.all()))
         self.assertEqual(["tel:+12025550149", "tel:0780000001"], broadcast.raw_urns)
@@ -2118,7 +2059,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("hide", response["Temba-Success"])
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, {"base": "Hurry up"})
+        self.assertEqual(broadcast.text, {"eng": "Hurry up"})
         self.assertEqual(broadcast.groups.count(), 0)
         self.assertEqual({self.joe}, set(broadcast.contacts.all()))
 
@@ -2201,7 +2142,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
                 "repeat_days_of_week": ["M", "F"],
             },
             new_obj_query=Broadcast.objects.filter(
-                text={"base": "Daily reminder"}, schedule__repeat_period="W", schedule__repeat_days_of_week="MF"
+                text={"eng": "Daily reminder"}, schedule__repeat_period="W", schedule__repeat_days_of_week="MF"
             ),
             success_status=200,
         )
@@ -2262,8 +2203,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(response.status_code, 302)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, {"base": "Dinner reminder"})
-        self.assertEqual(broadcast.base_language, "base")
+        self.assertEqual(broadcast.text, {"eng": "Dinner reminder"})
+        self.assertEqual(broadcast.base_language, "eng")
         self.assertEqual(set(broadcast.contacts.all()), {self.frank})
 
     def test_scheduled_delete(self):
@@ -2345,7 +2286,7 @@ class LabelTest(TembaTest):
         self.assertEqual(set(label.get_messages()), {msg1, msg2})
 
         # check still correct after squashing
-        squash_msgcounts()
+        squash_msg_counts()
         self.assertEqual(label.get_visible_count(), 2)
 
         msg2.archive()  # won't remove label from msg, but msg no longer counts toward visible count
@@ -2383,71 +2324,16 @@ class LabelTest(TembaTest):
         msg5 = self.create_outgoing_msg(self.joe, "Message")
         self.assertRaises(AssertionError, label.toggle_label, [msg5], add=True)
 
-        # can't get a count of a folder
-        folder = Label.objects.create(
-            org=self.org, name="Cool Labels", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
-        )
-        self.assertRaises(AssertionError, folder.get_visible_count)
-
         # squashing shouldn't affect counts
         self.assertEqual(LabelCount.get_totals([label])[label], 2)
 
-        squash_msgcounts()
+        squash_msg_counts()
 
         self.assertEqual(LabelCount.get_totals([label])[label], 2)
 
-    def test_get_messages_and_hierarchy(self):
-        folder1 = Label.objects.create(
-            org=self.org, name="Sorted", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
-        )
-        folder2 = Label.objects.create(
-            org=self.org, name="Todo", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
-        )
-        label1 = self.create_label("Spam", folder=folder1)
-        label2 = self.create_label("Social", folder=folder1)
-        label3 = self.create_label("Other")
-        label4 = self.create_label("Deleted")
-
-        label4.release(self.user)
-
-        msg1 = self.create_incoming_msg(self.joe, "Message 1")
-        msg2 = self.create_incoming_msg(self.joe, "Message 2")
-        msg3 = self.create_incoming_msg(self.joe, "Message 3")
-
-        label1.toggle_label([msg1, msg2], add=True)
-        label2.toggle_label([msg2, msg3], add=True)
-        label3.toggle_label([msg3], add=True)
-
-        self.assertEqual(set(folder1.get_messages()), {msg1, msg2, msg3})
-        self.assertEqual(set(folder2.get_messages()), set())
-        self.assertEqual(set(label1.get_messages()), {msg1, msg2})
-        self.assertEqual(set(label2.get_messages()), {msg2, msg3})
-        self.assertEqual(set(label3.get_messages()), {msg3})
-
-        with self.assertNumQueries(2):
-            hierarchy = Label.get_hierarchy(self.org)
-            self.assertEqual(
-                hierarchy,
-                [
-                    {"obj": label3, "count": 1, "children": []},
-                    {
-                        "obj": folder1,
-                        "count": None,
-                        "children": [
-                            {"obj": label2, "count": 2, "children": []},
-                            {"obj": label1, "count": 2, "children": []},
-                        ],
-                    },
-                    {"obj": folder2, "count": None, "children": []},
-                ],
-            )
-
     def test_delete(self):
-        folder1 = Label.objects.create(
-            org=self.org, name="Folder", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
-        )
-        label1 = self.create_label("Spam", folder=folder1)
-        label2 = self.create_label("Social", folder=folder1)
+        label1 = self.create_label("Spam")
+        label2 = self.create_label("Social")
         label3 = self.create_label("Other")
 
         msg1 = self.create_incoming_msg(self.joe, "Message 1")
@@ -2460,18 +2346,8 @@ class LabelTest(TembaTest):
 
         ExportMessagesTask.create(self.org, self.admin, start_date=date.today(), end_date=date.today(), label=label1)
 
-        # can't release non-empty folder
-        with self.assertRaises(AssertionError):
-            folder1.release(self.admin)
-
-        # can once all its children are released
         label1.release(self.admin)
         label2.release(self.admin)
-        folder1.release(self.admin)
-        folder1.refresh_from_db()
-
-        self.assertFalse(folder1.is_active)
-        self.assertEqual(self.admin, folder1.modified_by)
 
         # check that contained labels are also released
         self.assertEqual(0, Label.objects.filter(id__in=[label1.id, label2.id], is_active=True).count())
@@ -2502,7 +2378,7 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"name": "Spam"},
-            new_obj_query=Label.objects.filter(name="Spam", label_type=Label.TYPE_LABEL, folder=None),
+            new_obj_query=Label.objects.filter(name="Spam"),
         )
 
         # check that we can't create another with same name
@@ -2512,7 +2388,7 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"name": "Spam 2"},
-            new_obj_query=Label.objects.filter(name="Spam 2", label_type=Label.TYPE_LABEL, folder=None),
+            new_obj_query=Label.objects.filter(name="Spam 2"),
         )
 
         # try creating a new label after reaching the limit on labels
@@ -2528,24 +2404,15 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
             )
 
     def test_update(self):
-        # users can no longer create folders or new labels with folders, but they still exist
-        folder1 = Label.objects.create(
-            org=self.org, name="Cool Labels", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
-        )
-        folder2 = Label.objects.create(
-            org=self.org, name="Sad Labels", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
-        )
-        label1 = self.create_label("Spam", folder=folder1)
-        label2 = self.create_label("Sales", folder=None)
+        label1 = self.create_label("Spam")
+        label2 = self.create_label("Sales")
 
         label1_url = reverse("msgs.label_update", args=[label1.id])
         label2_url = reverse("msgs.label_update", args=[label2.id])
 
-        # only show folder field for labels which already have a folder
         self.assertUpdateFetch(
-            label1_url, allow_viewers=False, allow_editors=True, form_fields={"name": "Spam", "folder": folder1.id}
+            label2_url, allow_viewers=False, allow_editors=True, form_fields={"name": "Sales", "messages": None}
         )
-        self.assertUpdateFetch(label2_url, allow_viewers=False, allow_editors=True, form_fields={"name": "Sales"})
 
         # try to update to invalid name
         self.assertUpdateSubmit(
@@ -2555,19 +2422,11 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
             object_unchanged=label1,
         )
 
-        # update with valid name and new folder
-        self.assertUpdateSubmit(label1_url, {"name": "Junk", "folder": folder2.id})
+        # update with valid name
+        self.assertUpdateSubmit(label1_url, {"name": "Junk"})
 
         label1.refresh_from_db()
         self.assertEqual("Junk", label1.name)
-        self.assertEqual(folder2, label1.folder)
-
-        # remove from folder
-        self.assertUpdateSubmit(label1_url, {"name": "Junk", "folder": ""})
-
-        label1.refresh_from_db()
-        self.assertEqual("Junk", label1.name)
-        self.assertIsNone(label1.folder)
 
     def test_delete(self):
         label = self.create_label("Spam")
@@ -2601,42 +2460,9 @@ class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(flow.has_issues)
         self.assertNotIn(label, flow.label_dependencies.all())
 
-    def test_delete_folder(self):
-        # create a folder with a single label
-        folder = Label.objects.create(
-            org=self.org, name="Cool Labels", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
-        )
-        label1 = self.create_label("Spam", folder=folder)
-
-        delete_url = reverse("msgs.label_delete_folder", args=[folder.id])
-
-        # fetch delete modal - which will tell us we can't delete this as it is not empty
-        response = self.assertDeleteFetch(delete_url, allow_editors=True)
-        self.assertContains(response, "cannot be deleted as it still contains labels")
-
-        # remove label...
-        label1.release(self.admin)
-
-        # fetch delete modal again
-        response = self.assertDeleteFetch(delete_url, allow_editors=True)
-        self.assertContains(response, "Are you sure you want to delete")
-
-        # submit to delete it
-        response = self.assertDeleteSubmit(delete_url, object_deactivated=folder, success_status=200)
-        self.assertEqual("/msg/inbox/", response["Temba-Success"])
-
-        # modal will show error if a label is added in the background
-        self.create_label("Spam", folder=folder)
-
-        response = self.assertDeleteSubmit(delete_url, object_unchanged=folder, success_status=200)
-        self.assertContains(response, "cannot be deleted as it still contains labels")
-
     def test_list(self):
-        folder = Label.objects.create(
-            org=self.org, name="Folder", label_type=Label.TYPE_FOLDER, created_by=self.user, modified_by=self.user
-        )
-        self.create_label("Spam", folder=folder)
-        self.create_label("Junk", folder=folder)
+        self.create_label("Spam")
+        self.create_label("Junk")
         self.create_label("Important")
         self.create_label("Other Org", org=self.org2)
 
@@ -2789,7 +2615,7 @@ class SystemLabelTest(TembaTest):
         self.assertEqual(SystemLabelCount.objects.all().count(), 25)
 
         # squash our counts
-        squash_msgcounts()
+        squash_msg_counts()
 
         self.assertEqual(
             SystemLabel.get_counts(self.org),

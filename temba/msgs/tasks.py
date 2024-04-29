@@ -1,19 +1,19 @@
 import logging
 
-from django.db.models import Prefetch
-
 from celery import shared_task
+
+from django.db.models import Prefetch
 
 from temba.contacts.models import ContactField, ContactGroup
 from temba.utils import analytics
-from temba.utils.celery import nonoverlapping_task
+from temba.utils.crons import cron_task
 
 from .models import Broadcast, BroadcastMsgCount, ExportMessagesTask, LabelCount, Media, Msg, SystemLabelCount
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task(track_started=True, name="send_to_flow_node")
+@shared_task
 def send_to_flow_node(org_id, user_id, text, **kwargs):
     from django.contrib.auth.models import User
 
@@ -42,12 +42,12 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
         analytics.track(user, "temba.broadcast_created", dict(contacts=len(contact_ids), groups=0, urns=0))
 
 
-@shared_task(track_started=True, name="fail_old_messages")
+@cron_task()
 def fail_old_messages():  # pragma: needs cover
     Msg.fail_old_messages()
 
 
-@shared_task(track_started=True, name="export_sms_task")
+@shared_task
 def export_messages_task(export_id):
     """
     Export messages to a file and e-mail a link to the user
@@ -58,8 +58,8 @@ def export_messages_task(export_id):
     ).get(id=export_id).perform()
 
 
-@nonoverlapping_task(track_started=True, name="squash_msgcounts", lock_timeout=7200)
-def squash_msgcounts():
+@cron_task(lock_timeout=7200)
+def squash_msg_counts():
     SystemLabelCount.squash()
     LabelCount.squash()
     BroadcastMsgCount.squash()

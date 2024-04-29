@@ -7,6 +7,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 import pytz
+from celery.app.task import Task
 from django_redis import get_redis_connection
 
 from django.conf import settings
@@ -15,10 +16,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone, translation
 
-from celery.app.task import Task
-
 from temba.campaigns.models import Campaign
-from temba.contacts.models import Contact
 from temba.flows.models import Flow
 from temba.tests import TembaTest, matchers
 from temba.triggers.models import Trigger
@@ -26,8 +24,7 @@ from temba.utils import json, uuid
 from temba.utils.templatetags.temba import format_datetime, icon
 
 from . import chunk_list, countries, format_number, languages, percentage, redact, sizeof_fmt, str_to_bool
-from .cache import get_cacheable_result, incrby_existing
-from .celery import nonoverlapping_task
+from .crons import clear_cron_stats, cron_task
 from .dates import date_range, datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
 from .fields import NameValidator, validate_external_url
@@ -409,56 +406,6 @@ class TemplateTagTestSimple(TestCase):
         )
 
 
-class CacheTest(TembaTest):
-    def test_get_cacheable_result(self):
-        self.create_contact("Bob", phone="1234")
-
-        def calculate():
-            return Contact.objects.all().count(), 60
-
-        with self.assertNumQueries(1):
-            self.assertEqual(get_cacheable_result("test_contact_count", calculate), 1)  # from db
-        with self.assertNumQueries(0):
-            self.assertEqual(get_cacheable_result("test_contact_count", calculate), 1)  # from cache
-
-        self.create_contact("Jim", phone="2345")
-
-        with self.assertNumQueries(0):
-            self.assertEqual(get_cacheable_result("test_contact_count", calculate), 1)  # not updated
-
-        get_redis_connection().delete("test_contact_count")  # delete from cache for force re-fetch from db
-
-        with self.assertNumQueries(1):
-            self.assertEqual(get_cacheable_result("test_contact_count", calculate), 2)  # from db
-        with self.assertNumQueries(0):
-            self.assertEqual(get_cacheable_result("test_contact_count", calculate), 2)  # from cache
-
-    def test_incrby_existing(self):
-        r = get_redis_connection()
-        r.setex("foo", 100, 10)
-        r.set("bar", 20)
-
-        incrby_existing("foo", 3, r)  # positive delta
-        self.assertEqual(r.get("foo"), b"13")
-        self.assertTrue(r.ttl("foo") > 0)
-
-        incrby_existing("foo", -1, r)  # negative delta
-        self.assertEqual(r.get("foo"), b"12")
-        self.assertTrue(r.ttl("foo") > 0)
-
-        r.setex("foo", 100, 0)
-        incrby_existing("foo", 5, r)  # zero val key
-        self.assertEqual(r.get("foo"), b"5")
-        self.assertTrue(r.ttl("foo") > 0)
-
-        incrby_existing("bar", 5, r)  # persistent key
-        self.assertEqual(r.get("bar"), b"25")
-        self.assertTrue(r.ttl("bar") < 0)
-
-        incrby_existing("xxx", -2, r)  # non-existent key
-        self.assertIsNone(r.get("xxx"))
-
-
 class EmailTest(TembaTest):
     @override_settings(SEND_EMAILS=True)
     def test_send_simple_email(self):
@@ -590,22 +537,26 @@ class JsonTest(TembaTest):
             json.dumps(dict(foo=Exception("invalid")))
 
 
-class CeleryTest(TembaTest):
+class CronsTest(TembaTest):
     @patch("redis.client.StrictRedis.lock")
     @patch("redis.client.StrictRedis.get")
-    def test_nonoverlapping_task(self, mock_redis_get, mock_redis_lock):
+    def test_cron_task(self, mock_redis_get, mock_redis_lock):
+        clear_cron_stats()
+
         mock_redis_get.return_value = None
         task_calls = []
 
-        @nonoverlapping_task()
+        @cron_task()
         def test_task1(foo, bar):
             task_calls.append("1-%d-%d" % (foo, bar))
+            return {"foo": 1}
 
-        @nonoverlapping_task(name="task2", time_limit=100)
+        @cron_task(name="task2", time_limit=100)
         def test_task2(foo, bar):
             task_calls.append("2-%d-%d" % (foo, bar))
+            return 1234
 
-        @nonoverlapping_task(name="task3", time_limit=100, lock_key="test_key", lock_timeout=55)
+        @cron_task(name="task3", time_limit=100, lock_timeout=55)
         def test_task3(foo, bar):
             task_calls.append("3-%d-%d" % (foo, bar))
 
@@ -623,12 +574,21 @@ class CeleryTest(TembaTest):
 
         mock_redis_get.assert_any_call("celery-task-lock:test_task1")
         mock_redis_get.assert_any_call("celery-task-lock:task2")
-        mock_redis_get.assert_any_call("test_key")
+        mock_redis_get.assert_any_call("celery-task-lock:task3")
         mock_redis_lock.assert_any_call("celery-task-lock:test_task1", timeout=900)
         mock_redis_lock.assert_any_call("celery-task-lock:task2", timeout=100)
-        mock_redis_lock.assert_any_call("test_key", timeout=55)
+        mock_redis_lock.assert_any_call("celery-task-lock:task3", timeout=55)
 
         self.assertEqual(task_calls, ["1-11-12", "2-21-22", "3-31-32"])
+
+        r = get_redis_connection()
+        self.assertEqual({b"test_task1", b"task2", b"task3"}, set(r.hkeys("cron_stats:last_start")))
+        self.assertEqual({b"test_task1", b"task2", b"task3"}, set(r.hkeys("cron_stats:last_time")))
+        self.assertEqual(
+            {b"test_task1": b'{"foo": 1}', b"task2": b"1234", b"task3": b"null"}, r.hgetall("cron_stats:last_result")
+        )
+        self.assertEqual({b"test_task1": b"1", b"task2": b"1", b"task3": b"1"}, r.hgetall("cron_stats:call_count"))
+        self.assertEqual({b"test_task1", b"task2", b"task3"}, set(r.hkeys("cron_stats:total_time")))
 
         # simulate task being already running
         mock_redis_get.reset_mock()
@@ -660,16 +620,28 @@ class MiddlewareTest(TembaTest):
         self.assertEqual(response["X-Temba-Org"], str(self.org.id))
 
     def test_branding(self):
-        response = self.client.get(reverse("public.public_index"))
-        self.assertEqual(response.context["request"].branding, settings.BRANDING["rapidpro.io"])
+        def assert_branding(request_host, brand: str):
+            response = self.client.get(reverse("public.public_index"), HTTP_HOST=request_host)
+            self.assertEqual(
+                brand, response.context["request"].branding["slug"], f"brand mismatch for host {request_host}"
+            )
+
+        assert_branding("localhost", "rapidpro")  # uses default
+        assert_branding("localhost:8888", "rapidpro")  # port stripped
+        assert_branding("rapidpro.io", "rapidpro")
+        assert_branding("app.rapidpro.io", "rapidpro")  # subdomains ignored
+        assert_branding("custom-brand.io", "custom")
+        assert_branding("subdomain.custom-brand.io", "custom")
+        assert_branding("custom-brand.org", "custom")  # by alias
+        assert_branding("api.custom-brand.org", "custom")  # by alias
 
     def test_redirect(self):
         self.assertNotRedirect(self.client.get(reverse("public.public_index")), None)
 
         # now set our brand to redirect
-        branding = copy.deepcopy(settings.BRANDING)
-        branding["rapidpro.io"]["redirect"] = "/redirect"
-        with self.settings(BRANDING=branding):
+        brands = copy.deepcopy(settings.BRANDS)
+        brands[0]["redirect"] = "/redirect"
+        with self.settings(BRANDS=brands):
             self.assertRedirect(self.client.get(reverse("public.public_index")), "/redirect")
 
     def test_language(self):

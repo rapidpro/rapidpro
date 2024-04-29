@@ -460,6 +460,36 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # our keyword trigger should force a keywords section
         self.assertEqual(5, len(menu))
+        self.assertEqual(1, menu[-1]["count"])
+
+        # have an archived keyword trigger
+        trigger = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow,
+            groups=[],
+            exclude_groups=[],
+            keyword="join",
+        )
+
+        menu_url = reverse("triggers.trigger_menu")
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+
+        # should have 2 keyword triggers
+        self.assertEqual(5, len(menu))
+        self.assertEqual(2, menu[-1]["count"])
+
+        trigger.archive(self.admin)
+
+        menu_url = reverse("triggers.trigger_menu")
+        response = self.assertListFetch(menu_url, allow_viewers=True, allow_editors=True, allow_agents=False)
+        menu = response.json()["results"]
+
+        # the archived trigger not counted
+        self.assertEqual(5, len(menu))
+        self.assertEqual(1, menu[-1]["count"])
 
     def test_create(self):
         create_url = reverse("triggers.trigger_create")
@@ -631,21 +661,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         trigger = Trigger.objects.get(keyword="join", flow=flow)
         self.assertEqual(trigger.flow.name, "Join Chat")
 
-        # the org has no language, so it should be a 'base' flow
-        self.assertEqual(flow.base_language, "base")
-
-        # try creating a join group on an org with a language
-        self.org.set_flow_languages(self.admin, ["spa"])
-
-        self.assertCreateSubmit(
-            create_url,
-            {"keyword": "join2", "action_join_group": group2.id, "response": "Thanks for joining", "flow": flow1.id},
-            new_obj_query=Trigger.objects.filter(keyword="join2", flow__name="Join Testers"),
-            success_status=200,
-        )
-
-        flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE, name="Join Testers")
-        self.assertEqual(flow.base_language, "spa")
+        self.assertEqual(flow.base_language, "eng")
 
     def test_create_register_no_response_or_flow(self):
         create_url = reverse("triggers.trigger_create_register")
@@ -1475,7 +1491,7 @@ class ConvertMissedCallTriggersTest(MigrationTest):
             return Org.objects.create(
                 name="My Org",
                 timezone=pytz.timezone("US/Pacific"),
-                brand="rapidpro.io",
+                brand="rapidpro",
                 created_by=self.customer_support,
                 modified_by=self.customer_support,
             )

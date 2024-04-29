@@ -1,30 +1,11 @@
 import os
-import socket
 import sys
 from datetime import timedelta
 
 import iptools
-import sentry_sdk
-from sentry_sdk.integrations.celery import CeleryIntegration
-from sentry_sdk.integrations.django import DjangoIntegration
-from sentry_sdk.integrations.logging import LoggingIntegration, ignore_logger
-
-from django.utils.translation import gettext_lazy as _
-
 from celery.schedules import crontab
 
-SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
-
-
-if SENTRY_DSN:  # pragma: no cover
-    sentry_sdk.init(
-        dsn=SENTRY_DSN,
-        integrations=[DjangoIntegration(), CeleryIntegration(), LoggingIntegration()],
-        send_default_pii=True,
-        traces_sample_rate=0,
-    )
-    ignore_logger("django.security.DisallowedHost")
-
+from django.utils.translation import gettext_lazy as _
 
 # -----------------------------------------------------------------------------------
 # Default to debugging
@@ -89,8 +70,6 @@ USE_TZ = True
 TIME_ZONE = "GMT"
 USER_TIME_ZONE = "Africa/Kigali"
 
-MODELTRANSLATION_TRANSLATION_REGISTRY = "translation"
-
 # -----------------------------------------------------------------------------------
 # Default language used for this installation
 # -----------------------------------------------------------------------------------
@@ -119,11 +98,6 @@ USE_I18N = True
 # If you set this to False, Django will not format dates, numbers and
 # calendars according to the current locale
 USE_L10N = True
-
-# URL prefix for admin static files -- CSS, JavaScript and images.
-# Make sure to use a trailing slash.
-# Examples: "http://foo.com/static/admin/", "/static/admin/".
-ADMIN_MEDIA_PREFIX = "/static/admin/"
 
 # List of finder classes that know how to find static files in
 # various locations.
@@ -216,10 +190,6 @@ MIDDLEWARE = (
     "temba.middleware.TimezoneMiddleware",
 )
 
-# security middleware configuration
-SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_BROWSER_XSS_FILTER = True
-
 ROOT_URLCONF = "temba.urls"
 
 # other urls to add
@@ -289,57 +259,38 @@ PERMISSIONS_APP = "temba.airtime"
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": True,
-    "root": {"level": "WARNING", "handlers": ["console"]},
-    "formatters": {"verbose": {"format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s"}},
+    "formatters": {"verbose": {"format": "%(levelname)s %(asctime)s %(module)s %(message)s"}},
     "handlers": {
         "console": {"level": "DEBUG", "class": "logging.StreamHandler", "formatter": "verbose"},
-        "null": {"class": "logging.NullHandler"},
     },
-    "loggers": {
-        "pycountry": {"level": "ERROR", "handlers": ["console"], "propagate": False},
-        "django.security.DisallowedHost": {"handlers": ["null"], "propagate": False},
-        "django.db.backends": {"level": "ERROR", "handlers": ["console"], "propagate": False},
-        "temba.formax": {"level": "DEBUG" if DEBUG else "ERROR", "handlers": ["console"], "propagate": False},
-    },
+    "root": {"level": "INFO", "handlers": ["console"]},
 }
-
-# the name of our topup plan
-TOPUP_PLAN = "topups"
-WORKSPACE_PLAN = "workspace"
-
-# Default plan for new orgs
-DEFAULT_PLAN = TOPUP_PLAN
 
 # -----------------------------------------------------------------------------------
 # Branding Configuration
 # -----------------------------------------------------------------------------------
-BRANDING = {
-    "rapidpro.io": {
+BRANDS = [
+    {
         "slug": "rapidpro",
         "name": "RapidPro",
+        "hosts": ["rapidpro.io"],
         "org": "UNICEF",
+        "domain": "app.rapidpro.io",
         "colors": dict(primary="#0c6596"),
         "styles": ["brands/rapidpro/font/style.css"],
-        "default_plan": TOPUP_PLAN,
-        "welcome_topup": 1000,
         "email": "join@rapidpro.io",
         "support_email": "support@rapidpro.io",
         "link": "https://app.rapidpro.io",
         "docs_link": "http://docs.rapidpro.io",
-        "domain": "app.rapidpro.io",
         "ticket_domain": "tickets.rapidpro.io",
         "favico": "brands/rapidpro/rapidpro.ico",
         "splash": "brands/rapidpro/splash.jpg",
         "logo": "images/logo-dark.svg",
         "allow_signups": True,
-        "tiers": dict(multi_user=0, multi_org=0),
-        "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         "title": _("Visually build nationally scalable mobile applications"),
-        "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
-        "credits": "Copyright &copy; 2012-2022 UNICEF, Nyaruka. All Rights Reserved.",
     }
-}
-DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro.io")
+]
+DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro")
 
 FEATURES = {"locations", "ticketers"}
 
@@ -435,7 +386,7 @@ PERMISSIONS = {
         "scheduled_delete",
         "send",
     ),
-    "msgs.label": ("api", "delete_folder"),
+    "msgs.label": ("api",),
     "msgs.media": ("upload", "list"),
     "msgs.msg": (
         "api",
@@ -451,7 +402,7 @@ PERMISSIONS = {
         "api",
         "country",
         "create_login",
-        "create_child",
+        "create",
         "dashboard",
         "download",
         "edit_sub_org",
@@ -602,7 +553,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_accounts",
         "orgs.org_api",
         "orgs.org_country",
-        "orgs.org_create_child",
+        "orgs.org_create",
         "orgs.org_dashboard",
         "orgs.org_delete",
         "orgs.org_download",
@@ -755,7 +706,6 @@ GROUP_PERMISSIONS = {
         "contacts.contactfield_api",
         "contacts.contactfield_read",
         "contacts.contactgroup_api",
-        "contacts.contactgroup_list",
         "contacts.contactgroup_menu",
         "contacts.contactgroup_read",
         "contacts.contactimport_read",
@@ -900,38 +850,38 @@ CACHES = {
 # Async tasks using Celery
 # -----------------------------------------------------------------------------------
 CELERY_RESULT_BACKEND = None
+CELERY_TASK_TRACK_STARTED = True
 CELERY_BROKER_URL = "redis://%s:%d/%d" % (REDIS_HOST, REDIS_PORT, REDIS_DB)
 
 # by default, celery doesn't have any timeout on our redis connections, this fixes that
 CELERY_BROKER_TRANSPORT_OPTIONS = {"socket_timeout": 5}
 
 CELERY_BEAT_SCHEDULE = {
-    "check-channels": {"task": "check_channels_task", "schedule": timedelta(seconds=300)},
+    "check-channel-alerts": {"task": "check_channel_alerts", "schedule": timedelta(seconds=300)},
     "check-elasticsearch-lag": {"task": "check_elasticsearch_lag", "schedule": timedelta(seconds=300)},
-    "delete-orgs": {"task": "delete_orgs_task", "schedule": crontab(hour=4, minute=0)},
+    "delete-released-orgs": {"task": "delete_released_orgs", "schedule": crontab(hour=4, minute=0)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},
-    "resolve-twitter-ids-task": {"task": "resolve_twitter_ids_task", "schedule": timedelta(seconds=900)},
+    "resolve-twitter-ids-task": {"task": "resolve_twitter_ids", "schedule": timedelta(seconds=900)},
     "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": crontab(hour=6, minute=0)},
     "refresh-whatsapp-templates": {"task": "refresh_whatsapp_templates", "schedule": timedelta(seconds=900)},
     "send-notification-emails": {"task": "send_notification_emails", "schedule": timedelta(seconds=60)},
-    "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=60)},
-    "squash-contactgroupcounts": {"task": "squash_contactgroupcounts", "schedule": timedelta(seconds=60)},
-    "squash-flowcounts": {"task": "squash_flowcounts", "schedule": timedelta(seconds=60)},
-    "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=60)},
-    "squash-notificationcounts": {"task": "squash_notificationcounts", "schedule": timedelta(seconds=60)},
-    "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=60)},
-    "squash-ticketcounts": {"task": "squash_ticketcounts", "schedule": timedelta(seconds=60)},
+    "squash-channel-counts": {"task": "squash_channel_counts", "schedule": timedelta(seconds=60)},
+    "squash-group-counts": {"task": "squash_group_counts", "schedule": timedelta(seconds=60)},
+    "squash-flow-counts": {"task": "squash_flow_counts", "schedule": timedelta(seconds=60)},
+    "squash-msg-counts": {"task": "squash_msg_counts", "schedule": timedelta(seconds=60)},
+    "squash-notification-counts": {"task": "squash_notification_counts", "schedule": timedelta(seconds=60)},
+    "squash-ticket-counts": {"task": "squash_ticket_counts", "schedule": timedelta(seconds=60)},
     "sync-classifier-intents": {"task": "sync_classifier_intents", "schedule": timedelta(seconds=300)},
-    "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
+    "sync-old-seen-channels": {"task": "sync_old_seen_channels", "schedule": timedelta(seconds=600)},
     "track-org-channel-counts": {"task": "track_org_channel_counts", "schedule": crontab(hour=4, minute=0)},
-    "trim-channel-log": {"task": "trim_channel_log_task", "schedule": crontab(hour=3, minute=0)},
-    "trim-event-fires": {"task": "trim_event_fires_task", "schedule": timedelta(seconds=900)},
+    "trim-channel-log": {"task": "trim_channel_log", "schedule": crontab(hour=3, minute=0)},
+    "trim-event-fires": {"task": "trim_event_fires", "schedule": timedelta(seconds=900)},
     "trim-flow-revisions": {"task": "trim_flow_revisions", "schedule": crontab(hour=0, minute=0)},
-    "trim-flow-sessions-and-starts": {"task": "trim_flow_sessions_and_starts", "schedule": crontab(hour=0, minute=0)},
-    "trim-http-logs": {"task": "trim_http_logs_task", "schedule": crontab(hour=3, minute=0)},
-    "trim-sync-events": {"task": "trim_sync_events_task", "schedule": crontab(hour=3, minute=0)},
-    "trim-webhook-event": {"task": "trim_webhook_event_task", "schedule": crontab(hour=3, minute=0)},
-    "update-org-activity": {"task": "update_org_activity_task", "schedule": crontab(hour=3, minute=5)},
+    "trim-flow-sessions": {"task": "trim_flow_sessions", "schedule": crontab(hour=0, minute=0)},
+    "trim-flow-starts": {"task": "trim_flow_starts", "schedule": crontab(hour=1, minute=0)},
+    "trim-http-logs": {"task": "trim_http_logs", "schedule": crontab(hour=2, minute=0)},
+    "trim-sync-events": {"task": "trim_sync_events", "schedule": crontab(hour=3, minute=0)},
+    "trim-webhook-events": {"task": "trim_webhook_events", "schedule": crontab(hour=3, minute=0)},
 }
 
 # -----------------------------------------------------------------------------------
@@ -978,7 +928,7 @@ COMPRESS_OFFLINE = False
 
 # build up our offline compression context based on available brands
 COMPRESS_OFFLINE_CONTEXT = []
-for brand in BRANDING.values():
+for brand in BRANDS:
     context = dict(STATIC_URL=STATIC_URL, base_template="frame.html", debug=False, testing=False)
     context["brand"] = dict(slug=brand["slug"], styles=brand["styles"])
     COMPRESS_OFFLINE_CONTEXT.append(context)
@@ -991,9 +941,6 @@ for brand in BRANDING.values():
 # DANGER: only turn this on if you know what you are doing!
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
-
-# Whether to send receipts on TopUp purchases
-SEND_RECEIPTS = True
 
 INTEGRATION_TYPES = [
     "temba.orgs.integrations.dtone.DTOneType",
@@ -1089,7 +1036,7 @@ ANALYTICS_TYPES = [
 ]
 
 # set of ISO-639-3 codes of languages to allow in addition to all ISO-639-1 languages
-NON_ISO6391_LANGUAGES = {}
+NON_ISO6391_LANGUAGES = {"mul", "und"}
 
 # -----------------------------------------------------------------------------------
 # Store sessions in our cache
@@ -1102,9 +1049,6 @@ SESSION_CACHE_ALIAS = "default"
 # -----------------------------------------------------------------------------------
 TWITTER_API_KEY = os.environ.get("TWITTER_API_KEY", "MISSING_TWITTER_API_KEY")
 TWITTER_API_SECRET = os.environ.get("TWITTER_API_SECRET", "MISSING_TWITTER_API_SECRET")
-
-# Google analytics tracking ID
-GOOGLE_TRACKING_ID = os.environ.get("GOOGLE_TRACKING_ID", "")
 
 MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY", "")
 
@@ -1183,12 +1127,7 @@ RETENTION_PERIODS = {
 MAILROOM_URL = None
 MAILROOM_AUTH_TOKEN = None
 
-# To allow manage fields to support up to 1000 fields
-DATA_UPLOAD_MAX_NUMBER_FIELDS = 4000
-
-# When reporting metrics we use the hostname of the physical machine, not the hostname of the service
-MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
-
-
-# ElasticSearch configuration (URL RFC-1738)
+# -----------------------------------------------------------------------------------
+# ElasticSearch
+# -----------------------------------------------------------------------------------
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")

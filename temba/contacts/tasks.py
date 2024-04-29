@@ -3,15 +3,14 @@ from datetime import timedelta
 
 import iso8601
 import pytz
+from celery import shared_task
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.utils import timezone
 
-from celery import shared_task
-
 from temba.utils import chunk_list
-from temba.utils.celery import nonoverlapping_task
+from temba.utils.crons import cron_task
 
 from .models import Contact, ContactGroup, ContactGroupCount, ContactImport, ExportContactsTask
 from .search import elastic
@@ -19,7 +18,7 @@ from .search import elastic
 logger = logging.getLogger(__name__)
 
 
-@shared_task(track_started=True)
+@shared_task
 def release_contacts(user_id, contact_ids):
     """
     Releases the given contacts
@@ -32,7 +31,7 @@ def release_contacts(user_id, contact_ids):
             contact.release(user)
 
 
-@shared_task(track_started=True)
+@shared_task
 def import_contacts_task(import_id):
     """
     Import contacts from a spreadsheet
@@ -40,7 +39,7 @@ def import_contacts_task(import_id):
     ContactImport.objects.select_related("org", "created_by").get(id=import_id).start()
 
 
-@shared_task(track_started=True, name="export_contacts_task")
+@shared_task
 def export_contacts_task(task_id):
     """
     Export contacts to a file and e-mail a link to the user
@@ -48,7 +47,7 @@ def export_contacts_task(task_id):
     ExportContactsTask.objects.select_related("org", "created_by").get(id=task_id).perform()
 
 
-@nonoverlapping_task(track_started=True, name="release_group_task")
+@shared_task
 def release_group_task(group_id):
     """
     Releases group
@@ -56,15 +55,15 @@ def release_group_task(group_id):
     ContactGroup.objects.get(id=group_id)._full_release()
 
 
-@nonoverlapping_task(track_started=True, name="squash_contactgroupcounts", lock_timeout=7200)
-def squash_contactgroupcounts():
+@cron_task(lock_timeout=7200)
+def squash_group_counts():
     """
     Squashes our ContactGroupCounts into single rows per ContactGroup
     """
     ContactGroupCount.squash()
 
 
-@shared_task(track_started=True, name="full_release_contact")
+@shared_task
 def full_release_contact(contact_id):
     contact = Contact.objects.filter(id=contact_id).first()
 
@@ -72,7 +71,7 @@ def full_release_contact(contact_id):
         contact._full_release()
 
 
-@shared_task(name="check_elasticsearch_lag")
+@cron_task()
 def check_elasticsearch_lag():
     if settings.ELASTICSEARCH_URL:
         es_last_modified_contact = elastic.get_last_modified()

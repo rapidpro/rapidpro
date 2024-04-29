@@ -216,6 +216,16 @@ def to_json(value):
     return mark_safe(f'JSON.parse("{escaped_output}")')
 
 
+@register.filter
+def duration(date):
+    return mark_safe(f"<temba-date value='{date.isoformat()}' display='duration'></temba-date>")
+
+
+@register.filter
+def datetime(date):
+    return mark_safe(f"<temba-date value='{date.isoformat()}' display='datetime'></temba-date>")
+
+
 @register.simple_tag(takes_context=True)
 def short_datetime(context, dtime):
     if dtime.tzinfo is None:

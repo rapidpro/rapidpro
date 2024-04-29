@@ -1,9 +1,9 @@
 import logging
 from datetime import timedelta
 
-from django.utils import timezone
-
 from celery import shared_task
+
+from django.utils import timezone
 
 from temba.contacts.models import URN, ContactURN, ExportContactsTask
 from temba.contacts.tasks import export_contacts_task
@@ -11,24 +11,18 @@ from temba.flows.models import ExportFlowResultsTask
 from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import ExportMessagesTask
 from temba.msgs.tasks import export_messages_task
-from temba.utils.celery import nonoverlapping_task
+from temba.utils.crons import cron_task
 
-from .models import Invitation, Org, OrgActivity, TopUpCredits
+from .models import Invitation, Org
 
 
-@shared_task(track_started=True, name="send_invitation_email_task")
+@shared_task
 def send_invitation_email_task(invitation_id):
     invitation = Invitation.objects.get(pk=invitation_id)
     invitation.send_email()
 
 
-@shared_task(track_started=True, name="apply_topups_task")
-def apply_topups_task(org_id):
-    org = Org.objects.get(id=org_id)
-    org.apply_topups()
-
-
-@shared_task(track_started=True, name="normalize_contact_tels_task")
+@shared_task
 def normalize_contact_tels_task(org_id):
     org = Org.objects.get(id=org_id)
 
@@ -39,12 +33,7 @@ def normalize_contact_tels_task(org_id):
             urn.ensure_number_normalization(org.default_country_code)
 
 
-@nonoverlapping_task(track_started=True, name="squash_topupcredits", lock_key="squash_topupcredits", lock_timeout=7200)
-def squash_topupcredits():
-    TopUpCredits.squash()
-
-
-@nonoverlapping_task(track_started=True, name="resume_failed_tasks", lock_key="resume_failed_tasks", lock_timeout=7200)
+@cron_task(lock_timeout=7200)
 def resume_failed_tasks():
     now = timezone.now()
     window = now - timedelta(hours=1)
@@ -68,14 +57,8 @@ def resume_failed_tasks():
         export_messages_task.delay(msg_export.pk)
 
 
-@nonoverlapping_task(track_started=True, name="update_org_activity_task")
-def update_org_activity(now=None):
-    now = now if now else timezone.now()
-    OrgActivity.update_day(now)
-
-
-@nonoverlapping_task(track_started=True, name="delete_orgs_task", lock_key="delete_orgs_task", lock_timeout=7200)
-def delete_orgs_task():
+@cron_task(lock_timeout=7200)
+def delete_released_orgs():
     # for each org that was released over 7 days ago, delete it for real
     week_ago = timezone.now() - timedelta(days=Org.DELETE_DELAY_DAYS)
     for org in Org.objects.filter(is_active=False, released_on__lt=week_ago, deleted_on=None):

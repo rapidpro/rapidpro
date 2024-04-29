@@ -115,3 +115,9 @@ class SignalWireTest(TembaTest):
 
         # deactivate our channel
         channel.release(self.admin)
+
+    def test_get_error_ref_url(self):
+        self.assertEqual(
+            "https://developer.signalwire.com/compatibility-api/rest/overview/error-codes/",
+            SignalWireType().get_error_ref_url(None, "30006"),
+        )
