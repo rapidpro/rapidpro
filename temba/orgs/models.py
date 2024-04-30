@@ -1323,7 +1323,9 @@ class Org(SmartModel):
         # we want to manually release runs so we don't fire a mailroom task to do it
         for flow in self.flows.all():
             flow.release(user, interrupt_sessions=False)
-            counts["runs"] += flow.delete_runs()
+
+        # delete runs and keep the count
+        counts["runs"] = delete_in_batches(self.runs.all())
 
         # delete contact-related data
         delete_in_batches(self.http_logs.all())

@@ -920,31 +920,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         if interrupt_sessions:
             mailroom.queue_interrupt(self.org, flow=self)
 
-    def delete_runs(self) -> int:
-        """
-        Deletes any runs and sessions associated with this flow. Called as part of org deletion. Returns number of runs
-        deleted.
-        """
-
-        assert not self.is_active, "can't delete runs for flow which hasn't been released"
-
-        num_deleted = 0
-
-        while True:
-            batch = list(self.runs.only("id", "session_id")[:1000])
-            if not batch:
-                break
-
-            # delete the runs (won't call FlowRun.delete() so won't create mailroom interrupt tasks)
-            FlowRun.objects.filter(id__in=[r.id for r in batch]).delete()
-            num_deleted += len(batch)
-
-            # delete the sessions
-            session_ids = {r.session_id for r in batch}
-            FlowSession.objects.filter(id__in=session_ids).delete()
-
-        return num_deleted
-
     def delete(self):
         """
         Does actual deletion of this flow during org deletion.
