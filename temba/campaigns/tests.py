@@ -179,7 +179,7 @@ class CampaignTest(TembaTest):
             created_by=self.admin,
             modified_by=self.admin,
             saved_by=self.admin,
-            version_number="13.4.0",
+            version_number="13.5.0",
             flow_type="V",
         )
 
@@ -209,7 +209,7 @@ class CampaignTest(TembaTest):
             {
                 "uuid": str(event.flow.uuid),
                 "name": event.flow.name,
-                "spec_version": "13.4.0",
+                "spec_version": "13.5.0",
                 "revision": 1,
                 "language": "eng",
                 "type": "messaging_background",
@@ -816,7 +816,7 @@ class CampaignTest(TembaTest):
         # message flow should be migrated to latest engine spec
         self.assertEqual({"und": "This is a second campaign message"}, events[5].message)
         self.assertEqual("und", events[5].flow.base_language)
-        self.assertEqual("13.4.0", events[5].flow.version_number)
+        self.assertEqual("13.5.0", events[5].flow.version_number)
 
     def test_import_created_on_event(self):
         campaign = Campaign.create(self.org, self.admin, "New contact reminders", self.farmers)
@@ -1510,7 +1510,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
             {
                 "uuid": str(event.flow.uuid),
                 "name": f"Single Message ({event.id})",
-                "spec_version": "13.4.0",
+                "spec_version": "13.5.0",
                 "revision": 1,
                 "expire_after_minutes": 0,
                 "language": "eng",
