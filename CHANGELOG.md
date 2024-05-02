@@ -1,3 +1,7 @@
+v9.1.103 (2024-05-02)
+-------------------------
+ * Fix contact field selection
+
 v9.1.102 (2024-05-02)
 -------------------------
  * Delete all sessions and runs in org deletion in batches
