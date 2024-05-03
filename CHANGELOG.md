@@ -1,3 +1,7 @@
+v9.1.105 (2024-05-03)
+-------------------------
+ * Fix race condition on editor load
+
 v9.1.104 (2024-05-03)
 -------------------------
  * Fix template bug and loading error for editor
