@@ -1,3 +1,7 @@
+v9.1.104 (2024-05-03)
+-------------------------
+ * Fix template bug and loading error for editor
+
 v9.1.103 (2024-05-02)
 -------------------------
  * Fix contact field selection
