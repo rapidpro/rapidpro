@@ -137,26 +137,6 @@
     var internal = '/api/internal/';
     var flowType = '{{ object.engine_type }}';
 
-    onSpload(function() {
-      var confirmation = document.getElementById("confirm-language");
-      confirmation.addEventListener("temba-button-clicked", function(event) {
-        var code = confirmation.dataset.code;
-        if (!event.detail.button.secondary) {
-          posterize('{% url "flows.flow_change_language" object.id %}?language=' + code);
-        }
-        confirmation.open = false;
-      });
-
-      // wait for our component to load, then show the editor
-      if (window.showFlowEditor) {
-        window.showFlowEditor(document.getElementById("rp-flow-editor"), config);
-      } else {
-        document.addEventListener("temba-floweditor-loaded", function() {
-          window.showFlowEditor(document.getElementById("rp-flow-editor"), config);
-        });
-      }
-    });
-
     function handleEditorLoaded() {
       document.querySelector('.editor-loader').classList.add('hide');
       document.querySelector('#rp-flow-editor').style.opacity = '1';
@@ -232,6 +212,26 @@
         simulateResume: simulateResume,
       }
     };
+
+    onSpload(function() {
+      var confirmation = document.getElementById("confirm-language");
+      confirmation.addEventListener("temba-button-clicked", function(event) {
+        var code = confirmation.dataset.code;
+        if (!event.detail.button.secondary) {
+          posterize('{% url "flows.flow_change_language" object.id %}?language=' + code);
+        }
+        confirmation.open = false;
+      });
+
+      // wait for our component to load, then show the editor
+      if (window.showFlowEditor) {
+        window.showFlowEditor(document.getElementById("rp-flow-editor"), config);
+      } else {
+        document.addEventListener("temba-floweditor-loaded", function() {
+          window.showFlowEditor(document.getElementById("rp-flow-editor"), config);
+        });
+      }
+    });
   </script>
 {% endblock extra-script %}
 {% block alert-messages %}

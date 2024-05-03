@@ -9,7 +9,6 @@ function onSpload(fn) {
     var isLoading = container.classList.contains('loading');
     if (isInitial) {
       document.addEventListener('DOMContentLoaded', fn, { once: true });
-      container.classList.remove('initial-load');
     } else {
       if (isLoading) {
         var eventContainer = document.querySelector('.spa-content');
@@ -120,6 +119,13 @@ function fetchAjax(url, container, options) {
             if (title) {
               document.title = title.innerText;
             }
+
+            // wire up any posterize links in the content body
+            containerEle.querySelectorAll('.posterize').forEach(function (ele) {
+              ele.addEventListener('click', function () {
+                handlePosterize(ele);
+              });
+            });
 
             if (options) {
               if ('onSuccess' in options) {
@@ -553,10 +559,8 @@ function handleNewWorkspaceClicked(evt) {
   evt.stopPropagation();
 }
 
-onSpload(function () {
-  document.querySelectorAll('.spa-content .posterize').forEach(function (ele) {
-    ele.addEventListener('click', function () {
-      handlePosterize(ele);
-    });
-  });
+document.addEventListener('DOMContentLoaded', function () {
+  // remove our initial load marker
+  var container = document.querySelector('.spa-container');
+  container.classList.remove('initial-load');
 });
