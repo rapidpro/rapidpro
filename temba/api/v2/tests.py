@@ -3416,6 +3416,9 @@ class EndpointsTest(APITest):
         self.assertDeleteNotAllowed(endpoint_url)
 
         # create some globals
+        deleted = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Ltd")
+        deleted.release(self.admin)
+
         global1 = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Ltd")
         global2 = Global.get_or_create(self.org, self.admin, "access_token", "Access Token", "23464373")
 
