@@ -1,3 +1,7 @@
+v9.1.106 (2024-05-06)
+-------------------------
+ * Fix globals API endpoint
+
 v9.1.105 (2024-05-03)
 -------------------------
  * Fix race condition on editor load
