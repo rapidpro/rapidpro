@@ -1872,6 +1872,9 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     pagination_class = ModifiedOnCursorPagination
     lookup_params = {"key": "key"}
 
+    def derive_queryset(self):
+        return self.model.objects.filter(org=self.request.org, is_active=True)
+
     def filter_queryset(self, queryset):
         params = self.request.query_params
         # filter by key (optional)
@@ -1879,13 +1882,7 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
         if key:
             queryset = queryset.filter(key=key)
 
-        # filter by modified (optional)
-        before = params.get("before")
-        after = params.get("after")
-        if before or after:
-            return self.filter_before_after(queryset, "modified_on")
-
-        return queryset.filter(is_active=True)
+        return self.filter_before_after(queryset, "modified_on")
 
     @classmethod
     def get_read_explorer(cls):
