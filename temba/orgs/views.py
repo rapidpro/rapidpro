@@ -1,4 +1,3 @@
-import itertools
 from collections import OrderedDict
 from datetime import timedelta
 from urllib.parse import quote, quote_plus
@@ -74,7 +73,18 @@ from temba.utils.views import (
 )
 
 from .forms import SignupForm, SMTPForm
-from .models import BackupToken, Export, IntegrationType, Invitation, Org, OrgImport, OrgRole, User, UserSettings
+from .models import (
+    BackupToken,
+    DefinitionExport,
+    Export,
+    IntegrationType,
+    Invitation,
+    Org,
+    OrgImport,
+    OrgRole,
+    User,
+    UserSettings,
+)
 
 # session key for storing a two-factor enabled user's id once we've checked their password
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
@@ -1514,9 +1524,12 @@ class OrgCRUDL(SmartCRUDL):
     class Export(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         title = _("Create Export")
         menu_path = "/settings/workspace"
+        submit_button_name = _("Export")
+        success_message = _("We are preparing your export and you will get a notification when it is complete.")
 
         def post(self, request, *args, **kwargs):
             org = self.get_object()
+            user = self.request.user
 
             flow_ids = [elt for elt in self.request.POST.getlist("flows") if elt]
             campaign_ids = [elt for elt in self.request.POST.getlist("campaigns") if elt]
@@ -1525,16 +1538,13 @@ class OrgCRUDL(SmartCRUDL):
             flows = Flow.objects.filter(id__in=flow_ids, org=org, is_active=True)
             campaigns = Campaign.objects.filter(id__in=campaign_ids, org=org, is_active=True)
 
-            components = set(itertools.chain(flows, campaigns))
+            export = DefinitionExport.create(org=org, user=user, flows=flows, campaigns=campaigns)
 
-            # add triggers for the selected flows
-            for flow in flows:
-                components.update(flow.triggers.filter(is_active=True, is_archived=False))
+            on_transaction_commit(lambda: export.start())
 
-            export = org.export_definitions(f"https://{org.get_brand_domain()}", components)
-            response = JsonResponse(export, json_dumps_params=dict(indent=2))
-            response["Content-Disposition"] = "attachment; filename=%s.json" % slugify(org.name)
-            return response
+            messages.info(self.request, self.success_message)
+
+            return HttpResponseRedirect(reverse("orgs.org_workspace"))
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

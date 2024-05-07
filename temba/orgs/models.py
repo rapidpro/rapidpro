@@ -7,6 +7,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Any
 from urllib.parse import urlparse
 
@@ -1566,6 +1567,67 @@ class ExportType:
 
     def get_download_context(self, export) -> dict:  # pragma: no cover
         return {}
+
+
+class DefinitionExport(ExportType):
+    """
+    Export of definitions
+    """
+
+    slug = "definition"
+    name = _("Definitions Export")
+    download_prefix = "orgs_export"
+    download_template = "orgs/definitions_download.html"
+
+    @classmethod
+    def create(cls, org, user, flows=[], campaigns=[]):
+        export = Export.objects.create(
+            org=org,
+            export_type=cls.slug,
+            config={
+                "flow_ids": [f.id for f in flows],
+                "campigns_ids": [c.id for c in campaigns],
+            },
+            created_by=user,
+        )
+        return export
+
+    def get_flows(self, export):
+        flow_ids = export.config.get("flow_ids")
+
+        return export.org.flows.filter(id__in=flow_ids, is_active=True)
+
+    def get_campaigns(self, export):
+        campigns_ids = export.config.get("campigns_ids")
+
+        return export.org.campaigns.filter(id__in=campigns_ids, is_active=True)
+
+    def write(self, export) -> tuple:
+        org = export.org
+        flows = self.get_flows(export)
+        campaigns = self.get_campaigns(export)
+
+        components = set(itertools.chain(flows, campaigns))
+
+        # add triggers for the selected flows
+        for flow in flows:
+            components.update(flow.triggers.filter(is_active=True, is_archived=False))
+
+        export_defs = org.export_definitions(f"https://{org.get_brand_domain()}", components)
+
+        temp_file = NamedTemporaryFile(delete=False, suffix=".json", mode="w+", encoding="utf8")
+        json.json.dump(export_defs, temp_file)
+        temp_file.flush()
+
+        return temp_file, "json", len(components)
+
+    def get_download_context(self, export) -> dict:
+        flows = self.get_flows(export)
+        campaigns = self.get_campaigns(export)
+        return {
+            "campaigns": [dict(uuid=c.uuid, name=c.name) for c in campaigns],
+            "flows": [dict(uuid=f.uuid, name=f.name) for f in flows],
+        }
 
 
 class Export(TembaUUIDMixin, models.Model):

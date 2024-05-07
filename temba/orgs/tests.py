@@ -52,7 +52,18 @@ from temba.utils.uuid import uuid4
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .context_processors import RolePermsWrapper
-from .models import BackupToken, Export, Invitation, Org, OrgImport, OrgMembership, OrgRole, User, UserSettings
+from .models import (
+    BackupToken,
+    DefinitionExport,
+    Export,
+    Invitation,
+    Org,
+    OrgImport,
+    OrgMembership,
+    OrgRole,
+    User,
+    UserSettings,
+)
 from .tasks import (
     delete_released_orgs,
     expire_invitations,
@@ -3776,6 +3787,18 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
 
 class BulkExportTest(TembaTest):
+
+    def _export(self, flows=[], campaigns=[]):
+        export = DefinitionExport.create(self.org, self.admin, flows=flows, campaigns=campaigns)
+        export.perform()
+
+        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/definition_exports/{export.uuid}.json"
+
+        with open(filename) as export_file:
+            definitions = json.loads(export_file.read())
+
+        return definitions, export
+
     def test_import_validation(self):
         # export must include version field
         with self.assertRaises(ValueError):
@@ -3798,11 +3821,7 @@ class BulkExportTest(TembaTest):
 
         self.login(self.admin)
 
-        # export only the parent
-        post_data = dict(flows=[parent.pk], campaigns=[])
-        response = self.client.post(reverse("orgs.org_export"), post_data)
-
-        exported = response.json()
+        exported, export_obj = self._export(flows=[parent], campaigns=[])
 
         # shouldn't have any triggers
         self.assertFalse(exported["triggers"])
@@ -4297,8 +4316,21 @@ class BulkExportTest(TembaTest):
             campaigns=[c.pk for c in Campaign.objects.all()],
         )
 
-        response = self.client.post(reverse("orgs.org_export"), post_data)
-        exported = response.json()
+        response = self.client.post(reverse("orgs.org_export"), post_data, follow=True)
+
+        self.assertEqual(1, Export.objects.count())
+
+        export = Export.objects.get()
+        self.assertEqual("definition", export.export_type)
+
+        flows = Flow.objects.filter(flow_type="M", is_system=False)
+        campaigns = Campaign.objects.all()
+
+        exported, export_obj = self._export(flows=flows, campaigns=campaigns)
+
+        response = self.client.get(reverse("orgs.export_download", args=[export_obj.uuid]))
+        self.assertEqual(response.status_code, 200)
+
         self.assertEqual(exported["version"], Org.CURRENT_EXPORT_VERSION)
         self.assertEqual(exported["site"], "https://app.rapidpro.io")
 
