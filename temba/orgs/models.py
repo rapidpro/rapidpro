@@ -1575,7 +1575,7 @@ class DefinitionExport(ExportType):
     """
 
     slug = "definition"
-    name = _("Definitions Export")
+    name = _("Definitions")
     download_prefix = "orgs_export"
     download_template = "orgs/definitions_download.html"
 
