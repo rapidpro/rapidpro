@@ -95,9 +95,9 @@
 
     function handlePageClicked(event) {
       var element = event.target;
-      document.getElementById("user-access-token").value = this.getAttribute("data-fb-access-token");
-      document.getElementById("page-id").value = this.getAttribute("data-fb-id");
-      document.getElementById("page-name").value = this.getAttribute("data-fb-name");
+      document.getElementById("user-access-token").value = element.getAttribute("data-fb-access-token");
+      document.getElementById("page-id").value = element.getAttribute("data-fb-id");
+      document.getElementById("page-name").value = element.getAttribute("data-fb-name");
       document.getElementById("claim-form").submit();
     };
 
