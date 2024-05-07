@@ -1,3 +1,7 @@
+v9.1.109 (2024-05-07)
+-------------------------
+ * Tweak export finished emails so they don't say Excel
+
 v9.1.108 (2024-05-07)
 -------------------------
  * Update temba-components to 0.86.1
