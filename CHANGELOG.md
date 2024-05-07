@@ -1,3 +1,8 @@
+v9.1.107 (2024-05-07)
+-------------------------
+ * Fix variable name in http log read page
+ * Fix claiming instagram
+
 v9.1.106 (2024-05-06)
 -------------------------
  * Fix globals API endpoint
