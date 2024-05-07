@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
@@ -10,7 +11,7 @@ from temba.campaigns.views import CampaignEventCRUDL
 from temba.contacts.models import ContactField
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
-from temba.orgs.models import Org
+from temba.orgs.models import DefinitionExport, Org
 from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.utils.views import TEMBA_MENU_SELECTION
 
@@ -828,10 +829,13 @@ class CampaignTest(TembaTest):
 
         self.login(self.admin)
 
-        response = self.client.post(
-            reverse("orgs.org_export"), {"flows": [self.reminder_flow.id], "campaigns": [campaign.id]}
-        )
-        exported = response.json()
+        export = DefinitionExport.create(self.org, self.admin, flows=[], campaigns=[campaign])
+        export.perform()
+
+        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/definition_exports/{export.uuid}.json"
+
+        with open(filename) as export_file:
+            exported = json.loads(export_file.read())
 
         self.org.import_app(exported, self.admin)
 
