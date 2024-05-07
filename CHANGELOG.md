@@ -1,3 +1,8 @@
+v9.1.108 (2024-05-07)
+-------------------------
+ * Update temba-components to 0.86.1
+ * Change flow definitions export to be async, use new export type
+
 v9.1.107 (2024-05-07)
 -------------------------
  * Fix variable name in http log read page
