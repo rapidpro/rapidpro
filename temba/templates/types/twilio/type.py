@@ -94,7 +94,6 @@ class TwilioType(TemplateType):
                         "name": "body",
                         "content": raw[content_type]["body"],
                         "variables": comp_vars,
-                        "params": [{"type": "text"} for v in comp_vars],  # deprecated
                     }
                 )
 
@@ -115,7 +114,6 @@ class TwilioType(TemplateType):
                                 "name": button_name,
                                 "content": button_text,
                                 "variables": button_vars,
-                                "params": [{"type": "text"} for v in button_vars],  # deprecated
                             }
                         )
                     elif content_type == "twilio/call-to-action":
@@ -130,7 +128,6 @@ class TwilioType(TemplateType):
                                     "content": button_url,
                                     "display": button_text,
                                     "variables": button_vars,
-                                    "params": [{"type": "text"} for v in button_vars],  # deprecated
                                 }
                             )
 
@@ -143,7 +140,6 @@ class TwilioType(TemplateType):
                                     "content": phone_number,
                                     "display": button_text,
                                     "variables": {},
-                                    "params": [],  # deprecated
                                 }
                             )
                         else:

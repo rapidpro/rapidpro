@@ -182,7 +182,6 @@ class TwilioTypeTest(TembaTest):
                     "name": "body",
                     "content": "Hello {{1}}, this is text example only and can have variables replaces such as {{2}} and {{3}}",
                     "variables": {"1": 0, "2": 1, "3": 2},
-                    "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
                 }
             ],
             trans.components,
@@ -223,7 +222,6 @@ class TwilioTypeTest(TembaTest):
                     "variables": {
                         "2": 0,
                     },
-                    "params": [{"type": "text"}],
                 }
             ],
             trans.components,
@@ -272,7 +270,6 @@ class TwilioTypeTest(TembaTest):
                         "1": 0,
                         "2": 1,
                     },
-                    "params": [{"type": "text"}, {"type": "text"}],
                 },
                 {
                     "type": "button/phone_number",
@@ -280,7 +277,6 @@ class TwilioTypeTest(TembaTest):
                     "content": "+12538678447",
                     "display": "Call us",
                     "variables": {},
-                    "params": [],
                 },
                 {
                     "type": "button/url",
@@ -290,7 +286,6 @@ class TwilioTypeTest(TembaTest):
                     "variables": {
                         "3": 2,
                     },
-                    "params": [{"type": "text"}],
                 },
             ],
             trans.components,
@@ -337,28 +332,24 @@ class TwilioTypeTest(TembaTest):
                         "1": 0,
                         "3": 1,
                     },
-                    "params": [{"type": "text"}, {"type": "text"}],
                 },
                 {
                     "type": "button/quick_reply",
                     "name": "button.0",
                     "content": "Subscribe {{2}}",
                     "variables": {"2": 2},
-                    "params": [{"type": "text"}],
                 },
                 {
                     "type": "button/quick_reply",
                     "name": "button.1",
                     "content": "Stop promotions",
                     "variables": {},
-                    "params": [],
                 },
                 {
                     "type": "button/quick_reply",
                     "name": "button.2",
                     "content": "Help for {{3}}",
                     "variables": {"3": 1},
-                    "params": [{"type": "text"}],
                 },
             ],
             trans.components,
@@ -412,14 +403,12 @@ class TwilioTypeTest(TembaTest):
                     "name": "body",
                     "content": "Random type",
                     "variables": {},
-                    "params": [],
                 },
                 {
                     "type": "body",
                     "name": "body",
                     "content": "unsupported twilio/blah",
                     "variables": {},
-                    "params": [],
                 },
             ],
             trans.components,
