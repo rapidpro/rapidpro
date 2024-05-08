@@ -13,7 +13,7 @@ from ...models import TemplateTranslation, TemplateType
 
 class TwilioType(TemplateType):
     slug = "whatsapp"
-    variable_regex = re.compile(r"{{(\d+)}}")
+    variable_regex = re.compile(r"{{([A-Za-z0-9]+)}}")
 
     STATUS_MAPPING = {
         "PENDING": TemplateTranslation.STATUS_PENDING,
@@ -119,7 +119,7 @@ class TwilioType(TemplateType):
                             }
                         )
                     elif content_type == "twilio/call-to-action":
-                        button_type = action["type"].upper()
+                        button_type = action["type"]
                         if button_type == "URL":
                             button_url = action["url"]
                             button_vars = add_variables(self._extract_variables(button_url), "text")

@@ -11,7 +11,7 @@ from temba.tests.requests import MockResponse
 from .type import TwilioType
 
 
-class WhatsAppTypeTest(TembaTest):
+class TwilioTypeTest(TembaTest):
     def setUp(self):
         self.type = TwilioType()
 
@@ -20,7 +20,17 @@ class WhatsAppTypeTest(TembaTest):
     def test_extract_variables(self):
         self.assertEqual(["1", "2"], self.type._extract_variables("Hi {{2}} how are you? {{1}}"))
         self.assertEqual(["1", "2"], self.type._extract_variables("Hi {{1}} how are you? {{2}} {{1}}"))
-        self.assertEqual([], self.type._extract_variables("Hi {there}. {{x}}"))
+        self.assertEqual(
+            ["1", "flightnumber"],
+            self.type._extract_variables("Hello this is an update for your flight: {{flightnumber}}. Thank you {{1}}"),
+        )
+        self.assertEqual(
+            ["1"],
+            self.type._extract_variables(
+                "Hello this is an update for your flight: {{ flight number }}. Thank you {{1}}"
+            ),
+        )
+        self.assertEqual([], self.type._extract_variables("Hi {there}. {{%#43}}"))
 
     def test_parse_language(self):
         self.assertEqual("eng", self.type._parse_language("en"))
