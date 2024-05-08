@@ -851,7 +851,8 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         # bad signature, should result in 401 Unauthorized
         self.assertEqual(401, self.sync(self.tel_channel, signature="badsig", cmds=[]).status_code)
 
-    def test_ignore_android_incoming_msg_invalid_phone(self):
+    @mock_mailroom
+    def test_ignore_android_incoming_msg_invalid_phone(self, mr_mocks):
         date = timezone.now()
         date = int(time.mktime(date.timetuple())) * 1000
 

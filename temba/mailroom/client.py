@@ -124,11 +124,11 @@ class MailroomClient:
     def version(self):
         return self._request("", post=False).get("version")
 
-    def android_event(self, org_id: int, channel_id: int, urn: str, event_type: str, extra: dict, occurred_on):
+    def android_event(self, org_id: int, channel_id: int, phone: str, event_type: str, extra: dict, occurred_on):
         payload = {
             "org_id": org_id,
             "channel_id": channel_id,
-            "urn": urn,
+            "phone": phone,
             "event_type": event_type,
             "extra": extra,
             "occurred_on": occurred_on.isoformat(),
@@ -136,11 +136,11 @@ class MailroomClient:
 
         return self._request("android/event", payload)
 
-    def android_message(self, org_id: int, channel_id: int, urn: str, text: str, received_on):
+    def android_message(self, org_id: int, channel_id: int, phone: str, text: str, received_on):
         payload = {
             "org_id": org_id,
             "channel_id": channel_id,
-            "urn": urn,
+            "phone": phone,
             "text": text,
             "received_on": received_on.isoformat(),
         }

@@ -137,10 +137,10 @@ class TestClient(MailroomClient):
 
         super().__init__(settings.MAILROOM_URL, settings.MAILROOM_AUTH_TOKEN)
 
-    def android_event(self, org_id: int, channel_id: int, urn: str, event_type: str, extra: dict, occurred_on):
+    def android_event(self, org_id: int, channel_id: int, phone: str, event_type: str, extra: dict, occurred_on):
         org = Org.objects.get(id=org_id)
         channel = Channel.objects.get(id=channel_id)
-        contact, contact_urn = contact_resolve(org, urn)
+        contact, contact_urn = contact_resolve(org, f"tel:{phone}")
 
         event = ChannelEvent.objects.create(
             org=channel.org,
@@ -153,10 +153,10 @@ class TestClient(MailroomClient):
         )
         return {"id": event.id}
 
-    def android_message(self, org_id: int, channel_id: int, urn: str, text: str, received_on):
+    def android_message(self, org_id: int, channel_id: int, phone: str, text: str, received_on):
         org = Org.objects.get(id=org_id)
         channel = Channel.objects.get(id=channel_id)
-        contact, contact_urn = contact_resolve(org, urn)
+        contact, contact_urn = contact_resolve(org, f"tel:{phone}")
         text = text[: Msg.MAX_TEXT_LEN]
 
         now = timezone.now()

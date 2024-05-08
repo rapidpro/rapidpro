@@ -36,7 +36,7 @@ class MailroomClientTest(TembaTest):
         response = get_client().android_event(
             org_id=self.org.id,
             channel_id=12,
-            urn="tel:+1234567890",
+            phone="+1234567890",
             event_type="mo_miss",
             extra={"duration": 45},
             occurred_on=datetime(2024, 4, 1, 16, 28, 30, 0, tzone.utc),
@@ -50,7 +50,7 @@ class MailroomClientTest(TembaTest):
             json={
                 "org_id": self.org.id,
                 "channel_id": 12,
-                "urn": "tel:+1234567890",
+                "phone": "+1234567890",
                 "event_type": "mo_miss",
                 "extra": {"duration": 45},
                 "occurred_on": "2024-04-01T16:28:30+00:00",
@@ -63,7 +63,7 @@ class MailroomClientTest(TembaTest):
         response = get_client().android_message(
             org_id=self.org.id,
             channel_id=12,
-            urn="tel:+1234567890",
+            phone="+1234567890",
             text="hello",
             received_on=datetime(2024, 4, 1, 16, 28, 30, 0, tzone.utc),
         )
@@ -76,7 +76,7 @@ class MailroomClientTest(TembaTest):
             json={
                 "org_id": self.org.id,
                 "channel_id": 12,
-                "urn": "tel:+1234567890",
+                "phone": "+1234567890",
                 "text": "hello",
                 "received_on": "2024-04-01T16:28:30+00:00",
             },
