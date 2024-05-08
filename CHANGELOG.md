@@ -1,3 +1,8 @@
+v9.1.111 (2024-05-08)
+-------------------------
+ * Send phone instead of urn to mailroom android endpoints
+ * Add Twilio content template type, and TWA fetch_templates
+
 v9.1.110 (2024-05-08)
 -------------------------
  * Remove messages block that duplicates alert-messages
