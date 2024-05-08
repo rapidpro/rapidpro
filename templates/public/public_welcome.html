@@ -39,8 +39,7 @@
     }
   </style>
 {% endblock extra-style %}
-{% block messages %}
-{% endblock messages %}
+
 {% block content %}
   {% if 'success' in request.GET.keys %}
     {% blocktrans with name=branding.name %}

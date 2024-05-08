@@ -163,13 +163,6 @@
         </temba-store>
       {% endif %}
       <div class="flex flex-col h-full">
-        {% if messages %}
-          {% block messages %}
-            {% if messages %}
-              {% for msg in messages %}<div class="alert alert-{{ message.tags }}">{{ msg }}</div>{% endfor %}
-            {% endif %}
-          {% endblock messages %}
-        {% endif %}
         {% block post-header %}
         {% endblock post-header %}
         <!-- Content -->
