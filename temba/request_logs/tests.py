@@ -62,6 +62,18 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
             flow=flow,
         )
 
+        # log with error
+        l2 = HTTPLog.objects.create(
+            org=self.org,
+            log_type="webhook_called",
+            url="http://org1.bar/",
+            request="GET /zap\nHost: org1.bar\n\n",
+            response=" ERROR 400",
+            request_time=10,
+            is_error=True,
+            flow=flow,
+        )
+
         # log from other org
         HTTPLog.objects.create(
             org=self.org2,
@@ -87,11 +99,20 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
 
         webhooks_url = reverse("request_logs.httplog_webhooks")
         log_url = reverse("request_logs.httplog_read", args=[l1.id])
+        error_log_url = reverse("request_logs.httplog_read", args=[l2.id])
 
         self.assertRequestDisallowed(webhooks_url, [None, self.user, self.agent])
-        response = self.assertListFetch(webhooks_url, [self.editor, self.admin], context_objects=[l1])
+        response = self.assertListFetch(webhooks_url, [self.editor, self.admin], context_objects=[l2, l1])
         self.assertContains(response, "Webhooks")
         self.assertContains(response, log_url)
+        self.assertContains(response, error_log_url)
+        self.assertContentMenu(webhooks_url, self.admin, ["Errors"])
+
+        response = self.assertListFetch(webhooks_url + "?error=1", [self.editor, self.admin], context_objects=[l2])
+        self.assertContains(response, "Webhooks")
+        self.assertNotContains(response, log_url)
+        self.assertContains(response, error_log_url)
+        self.assertContentMenu(webhooks_url + "?error=1", self.admin, ["All logs"])
 
         # view the individual log item
         self.assertRequestDisallowed(log_url, [None, self.user, self.agent, self.admin2])

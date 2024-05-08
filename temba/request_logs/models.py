@@ -144,4 +144,10 @@ class HTTPLog(models.Model):
             Index(fields=("classifier", "-created_on")),
             # for webhook log view
             Index(name="httplog_org_flows_only", fields=("org", "-created_on"), condition=Q(flow__isnull=False)),
+            # for webhook log view errors only
+            Index(
+                name="httplog_org_flows_only_error",
+                fields=("org", "-created_on"),
+                condition=Q(flow__isnull=False, is_error=True),
+            ),
         )
