@@ -147,7 +147,7 @@ def sync(request, channel_id):
                             channel.org_id, channel.id, phone, text, received_on=date
                         )
                         extra = dict(msg_id=msg_id)
-                    except ValueError:
+                    except ValueError:  # pragma: no cover
                         pass
 
                 handled = True
@@ -177,7 +177,7 @@ def sync(request, channel_id):
                             extra={"duration": duration},
                             occurred_on=date,
                         )
-                    except ValueError:
+                    except ValueError:  # pragma: no cover
                         # in some cases Android passes us invalid URNs, in those cases just ignore them
                         pass
 
