@@ -25,6 +25,8 @@ PHONE_REGEX = re.compile(r"^\+?\d{1,64}$")
 
 
 def is_phone(phone: str) -> bool:
+    if phone is None or phone == "":
+        return False
     cleaned_phone = re.sub(r"[^0-9A-Za-z]", "", phone)
     return PHONE_REGEX.match(cleaned_phone) is not None
 
@@ -167,11 +169,7 @@ def sync(request, channel_id):
                 # Android sometimes will pass us a call from an 'unknown number', which is null
                 # ignore these events on our side as they have no purpose and break a lot of our
                 # assumptions
-                if (
-                    is_phone(phone)
-                    and call_tuple not in unique_calls
-                    and ChannelEvent.is_valid_type(cmd["type"])
-                ):
+                if is_phone(phone) and call_tuple not in unique_calls and ChannelEvent.is_valid_type(cmd["type"]):
                     try:
                         mailroom.get_client().android_event(
                             channel.org_id,
