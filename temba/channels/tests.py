@@ -770,6 +770,8 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             dict(cmd="mo_sms", phone="", msg="This is spam", p_id="2", ts=date),
             # an incoming msg from alphanumeric sender ID
             dict(cmd="mo_sms", phone="mtnjust4u", msg="This update, that update", p_id="3", ts=date),
+            # an incoming msg number with punctuation
+            dict(cmd="mo_sms", phone="+250 (788)-383-385", msg="This msg phone had punctuation", p_id="4", ts=date),
         ]
 
         # now send the channel's updates
@@ -780,7 +782,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(self.tel_channel.last_seen > six_mins_ago)
 
         # new batch, our ack and our claim command for new org
-        self.assertEqual(6, len(response.json()["cmds"]))
+        self.assertEqual(7, len(response.json()["cmds"]))
         self.assertContains(response, "Hello, we heard from you.")
         self.assertContains(response, "mt_bcast")
 
@@ -791,7 +793,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(2, Msg.objects.filter(channel=self.tel_channel, status="F", direction="O").count())
 
         # we should now have two incoming messages
-        self.assertEqual(2, Msg.objects.filter(direction="I").count())
+        self.assertEqual(3, Msg.objects.filter(direction="I").count())
 
         # We should now have one sync
         self.assertEqual(1, SyncEvent.objects.filter(channel=self.tel_channel).count())

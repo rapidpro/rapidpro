@@ -24,6 +24,11 @@ from .sync import get_channel_commands, update_message
 PHONE_REGEX = re.compile(r"^\+?\d{1,64}$")
 
 
+def is_phone(phone: str) -> bool:
+    cleaned_phone = re.sub(r"[^0-9A-Za-z]", "", phone)
+    return PHONE_REGEX.match(cleaned_phone) is not None
+
+
 @csrf_exempt
 def register(request):
     """
@@ -141,7 +146,7 @@ def sync(request, channel_id):
                 date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=tzone.utc)
                 phone = cmd["phone"]
 
-                if text and phone and PHONE_REGEX.match(phone):  # ignore empty messages and non numeric phones
+                if text and is_phone(phone):  # ignore empty messages and non numeric phones
                     try:
                         msg_id = mailroom.get_client().android_message(
                             channel.org_id, channel.id, phone, text, received_on=date
@@ -163,8 +168,7 @@ def sync(request, channel_id):
                 # ignore these events on our side as they have no purpose and break a lot of our
                 # assumptions
                 if (
-                    phone
-                    and PHONE_REGEX.match(phone)
+                    is_phone(phone)
                     and call_tuple not in unique_calls
                     and ChannelEvent.is_valid_type(cmd["type"])
                 ):
