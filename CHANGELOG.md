@@ -1,3 +1,7 @@
+v9.1.113 (2024-05-09)
+-------------------------
+ * Fix gaps it contact history
+
 v9.1.112 (2024-05-09)
 -------------------------
  * Ignore android msg/event cmds with non numeric phones
