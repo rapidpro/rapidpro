@@ -768,6 +768,8 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             dict(cmd="mo_sms", phone="+250788383383", msg="This is giving me trouble", p_id="1", ts=date),
             # an incoming message from an empty contact
             dict(cmd="mo_sms", phone="", msg="This is spam", p_id="2", ts=date),
+            # an incoming msg from alphanumeric sender ID
+            dict(cmd="mo_sms", phone="mtnjust4u", msg="This update, that update", p_id="3", ts=date),
         ]
 
         # now send the channel's updates
@@ -778,7 +780,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(self.tel_channel.last_seen > six_mins_ago)
 
         # new batch, our ack and our claim command for new org
-        self.assertEqual(5, len(response.json()["cmds"]))
+        self.assertEqual(6, len(response.json()["cmds"]))
         self.assertContains(response, "Hello, we heard from you.")
         self.assertContains(response, "mt_bcast")
 
