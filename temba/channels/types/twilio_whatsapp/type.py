@@ -30,6 +30,8 @@ class TwilioWhatsappType(ChannelType):
 
     courier_url = r"^twa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
     schemes = [URN.WHATSAPP_SCHEME]
+    template_type = "twilio"
+
     redact_request_keys = (
         "FromCity",
         "FromState",
@@ -62,6 +64,8 @@ class TwilioWhatsappType(ChannelType):
             ),
         ],
     )
+
+    menu_items = [dict(label=_("Message Templates"), view_name="templates.templatetranslation_channel")]
 
     def get_error_ref_url(self, channel, code: str) -> str:
         return f"https://www.twilio.com/docs/api/errors/{code}"
