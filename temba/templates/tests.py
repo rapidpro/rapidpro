@@ -152,7 +152,9 @@ class TemplateTest(TembaTest):
     @patch("temba.channels.types.twilio_whatsapp.TwilioWhatsappType.fetch_templates")
     @patch("temba.channels.types.dialog360.Dialog360Type.fetch_templates")
     @patch("temba.channels.types.dialog360_legacy.Dialog360LegacyType.fetch_templates")
-    def test_refresh_task(self, mock_d3_fetch_templates, mock_d3c_fetch_templates, mock_twa_fetch_templates, mock_update_local):
+    def test_refresh_task(
+        self, mock_d3_fetch_templates, mock_d3c_fetch_templates, mock_twa_fetch_templates, mock_update_local
+    ):
         org3 = Org.objects.create(
             name="Nyaruka 3",
             timezone=ZoneInfo("Africa/Kigali"),
@@ -232,8 +234,6 @@ class TemplateTest(TembaTest):
                 Channel.CONFIG_AUTH_TOKEN: "123456789",
             },
         )
-
-
 
         def mock_fetch(ch):
             HTTPLog.objects.create(
