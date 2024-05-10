@@ -1,3 +1,9 @@
+v9.1.114 (2024-05-10)
+-------------------------
+ * Add message templates menu for TWA channels
+ * Activate Twilio Whatsapp to sync templates with twilio type
+ * Update to allow matching sender ID as valid phones
+
 v9.1.113 (2024-05-09)
 -------------------------
  * Fix gaps it contact history
