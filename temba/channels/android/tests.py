@@ -15,12 +15,12 @@ class AndroidTest(TembaTest):
         self.assertFalse(is_phone(""))
         self.assertFalse(is_phone(None))
         self.assertFalse(is_phone("!!@#$%"))
-        self.assertFalse(is_phone("mtnjust4u"))
         self.assertFalse(is_phone("1234567890123456789012345678901234567890123456789012345678901234567890123456789"))
 
         self.assertTrue(is_phone("0788383383"))
         self.assertTrue(is_phone("+250788383383"))
         self.assertTrue(is_phone("+(250) 788-383-383"))
+        self.assertTrue(is_phone("mtnjust4u"))
 
     def test_register_unsupported_android(self):
         # remove our explicit country so it needs to be derived from channels
