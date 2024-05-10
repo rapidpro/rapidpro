@@ -1,3 +1,7 @@
+v9.1.115 (2024-05-10)
+-------------------------
+ * Fix Twilio template type slug and register its template type
+
 v9.1.114 (2024-05-10)
 -------------------------
  * Add message templates menu for TWA channels
