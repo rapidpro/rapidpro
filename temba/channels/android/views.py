@@ -21,7 +21,7 @@ from ..models import Channel, SyncEvent
 from .claim import UnsupportedAndroidChannelError, get_or_create_channel
 from .sync import get_channel_commands, update_message
 
-PHONE_REGEX = re.compile(r"^\+?\d{1,64}$")
+PHONE_REGEX = re.compile(r"^((\+[0-9]{7,15})|([a-z0-9]{1,64}))$")
 
 
 def is_phone(phone: str) -> bool:

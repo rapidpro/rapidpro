@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from temba import mailroom
 from temba.campaigns.models import CampaignEvent, EventFire
+from temba.channels.android.views import is_phone
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import FlowRun, FlowSession
@@ -140,7 +141,7 @@ class TestClient(MailroomClient):
     def android_event(self, org_id: int, channel_id: int, phone: str, event_type: str, extra: dict, occurred_on):
         org = Org.objects.get(id=org_id)
         channel = Channel.objects.get(id=channel_id)
-        contact, contact_urn = contact_resolve(org, f"tel:{phone}")
+        contact, contact_urn = contact_resolve(org, phone)
 
         event = ChannelEvent.objects.create(
             org=channel.org,
@@ -156,7 +157,7 @@ class TestClient(MailroomClient):
     def android_message(self, org_id: int, channel_id: int, phone: str, text: str, received_on):
         org = Org.objects.get(id=org_id)
         channel = Channel.objects.get(id=channel_id)
-        contact, contact_urn = contact_resolve(org, f"tel:{phone}")
+        contact, contact_urn = contact_resolve(org, phone)
         text = text[: Msg.MAX_TEXT_LEN]
 
         now = timezone.now()
@@ -507,11 +508,11 @@ def apply_modifiers(org, user, contacts, modifiers: list):
                     g.contacts.remove(c)
 
 
-def contact_resolve(org, urn: str) -> tuple:
+def contact_resolve(org, phone: str) -> tuple:
     user = get_anonymous_user()
 
-    urn = URN.normalize(urn, org.default_country_code)
-    if not URN.validate(urn, org.default_country_code):
+    urn = URN.normalize(f"tel:{phone}", org.default_country_code)
+    if not is_phone(phone):
         raise ValueError("urn isn't valid")
 
     contact_urn = ContactURN.lookup(org, urn)
