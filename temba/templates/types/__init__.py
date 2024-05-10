@@ -1,3 +1,4 @@
+from .twilio import TwilioType
 from .whatsapp import WhatsAppType
 
 TYPES = {}
@@ -15,3 +16,4 @@ def register_template_type(typ):
 
 
 register_template_type(WhatsAppType())
+register_template_type(TwilioType())

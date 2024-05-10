@@ -142,6 +142,8 @@ class TwilioWhatsappTypeTest(TembaTest):
         twilio_channel.role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE + Channel.ROLE_ANSWER + Channel.ROLE_CALL
         twilio_channel.save()
         self.assertEqual("TWA", twilio_channel.channel_type)
+        self.assertEqual("TWA", twilio_channel.type.code)
+        self.assertEqual("twilio", twilio_channel.template_type.slug)
 
         self.client.post(reverse("channels.channel_delete", args=[twilio_channel.pk]))
         self.assertIsNotNone(self.org.channels.all().first())

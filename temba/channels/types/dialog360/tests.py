@@ -59,6 +59,8 @@ class Dialog360TypeTest(CRUDLTestMixin, TembaTest):
         self.assertEqual("RW", channel.country)
         self.assertEqual("D3C", channel.channel_type)
         self.assertEqual(45, channel.tps)
+        self.assertEqual("D3C", channel.type.code)
+        self.assertEqual("whatsapp", channel.template_type.slug)
 
         # test activating the channel
         with patch("requests.post") as mock_post:
