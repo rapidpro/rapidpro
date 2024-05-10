@@ -12,7 +12,7 @@ from ...models import TemplateTranslation, TemplateType
 
 
 class TwilioType(TemplateType):
-    slug = "whatsapp"
+    slug = "twilio"
     variable_regex = re.compile(r"{{([A-Za-z0-9]+)}}")
 
     STATUS_MAPPING = {
