@@ -30,6 +30,8 @@ class TwilioWhatsappType(ChannelType):
 
     courier_url = r"^twa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
     schemes = [URN.WHATSAPP_SCHEME]
+    template_type = "twilio"
+
     redact_request_keys = (
         "FromCity",
         "FromState",
