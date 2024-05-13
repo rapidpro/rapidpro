@@ -110,6 +110,26 @@ class TwilioTypeTest(TembaTest):
                     }
                 ),
             ),
+            MockResponse(
+                200,
+                json.dumps(
+                    {
+                        "whatsapp": {
+                            "status": "approved",
+                        }
+                    }
+                ),
+            ),
+            MockResponse(
+                200,
+                json.dumps(
+                    {
+                        "whatsapp": {
+                            "status": "approved",
+                        }
+                    }
+                ),
+            ),
         ]
 
         trans = self.type.update_local(
@@ -142,9 +162,9 @@ class TwilioTypeTest(TembaTest):
                     "twilio/text": {
                         "body": "Hello {{1}}, this is text example only and can have variables replaces such as {{2}} and {{3}}"
                     },
-                    "url": "https://content.twilio.com/v1/Content/HX1234502",
-                    "variables": {"1": "for Product A", "2": "features A,B,C", "3": "id123"},
                 },
+                "url": "https://content.twilio.com/v1/Content/HX1234502",
+                "variables": {"1": "for Product A", "2": "features A,B,C", "3": "id123"},
             },
         )
         self.assertIsNotNone(trans)
@@ -163,9 +183,9 @@ class TwilioTypeTest(TembaTest):
                     "twilio/text": {
                         "body": "Hello {{1}}, this is text example only and can have variables replaces such as {{2}} and {{3}}"
                     },
-                    "url": "https://content.twilio.com/v1/Content/HX1234502",
-                    "variables": {"1": "for Product A", "2": "features A,B,C", "3": "id123"},
                 },
+                "url": "https://content.twilio.com/v1/Content/HX1234502",
+                "variables": {"1": "for Product A", "2": "features A,B,C", "3": "id123"},
             },
         )
         self.assertIsNotNone(trans)
@@ -362,7 +382,7 @@ class TwilioTypeTest(TembaTest):
             {
                 "friendly_name": "quick_reply_template_not_supported",
                 "language": "en",
-                "links": {"approval_fetch": "https://content.twilio.com/v1/Content/HX1234503/ApprovalRequests"},
+                "links": {"approval_fetch": "https://content.twilio.com/v1/Content/HX1234504/ApprovalRequests"},
                 "sid": "HX1234504",
                 "types": {
                     "twilio/call-to-action": {
@@ -413,4 +433,75 @@ class TwilioTypeTest(TembaTest):
             ],
             trans.components,
         )
+        self.assertEqual([], trans.variables)
+
+        # not supported whatsapp authentication
+        trans = self.type.update_local(
+            channel,
+            {
+                "friendly_name": "whatsapp_authentication_template",
+                "language": "en",
+                "links": {"approval_fetch": "https://content.twilio.com/v1/Content/HX1234505/ApprovalRequests"},
+                "sid": "HX1234505",
+                "types": {
+                    "whatsapp/authentication": {
+                        "body": "{{1}}",
+                        "add_security_recommendation": True,
+                        "code_expiration_minutes": 5,
+                        "actions": [{"type": "COPY_CODE", "copy_code_text": "Copy Code"}],
+                    },
+                },
+                "url": "https://content.twilio.com/v1/Content/HX1234505",
+                "variables": {},
+            },
+        )
+        self.assertIsNotNone(trans)
+        self.assertEqual("whatsapp_authentication_template", trans.template.name)
+        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, trans.status)
+        self.assertEqual("", trans.namespace)
+        self.assertEqual("eng", trans.locale)
+        self.assertEqual("en", trans.external_locale)
+        self.assertEqual("HX1234505", trans.external_id)
+        self.assertEqual(
+            [
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "{{1}}",
+                    "variables": {"1": 0},
+                },
+            ],
+            trans.components,
+        )
+        self.assertEqual([{"type": "text"}], trans.variables)
+
+        # body key present but equal None
+        trans = self.type.update_local(
+            channel,
+            {
+                "friendly_name": "body_none_template",
+                "language": "en",
+                "links": {"approval_fetch": "https://content.twilio.com/v1/Content/HX1234506/ApprovalRequests"},
+                "sid": "HX1234506",
+                "types": {
+                    "twilio/card": {
+                        "body": None,
+                        "media": [],
+                        "subtitle": "This message is from an unverified business.",
+                        "actions": [],
+                        "title": "Your ticket for *{{1}}*\n*Time* - {{2}}\n*Venue* - {{3}}\n*Seats* - {{4}}",
+                    }
+                },
+                "url": "https://content.twilio.com/v1/Content/HX1234506",
+                "variables": {},
+            },
+        )
+        self.assertIsNotNone(trans)
+        self.assertEqual("body_none_template", trans.template.name)
+        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, trans.status)
+        self.assertEqual("", trans.namespace)
+        self.assertEqual("eng", trans.locale)
+        self.assertEqual("en", trans.external_locale)
+        self.assertEqual("HX1234506", trans.external_id)
+        self.assertEqual([], trans.components)
         self.assertEqual([], trans.variables)
