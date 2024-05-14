@@ -58,11 +58,15 @@ class HTTPLogCRUDL(SmartCRUDL):
     actions = ("webhooks", "channel", "classifier", "read")
 
     class Webhooks(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartListView):
-        title = _("Webhooks")
         default_order = ("-created_on",)
         select_related = ("flow",)
         fields = ("flow", "url", "status_code", "request_time", "created_on")
         menu_path = "/flow/history/webhooks"
+
+        def derive_title(self):
+            if str_to_bool(self.request.GET.get("error")):
+                return _("Failed Webhooks")
+            return _("Webhooks")
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs).filter(org=self.request.org, flow__isnull=False)

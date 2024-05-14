@@ -109,7 +109,7 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContentMenu(webhooks_url, self.admin, ["Errors"])
 
         response = self.assertListFetch(webhooks_url + "?error=1", [self.editor, self.admin], context_objects=[l2])
-        self.assertContains(response, "Webhooks")
+        self.assertContains(response, "Failed Webhooks")
         self.assertNotContains(response, log_url)
         self.assertContains(response, error_log_url)
         self.assertContentMenu(webhooks_url + "?error=1", self.admin, ["All logs"])
