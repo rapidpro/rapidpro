@@ -1,3 +1,7 @@
+v9.1.116 (2024-05-14)
+-------------------------
+ * Fix issues with twilio templates sync
+
 v9.1.115 (2024-05-10)
 -------------------------
  * Fix Twilio template type slug and register its template type
