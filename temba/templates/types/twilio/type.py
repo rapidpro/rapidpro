@@ -85,7 +85,7 @@ class TwilioType(TemplateType):
             return map
 
         for content_type in raw:
-            if "body" in raw[content_type]:
+            if raw[content_type].get("body"):
                 comp_vars = add_variables(self._extract_variables(raw[content_type]["body"]), "text")
 
                 components.append(
@@ -97,14 +97,15 @@ class TwilioType(TemplateType):
                     }
                 )
 
-            if "media" in raw[content_type]:
+            if raw[content_type].get("media"):
                 if self._extract_variables(raw[content_type]["media"][0]):
                     supported = False
 
-            if "actions" in raw[content_type]:
+            if raw[content_type].get("actions"):
+
                 for idx, action in enumerate(raw[content_type]["actions"]):
                     button_name = f"button.{idx}"
-                    button_text = action["title"]
+                    button_text = action.get("title", "")
 
                     if content_type == "twilio/quick-reply":
                         button_vars = add_variables(self._extract_variables(button_text), "text")
@@ -147,4 +148,4 @@ class TwilioType(TemplateType):
                     else:
                         supported = False
 
-        return components, variables, supported
+        return components, variables, supported and (len(components) > 0)
