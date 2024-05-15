@@ -1,3 +1,8 @@
+v9.1.118 (2024-05-15)
+-------------------------
+ * Remove unused args from MailroomClient.parse_query
+ * Re-add search errors to contact list views
+
 v9.1.117 (2024-05-15)
 -------------------------
  * Add support for unknown_property_type search errors
