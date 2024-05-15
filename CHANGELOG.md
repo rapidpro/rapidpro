@@ -1,3 +1,9 @@
+v9.1.117 (2024-05-15)
+-------------------------
+ * Add support for unknown_property_type search errors
+ * Add support for twilio card type content templates
+ * Add way to view webhook logs errors only
+
 v9.1.116 (2024-05-14)
 -------------------------
  * Fix issues with twilio templates sync
