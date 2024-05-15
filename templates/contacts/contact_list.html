@@ -77,7 +77,11 @@
       <input type="submit" class="hide">
     </form>
   </div>
-  {% if search_error %}<div class="alert alert-error mt-4">{{ search_error }}</div>{% endif %}
+  {% if search_error %}
+    <temba-alert level="error" class="mt-4">
+      {{ search_error }}
+    </temba-alert>
+  {% endif %}
   {% if org_perms.contacts.contact_delete %}
     <temba-dialog header="{{ _("Delete Selected Contacts") |escapejs }}"
                   primaryButtonName="{{ _("Delete") |escapejs }}"
