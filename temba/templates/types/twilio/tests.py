@@ -60,116 +60,6 @@ class TwilioTypeTest(TembaTest):
                 ),
             ),
             RequestException("Network is unreachable", response=MockResponse(100, "")),
-            MockResponse(
-                200,
-                json.dumps(
-                    {
-                        "whatsapp": {
-                            "status": "approved",
-                        }
-                    }
-                ),
-            ),
-            MockResponse(
-                200,
-                json.dumps(
-                    {
-                        "whatsapp": {
-                            "status": "approved",
-                        }
-                    }
-                ),
-            ),
-            MockResponse(
-                200,
-                json.dumps(
-                    {
-                        "whatsapp": {
-                            "status": "approved",
-                        }
-                    }
-                ),
-            ),
-            MockResponse(
-                200,
-                json.dumps(
-                    {
-                        "whatsapp": {
-                            "status": "approved",
-                        }
-                    }
-                ),
-            ),
-            MockResponse(
-                200,
-                json.dumps(
-                    {
-                        "whatsapp": {
-                            "status": "approved",
-                        }
-                    }
-                ),
-            ),
-            MockResponse(
-                200,
-                json.dumps(
-                    {
-                        "whatsapp": {
-                            "status": "approved",
-                        }
-                    }
-                ),
-            ),
-            MockResponse(
-                200,
-                json.dumps(
-                    {
-                        "whatsapp": {
-                            "status": "approved",
-                        }
-                    }
-                ),
-            ),
-            MockResponse(
-                200,
-                json.dumps(
-                    {
-                        "whatsapp": {
-                            "status": "approved",
-                        }
-                    }
-                ),
-            ),
-            MockResponse(
-                200,
-                json.dumps(
-                    {
-                        "whatsapp": {
-                            "status": "approved",
-                        }
-                    }
-                ),
-            ),
-            MockResponse(
-                200,
-                json.dumps(
-                    {
-                        "whatsapp": {
-                            "status": "approved",
-                        }
-                    }
-                ),
-            ),
-            MockResponse(
-                200,
-                json.dumps(
-                    {
-                        "whatsapp": {
-                            "status": "approved",
-                        }
-                    }
-                ),
-            ),
         ]
 
         trans = self.type.update_local(
@@ -210,6 +100,19 @@ class TwilioTypeTest(TembaTest):
         self.assertIsNotNone(trans)
         self.assertEqual("text_only_template", trans.template.name)
         self.assertEqual(TemplateTranslation.STATUS_PENDING, trans.status)
+
+        # mock for approved status
+        mock_get.side_effect = None
+        mock_get.return_value = MockResponse(
+            200,
+            json.dumps(
+                {
+                    "whatsapp": {
+                        "status": "approved",
+                    }
+                }
+            ),
+        )
 
         # status approved
         trans = self.type.update_local(
