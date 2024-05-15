@@ -368,9 +368,6 @@ class ContactField(TembaModel, DependencyMixin):
     KEY_LANGUAGE = "language"
     KEY_LAST_SEEN_ON = "last_seen_on"
 
-    # fields that cannot be updated by user
-    IMMUTABLE_FIELDS = (KEY_ID, KEY_CREATED_ON, KEY_LAST_SEEN_ON)
-
     SYSTEM_FIELDS = {
         KEY_ID: {"name": "ID", "value_type": TYPE_NUMBER},
         KEY_NAME: {"name": "Name", "value_type": TYPE_TEXT},
@@ -380,32 +377,7 @@ class ContactField(TembaModel, DependencyMixin):
     }
 
     # can't create custom contact fields with these keys
-    RESERVED_KEYS = {
-        # contactql syntax
-        "has",
-        "is",
-        # searchable attributes in queries
-        "created_on",
-        "flow",
-        "group",
-        "history",
-        "id",
-        "language",
-        "last_seen_on",
-        "name",
-        "status",
-        "ticket",
-        "urn",
-        "uuid",
-        # @contact.* properties in expressions
-        "channel",
-        "fields",
-        "first_name",
-        "groups",
-        "tickets",
-        "timezone",
-        "urns",
-    }.union(URN.VALID_SCHEMES)
+    RESERVED_KEYS = {"has", "is", "fields", "urns"}
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="fields")
 

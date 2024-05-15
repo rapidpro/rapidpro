@@ -2916,8 +2916,8 @@ class EndpointsTest(APITest):
         self.assertPost(
             endpoint_url,
             self.admin,
-            {"name": "UUID", "type": "text"},
-            errors={"name": 'Generated key "uuid" is invalid or a reserved name.'},
+            {"name": "HAS", "type": "text"},
+            errors={"name": 'Generated key "has" is invalid or a reserved name.'},
         )
 
         # try again with a label that's already taken

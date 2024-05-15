@@ -3173,10 +3173,10 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_key("age!"))  # can't have punctuation
         self.assertFalse(ContactField.is_valid_key("âge"))  # a-z only
         self.assertFalse(ContactField.is_valid_key("2up"))  # can't start with a number
-        self.assertFalse(ContactField.is_valid_key("name"))  # can't be a contact attribute
-        self.assertFalse(ContactField.is_valid_key("uuid"))
-        self.assertFalse(ContactField.is_valid_key("tel"))  # can't be URN scheme
-        self.assertFalse(ContactField.is_valid_key("mailto"))
+        self.assertFalse(ContactField.is_valid_key("has"))  # can't be reserved key
+        self.assertFalse(ContactField.is_valid_key("is"))
+        self.assertFalse(ContactField.is_valid_key("fields"))
+        self.assertFalse(ContactField.is_valid_key("urns"))
         self.assertFalse(ContactField.is_valid_key("a" * 37))  # too long
 
     def test_is_valid_name(self):
@@ -3463,7 +3463,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             self.admin,
-            {"name": "UUID", "value_type": "T", "show_in_table": True, "agent_access": "E"},
+            {"name": "HAS", "value_type": "T", "show_in_table": True, "agent_access": "E"},
             form_errors={"name": "Can't be a reserved word."},
         )
 
@@ -3939,7 +3939,7 @@ class ContactImportTest(TembaTest):
             ),
             ("invalid_scheme.xlsx", "Header 'URN:XXX' is not a valid URN type."),
             ("invalid_field_key.xlsx", "Header 'Field: #$^%' is not a valid field name."),
-            ("reserved_field_key.xlsx", "Header 'Field:id' is not a valid field name."),
+            ("reserved_field_key.xlsx", "Header 'Field:HAS' is not a valid field name."),
             ("no_urn_or_uuid.xlsx", "Import files must contain either UUID or a URN header."),
             ("uuid_only.csv", "Import files must contain columns besides UUID."),
         ]
