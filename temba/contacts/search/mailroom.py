@@ -22,6 +22,7 @@ class SearchException(Exception):
         "unsupported_comparison": _("Can only use %(operator)s with number or date values"),
         "unsupported_setcheck": _("Can't check whether '%(property)s' is set or not set"),
         "unknown_property": _("Can't resolve '%(property)s' to a field or URN scheme"),
+        "unknown_property_type": _("Prefixes must be 'fields' or 'urns'"),
         "redacted_urns": _("Can't query on URNs in an anonymous workspace"),
     }
 
