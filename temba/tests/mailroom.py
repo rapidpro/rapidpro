@@ -65,11 +65,10 @@ class Mocks:
 
         self.queued_batch_tasks = []
 
-    def parse_query(self, query, *, cleaned=None, elastic_query=None, fields=None):
+    def parse_query(self, query, *, cleaned=None, fields=None):
         def mock(org):
             return mailroom.ParsedQuery(
                 query=cleaned or query,
-                elastic_query=elastic_query or {"term": {"is_active": True}},
                 metadata=mock_inspect_query(org, cleaned or query, fields),
             )
 
@@ -261,7 +260,7 @@ class TestClient(MailroomClient):
         return {"sessions": len(session_ids)}
 
     @_client_method
-    def parse_query(self, org_id: int, query: str, parse_only: bool = False, group_uuid: str = ""):
+    def parse_query(self, org_id: int, query: str, parse_only: bool = False):
         org = Org.objects.get(id=org_id)
 
         # if there's a mock for this query we use that
@@ -269,11 +268,7 @@ class TestClient(MailroomClient):
         if mock:
             return mock(org)
 
-        return mailroom.ParsedQuery(
-            query=query,
-            elastic_query={"term": {"is_active": True}},
-            metadata=mock_inspect_query(org, query),
-        )
+        return mailroom.ParsedQuery(query=query, metadata=mock_inspect_query(org, query))
 
     @_client_method
     def contact_search(self, org_id, group_id, query, sort, offset=0, exclude_ids=()):

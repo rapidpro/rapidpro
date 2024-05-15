@@ -84,7 +84,6 @@ class QueryMetadata:
 @dataclass(frozen=True)
 class ParsedQuery:
     query: str
-    elastic_query: dict
     metadata: QueryMetadata
 
 
@@ -312,15 +311,11 @@ class MailroomClient:
     def sim_resume(self, payload):
         return self._request("sim/resume", payload, encode_json=True)
 
-    def parse_query(self, org_id: int, query: str, parse_only: bool = False, group_uuid: str = "") -> ParsedQuery:
-        payload = {"org_id": org_id, "query": query, "parse_only": parse_only, "group_uuid": group_uuid}
+    def parse_query(self, org_id: int, query: str, parse_only: bool = False) -> ParsedQuery:
+        payload = {"org_id": org_id, "query": query, "parse_only": parse_only}
 
         response = self._request("contact/parse_query", payload)
-        return ParsedQuery(
-            query=response["query"],
-            elastic_query=response["elastic_query"],
-            metadata=QueryMetadata(**response.get("metadata", {})),
-        )
+        return ParsedQuery(query=response["query"], metadata=QueryMetadata(**response.get("metadata", {})))
 
     def ticket_assign(self, org_id: int, user_id: int, ticket_ids: list, assignee_id: int):
         payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids, "assignee_id": assignee_id}
