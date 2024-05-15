@@ -85,6 +85,17 @@ class TwilioType(TemplateType):
             return map
 
         for content_type in raw:
+            if raw[content_type].get("header_text"):
+                comp_vars = add_variables(self._extract_variables(raw[content_type]["header_text"]), "text")
+                components.append(
+                    {
+                        "type": "header",
+                        "name": "header",
+                        "content": raw[content_type]["header_text"],
+                        "variables": comp_vars,
+                    }
+                )
+
             if raw[content_type].get("body"):
                 comp_vars = add_variables(self._extract_variables(raw[content_type]["body"]), "text")
 
@@ -96,6 +107,42 @@ class TwilioType(TemplateType):
                         "variables": comp_vars,
                     }
                 )
+
+            if raw[content_type].get("footer"):
+                comp_vars = add_variables(self._extract_variables(raw[content_type]["footer"]), "text")
+                components.append(
+                    {
+                        "type": "footer",
+                        "name": "footer",
+                        "content": raw[content_type]["footer"],
+                        "variables": comp_vars,
+                    }
+                )
+
+            if raw[content_type].get("title"):
+                comp_vars = add_variables(self._extract_variables(raw[content_type]["title"]), "text")
+                components.append(
+                    {
+                        "type": "body",
+                        "name": "body",
+                        "content": raw[content_type]["title"],
+                        "variables": comp_vars,
+                    }
+                )
+
+            if raw[content_type].get("subtitle"):
+                comp_vars = add_variables(self._extract_variables(raw[content_type]["subtitle"]), "text")
+                components.append(
+                    {
+                        "type": "footer",
+                        "name": "footer",
+                        "content": raw[content_type]["subtitle"],
+                        "variables": comp_vars,
+                    }
+                )
+
+            if raw[content_type].get("items") or raw[content_type].get("dynamic_items"):
+                supported = False
 
             if raw[content_type].get("media"):
                 if self._extract_variables(raw[content_type]["media"][0]):
@@ -117,7 +164,7 @@ class TwilioType(TemplateType):
                                 "variables": button_vars,
                             }
                         )
-                    elif content_type == "twilio/call-to-action":
+                    elif content_type in ["twilio/call-to-action", "twilio/card", "whatsapp/card"]:
                         button_type = action["type"]
                         if button_type == "URL":
                             button_url = action["url"]
@@ -141,6 +188,16 @@ class TwilioType(TemplateType):
                                     "content": phone_number,
                                     "display": button_text,
                                     "variables": {},
+                                }
+                            )
+                        elif button_type == "QUICK_REPLY":
+                            button_vars = add_variables(self._extract_variables(button_text), "text")
+                            components.append(
+                                {
+                                    "type": "button/quick_reply",
+                                    "name": button_name,
+                                    "content": button_text,
+                                    "variables": button_vars,
                                 }
                             )
                         else:
