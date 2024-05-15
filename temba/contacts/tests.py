@@ -2872,19 +2872,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         with self.assertRaises(KeyError):
             self.joe.get_field_value(bad_field)
 
-    def test_date_field(self):
-        # create a new date field
-        birth_date = self.create_field("birth_date", "Birth Date", value_type=ContactField.TYPE_TEXT)
-
-        # set a field on our contact
-        urn = "urn:uuid:0f73262c-0623-3f0a-8651-1855e755d2ef"
-        self.set_contact_field(self.joe, "birth_date", urn)
-
-        # check that this field has been set
-        self.assertEqual(self.joe.get_field_value(birth_date), urn)
-        self.assertIsNone(self.joe.get_field_json(birth_date).get("number"))
-        self.assertIsNone(self.joe.get_field_json(birth_date).get("datetime"))
-
     def test_field_values(self):
         self.setUpLocations()
 
@@ -2895,56 +2882,43 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         color_field = self.create_field("color", "Color", value_type=ContactField.TYPE_TEXT)
         state_field = self.create_field("state", "State", value_type=ContactField.TYPE_STATE)
 
-        joe = Contact.objects.get(id=self.joe.id)
-        joe.language = "eng"
-        joe.save(update_fields=("language",))
-
         # none value instances
-        self.assertEqual(joe.get_field_serialized(weight_field), None)
-        self.assertEqual(joe.get_field_display(weight_field), "")
-        self.assertEqual(joe.get_field_serialized(registration_field), None)
-        self.assertEqual(joe.get_field_display(registration_field), "")
+        self.assertEqual(self.joe.get_field_serialized(weight_field), None)
+        self.assertEqual(self.joe.get_field_display(weight_field), "")
+        self.assertEqual(self.joe.get_field_serialized(registration_field), None)
+        self.assertEqual(self.joe.get_field_display(registration_field), "")
 
-        self.set_contact_field(joe, "registration_date", "2014-12-31T01:04:00Z")
-        self.set_contact_field(joe, "weight", "75.888888")
-        self.set_contact_field(joe, "color", "green")
-        self.set_contact_field(joe, "state", "kigali city")
+        self.set_contact_field(self.joe, "registration_date", "2014-12-31T01:04:00Z")
+        self.set_contact_field(self.joe, "weight", "75.888888")
+        self.set_contact_field(self.joe, "color", "green")
+        self.set_contact_field(self.joe, "state", "kigali city")
 
-        self.assertEqual(joe.get_field_serialized(registration_field), "2014-12-31T03:04:00+02:00")
+        self.assertEqual(self.joe.get_field_serialized(registration_field), "2014-12-31T03:04:00+02:00")
 
-        self.assertEqual(joe.get_field_serialized(weight_field), "75.888888")
-        self.assertEqual(joe.get_field_display(weight_field), "75.888888")
+        self.assertEqual(self.joe.get_field_serialized(weight_field), "75.888888")
+        self.assertEqual(self.joe.get_field_display(weight_field), "75.888888")
 
-        self.set_contact_field(joe, "weight", "0")
-        self.assertEqual(joe.get_field_serialized(weight_field), "0")
-        self.assertEqual(joe.get_field_display(weight_field), "0")
+        self.set_contact_field(self.joe, "weight", "0")
+        self.assertEqual(self.joe.get_field_serialized(weight_field), "0")
+        self.assertEqual(self.joe.get_field_display(weight_field), "0")
 
         # passing something non-numeric to a decimal field
-        self.set_contact_field(joe, "weight", "xxx")
-        self.assertEqual(joe.get_field_serialized(weight_field), None)
-        self.assertEqual(joe.get_field_display(weight_field), "")
+        self.set_contact_field(self.joe, "weight", "xxx")
+        self.assertEqual(self.joe.get_field_serialized(weight_field), None)
+        self.assertEqual(self.joe.get_field_display(weight_field), "")
 
-        self.assertEqual(joe.get_field_serialized(state_field), "Rwanda > Kigali City")
-        self.assertEqual(joe.get_field_display(state_field), "Kigali City")
+        self.assertEqual(self.joe.get_field_serialized(state_field), "Rwanda > Kigali City")
+        self.assertEqual(self.joe.get_field_display(state_field), "Kigali City")
 
-        self.assertEqual(joe.get_field_serialized(color_field), "green")
-        self.assertEqual(joe.get_field_display(color_field), "green")
+        self.assertEqual(self.joe.get_field_serialized(color_field), "green")
+        self.assertEqual(self.joe.get_field_display(color_field), "green")
 
-        field_created_on = self.org.fields.get(key="created_on")
-        field_language = self.org.fields.get(key="language")
-        field_name = self.org.fields.get(key="name")
+        # can fetch proxy fields too
+        created_on = self.org.fields.get(key="created_on")
+        last_seen_on = self.org.fields.get(key="last_seen_on")
 
-        self.assertEqual(joe.get_field_display(field_created_on), self.org.format_datetime(joe.created_on))
-        self.assertEqual(joe.get_field_display(field_language), "eng")
-        self.assertEqual(joe.get_field_display(field_name), "Joe Blow")
-
-        # create a system field that is not supported
-        field_iban = ContactField.objects.create(
-            org=self.org, key="iban", name="IBAN", is_system=True, created_by=self.admin, modified_by=self.admin
-        )
-
-        self.assertRaises(AssertionError, joe.get_field_serialized, field_iban)
-        self.assertRaises(ValueError, joe.get_field_display, field_iban)
+        self.assertEqual(self.joe.get_field_display(created_on), self.org.format_datetime(self.joe.created_on))
+        self.assertEqual(self.joe.get_field_display(last_seen_on), "")
 
     def test_set_location_fields(self):
         self.setUpLocations()
