@@ -13,11 +13,7 @@
   </div>
   <form method="post" enctype="multipart/form-data" class="smartmin-form horizontal-form">
     {% csrf_token %}
-    {% if form.non_field_errors %}
-      <temba-alert level="error" class="form-errors">
-        {{ form.non_field_errors }}
-      </temba-alert>
-    {% endif %}
+    {% if form.non_field_errors %}<div class="alert alert-error form-errors">{{ form.non_field_errors }}</div>{% endif %}
     <div class="card w-full">
       {% block fields %}
         <fieldset>

@@ -16,11 +16,7 @@
     <div class="mt-4">
       <input name="otp" maxlength="6" placeholder="{{ _("6-digit code") |escape }}" class="input">
     </div>
-    {% if form.otp.errors %}
-      <temba-alert level="error" class="mt-4">
-        {{ form.otp.errors }}
-      </temba-alert>
-    {% endif %}
+    {% if form.otp.errors %}<div class="alert alert-error mt-4">{{ form.otp.errors }}</div>{% endif %}
     <div class="mt-2 text-right">
       <a href="{% url 'users.two_factor_backup' %}">{% trans "Use Backup Token" %}</a>
     </div>
