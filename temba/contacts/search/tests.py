@@ -88,6 +88,14 @@ class SearchExceptionTest(TembaTest):
                 "Can't resolve 'beers' to a field or URN scheme",
             ),
             (
+                {
+                    "error": "unknown property type 'xxx'",
+                    "code": "unknown_property_type",
+                    "extra": {"type": "xxx"},
+                },
+                "Prefixes must be 'fields' or 'urns'",
+            ),
+            (
                 {"error": "cannot query on redacted URNs", "code": "redacted_urns"},
                 "Can't query on URNs in an anonymous workspace",
             ),
