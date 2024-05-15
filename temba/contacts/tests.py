@@ -165,6 +165,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(list_url + "?search=(((")
         self.assertEqual(list(response.context["object_list"]), [])
         self.assertEqual(response.context["search_error"], "Invalid query syntax at '((('")
+        self.assertContains(response, "Invalid query syntax at")
 
         self.login(self.admin)
 
