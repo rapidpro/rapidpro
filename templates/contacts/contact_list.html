@@ -70,17 +70,18 @@
   </style>
 {% endblock extra-style %}
 {% block content %}
-  <div class="flex">
-    <div class="flex-grow self-end items-end">
-      <div class="flex flex-col">
-        <form method="get" action="{{ request.path }}" id="search-form">
-          <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
-          </temba-textinput>
-          <input type="submit" class="hide">
-        </form>
-      </div>
-    </div>
+  <div>
+    <form method="get" action="{{ request.path }}" id="search-form">
+      <temba-textinput placeholder="{% trans "Search" %}" name="search" value="{{ search }}" class="w-full">
+      </temba-textinput>
+      <input type="submit" class="hide">
+    </form>
   </div>
+  {% if search_error %}
+    <temba-alert level="error" class="mt-4">
+      {{ search_error }}
+    </temba-alert>
+  {% endif %}
   {% if org_perms.contacts.contact_delete %}
     <temba-dialog header="{{ _("Delete Selected Contacts") |escapejs }}"
                   primaryButtonName="{{ _("Delete") |escapejs }}"
