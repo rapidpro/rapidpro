@@ -9,14 +9,10 @@
   {% blocktrans trimmed %}
     Please sign in with your email address and password.
   {% endblocktrans %}
-  <form method="POST" id="login-form">
+  <form method="post" id="login-form">
     {% csrf_token %}
     {% for field, errors in form.errors.items %}
-      {% if field == '__all__' %}
-        <temba-alert level="error" class="my-4">
-          {{ errors }}
-        </temba-alert>
-      {% endif %}
+      {% if field == '__all__' %}<div class="alert alert-error my-4">{{ errors }}</div>{% endif %}
     {% endfor %}
     <div class="mt-4">
       <input type="text"
@@ -26,19 +22,11 @@
              value="{% if form.username.value %}{{ form.username.value|escape }}{% endif %}"
              class="input">
     </div>
-    {% if form.username.errors %}
-      <temba-alert level="error" class="mt-4">
-        {{ form.username.errors }}
-      </temba-alert>
-    {% endif %}
+    {% if form.username.errors %}<div class="alert alert-error mt-4">{{ form.username.errors }}</div>{% endif %}
     <div class="mt-4">
       <input type="password" name="password" placeholder="{{ _("Password") |escapejs }}" class="input">
     </div>
-    {% if form.password.errors %}
-      <temba-alert level="error" class="mt-4">
-        {{ form.password.errors }}
-      </temba-alert>
-    {% endif %}
+    {% if form.password.errors %}<div class="alert alert-error mt-4">{{ form.password.errors }}</div>{% endif %}
     <div class="mt-2 text-right">
       <a href="/user/forget/">Forgot your password?</a>
     </div>

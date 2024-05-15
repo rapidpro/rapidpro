@@ -14,11 +14,7 @@
       <temba-textinput name="password" placeholder="{{ _("Password") |escape }}" password="true">
       </temba-textinput>
     </div>
-    {% if form.password.errors %}
-      <temba-alert level="error" class="mt-4">
-        {{ form.password.errors }}
-      </temba-alert>
-    {% endif %}
+    {% if form.password.errors %}<div class="alert alert-error mt-4">{{ form.password.errors }}</div>{% endif %}
     <div class="mt-6">
       <input type="submit" value="{{ _("Confirm") |escape }}" class="button-primary">
     </div>
