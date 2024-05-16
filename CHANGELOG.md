@@ -1,3 +1,8 @@
+v9.1.119 (2024-05-16)
+-------------------------
+ * Add ContactField.is_proxy and reduce SYSTEM_FIELDS to the two proxy date fields
+ * Don't use error level alerts for form errors
+
 v9.1.118 (2024-05-15)
 -------------------------
  * Remove unused args from MailroomClient.parse_query
