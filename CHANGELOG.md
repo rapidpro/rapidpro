@@ -1,3 +1,8 @@
+v9.1.121 (2024-05-16)
+-------------------------
+ * Fix action to remove from group.  
+ * Report bulk action errors to users with django messages
+
 v9.1.120 (2024-05-16)
 -------------------------
  * Remove old unused ES sorting code
