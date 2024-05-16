@@ -2,10 +2,10 @@ import logging
 from urllib.parse import quote, urlencode
 
 import requests
-from gunicorn.http.wsgi import HEADER_VALUE_RE
 
 from django import forms
 from django.conf import settings
+from django.contrib import messages
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
@@ -242,7 +242,6 @@ class BulkActionMixin:
         form = BulkActionMixin.Form(
             self.get_bulk_actions(), self.get_queryset(), self.get_bulk_action_labels(), data=self.request.POST
         )
-        action_error = None
 
         if form.is_valid():
             action = form.cleaned_data["action"]
@@ -267,16 +266,13 @@ class BulkActionMixin:
             try:
                 self.apply_bulk_action(user, action, objects, label)
             except forms.ValidationError as e:
-                action_error = ", ".join(e.messages)
+                for e in e.messages:
+                    messages.error(request, e)
             except Exception:
+                messages.error(request, _("An error occurred while making your changes. Please try again."))
                 logger.exception(f"error applying '{action}' to {self.model.__name__} objects")
-                action_error = _("An error occurred while making your changes. Please try again.")
 
-        response = self.get(request, *args, **kwargs)
-        if action_error:
-            response["Temba-Toast"] = HEADER_VALUE_RE.fullmatch(str(action_error)).group(0)
-
-        return response
+        return self.get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

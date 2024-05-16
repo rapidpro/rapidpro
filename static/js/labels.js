@@ -49,6 +49,10 @@ function runActionOnObjectRows(action, onSuccess, options = {}) {
   };
 
   const formData = new FormData();
+  if (options.label) {
+    formData.append('label', options.label);
+  }
+
   for (var i = 0; i < objectIds.length; i++) {
     formData.append('objects', objectIds[i]);
   }
