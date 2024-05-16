@@ -369,32 +369,7 @@ class ContactField(TembaModel, DependencyMixin):
     )
 
     # can't create custom contact fields with these keys
-    RESERVED_KEYS = {
-        # contactql syntax
-        "has",
-        "is",
-        # searchable attributes in queries
-        "created_on",
-        "flow",
-        "group",
-        "history",
-        "id",
-        "language",
-        "last_seen_on",
-        "name",
-        "status",
-        "ticket",
-        "urn",
-        "uuid",
-        # @contact.* properties in expressions
-        "channel",
-        "fields",
-        "first_name",
-        "groups",
-        "tickets",
-        "timezone",
-        "urns",
-    }.union(URN.VALID_SCHEMES)
+    RESERVED_KEYS = {"has", "is", "fields", "urns", "created_on", "last_seen_on"}
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="fields")
 
