@@ -224,7 +224,6 @@ class RequestCode(ChannelTypeMixin, ModalMixin, ContentMenuMixin, OrgObjPermsMix
         pass
 
     slug_url_kwarg = "uuid"
-    success_message = ""
     form_class = Form
     permission = "channels.channel_claim"
     fields = ()

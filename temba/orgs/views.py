@@ -332,7 +332,6 @@ class DependencyDeleteModal(DependencyModalMixin, ModalMixin, SmartDeleteView):
 
     slug_url_kwarg = "uuid"
     fields = ("uuid",)
-    success_message = ""
     submit_button_name = _("Delete")
     template_name = "orgs/dependency_delete_modal.html"
 
@@ -781,7 +780,6 @@ class UserCRUDL(SmartCRUDL):
                 fields = ("first_name", "last_name", "email", "avatar", "current_password", "new_password", "language")
 
         form_class = Form
-        success_message = ""
         success_url = "@orgs.user_edit"
 
         def has_permission(self, request, *args, **kwargs):
@@ -938,7 +936,6 @@ class UserCRUDL(SmartCRUDL):
         menu_path = "/settings/account"
         title = _("Enable Two-factor Authentication")
         submit_button_name = _("Enable")
-        success_message = ""
         success_url = "@orgs.user_two_factor_tokens"
 
         def has_permission(self, request, *args, **kwargs):
@@ -992,7 +989,6 @@ class UserCRUDL(SmartCRUDL):
         menu_path = "/settings/account"
         title = _("Disable Two-factor Authentication")
         submit_button_name = _("Disable")
-        success_message = ""
         success_url = "@orgs.user_account"
 
         def has_permission(self, request, *args, **kwargs):
@@ -1618,7 +1614,6 @@ class OrgCRUDL(SmartCRUDL):
 
     class FlowSmtp(InferOrgMixin, OrgPermsMixin, SmartFormView):
         form_class = SMTPForm
-        success_message = ""
 
         def post(self, request, *args, **kwargs):
             if "disconnect" in request.POST:
@@ -1990,7 +1985,6 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = AccountsForm
         success_url = "@orgs.org_manage_accounts"
-        success_message = ""
         submit_button_name = _("Save Changes")
         title = _("Users")
         menu_path = "/settings/users"
@@ -2307,7 +2301,6 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = SignupForm
         fields = ("first_name", "last_name", "password")
-        success_message = ""
         success_url = "@orgs.org_start"
         submit_button_name = _("Sign Up")
         permission = False
@@ -2350,7 +2343,6 @@ class OrgCRUDL(SmartCRUDL):
                 model = Org
                 fields = ()
 
-        success_message = ""
         title = ""
         form_class = Form
         success_url = "@orgs.org_start"
@@ -2449,7 +2441,6 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Sign Up")
         form_class = SignupForm
         permission = None
-        success_message = ""
         submit_button_name = _("Save")
 
         def get_success_url(self):
@@ -2524,7 +2515,6 @@ class OrgCRUDL(SmartCRUDL):
                 fields = ("id", "new_slug")
 
         form_class = ResthookForm
-        success_message = ""
         title = _("Resthooks")
         success_url = "@orgs.org_resthooks"
         menu_path = "/settings/resthooks"
@@ -2559,7 +2549,6 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = ToggleForm
         success_url = "@orgs.org_workspace"
-        success_message = ""
 
         def post_save(self, obj):
             # if org has an existing Prometheus token, disable it, otherwise create one
@@ -2634,7 +2623,6 @@ class OrgCRUDL(SmartCRUDL):
                 fields = ("name", "timezone", "date_format", "language")
                 widgets = {"date_format": SelectWidget(), "language": SelectWidget()}
 
-        success_message = ""
         form_class = Form
 
         def derive_exclude(self):
@@ -2666,7 +2654,6 @@ class OrgCRUDL(SmartCRUDL):
                 model = Org
                 fields = ("country",)
 
-        success_message = ""
         form_class = CountryForm
 
     class Languages(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
@@ -2715,7 +2702,6 @@ class OrgCRUDL(SmartCRUDL):
                 fields = ("primary_lang", "other_langs", "input_collation")
 
         success_url = "@orgs.org_languages"
-        success_message = ""
         form_class = LanguageForm
 
         def get_form_kwargs(self):
