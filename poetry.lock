@@ -2000,13 +2000,13 @@ testing = ["Flask (>=1,<2)", "Flask-Sockets (>=0.2,<1)", "Jinja2 (==3.0.3)", "We
 
 [[package]]
 name = "smartmin"
-version = "5.0.1"
+version = "5.0.2"
 description = "Scaffolding system for Django object management."
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "smartmin-5.0.1-py3-none-any.whl", hash = "sha256:7291cfc29f8617fe6b7be08bf4957d6f0b25d3a9067541f77d20137171f4ace4"},
-    {file = "smartmin-5.0.1.tar.gz", hash = "sha256:10d5c2e0c1af54a2eb912a0233f70ee7293a33e392746873755145ad4883e453"},
+    {file = "smartmin-5.0.2-py3-none-any.whl", hash = "sha256:ff6d58219b36932cd982809b4eb483c24a0f2cc5afcd94bb2050b5c9e3624089"},
+    {file = "smartmin-5.0.2.tar.gz", hash = "sha256:3566c1619816706c024fba07017f556a2ee79b902812a6c73a4b51609ff896ea"},
 ]
 
 [package.dependencies]
@@ -2365,4 +2365,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "298a121e683a7cf9bb6b1518e828ff6f67283ce8f5b3bede96fa874ed9b74108"
+content-hash = "e0e445270377fe308e7eaf5b1c2cf3b440fef4a666565258c3f068f619379d35"

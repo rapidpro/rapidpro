@@ -81,7 +81,6 @@ class CampaignCRUDL(SmartCRUDL):
 
     class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
         fields = ("name", "group")
-        success_message = ""
         form_class = CampaignForm
 
         def pre_process(self, request, *args, **kwargs):
@@ -156,7 +155,6 @@ class CampaignCRUDL(SmartCRUDL):
     class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
         fields = ("name", "group")
         form_class = CampaignForm
-        success_message = ""
         success_url = "uuid@campaigns.campaign_read"
 
         def pre_save(self, obj):
@@ -559,7 +557,6 @@ class CampaignEventCRUDL(SmartCRUDL):
             return reverse("campaigns.campaign_read", args=[self.object.campaign.uuid])
 
     class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
-        success_message = ""
         form_class = CampaignEventForm
         submit_button_name = _("Save")
 
@@ -673,7 +670,6 @@ class CampaignEventCRUDL(SmartCRUDL):
             "flow_start_mode",
         ]
         form_class = CampaignEventForm
-        success_message = ""
         template_name = "campaigns/campaignevent_update.html"
         submit_button_name = _("Save")
 

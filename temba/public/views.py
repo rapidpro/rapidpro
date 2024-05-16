@@ -133,7 +133,6 @@ class LeadCRUDL(SmartCRUDL):
     class Create(SmartFormView, SmartCreateView):
         fields = ("email",)
         title = _("Register for public beta")
-        success_message = ""
 
         @csrf_exempt
         def dispatch(self, request, *args, **kwargs):

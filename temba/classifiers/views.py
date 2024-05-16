@@ -77,7 +77,6 @@ class ClassifierCRUDL(SmartCRUDL):
     class Sync(SpaMixin, OrgObjPermsMixin, SmartUpdateView):
         fields = ()
         success_url = "uuid@classifiers.classifier_read"
-        success_message = ""
         title = _("Connect a Classifier")
 
         def post(self, *args, **kwargs):
