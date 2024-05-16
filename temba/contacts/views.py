@@ -953,7 +953,6 @@ class ContactCRUDL(SmartCRUDL):
 
     class Create(NonAtomicMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
-        success_message = ""
         submit_button_name = _("Create")
 
         def get_form_kwargs(self, *args, **kwargs):
@@ -981,7 +980,6 @@ class ContactCRUDL(SmartCRUDL):
     class Update(SpaMixin, ComponentFormMixin, NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
         success_url = "hide"
-        success_message = ""
         submit_button_name = _("Save Changes")
 
         def derive_exclude(self):
@@ -1086,7 +1084,6 @@ class ContactCRUDL(SmartCRUDL):
 
         form_class = Form
         submit_button_name = _("Open")
-        success_message = ""
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -1110,7 +1107,6 @@ class ContactCRUDL(SmartCRUDL):
         """
 
         fields = ()
-        success_message = ""
 
         def save(self, obj):
             obj.interrupt(self.request.user)
@@ -1123,7 +1119,6 @@ class ContactCRUDL(SmartCRUDL):
 
         fields = ()
         success_url = "@contacts.contact_list"
-        success_message = ""
         submit_button_name = _("Delete")
 
         def save(self, obj):
@@ -1160,7 +1155,6 @@ class ContactGroupCRUDL(SmartCRUDL):
         form_class = ContactGroupForm
         fields = ("name", "preselected_contacts", "group_query")
         success_url = "uuid@contacts.contact_filter"
-        success_message = ""
         submit_button_name = _("Create")
 
         def save(self, obj):
@@ -1195,7 +1189,6 @@ class ContactGroupCRUDL(SmartCRUDL):
         form_class = ContactGroupForm
         fields = ("name",)
         success_url = "uuid@contacts.contact_filter"
-        success_message = ""
 
         def get_queryset(self):
             return super().get_queryset().filter(is_system=False)
@@ -1226,7 +1219,6 @@ class ContactGroupCRUDL(SmartCRUDL):
     class Delete(DependencyDeleteModal):
         cancel_url = "uuid@contacts.contact_filter"
         success_url = "@contacts.contact_list"
-        success_message = ""
 
 
 class ContactFieldForm(forms.ModelForm):
@@ -1331,7 +1323,6 @@ class ContactFieldCRUDL(SmartCRUDL):
 
         queryset = ContactField.user_fields
         form_class = Form
-        success_message = ""
         success_url = "hide"
         submit_button_name = _("Create")
 
@@ -1361,7 +1352,6 @@ class ContactFieldCRUDL(SmartCRUDL):
     class Update(FieldLookupMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         queryset = ContactField.user_fields
         form_class = ContactFieldForm
-        success_message = ""
         submit_button_name = _("Update")
         success_url = "hide"
 
@@ -1385,7 +1375,6 @@ class ContactFieldCRUDL(SmartCRUDL):
     class Delete(FieldLookupMixin, DependencyDeleteModal):
         cancel_url = "@contacts.contactfield_list"
         success_url = "hide"
-        success_message = ""
 
     class UpdatePriority(OrgPermsMixin, SmartView, View):
         def post(self, request, *args, **kwargs):
@@ -1454,7 +1443,6 @@ class ContactImportCRUDL(SmartCRUDL):
                 fields = ("file",)
 
         form_class = Form
-        success_message = ""
         success_url = "id@contacts.contactimport_preview"
         menu_path = "/contact/import"
 
@@ -1632,7 +1620,6 @@ class ContactImportCRUDL(SmartCRUDL):
 
         form_class = Form
         success_url = "id@contacts.contactimport_read"
-        success_message = ""
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
