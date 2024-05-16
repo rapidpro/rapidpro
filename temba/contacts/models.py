@@ -540,6 +540,9 @@ class ContactField(TembaModel, DependencyMixin):
     def get_access(self, user) -> str:
         return self.agent_access if self.org.get_user_role(user) == OrgRole.AGENT else self.ACCESS_EDIT
 
+    def get_attrs(self):
+        return {"icon": "info" if self.is_proxy else "fields"}
+
     def release(self, user):
         assert not (self.is_system and self.org.is_active), "can't release system fields"
 
