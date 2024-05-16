@@ -30,7 +30,7 @@ from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modi
 from temba.msgs.models import Broadcast, Msg, SystemLabel
 from temba.orgs.models import Export, Org, OrgRole
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticket, TicketCount
@@ -5348,3 +5348,46 @@ class ContactExportTest(TembaTest):
                 tz=self.org.timezone,
             )
             assertReimport(export)
+
+
+class BackfillProxyFieldsTest(MigrationTest):
+    app = "contacts"
+    migrate_from = "0188_contactfield_is_proxy_alter_contactfield_is_system"
+    migrate_to = "0189_backfill_proxy_fields"
+
+    OLD_SYSTEM_FIELDS = [
+        {"key": "id", "name": "ID", "value_type": "N"},
+        {"key": "name", "name": "Name", "value_type": "T"},
+        {"key": "created_on", "name": "Created On", "value_type": "D"},
+        {"key": "language", "name": "Language", "value_type": "T"},
+        {"key": "last_seen_on", "name": "Last Seen On", "value_type": "D"},
+    ]
+
+    def setUpBeforeMigration(self, apps):
+        # make org 1 look like an org with the old system fields
+        self.org.fields.all().delete()
+
+        for spec in self.OLD_SYSTEM_FIELDS:
+            self.org.fields.create(
+                is_system=True,
+                key=spec["key"],
+                name=spec["name"],
+                value_type=spec["value_type"],
+                show_in_table=False,
+                created_by=self.org.created_by,
+                modified_by=self.org.modified_by,
+            )
+
+    def test_migration(self):
+        self.assertEqual(
+            {"created_on", "last_seen_on"}, set(self.org.fields.filter(is_system=True).values_list("key", flat=True))
+        )
+        self.assertEqual(
+            {"created_on", "last_seen_on"}, set(self.org.fields.filter(is_proxy=True).values_list("key", flat=True))
+        )
+        self.assertEqual(
+            {"created_on", "last_seen_on"}, set(self.org2.fields.filter(is_system=True).values_list("key", flat=True))
+        )
+        self.assertEqual(
+            {"created_on", "last_seen_on"}, set(self.org2.fields.filter(is_proxy=True).values_list("key", flat=True))
+        )

@@ -532,7 +532,7 @@ class ContactField(TembaModel, DependencyMixin):
         Gets the fields for the given org
         """
 
-        fields = org.fields.filter(is_system=False, is_active=True)
+        fields = org.fields.filter(is_active=True, is_proxy=False)
 
         if viewable_by and org.get_user_role(viewable_by) == OrgRole.AGENT:
             fields = fields.exclude(agent_access=cls.ACCESS_NONE)
@@ -869,7 +869,9 @@ class Contact(LegacyUUIDMixin, SmartModel):
         for this contact or None.
         """
 
-        if not field.is_system:
+        if field.is_proxy:  # i.e. created_on, last_seen_on
+            return getattr(self, field.key)
+        else:
             string_value = self.get_field_serialized(field)
             if string_value is None:
                 return None
@@ -882,9 +884,6 @@ class Contact(LegacyUUIDMixin, SmartModel):
                 return Decimal(string_value)
             elif field.value_type in [ContactField.TYPE_STATE, ContactField.TYPE_DISTRICT, ContactField.TYPE_WARD]:
                 return AdminBoundary.get_by_path(self.org, string_value)
-
-        else:
-            return getattr(self, field.key)
 
     def get_field_display(self, field):
         """

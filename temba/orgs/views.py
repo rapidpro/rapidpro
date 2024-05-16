@@ -2972,7 +2972,7 @@ class BaseExportView(ModalMixin, OrgPermsMixin, SmartFormView):
         end_date = TembaDateField(label=_("End Date"))
 
         with_fields = forms.ModelMultipleChoiceField(
-            ContactField.user_fields.none(),
+            ContactField.objects.none(),
             required=False,
             label=_("Fields"),
             widget=SelectMultipleWidget(attrs={"placeholder": _("Optional: Fields to include"), "searchable": True}),

@@ -859,7 +859,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         dep_objs = {
             "channel": self.org.channels.filter(is_active=True, uuid__in=identifiers["channel"]),
             "classifier": self.org.classifiers.filter(is_active=True, uuid__in=identifiers["classifier"]),
-            "field": ContactField.user_fields.filter(org=self.org, is_active=True, key__in=identifiers["field"]),
+            "field": self.org.fields.filter(is_active=True, is_proxy=False, key__in=identifiers["field"]),
             "flow": self.org.flows.filter(is_active=True, uuid__in=identifiers["flow"]),
             "global": self.org.globals.filter(is_active=True, key__in=identifiers["global"]),
             "group": ContactGroup.get_groups(self.org).filter(uuid__in=identifiers["group"]),
