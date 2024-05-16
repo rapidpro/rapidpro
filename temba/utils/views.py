@@ -242,7 +242,6 @@ class BulkActionMixin:
         form = BulkActionMixin.Form(
             self.get_bulk_actions(), self.get_queryset(), self.get_bulk_action_labels(), data=self.request.POST
         )
-        action_error = None
 
         if form.is_valid():
             action = form.cleaned_data["action"]
