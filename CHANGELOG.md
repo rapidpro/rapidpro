@@ -1,3 +1,10 @@
+v9.1.120 (2024-05-16)
+-------------------------
+ * Remove old unused ES sorting code
+ * Update to latest smartmin and disable auto success messages
+ * Add data migration to fix system fields for existing orgs and start using is_proxy
+ * Reduce reserved keys for fields to bare minimum
+
 v9.1.119 (2024-05-16)
 -------------------------
  * Add ContactField.is_proxy and reduce SYSTEM_FIELDS to the two proxy date fields
