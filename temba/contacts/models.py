@@ -369,7 +369,7 @@ class ContactField(TembaModel, DependencyMixin):
     )
 
     # can't create custom contact fields with these keys
-    RESERVED_KEYS = {"has", "is", "fields", "urns"}
+    RESERVED_KEYS = {"has", "is", "fields", "urns", "created_on", "last_seen_on"}
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="fields")
 
