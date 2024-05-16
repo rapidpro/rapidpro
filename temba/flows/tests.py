@@ -1386,7 +1386,7 @@ class FlowTest(TembaTest, CRUDLTestMixin):
             flow = field_spec.get("flow", parent)
 
             # make sure our field exists after import
-            field = ContactField.user_fields.filter(key=key, name=name).first()
+            field = self.org.fields.filter(key=key, name=name, is_system=False, is_proxy=False).first()
             self.assertIsNotNone(field, "Couldn't find field %s (%s)" % (key, name))
 
             # and our flow is dependent on us

@@ -2931,7 +2931,9 @@ class EndpointsTest(APITest):
         # create a new field
         self.assertPost(endpoint_url, self.editor, {"name": "Age", "type": "number"}, status=201)
 
-        age = ContactField.user_fields.get(org=self.org, name="Age", value_type="N", is_active=True)
+        age = ContactField.objects.get(
+            org=self.org, name="Age", value_type="N", is_proxy=False, is_system=False, is_active=True
+        )
 
         # update a field by its key
         self.assertPost(endpoint_url + "?key=age", self.admin, {"name": "Real Age", "type": "datetime"})

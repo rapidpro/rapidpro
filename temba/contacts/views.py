@@ -727,7 +727,7 @@ class ContactCRUDL(SmartCRUDL):
             field_keys = [f["key"] for f in summary["fields"]]
             summary["fields"] = {
                 str(f.uuid): {"label": f.name}
-                for f in ContactField.user_fields.filter(org=org, key__in=field_keys, is_active=True)
+                for f in org.fields.filter(key__in=field_keys, is_active=True, is_proxy=False)
             }
             return JsonResponse(summary)
 
@@ -1297,7 +1297,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             return self.render_modal_response(form)
 
     class Update(FieldLookupMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        queryset = ContactField.user_fields
+        queryset = ContactField.objects.filter(is_system=False)
         form_class = ContactFieldForm
         submit_button_name = _("Update")
         success_url = "hide"
