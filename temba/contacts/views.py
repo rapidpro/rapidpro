@@ -188,59 +188,6 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
 
         return None
 
-    @staticmethod
-    def prepare_sort_field_struct(sort_on):
-        if not sort_on:
-            return None, None, None
-
-        if sort_on[0] == "-":
-            sort_direction = "desc"
-            sort_field = sort_on[1:]
-        else:
-            sort_direction = "asc"
-            sort_field = sort_on
-
-        if sort_field == "created_on":
-            return (
-                sort_field,
-                sort_direction,
-                {"field_type": "attribute", "sort_direction": sort_direction, "field_name": "created_on"},
-            )
-        if sort_field == "last_seen_on":
-            return (
-                sort_field,
-                sort_direction,
-                {"field_type": "attribute", "sort_direction": sort_direction, "field_name": "last_seen_on"},
-            )
-        else:
-            try:
-                contact_sort_field = ContactField.user_fields.values("value_type", "uuid").get(uuid=sort_field)
-            except ValidationError:
-                return None, None, None
-            except ContactField.DoesNotExist:
-                return None, None, None
-
-            mapping = {
-                "T": "text",
-                "N": "number",
-                "D": "datetime",
-                "S": "state_keyword",
-                "I": "district_keyword",
-                "W": "ward_keyword",
-            }
-            field_leaf = mapping[contact_sort_field["value_type"]]
-
-            return (
-                sort_field,
-                sort_direction,
-                {
-                    "field_type": "field",
-                    "sort_direction": sort_direction,
-                    "field_path": "fields.{}".format(field_leaf),
-                    "field_uuid": str(contact_sort_field["uuid"]),
-                },
-            )
-
     def get_queryset(self, **kwargs):
         org = self.request.org
         self.search_error = None
