@@ -96,14 +96,6 @@ function addClass(selector, className) {
   });
 }
 
-function showLoading(full) {
-  if (full) {
-    addClass('.widget-container', 'loading');
-  } else {
-    addClass('.spa-container', 'loading');
-  }
-}
-
 function refreshMenu() {
   var menu = document.querySelector('temba-menu');
   if (menu) {
@@ -118,12 +110,14 @@ function refreshGlobals() {
   }
 }
 
+function showLoading() {
+  addClass('.spa-container', 'loading');
+}
+
 function hideLoading(response) {
-  var containers = document.querySelectorAll(
-    '.spa-container, .widget-container'
-  );
-  for (cont of containers) {
-    cont.classList.remove('loading');
+  var container = document.querySelector('.spa-container');
+  if (container) {
+    container.classList.remove('loading');
   }
 
   // scroll our content to the top if needed
@@ -167,7 +161,6 @@ function addToHistory(url) {
 }
 
 function spaGet(url, triggerEvents) {
-  showLoading();
   spaRequest(url, { ignoreEvents: !triggerEvents });
 }
 
@@ -189,12 +182,12 @@ function spaPost(url, options) {
   }
 
   requestOptions.showErrors = options.showErrors;
-
-  showLoading();
   return spaRequest(url, requestOptions);
 }
 
 function spaRequest(url, options) {
+  showLoading();
+
   var refererPath = window.location.pathname;
 
   options = options || {};
@@ -379,7 +372,6 @@ function handleMenuChanged(event) {
   var selection = event.target.getSelection();
   var menuItem = event.target.getMenuItem();
   if (menuItem && menuItem.href) {
-    showLoading();
     spaGet(menuItem.href);
   }
 
@@ -443,7 +435,6 @@ document.addEventListener('temba-pjax-complete', function () {
 
 function loadFromState(state) {
   if (state && state.url) {
-    showLoading();
     var url = state.url;
     spaRequest(url, { ignoreEvents: false, ignoreHistory: true });
   }
@@ -475,8 +466,6 @@ document.addEventListener('DOMContentLoaded', function () {
         evt.preventDefault();
         var formData = new FormData(formEle);
         let queryString = new URLSearchParams(formData).toString();
-        showLoading();
-
         if (queryString) {
           if (url.indexOf('?') > 0) {
             url += '&' + queryString;

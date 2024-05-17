@@ -1,6 +1,7 @@
 {% load public %}
 
-<temba-content-menu endpoint="{{ request.path }}?{{ request.GET.urlencode }}"
+<temba-content-menu style="min-height: 2.5em"
+                    endpoint="{{ request.path }}?{{ request.GET.urlencode }}"
                     query="{{ has_search_query }}"
                     -temba-selection="handleContentMenuSelected(event)"
                     id="default-content-menu">
