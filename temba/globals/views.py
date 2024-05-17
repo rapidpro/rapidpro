@@ -80,7 +80,6 @@ class GlobalCRUDL(SmartCRUDL):
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = CreateGlobalForm
-        success_message = ""
         submit_button_name = _("Create")
 
         def get_form_kwargs(self):
@@ -101,7 +100,6 @@ class GlobalCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateGlobalForm
-        success_message = ""
         submit_button_name = _("Update")
 
         def get_form_kwargs(self):
@@ -112,7 +110,6 @@ class GlobalCRUDL(SmartCRUDL):
     class Delete(DependencyDeleteModal):
         cancel_url = "@globals.global_list"
         success_url = "@globals.global_list"
-        success_message = ""
 
     class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, SmartListView):
         title = _("Manage Globals")

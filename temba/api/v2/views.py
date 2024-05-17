@@ -1628,7 +1628,7 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     def derive_queryset(self):
         org = self.request.org
         return (
-            self.model.user_fields.filter(org=org, is_active=True)
+            self.model.objects.filter(org=org, is_active=True, is_proxy=False)
             .annotate(flow_count=Count("dependent_flows", filter=Q(dependent_flows__is_active=True)))
             .annotate(group_count=Count("dependent_groups", filter=Q(dependent_groups__is_active=True)))
             .annotate(campaignevent_count=Count("campaign_events", filter=Q(campaign_events__is_active=True)))

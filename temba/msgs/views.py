@@ -866,7 +866,6 @@ class MsgCRUDL(SmartCRUDL):
     class Failed(MsgListView):
         title = _("Failed")
         template_name = "msgs/msg_failed.html"
-        success_message = ""
         system_label = SystemLabel.TYPE_FAILED
         allow_export = True
 
@@ -978,7 +977,6 @@ class LabelCRUDL(SmartCRUDL):
         fields = ("name", "messages")
         success_url = "uuid@msgs.msg_filter"
         form_class = LabelForm
-        success_message = ""
         submit_button_name = _("Create")
 
         def get_form_kwargs(self):
@@ -1002,7 +1000,6 @@ class LabelCRUDL(SmartCRUDL):
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = LabelForm
         success_url = "uuid@msgs.msg_filter"
-        success_message = ""
         title = _("Update Label")
 
         def get_form_kwargs(self):

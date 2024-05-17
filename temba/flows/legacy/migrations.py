@@ -3,7 +3,7 @@ from collections import defaultdict
 
 import regex
 
-from temba.contacts.models import ContactField, ContactGroup
+from temba.contacts.models import ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Label
 from temba.utils import json
@@ -688,7 +688,7 @@ def migrate_export_to_version_11_0(json_export, org, same_site=True):
     ]
 
     # get all contact fields that are date or location for this org
-    fields = ContactField.user_fields.filter(org=org, is_active=True, value_type__in=["D", "S", "I", "W"]).only(
+    fields = org.fields.filter(is_active=True, is_proxy=False, value_type__in=["D", "S", "I", "W"]).only(
         "id", "value_type", "key"
     )
 

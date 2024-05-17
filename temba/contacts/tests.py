@@ -22,7 +22,6 @@ from temba.airtime.models import AirtimeTransfer
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import ChannelEvent
 from temba.contacts.search import search_contacts
-from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowSession, FlowStart
 from temba.ivr.models import Call
 from temba.locations.models import AdminBoundary
@@ -30,7 +29,7 @@ from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modi
 from temba.msgs.models import Broadcast, Msg, SystemLabel
 from temba.orgs.models import Export, Org, OrgRole
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticket, TicketCount
@@ -165,6 +164,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         response = self.client.get(list_url + "?search=(((")
         self.assertEqual(list(response.context["object_list"]), [])
         self.assertEqual(response.context["search_error"], "Invalid query syntax at '((('")
+        self.assertContains(response, "Invalid query syntax at")
 
         self.login(self.admin)
 
@@ -2871,19 +2871,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         with self.assertRaises(KeyError):
             self.joe.get_field_value(bad_field)
 
-    def test_date_field(self):
-        # create a new date field
-        birth_date = self.create_field("birth_date", "Birth Date", value_type=ContactField.TYPE_TEXT)
-
-        # set a field on our contact
-        urn = "urn:uuid:0f73262c-0623-3f0a-8651-1855e755d2ef"
-        self.set_contact_field(self.joe, "birth_date", urn)
-
-        # check that this field has been set
-        self.assertEqual(self.joe.get_field_value(birth_date), urn)
-        self.assertIsNone(self.joe.get_field_json(birth_date).get("number"))
-        self.assertIsNone(self.joe.get_field_json(birth_date).get("datetime"))
-
     def test_field_values(self):
         self.setUpLocations()
 
@@ -2894,56 +2881,43 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         color_field = self.create_field("color", "Color", value_type=ContactField.TYPE_TEXT)
         state_field = self.create_field("state", "State", value_type=ContactField.TYPE_STATE)
 
-        joe = Contact.objects.get(id=self.joe.id)
-        joe.language = "eng"
-        joe.save(update_fields=("language",))
-
         # none value instances
-        self.assertEqual(joe.get_field_serialized(weight_field), None)
-        self.assertEqual(joe.get_field_display(weight_field), "")
-        self.assertEqual(joe.get_field_serialized(registration_field), None)
-        self.assertEqual(joe.get_field_display(registration_field), "")
+        self.assertEqual(self.joe.get_field_serialized(weight_field), None)
+        self.assertEqual(self.joe.get_field_display(weight_field), "")
+        self.assertEqual(self.joe.get_field_serialized(registration_field), None)
+        self.assertEqual(self.joe.get_field_display(registration_field), "")
 
-        self.set_contact_field(joe, "registration_date", "2014-12-31T01:04:00Z")
-        self.set_contact_field(joe, "weight", "75.888888")
-        self.set_contact_field(joe, "color", "green")
-        self.set_contact_field(joe, "state", "kigali city")
+        self.set_contact_field(self.joe, "registration_date", "2014-12-31T01:04:00Z")
+        self.set_contact_field(self.joe, "weight", "75.888888")
+        self.set_contact_field(self.joe, "color", "green")
+        self.set_contact_field(self.joe, "state", "kigali city")
 
-        self.assertEqual(joe.get_field_serialized(registration_field), "2014-12-31T03:04:00+02:00")
+        self.assertEqual(self.joe.get_field_serialized(registration_field), "2014-12-31T03:04:00+02:00")
 
-        self.assertEqual(joe.get_field_serialized(weight_field), "75.888888")
-        self.assertEqual(joe.get_field_display(weight_field), "75.888888")
+        self.assertEqual(self.joe.get_field_serialized(weight_field), "75.888888")
+        self.assertEqual(self.joe.get_field_display(weight_field), "75.888888")
 
-        self.set_contact_field(joe, "weight", "0")
-        self.assertEqual(joe.get_field_serialized(weight_field), "0")
-        self.assertEqual(joe.get_field_display(weight_field), "0")
+        self.set_contact_field(self.joe, "weight", "0")
+        self.assertEqual(self.joe.get_field_serialized(weight_field), "0")
+        self.assertEqual(self.joe.get_field_display(weight_field), "0")
 
         # passing something non-numeric to a decimal field
-        self.set_contact_field(joe, "weight", "xxx")
-        self.assertEqual(joe.get_field_serialized(weight_field), None)
-        self.assertEqual(joe.get_field_display(weight_field), "")
+        self.set_contact_field(self.joe, "weight", "xxx")
+        self.assertEqual(self.joe.get_field_serialized(weight_field), None)
+        self.assertEqual(self.joe.get_field_display(weight_field), "")
 
-        self.assertEqual(joe.get_field_serialized(state_field), "Rwanda > Kigali City")
-        self.assertEqual(joe.get_field_display(state_field), "Kigali City")
+        self.assertEqual(self.joe.get_field_serialized(state_field), "Rwanda > Kigali City")
+        self.assertEqual(self.joe.get_field_display(state_field), "Kigali City")
 
-        self.assertEqual(joe.get_field_serialized(color_field), "green")
-        self.assertEqual(joe.get_field_display(color_field), "green")
+        self.assertEqual(self.joe.get_field_serialized(color_field), "green")
+        self.assertEqual(self.joe.get_field_display(color_field), "green")
 
-        field_created_on = self.org.fields.get(key="created_on")
-        field_language = self.org.fields.get(key="language")
-        field_name = self.org.fields.get(key="name")
+        # can fetch proxy fields too
+        created_on = self.org.fields.get(key="created_on")
+        last_seen_on = self.org.fields.get(key="last_seen_on")
 
-        self.assertEqual(joe.get_field_display(field_created_on), self.org.format_datetime(joe.created_on))
-        self.assertEqual(joe.get_field_display(field_language), "eng")
-        self.assertEqual(joe.get_field_display(field_name), "Joe Blow")
-
-        # create a system field that is not supported
-        field_iban = ContactField.objects.create(
-            org=self.org, key="iban", name="IBAN", is_system=True, created_by=self.admin, modified_by=self.admin
-        )
-
-        self.assertRaises(AssertionError, joe.get_field_serialized, field_iban)
-        self.assertRaises(ValueError, joe.get_field_display, field_iban)
+        self.assertEqual(self.joe.get_field_display(created_on), self.org.format_datetime(self.joe.created_on))
+        self.assertEqual(self.joe.get_field_display(last_seen_on), "")
 
     def test_set_location_fields(self):
         self.setUpLocations()
@@ -3172,10 +3146,10 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_key("age!"))  # can't have punctuation
         self.assertFalse(ContactField.is_valid_key("âge"))  # a-z only
         self.assertFalse(ContactField.is_valid_key("2up"))  # can't start with a number
-        self.assertFalse(ContactField.is_valid_key("name"))  # can't be a contact attribute
-        self.assertFalse(ContactField.is_valid_key("uuid"))
-        self.assertFalse(ContactField.is_valid_key("tel"))  # can't be URN scheme
-        self.assertFalse(ContactField.is_valid_key("mailto"))
+        self.assertFalse(ContactField.is_valid_key("has"))  # can't be reserved key
+        self.assertFalse(ContactField.is_valid_key("is"))
+        self.assertFalse(ContactField.is_valid_key("fields"))
+        self.assertFalse(ContactField.is_valid_key("urns"))
         self.assertFalse(ContactField.is_valid_key("a" * 37))  # too long
 
     def test_is_valid_name(self):
@@ -3183,137 +3157,6 @@ class ContactFieldTest(TembaTest):
         self.assertTrue(ContactField.is_valid_name("Age Now 2"))
         self.assertFalse(ContactField.is_valid_name("Age_Now"))  # can't have punctuation
         self.assertFalse(ContactField.is_valid_name("âge"))  # a-z only
-
-    def test_prepare_sort_field_struct(self):
-        ward = self.create_field("ward", "Home Ward", value_type=ContactField.TYPE_WARD)
-        district = self.create_field("district", "Home District", value_type=ContactField.TYPE_DISTRICT)
-        state = self.create_field("state", "Home Stat", value_type=ContactField.TYPE_STATE)
-
-        self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on="created_on"),
-            ("created_on", "asc", {"field_type": "attribute", "sort_direction": "asc", "field_name": "created_on"}),
-        )
-
-        self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on="-created_on"),
-            ("created_on", "desc", {"field_type": "attribute", "sort_direction": "desc", "field_name": "created_on"}),
-        )
-
-        self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on="last_seen_on"),
-            (
-                "last_seen_on",
-                "asc",
-                {"field_type": "attribute", "sort_direction": "asc", "field_name": "last_seen_on"},
-            ),
-        )
-
-        self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on="-last_seen_on"),
-            (
-                "last_seen_on",
-                "desc",
-                {"field_type": "attribute", "sort_direction": "desc", "field_name": "last_seen_on"},
-            ),
-        )
-
-        self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on="{}".format(str(self.contactfield_1.uuid))),
-            (
-                str(self.contactfield_1.uuid),
-                "asc",
-                {
-                    "field_type": "field",
-                    "sort_direction": "asc",
-                    "field_path": "fields.text",
-                    "field_uuid": str(self.contactfield_1.uuid),
-                },
-            ),
-        )
-
-        self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on="-{}".format(str(self.contactfield_1.uuid))),
-            (
-                str(self.contactfield_1.uuid),
-                "desc",
-                {
-                    "field_type": "field",
-                    "sort_direction": "desc",
-                    "field_path": "fields.text",
-                    "field_uuid": str(self.contactfield_1.uuid),
-                },
-            ),
-        )
-
-        self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on="-{}".format(str(self.contactfield_1.uuid))),
-            (
-                str(self.contactfield_1.uuid),
-                "desc",
-                {
-                    "field_type": "field",
-                    "sort_direction": "desc",
-                    "field_path": "fields.text",
-                    "field_uuid": str(self.contactfield_1.uuid),
-                },
-            ),
-        )
-
-        self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on="-{}".format(str(ward.uuid))),
-            (
-                str(ward.uuid),
-                "desc",
-                {
-                    "field_type": "field",
-                    "sort_direction": "desc",
-                    "field_path": "fields.ward_keyword",
-                    "field_uuid": str(ward.uuid),
-                },
-            ),
-        )
-
-        self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on="-{}".format(str(district.uuid))),
-            (
-                str(district.uuid),
-                "desc",
-                {
-                    "field_type": "field",
-                    "sort_direction": "desc",
-                    "field_path": "fields.district_keyword",
-                    "field_uuid": str(district.uuid),
-                },
-            ),
-        )
-
-        self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on="{}".format(str(state.uuid))),
-            (
-                str(state.uuid),
-                "asc",
-                {
-                    "field_type": "field",
-                    "sort_direction": "asc",
-                    "field_path": "fields.state_keyword",
-                    "field_uuid": str(state.uuid),
-                },
-            ),
-        )
-
-        # test with nullish values
-        self.assertEqual(ContactListView.prepare_sort_field_struct(sort_on=None), (None, None, None))
-
-        self.assertEqual(ContactListView.prepare_sort_field_struct(sort_on=""), (None, None, None))
-
-        # test with non uuid value
-        self.assertEqual(ContactListView.prepare_sort_field_struct(sort_on="abc"), (None, None, None))
-
-        # test with unknown contact field
-        self.assertEqual(
-            ContactListView.prepare_sort_field_struct(sort_on="22084b5a-3ad3-4dc6-a857-91fb3f20eb57"),
-            (None, None, None),
-        )
 
     @mock_mailroom
     def test_contact_field_list_sort_fields(self, mr_mocks):
@@ -3462,7 +3305,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             self.admin,
-            {"name": "UUID", "value_type": "T", "show_in_table": True, "agent_access": "E"},
+            {"name": "HAS", "value_type": "T", "show_in_table": True, "agent_access": "E"},
             form_errors={"name": "Can't be a reserved word."},
         )
 
@@ -3938,7 +3781,7 @@ class ContactImportTest(TembaTest):
             ),
             ("invalid_scheme.xlsx", "Header 'URN:XXX' is not a valid URN type."),
             ("invalid_field_key.xlsx", "Header 'Field: #$^%' is not a valid field name."),
-            ("reserved_field_key.xlsx", "Header 'Field:id' is not a valid field name."),
+            ("reserved_field_key.xlsx", "Header 'Field:HAS' is not a valid field name."),
             ("no_urn_or_uuid.xlsx", "Import files must contain either UUID or a URN header."),
             ("uuid_only.csv", "Import files must contain columns besides UUID."),
         ]
@@ -5373,3 +5216,46 @@ class ContactExportTest(TembaTest):
                 tz=self.org.timezone,
             )
             assertReimport(export)
+
+
+class BackfillProxyFieldsTest(MigrationTest):
+    app = "contacts"
+    migrate_from = "0188_contactfield_is_proxy_alter_contactfield_is_system"
+    migrate_to = "0189_backfill_proxy_fields"
+
+    OLD_SYSTEM_FIELDS = [
+        {"key": "id", "name": "ID", "value_type": "N"},
+        {"key": "name", "name": "Name", "value_type": "T"},
+        {"key": "created_on", "name": "Created On", "value_type": "D"},
+        {"key": "language", "name": "Language", "value_type": "T"},
+        {"key": "last_seen_on", "name": "Last Seen On", "value_type": "D"},
+    ]
+
+    def setUpBeforeMigration(self, apps):
+        # make org 1 look like an org with the old system fields
+        self.org.fields.all().delete()
+
+        for spec in self.OLD_SYSTEM_FIELDS:
+            self.org.fields.create(
+                is_system=True,
+                key=spec["key"],
+                name=spec["name"],
+                value_type=spec["value_type"],
+                show_in_table=False,
+                created_by=self.org.created_by,
+                modified_by=self.org.modified_by,
+            )
+
+    def test_migration(self):
+        self.assertEqual(
+            {"created_on", "last_seen_on"}, set(self.org.fields.filter(is_system=True).values_list("key", flat=True))
+        )
+        self.assertEqual(
+            {"created_on", "last_seen_on"}, set(self.org.fields.filter(is_proxy=True).values_list("key", flat=True))
+        )
+        self.assertEqual(
+            {"created_on", "last_seen_on"}, set(self.org2.fields.filter(is_system=True).values_list("key", flat=True))
+        )
+        self.assertEqual(
+            {"created_on", "last_seen_on"}, set(self.org2.fields.filter(is_proxy=True).values_list("key", flat=True))
+        )

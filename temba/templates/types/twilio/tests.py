@@ -60,56 +60,6 @@ class TwilioTypeTest(TembaTest):
                 ),
             ),
             RequestException("Network is unreachable", response=MockResponse(100, "")),
-            MockResponse(
-                200,
-                json.dumps(
-                    {
-                        "whatsapp": {
-                            "status": "approved",
-                        }
-                    }
-                ),
-            ),
-            MockResponse(
-                200,
-                json.dumps(
-                    {
-                        "whatsapp": {
-                            "status": "approved",
-                        }
-                    }
-                ),
-            ),
-            MockResponse(
-                200,
-                json.dumps(
-                    {
-                        "whatsapp": {
-                            "status": "approved",
-                        }
-                    }
-                ),
-            ),
-            MockResponse(
-                200,
-                json.dumps(
-                    {
-                        "whatsapp": {
-                            "status": "approved",
-                        }
-                    }
-                ),
-            ),
-            MockResponse(
-                200,
-                json.dumps(
-                    {
-                        "whatsapp": {
-                            "status": "approved",
-                        }
-                    }
-                ),
-            ),
         ]
 
         trans = self.type.update_local(
@@ -142,14 +92,27 @@ class TwilioTypeTest(TembaTest):
                     "twilio/text": {
                         "body": "Hello {{1}}, this is text example only and can have variables replaces such as {{2}} and {{3}}"
                     },
-                    "url": "https://content.twilio.com/v1/Content/HX1234502",
-                    "variables": {"1": "for Product A", "2": "features A,B,C", "3": "id123"},
                 },
+                "url": "https://content.twilio.com/v1/Content/HX1234502",
+                "variables": {"1": "for Product A", "2": "features A,B,C", "3": "id123"},
             },
         )
         self.assertIsNotNone(trans)
         self.assertEqual("text_only_template", trans.template.name)
         self.assertEqual(TemplateTranslation.STATUS_PENDING, trans.status)
+
+        # mock for approved status
+        mock_get.side_effect = None
+        mock_get.return_value = MockResponse(
+            200,
+            json.dumps(
+                {
+                    "whatsapp": {
+                        "status": "approved",
+                    }
+                }
+            ),
+        )
 
         # status approved
         trans = self.type.update_local(
@@ -163,9 +126,9 @@ class TwilioTypeTest(TembaTest):
                     "twilio/text": {
                         "body": "Hello {{1}}, this is text example only and can have variables replaces such as {{2}} and {{3}}"
                     },
-                    "url": "https://content.twilio.com/v1/Content/HX1234502",
-                    "variables": {"1": "for Product A", "2": "features A,B,C", "3": "id123"},
                 },
+                "url": "https://content.twilio.com/v1/Content/HX1234502",
+                "variables": {"1": "for Product A", "2": "features A,B,C", "3": "id123"},
             },
         )
         self.assertIsNotNone(trans)
@@ -362,7 +325,7 @@ class TwilioTypeTest(TembaTest):
             {
                 "friendly_name": "quick_reply_template_not_supported",
                 "language": "en",
-                "links": {"approval_fetch": "https://content.twilio.com/v1/Content/HX1234503/ApprovalRequests"},
+                "links": {"approval_fetch": "https://content.twilio.com/v1/Content/HX1234504/ApprovalRequests"},
                 "sid": "HX1234504",
                 "types": {
                     "twilio/call-to-action": {
@@ -414,3 +377,336 @@ class TwilioTypeTest(TembaTest):
             trans.components,
         )
         self.assertEqual([], trans.variables)
+
+        # not supported whatsapp authentication
+        trans = self.type.update_local(
+            channel,
+            {
+                "friendly_name": "whatsapp_authentication_template",
+                "language": "en",
+                "links": {"approval_fetch": "https://content.twilio.com/v1/Content/HX1234505/ApprovalRequests"},
+                "sid": "HX1234505",
+                "types": {
+                    "whatsapp/authentication": {
+                        "body": "{{1}}",
+                        "add_security_recommendation": True,
+                        "code_expiration_minutes": 5,
+                        "actions": [{"type": "COPY_CODE", "copy_code_text": "Copy Code"}],
+                    },
+                },
+                "url": "https://content.twilio.com/v1/Content/HX1234505",
+                "variables": {},
+            },
+        )
+        self.assertIsNotNone(trans)
+        self.assertEqual("whatsapp_authentication_template", trans.template.name)
+        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, trans.status)
+        self.assertEqual("", trans.namespace)
+        self.assertEqual("eng", trans.locale)
+        self.assertEqual("en", trans.external_locale)
+        self.assertEqual("HX1234505", trans.external_id)
+        self.assertEqual(
+            [
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "{{1}}",
+                    "variables": {"1": 0},
+                },
+            ],
+            trans.components,
+        )
+        self.assertEqual([{"type": "text"}], trans.variables)
+
+        # twilio card
+        trans = self.type.update_local(
+            channel,
+            {
+                "friendly_name": "twilio_card_template",
+                "language": "en",
+                "links": {"approval_fetch": "https://content.twilio.com/v1/Content/HX1234506/ApprovalRequests"},
+                "sid": "HX1234506",
+                "types": {
+                    "twilio/card": {
+                        "body": None,
+                        "media": [],
+                        "subtitle": "This message is from an unverified business.",
+                        "actions": [],
+                        "title": "Your ticket for *{{1}}*\n*Time* - {{2}}\n*Venue* - {{3}}\n*Seats* - {{4}}",
+                    }
+                },
+                "url": "https://content.twilio.com/v1/Content/HX1234506",
+                "variables": {},
+            },
+        )
+        self.assertIsNotNone(trans)
+        self.assertEqual("twilio_card_template", trans.template.name)
+        self.assertEqual(TemplateTranslation.STATUS_APPROVED, trans.status)
+        self.assertEqual("", trans.namespace)
+        self.assertEqual("eng", trans.locale)
+        self.assertEqual("en", trans.external_locale)
+        self.assertEqual("HX1234506", trans.external_id)
+        self.assertEqual(
+            [
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "Your ticket for *{{1}}*\n*Time* - {{2}}\n*Venue* - {{3}}\n*Seats* - {{4}}",
+                    "variables": {"1": 0, "2": 1, "3": 2, "4": 3},
+                },
+                {
+                    "type": "footer",
+                    "name": "footer",
+                    "content": "This message is from an unverified business.",
+                    "variables": {},
+                },
+            ],
+            trans.components,
+        )
+        self.assertEqual([{"type": "text"}, {"type": "text"}, {"type": "text"}, {"type": "text"}], trans.variables)
+
+        # whatsapp card
+        trans = self.type.update_local(
+            channel,
+            {
+                "friendly_name": "whatsapp_card_template",
+                "language": "en",
+                "links": {"approval_fetch": "https://content.twilio.com/v1/Content/HX1234509/ApprovalRequests"},
+                "sid": "HX1234509",
+                "types": {
+                    "whatsapp/card": {
+                        "body": "Congratulations, you have reached Elite status! Add code {{1}} for 10% off.",
+                        "header_text": "This is a {{1}} card",
+                        "footer": "To unsubscribe, reply Stop",
+                        "actions": [
+                            {"url": "https://example.com/?wa_customer={{3}}", "title": "Check site", "type": "URL"},
+                            {"phone": "+15551234567", "title": "Call Us", "type": "PHONE_NUMBER"},
+                        ],
+                    }
+                },
+                "url": "https://content.twilio.com/v1/Content/HX1234509",
+                "variables": {},
+            },
+        )
+        self.assertIsNotNone(trans)
+        self.assertEqual("whatsapp_card_template", trans.template.name)
+        self.assertEqual(TemplateTranslation.STATUS_APPROVED, trans.status)
+        self.assertEqual("", trans.namespace)
+        self.assertEqual("eng", trans.locale)
+        self.assertEqual("en", trans.external_locale)
+        self.assertEqual("HX1234509", trans.external_id)
+        self.assertEqual(
+            [
+                {
+                    "type": "header",
+                    "name": "header",
+                    "content": "This is a {{1}} card",
+                    "variables": {"1": 0},
+                },
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "Congratulations, you have reached Elite status! Add code {{1}} for 10% off.",
+                    "variables": {"1": 0},
+                },
+                {
+                    "type": "footer",
+                    "name": "footer",
+                    "content": "To unsubscribe, reply Stop",
+                    "variables": {},
+                },
+                {
+                    "type": "button/url",
+                    "name": "button.0",
+                    "content": "https://example.com/?wa_customer={{3}}",
+                    "display": "Check site",
+                    "variables": {"3": 1},
+                },
+                {
+                    "type": "button/phone_number",
+                    "name": "button.1",
+                    "content": "+15551234567",
+                    "display": "Call Us",
+                    "variables": {},
+                },
+            ],
+            trans.components,
+        )
+        self.assertEqual([{"type": "text"}, {"type": "text"}], trans.variables)
+
+        # whatsapp card
+        trans = self.type.update_local(
+            channel,
+            {
+                "friendly_name": "whatsapp_card_qrs_template",
+                "language": "en",
+                "links": {"approval_fetch": "https://content.twilio.com/v1/Content/HX1234510/ApprovalRequests"},
+                "sid": "HX1234510",
+                "types": {
+                    "whatsapp/card": {
+                        "body": "Congratulations, you have reached Elite status! Add code {{1}} for 10% off.",
+                        "header_text": "This is a {{1}} card",
+                        "footer": "To unsubscribe, reply Stop",
+                        "actions": [
+                            {"id": "stop", "title": "Stop promotions", "type": "QUICK_REPLY"},
+                            {"id": "help", "title": "Help for {{3}}", "type": "QUICK_REPLY"},
+                        ],
+                    }
+                },
+                "url": "https://content.twilio.com/v1/Content/HX1234510",
+                "variables": {},
+            },
+        )
+        self.assertIsNotNone(trans)
+        self.assertEqual("whatsapp_card_qrs_template", trans.template.name)
+        self.assertEqual(TemplateTranslation.STATUS_APPROVED, trans.status)
+        self.assertEqual("", trans.namespace)
+        self.assertEqual("eng", trans.locale)
+        self.assertEqual("en", trans.external_locale)
+        self.assertEqual("HX1234510", trans.external_id)
+        self.assertEqual(
+            [
+                {
+                    "type": "header",
+                    "name": "header",
+                    "content": "This is a {{1}} card",
+                    "variables": {"1": 0},
+                },
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "Congratulations, you have reached Elite status! Add code {{1}} for 10% off.",
+                    "variables": {"1": 0},
+                },
+                {
+                    "type": "footer",
+                    "name": "footer",
+                    "content": "To unsubscribe, reply Stop",
+                    "variables": {},
+                },
+                {
+                    "type": "button/quick_reply",
+                    "name": "button.0",
+                    "content": "Stop promotions",
+                    "variables": {},
+                },
+                {
+                    "type": "button/quick_reply",
+                    "name": "button.1",
+                    "content": "Help for {{3}}",
+                    "variables": {"3": 1},
+                },
+            ],
+            trans.components,
+        )
+        self.assertEqual([{"type": "text"}, {"type": "text"}], trans.variables)
+
+        # twilio list-picker
+        trans = self.type.update_local(
+            channel,
+            {
+                "friendly_name": "list_picker_template",
+                "language": "en",
+                "links": {"approval_fetch": "https://content.twilio.com/v1/Content/HX1234507/ApprovalRequests"},
+                "sid": "HX1234507",
+                "types": {
+                    "twilio/list-picker": {
+                        "body": "Owl Air Flash Sale! Hurry! Sale ends on {{1}}!",
+                        "button": "Select a destination",
+                        "items": [
+                            {
+                                "item": "SFO to NYC for $299",
+                                "description": "Owl Air Flight 1337 to LGA",
+                                "id": "SFO1337",
+                            },
+                            {
+                                "item": "OAK to Denver for $149",
+                                "description": "Owl Air Flight 5280 to DEN",
+                                "id": "OAK5280",
+                            },
+                            {
+                                "item": "LAX to Chicago for $199",
+                                "description": "Owl Air Flight 96 to ORD",
+                                "id": "LAX96",
+                            },
+                        ],
+                    },
+                },
+                "url": "https://content.twilio.com/v1/Content/HX1234507",
+                "variables": {},
+            },
+        )
+        self.assertIsNotNone(trans)
+        self.assertEqual("list_picker_template", trans.template.name)
+        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, trans.status)
+        self.assertEqual("", trans.namespace)
+        self.assertEqual("eng", trans.locale)
+        self.assertEqual("en", trans.external_locale)
+        self.assertEqual("HX1234507", trans.external_id)
+        self.assertEqual(
+            [
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "Owl Air Flash Sale! Hurry! Sale ends on {{1}}!",
+                    "variables": {"1": 0},
+                }
+            ],
+            trans.components,
+        )
+        self.assertEqual([{"type": "text"}], trans.variables)
+
+        # twilio catalog
+        trans = self.type.update_local(
+            channel,
+            {
+                "friendly_name": "twilio_catalog_template",
+                "language": "en",
+                "links": {"approval_fetch": "https://content.twilio.com/v1/Content/HX1234508/ApprovalRequests"},
+                "sid": "HX1234508",
+                "types": {
+                    "twilio/catalog": {
+                        "id": "1017234312776586",
+                        "body": "Hi, check out this menu {{1}}",
+                        "subtitle": "Great deals",
+                        "title": "The Menu: {{2}}",
+                        "thumbnail_item_id": "48rme2i4po",
+                        "items": [{"id": "48rme2i4po", "section_title": "veggies"}],
+                    }
+                },
+                "url": "https://content.twilio.com/v1/Content/HX1234508",
+                "variables": {},
+            },
+        )
+
+        self.assertIsNotNone(trans)
+        self.assertEqual("twilio_catalog_template", trans.template.name)
+        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, trans.status)
+        self.assertEqual("", trans.namespace)
+        self.assertEqual("eng", trans.locale)
+        self.assertEqual("en", trans.external_locale)
+        self.assertEqual("HX1234508", trans.external_id)
+        self.assertEqual(
+            [
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "Hi, check out this menu {{1}}",
+                    "variables": {"1": 0},
+                },
+                {
+                    "type": "body",
+                    "name": "body",
+                    "content": "The Menu: {{2}}",
+                    "variables": {"2": 1},
+                },
+                {
+                    "type": "footer",
+                    "name": "footer",
+                    "content": "Great deals",
+                    "variables": {},
+                },
+            ],
+            trans.components,
+        )
+        self.assertEqual([{"type": "text"}, {"type": "text"}], trans.variables)

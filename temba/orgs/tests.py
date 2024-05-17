@@ -42,7 +42,7 @@ from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import TicketExport
@@ -2600,7 +2600,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         system_groups = set(org.groups.filter(is_system=True).values_list("name", flat=True))
         sample_flows = set(org.flows.values_list("name", flat=True))
 
-        self.assertEqual({"created_on", "id", "language", "last_seen_on", "name"}, system_fields)
+        self.assertEqual({"created_on", "last_seen_on"}, system_fields)
         self.assertEqual({"Active", "Archived", "Blocked", "Stopped", "Open Tickets"}, system_groups)
         self.assertEqual(
             {"Sample Flow - Order Status Checker", "Sample Flow - Satisfaction Survey", "Sample Flow - Simple Poll"},
@@ -4630,19 +4630,3 @@ class ExportCRUDLTest(TembaTest):
         self.assertEqual(
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", response.headers["content-type"]
         )
-
-
-class BackfillUserSettingsTest(MigrationTest):
-    app = "orgs"
-    migrate_from = "0140_alter_usersettings_user"
-    migrate_to = "0141_backfill_user_settings"
-
-    def setUpBeforeMigration(self, apps):
-        self.user1 = self.create_user("ann@nyaruka.com")
-        self.user2 = self.create_user("bob@nyaruka.com")
-
-        UserSettings.objects.filter(user=self.user2).delete()
-
-    def test_migrate(self):
-        self.assertTrue(UserSettings.objects.filter(user=self.user1).exists())
-        self.assertTrue(UserSettings.objects.filter(user=self.user2).exists())

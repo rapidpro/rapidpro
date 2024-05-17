@@ -1,3 +1,35 @@
+v9.1.121 (2024-05-16)
+-------------------------
+ * Fix action to remove from group.  
+ * Report bulk action errors to users with django messages
+
+v9.1.120 (2024-05-16)
+-------------------------
+ * Remove old unused ES sorting code
+ * Update to latest smartmin and disable auto success messages
+ * Add data migration to fix system fields for existing orgs and start using is_proxy
+ * Reduce reserved keys for fields to bare minimum
+
+v9.1.119 (2024-05-16)
+-------------------------
+ * Add ContactField.is_proxy and reduce SYSTEM_FIELDS to the two proxy date fields
+ * Don't use error level alerts for form errors
+
+v9.1.118 (2024-05-15)
+-------------------------
+ * Remove unused args from MailroomClient.parse_query
+ * Re-add search errors to contact list views
+
+v9.1.117 (2024-05-15)
+-------------------------
+ * Add support for unknown_property_type search errors
+ * Add support for twilio card type content templates
+ * Add way to view webhook logs errors only
+
+v9.1.116 (2024-05-14)
+-------------------------
+ * Fix issues with twilio templates sync
+
 v9.1.115 (2024-05-10)
 -------------------------
  * Fix Twilio template type slug and register its template type

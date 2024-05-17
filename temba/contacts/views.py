@@ -188,59 +188,6 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
 
         return None
 
-    @staticmethod
-    def prepare_sort_field_struct(sort_on):
-        if not sort_on:
-            return None, None, None
-
-        if sort_on[0] == "-":
-            sort_direction = "desc"
-            sort_field = sort_on[1:]
-        else:
-            sort_direction = "asc"
-            sort_field = sort_on
-
-        if sort_field == "created_on":
-            return (
-                sort_field,
-                sort_direction,
-                {"field_type": "attribute", "sort_direction": sort_direction, "field_name": "created_on"},
-            )
-        if sort_field == "last_seen_on":
-            return (
-                sort_field,
-                sort_direction,
-                {"field_type": "attribute", "sort_direction": sort_direction, "field_name": "last_seen_on"},
-            )
-        else:
-            try:
-                contact_sort_field = ContactField.user_fields.values("value_type", "uuid").get(uuid=sort_field)
-            except ValidationError:
-                return None, None, None
-            except ContactField.DoesNotExist:
-                return None, None, None
-
-            mapping = {
-                "T": "text",
-                "N": "number",
-                "D": "datetime",
-                "S": "state_keyword",
-                "I": "district_keyword",
-                "W": "ward_keyword",
-            }
-            field_leaf = mapping[contact_sort_field["value_type"]]
-
-            return (
-                sort_field,
-                sort_direction,
-                {
-                    "field_type": "field",
-                    "sort_direction": sort_direction,
-                    "field_path": "fields.{}".format(field_leaf),
-                    "field_uuid": str(contact_sort_field["uuid"]),
-                },
-            )
-
     def get_queryset(self, **kwargs):
         org = self.request.org
         self.search_error = None
@@ -780,7 +727,7 @@ class ContactCRUDL(SmartCRUDL):
             field_keys = [f["key"] for f in summary["fields"]]
             summary["fields"] = {
                 str(f.uuid): {"label": f.name}
-                for f in ContactField.user_fields.filter(org=org, key__in=field_keys, is_active=True)
+                for f in org.fields.filter(key__in=field_keys, is_active=True, is_proxy=False)
             }
             return JsonResponse(summary)
 
@@ -953,7 +900,6 @@ class ContactCRUDL(SmartCRUDL):
 
     class Create(NonAtomicMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
-        success_message = ""
         submit_button_name = _("Create")
 
         def get_form_kwargs(self, *args, **kwargs):
@@ -981,7 +927,6 @@ class ContactCRUDL(SmartCRUDL):
     class Update(SpaMixin, ComponentFormMixin, NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
         success_url = "hide"
-        success_message = ""
         submit_button_name = _("Save Changes")
 
         def derive_exclude(self):
@@ -1086,7 +1031,6 @@ class ContactCRUDL(SmartCRUDL):
 
         form_class = Form
         submit_button_name = _("Open")
-        success_message = ""
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -1110,7 +1054,6 @@ class ContactCRUDL(SmartCRUDL):
         """
 
         fields = ()
-        success_message = ""
 
         def save(self, obj):
             obj.interrupt(self.request.user)
@@ -1123,7 +1066,6 @@ class ContactCRUDL(SmartCRUDL):
 
         fields = ()
         success_url = "@contacts.contact_list"
-        success_message = ""
         submit_button_name = _("Delete")
 
         def save(self, obj):
@@ -1160,7 +1102,6 @@ class ContactGroupCRUDL(SmartCRUDL):
         form_class = ContactGroupForm
         fields = ("name", "preselected_contacts", "group_query")
         success_url = "uuid@contacts.contact_filter"
-        success_message = ""
         submit_button_name = _("Create")
 
         def save(self, obj):
@@ -1195,7 +1136,6 @@ class ContactGroupCRUDL(SmartCRUDL):
         form_class = ContactGroupForm
         fields = ("name",)
         success_url = "uuid@contacts.contact_filter"
-        success_message = ""
 
         def get_queryset(self):
             return super().get_queryset().filter(is_system=False)
@@ -1226,7 +1166,6 @@ class ContactGroupCRUDL(SmartCRUDL):
     class Delete(DependencyDeleteModal):
         cancel_url = "uuid@contacts.contact_filter"
         success_url = "@contacts.contact_list"
-        success_message = ""
 
 
 class ContactFieldForm(forms.ModelForm):
@@ -1331,7 +1270,6 @@ class ContactFieldCRUDL(SmartCRUDL):
 
         queryset = ContactField.user_fields
         form_class = Form
-        success_message = ""
         success_url = "hide"
         submit_button_name = _("Create")
 
@@ -1359,9 +1297,8 @@ class ContactFieldCRUDL(SmartCRUDL):
             return self.render_modal_response(form)
 
     class Update(FieldLookupMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        queryset = ContactField.user_fields
+        queryset = ContactField.objects.filter(is_system=False)
         form_class = ContactFieldForm
-        success_message = ""
         submit_button_name = _("Update")
         success_url = "hide"
 
@@ -1385,7 +1322,6 @@ class ContactFieldCRUDL(SmartCRUDL):
     class Delete(FieldLookupMixin, DependencyDeleteModal):
         cancel_url = "@contacts.contactfield_list"
         success_url = "hide"
-        success_message = ""
 
     class UpdatePriority(OrgPermsMixin, SmartView, View):
         def post(self, request, *args, **kwargs):
@@ -1454,7 +1390,6 @@ class ContactImportCRUDL(SmartCRUDL):
                 fields = ("file",)
 
         form_class = Form
-        success_message = ""
         success_url = "id@contacts.contactimport_preview"
         menu_path = "/contact/import"
 
@@ -1632,7 +1567,6 @@ class ContactImportCRUDL(SmartCRUDL):
 
         form_class = Form
         success_url = "id@contacts.contactimport_read"
-        success_message = ""
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
