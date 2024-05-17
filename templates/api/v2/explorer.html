@@ -5,9 +5,12 @@
   {{ branding.name }} - API Explorer
 {% endblock page-title %}
 {% block content %}
+  <script>
+    var org_id = {% if user_org %}{{ user_org.id }}{% else %}null{% endif %};
+  </script>
   <div class="px-8 pb-8">
     <div class="flex mb-4">
-      <div class="flex-grow page-title">API Explorer</div>
+      <div class="flex-grow page-title">API Explorer {{ org }}</div>
       <div>
         <a class="button-light ml-4" href="{% url "api.v2.root" %}">{% trans "Documentation" %}</a>
       </div>
@@ -142,6 +145,20 @@
       }
     }
 
+    function fetchAjaxAPI(url, method, target) {
+      var headers = {
+        "Accept": "application/json; charset=utf-8; indent=4;",
+        "Content-Type": "application/json; charset=utf-8; indent=4;"
+      }
+
+      fetchAjax(url, {
+        method: method,
+        headers: headers,
+        container: target,
+        showErrors: true
+      });
+    }
+
     function handleRequest(slug, method, url) {
       var queryEditor = document.querySelector("#request-query-" + slug);
       var bodyEditor = document.querySelector("#request-body-" + slug);
@@ -149,36 +166,11 @@
       var query = queryEditor ? ensureQueryPrefix(queryEditor.value) : '';
       var body = bodyEditor ? bodyEditor.value : '';
 
-      var results = document.querySelector("#result-" + slug);
+      const target = "#result-" + slug;
+      const results = document.querySelector(target);
       results.style.display = "block";
       results.innerHTML = "Requesting...";
-
-      var store = document.querySelector("temba-store");
-
-      var headers = {
-        "Accept": "application/json; charset=utf-8; indent=4;",
-        "Content-Type": "application/json; charset=utf-8; indent=4;"
-      }
-
-      if (method == "GET") {
-        store.getUrl(url + query, {
-          "headers": headers
-        }).then(function(response) {
-          results.innerText = "HTTP/1.0 " + response.status + " " + "\n" + response.body;
-        });
-      } else if (method == "POST") {
-        store.postUrl(url + query, body, headers).then(function(response) {
-          results.innerText = "HTTP/1.0 " + response.status + " " + "\n" + response.body;
-        });
-      } else if (method == "DELETE") {
-        $.ajax({
-          url: url + query,
-          type: 'DELETE',
-          complete: function(xhr) {
-            results.innerText = "HTTP/1.0 " + xhr.status + " " + "\n" + xhr.responseText;
-          }
-        });
-      }
+      fetchAjaxAPI(url + query, method, target);
     }
   </script>
 {% endblock extra-script %}

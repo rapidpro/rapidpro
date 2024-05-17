@@ -2273,7 +2273,6 @@ class OrgCRUDL(SmartCRUDL):
             org = form.cleaned_data["organization"]
             switch_to_org(self.request, org)
             analytics.identify(self.request.user, self.request.branding, org)
-
             return HttpResponseRedirect(reverse("orgs.org_start"))
 
     class Join(NoNavMixin, InvitationMixin, SmartTemplateView):

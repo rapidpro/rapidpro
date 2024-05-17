@@ -378,17 +378,12 @@
       var deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
       if (event.detail.button.attributes.destructive) {
         var url = "{% url 'contacts.contact_archived' %}";
-        var store = document.querySelector("temba-store");
-        store.postForm(url, {
-          action: "delete",
-          all: 'true',
-          pjax: true
-        }).then(function(response) {
-          gotoURL(url);
-        }).catch(function(error) {
-          console.log(error);
+        const formData = new FormData();
+        formData.append("action", "delete");
+        formData.append("all", "true");
+        spaPost(url, {
+          postData: formData
         });
-
       }
       deleteAllConfirmation.classList.add("hide");
       deleteAllConfirmation.open = false;
