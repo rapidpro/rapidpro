@@ -2327,7 +2327,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         post_data["timezone"] = "America/Chicago"
         response = self.client.post(grant_url, post_data, follow=True)
 
-        self.assertContains(response, "created")
+        self.assertToast(response, "info", "Workspace successfully created.")
 
         org = Org.objects.get(name="Bulls")
         self.assertEqual(Org.DATE_FORMAT_MONTH_FIRST, org.date_format)
