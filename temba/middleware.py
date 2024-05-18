@@ -134,7 +134,7 @@ class ToastMiddleware:
         response = self.get_response(request)
 
         # only work on spa requests and exclude redirects
-        if request.headers.get("Temba-Spa", False) and response.status_code == 200:
+        if response.status_code == 200:
             storage = messages.get_messages(request)
             toasts = []
             for message in storage:

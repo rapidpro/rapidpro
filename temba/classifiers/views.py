@@ -81,7 +81,6 @@ class ClassifierCRUDL(SmartCRUDL):
 
         def post(self, *args, **kwargs):
             self.object = self.get_object()
-
             try:
                 self.object.sync()
                 messages.info(self.request, _("Your classifier has been synced."))

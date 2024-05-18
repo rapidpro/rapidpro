@@ -763,6 +763,13 @@ class TembaTest(SmartminTest):
     def set_contact_field(self, contact, key, value):
         update_field_locally(self.admin, contact, key, value)
 
+    def assertToast(self, response, level, text):
+        toasts = json.loads(response.get("X-Temba-Toasts"))
+        for toast in toasts:
+            if toast["level"] == level and toast["text"] == text:
+                return
+        self.fail("Toast not found: %s" % toasts)
+
     def assertOutbox(self, outbox_index, from_email, subject, body, recipients):
         self.assertEqual(len(mail.outbox), outbox_index + 1)
         email = mail.outbox[outbox_index]

@@ -130,15 +130,14 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
             # request a sync
             response = self.client.post(reverse("classifiers.classifier_sync", args=[self.c1.id]), follow=True)
             self.assertEqual(200, response.status_code)
-            self.assertContains(response, "Your classifier has been synced.")
-
+            self.assertToast(response, "info", "Your classifier has been synced.")
             mock_sync.assert_called_once()
 
             mock_sync.side_effect = ValueError("BOOM")
 
             response = self.client.post(reverse("classifiers.classifier_sync", args=[self.c1.id]), follow=True)
             self.assertEqual(200, response.status_code)
-            self.assertContains(response, "Unable to sync classifier. See the log for details.")
+            self.assertToast(response, "error", "Unable to sync classifier. See the log for details.")
 
     def test_read(self):
         read_url = reverse("classifiers.classifier_read", args=[self.c1.uuid])

@@ -525,7 +525,7 @@ class UserTest(TembaTest):
 
         # posting to that page regenerates tokens
         response = self.client.post(tokens_url)
-        self.assertContains(response, "Two-factor authentication backup tokens changed.")
+        self.assertToast(response, "info", "Two-factor authentication backup tokens changed.")
         self.assertNotEqual(tokens, [t.token for t in response.context["backup_tokens"]])
 
         # view form to disable 2FA
@@ -2300,8 +2300,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             password="dukenukem",
         )
         response = self.client.post(grant_url, post_data, follow=True)
-
-        self.assertContains(response, "created")
+        self.assertToast(response, "info", "Workspace successfully created.")
 
         org = Org.objects.get(name="Oculus")
         self.assertEqual(org.date_format, Org.DATE_FORMAT_DAY_FIRST)
@@ -2315,8 +2314,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         post_data["name"] = "id Software"
 
         response = self.client.post(grant_url, post_data, follow=True)
-
-        self.assertContains(response, "created")
+        self.assertToast(response, "info", "Workspace successfully created.")
 
         org = Org.objects.get(name="id Software")
         self.assertEqual(org.date_format, Org.DATE_FORMAT_DAY_FIRST)
@@ -3752,8 +3750,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.post(send_verification_email_url, {}, follow=True)
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Verification email already sent. You can retry in 10 minutes.")
-
+        self.assertToast(response, "info", "Verification email already sent. You can retry in 10 minutes.")
         self.assertEqual(0, len(mail.outbox))
 
         # no email when the redis key is set even with the task itself
@@ -3765,7 +3762,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.post(send_verification_email_url, {}, follow=True)
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Verification email sent")
+        self.assertToast(response, "info", "Verification email sent")
 
         # and one email sent
         self.assertEqual(1, len(mail.outbox))
