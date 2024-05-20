@@ -1,3 +1,7 @@
+v9.1.123 (2024-05-20)
+-------------------------
+ * Replace django messages rendering with toasts
+
 v9.1.121 (2024-05-16)
 -------------------------
  * Fix action to remove from group.  
