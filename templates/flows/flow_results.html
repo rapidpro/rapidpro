@@ -99,15 +99,14 @@
       dialog.open = false;
 
       if (evt.detail.button.destructive) {
-        var store = document.querySelector("temba-store");
-        store.postUrl("/flowrun/delete/" + dialog.runId + "/").then(function(response) {
-          if (response.status == 200) {
-            var runList = document.querySelector("temba-run-list");
-            if (runList) {
-              runList.removeRun(dialog.runId);
-              var details = document.querySelector("temba-flow-details");
-              details.refresh();
-            }
+        fetchAjax('/flowrun/delete/' + dialog.runId + '/', {
+          method: 'POST',
+        }).then(function(response) {
+          var runList = document.querySelector("temba-run-list");
+          if (runList) {
+            runList.removeRun(dialog.runId);
+            var details = document.querySelector("temba-flow-details");
+            details.refresh();
           }
         });
       }
@@ -345,10 +344,8 @@
       runs.paused = tabs.index != 2;
 
       if (tabs.index == 0) {
-        fetchAjax('/flow/activity_chart/{{object.id}}/', "#overview-charts", {
-          "headers": {
-            "TEMBA-SPA": 1
-          }
+        fetchAjax('/flow/activity_chart/{{object.id}}/', {
+          container: "#overview-charts"
         });
       }
 

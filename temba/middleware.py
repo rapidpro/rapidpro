@@ -1,9 +1,11 @@
 import cProfile
+import json
 import pstats
 import traceback
 from io import StringIO
 
 from django.conf import settings
+from django.contrib import messages
 from django.utils import timezone, translation
 
 from temba.orgs.models import Org, User
@@ -117,6 +119,32 @@ class LanguageMiddleware:
 
         response = self.get_response(request)
         response.headers.setdefault("Content-Language", translation.get_language())
+        return response
+
+
+class ToastMiddleware:
+    """
+    Converts django messages into a response header for toasts
+    """
+
+    def __init__(self, get_response=None):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        # only work on spa requests and exclude redirects
+        if response.status_code == 200:
+            storage = messages.get_messages(request)
+            toasts = []
+            for message in storage:
+                toasts.append(
+                    {"level": "error" if message.level == messages.ERROR else "info", "text": str(message.message)}
+                )
+                message.used = False
+
+            if toasts:
+                response["X-Temba-Toasts"] = json.dumps(toasts)
         return response
 
 

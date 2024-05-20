@@ -378,8 +378,8 @@
       var chat = document.querySelector("temba-contact-chat");
       if (chat.contact) {
         var url = "/contact/read/" + chat.contact + "/";
-        if (typeof gotoURL !== 'undefined') {
-          gotoURL(url);
+        if (typeof spaGet !== 'undefined') {
+          spaGet(url);
         } else {
           document.location.href = url;
         }
@@ -388,8 +388,8 @@
 
     function handleFieldSearch(evt) {
       var url = "/contact/?search=" + encodeURIComponent(evt.detail.key) + "+%3D+" + encodeURIComponent("\"" + evt.detail.value + "\"")
-      if (typeof fetchURL !== 'undefined') {
-        fetchURL(url)
+      if (typeof spaGet !== 'undefined') {
+        spaGet(url)
       } else {
         document.location.href = url;
       }

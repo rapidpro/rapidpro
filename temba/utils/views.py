@@ -267,7 +267,7 @@ class BulkActionMixin:
                 self.apply_bulk_action(user, action, objects, label)
             except forms.ValidationError as e:
                 for e in e.messages:
-                    messages.error(request, e)
+                    messages.info(request, e)
             except Exception:
                 messages.error(request, _("An error occurred while making your changes. Please try again."))
                 logger.exception(f"error applying '{action}' to {self.model.__name__} objects")

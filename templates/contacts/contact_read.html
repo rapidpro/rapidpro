@@ -152,21 +152,21 @@
     }
 
     function handleFieldSearch(evt) {
-      fetchURL("/contact/?search=" + encodeURIComponent(evt.detail.key) + "+%3D+" + encodeURIComponent("\"" + evt.detail.value + "\""))
+      spaGet("/contact/?search=" + encodeURIComponent(evt.detail.key) + "+%3D+" + encodeURIComponent("\"" + evt.detail.value + "\""))
     }
 
     function handleTicketClicked(evt) {
       var ticket = evt.detail.ticket;
-      gotoURL("/ticket/all/" + ticket.status + "/" + ticket.uuid + "/");
+      spaGet("/ticket/all/" + ticket.status + "/" + ticket.uuid + "/");
     }
 
     function handlePendingClicked(evt) {
       var pending = evt.detail;
 
       if (pending.type == "campaign_event") {
-        gotoURL("/campaign/read/" + pending.campaign.uuid + "/");
+        spaGet("/campaign/read/" + pending.campaign.uuid + "/");
       } else {
-        gotoURL("/broadcast/scheduled/");
+        spaGet("/broadcast/scheduled/");
       }
     }
   </script>

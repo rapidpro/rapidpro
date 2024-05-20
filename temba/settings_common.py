@@ -187,6 +187,7 @@ MIDDLEWARE = (
     "temba.middleware.OrgMiddleware",
     "temba.middleware.LanguageMiddleware",
     "temba.middleware.TimezoneMiddleware",
+    "temba.middleware.ToastMiddleware",
 )
 
 # -----------------------------------------------------------------------------------
