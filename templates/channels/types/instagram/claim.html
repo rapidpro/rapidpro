@@ -95,39 +95,34 @@
 
     function handlePageClicked(event) {
       var element = event.target;
-      document.getElementById("user-access-token").value = this.getAttribute("data-fb-access-token");
-      document.getElementById("page-id").value = this.getAttribute("data-fb-id");
-      document.getElementById("page-name").value = this.getAttribute("data-fb-name");
+      document.getElementById("user-access-token").value = element.getAttribute("data-fb-access-token");
+      document.getElementById("page-id").value = element.getAttribute("data-fb-id");
+      document.getElementById("page-name").value = element.getAttribute("data-fb-name");
       document.getElementById("claim-form").submit();
     };
 
     function getFBPages(token) {
-      const options = {
-        method: "GET",
-        skipContentCheck: true,
-        onSuccess: function(response) {
-          response.json().then(function(result) {
-            const data = result.data;
-            if (data.length > 0) {
-              var fbChannelOptions = document.getElementById("fb-channel-options");
-              for (var i = 0; i < data.length; i++) {
+      fetchAjax("https://graph.facebook.com/me/accounts?access_token=" + token + "&limit=200").then(function(response) {
+        response.json().then(function(result) {
+          const data = result.data;
+          if (data.length > 0) {
+            var fbChannelOptions = document.getElementById("fb-channel-options");
+            for (var i = 0; i < data.length; i++) {
 
-                var div = document.createElement("div");
-                div.className = 'fb-page-channel-option lbl mt-3 mr-2 p-2 linked';
-                div.setAttribute("onClick", "handlePageClicked(event)");
-                div.setAttribute('data-fb-id', data[i].id);
-                div.setAttribute('data-fb-name', data[i].name);
-                div.setAttribute('data-fb-access-token', data[i].access_token);
-                div.textContent = data[i].name;
-                fbChannelOptions.appendChild(div);
-              }
+              var div = document.createElement("div");
+              div.className = 'fb-page-channel-option lbl mt-3 mr-2 p-2 linked';
+              div.setAttribute("onClick", "handlePageClicked(event)");
+              div.setAttribute('data-fb-id', data[i].id);
+              div.setAttribute('data-fb-name', data[i].name);
+              div.setAttribute('data-fb-access-token', data[i].access_token);
+              div.textContent = data[i].name;
+              fbChannelOptions.appendChild(div);
             }
-            document.querySelector("#fb-channel-options").classList.remove('hide');
-            document.querySelector("#fb-app-connect").classList.add('hide');
-          });
-        }
-      }
-      fetchAjax("https://graph.facebook.com/me/accounts?access_token=" + token + "&limit=200", null, options);
+          }
+          document.querySelector("#fb-channel-options").classList.remove('hide');
+          document.querySelector("#fb-app-connect").classList.add('hide');
+        });
+      });
     }
   </script>
 {% endblock extra-script %}

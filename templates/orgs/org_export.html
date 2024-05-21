@@ -99,7 +99,10 @@
       </div>
       <div class="flex mt-4 justify-end">
         <div class="button-light select-all mr-4">{% trans "Select All" %}</div>
-        <div style="height: 100%;" class="button-primary submit">{% trans "Export" %}</div>
+        <input type="submit"
+               style="height: 100%"
+               value="{{ _("Export") |escapejs }}"
+               class="button-primary submit">
       </div>
     </form>
   </div>
@@ -157,9 +160,6 @@
         selectExportables();
       });
 
-      document.querySelector(".export .submit").addEventListener("click", function(event) {
-        document.querySelector('form.export').submit();
-      });
     });
   </script>
 {% endblock extra-script %}

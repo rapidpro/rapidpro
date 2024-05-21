@@ -278,7 +278,6 @@ class TriggerCRUDL(SmartCRUDL):
         trigger_type = None
         permission = "triggers.trigger_create"
         success_url = "@triggers.trigger_list"
-        success_message = ""
 
         @property
         def type(self):
@@ -372,8 +371,6 @@ class TriggerCRUDL(SmartCRUDL):
         trigger_type = Trigger.TYPE_OPT_OUT
 
     class Update(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
-        success_message = ""
-
         def get_form_class(self):
             return self.object.type.form
 

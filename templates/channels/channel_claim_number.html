@@ -112,40 +112,38 @@
       const options = {
         body: formData,
         method: 'POST',
-        headers: headers,
-        skipContentCheck: true,
-        onSuccess: function(response) {
-          response.json().then(function(data) {
-            var throbber = document.getElementById("throbber");
-            throbber.classList.add('hide');
+        headers: headers
+      }
 
-            var results = document.getElementById("results");
-            var claimCountry = document.getElementById("claim-country");
-            var claimMessage = document.getElementById("claim-message");
+      fetchAjax("{{search_url}}", options).then(function(response) {
+        response.json().then(function(data) {
+          var throbber = document.getElementById("throbber");
+          throbber.classList.add('hide');
 
-            if (data.length > 0) {
-              claimCountry.value = country; // Assuming 'country' is defined in your context
-              data.forEach(function(item) {
-                var div = document.createElement('div');
-                div.className = 'lbl phone-number mt-3 mr-2 linked';
-                div.setAttribute('data-number', item);
-                div.textContent = item;
-                results.appendChild(div);
-              });
-              results.classList.remove('hide');
-            } else if ('error' in data) {
-              claimMessage.textContent = data['error'];
-              claimMessage.classList.remove('hide');
-            } else {
-              claimMessage.textContent = "{% trans 'Sorry, no numbers found, please enter another pattern and try again.' %}";
-              claimMessage.classList.remove('hide');
-            }
+          var results = document.getElementById("results");
+          var claimCountry = document.getElementById("claim-country");
+          var claimMessage = document.getElementById("claim-message");
 
-          });
-        }
-      };
+          if (data.length > 0) {
+            claimCountry.value = country; // Assuming 'country' is defined in your context
+            data.forEach(function(item) {
+              var div = document.createElement('div');
+              div.className = 'lbl phone-number mt-3 mr-2 linked';
+              div.setAttribute('data-number', item);
+              div.textContent = item;
+              results.appendChild(div);
+            });
+            results.classList.remove('hide');
+          } else if ('error' in data) {
+            claimMessage.textContent = data['error'];
+            claimMessage.classList.remove('hide');
+          } else {
+            claimMessage.textContent = "{% trans 'Sorry, no numbers found, please enter another pattern and try again.' %}";
+            claimMessage.classList.remove('hide');
+          }
 
-      fetchAjax("{{search_url}}", null, options);
+        });
+      });
       return false;
     }
 

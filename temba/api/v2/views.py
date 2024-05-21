@@ -1628,7 +1628,7 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     def derive_queryset(self):
         org = self.request.org
         return (
-            self.model.user_fields.filter(org=org, is_active=True)
+            self.model.objects.filter(org=org, is_active=True, is_proxy=False)
             .annotate(flow_count=Count("dependent_flows", filter=Q(dependent_flows__is_active=True)))
             .annotate(group_count=Count("dependent_groups", filter=Q(dependent_groups__is_active=True)))
             .annotate(campaignevent_count=Count("campaign_events", filter=Q(campaign_events__is_active=True)))
@@ -1872,6 +1872,9 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
     pagination_class = ModifiedOnCursorPagination
     lookup_params = {"key": "key"}
 
+    def derive_queryset(self):
+        return self.model.objects.filter(org=self.request.org, is_active=True)
+
     def filter_queryset(self, queryset):
         params = self.request.query_params
         # filter by key (optional)
@@ -1879,13 +1882,7 @@ class GlobalsEndpoint(ListAPIMixin, WriteAPIMixin, BaseEndpoint):
         if key:
             queryset = queryset.filter(key=key)
 
-        # filter by modified (optional)
-        before = params.get("before")
-        after = params.get("after")
-        if before or after:
-            return self.filter_before_after(queryset, "modified_on")
-
-        return queryset.filter(is_active=True)
+        return self.filter_before_after(queryset, "modified_on")
 
     @classmethod
     def get_read_explorer(cls):

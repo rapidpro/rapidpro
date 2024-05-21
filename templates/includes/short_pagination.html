@@ -51,6 +51,24 @@
             </temba-tip>
           </div>
         {% endif %}
+        {% if 'send' in actions %}
+          {% if org_perms.msgs.broadcast_create and not reply_disabled %}
+            <div onclick="handleSendMessageClicked()" class="linked ml-4">
+              <temba-tip position="top" text="{{ _("New Broadcast") |escapejs }}">
+                <temba-icon name="send" clickable="true">
+                </temba-icon>
+              </temba-tip>
+            </div>
+          {% endif %}
+        {% endif %}
+        {% if 'start-flow' in actions and org_perms.flows.flow_start %}
+          <div onclick="handleStartFlowClicked(event)" class="linked ml-4">
+            <temba-tip position="top" text="{{ _("Start Flow") |escapejs }}">
+              <temba-icon name="flow" clickable="true" class="show-loading">
+              </temba-icon>
+            </temba-tip>
+          </div>
+        {% endif %}
         {% if 'archive' in actions %}
           <div onclick="runActionOnObjectRows('archive', refreshMenu)" class="linked ml-4">
             <temba-tip position="top" text="{{ _("Archive") |escapejs }}">
@@ -59,28 +77,10 @@
             </temba-tip>
           </div>
         {% endif %}
-        {% if 'send' in actions %}
-          {% if org_perms.msgs.broadcast_create and not reply_disabled %}
-            <div onclick="handleSendMessageClicked()" class="linked ml-4">
-              <temba-tip position="top" text="{{ _("New Broadcast") |escapejs }}">
-                <temba-icon name="message" clickable="true">
-                </temba-icon>
-              </temba-tip>
-            </div>
-          {% endif %}
-        {% endif %}
         {% if 'delete' in actions %}
           <div onclick="onDeleteClicked()" class="linked ml-4">
             <temba-tip position="top" text="{{ _("Delete") |escapejs }}">
               <temba-icon name="delete" clickable="true">
-              </temba-icon>
-            </temba-tip>
-          </div>
-        {% endif %}
-        {% if 'unlabel' in actions %}
-          <div onclick="unlabelObjectRows({{ current_group.pk }}, refreshMenu);" class="linked ml-4">
-            <temba-tip position="top" text="{{ _("Remove from group") |escapejs }}">
-              <temba-icon name="delete_small" clickable="true" class="show-loading">
               </temba-icon>
             </temba-tip>
           </div>
@@ -93,10 +93,10 @@
             </temba-tip>
           </div>
         {% endif %}
-        {% if 'start-flow' in actions and org_perms.flows.flow_start %}
-          <div onclick="handleStartFlowClicked(event)" class="linked ml-4">
-            <temba-tip position="top" text="{{ _("Start Flow") |escapejs }}">
-              <temba-icon name="flow" clickable="true" class="show-loading">
+        {% if 'unlabel' in actions %}
+          <div onclick="unlabelObjectRows({{ current_group.pk }}, refreshMenu);" class="linked ml-4">
+            <temba-tip position="top" text="{{ _("Remove from group") |escapejs }}">
+              <temba-icon name="group_exclude" clickable="true" class="show-loading">
               </temba-icon>
             </temba-tip>
           </div>

@@ -361,58 +361,22 @@ class ContactField(TembaModel, DependencyMixin):
         TYPE_WARD: "ward",
     }
 
-    # fixed keys for system-fields
-    KEY_ID = "id"
-    KEY_NAME = "name"
-    KEY_CREATED_ON = "created_on"
-    KEY_LANGUAGE = "language"
-    KEY_LAST_SEEN_ON = "last_seen_on"
-
-    # fields that cannot be updated by user
-    IMMUTABLE_FIELDS = (KEY_ID, KEY_CREATED_ON, KEY_LAST_SEEN_ON)
-
-    SYSTEM_FIELDS = {
-        KEY_ID: {"name": "ID", "value_type": TYPE_NUMBER},
-        KEY_NAME: {"name": "Name", "value_type": TYPE_TEXT},
-        KEY_CREATED_ON: {"name": "Created On", "value_type": TYPE_DATETIME},
-        KEY_LANGUAGE: {"name": "Language", "value_type": TYPE_TEXT},
-        KEY_LAST_SEEN_ON: {"name": "Last Seen On", "value_type": TYPE_DATETIME},
-    }
+    # system fields that all workspaces get
+    SYSTEM_FIELDS = (
+        # used for campaign events
+        {"key": "created_on", "name": "Created On", "value_type": TYPE_DATETIME, "is_proxy": True},
+        {"key": "last_seen_on", "name": "Last Seen On", "value_type": TYPE_DATETIME, "is_proxy": True},
+    )
 
     # can't create custom contact fields with these keys
-    RESERVED_KEYS = {
-        # contactql syntax
-        "has",
-        "is",
-        # searchable attributes in queries
-        "created_on",
-        "flow",
-        "group",
-        "history",
-        "id",
-        "language",
-        "last_seen_on",
-        "name",
-        "status",
-        "ticket",
-        "urn",
-        "uuid",
-        # @contact.* properties in expressions
-        "channel",
-        "fields",
-        "first_name",
-        "groups",
-        "tickets",
-        "timezone",
-        "urns",
-    }.union(URN.VALID_SCHEMES)
+    RESERVED_KEYS = {"has", "is", "fields", "urns", "created_on", "last_seen_on"}
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="fields")
 
     key = models.CharField(max_length=MAX_KEY_LEN)
     name = models.CharField(max_length=MAX_NAME_LEN)
     value_type = models.CharField(choices=TYPE_CHOICES, max_length=1, default=TYPE_TEXT)
-    is_system = models.BooleanField()
+    is_proxy = models.BooleanField(default=False)  # field is just a proxy for a contact property
 
     # how field is displayed in the UI
     show_in_table = models.BooleanField(default=False)
@@ -430,13 +394,14 @@ class ContactField(TembaModel, DependencyMixin):
     def create_system_fields(cls, org):
         assert not org.fields.filter(is_system=True).exists(), "org already has system fields"
 
-        for key, spec in cls.SYSTEM_FIELDS.items():
+        for spec in cls.SYSTEM_FIELDS:
             org.fields.create(
                 is_system=True,
-                key=key,
+                key=spec["key"],
                 name=spec["name"],
                 value_type=spec["value_type"],
                 show_in_table=False,
+                is_proxy=spec["is_proxy"],
                 created_by=org.created_by,
                 modified_by=org.modified_by,
             )
@@ -542,7 +507,7 @@ class ContactField(TembaModel, DependencyMixin):
         Gets the fields for the given org
         """
 
-        fields = org.fields.filter(is_system=False, is_active=True)
+        fields = org.fields.filter(is_active=True, is_proxy=False)
 
         if viewable_by and org.get_user_role(viewable_by) == OrgRole.AGENT:
             fields = fields.exclude(agent_access=cls.ACCESS_NONE)
@@ -574,6 +539,9 @@ class ContactField(TembaModel, DependencyMixin):
 
     def get_access(self, user) -> str:
         return self.agent_access if self.org.get_user_role(user) == OrgRole.AGENT else self.ACCESS_EDIT
+
+    def get_attrs(self):
+        return {"icon": "info" if self.is_proxy else "fields"}
 
     def release(self, user):
         assert not (self.is_system and self.org.is_active), "can't release system fields"
@@ -856,36 +824,32 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
         return events
 
-    def get_field_json(self, field):
-        """
-        Returns the JSON (as a dict) value for this field, or None if there is no value
-        """
-        assert not field.is_system, f"not supported for system field {field.key}"
-
-        return self.fields.get(str(field.uuid)) if self.fields else None
-
-    def get_field_serialized(self, field):
+    def get_field_serialized(self, field) -> str:
         """
         Given the passed in contact field object, returns the value (as a string) for this contact or None.
         """
-        json_value = self.get_field_json(field)
-        if not json_value:
+
+        value_dict = self.fields.get(str(field.uuid)) if self.fields else None
+        if not value_dict:
             return
 
         engine_type = ContactField.ENGINE_TYPES[field.value_type]
 
         if field.value_type == ContactField.TYPE_NUMBER:
-            dec_value = json_value.get(engine_type, json_value.get("decimal"))
+            dec_value = value_dict.get(engine_type, value_dict.get("decimal"))
             return format_number(Decimal(dec_value)) if dec_value is not None else None
 
-        return json_value.get(engine_type)
+        return value_dict.get(engine_type)
 
     def get_field_value(self, field):
         """
         Given the passed in contact field object, returns the value (as a string, decimal, datetime, AdminBoundary)
         for this contact or None.
         """
-        if not field.is_system:
+
+        if field.is_proxy:  # i.e. created_on, last_seen_on
+            return getattr(self, field.key)
+        else:
             string_value = self.get_field_serialized(field)
             if string_value is None:
                 return None
@@ -898,18 +862,6 @@ class Contact(LegacyUUIDMixin, SmartModel):
                 return Decimal(string_value)
             elif field.value_type in [ContactField.TYPE_STATE, ContactField.TYPE_DISTRICT, ContactField.TYPE_WARD]:
                 return AdminBoundary.get_by_path(self.org, string_value)
-
-        else:
-            if field.key == "created_on":
-                return self.created_on
-            if field.key == "last_seen_on":
-                return self.last_seen_on
-            elif field.key == "language":
-                return self.language
-            elif field.key == "name":
-                return self.name
-            else:
-                raise ValueError(f"System contact field '{field.key}' is not supported")
 
     def get_field_display(self, field):
         """

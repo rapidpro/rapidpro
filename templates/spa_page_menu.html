@@ -1,6 +1,7 @@
 {% load public %}
 
-<temba-content-menu endpoint="{{ request.path }}?{{ request.GET.urlencode }}"
+<temba-content-menu style="min-height: 2.5em"
+                    endpoint="{{ request.path }}?{{ request.GET.urlencode }}"
                     query="{{ has_search_query }}"
                     -temba-selection="handleContentMenuSelected(event)"
                     id="default-content-menu">
@@ -20,8 +21,7 @@
           return;
         }
       }
-
-      fetchURL(item.url);
+      spaGet(item.url);
     } else if (item.type === 'modax') {
       var modaxOptions = {
         disabled: item.disabled,
@@ -31,26 +31,7 @@
       }
       showModax(item.title, item.url, modaxOptions);
     } else if (item.type === 'url_post') {
-      var store = document.querySelector('temba-store');
-      const queryStart = item.url.indexOf('?');
-      const urlParams = new URLSearchParams(item.url.substring(queryStart));
-
-      let url = item.url;
-      payload = {}
-      if (queryStart > -1) {
-        url = item.url.substring(0, queryStart);
-        for (key of urlParams.keys()) {
-          payload[key] = urlParams.get(key);
-        }
-      }
-
-      store.postForm(url, payload).then(function(response) {
-        if (response.redirected) {
-          fetchURL(response.url);
-        } else {
-          reloadContent();
-        }
-      });
+      posterize(item.url);
     }
 
     // items need to be refreshed in the top left sidebar menu

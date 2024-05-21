@@ -448,7 +448,6 @@ class FlowCRUDL(SmartCRUDL):
 
         form_class = Form
         success_url = "uuid@flows.flow_editor"
-        success_message = ""
         field_config = {"name": {"help": _("Choose a unique name to describe this flow, e.g. Registration")}}
 
         def derive_exclude(self):
@@ -497,11 +496,9 @@ class FlowCRUDL(SmartCRUDL):
     class Delete(DependencyDeleteModal):
         cancel_url = "uuid@flows.flow_editor"
         success_url = "@flows.flow_list"
-        success_message = ""
 
     class Copy(OrgObjPermsMixin, SmartUpdateView):
         fields = []
-        success_message = ""
 
         def form_valid(self, form):
             copy = self.object.clone(self.request.user)
@@ -603,7 +600,6 @@ class FlowCRUDL(SmartCRUDL):
                 fields = ("name", "keyword_triggers", "expires_after_minutes", "ignore_triggers")
                 widgets = {"name": InputWidget(), "ignore_triggers": CheckboxWidget()}
 
-        success_message = ""
         success_url = "uuid@flows.flow_editor"
         form_classes = {
             Flow.TYPE_MESSAGE: MessagingForm,
@@ -1652,7 +1648,6 @@ class FlowCRUDL(SmartCRUDL):
 
         form_class = Form
         submit_button_name = _("Start Flow")
-        success_message = ""
         success_url = "hide"
 
         def derive_initial(self):
@@ -1763,7 +1758,6 @@ class FlowLabelCRUDL(SmartCRUDL):
         fields = ("uuid",)
         success_url = "@flows.flow_list"
         cancel_url = "@flows.flow_list"
-        success_message = ""
         submit_button_name = _("Delete")
 
         def get_success_url(self):
@@ -1777,7 +1771,6 @@ class FlowLabelCRUDL(SmartCRUDL):
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = FlowLabelForm
         success_url = "uuid@flows.flow_filter"
-        success_message = ""
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -1787,7 +1780,6 @@ class FlowLabelCRUDL(SmartCRUDL):
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "flows")
         form_class = FlowLabelForm
-        success_message = ""
         submit_button_name = _("Create")
 
         def get_success_url(self):

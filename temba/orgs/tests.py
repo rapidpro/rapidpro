@@ -42,7 +42,7 @@ from temba.notifications.types.builtin import ExportFinishedNotificationType
 from temba.request_logs.models import HTTPLog
 from temba.schedules.models import Schedule
 from temba.templates.models import TemplateTranslation
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 from temba.tests.base import get_contact_search
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import TicketExport
@@ -52,7 +52,18 @@ from temba.utils.uuid import uuid4
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .context_processors import RolePermsWrapper
-from .models import BackupToken, Export, Invitation, Org, OrgImport, OrgMembership, OrgRole, User, UserSettings
+from .models import (
+    BackupToken,
+    DefinitionExport,
+    Export,
+    Invitation,
+    Org,
+    OrgImport,
+    OrgMembership,
+    OrgRole,
+    User,
+    UserSettings,
+)
 from .tasks import (
     delete_released_orgs,
     expire_invitations,
@@ -514,7 +525,7 @@ class UserTest(TembaTest):
 
         # posting to that page regenerates tokens
         response = self.client.post(tokens_url)
-        self.assertContains(response, "Two-factor authentication backup tokens changed.")
+        self.assertToast(response, "info", "Two-factor authentication backup tokens changed.")
         self.assertNotEqual(tokens, [t.token for t in response.context["backup_tokens"]])
 
         # view form to disable 2FA
@@ -2289,8 +2300,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             password="dukenukem",
         )
         response = self.client.post(grant_url, post_data, follow=True)
-
-        self.assertContains(response, "created")
+        self.assertToast(response, "info", "Workspace successfully created.")
 
         org = Org.objects.get(name="Oculus")
         self.assertEqual(org.date_format, Org.DATE_FORMAT_DAY_FIRST)
@@ -2304,8 +2314,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         post_data["name"] = "id Software"
 
         response = self.client.post(grant_url, post_data, follow=True)
-
-        self.assertContains(response, "created")
+        self.assertToast(response, "info", "Workspace successfully created.")
 
         org = Org.objects.get(name="id Software")
         self.assertEqual(org.date_format, Org.DATE_FORMAT_DAY_FIRST)
@@ -2318,7 +2327,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         post_data["timezone"] = "America/Chicago"
         response = self.client.post(grant_url, post_data, follow=True)
 
-        self.assertContains(response, "created")
+        self.assertToast(response, "info", "Workspace successfully created.")
 
         org = Org.objects.get(name="Bulls")
         self.assertEqual(Org.DATE_FORMAT_MONTH_FIRST, org.date_format)
@@ -2589,7 +2598,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         system_groups = set(org.groups.filter(is_system=True).values_list("name", flat=True))
         sample_flows = set(org.flows.values_list("name", flat=True))
 
-        self.assertEqual({"created_on", "id", "language", "last_seen_on", "name"}, system_fields)
+        self.assertEqual({"created_on", "last_seen_on"}, system_fields)
         self.assertEqual({"Active", "Archived", "Blocked", "Stopped", "Open Tickets"}, system_groups)
         self.assertEqual(
             {"Sample Flow - Order Status Checker", "Sample Flow - Satisfaction Survey", "Sample Flow - Simple Poll"},
@@ -3741,8 +3750,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.post(send_verification_email_url, {}, follow=True)
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Verification email already sent. You can retry in 10 minutes.")
-
+        self.assertToast(response, "info", "Verification email already sent. You can retry in 10 minutes.")
         self.assertEqual(0, len(mail.outbox))
 
         # no email when the redis key is set even with the task itself
@@ -3754,7 +3762,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         response = self.client.post(send_verification_email_url, {}, follow=True)
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Verification email sent")
+        self.assertToast(response, "info", "Verification email sent")
 
         # and one email sent
         self.assertEqual(1, len(mail.outbox))
@@ -3776,6 +3784,18 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
 
 class BulkExportTest(TembaTest):
+
+    def _export(self, flows=[], campaigns=[]):
+        export = DefinitionExport.create(self.org, self.admin, flows=flows, campaigns=campaigns)
+        export.perform()
+
+        filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/definition_exports/{export.uuid}.json"
+
+        with open(filename) as export_file:
+            definitions = json.loads(export_file.read())
+
+        return definitions, export
+
     def test_import_validation(self):
         # export must include version field
         with self.assertRaises(ValueError):
@@ -3798,11 +3818,7 @@ class BulkExportTest(TembaTest):
 
         self.login(self.admin)
 
-        # export only the parent
-        post_data = dict(flows=[parent.pk], campaigns=[])
-        response = self.client.post(reverse("orgs.org_export"), post_data)
-
-        exported = response.json()
+        exported, export_obj = self._export(flows=[parent], campaigns=[])
 
         # shouldn't have any triggers
         self.assertFalse(exported["triggers"])
@@ -4297,8 +4313,21 @@ class BulkExportTest(TembaTest):
             campaigns=[c.pk for c in Campaign.objects.all()],
         )
 
-        response = self.client.post(reverse("orgs.org_export"), post_data)
-        exported = response.json()
+        response = self.client.post(reverse("orgs.org_export"), post_data, follow=True)
+
+        self.assertEqual(1, Export.objects.count())
+
+        export = Export.objects.get()
+        self.assertEqual("definition", export.export_type)
+
+        flows = Flow.objects.filter(flow_type="M", is_system=False)
+        campaigns = Campaign.objects.all()
+
+        exported, export_obj = self._export(flows=flows, campaigns=campaigns)
+
+        response = self.client.get(reverse("orgs.export_download", args=[export_obj.uuid]))
+        self.assertEqual(response.status_code, 200)
+
         self.assertEqual(exported["version"], Org.CURRENT_EXPORT_VERSION)
         self.assertEqual(exported["site"], "https://app.rapidpro.io")
 
@@ -4598,19 +4627,3 @@ class ExportCRUDLTest(TembaTest):
         self.assertEqual(
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", response.headers["content-type"]
         )
-
-
-class BackfillUserSettingsTest(MigrationTest):
-    app = "orgs"
-    migrate_from = "0140_alter_usersettings_user"
-    migrate_to = "0141_backfill_user_settings"
-
-    def setUpBeforeMigration(self, apps):
-        self.user1 = self.create_user("ann@nyaruka.com")
-        self.user2 = self.create_user("bob@nyaruka.com")
-
-        UserSettings.objects.filter(user=self.user2).delete()
-
-    def test_migrate(self):
-        self.assertTrue(UserSettings.objects.filter(user=self.user1).exists())
-        self.assertTrue(UserSettings.objects.filter(user=self.user2).exists())

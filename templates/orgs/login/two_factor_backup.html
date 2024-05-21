@@ -17,11 +17,7 @@
       <temba-textinput name="token" maxlength="8" placeholder="{{ _("8-character token") |escape }}">
       </temba-textinput>
     </div>
-    {% if form.token.errors %}
-      <temba-alert level="error" class="mt-4">
-        {{ form.token.errors }}
-      </temba-alert>
-    {% endif %}
+    {% if form.token.errors %}<div class="alert alert-error mt-4">{{ form.token.errors }}</div>{% endif %}
     <div class="mt-2 text-right">
       <a href="{% url 'users.two_factor_verify' %}">{% trans "Use Device" %}</a>
     </div>

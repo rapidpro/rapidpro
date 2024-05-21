@@ -859,7 +859,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         dep_objs = {
             "channel": self.org.channels.filter(is_active=True, uuid__in=identifiers["channel"]),
             "classifier": self.org.classifiers.filter(is_active=True, uuid__in=identifiers["classifier"]),
-            "field": ContactField.user_fields.filter(org=self.org, is_active=True, key__in=identifiers["field"]),
+            "field": self.org.fields.filter(is_active=True, is_proxy=False, key__in=identifiers["field"]),
             "flow": self.org.flows.filter(is_active=True, uuid__in=identifiers["flow"]),
             "global": self.org.globals.filter(is_active=True, key__in=identifiers["global"]),
             "group": ContactGroup.get_groups(self.org).filter(uuid__in=identifiers["group"]),
@@ -919,31 +919,6 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         # queue mailroom to interrupt sessions where contact is currently in this flow
         if interrupt_sessions:
             mailroom.queue_interrupt(self.org, flow=self)
-
-    def delete_runs(self) -> int:
-        """
-        Deletes any runs and sessions associated with this flow. Called as part of org deletion. Returns number of runs
-        deleted.
-        """
-
-        assert not self.is_active, "can't delete runs for flow which hasn't been released"
-
-        num_deleted = 0
-
-        while True:
-            batch = list(self.runs.only("id", "session_id")[:1000])
-            if not batch:
-                break
-
-            # delete the runs (won't call FlowRun.delete() so won't create mailroom interrupt tasks)
-            FlowRun.objects.filter(id__in=[r.id for r in batch]).delete()
-            num_deleted += len(batch)
-
-            # delete the sessions
-            session_ids = {r.session_id for r in batch}
-            FlowSession.objects.filter(id__in=session_ids).delete()
-
-        return num_deleted
 
     def delete(self):
         """

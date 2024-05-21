@@ -357,6 +357,8 @@ class WhatsAppTypeTest(TembaTest):
                 self.assertEqual("2222222222222", channel.config["wa_business_id"])
                 self.assertEqual("111111", channel.config["wa_pin"])
                 self.assertEqual("namespace-uuid", channel.config["wa_message_template_namespace"])
+                self.assertEqual("WAC", channel.type.code)
+                self.assertEqual("whatsapp", channel.template_type.slug)
 
                 response = self.client.get(reverse("channels.types.whatsapp.request_code", args=(channel.uuid,)))
                 self.assertEqual(200, response.status_code)

@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from temba import mailroom
 from temba.campaigns.models import CampaignEvent, EventFire
+from temba.channels.android.views import is_phone
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import FlowRun, FlowSession
@@ -64,11 +65,10 @@ class Mocks:
 
         self.queued_batch_tasks = []
 
-    def parse_query(self, query, *, cleaned=None, elastic_query=None, fields=None):
+    def parse_query(self, query, *, cleaned=None, fields=None):
         def mock(org):
             return mailroom.ParsedQuery(
                 query=cleaned or query,
-                elastic_query=elastic_query or {"term": {"is_active": True}},
                 metadata=mock_inspect_query(org, cleaned or query, fields),
             )
 
@@ -137,10 +137,10 @@ class TestClient(MailroomClient):
 
         super().__init__(settings.MAILROOM_URL, settings.MAILROOM_AUTH_TOKEN)
 
-    def android_event(self, org_id: int, channel_id: int, urn: str, event_type: str, extra: dict, occurred_on):
+    def android_event(self, org_id: int, channel_id: int, phone: str, event_type: str, extra: dict, occurred_on):
         org = Org.objects.get(id=org_id)
         channel = Channel.objects.get(id=channel_id)
-        contact, contact_urn = contact_resolve(org, urn)
+        contact, contact_urn = contact_resolve(org, phone)
 
         event = ChannelEvent.objects.create(
             org=channel.org,
@@ -153,10 +153,10 @@ class TestClient(MailroomClient):
         )
         return {"id": event.id}
 
-    def android_message(self, org_id: int, channel_id: int, urn: str, text: str, received_on):
+    def android_message(self, org_id: int, channel_id: int, phone: str, text: str, received_on):
         org = Org.objects.get(id=org_id)
         channel = Channel.objects.get(id=channel_id)
-        contact, contact_urn = contact_resolve(org, urn)
+        contact, contact_urn = contact_resolve(org, phone)
         text = text[: Msg.MAX_TEXT_LEN]
 
         now = timezone.now()
@@ -260,7 +260,7 @@ class TestClient(MailroomClient):
         return {"sessions": len(session_ids)}
 
     @_client_method
-    def parse_query(self, org_id: int, query: str, parse_only: bool = False, group_uuid: str = ""):
+    def parse_query(self, org_id: int, query: str, parse_only: bool = False):
         org = Org.objects.get(id=org_id)
 
         # if there's a mock for this query we use that
@@ -268,11 +268,7 @@ class TestClient(MailroomClient):
         if mock:
             return mock(org)
 
-        return mailroom.ParsedQuery(
-            query=query,
-            elastic_query={"term": {"is_active": True}},
-            metadata=mock_inspect_query(org, query),
-        )
+        return mailroom.ParsedQuery(query=query, metadata=mock_inspect_query(org, query))
 
     @_client_method
     def contact_search(self, org_id, group_id, query, sort, offset=0, exclude_ids=()):
@@ -507,11 +503,11 @@ def apply_modifiers(org, user, contacts, modifiers: list):
                     g.contacts.remove(c)
 
 
-def contact_resolve(org, urn: str) -> tuple:
+def contact_resolve(org, phone: str) -> tuple:
     user = get_anonymous_user()
 
-    urn = URN.normalize(urn, org.default_country_code)
-    if not URN.validate(urn, org.default_country_code):
+    urn = URN.normalize(f"tel:{phone}", org.default_country_code)
+    if not is_phone(phone):
         raise ValueError("urn isn't valid")
 
     contact_urn = ContactURN.lookup(org, urn)

@@ -768,6 +768,12 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             dict(cmd="mo_sms", phone="+250788383383", msg="This is giving me trouble", p_id="1", ts=date),
             # an incoming message from an empty contact
             dict(cmd="mo_sms", phone="", msg="This is spam", p_id="2", ts=date),
+            # an incoming msg from alphanumeric sender ID
+            dict(cmd="mo_sms", phone="mtnjust4u", msg="This update, that update", p_id="3", ts=date),
+            # an incoming msg number with punctuation
+            dict(cmd="mo_sms", phone="+250 (788)-383-385", msg="This msg phone had punctuation", p_id="4", ts=date),
+            # invalid phone
+            dict(cmd="mo_sms", phone="!!@#$%", msg="sender ID invalid", p_id="5", ts=date),
         ]
 
         # now send the channel's updates
@@ -778,7 +784,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(self.tel_channel.last_seen > six_mins_ago)
 
         # new batch, our ack and our claim command for new org
-        self.assertEqual(5, len(response.json()["cmds"]))
+        self.assertEqual(8, len(response.json()["cmds"]))
         self.assertContains(response, "Hello, we heard from you.")
         self.assertContains(response, "mt_bcast")
 
@@ -788,9 +794,8 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, Msg.objects.filter(channel=self.tel_channel, status="E", direction="O").count())
         self.assertEqual(2, Msg.objects.filter(channel=self.tel_channel, status="F", direction="O").count())
 
-        # we should now have two incoming messages
-        self.assertEqual(2, Msg.objects.filter(direction="I").count())
-
+        # we should now have 4 incoming messages
+        self.assertEqual(4, Msg.objects.filter(direction="I").count())
         # We should now have one sync
         self.assertEqual(1, SyncEvent.objects.filter(channel=self.tel_channel).count())
 
@@ -851,7 +856,8 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         # bad signature, should result in 401 Unauthorized
         self.assertEqual(401, self.sync(self.tel_channel, signature="badsig", cmds=[]).status_code)
 
-    def test_ignore_android_incoming_msg_invalid_phone(self):
+    @mock_mailroom
+    def test_ignore_android_incoming_msg_invalid_phone(self, mr_mocks):
         date = timezone.now()
         date = int(time.mktime(date.timetuple())) * 1000
 

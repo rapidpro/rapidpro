@@ -70,7 +70,7 @@
 
       function handleMenuListSelection(evt) {
         document.activeElement.blur()
-        gotoURL(evt.detail.selected.target_url);
+        spaGet(evt.detail.selected.target_url);
       }
 
       // set our initial title
@@ -100,7 +100,7 @@
       });
 
       document.addEventListener("temba-workspace-settings", function(event) {
-        fetchURL('/org/workspace');
+        spaGet('/org/workspace');
         var menu = document.querySelector('temba-menu');
         if (menu) {
           menu.click();
@@ -163,13 +163,6 @@
         </temba-store>
       {% endif %}
       <div class="flex flex-col h-full">
-        {% if messages %}
-          {% block messages %}
-            {% if messages %}
-              {% for msg in messages %}<div class="alert alert-{{ message.tags }}">{{ msg }}</div>{% endfor %}
-            {% endif %}
-          {% endblock messages %}
-        {% endif %}
         {% block post-header %}
         {% endblock post-header %}
         <!-- Content -->
@@ -181,6 +174,8 @@
           </temba-modax>
           <temba-dialog id="shared-dialog">
           </temba-dialog>
+          <temba-toast duration="5000" error-sticky>
+          </temba-toast>
           <div class="ajax-scripts"></div>
           <div class="flex-col">
             <div style="height:100vh;width:100%;overflow:hidden" class="flex widget-container">
@@ -259,13 +254,6 @@
                     {% if user_org.is_suspended %}
                       {% include "org_suspended_include.html" %}
                     {% endif %}
-                    {% if messages %}
-                      {% for msg in messages %}
-                        <temba-alert class="mb-3">
-                          {{ msg }}
-                        </temba-alert>
-                      {% endfor %}
-                    {% endif %}
                   {% endblock alert-messages %}
                   {% block content %}
                   {% endblock content %}
@@ -295,9 +283,6 @@
       </temba-dialog>
       <!-- media associated with any form we are displaying -->
       {% if form %}{{ form.media }}{% endif %}
-      <form id="posterizer" method="post">
-        {% csrf_token %}
-      </form>
     </body>
   {% endblock body %}
 </html>

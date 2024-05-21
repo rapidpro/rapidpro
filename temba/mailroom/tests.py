@@ -36,7 +36,7 @@ class MailroomClientTest(TembaTest):
         response = get_client().android_event(
             org_id=self.org.id,
             channel_id=12,
-            urn="tel:+1234567890",
+            phone="+1234567890",
             event_type="mo_miss",
             extra={"duration": 45},
             occurred_on=datetime(2024, 4, 1, 16, 28, 30, 0, tzone.utc),
@@ -50,7 +50,7 @@ class MailroomClientTest(TembaTest):
             json={
                 "org_id": self.org.id,
                 "channel_id": 12,
-                "urn": "tel:+1234567890",
+                "phone": "+1234567890",
                 "event_type": "mo_miss",
                 "extra": {"duration": 45},
                 "occurred_on": "2024-04-01T16:28:30+00:00",
@@ -63,7 +63,7 @@ class MailroomClientTest(TembaTest):
         response = get_client().android_message(
             org_id=self.org.id,
             channel_id=12,
-            urn="tel:+1234567890",
+            phone="+1234567890",
             text="hello",
             received_on=datetime(2024, 4, 1, 16, 28, 30, 0, tzone.utc),
         )
@@ -76,7 +76,7 @@ class MailroomClientTest(TembaTest):
             json={
                 "org_id": self.org.id,
                 "channel_id": 12,
-                "urn": "tel:+1234567890",
+                "phone": "+1234567890",
                 "text": "hello",
                 "received_on": "2024-04-01T16:28:30+00:00",
             },
@@ -527,17 +527,16 @@ class MailroomClientTest(TembaTest):
     @patch("requests.post")
     def test_parse_query(self, mock_post):
         mock_post.return_value = MockResponse(
-            200, '{"query":"name ~ \\"frank\\"", "elastic_query": {}, "metadata": {"attributes":["name"]}}'
+            200, '{"query":"name ~ \\"frank\\"", "metadata": {"attributes":["name"]}}'
         )
         parsed = get_client().parse_query(self.org.id, "frank")
 
         self.assertEqual('name ~ "frank"', parsed.query)
-        self.assertEqual({}, parsed.elastic_query)
         self.assertEqual(["name"], parsed.metadata.attributes)
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/contact/parse_query",
             headers={"User-Agent": "Temba"},
-            json={"query": "frank", "org_id": self.org.id, "parse_only": False, "group_uuid": ""},
+            json={"query": "frank", "org_id": self.org.id, "parse_only": False},
         )
 
         mock_post.return_value = MockResponse(400, '{"error":"no such field age"}')

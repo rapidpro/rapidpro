@@ -59,9 +59,10 @@ window.fetchData = function (section) {
     const options = {
       headers: headers,
       method: 'GET',
-      skipContentCheck: true,
+      container: id,
     };
-    options.onSuccess = function () {
+
+    return fetchAjax(url, options).then(function () {
       section.dataset.loaded = true;
       _initializeForm(section);
       if (section.dataset.fixed) {
@@ -71,9 +72,7 @@ window.fetchData = function (section) {
         new CustomEvent('temba-formax-ready', { bubbles: true })
       );
       return section.classList.remove('hide');
-    };
-
-    return fetchAjax(url, id, options);
+    });
   } else {
     return (section.dataset.loaded = true);
   }
@@ -143,40 +142,42 @@ var _submitFormax = function (e) {
     headers: headers,
     method: 'POST',
     body: formData,
-    skipContentCheck: true,
+    container: id,
   };
 
   if (followRedirects) {
     options.redirect = 'follow';
   }
 
-  options.onSuccess = function (resp) {
-    const redirect = resp.headers.get('REDIRECT');
-    if (redirect) {
-      if (section.dataset.action === 'redirect') {
-        gotoURL(redirect);
-        return;
-      } else {
-        hideSection(section);
-        fetchData(section);
-      }
-    } else {
-      _initializeForm(section);
-      var formax_form = section.querySelector('.formax-form');
-      if (formax_form.classList.contains('errors')) {
-        section.querySelector('.formax-summary').classList.add('hide');
-        formax_form.classList.remove('hide');
-      } else {
-        if (section.dataset.action !== 'fixed') {
+  fetchAjax(section.dataset.href, options)
+    .then(function (resp) {
+      const redirect = resp.headers.get('REDIRECT');
+      if (redirect) {
+        if (section.dataset.action === 'redirect') {
+          return spaGet(redirect);
+        } else {
           hideSection(section);
+          fetchData(section);
         }
+      } else {
+        _initializeForm(section);
+        var formax_form = section.querySelector('.formax-form');
+        if (formax_form.classList.contains('errors')) {
+          section.querySelector('.formax-summary').classList.add('hide');
+          formax_form.classList.remove('hide');
+        } else {
+          if (section.dataset.action !== 'fixed') {
+            hideSection(section);
+          }
+        }
+        document.dispatchEvent(
+          new CustomEvent('temba-formax-ready', { bubbles: true })
+        );
       }
-      document.dispatchEvent(
-        new CustomEvent('temba-formax-ready', { bubbles: true })
-      );
-    }
-  };
-  fetchAjax(section.dataset.href, id, options);
+    })
+    .then(function () {
+      refreshMenu();
+    });
 };
 
 onSpload(function () {

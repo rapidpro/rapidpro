@@ -1,10 +1,16 @@
+import base64
+
+import requests
+
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.types.twilio.type import TwilioType
 from temba.channels.types.twilio.views import UpdateForm
 from temba.contacts.models import URN
+from temba.request_logs.models import HTTPLog
 
-from ...models import ChannelType, ConfigUI
+from ...models import Channel, ChannelType, ConfigUI
 from .views import ClaimView
 
 
@@ -24,6 +30,8 @@ class TwilioWhatsappType(ChannelType):
 
     courier_url = r"^twa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
     schemes = [URN.WHATSAPP_SCHEME]
+    template_type = "twilio"
+
     redact_request_keys = (
         "FromCity",
         "FromState",
@@ -57,8 +65,37 @@ class TwilioWhatsappType(ChannelType):
         ],
     )
 
+    menu_items = [dict(label=_("Message Templates"), view_name="templates.templatetranslation_channel")]
+
     def get_error_ref_url(self, channel, code: str) -> str:
         return f"https://www.twilio.com/docs/api/errors/{code}"
 
     def check_credentials(self, config: dict) -> bool:
         return TwilioType().check_credentials(config)
+
+    def fetch_templates(self, channel) -> list:
+        url = "https://content.twilio.com/v1/Content"
+        credentials_base64 = base64.b64encode(
+            f"{channel.config[Channel.CONFIG_ACCOUNT_SID]}:{channel.config[Channel.CONFIG_AUTH_TOKEN]}".encode()
+        ).decode()
+
+        headers = {"Authorization": f"Basic {credentials_base64}"}
+
+        twilio_templates = []
+
+        while url:
+            start = timezone.now()
+            try:
+                response = requests.get(url, headers=headers)
+                response.raise_for_status()
+                HTTPLog.from_response(
+                    HTTPLog.WHATSAPP_TEMPLATES_SYNCED, response, start, timezone.now(), channel=channel
+                )
+
+                twilio_templates.extend(response.json()["contents"])
+                url = response.json().get("meta", {}).get("next_page_url", None)
+            except Exception as e:
+                HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, e, start, channel=channel)
+                raise e
+
+        return twilio_templates

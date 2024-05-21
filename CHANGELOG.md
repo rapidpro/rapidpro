@@ -1,3 +1,102 @@
+v9.1.123 (2024-05-20)
+-------------------------
+ * Replace django messages rendering with toasts
+
+v9.1.121 (2024-05-16)
+-------------------------
+ * Fix action to remove from group.  
+ * Report bulk action errors to users with django messages
+
+v9.1.120 (2024-05-16)
+-------------------------
+ * Remove old unused ES sorting code
+ * Update to latest smartmin and disable auto success messages
+ * Add data migration to fix system fields for existing orgs and start using is_proxy
+ * Reduce reserved keys for fields to bare minimum
+
+v9.1.119 (2024-05-16)
+-------------------------
+ * Add ContactField.is_proxy and reduce SYSTEM_FIELDS to the two proxy date fields
+ * Don't use error level alerts for form errors
+
+v9.1.118 (2024-05-15)
+-------------------------
+ * Remove unused args from MailroomClient.parse_query
+ * Re-add search errors to contact list views
+
+v9.1.117 (2024-05-15)
+-------------------------
+ * Add support for unknown_property_type search errors
+ * Add support for twilio card type content templates
+ * Add way to view webhook logs errors only
+
+v9.1.116 (2024-05-14)
+-------------------------
+ * Fix issues with twilio templates sync
+
+v9.1.115 (2024-05-10)
+-------------------------
+ * Fix Twilio template type slug and register its template type
+
+v9.1.114 (2024-05-10)
+-------------------------
+ * Add message templates menu for TWA channels
+ * Activate Twilio Whatsapp to sync templates with twilio type
+ * Update to allow matching sender ID as valid phones
+
+v9.1.113 (2024-05-09)
+-------------------------
+ * Fix gaps it contact history
+
+v9.1.112 (2024-05-09)
+-------------------------
+ * Ignore android msg/event cmds with non numeric phones
+
+v9.1.111 (2024-05-08)
+-------------------------
+ * Send phone instead of urn to mailroom android endpoints
+ * Add Twilio content template type, and TWA fetch_templates
+
+v9.1.110 (2024-05-08)
+-------------------------
+ * Remove messages block that duplicates alert-messages
+ * Tweak DefinitionExport.name for consistency
+
+v9.1.109 (2024-05-07)
+-------------------------
+ * Tweak export finished emails so they don't say Excel
+
+v9.1.108 (2024-05-07)
+-------------------------
+ * Update temba-components to 0.86.1
+ * Change flow definitions export to be async, use new export type
+
+v9.1.107 (2024-05-07)
+-------------------------
+ * Fix variable name in http log read page
+ * Fix claiming instagram
+
+v9.1.106 (2024-05-06)
+-------------------------
+ * Fix globals API endpoint
+
+v9.1.105 (2024-05-03)
+-------------------------
+ * Fix race condition on editor load
+
+v9.1.104 (2024-05-03)
+-------------------------
+ * Fix template bug and loading error for editor
+
+v9.1.103 (2024-05-02)
+-------------------------
+ * Fix contact field selection
+
+v9.1.102 (2024-05-02)
+-------------------------
+ * Delete all sessions and runs in org deletion in batches
+ * Tiny style change for loader wrapping on editor
+
 v9.1.101 (2024-05-01)
 -------------------------
  * Update editor and flow spec version

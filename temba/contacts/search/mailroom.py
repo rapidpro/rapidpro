@@ -22,6 +22,7 @@ class SearchException(Exception):
         "unsupported_comparison": _("Can only use %(operator)s with number or date values"),
         "unsupported_setcheck": _("Can't check whether '%(property)s' is set or not set"),
         "unknown_property": _("Can't resolve '%(property)s' to a field or URN scheme"),
+        "unknown_property_type": _("Prefixes must be 'fields' or 'urns'"),
         "redacted_urns": _("Can't query on URNs in an anonymous workspace"),
     }
 
@@ -41,14 +42,12 @@ class SearchException(Exception):
         return force_str(self.message)
 
 
-def parse_query(org, query: str, *, parse_only: bool = False, group=None) -> mailroom.ParsedQuery:
+def parse_query(org, query: str, *, parse_only: bool = False) -> mailroom.ParsedQuery:
     """
     Parses the passed in query in the context of the org
     """
     try:
-        group_uuid = group.uuid if group else None
-
-        return mailroom.get_client().parse_query(org.id, query, parse_only=parse_only, group_uuid=str(group_uuid))
+        return mailroom.get_client().parse_query(org.id, query, parse_only=parse_only)
     except mailroom.MailroomException as e:
         raise SearchException.from_mailroom_exception(e)
 

@@ -1,4 +1,3 @@
-import itertools
 from collections import OrderedDict
 from datetime import timedelta
 from urllib.parse import quote, quote_plus
@@ -74,7 +73,18 @@ from temba.utils.views import (
 )
 
 from .forms import SignupForm, SMTPForm
-from .models import BackupToken, Export, IntegrationType, Invitation, Org, OrgImport, OrgRole, User, UserSettings
+from .models import (
+    BackupToken,
+    DefinitionExport,
+    Export,
+    IntegrationType,
+    Invitation,
+    Org,
+    OrgImport,
+    OrgRole,
+    User,
+    UserSettings,
+)
 
 # session key for storing a two-factor enabled user's id once we've checked their password
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
@@ -322,7 +332,6 @@ class DependencyDeleteModal(DependencyModalMixin, ModalMixin, SmartDeleteView):
 
     slug_url_kwarg = "uuid"
     fields = ("uuid",)
-    success_message = ""
     submit_button_name = _("Delete")
     template_name = "orgs/dependency_delete_modal.html"
 
@@ -771,7 +780,6 @@ class UserCRUDL(SmartCRUDL):
                 fields = ("first_name", "last_name", "email", "avatar", "current_password", "new_password", "language")
 
         form_class = Form
-        success_message = ""
         success_url = "@orgs.user_edit"
 
         def has_permission(self, request, *args, **kwargs):
@@ -928,7 +936,6 @@ class UserCRUDL(SmartCRUDL):
         menu_path = "/settings/account"
         title = _("Enable Two-factor Authentication")
         submit_button_name = _("Enable")
-        success_message = ""
         success_url = "@orgs.user_two_factor_tokens"
 
         def has_permission(self, request, *args, **kwargs):
@@ -982,7 +989,6 @@ class UserCRUDL(SmartCRUDL):
         menu_path = "/settings/account"
         title = _("Disable Two-factor Authentication")
         submit_button_name = _("Disable")
-        success_message = ""
         success_url = "@orgs.user_account"
 
         def has_permission(self, request, *args, **kwargs):
@@ -1514,9 +1520,12 @@ class OrgCRUDL(SmartCRUDL):
     class Export(SpaMixin, InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         title = _("Create Export")
         menu_path = "/settings/workspace"
+        submit_button_name = _("Export")
+        success_message = _("We are preparing your export and you will get a notification when it is complete.")
 
         def post(self, request, *args, **kwargs):
             org = self.get_object()
+            user = self.request.user
 
             flow_ids = [elt for elt in self.request.POST.getlist("flows") if elt]
             campaign_ids = [elt for elt in self.request.POST.getlist("campaigns") if elt]
@@ -1525,16 +1534,13 @@ class OrgCRUDL(SmartCRUDL):
             flows = Flow.objects.filter(id__in=flow_ids, org=org, is_active=True)
             campaigns = Campaign.objects.filter(id__in=campaign_ids, org=org, is_active=True)
 
-            components = set(itertools.chain(flows, campaigns))
+            export = DefinitionExport.create(org=org, user=user, flows=flows, campaigns=campaigns)
 
-            # add triggers for the selected flows
-            for flow in flows:
-                components.update(flow.triggers.filter(is_active=True, is_archived=False))
+            on_transaction_commit(lambda: export.start())
 
-            export = org.export_definitions(f"https://{org.get_brand_domain()}", components)
-            response = JsonResponse(export, json_dumps_params=dict(indent=2))
-            response["Content-Disposition"] = "attachment; filename=%s.json" % slugify(org.name)
-            return response
+            messages.info(self.request, self.success_message)
+
+            return HttpResponseRedirect(reverse("orgs.org_workspace"))
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -1608,7 +1614,6 @@ class OrgCRUDL(SmartCRUDL):
 
     class FlowSmtp(InferOrgMixin, OrgPermsMixin, SmartFormView):
         form_class = SMTPForm
-        success_message = ""
 
         def post(self, request, *args, **kwargs):
             if "disconnect" in request.POST:
@@ -1980,7 +1985,6 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = AccountsForm
         success_url = "@orgs.org_manage_accounts"
-        success_message = ""
         submit_button_name = _("Save Changes")
         title = _("Users")
         menu_path = "/settings/users"
@@ -2263,7 +2267,6 @@ class OrgCRUDL(SmartCRUDL):
             org = form.cleaned_data["organization"]
             switch_to_org(self.request, org)
             analytics.identify(self.request.user, self.request.branding, org)
-
             return HttpResponseRedirect(reverse("orgs.org_start"))
 
     class Join(NoNavMixin, InvitationMixin, SmartTemplateView):
@@ -2297,7 +2300,6 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = SignupForm
         fields = ("first_name", "last_name", "password")
-        success_message = ""
         success_url = "@orgs.org_start"
         submit_button_name = _("Sign Up")
         permission = False
@@ -2340,7 +2342,6 @@ class OrgCRUDL(SmartCRUDL):
                 model = Org
                 fields = ()
 
-        success_message = ""
         title = ""
         form_class = Form
         success_url = "@orgs.org_start"
@@ -2439,7 +2440,6 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Sign Up")
         form_class = SignupForm
         permission = None
-        success_message = ""
         submit_button_name = _("Save")
 
         def get_success_url(self):
@@ -2514,7 +2514,6 @@ class OrgCRUDL(SmartCRUDL):
                 fields = ("id", "new_slug")
 
         form_class = ResthookForm
-        success_message = ""
         title = _("Resthooks")
         success_url = "@orgs.org_resthooks"
         menu_path = "/settings/resthooks"
@@ -2549,7 +2548,6 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = ToggleForm
         success_url = "@orgs.org_workspace"
-        success_message = ""
 
         def post_save(self, obj):
             # if org has an existing Prometheus token, disable it, otherwise create one
@@ -2624,7 +2622,6 @@ class OrgCRUDL(SmartCRUDL):
                 fields = ("name", "timezone", "date_format", "language")
                 widgets = {"date_format": SelectWidget(), "language": SelectWidget()}
 
-        success_message = ""
         form_class = Form
 
         def derive_exclude(self):
@@ -2656,7 +2653,6 @@ class OrgCRUDL(SmartCRUDL):
                 model = Org
                 fields = ("country",)
 
-        success_message = ""
         form_class = CountryForm
 
     class Languages(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
@@ -2705,7 +2701,6 @@ class OrgCRUDL(SmartCRUDL):
                 fields = ("primary_lang", "other_langs", "input_collation")
 
         success_url = "@orgs.org_languages"
-        success_message = ""
         form_class = LanguageForm
 
         def get_form_kwargs(self):
@@ -2962,7 +2957,7 @@ class BaseExportView(ModalMixin, OrgPermsMixin, SmartFormView):
         end_date = TembaDateField(label=_("End Date"))
 
         with_fields = forms.ModelMultipleChoiceField(
-            ContactField.user_fields.none(),
+            ContactField.objects.none(),
             required=False,
             label=_("Fields"),
             widget=SelectMultipleWidget(attrs={"placeholder": _("Optional: Fields to include"), "searchable": True}),

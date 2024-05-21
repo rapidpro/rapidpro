@@ -73,7 +73,6 @@ class TopicCRUDL(SmartCRUDL):
         success_url = "hide"
         slug_url_kwarg = "uuid"
         fields = ("name",)
-        success_message = ""
         form_class = Form
 
 
@@ -96,7 +95,6 @@ class TicketCRUDL(SmartCRUDL):
         fields = ("topic", "body")
         slug_url_kwarg = "uuid"
         success_url = "hide"
-        success_message = ""
 
     class List(SpaMixin, ContentMenuMixin, OrgPermsMixin, NotificationTargetMixin, SmartListView):
         """
@@ -420,7 +418,6 @@ class TicketCRUDL(SmartCRUDL):
         fields = ("note",)
         success_url = "hide"
         slug_url_kwarg = "uuid"
-        success_message = ""
         submit_button_name = _("Save")
 
         def form_valid(self, form):

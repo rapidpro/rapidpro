@@ -149,9 +149,12 @@ class TemplateTest(TembaTest):
         self.assertEqual(2, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
 
     @patch("temba.templates.models.TemplateTranslation.update_local")
+    @patch("temba.channels.types.twilio_whatsapp.TwilioWhatsappType.fetch_templates")
     @patch("temba.channels.types.dialog360.Dialog360Type.fetch_templates")
     @patch("temba.channels.types.dialog360_legacy.Dialog360LegacyType.fetch_templates")
-    def test_refresh_task(self, mock_d3_fetch_templates, mock_d3c_fetch_templates, mock_update_local):
+    def test_refresh_task(
+        self, mock_d3_fetch_templates, mock_d3c_fetch_templates, mock_twa_fetch_templates, mock_update_local
+    ):
         org3 = Org.objects.create(
             name="Nyaruka 3",
             timezone=ZoneInfo("Africa/Kigali"),
@@ -221,6 +224,17 @@ class TemplateTest(TembaTest):
             },
         )
 
+        self.create_channel(
+            "TWA",
+            "TWilio WhatsAPp channel",
+            address="1234",
+            country="US",
+            config={
+                Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
+                Channel.CONFIG_AUTH_TOKEN: "123456789",
+            },
+        )
+
         def mock_fetch(ch):
             HTTPLog.objects.create(
                 org=ch.org, channel=ch, log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, request_time=0, is_error=False
@@ -235,13 +249,15 @@ class TemplateTest(TembaTest):
 
         mock_d3_fetch_templates.side_effect = mock_fetch
         mock_d3c_fetch_templates.side_effect = mock_fetch
+        mock_twa_fetch_templates.side_effect = mock_fetch
         mock_update_local.return_value = None
 
         refresh_templates()
 
         self.assertEqual(1, mock_d3_fetch_templates.call_count)
         self.assertEqual(1, mock_d3c_fetch_templates.call_count)
-        self.assertEqual(2, mock_update_local.call_count)
+        self.assertEqual(1, mock_twa_fetch_templates.call_count)
+        self.assertEqual(3, mock_update_local.call_count)
         self.assertEqual(0, Incident.objects.filter(incident_type=ChannelTemplatesFailedIncidentType.slug).count())
 
         # if one channel fails, others continue
@@ -251,7 +267,8 @@ class TemplateTest(TembaTest):
 
         self.assertEqual(2, mock_d3_fetch_templates.call_count)
         self.assertEqual(2, mock_d3c_fetch_templates.call_count)
-        self.assertEqual(3, mock_update_local.call_count)
+        self.assertEqual(2, mock_twa_fetch_templates.call_count)
+        self.assertEqual(5, mock_update_local.call_count)
 
         # one failure isn't enough to create an incident
         self.assertEqual(0, Incident.objects.filter(incident_type=ChannelTemplatesFailedIncidentType.slug).count())

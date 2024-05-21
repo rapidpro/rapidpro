@@ -187,6 +187,7 @@ MIDDLEWARE = (
     "temba.middleware.OrgMiddleware",
     "temba.middleware.LanguageMiddleware",
     "temba.middleware.TimezoneMiddleware",
+    "temba.middleware.ToastMiddleware",
 )
 
 # -----------------------------------------------------------------------------------
@@ -251,6 +252,9 @@ INSTALLED_APPS = (
 
 # the last installed app that uses smartmin permissions
 PERMISSIONS_APP = "temba.airtime"
+
+# don't let smartmin auto create django messages for create and update submissions
+SMARTMIN_DEFAULT_MESSAGES = False
 
 # -----------------------------------------------------------------------------------
 # Logging

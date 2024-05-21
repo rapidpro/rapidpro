@@ -8,9 +8,9 @@
   {{ block.super }}
   {% if not is_finished %}
     <script type="text/javascript">
-      if (gotoURL) {
+      if (spaGet) {
         setTimeout(function() {
-          gotoURL(document.location.href);
+          spaGet(document.location.href);
         }, 3000);
       }
     </script>

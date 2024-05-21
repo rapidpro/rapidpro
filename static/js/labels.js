@@ -7,15 +7,6 @@ function getCheckedIds() {
   return checkedIds.sort(numericComparator);
 }
 
-function getCheckedUuids() {
-  var checkedUuids = Array();
-  var checks = document.querySelectorAll('.object-row.checked');
-  for (var i = 0; i < checks.length; i++) {
-    checkedUuids.push(checks[i].getAttribute('data-uuid'));
-  }
-  return checkedUuids.sort();
-}
-
 function getLabeledIds(labelId) {
   var objectRowsIds = Array();
   var labeled = document.querySelectorAll(
@@ -41,75 +32,29 @@ function getObjectRowLabels(objectId) {
   return labelIds.sort(numericComparator);
 }
 
-function runActionOnObjectRows(action, onSuccess, options = {}) {
+function runActionOnObjectRows(action, options = {}) {
   var objectIds = getCheckedIds();
-  const headers = {
-    'X-PJAX': true,
-    'X-CSRFToken': getCookie('csrftoken'),
-  };
-
   const formData = new FormData();
+  if (options.label) {
+    formData.append('label', options.label);
+  }
+
   for (var i = 0; i < objectIds.length; i++) {
     formData.append('objects', objectIds[i]);
   }
+
   formData.append('action', action);
   formData.append('pjax', 'true');
-
-  fetchAjax(document.location.href, '#pjax', {
-    headers: headers,
-    method: 'POST',
-    skipContentCheck: true,
-    body: formData,
-    onSuccess: onSuccess,
-    ...options,
+  return spaPost(document.location.href, {
+    postData: formData,
   });
 }
 
-function unlabelObjectRows(labelId, onSuccess) {
-  runActionOnObjectRows('unlabel', onSuccess, { label: labelId, add: false });
+function unlabelObjectRows(labelId) {
+  runActionOnObjectRows('unlabel', { label: labelId, add: false });
 }
 
-function postLabelChanges(
-  smsIds,
-  labelId,
-  addLabel,
-  number,
-  onError,
-  onSuccess
-) {
-  const onSuccessFn = function (data, textStatus) {
-    recheckIds();
-    if (onSuccess) {
-      onSuccess();
-    }
-  };
-
-  const headers = {
-    'X-PJAX': true,
-    'X-CSRFToken': getCookie('csrftoken'),
-  };
-
-  const formData = new FormData();
-  for (var i = 0; i < smsIds.length; i++) {
-    formData.append('objects', smsIds[i]);
-  }
-  formData.append('action', 'label');
-  formData.append('pjax', 'true');
-  formData.append('label', labelId);
-  formData.append('add', addLabel);
-  formData.append('number', number);
-
-  fetchAjax(document.location.href, '#pjax', {
-    method: 'POST',
-    headers: headers,
-    body: formData,
-    skipContentCheck: true,
-    onSuccess: onSuccessFn,
-    onError: onError,
-  });
-}
-
-function labelObjectRows(labelId, forceRemove, onSuccess) {
+function labelObjectRows(labelId, forceRemove) {
   var objectRowsIds = getCheckedIds();
   var labeledIds = getLabeledIds(labelId);
 
@@ -150,7 +95,9 @@ function labelObjectRows(labelId, forceRemove, onSuccess) {
     return;
   }
 
-  postLabelChanges(objectRowsIds, labelId, addLabel, null, null, onSuccess);
+  runActionOnObjectRows('label', { label: labelId, add: true }).then(
+    recheckIds
+  );
 }
 
 /**
@@ -263,4 +210,14 @@ function handleSelectAll(ele) {
       }
     }
   });
+}
+
+// Used for start flow and send message actions
+function getCheckedUuids() {
+  var checkedUuids = Array();
+  var checks = document.querySelectorAll('.object-row.checked');
+  for (var i = 0; i < checks.length; i++) {
+    checkedUuids.push(checks[i].getAttribute('data-uuid'));
+  }
+  return checkedUuids.sort();
 }

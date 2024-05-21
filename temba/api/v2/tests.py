@@ -2916,8 +2916,8 @@ class EndpointsTest(APITest):
         self.assertPost(
             endpoint_url,
             self.admin,
-            {"name": "UUID", "type": "text"},
-            errors={"name": 'Generated key "uuid" is invalid or a reserved name.'},
+            {"name": "HAS", "type": "text"},
+            errors={"name": 'Generated key "has" is invalid or a reserved name.'},
         )
 
         # try again with a label that's already taken
@@ -2931,7 +2931,9 @@ class EndpointsTest(APITest):
         # create a new field
         self.assertPost(endpoint_url, self.editor, {"name": "Age", "type": "number"}, status=201)
 
-        age = ContactField.user_fields.get(org=self.org, name="Age", value_type="N", is_active=True)
+        age = ContactField.objects.get(
+            org=self.org, name="Age", value_type="N", is_proxy=False, is_system=False, is_active=True
+        )
 
         # update a field by its key
         self.assertPost(endpoint_url + "?key=age", self.admin, {"name": "Real Age", "type": "datetime"})
@@ -3416,6 +3418,9 @@ class EndpointsTest(APITest):
         self.assertDeleteNotAllowed(endpoint_url)
 
         # create some globals
+        deleted = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Ltd")
+        deleted.release(self.admin)
+
         global1 = Global.get_or_create(self.org, self.admin, "org_name", "Org Name", "Acme Ltd")
         global2 = Global.get_or_create(self.org, self.admin, "access_token", "Access Token", "23464373")
 

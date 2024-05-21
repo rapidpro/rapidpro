@@ -84,7 +84,6 @@ class QueryMetadata:
 @dataclass(frozen=True)
 class ParsedQuery:
     query: str
-    elastic_query: dict
     metadata: QueryMetadata
 
 
@@ -124,11 +123,11 @@ class MailroomClient:
     def version(self):
         return self._request("", post=False).get("version")
 
-    def android_event(self, org_id: int, channel_id: int, urn: str, event_type: str, extra: dict, occurred_on):
+    def android_event(self, org_id: int, channel_id: int, phone: str, event_type: str, extra: dict, occurred_on):
         payload = {
             "org_id": org_id,
             "channel_id": channel_id,
-            "urn": urn,
+            "phone": phone,
             "event_type": event_type,
             "extra": extra,
             "occurred_on": occurred_on.isoformat(),
@@ -136,11 +135,11 @@ class MailroomClient:
 
         return self._request("android/event", payload)
 
-    def android_message(self, org_id: int, channel_id: int, urn: str, text: str, received_on):
+    def android_message(self, org_id: int, channel_id: int, phone: str, text: str, received_on):
         payload = {
             "org_id": org_id,
             "channel_id": channel_id,
-            "urn": urn,
+            "phone": phone,
             "text": text,
             "received_on": received_on.isoformat(),
         }
@@ -312,15 +311,11 @@ class MailroomClient:
     def sim_resume(self, payload):
         return self._request("sim/resume", payload, encode_json=True)
 
-    def parse_query(self, org_id: int, query: str, parse_only: bool = False, group_uuid: str = "") -> ParsedQuery:
-        payload = {"org_id": org_id, "query": query, "parse_only": parse_only, "group_uuid": group_uuid}
+    def parse_query(self, org_id: int, query: str, parse_only: bool = False) -> ParsedQuery:
+        payload = {"org_id": org_id, "query": query, "parse_only": parse_only}
 
         response = self._request("contact/parse_query", payload)
-        return ParsedQuery(
-            query=response["query"],
-            elastic_query=response["elastic_query"],
-            metadata=QueryMetadata(**response.get("metadata", {})),
-        )
+        return ParsedQuery(query=response["query"], metadata=QueryMetadata(**response.get("metadata", {})))
 
     def ticket_assign(self, org_id: int, user_id: int, ticket_ids: list, assignee_id: int):
         payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids, "assignee_id": assignee_id}
