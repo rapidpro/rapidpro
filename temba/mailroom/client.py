@@ -28,9 +28,6 @@ class RequestException(Exception):
         except Exception:
             self.error = response.content.decode("utf-8")
 
-    def as_json(self):
-        return {"endpoint": self.endpoint, "request": self.request, "response": self.response}
-
     def __str__(self):
         return self.error
 
@@ -266,7 +263,7 @@ class MailroomClient:
         """
         from temba.flows.models import Flow
 
-        if not to_version:
+        if not to_version:  # pragma: no cover
             to_version = Flow.CURRENT_SPEC_VERSION
 
         return self._request("flow/migrate", {"flow": definition, "to_version": to_version}, encode_json=True)
@@ -403,11 +400,17 @@ class MailroomClient:
         req_fn = requests.post if post else requests.get
         response = req_fn("%s/mr/%s" % (self.base_url, endpoint), headers=headers, **kwargs)
 
-        resp_body = response.json() if returns_json else response.content
+        if returns_json:
+            try:
+                resp_body = response.json()
+            except Exception:
+                resp_body = response.content
+        else:
+            resp_body = response.content
 
         if response.status_code == 422:
             error = resp_body["error"]
-            domain, code = resp_body.get("code", "").split(":")
+            domain, code = resp_body["code"].split(":")
             extra = resp_body.get("extra", {})
 
             if domain == "flow":
