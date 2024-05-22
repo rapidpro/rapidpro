@@ -31,11 +31,10 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.channels.models import Channel
 from temba.contacts.models import URN
-from temba.contacts.search import SearchException, parse_query
+from temba.contacts.search import parse_query
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, FlowStart
 from temba.flows.tasks import update_session_wait_expires
 from temba.ivr.models import Call
-from temba.mailroom import FlowValidationException
 from temba.orgs.models import IntegrationType, Org
 from temba.orgs.views import (
     BaseExportView,
@@ -372,7 +371,7 @@ class FlowCRUDL(SmartCRUDL):
                     }
                 )
 
-            except FlowValidationException as e:
+            except mailroom.FlowValidationException as e:
                 error = _("Your flow failed validation. Please refresh your browser.")
                 detail = str(e)
             except FlowVersionConflictException:
@@ -1473,7 +1472,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 try:
                     return JsonResponse(client.sim_start(payload))
-                except mailroom.MailroomException:
+                except mailroom.RequestException:
                     return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
             # otherwise we are resuming
@@ -1484,7 +1483,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 try:
                     return JsonResponse(client.sim_resume(payload))
-                except mailroom.MailroomException:
+                except mailroom.RequestException:
                     return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
     class PreviewStart(OrgObjPermsMixin, SmartReadView):
@@ -1572,7 +1571,7 @@ class FlowCRUDL(SmartCRUDL):
 
             try:
                 query, total = FlowStart.preview(flow, include=include, exclude=exclude)
-            except SearchException as e:
+            except mailroom.QueryValidationException as e:
                 return JsonResponse({"query": "", "total": 0, "error": str(e)}, status=400)
 
             return JsonResponse(
@@ -1637,7 +1636,7 @@ class FlowCRUDL(SmartCRUDL):
                         contact_search["parsed_query"] = parse_query(
                             self.org, contact_search["query"], parse_only=True
                         ).query
-                    except SearchException as e:
+                    except mailroom.QueryValidationException as e:
                         raise ValidationError(str(e))
 
                 return contact_search

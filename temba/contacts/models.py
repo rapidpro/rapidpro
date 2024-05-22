@@ -34,7 +34,7 @@ from temba.utils.text import decode_stream, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
 from temba.utils.uuid import uuid4
 
-from .search import SearchException, parse_query
+from .search import parse_query
 
 logger = logging.getLogger(__name__)
 
@@ -948,7 +948,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         client = mailroom.get_client()
         try:
             response = client.contact_modify(org.id, user.id, [c.id for c in contacts], mods)
-        except mailroom.MailroomException as e:
+        except mailroom.RequestException as e:
             logger.error(f"Contact update failed: {str(e)}", exc_info=True)
             raise e
 
@@ -1624,7 +1624,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
             # and add them as dependencies
             self.query_fields.add(*field_ids)
 
-        except SearchException as e:
+        except mailroom.QueryValidationException as e:
             raise ValueError(str(e))
 
         # start background task to re-evaluate who belongs in this group

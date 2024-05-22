@@ -2303,13 +2303,13 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # try with a bad query
-        mr_mocks.error("mismatched input at (((", code="unexpected_token", extra={"token": "((("})
+        mr_mocks.exception(mailroom.QueryValidationException("mismatched input at (((", "syntax"))
 
         response = self.client.post(
             preview_url, {"query": "(((", "exclusions": {"non_active": True}}, content_type="application/json"
         )
         self.assertEqual(400, response.status_code)
-        self.assertEqual({"query": "", "total": 0, "error": "Invalid query syntax at '((('"}, response.json())
+        self.assertEqual({"query": "", "total": 0, "error": "Invalid query syntax."}, response.json())
 
         # suspended orgs should block
         self.org.is_suspended = True

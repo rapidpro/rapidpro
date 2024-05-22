@@ -18,6 +18,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import ChannelEvent
@@ -25,11 +26,11 @@ from temba.contacts.search import search_contacts
 from temba.flows.models import Flow, FlowSession, FlowStart
 from temba.ivr.models import Call
 from temba.locations.models import AdminBoundary
-from temba.mailroom import MailroomException, QueryMetadata, SearchResults, modifiers
+from temba.mailroom import QueryMetadata, SearchResults, modifiers
 from temba.msgs.models import Broadcast, Msg, SystemLabel
 from temba.orgs.models import Export, Org, OrgRole
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticket, TicketCount
@@ -159,12 +160,12 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             self.assertEqual(response.context["save_dynamic_search"], False)
 
         # try with invalid search string
-        mr_mocks.error("mismatched input at (((", code="unexpected_token", extra={"token": "((("})
+        mr_mocks.exception(mailroom.QueryValidationException("mismatched input at (((", "syntax"))
 
         response = self.client.get(list_url + "?search=(((")
         self.assertEqual(list(response.context["object_list"]), [])
-        self.assertEqual(response.context["search_error"], "Invalid query syntax at '((('")
-        self.assertContains(response, "Invalid query syntax at")
+        self.assertEqual(response.context["search_error"], "Invalid query syntax.")
+        self.assertContains(response, "Invalid query syntax.")
 
         self.login(self.admin)
 
@@ -947,7 +948,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(group.status, ContactGroup.STATUS_INITIALIZING)
 
         # try to update group query to something invalid
-        mr_mocks.error("no valid")
+        mr_mocks.exception(mailroom.QueryValidationException("no valid", "syntax"))
         with self.assertRaises(ValueError):
             group.update_query("age ~ Mary")
 
@@ -1323,14 +1324,14 @@ class ContactGroupCRUDLTest(TembaTest, CRUDLTestMixin):
         ContactGroup.objects.filter(id=dynamic_group.id).update(status=ContactGroup.STATUS_READY)
 
         # update both name and query, form should fail, because query is not parsable
-        mr_mocks.error("error at !", code="unexpected_token", extra={"token": "!"})
+        mr_mocks.exception(mailroom.QueryValidationException("error at !", "syntax"))
         response = self.client.post(url, dict(name="Frank", query="(!))!)"))
-        self.assertFormError(response.context["form"], "query", "Invalid query syntax at '!'")
+        self.assertFormError(response.context["form"], "query", "Invalid query syntax.")
 
         # try to update a group with an invalid query
-        mr_mocks.error("error at >", code="unexpected_token", extra={"token": ">"})
+        mr_mocks.exception(mailroom.QueryValidationException("error at >", "syntax"))
         response = self.client.post(url, dict(name="Frank", query="name <> some_name"))
-        self.assertFormError(response.context["form"], "query", "Invalid query syntax at '>'")
+        self.assertFormError(response.context["form"], "query", "Invalid query syntax.")
 
         # dependent on id
         response = self.client.post(url, dict(name="Frank", query="id = 123"))
@@ -2071,7 +2072,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             return response.json()["results"]
 
         # configure mocking so we call actual search method but mailroom returns an error
-        mr_mocks.error("ooh that doesn't look right")
+        mr_mocks.exception(mailroom.QueryValidationException("ooh that doesn't look right", "syntax"))
         mock_search_contacts.side_effect = search_contacts
 
         # error is swallowed and we show no results
@@ -2632,12 +2633,12 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         results = response.json()
         self.assertEqual(0, results["total"])
 
-        mr_mocks.error("mismatched input at <EOF>", code="unexpected_token", extra={"token": "<EOF>"})
+        mr_mocks.exception(mailroom.QueryValidationException("mismatched input at <EOF>", "syntax"))
 
         # bogus query
         response = self.client.get(search_url + '?search=name="notclosed')
         results = response.json()
-        self.assertEqual("Invalid query syntax at '<EOF>'", results["error"])
+        self.assertEqual("Invalid query syntax.", results["error"])
         self.assertEqual(0, results["total"])
 
         # if we query a field, it should show up in our field dict
@@ -2666,7 +2667,9 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
     @patch("temba.mailroom.client.MailroomClient.contact_modify")
     def test_update_with_mailroom_error(self, mock_modify):
-        mock_modify.side_effect = MailroomException("", "", {"error": "Error updating contact"})
+        mock_modify.side_effect = mailroom.RequestException(
+            "", "", MockResponse(400, '{"error": "Error updating contact"}')
+        )
 
         self.login(self.admin)
 

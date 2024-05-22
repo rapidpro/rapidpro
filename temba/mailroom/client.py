@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass, field
 import requests
 
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 
 from temba.utils import json
 
@@ -12,9 +13,9 @@ from .modifiers import Modifier
 logger = logging.getLogger(__name__)
 
 
-class MailroomException(Exception):
+class RequestException(Exception):
     """
-    Exception for failed requests to mailroom
+    Exception for requests to mailroom that return a non-422 error status.
     """
 
     def __init__(self, endpoint, request, response):
@@ -22,22 +23,59 @@ class MailroomException(Exception):
         self.request = request
         self.response = response
 
-    def as_json(self):
-        return {"endpoint": self.endpoint, "request": self.request, "response": self.response}
-
-
-class FlowValidationException(MailroomException):
-    """
-    Exception for a flow validation request that fails validation
-    """
-
-    def __init__(self, endpoint, request, response):
-        super().__init__(endpoint, request, response)
-
-        self.message = response["error"]
+        try:
+            self.error = response.json().get("error")
+        except Exception:
+            self.error = response.content.decode("utf-8")
 
     def __str__(self):
-        return self.message
+        return self.error
+
+
+class FlowValidationException(Exception):
+    """
+    Request that fails because the provided flow definition is invalid.
+    """
+
+    def __init__(self, error: str):
+        self.error = error
+
+    def __str__(self):
+        return self.error
+
+
+class QueryValidationException(Exception):
+    """
+    Request that fails because the provided contact query is invalid.
+    """
+
+    messages = {
+        "syntax": _("Invalid query syntax."),
+        "invalid_number": _("Unable to convert '%(value)s' to a number."),
+        "invalid_date": _("Unable to convert '%(value)s' to a date."),
+        "invalid_language": _("'%(value)s' is not a valid language code."),
+        "invalid_flow": _("'%(value)s' is not a valid flow name."),
+        "invalid_group": _("'%(value)s' is not a valid group name."),
+        "invalid_partial_name": _("Using ~ with name requires token of at least %(min_token_length)s characters."),
+        "invalid_partial_urn": _("Using ~ with URN requires value of at least %(min_value_length)s characters."),
+        "unsupported_contains": _("Can only use ~ with name or URN values."),
+        "unsupported_comparison": _("Can only use %(operator)s with number or date values."),
+        "unsupported_setcheck": _("Can't check whether '%(property)s' is set or not set."),
+        "unknown_property": _("Can't resolve '%(property)s' to a field or URN scheme."),
+        "unknown_property_type": _("Prefixes must be 'fields' or 'urns'."),
+        "redacted_urns": _("Can't query on URNs in an anonymous workspace."),
+    }
+
+    def __init__(self, error: str, code: str, extra: dict = None):
+        self.error = error
+        self.code = code
+        self.extra = extra or {}
+
+    def __str__(self):
+        if self.code and self.code in self.messages:
+            return self.messages[self.code] % self.extra
+
+        return self.error
 
 
 @dataclass
@@ -225,7 +263,7 @@ class MailroomClient:
         """
         from temba.flows.models import Flow
 
-        if not to_version:
+        if not to_version:  # pragma: no cover
             to_version = Flow.CURRENT_SPEC_VERSION
 
         return self._request("flow/migrate", {"flow": definition, "to_version": to_version}, encode_json=True)
@@ -362,21 +400,28 @@ class MailroomClient:
         req_fn = requests.post if post else requests.get
         response = req_fn("%s/mr/%s" % (self.base_url, endpoint), headers=headers, **kwargs)
 
-        return_val = response.json() if returns_json else response.content
-
-        if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
-            logger.debug("=============== %s response ===============" % endpoint)
-            logger.debug(return_val)
-            logger.debug("=============== /%s response ===============" % endpoint)
+        if returns_json:
+            try:
+                resp_body = response.json()
+            except Exception:
+                resp_body = response.content
+        else:
+            resp_body = response.content
 
         if response.status_code == 422:
-            raise FlowValidationException(endpoint, payload, return_val)
-        if 400 <= response.status_code < 500:
-            raise MailroomException(endpoint, payload, return_val)
+            error = resp_body["error"]
+            domain, code = resp_body["code"].split(":")
+            extra = resp_body.get("extra", {})
 
-        response.raise_for_status()
+            if domain == "flow":
+                raise FlowValidationException(error)
+            elif domain == "query":
+                raise QueryValidationException(error, code, extra)
 
-        return return_val
+        elif 400 <= response.status_code < 600:
+            raise RequestException(endpoint, payload, response)
+
+        return resp_body
 
 
 def get_client() -> MailroomClient:

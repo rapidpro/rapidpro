@@ -5,10 +5,11 @@ from functools import reduce
 from django.db.models import Q
 from django.db.models.functions import Upper
 
+from temba import mailroom
 from temba.contacts.models import Contact, ContactGroup, ContactGroupCount
 from temba.utils.models.es import IDSliceQuerySet
 
-from . import SearchException, search_contacts
+from . import search_contacts
 
 SEARCH_ALL_GROUPS = "g"
 SEARCH_STATIC_GROUPS = "s"
@@ -86,7 +87,7 @@ def omnibox_mixed_search(org, query, types):
             results += list(contacts[:per_type_limit])
             Contact.bulk_urn_cache_initialize(contacts=results)
 
-        except SearchException:
+        except mailroom.QueryValidationException:
             pass
 
     return results
