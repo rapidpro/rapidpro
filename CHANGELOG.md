@@ -1,3 +1,8 @@
+v9.1.124 (2024-05-22)
+-------------------------
+ * Rework handling of errors from mailroom client
+ * Update test db flows
+
 v9.1.123 (2024-05-20)
 -------------------------
  * Replace django messages rendering with toasts
