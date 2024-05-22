@@ -96,7 +96,7 @@ GROUPS = (
     },
 )
 LABELS = ("Reporting", "Testing", "Youth", "Farming", "Health", "Education", "Trade", "Driving", "Building", "Spam")
-FLOWS = ("favorites_timeout.json", "sms_form.json", "pick_a_number.json")
+FLOWS = ("test_db.json",)
 CAMPAIGNS = (
     {
         "name": "Doctor Reminders",
