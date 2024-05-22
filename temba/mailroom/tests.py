@@ -11,14 +11,22 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowRun, FlowStart
 from temba.ivr.models import Call
-from temba.mailroom.client import ContactSpec, MailroomException, get_client
+from temba.mailroom.client import ContactSpec, RequestException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import TicketEvent
 from temba.utils import json
 
-from . import BroadcastPreview, Exclusions, Inclusions, StartPreview, modifiers, queue_interrupt
+from . import (
+    BroadcastPreview,
+    Exclusions,
+    Inclusions,
+    QueryValidationException,
+    StartPreview,
+    modifiers,
+    queue_interrupt,
+)
 from .events import Event
 
 
@@ -286,11 +294,6 @@ class MailroomClientTest(TembaTest):
             },
         )
 
-        mock_post.return_value = MockResponse(400, '{"error":"no such field age"}')
-
-        with self.assertRaises(MailroomException):
-            get_client().contact_search(1, 2, "age > 10", "-created_on")
-
     def test_flow_change_language(self):
         flow_def = {"nodes": [{"val": Decimal("1.23")}]}
 
@@ -541,7 +544,7 @@ class MailroomClientTest(TembaTest):
 
         mock_post.return_value = MockResponse(400, '{"error":"no such field age"}')
 
-        with self.assertRaises(MailroomException):
+        with self.assertRaises(RequestException):
             get_client().parse_query(1, "age > 10")
 
     def test_ticket_assign(self):
@@ -604,19 +607,32 @@ class MailroomClientTest(TembaTest):
                 json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345]},
             )
 
-    def test_request_failure(self):
-        flow = self.get_flow("color")
-
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(400, '{"errors":["Bad request", "Doh!"]}')
-
-            with self.assertRaises(MailroomException) as e:
-                get_client().flow_migrate(flow.get_definition())
-
-        self.assertEqual(
-            e.exception.as_json(),
-            {"endpoint": "flow/migrate", "request": matchers.Dict(), "response": {"errors": ["Bad request", "Doh!"]}},
+    @patch("requests.post")
+    def test_errors(self, mock_post):
+        mock_post.return_value = MockResponse(
+            422, '{"error": "no such field age", "code": "query:unknown_property", "extra": {"property": "age"}}'
         )
+
+        with self.assertRaises(QueryValidationException) as e:
+            get_client().contact_search(1, 2, "age > 10", "-created_on")
+
+        self.assertEqual("no such field age", e.exception.error)
+        self.assertEqual("unknown_property", e.exception.code)
+        self.assertEqual({"property": "age"}, e.exception.extra)
+
+        mock_post.return_value = MockResponse(500, '{"error": "error loading fields"}')
+
+        with self.assertRaises(RequestException) as e:
+            get_client().contact_search(1, 2, "age > 10", "-created_on")
+
+        self.assertEqual("error loading fields", e.exception.error)
+
+        mock_post.return_value = MockResponse(502, "Bad Gateway")
+
+        with self.assertRaises(RequestException) as e:
+            get_client().contact_search(1, 2, "age > 10", "-created_on")
+
+        self.assertEqual("Bad Gateway", e.exception.error)
 
 
 class MailroomQueueTest(TembaTest):
@@ -1251,3 +1267,91 @@ class EventTest(TembaTest):
             },
             Event.from_ivr_call(self.org, self.admin, call2),
         )
+
+
+class QueryExceptionTest(TembaTest):
+    def test_str(self):
+        tests = (
+            (
+                QueryValidationException("mismatched input '$' expecting {'(', TEXT, STRING}", "syntax"),
+                "Invalid query syntax.",
+            ),
+            (
+                QueryValidationException("can't convert 'XZ' to a number", "invalid_number", {"value": "XZ"}),
+                "Unable to convert 'XZ' to a number.",
+            ),
+            (
+                QueryValidationException("can't convert 'AB' to a date", "invalid_date", {"value": "AB"}),
+                "Unable to convert 'AB' to a date.",
+            ),
+            (
+                QueryValidationException(
+                    "'Cool Kids' is not a valid group name", "invalid_group", {"value": "Cool Kids"}
+                ),
+                "'Cool Kids' is not a valid group name.",
+            ),
+            (
+                QueryValidationException(
+                    "'zzzzzz' is not a valid language code", "invalid_language", {"value": "zzzz"}
+                ),
+                "'zzzz' is not a valid language code.",
+            ),
+            (
+                QueryValidationException(
+                    "contains operator on name requires token of minimum length 2",
+                    "invalid_partial_name",
+                    {"min_token_length": "2"},
+                ),
+                "Using ~ with name requires token of at least 2 characters.",
+            ),
+            (
+                QueryValidationException(
+                    "contains operator on URN requires value of minimum length 3",
+                    "invalid_partial_urn",
+                    {"min_value_length": "3"},
+                ),
+                "Using ~ with URN requires value of at least 3 characters.",
+            ),
+            (
+                QueryValidationException(
+                    "contains conditions can only be used with name or URN values",
+                    "unsupported_contains",
+                    {"property": "uuid"},
+                ),
+                "Can only use ~ with name or URN values.",
+            ),
+            (
+                QueryValidationException(
+                    "comparisons with > can only be used with date and number fields",
+                    "unsupported_comparison",
+                    {"property": "uuid", "operator": ">"},
+                ),
+                "Can only use > with number or date values.",
+            ),
+            (
+                QueryValidationException(
+                    "can't check whether 'uuid' is set or not set",
+                    "unsupported_setcheck",
+                    {"property": "uuid", "operator": "!="},
+                ),
+                "Can't check whether 'uuid' is set or not set.",
+            ),
+            (
+                QueryValidationException(
+                    "can't resolve 'beers' to attribute, scheme or field", "unknown_property", {"property": "beers"}
+                ),
+                "Can't resolve 'beers' to a field or URN scheme.",
+            ),
+            (
+                QueryValidationException("unknown property type 'xxx'", "unknown_property_type", {"type": "xxx"}),
+                "Prefixes must be 'fields' or 'urns'.",
+            ),
+            (
+                QueryValidationException("cannot query on redacted URNs", "redacted_urns", {}),
+                "Can't query on URNs in an anonymous workspace.",
+            ),
+            (QueryValidationException("no code here", "", {}), "no code here"),
+        )
+
+        for exception, expected in tests:
+            self.assertEqual(expected, str(exception))

@@ -27,7 +27,6 @@ from django.views.generic import RedirectView
 
 from temba import mailroom
 from temba.archives.models import Archive
-from temba.contacts.search import SearchException
 from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
 from temba.orgs.models import Org
 from temba.orgs.views import (
@@ -563,7 +562,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             try:
                 query, total = Broadcast.preview(self.request.org, include=include, exclude=exclude)
-            except SearchException as e:
+            except mailroom.QueryValidationException as e:
                 return JsonResponse({"query": "", "total": 0, "error": str(e)}, status=400)
 
             return JsonResponse(

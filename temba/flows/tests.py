@@ -20,7 +20,6 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.globals.models import Global
-from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.orgs.models import Export
 from temba.templates.models import Template, TemplateTranslation
@@ -2387,7 +2386,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             )
 
             # try with a bad query
-            mr_mocks.error("mismatched input at (((", code="unexpected_token", extra={"token": "((("})
+            mr_mocks.exception(mailroom.QueryValidationException("mismatched input at (((", "syntax"))
 
             response = self.client.post(
                 preview_url,
@@ -2398,7 +2397,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 content_type="application/json",
             )
             self.assertEqual(400, response.status_code)
-            self.assertEqual({"query": "", "total": 0, "error": "Invalid query syntax at '((('"}, response.json())
+            self.assertEqual({"query": "", "total": 0, "error": "Invalid query syntax."}, response.json())
 
             # suspended orgs should block
             self.org.is_suspended = True
@@ -2674,12 +2673,12 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         FlowStart.objects.all().delete()
 
         # create flow start with a bogus query
-        mr_mocks.error("query contains an error")
+        mr_mocks.exception(mailroom.QueryValidationException("query contains an error", "syntax"))
         self.assertUpdateSubmit(
             start_url,
             self.admin,
             {"flow": flow.id, "contact_search": get_contact_search(query='name = "frank')},
-            form_errors={"contact_search": "query contains an error"},
+            form_errors={"contact_search": "Invalid query syntax."},
             object_unchanged=flow,
         )
 
@@ -3021,10 +3020,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         mode0_uuid = flow_json["nodes"][0]["uuid"]
         flow_json["nodes"][1]["uuid"] = mode0_uuid
 
-        with self.assertRaises(FlowValidationException) as cm:
+        with self.assertRaises(mailroom.FlowValidationException) as cm:
             flow.save_revision(self.admin, flow_json)
 
-        self.assertEqual(f"unable to read flow: node UUID {mode0_uuid} isn't unique", str(cm.exception))
+        self.assertEqual(f"node UUID {mode0_uuid} isn't unique", str(cm.exception))
 
         # check view converts exception to error response
         response = self.client.post(
@@ -3036,7 +3035,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             {
                 "status": "failure",
                 "description": "Your flow failed validation. Please refresh your browser.",
-                "detail": f"unable to read flow: node UUID {mode0_uuid} isn't unique",
+                "detail": f"node UUID {mode0_uuid} isn't unique",
             },
             response.json(),
         )

@@ -18,7 +18,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import FlowRun, FlowSession
 from temba.locations.models import AdminBoundary
-from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
+from temba.mailroom.client import ContactSpec, MailroomClient
 from temba.mailroom.modifiers import Modifier
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
@@ -61,7 +61,7 @@ class Mocks:
         self._contact_export_preview = []
         self._flow_start_preview = []
         self._msg_broadcast_preview = []
-        self._errors = []
+        self._exceptions = []
 
         self.queued_batch_tasks = []
 
@@ -103,28 +103,23 @@ class Mocks:
 
         self._msg_broadcast_preview.append(mock)
 
-    def error(self, msg: str, code: str = None, extra: dict = None):
+    def exception(self, exp: Exception):
         """
-        Queues an error which will become a mailroom exception at the next client call
+        Queues an enception to be raised on the next client call
         """
-        err = {"error": msg}
-        if code:
-            err["code"] = code
-        if extra:
-            err["extra"] = extra
 
-        self._errors.append(err)
+        self._exceptions.append(exp)
 
-    def _check_error(self, endpoint: str):
-        if self._errors:
-            raise MailroomException(endpoint, None, self._errors.pop(0))
+    def _check_exception(self):
+        if self._exceptions:
+            raise self._exceptions.pop(0)
 
 
 def _client_method(func):
     @functools.wraps(func)
     def wrap(self, *args, **kwargs):
         self.mocks.calls[func.__name__].append(call(*args, **kwargs))
-        self.mocks._check_error(func.__name__)
+        self.mocks._check_exception()
 
         return func(self, *args, **kwargs)
 
@@ -529,7 +524,7 @@ def create_contact_locally(
         existing = ContactURN.lookup(org, urn)
         if existing:
             if existing.contact_id:
-                raise MailroomException("contact/create", None, {"error": "URNs in use by other contacts"})
+                raise mailroom.RequestException("contact/create", None, {"error": "URNs in use by other contacts"})
             else:
                 orphaned_urns[urn] = existing
 

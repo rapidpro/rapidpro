@@ -68,7 +68,7 @@ from .models import (
     ContactImport,
     ContactURN,
 )
-from .search import SearchException, parse_query, search_contacts
+from .search import parse_query, search_contacts
 from .search.omnibox import omnibox_query, omnibox_results_to_dict
 
 logger = logging.getLogger(__name__)
@@ -133,7 +133,7 @@ class ContactGroupForm(forms.ModelForm):
 
             return parsed.query
 
-        except SearchException as e:
+        except mailroom.QueryValidationException as e:
             raise forms.ValidationError(str(e))
 
     class Meta:
@@ -220,7 +220,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
                 self.save_dynamic_search = results.metadata.allow_as_group
 
                 return IDSliceQuerySet(Contact, results.contact_ids, offset=offset, total=results.total)
-            except SearchException as e:
+            except mailroom.QueryValidationException as e:
                 self.search_error = str(e)
 
                 # this should be an empty resultset
@@ -700,7 +700,7 @@ class ContactCRUDL(SmartCRUDL):
                     "fields": results.metadata.fields,
                     "sample": IDSliceQuerySet(Contact, results.contact_ids, offset=0, total=results.total)[0:samples],
                 }
-            except SearchException as e:
+            except mailroom.QueryValidationException as e:
                 return JsonResponse({"total": 0, "sample": [], "query": "", "error": str(e)})
 
             # serialize our contact sample
@@ -761,7 +761,7 @@ class ContactCRUDL(SmartCRUDL):
                             f"{reverse('contacts.contactgroup_create')}?search={quote_plus(search)}",
                             as_button=True,
                         )
-                except SearchException:  # pragma: no cover
+                except mailroom.QueryValidationException:  # pragma: no cover
                     pass
 
             if self.has_org_perm("contacts.contact_create"):
