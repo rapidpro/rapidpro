@@ -105,14 +105,9 @@
       formData.append('pattern', pattern);
       formData.append('country', country);
 
-      const headers = {
-        "X-CSRFToken": getCookie('csrftoken'),
-        "X-TEMBA-SPA": true
-      }
       const options = {
         body: formData,
         method: 'POST',
-        headers: headers
       }
 
       fetchAjax("{{search_url}}", options).then(function(response) {
