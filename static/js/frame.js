@@ -230,10 +230,21 @@ function fetchAjax(url, options) {
     pendingRequests = [];
   }
 
+  let csrf = getCookie('csrftoken');
+  if (!csrf) {
+    const tokenEle = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (tokenEle) {
+      csrf = tokenEle.value;
+    }
+  }
+
+  if (csrf) {
+    options['headers']['X-CSRFToken'] = csrf;
+  }
+
   options['headers'] = options['headers'] || {};
   options['headers']['TEMBA-SPA'] = 1;
   options['headers']['X-PJAX'] = 1;
-  options['headers']['X-CSRFToken'] = getCookie('csrftoken') || document.querySelector("#csrf_token").value;
 
   let container = options['container'] || null;
 
