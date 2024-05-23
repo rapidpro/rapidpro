@@ -48,6 +48,9 @@ class APIPermission(BasePermission):
         codes that the user is required to have.
         """
 
+        if view.is_docs():  # no permission required to view docs
+            return None
+
         if hasattr(view, "permission"):
             return view.permission
 
@@ -89,7 +92,7 @@ class APIPermission(BasePermission):
 
             return has_perm
 
-        else:  # pragma: no cover
+        else:
             return True
 
 
