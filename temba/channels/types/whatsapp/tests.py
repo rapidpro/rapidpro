@@ -7,7 +7,7 @@ from django.test import override_settings
 from django.urls import reverse
 
 from temba.request_logs.models import HTTPLog
-from temba.tests import MockResponse, TembaTest
+from temba.tests import MockJsonResponse, MockResponse, TembaTest
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from ...models import Channel
@@ -40,7 +40,7 @@ class WhatsAppTypeTest(TembaTest):
         self.assertNotContains(response, claim_whatsapp_cloud_url)
 
         with patch("requests.get") as wa_cloud_get:
-            wa_cloud_get.return_value = MockResponse(400, {})
+            wa_cloud_get.return_value = MockJsonResponse(400, {})
             response = self.client.get(claim_whatsapp_cloud_url)
 
             self.assertEqual(response.status_code, 302)
@@ -51,7 +51,7 @@ class WhatsAppTypeTest(TembaTest):
 
         self.make_beta(self.admin)
         with patch("requests.get") as wa_cloud_get:
-            wa_cloud_get.return_value = MockResponse(400, {})
+            wa_cloud_get.return_value = MockJsonResponse(400, {})
             response = self.client.get(claim_whatsapp_cloud_url)
 
             self.assertEqual(response.status_code, 302)
@@ -62,54 +62,48 @@ class WhatsAppTypeTest(TembaTest):
 
         with patch("requests.get") as wa_cloud_get:
             wa_cloud_get.side_effect = [
-                MockResponse(400, {}),
+                MockJsonResponse(400, {}),
                 # missing permissions
-                MockResponse(
+                MockJsonResponse(
                     200,
-                    json.dumps({"data": {"scopes": []}}),
+                    {"data": {"scopes": []}},
                 ),
                 # success
-                MockResponse(
+                MockJsonResponse(
                     200,
-                    json.dumps(
-                        {
-                            "data": {
-                                "scopes": [
-                                    "business_management",
-                                    "whatsapp_business_management",
-                                    "whatsapp_business_messaging",
-                                ]
-                            }
+                    {
+                        "data": {
+                            "scopes": [
+                                "business_management",
+                                "whatsapp_business_management",
+                                "whatsapp_business_messaging",
+                            ]
                         }
-                    ),
+                    },
                 ),
-                MockResponse(
+                MockJsonResponse(
                     200,
-                    json.dumps(
-                        {
-                            "data": {
-                                "scopes": [
-                                    "business_management",
-                                    "whatsapp_business_management",
-                                    "whatsapp_business_messaging",
-                                ]
-                            }
+                    {
+                        "data": {
+                            "scopes": [
+                                "business_management",
+                                "whatsapp_business_management",
+                                "whatsapp_business_messaging",
+                            ]
                         }
-                    ),
+                    },
                 ),
-                MockResponse(
+                MockJsonResponse(
                     200,
-                    json.dumps(
-                        {
-                            "data": {
-                                "scopes": [
-                                    "business_management",
-                                    "whatsapp_business_management",
-                                    "whatsapp_business_messaging",
-                                ]
-                            }
+                    {
+                        "data": {
+                            "scopes": [
+                                "business_management",
+                                "whatsapp_business_management",
+                                "whatsapp_business_messaging",
+                            ]
                         }
-                    ),
+                    },
                 ),
             ]
             response = self.client.get(connect_whatsapp_cloud_url)

@@ -336,7 +336,7 @@ class MailroomClient:
     def po_export(self, org_id: int, flow_ids: list, language: str):
         payload = {"org_id": org_id, "flow_ids": flow_ids, "language": language}
 
-        return self._request("po/export", payload, returns_json=False)
+        return self._request("po/export", payload)
 
     def po_import(self, org_id, flow_ids, language, po_data):
         payload = {"org_id": org_id, "flow_ids": flow_ids, "language": language}
@@ -380,7 +380,7 @@ class MailroomClient:
 
         return self._request("ticket/reopen", payload)
 
-    def _request(self, endpoint, payload=None, files=None, post=True, encode_json=False, returns_json=True):
+    def _request(self, endpoint, payload=None, files=None, post=True, encode_json=False):
         if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
             logger.debug("=============== %s request ===============" % endpoint)
             logger.debug(json.dumps(payload, indent=2))
@@ -400,12 +400,10 @@ class MailroomClient:
         req_fn = requests.post if post else requests.get
         response = req_fn("%s/mr/%s" % (self.base_url, endpoint), headers=headers, **kwargs)
 
-        if returns_json:
-            try:
-                resp_body = response.json()
-            except Exception:
-                resp_body = response.content
+        if response.headers.get("Content-Type") == "application/json":
+            resp_body = response.json()
         else:
+            # not all endpoints return JSON, e.g. po file export
             resp_body = response.content
 
         if response.status_code == 422:

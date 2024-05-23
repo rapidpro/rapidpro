@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from requests import HTTPError, Request
 from requests.structures import CaseInsensitiveDict
@@ -18,10 +18,6 @@ class MockResponse:
     def __init__(self, status_code: int, body, method="GET", url="http://foo.com/", headers=None):
         if headers is None:
             headers = {}
-
-        # convert dictionaries to json if the body is passed that way
-        if isinstance(body, dict):
-            body = json.dumps(body)
 
         self.body = force_str(body)
         self.text = self.body
@@ -51,27 +47,6 @@ class MockResponse:
             raise HTTPError(request=self.request, response=self)
 
 
-class MockPost:
-    """
-    MockPost allows you to mock up a post easily within a context, initialize it with the response you want
-    requests.post to return while in your block.
-
-      with MockPost({"fields": ["name"], "query": "name = \"george\""}):
-         ...
-
-      with MockPost({"error": "invalid query"}, status=400):
-         ...
-    """
-
-    def __init__(self, response, status=200):
-        self.response = response
-        self.status = status
-
-    def __enter__(self):
-        self.patch = patch("requests.post")
-        mock = self.patch.__enter__()
-        mock.return_value = MockResponse(self.status, json.dumps(self.response), method="POST")
-        return mock
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        return self.patch.__exit__(exc_type, exc_val, exc_tb)
+class MockJsonResponse(MockResponse):
+    def __init__(self, status_code: int, data):
+        super().__init__(status_code, json.dumps(data), headers={"Content-Type": "application/json"})

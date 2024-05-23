@@ -8,7 +8,7 @@ from requests.exceptions import Timeout
 from django.urls import reverse
 
 from temba.channels.models import Channel
-from temba.tests import MockResponse, TembaTest
+from temba.tests import MockJsonResponse, MockResponse, TembaTest
 
 from .client import Client, ClientError
 from .type import RocketChatType
@@ -62,7 +62,7 @@ class RocketChatMixin(TembaTest):
 class ClientTest(RocketChatMixin):
     @patch("requests.put")
     def test_settings_success(self, mock_request):
-        mock_request.return_value = MockResponse(204, {})
+        mock_request.return_value = MockJsonResponse(204, {})
         try:
             Client(self.secure_url, self.secret).settings("http://temba.io/c/1234-5678", "test-bot")
         except ClientError:

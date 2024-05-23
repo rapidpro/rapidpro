@@ -13,7 +13,7 @@ from temba.flows.models import FlowRun, FlowStart
 from temba.ivr.models import Call
 from temba.mailroom.client import ContactSpec, RequestException, get_client
 from temba.msgs.models import Broadcast, Msg
-from temba.tests import MockResponse, TembaTest, matchers
+from temba.tests import MockJsonResponse, MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import TicketEvent
 from temba.utils import json
@@ -33,14 +33,14 @@ from .events import Event
 class MailroomClientTest(TembaTest):
     def test_version(self):
         with patch("requests.get") as mock_get:
-            mock_get.return_value = MockResponse(200, '{"version": "5.3.4"}')
+            mock_get.return_value = MockJsonResponse(200, {"version": "5.3.4"})
             version = get_client().version()
 
         self.assertEqual("5.3.4", version)
 
     @patch("requests.post")
     def test_android_event(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"id": 12345}')
+        mock_post.return_value = MockJsonResponse(200, {"id": 12345})
         response = get_client().android_event(
             org_id=self.org.id,
             channel_id=12,
@@ -67,7 +67,7 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_android_message(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"id": 12345}')
+        mock_post.return_value = MockJsonResponse(200, {"id": 12345})
         response = get_client().android_message(
             org_id=self.org.id,
             channel_id=12,
@@ -92,7 +92,7 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_contact_create(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234, "name": "", "language": ""}}')
+        mock_post.return_value = MockJsonResponse(200, {"contact": {"id": 1234, "name": "", "language": ""}})
 
         # try with empty contact spec
         response = get_client().contact_create(
@@ -111,7 +111,7 @@ class MailroomClientTest(TembaTest):
         )
 
         mock_post.reset_mock()
-        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234, "name": "Bob", "language": "eng"}}')
+        mock_post.return_value = MockJsonResponse(200, {"contact": {"id": 1234, "name": "Bob", "language": "eng"}})
 
         response = get_client().contact_create(
             self.org.id,
@@ -144,7 +144,7 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_contact_export(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"contact_ids": [123, 234]}')
+        mock_post.return_value = MockJsonResponse(200, {"contact_ids": [123, 234]})
 
         response = get_client().contact_export(self.org.id, 234, "age = 42")
 
@@ -157,7 +157,7 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_contact_export_preview(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"total": 123}')
+        mock_post.return_value = MockJsonResponse(200, {"total": 123})
 
         response = get_client().contact_export_preview(self.org.id, 234, "age = 42")
 
@@ -170,7 +170,7 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_contact_inspect(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"101": {}, "102": {}}')
+        mock_post.return_value = MockJsonResponse(200, {"101": {}, "102": {}})
 
         response = get_client().contact_inspect(self.org.id, [101, 102])
 
@@ -183,7 +183,7 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_contact_interrupt(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"sessions": 1}')
+        mock_post.return_value = MockJsonResponse(200, {"sessions": 1})
 
         response = get_client().contact_interrupt(self.org.id, 3, 345)
 
@@ -196,32 +196,26 @@ class MailroomClientTest(TembaTest):
 
     def test_contact_modify(self):
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(
+            mock_post.return_value = MockJsonResponse(
                 200,
-                """{
+                {
                     "1": {
                         "contact": {
                             "uuid": "6393abc0-283d-4c9b-a1b3-641a035c34bf",
                             "id": 1,
                             "name": "Frank",
                             "timezone": "America/Los_Angeles",
-                            "created_on": "2018-07-06T12:30:00.123457Z"
+                            "created_on": "2018-07-06T12:30:00.123457Z",
                         },
                         "events": [
                             {
                                 "type": "contact_groups_changed",
                                 "created_on": "2018-07-06T12:30:03.123456789Z",
-                                "groups_added": [
-                                    {
-                                        "uuid": "c153e265-f7c9-4539-9dbc-9b358714b638",
-                                        "name": "Doctors"
-                                    }
-                                ]
+                                "groups_added": [{"uuid": "c153e265-f7c9-4539-9dbc-9b358714b638", "name": "Doctors"}],
                             }
-                        ]
+                        ],
                     }
-                }
-                """,
+                },
             )
 
             response = get_client().contact_modify(
@@ -265,17 +259,15 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_contact_search(self, mock_post):
-        mock_post.return_value = MockResponse(
+        mock_post.return_value = MockJsonResponse(
             200,
-            """
             {
-              "query":"name ~ \\"frank\\"",
-              "contact_ids":[1,2],
-              "total": 2,
-              "offset": 0,
-              "metadata": {"attributes":["name"]}
-            }
-            """,
+                "query": 'name ~ "frank"',
+                "contact_ids": [1, 2],
+                "total": 2,
+                "offset": 0,
+                "metadata": {"attributes": ["name"]},
+            },
         )
         response = get_client().contact_search(1, 2, "frank", "-created_on")
 
@@ -298,7 +290,7 @@ class MailroomClientTest(TembaTest):
         flow_def = {"nodes": [{"val": Decimal("1.23")}]}
 
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"language": "spa"}')
+            mock_post.return_value = MockJsonResponse(200, {"language": "spa"})
             migrated = get_client().flow_change_language(flow_def, language="spa")
 
             self.assertEqual({"language": "spa"}, migrated)
@@ -314,7 +306,7 @@ class MailroomClientTest(TembaTest):
         flow_def = {"nodes": [{"val": Decimal("1.23")}]}
 
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"dependencies":[]}')
+            mock_post.return_value = MockJsonResponse(200, {"dependencies": []})
             info = get_client().flow_inspect(self.org.id, flow_def)
 
             self.assertEqual({"dependencies": []}, info)
@@ -329,7 +321,7 @@ class MailroomClientTest(TembaTest):
         flow_def = {"nodes": [{"val": Decimal("1.23")}]}
 
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"name": "Migrated!"}')
+            mock_post.return_value = MockJsonResponse(200, {"name": "Migrated!"})
             migrated = get_client().flow_migrate(flow_def, to_version="13.1.0")
 
             self.assertEqual({"name": "Migrated!"}, migrated)
@@ -343,7 +335,7 @@ class MailroomClientTest(TembaTest):
     def test_flow_start_preview(self):
         with patch("requests.post") as mock_post:
             mock_resp = {"query": 'group = "Farmers" AND status = "active"', "total": 2345}
-            mock_post.return_value = MockResponse(200, json.dumps(mock_resp))
+            mock_post.return_value = MockJsonResponse(200, mock_resp)
             preview = get_client().flow_start_preview(
                 self.org.id,
                 flow_id=12,
@@ -381,7 +373,7 @@ class MailroomClientTest(TembaTest):
 
     def test_msg_broadcast(self):
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, json.dumps({"id": 123}))
+            mock_post.return_value = MockJsonResponse(200, {"id": 123})
             resp = get_client().msg_broadcast(
                 self.org.id,
                 self.admin.id,
@@ -418,7 +410,7 @@ class MailroomClientTest(TembaTest):
     def test_msg_broadcast_preview(self):
         with patch("requests.post") as mock_post:
             mock_resp = {"query": 'group = "Farmers" AND status = "active"', "total": 2345}
-            mock_post.return_value = MockResponse(200, json.dumps(mock_resp))
+            mock_post.return_value = MockJsonResponse(200, mock_resp)
             preview = get_client().msg_broadcast_preview(
                 self.org.id,
                 include=Inclusions(
@@ -454,7 +446,7 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_msg_handle(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"msg_ids": [12345]}')
+        mock_post.return_value = MockJsonResponse(200, {"msg_ids": [12345]})
         response = get_client().msg_handle(org_id=self.org.id, msg_ids=[12345, 67890])
 
         self.assertEqual({"msg_ids": [12345]}, response)
@@ -467,7 +459,7 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_msg_resend(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"msg_ids": [12345]}')
+        mock_post.return_value = MockJsonResponse(200, {"msg_ids": [12345]})
         response = get_client().msg_resend(org_id=self.org.id, msg_ids=[12345, 67890])
 
         self.assertEqual({"msg_ids": [12345]}, response)
@@ -480,7 +472,7 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_msg_send(self, mock_post):
-        mock_post.return_value = MockResponse(200, '{"id": 12345}')
+        mock_post.return_value = MockJsonResponse(200, {"id": 12345})
         response = get_client().msg_send(
             org_id=self.org.id, user_id=self.admin.id, contact_id=123, text="hi", attachments=[], ticket_id=345
         )
@@ -515,7 +507,7 @@ class MailroomClientTest(TembaTest):
 
     def test_po_import(self):
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"flows": []}')
+            mock_post.return_value = MockJsonResponse(200, {"flows": []})
             response = get_client().po_import(self.org.id, [123, 234], "spa", b'msgid "Red"\nmsgstr "Rojo"\n\n')
 
             self.assertEqual({"flows": []}, response)
@@ -529,8 +521,8 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_parse_query(self, mock_post):
-        mock_post.return_value = MockResponse(
-            200, '{"query":"name ~ \\"frank\\"", "metadata": {"attributes":["name"]}}'
+        mock_post.return_value = MockJsonResponse(
+            200, {"query": 'name ~ "frank"', "metadata": {"attributes": ["name"]}}
         )
         parsed = get_client().parse_query(self.org.id, "frank")
 
@@ -542,14 +534,14 @@ class MailroomClientTest(TembaTest):
             json={"query": "frank", "org_id": self.org.id, "parse_only": False},
         )
 
-        mock_post.return_value = MockResponse(400, '{"error":"no such field age"}')
+        mock_post.return_value = MockJsonResponse(400, {"error": "no such field age"})
 
         with self.assertRaises(RequestException):
             get_client().parse_query(1, "age > 10")
 
     def test_ticket_assign(self):
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
+            mock_post.return_value = MockJsonResponse(200, {"changed_ids": [123]})
             response = get_client().ticket_assign(1, 12, [123, 345], 4)
 
             self.assertEqual({"changed_ids": [123]}, response)
@@ -561,7 +553,7 @@ class MailroomClientTest(TembaTest):
 
     def test_ticket_add_note(self):
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
+            mock_post.return_value = MockJsonResponse(200, {"changed_ids": [123]})
             response = get_client().ticket_add_note(1, 12, [123, 345], "please handle")
 
             self.assertEqual({"changed_ids": [123]}, response)
@@ -573,7 +565,7 @@ class MailroomClientTest(TembaTest):
 
     def test_ticket_change_topic(self):
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
+            mock_post.return_value = MockJsonResponse(200, {"changed_ids": [123]})
             response = get_client().ticket_change_topic(1, 12, [123, 345], 67)
 
             self.assertEqual({"changed_ids": [123]}, response)
@@ -585,7 +577,7 @@ class MailroomClientTest(TembaTest):
 
     def test_ticket_close(self):
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
+            mock_post.return_value = MockJsonResponse(200, {"changed_ids": [123]})
             response = get_client().ticket_close(1, 12, [123, 345], force=True)
 
             self.assertEqual({"changed_ids": [123]}, response)
@@ -597,7 +589,7 @@ class MailroomClientTest(TembaTest):
 
     def test_ticket_reopen(self):
         with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
+            mock_post.return_value = MockJsonResponse(200, {"changed_ids": [123]})
             response = get_client().ticket_reopen(1, 12, [123, 345])
 
             self.assertEqual({"changed_ids": [123]}, response)
@@ -609,8 +601,8 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_errors(self, mock_post):
-        mock_post.return_value = MockResponse(
-            422, '{"error": "no such field age", "code": "query:unknown_property", "extra": {"property": "age"}}'
+        mock_post.return_value = MockJsonResponse(
+            422, {"error": "no such field age", "code": "query:unknown_property", "extra": {"property": "age"}}
         )
 
         with self.assertRaises(QueryValidationException) as e:
@@ -620,7 +612,7 @@ class MailroomClientTest(TembaTest):
         self.assertEqual("unknown_property", e.exception.code)
         self.assertEqual({"property": "age"}, e.exception.extra)
 
-        mock_post.return_value = MockResponse(500, '{"error": "error loading fields"}')
+        mock_post.return_value = MockJsonResponse(500, {"error": "error loading fields"})
 
         with self.assertRaises(RequestException) as e:
             get_client().contact_search(1, 2, "age > 10", "-created_on")

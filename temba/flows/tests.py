@@ -23,7 +23,7 @@ from temba.globals.models import Global
 from temba.orgs.integrations.dtone import DTOneType
 from temba.orgs.models import Export
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
+from temba.tests import CRUDLTestMixin, MockJsonResponse, TembaTest, matchers, mock_mailroom, override_brand
 from temba.tests.base import get_contact_search
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
@@ -5156,7 +5156,7 @@ class SimulationTest(TembaTest):
 
         with override_settings(MAILROOM_AUTH_TOKEN="sesame", MAILROOM_URL="https://mailroom.temba.io"):
             with patch("requests.post") as mock_post:
-                mock_post.return_value = MockResponse(200, '{"session": {}}')
+                mock_post.return_value = MockJsonResponse(200, {"session": {}})
                 response = self.client.post(url, payload, content_type="application/json")
 
                 self.assertEqual(response.status_code, 200)
@@ -5194,13 +5194,13 @@ class SimulationTest(TembaTest):
 
         with override_settings(MAILROOM_AUTH_TOKEN="sesame", MAILROOM_URL="https://mailroom.temba.io"):
             with patch("requests.post") as mock_post:
-                mock_post.return_value = MockResponse(400, '{"session": {}}')
+                mock_post.return_value = MockJsonResponse(400, {"session": {}})
                 response = self.client.post(url, json.dumps(payload), content_type="application/json")
                 self.assertEqual(500, response.status_code)
 
             # start a flow
             with patch("requests.post") as mock_post:
-                mock_post.return_value = MockResponse(200, '{"session": {}}')
+                mock_post.return_value = MockJsonResponse(200, {"session": {}})
                 response = self.client.post(url, json.dumps(payload), content_type="application/json")
                 self.assertEqual(200, response.status_code)
                 self.assertEqual({}, response.json()["session"])
@@ -5226,12 +5226,12 @@ class SimulationTest(TembaTest):
             }
 
             with patch("requests.post") as mock_post:
-                mock_post.return_value = MockResponse(400, '{"session": {}}')
+                mock_post.return_value = MockJsonResponse(400, {"session": {}})
                 response = self.client.post(url, json.dumps(payload), content_type="application/json")
                 self.assertEqual(500, response.status_code)
 
             with patch("requests.post") as mock_post:
-                mock_post.return_value = MockResponse(200, '{"session": {}}')
+                mock_post.return_value = MockJsonResponse(200, {"session": {}})
                 response = self.client.post(url, json.dumps(payload), content_type="application/json")
                 self.assertEqual(200, response.status_code)
                 self.assertEqual({}, response.json()["session"])
