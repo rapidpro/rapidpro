@@ -560,11 +560,11 @@ class EndpointsTest(APITest):
 
         # browse as HTML anonymously (should still show docs)
         response = self.client.get(root_url)
-        self.assertContains(response, "We provide a RESTful JSON API", status_code=200)
+        self.assertContains(response, "We provide a RESTful JSON API")
 
         # same thing if user navigates to just /api
         response = self.client.get(reverse("api"), follow=True)
-        self.assertContains(response, "We provide a RESTful JSON API", status_code=200)
+        self.assertContains(response, "We provide a RESTful JSON API")
 
         # try to browse as JSON anonymously
         response = self.client.get(root_url + ".json")
@@ -797,13 +797,15 @@ class EndpointsTest(APITest):
         response = self.client.get(endpoint_url)
         self.assertEqual(403, response.status_code)
 
-        # test fetching docs
+        # test fetching docs anonymously
+        self.client.logout()
         response = self.client.get(reverse("api.v2.archives"))
-        self.assertContains(response, "This endpoint allows you to list", status_code=403)
+        self.assertContains(response, "This endpoint allows you to list")
 
+        # and logged in
         self.login(self.editor)
         response = self.client.get(reverse("api.v2.archives"))
-        self.assertContains(response, "This endpoint allows you to list", status_code=200)
+        self.assertContains(response, "This endpoint allows you to list")
 
     def test_boundaries(self):
         endpoint_url = reverse("api.v2.boundaries") + ".json"

@@ -94,6 +94,9 @@ class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
         except ValueError:
             raise InvalidQueryError("Invalid URN: %s" % value)
 
+    def is_docs(self):
+        return "format" not in self.kwargs
+
 
 class ListAPIMixin(mixins.ListModelMixin):
     """
@@ -108,7 +111,7 @@ class ListAPIMixin(mixins.ListModelMixin):
     def list(self, request, *args, **kwargs):
         self.check_query(self.request.query_params)
 
-        if not kwargs.get("format", None):
+        if self.is_docs():
             # if this is just a request to browse the endpoint docs, don't make a query
             return Response([])
         else:
