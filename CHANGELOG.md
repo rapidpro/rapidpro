@@ -1,3 +1,7 @@
+v9.1.125 (2024-05-23)
+-------------------------
+ * Add csrf on hidden element
+
 v9.1.124 (2024-05-22)
 -------------------------
  * Rework handling of errors from mailroom client
