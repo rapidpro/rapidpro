@@ -87,7 +87,7 @@ function getCookie(name) {
   }
   return cookieValue;
 }
-var csrftoken = getCookie('csrftoken');
+var csrftoken = getCookie('csrftoken') || document.querySelector("#csrf_token").value;
 
 function csrfSafeMethod(method) {
   // these HTTP methods do not require CSRF protection

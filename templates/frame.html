@@ -140,6 +140,7 @@
   </head>
   {% block body %}
     <body class="bg-gradient" id="pageBody">
+      <input type="hidden" value="{{ csrf_token }}" id="csrf_token">
       {% if COMPONENTS_DEV_MODE %}
         <script type="module">
           import '/out-tsc/temba-modules.js';

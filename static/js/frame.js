@@ -233,7 +233,7 @@ function fetchAjax(url, options) {
   options['headers'] = options['headers'] || {};
   options['headers']['TEMBA-SPA'] = 1;
   options['headers']['X-PJAX'] = 1;
-  options['headers']['X-CSRFToken'] = getCookie('csrftoken');
+  options['headers']['X-CSRFToken'] = getCookie('csrftoken') || document.querySelector("#csrf_token").value;
 
   let container = options['container'] || null;
 
