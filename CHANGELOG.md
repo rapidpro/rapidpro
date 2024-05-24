@@ -1,3 +1,8 @@
+v9.1.126 (2024-05-24)
+-------------------------
+ * Mailroom client should use content-type header on responses to know whether to parse as JSON
+ * Ensure anon users can access API docs
+
 v9.1.125 (2024-05-23)
 -------------------------
  * Add csrf on hidden element
