@@ -635,7 +635,7 @@ class MailroomClientTest(TembaTest):
         self.assertEqual("URN 1 is taken", e.exception.error)
         self.assertEqual("taken", e.exception.code)
         self.assertEqual(1, e.exception.index)
-        self.assertEqual("URN 2 is already taken by another contact.", str(e.exception))
+        self.assertEqual("URN 1 is taken", str(e.exception))
 
         mock_post.return_value = MockJsonResponse(500, {"error": "error loading fields"})
 

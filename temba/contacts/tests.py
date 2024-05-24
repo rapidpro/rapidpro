@@ -87,6 +87,42 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         )
 
     @mock_mailroom
+    def test_create(self, mr_mocks):
+        create_url = reverse("contacts.contact_create")
+
+        self.assertRequestDisallowed(create_url, [None, self.agent, self.user])
+        self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=("name", "phone"))
+
+        # simulate mailroom rejecting the number because it's invalid
+        mr_mocks.exception(mailroom.URNValidationException("URN 0 invalid", "invalid", 0))
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Joe", "phone": "+250781111111"},
+            form_errors={"phone": "Not a valid phone number."},
+        )
+
+        # simulate mailroom rejecting the number because it's taken
+        mr_mocks.exception(mailroom.URNValidationException("URN 0 in use", "taken", 0))
+
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Joe", "phone": "+250781111111"},
+            form_errors={"phone": "In use by another contact."},
+        )
+
+        # try when mailroom call succeeds
+        self.assertCreateSubmit(
+            create_url,
+            self.admin,
+            {"name": "Joe", "phone": "+250782222222"},
+            new_obj_query=Contact.objects.filter(org=self.org, name="Joe", urns__identity="tel:+250782222222"),
+            success_status=200,
+        )
+
+    @mock_mailroom
     def test_list(self, mr_mocks):
         self.login(self.user)
         list_url = reverse("contacts.contact_list")
@@ -1590,35 +1626,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             unit="D",
             message="Sent 7 days after planting date",
         )
-
-    @mock_mailroom
-    def test_contact_create(self, mr_mocks):
-        self.login(self.admin)
-
-        # try creating a contact with a number that belongs to another contact
-        response = self.client.post(
-            reverse("contacts.contact_create"), data=dict(name="Ben Haggerty", urn__tel__0="+250781111111")
-        )
-        self.assertFormError(response.context["form"], "urn__tel__0", "Used by another contact")
-
-        # now repost with a unique phone number
-        response = self.client.post(
-            reverse("contacts.contact_create"), data=dict(name="Ben Haggerty", urn__tel__0="+250 783-835665")
-        )
-        self.assertNoFormErrors(response)
-
-        # repost with the phone number of an orphaned URN
-        response = self.client.post(
-            reverse("contacts.contact_create"), data=dict(name="Ben Haggerty", urn__tel__0="+250788888888")
-        )
-        self.assertNoFormErrors(response)
-
-        # check that the orphaned URN has been associated with the contact
-        self.assertEqual("Ben Haggerty", Contact.from_urn(self.org, "tel:+250788888888").name)
-
-        # check we display error for invalid input
-        response = self.client.post(reverse("contacts.contact_create"), data=dict(name="Ben Haggerty", urn__tel__0="="))
-        self.assertFormError(response.context["form"], "urn__tel__0", "Invalid input")
 
     @patch("temba.mailroom.client.MailroomClient.contact_modify")
     def test_block_and_stop(self, mock_contact_modify):

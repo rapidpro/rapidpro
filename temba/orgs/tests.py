@@ -3243,7 +3243,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # create a new contact
         response = self.client.post(
-            reverse("contacts.contact_create"), data=dict(name="Ben Haggerty", urn__tel__0="0788123123")
+            reverse("contacts.contact_create"), data=dict(name="Ben Haggerty", phone="0788123123")
         )
         self.assertNoFormErrors(response)
 

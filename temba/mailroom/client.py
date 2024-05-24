@@ -83,20 +83,12 @@ class URNValidationException(Exception):
     Request that fails because the provided contact URN is invalid or taken.
     """
 
-    messages = {
-        "taken": _("URN %(index)s is already taken by another contact."),
-        "invalid": _("URN %(index)s isn't valid."),
-    }
-
     def __init__(self, error: str, code: str, index: int):
         self.error = error
         self.code = code
         self.index = index
 
     def __str__(self):
-        if self.code and self.code in self.messages:
-            return self.messages[self.code] % {"index": self.index + 1}
-
         return self.error
 
 
