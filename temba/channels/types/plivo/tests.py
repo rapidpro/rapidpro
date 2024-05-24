@@ -3,8 +3,7 @@ from unittest.mock import patch
 from django.urls import reverse
 
 from temba.channels.models import Channel
-from temba.tests import MockResponse, TembaTest
-from temba.utils import json
+from temba.tests import MockJsonResponse, MockResponse, TembaTest
 
 from .type import PlivoType
 
@@ -25,7 +24,7 @@ class PlivoTypeTest(TembaTest):
         self.assertContains(response, claim_plivo_url)
 
         with patch("requests.get") as plivo_get:
-            plivo_get.return_value = MockResponse(400, {})
+            plivo_get.return_value = MockJsonResponse(400, {})
             response = self.client.get(claim_plivo_url)
 
             self.assertEqual(response.status_code, 302)
@@ -35,7 +34,7 @@ class PlivoTypeTest(TembaTest):
             self.assertEqual(response.request["PATH_INFO"], connect_plivo_url)
 
         with patch("requests.get") as plivo_get:
-            plivo_get.return_value = MockResponse(400, json.dumps(dict()))
+            plivo_get.return_value = MockJsonResponse(400, {})
 
             # try hit the claim page, should be redirected; no credentials in session
             response = self.client.get(claim_plivo_url, follow=True)
@@ -45,18 +44,16 @@ class PlivoTypeTest(TembaTest):
         # let's add a number already connected to the account
         with patch("requests.get") as plivo_get:
             with patch("requests.post") as plivo_post:
-                plivo_get.return_value = MockResponse(
+                plivo_get.return_value = MockJsonResponse(
                     200,
-                    json.dumps(
-                        dict(
-                            objects=[
-                                dict(number="16062681435", region="California, UNITED STATES"),
-                                dict(number="8080", region="GUADALAJARA, MEXICO"),
-                            ]
-                        )
+                    dict(
+                        objects=[
+                            dict(number="16062681435", region="California, UNITED STATES"),
+                            dict(number="8080", region="GUADALAJARA, MEXICO"),
+                        ]
                     ),
                 )
-                plivo_post.return_value = MockResponse(202, json.dumps(dict(status="changed", app_id="app-id")))
+                plivo_post.return_value = MockJsonResponse(202, dict(status="changed", app_id="app-id"))
 
                 # make sure our numbers appear on the claim page
                 response = self.client.get(claim_plivo_url)
@@ -107,23 +104,22 @@ class PlivoTypeTest(TembaTest):
 
         with patch("temba.channels.views.requests.get") as mock_get:
             with patch("temba.channels.views.requests.post") as mock_post:
-                response_body = json.dumps(
-                    {
-                        "status": "fulfilled",
-                        "message": "created",
-                        "numbers": [{"status": "Success", "number": "27816855210"}],
-                        "api_id": "4334c747-9e83-11e5-9147-22000acb8094",
-                    }
-                )
+                response_body = {
+                    "status": "fulfilled",
+                    "message": "created",
+                    "numbers": [{"status": "Success", "number": "27816855210"}],
+                    "api_id": "4334c747-9e83-11e5-9147-22000acb8094",
+                }
+
                 mock_get.side_effect = [
-                    MockResponse(200, json.dumps(dict())),  # get account
-                    MockResponse(400, json.dumps(dict())),  # failed get number
-                    MockResponse(200, json.dumps(dict())),  # successful get number after buying it
+                    MockJsonResponse(200, {}),  # get account
+                    MockJsonResponse(400, {}),  # failed get number
+                    MockJsonResponse(200, {}),  # successful get number after buying it
                 ]
                 mock_post.side_effect = [
-                    MockResponse(200, json.dumps(dict(app_id="app-id"))),  # create application
-                    MockResponse(201, json.dumps(dict())),  # buy number
-                    MockResponse(202, response_body),  # update number
+                    MockJsonResponse(200, {"app_id": "app-id"}),  # create application
+                    MockJsonResponse(201, {}),  # buy number
+                    MockJsonResponse(202, response_body),  # update number
                 ]
 
                 # claim it the US number
@@ -184,8 +180,8 @@ class PlivoTypeTest(TembaTest):
 
         search_url = reverse("channels.types.plivo.search")
 
-        mock_get.return_value = MockResponse(
-            200, json.dumps({"objects": [{"number": "16331111111"}, {"number": "16332222222"}]})
+        mock_get.return_value = MockJsonResponse(
+            200, {"objects": [{"number": "16331111111"}, {"number": "16332222222"}]}
         )
 
         response = self.client.post(search_url, {"country": "US", "pattern": ""})
@@ -193,7 +189,7 @@ class PlivoTypeTest(TembaTest):
         self.assertEqual(["+1 633-111-1111", "+1 633-222-2222"], response.json())
 
         # missing key to throw exception
-        mock_get.return_value = MockResponse(200, json.dumps({}))
+        mock_get.return_value = MockJsonResponse(200, {})
         response = self.client.post(search_url, {"country": "US", "pattern": ""})
 
         self.assertEqual(response.status_code, 200)
@@ -224,7 +220,7 @@ class PlivoTypeTest(TembaTest):
 
         # ok, now with a success
         with patch("requests.get") as mock_get:
-            mock_get.return_value = MockResponse(200, json.dumps(dict()))
+            mock_get.return_value = MockJsonResponse(200, {})
             response = self.client.post(connect_url, dict(auth_id="auth-id", auth_token="auth-token"))
 
             # plivo should be added to the session
