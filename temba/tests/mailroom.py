@@ -13,7 +13,6 @@ from django.utils import timezone
 
 from temba import mailroom
 from temba.campaigns.models import CampaignEvent, EventFire
-from temba.channels.android.views import is_phone
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import FlowRun, FlowSession
@@ -498,12 +497,16 @@ def apply_modifiers(org, user, contacts, modifiers: list):
                     g.contacts.remove(c)
 
 
+PHONE_REGEX = re.compile(r"^\+?[A-Za-z0-9]{1,64}$")
+
+
 def contact_resolve(org, phone: str) -> tuple:
     user = get_anonymous_user()
 
-    urn = URN.normalize(f"tel:{phone}", org.default_country_code)
-    if not is_phone(phone):
-        raise ValueError("urn isn't valid")
+    if not PHONE_REGEX.match(phone):
+        raise mailroom.URNValidationException("not a number", "invalid", 0)
+
+    urn = f"tel:{phone}"
 
     contact_urn = ContactURN.lookup(org, urn)
     if contact_urn:

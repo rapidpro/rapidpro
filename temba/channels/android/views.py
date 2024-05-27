@@ -1,7 +1,6 @@
 import base64
 import hashlib
 import hmac
-import re
 import time
 from datetime import datetime, timedelta, timezone as tzone
 
@@ -20,15 +19,6 @@ from temba.utils import analytics, json
 from ..models import Channel, SyncEvent
 from .claim import UnsupportedAndroidChannelError, get_or_create_channel
 from .sync import get_channel_commands, update_message
-
-PHONE_REGEX = re.compile(r"^((\+[0-9]{7,15})|([a-z0-9]{1,64}))$")
-
-
-def is_phone(phone: str) -> bool:
-    if phone is None or phone == "":
-        return False
-    cleaned_phone = re.sub(r"[^0-9A-Za-z]", "", phone)
-    return PHONE_REGEX.match(cleaned_phone) is not None
 
 
 @csrf_exempt
@@ -148,13 +138,13 @@ def sync(request, channel_id):
                 date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=tzone.utc)
                 phone = cmd["phone"]
 
-                if text and is_phone(phone):  # ignore empty messages and non numeric phones
+                if phone and text:
                     try:
                         msg_id = mailroom.get_client().android_message(
                             channel.org_id, channel.id, phone, text, received_on=date
                         )
                         extra = dict(msg_id=msg_id)
-                    except ValueError:  # pragma: no cover
+                    except mailroom.URNValidationException:
                         pass
 
                 handled = True
@@ -169,7 +159,7 @@ def sync(request, channel_id):
                 # Android sometimes will pass us a call from an 'unknown number', which is null
                 # ignore these events on our side as they have no purpose and break a lot of our
                 # assumptions
-                if is_phone(phone) and call_tuple not in unique_calls and ChannelEvent.is_valid_type(cmd["type"]):
+                if phone and call_tuple not in unique_calls and ChannelEvent.is_valid_type(cmd["type"]):
                     try:
                         mailroom.get_client().android_event(
                             channel.org_id,
@@ -179,8 +169,7 @@ def sync(request, channel_id):
                             extra={"duration": duration},
                             occurred_on=date,
                         )
-                    except ValueError:  # pragma: no cover
-                        # in some cases Android passes us invalid URNs, in those cases just ignore them
+                    except mailroom.URNValidationException:  # pragma: no cover
                         pass
 
                     unique_calls.add(call_tuple)
