@@ -1,3 +1,7 @@
+v9.1.128 (2024-05-27)
+-------------------------
+ * Lean on mailroom for validation of phone numbers from android events / messages
+
 v9.1.127 (2024-05-27)
 -------------------------
  * Rework contact create view to let mailroom do URN validation
