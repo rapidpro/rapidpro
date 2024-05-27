@@ -78,6 +78,20 @@ class QueryValidationException(Exception):
         return self.error
 
 
+class URNValidationException(Exception):
+    """
+    Request that fails because the provided contact URN is invalid or taken.
+    """
+
+    def __init__(self, error: str, code: str, index: int):
+        self.error = error
+        self.code = code
+        self.index = index
+
+    def __str__(self):
+        return self.error
+
+
 @dataclass
 class ContactSpec:
     """
@@ -415,6 +429,8 @@ class MailroomClient:
                 raise FlowValidationException(error)
             elif domain == "query":
                 raise QueryValidationException(error, code, extra)
+            elif domain == "urn":
+                raise URNValidationException(error, code, extra["index"])
 
         elif 400 <= response.status_code < 600:
             raise RequestException(endpoint, payload, response)

@@ -21,9 +21,11 @@ from temba.utils import json
 from . import (
     BroadcastPreview,
     Exclusions,
+    FlowValidationException,
     Inclusions,
     QueryValidationException,
     StartPreview,
+    URNValidationException,
     modifiers,
     queue_interrupt,
 )
@@ -601,6 +603,14 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_errors(self, mock_post):
+        mock_post.return_value = MockJsonResponse(422, {"error": "node isn't valid", "code": "flow:invalid"})
+
+        with self.assertRaises(FlowValidationException) as e:
+            get_client().flow_inspect(1, {})
+
+        self.assertEqual("node isn't valid", e.exception.error)
+        self.assertEqual("node isn't valid", str(e.exception))
+
         mock_post.return_value = MockJsonResponse(
             422, {"error": "no such field age", "code": "query:unknown_property", "extra": {"property": "age"}}
         )
@@ -611,6 +621,21 @@ class MailroomClientTest(TembaTest):
         self.assertEqual("no such field age", e.exception.error)
         self.assertEqual("unknown_property", e.exception.code)
         self.assertEqual({"property": "age"}, e.exception.extra)
+        self.assertEqual("Can't resolve 'age' to a field or URN scheme.", str(e.exception))
+
+        mock_post.return_value = MockJsonResponse(
+            422, {"error": "URN 1 is taken", "code": "urn:taken", "extra": {"index": 1}}
+        )
+
+        with self.assertRaises(URNValidationException) as e:
+            get_client().contact_create(
+                1, 2, ContactSpec(name="Bob", language="eng", urns=["tel:+123456789"], fields={}, groups=[])
+            )
+
+        self.assertEqual("URN 1 is taken", e.exception.error)
+        self.assertEqual("taken", e.exception.code)
+        self.assertEqual(1, e.exception.index)
+        self.assertEqual("URN 1 is taken", str(e.exception))
 
         mock_post.return_value = MockJsonResponse(500, {"error": "error loading fields"})
 

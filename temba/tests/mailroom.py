@@ -520,11 +520,11 @@ def create_contact_locally(
 ):
     orphaned_urns = {}
 
-    for urn in urns:
+    for i, urn in enumerate(urns):
         existing = ContactURN.lookup(org, urn)
         if existing:
             if existing.contact_id:
-                raise mailroom.RequestException("contact/create", None, {"error": "URNs in use by other contacts"})
+                raise mailroom.URNValidationException(f"URN {i} in use by other contact", "taken", i)
             else:
                 orphaned_urns[urn] = existing
 

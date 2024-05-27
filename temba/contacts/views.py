@@ -258,7 +258,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         return context
 
 
-class ContactForm(forms.ModelForm):
+class UpdateContactForm(forms.ModelForm):
     def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -267,10 +267,7 @@ class ContactForm(forms.ModelForm):
         # add all URN scheme fields if org is not anon
         extra_fields = []
         if not self.org.is_anon:
-            if not self.instance.id:
-                urns = []
-            else:
-                urns = self.instance.get_urns()
+            urns = self.instance.get_urns()
 
             idx = 0
 
@@ -355,7 +352,7 @@ class ContactForm(forms.ModelForm):
         widgets = {"name": InputWidget(attrs={"widget_only": False})}
 
 
-class UpdateContactForm(ContactForm):
+class UpdateUpdateContactForm(UpdateContactForm):
     groups = TembaMultipleChoiceField(
         queryset=ContactGroup.objects.none(),
         required=False,
@@ -899,33 +896,33 @@ class ContactCRUDL(SmartCRUDL):
                 raise Http404("Group not found")
 
     class Create(NonAtomicMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
-        form_class = ContactForm
+        class Form(forms.ModelForm):
+            phone = forms.CharField(required=False, max_length=255, label=_("Phone Number"), widget=InputWidget())
+
+            class Meta:
+                model = Contact
+                fields = ("name", "phone")
+                widgets = {"name": InputWidget(attrs={"widget_only": False})}
+
+        form_class = Form
         submit_button_name = _("Create")
 
-        def get_form_kwargs(self, *args, **kwargs):
-            form_kwargs = super().get_form_kwargs(*args, **kwargs)
-            form_kwargs["org"] = self.request.org
-            return form_kwargs
+        def form_valid(self, form):
+            name = self.form.cleaned_data.get("name")
+            phone = self.form.cleaned_data.get("phone")
+            urns = ["tel:" + phone] if phone else []
 
-        def get_form(self):
-            return super().get_form()
+            try:
+                Contact.create(self.request.org, self.request.user, name, language="", urns=urns, fields={}, groups=[])
+            except mailroom.URNValidationException as e:
+                error = _("In use by another contact.") if e.code == "taken" else _("Not a valid phone number.")
+                self.form.add_error("phone", error)
+                return self.form_invalid(form)
 
-        def pre_save(self, obj):
-            obj = super().pre_save(obj)
-            obj.org = self.request.org
-            return obj
-
-        def save(self, obj):
-            urns = []
-            for field_key, value in self.form.cleaned_data.items():
-                if field_key.startswith("urn__") and value:
-                    scheme = field_key.split("__")[1]
-                    urns.append(URN.from_parts(scheme, value))
-
-            Contact.create(obj.org, self.request.user, obj.name, language="", urns=urns, fields={}, groups=[])
+            return self.render_modal_response(form)
 
     class Update(SpaMixin, ComponentFormMixin, NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        form_class = UpdateContactForm
+        form_class = UpdateUpdateContactForm
         success_url = "hide"
         submit_button_name = _("Save Changes")
 
