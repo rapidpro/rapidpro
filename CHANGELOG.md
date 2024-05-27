@@ -1,3 +1,7 @@
+v9.1.127 (2024-05-27)
+-------------------------
+ * Rework contact create view to let mailroom do URN validation
+
 v9.1.126 (2024-05-24)
 -------------------------
  * Mailroom client should use content-type header on responses to know whether to parse as JSON
