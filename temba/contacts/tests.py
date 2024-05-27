@@ -526,6 +526,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             language="eng",
         )
         testers = self.create_group("Testers", contacts=[contact])
+        self.create_contact("Ann", urns=["tel:+593979444444"])
 
         update_url = reverse("contacts.contact_update", args=[contact.id])
 
@@ -542,6 +543,24 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                 "urn__tel__1": "+593979222222",
                 "urn__telegram__2": "5474754",
             },
+        )
+
+        # try to take URN in use by another contact
+        self.assertUpdateSubmit(
+            update_url,
+            self.admin,
+            {"name": "Bobby", "status": "B", "language": "spa", "groups": [testers.id], "urn__tel__0": "+593979444444"},
+            form_errors={"urn__tel__0": "Used by another contact"},
+            object_unchanged=contact,
+        )
+
+        # try to add an invalid URN
+        self.assertUpdateSubmit(
+            update_url,
+            self.admin,
+            {"name": "Bobby", "status": "B", "language": "spa", "groups": [testers.id], "urn__tel__0": "++++"},
+            form_errors={"urn__tel__0": "Invalid input"},
+            object_unchanged=contact,
         )
 
         # update all fields (removes second tel URN, adds a new Facebook URN)

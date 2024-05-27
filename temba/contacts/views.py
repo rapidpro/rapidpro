@@ -258,7 +258,7 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         return context
 
 
-class ContactForm(forms.ModelForm):
+class UpdateContactForm(forms.ModelForm):
     def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -267,10 +267,7 @@ class ContactForm(forms.ModelForm):
         # add all URN scheme fields if org is not anon
         extra_fields = []
         if not self.org.is_anon:
-            if not self.instance.id:
-                urns = []
-            else:
-                urns = self.instance.get_urns()
+            urns = self.instance.get_urns()
 
             idx = 0
 
@@ -355,7 +352,7 @@ class ContactForm(forms.ModelForm):
         widgets = {"name": InputWidget(attrs={"widget_only": False})}
 
 
-class UpdateContactForm(ContactForm):
+class UpdateUpdateContactForm(UpdateContactForm):
     groups = TembaMultipleChoiceField(
         queryset=ContactGroup.objects.none(),
         required=False,
@@ -925,7 +922,7 @@ class ContactCRUDL(SmartCRUDL):
             return self.render_modal_response(form)
 
     class Update(SpaMixin, ComponentFormMixin, NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        form_class = UpdateContactForm
+        form_class = UpdateUpdateContactForm
         success_url = "hide"
         submit_button_name = _("Save Changes")
 
