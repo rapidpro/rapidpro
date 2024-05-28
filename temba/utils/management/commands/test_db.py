@@ -74,7 +74,7 @@ CHANNELS = (
         "channel_type": "CHP",
         "scheme": "webchat",
         "address": "",
-        "config": {"secret": "sesame", "send_url": "http://localhost/wc/send"},
+        "config": {"secret": "sesame", "send_url": "http://host.docker.internal/wc/send"},
     },
 )
 FIELDS = (
