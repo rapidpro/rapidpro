@@ -71,10 +71,10 @@ CHANNELS = (
     {"name": "Vonage", "channel_type": "NX", "scheme": "tel", "address": "2345"},
     {
         "name": "Web Chat",
-        "channel_type": "TWC",
+        "channel_type": "CHP",
         "scheme": "webchat",
         "address": "",
-        "config": {"secret": "sesame", "send_url": "http://chip:8070/wc/send"},
+        "config": {"secret": "sesame", "send_url": "http://localhost/wc/send"},
     },
 )
 FIELDS = (
