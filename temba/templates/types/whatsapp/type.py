@@ -67,39 +67,15 @@ class WhatsAppType(TemplateType):
                 else:
                     supported = False
 
-                components.append(
-                    {
-                        "type": "header",
-                        "name": "header",
-                        "content": comp_text,
-                        "variables": comp_vars,
-                        "params": [{"type": "text"} for v in comp_vars],  # deprecated
-                    }
-                )
+                components.append({"type": "header", "name": "header", "content": comp_text, "variables": comp_vars})
 
             elif comp_type == "BODY":
                 comp_vars = add_variables(self._extract_variables(comp_text), "text")
 
-                components.append(
-                    {
-                        "type": "body",
-                        "name": "body",
-                        "content": comp_text,
-                        "variables": comp_vars,
-                        "params": [{"type": "text"} for v in comp_vars],  # deprecated
-                    }
-                )
+                components.append({"type": "body", "name": "body", "content": comp_text, "variables": comp_vars})
 
             elif comp_type == "FOOTER":
-                components.append(
-                    {
-                        "type": "footer",
-                        "name": "footer",
-                        "content": comp_text,
-                        "variables": {},
-                        "params": [],  # deprecated
-                    }
-                )
+                components.append({"type": "footer", "name": "footer", "content": comp_text, "variables": {}})
 
             elif comp_type == "BUTTONS":
                 for idx, button in enumerate(component["buttons"]):
@@ -115,7 +91,6 @@ class WhatsAppType(TemplateType):
                                 "name": button_name,
                                 "content": button_text,
                                 "variables": button_vars,
-                                "params": [{"type": "text"} for v in button_vars],  # deprecated
                             }
                         )
 
@@ -129,7 +104,6 @@ class WhatsAppType(TemplateType):
                                 "content": button_url,
                                 "display": button_text,
                                 "variables": button_vars,
-                                "params": [{"type": "text"} for v in button_vars],  # deprecated
                             }
                         )
 
@@ -142,7 +116,6 @@ class WhatsAppType(TemplateType):
                                 "content": phone_number,
                                 "display": button_text,
                                 "variables": {},
-                                "params": [],  # deprecated
                             }
                         )
 

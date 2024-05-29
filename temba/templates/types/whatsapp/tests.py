@@ -33,15 +33,7 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual("en", trans.external_locale)
         self.assertEqual("1234", trans.external_id)
         self.assertEqual(
-            [
-                {
-                    "type": "body",
-                    "name": "body",
-                    "content": "Hello {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
-            ],
+            [{"type": "body", "name": "body", "content": "Hello {{1}}", "variables": {"1": 0}}],
             trans.components,
         )
         self.assertEqual([{"type": "text"}], trans.variables)
@@ -89,36 +81,32 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual("order_template", trans.template.name)
         self.assertEqual(
             [
-                {"type": "header", "name": "header", "content": "Your order!", "variables": {}, "params": []},
+                {"type": "header", "name": "header", "content": "Your order!", "variables": {}},
                 {
                     "type": "body",
                     "name": "body",
                     "content": "Sorry your order {{1}} took longer to deliver than expected.\nWe'll notify you about updates in the next {{2}} days.\n\nDo you have more question?",
                     "variables": {"1": 0, "2": 1},
-                    "params": [{"type": "text"}, {"type": "text"}],
                 },
                 {
                     "type": "footer",
                     "name": "footer",
                     "content": "Thanks for your patience",
                     "variables": {},
-                    "params": [],
                 },
                 {
                     "type": "button/quick_reply",
                     "name": "button.0",
                     "content": "Yes {{1}}",
                     "variables": {"1": 2},
-                    "params": [{"type": "text"}],
                 },
-                {"type": "button/quick_reply", "name": "button.1", "content": "No", "variables": {}, "params": []},
+                {"type": "button/quick_reply", "name": "button.1", "content": "No", "variables": {}},
                 {
                     "type": "button/phone_number",
                     "name": "button.2",
                     "content": "+1234",
                     "display": "Call center",
                     "variables": {},
-                    "params": [],
                 },
                 {
                     "type": "button/url",
@@ -126,7 +114,6 @@ class WhatsAppTypeTest(TembaTest):
                     "content": r"https:\/\/example.com\/?wa_customer={{1}}",
                     "display": "Check website",
                     "variables": {"1": 3},
-                    "params": [{"type": "text"}],
                 },
                 {
                     "type": "button/url",
@@ -134,7 +121,6 @@ class WhatsAppTypeTest(TembaTest):
                     "content": r"https:\/\/example.com\/help",
                     "display": "Check website",
                     "variables": {},
-                    "params": [],
                 },
             ],
             trans.components,
@@ -173,7 +159,6 @@ class WhatsAppTypeTest(TembaTest):
                     "name": "body",
                     "content": "Hello {{1}}",
                     "variables": {"1": 0},
-                    "params": [{"type": "text"}],
                 }
             ],
             trans.components,
@@ -193,9 +178,7 @@ class WhatsAppTypeTest(TembaTest):
             },
         )
         self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, trans.status)
-        self.assertEqual(
-            [{"type": "header", "name": "header", "content": "", "variables": {}, "params": []}], trans.components
-        )
+        self.assertEqual([{"type": "header", "name": "header", "content": "", "variables": {}}], trans.components)
         self.assertEqual([], trans.variables)
 
         # try unsupported button type
@@ -214,9 +197,7 @@ class WhatsAppTypeTest(TembaTest):
             },
         )
         self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, trans.status)
-        self.assertEqual(
-            [{"type": "body", "name": "body", "content": "Hello", "variables": {}, "params": []}], trans.components
-        )
+        self.assertEqual([{"type": "body", "name": "body", "content": "Hello", "variables": {}}], trans.components)
         self.assertEqual([], trans.variables)
 
     def test_update_local_d3(self):
@@ -244,15 +225,7 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual("en", trans.external_locale)
         self.assertEqual("en/hello", trans.external_id)
         self.assertEqual(
-            [
-                {
-                    "type": "body",
-                    "name": "body",
-                    "content": "Hello {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
-            ],
+            [{"type": "body", "name": "body", "content": "Hello {{1}}", "variables": {"1": 0}}],
             trans.components,
         )
         self.assertEqual([{"type": "text"}], trans.variables)
