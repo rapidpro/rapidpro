@@ -238,11 +238,12 @@ function fetchAjax(url, options) {
     }
   }
 
+  options['headers'] = options['headers'] || {};
+
   if (csrf) {
     options['headers']['X-CSRFToken'] = csrf;
   }
 
-  options['headers'] = options['headers'] || {};
   options['headers']['TEMBA-SPA'] = 1;
   options['headers']['X-PJAX'] = 1;
 
