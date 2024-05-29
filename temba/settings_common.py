@@ -10,16 +10,13 @@ from django.utils.translation import gettext_lazy as _
 INTERNAL_IPS = iptools.IpRangeList("127.0.0.1", "192.168.0.10", "192.168.0.0/24", "0.0.0.0")  # network block
 HOSTNAME = "localhost"
 
-ADMINS = (("RapidPro", "code@yourdomain.io"),)
-MANAGERS = ADMINS
-
 # HTTP Headers using for outgoing requests to other services
 OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
 
 # Make this unique, and don't share it with anybody.
 SECRET_KEY = "your own secret key"
 
-HELP_URL = None
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 2500  # needed for exports of big workspaces
 
 # -----------------------------------------------------------------------------------
 # Tests
