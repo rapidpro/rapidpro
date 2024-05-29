@@ -1,3 +1,8 @@
+v9.1.129 (2024-05-29)
+-------------------------
+ * Increase DATA_UPLOAD_MAX_NUMBER_FIELDS to 2500
+ * Fix FB and IG claim getFBpages
+
 v9.1.128 (2024-05-27)
 -------------------------
  * Lean on mailroom for validation of phone numbers from android events / messages
