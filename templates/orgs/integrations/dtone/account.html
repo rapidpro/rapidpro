@@ -13,6 +13,7 @@
     {% trans "Connect your DT One account." %}
   {% endif %}
 {% endblock summary %}
+
 {% block pre-form %}
   <div class="mb-4">
     {% if not integration_connected %}
@@ -23,6 +24,7 @@
   {% endif %}
 </div>
 {% endblock pre-form %}
+
 {% block fields %}
   {% if not integration_connected %}
     {% render_field 'api_key' %}
@@ -34,8 +36,7 @@
   </div>
 {% endif %}
 {% endblock fields %}
-{% block form-buttons %}
-{% endblock form-buttons %}
+
 {% block post-form %}
   {% if integration_connected %}
     <div class="mt-4">{% trans "Your account is connected to a DT One account." %}</div>
