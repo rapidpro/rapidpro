@@ -1,3 +1,8 @@
+v9.1.130 (2024-05-31)
+-------------------------
+ * Fix flow and msgs unlabel action
+ * Remove no longer used params field on synched whatsapp type templates
+
 v9.1.129 (2024-05-29)
 -------------------------
  * Increase DATA_UPLOAD_MAX_NUMBER_FIELDS to 2500
