@@ -214,13 +214,13 @@ class BulkActionMixin:
             self.fields["action"] = forms.ChoiceField(choices=[(a, a) for a in actions], required=True)
             self.fields["objects"] = forms.ModelMultipleChoiceField(queryset=queryset, required=False)
             self.fields["all"] = forms.BooleanField(required=False)
+            self.fields["add"] = forms.BooleanField(required=False)
 
             if label_queryset:
                 self.fields["label"] = forms.ModelChoiceField(label_queryset, required=False)
 
         def clean(self):
             cleaned_data = super().clean()
-
             action = cleaned_data.get("action")
             label = cleaned_data.get("label")
             if action in ("label", "unlabel") and not label:
