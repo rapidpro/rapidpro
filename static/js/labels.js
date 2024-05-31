@@ -39,6 +39,10 @@ function runActionOnObjectRows(action, options = {}) {
     formData.append('label', options.label);
   }
 
+  if (!options.add) {
+    formData.append('add', "false")
+  }
+
   for (var i = 0; i < objectIds.length; i++) {
     formData.append('objects', objectIds[i]);
   }
@@ -95,7 +99,7 @@ function labelObjectRows(labelId, forceRemove) {
     return;
   }
 
-  runActionOnObjectRows('label', { label: labelId, add: true }).then(
+  runActionOnObjectRows('label', { label: labelId, add: addLabel }).then(
     recheckIds
   );
 }
