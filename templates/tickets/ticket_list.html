@@ -2,6 +2,7 @@
 {% load smartmin i18n contacts compress %}
 
 {% block page-header %}
+{% csrf_token %}
 {% endblock page-header %}
 {% block extra-style %}
   {{ block.super }}

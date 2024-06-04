@@ -5,6 +5,7 @@
   {% trans "Workspaces" %}
 {% endblock title-text %}
 {% block page-header %}
+  {% csrf_token %}
   <div class="hidden" id="title-text">{{ title }}</div>
 {% endblock page-header %}
 {% block extra-style %}
