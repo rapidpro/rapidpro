@@ -1,3 +1,7 @@
+v9.1.132 (2024-06-04)
+-------------------------
+ * Make sure the CSRF element is present for all page header blocks
+
 v9.1.131 (2024-05-31)
 -------------------------
  * Fix DT One submit buttons
