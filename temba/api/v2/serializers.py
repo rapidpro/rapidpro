@@ -601,6 +601,8 @@ class ContactWriteSerializer(WriteSerializer):
         required=False, child=serializers.CharField(allow_blank=True, allow_null=True), max_length=100
     )
 
+    urn_errors = {"invalid": "URN is not valid.", "taken": "URN is in use by another contact."}
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -643,12 +645,6 @@ class ContactWriteSerializer(WriteSerializer):
         # or for updates by anonymous organizations (we do allow creation of contacts with URNs)
         if org.is_anon and self.instance:
             raise serializers.ValidationError("Updating URNs not allowed for anonymous organizations")
-
-        # if creating a contact, URNs can't belong to other contacts
-        if not self.instance:
-            for urn in value:
-                if Contact.from_urn(org, urn):
-                    raise serializers.ValidationError("URN belongs to another contact: %s" % urn)
 
         return value
 
@@ -711,6 +707,9 @@ class ContactWriteSerializer(WriteSerializer):
             )
 
         return self.instance
+
+    def urn_exception(self, ex):
+        return {"urns": {ex.index: [self.urn_errors[ex.code]]}}
 
 
 class ContactFieldReadSerializer(ReadSerializer):
