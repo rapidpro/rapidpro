@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from django.db import transaction
 
+from temba import mailroom
 from temba.api.support import InvalidQueryError
 from temba.contacts.models import URN
 from temba.utils.models import TembaModel
@@ -203,7 +204,11 @@ class WriteAPIMixin:
         if serializer.is_valid():
             mgr = transaction.atomic() if self.write_with_transaction else contextlib.suppress()
             with mgr:
-                output = serializer.save()
+                try:
+                    output = serializer.save()
+                except mailroom.URNValidationException as e:
+                    return Response(serializer.urn_exception(e), status=status.HTTP_400_BAD_REQUEST)
+
                 self.post_save(output)
                 return self.render_write_response(output, context)
         else:

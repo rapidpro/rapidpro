@@ -2217,7 +2217,7 @@ class EndpointsTest(APITest):
             endpoint_url,
             self.editor,
             {"name": "Robert", "urns": ["tel:+250-78-5555555"]},
-            errors={"urns": "URN belongs to another contact: tel:+250785555555"},
+            errors={("urns", "0"): "URN is in use by another contact."},
         )
 
         # try to update a contact with non-existent UUID

@@ -2817,11 +2817,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertIsNone(contact5.get_urn(schemes=["email"]))
         self.assertIsNone(contact5.get_urn(schemes=["facebook"]))
 
-    def test_from_urn(self):
-        self.assertEqual(Contact.from_urn(self.org, "tel:+250781111111"), self.joe)  # URN with contact
-        self.assertIsNone(Contact.from_urn(self.org, "tel:+250788888888"))  # URN with no contact
-        self.assertIsNone(Contact.from_urn(self.org, "snoop@dogg.com"))  # URN with no scheme
-
     def test_field_json(self):
         self.setUpLocations()
 

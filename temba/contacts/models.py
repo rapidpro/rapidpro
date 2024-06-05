@@ -616,21 +616,6 @@ class Contact(LegacyUUIDMixin, SmartModel):
         )
         return Contact.objects.get(id=response["contact"]["id"])
 
-    @classmethod
-    def from_urn(cls, org, urn_as_string, country=None):
-        """
-        Looks up a contact by a URN string (which will be normalized)
-        """
-        try:
-            urn_obj = ContactURN.lookup(org, urn_as_string, country)
-        except ValueError:
-            return None
-
-        if urn_obj and urn_obj.contact and urn_obj.contact.is_active:
-            return urn_obj.contact
-        else:
-            return None
-
     @property
     def anon_display(self):
         """
