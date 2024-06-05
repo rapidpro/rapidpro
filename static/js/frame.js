@@ -569,4 +569,18 @@ document.addEventListener('DOMContentLoaded', function () {
   if (container) {
     container.classList.remove('initial-load');
   }
+
+  container.addEventListener('click', function (event) {
+    // get our immediate path
+    const path = event.composedPath().slice(0, 10);
+
+    // find the first anchor tag
+    const ele = path.find((ele) => ele.tagName === 'A');
+
+    if (ele) {
+      event.preventDefault();
+      event.stopPropagation();
+      spaGet(ele.href);
+    }
+  });
 });
