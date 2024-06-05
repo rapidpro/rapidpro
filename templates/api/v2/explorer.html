@@ -145,7 +145,7 @@
       }
     }
 
-    function fetchAjaxAPI(url, method, target) {
+    function fetchAjaxAPI(url, method, body, target) {
       var headers = {
         "Accept": "application/json; charset=utf-8; indent=4;",
         "Content-Type": "application/json; charset=utf-8; indent=4;"
@@ -154,6 +154,7 @@
       fetchAjax(url, {
         method: method,
         headers: headers,
+        body: body,
         container: target,
         showErrors: true
       });
@@ -164,13 +165,14 @@
       var bodyEditor = document.querySelector("#request-body-" + slug);
 
       var query = queryEditor ? ensureQueryPrefix(queryEditor.value) : '';
-      var body = bodyEditor ? bodyEditor.value : '';
+      var body = bodyEditor ? bodyEditor.value : null;
 
       const target = "#result-" + slug;
       const results = document.querySelector(target);
       results.style.display = "block";
       results.innerHTML = "Requesting...";
-      fetchAjaxAPI(url + query, method, target);
+
+      fetchAjaxAPI(url + query, method, body, target);
     }
   </script>
 {% endblock extra-script %}
