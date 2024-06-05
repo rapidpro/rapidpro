@@ -1,3 +1,8 @@
+v9.1.133 (2024-06-05)
+-------------------------
+ * Fix API explorer POSTs
+ * Make CSRF cookie age 2 weeks and remove non-form hidden CSRF hidden elements
+
 v9.1.132 (2024-06-04)
 -------------------------
  * Make sure the CSRF element is present for all page header blocks
