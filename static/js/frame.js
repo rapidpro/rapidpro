@@ -231,6 +231,12 @@ function fetchAjax(url, options) {
   }
 
   let csrf = getCookie('csrftoken');
+  if (!csrf) {
+    const tokenEle = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (tokenEle) {
+      csrf = tokenEle.value;
+    }
+  }
 
   options['headers'] = options['headers'] || {};
 

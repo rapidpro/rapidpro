@@ -224,6 +224,7 @@
                   {% block extra-script %}
                   {% endblock extra-script %}
                   {% block page-header %}
+                    {% csrf_token %}
                     <div class="mb-4">
                       <div class="no-menu flex items-center">
                         <div class="text-container text-2xl text-gray-700">
