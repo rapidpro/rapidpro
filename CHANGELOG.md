@@ -1,3 +1,8 @@
+v9.1.134 (2024-06-05)
+-------------------------
+ * Contact API endpoint should let mailroom decide if a URN is taken
+ * Revert "Remove csrf token hidden element not under a form"
+
 v9.1.133 (2024-06-05)
 -------------------------
  * Fix API explorer POSTs
