@@ -16,7 +16,7 @@ SECURE_SSL_REDIRECT = False
 # cross-site request forgery prevention
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_SAMESITE = "Strict"
-CSRF_COOKIE_AGE = 10800
+CSRF_COOKIE_AGE = 1209600  # 2 weeks
 
 # password requirements
 AUTH_PASSWORD_VALIDATORS = [
