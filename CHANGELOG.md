@@ -1,3 +1,8 @@
+v9.1.135 (2024-06-05)
+-------------------------
+ * Fix login error message styling 
+ * Remove unused JS libs
+
 v9.1.134 (2024-06-05)
 -------------------------
  * Contact API endpoint should let mailroom decide if a URN is taken
