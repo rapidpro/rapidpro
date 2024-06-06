@@ -92,23 +92,24 @@ class UpdateContactForm(forms.ModelForm):
             urns_by_field["new_path"] = URN.from_parts(self.data["new_scheme"], self.data["new_path"])
 
         # let mailroom figure out which are valid or taken
-        urn_values = list(urns_by_field.values())
-        resolved = mailroom.get_client().contact_urns(self.org.id, urn_values)
-        resolved_by_value = dict(zip(urn_values, resolved))
+        if urns_by_field:
+            urn_values = list(urns_by_field.values())
+            resolved = mailroom.get_client().contact_urns(self.org.id, urn_values)
+            resolved_by_value = dict(zip(urn_values, resolved))
 
-        for field, urn in urns_by_field.items():
-            resolved = resolved_by_value[urn]
-            scheme, path, query, display = URN.to_parts(resolved.normalized)
+            for field, urn in urns_by_field.items():
+                resolved = resolved_by_value[urn]
+                scheme, path, query, display = URN.to_parts(resolved.normalized)
 
-            if resolved.contact_id and resolved.contact_id != self.instance.id:
-                self.add_error(field, _("Used by another contact"))
-            elif resolved.error:
-                if scheme == URN.TEL_SCHEME:
-                    self.add_error(field, _("Invalid phone number. Ensure number includes country code."))
-                else:
-                    self.add_error(field, _("Invalid format."))
+                if resolved.contact_id and resolved.contact_id != self.instance.id:
+                    self.add_error(field, _("In use by another contact."))
+                elif resolved.error:
+                    if scheme == URN.TEL_SCHEME:
+                        self.add_error(field, _("Invalid phone number. Ensure number includes country code."))
+                    else:
+                        self.add_error(field, _("Invalid format."))
 
-            self.cleaned_data[field] = path
+                self.cleaned_data[field] = path
 
         return self.cleaned_data
 

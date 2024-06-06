@@ -164,6 +164,7 @@ class URNResult:
     normalized: str
     contact_id: int = None
     error: str = None
+    e164: bool = False
 
 
 class MailroomClient:

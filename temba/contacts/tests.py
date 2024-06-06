@@ -554,7 +554,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             update_url,
             self.admin,
             {"name": "Bobby", "status": "B", "language": "spa", "groups": [testers.id], "urn__tel__0": "+593979444444"},
-            form_errors={"urn__tel__0": "Used by another contact"},
+            form_errors={"urn__tel__0": "In use by another contact."},
             object_unchanged=contact,
         )
 
@@ -671,6 +671,23 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual("Bobby", contact.name)
         self.assertEqual(Contact.STATUS_ACTIVE, contact.status)
         self.assertEqual("kin", contact.language)
+
+    @mock_mailroom
+    def test_update_with_mailroom_error(self, mr_mocks):
+        mr_mocks.exception(mailroom.RequestException("", "", MockResponse(400, '{"error": "Error updating contact"}')))
+
+        contact = self.create_contact("Joe", phone="1234")
+
+        self.login(self.admin)
+
+        response = self.client.post(
+            reverse("contacts.contact_update", args=[contact.id]),
+            {"name": "Joe", "status": Contact.STATUS_ACTIVE, "language": "eng"},
+        )
+
+        self.assertFormError(
+            response.context["form"], None, "An error occurred updating your contact. Please try again later."
+        )
 
     @mock_mailroom
     def test_export(self, mr_mocks):
@@ -2695,36 +2712,10 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(Contact.STATUS_ACTIVE, self.joe.status)
 
         for status, _ in Contact.STATUS_CHOICES:
-            self.client.post(
-                reverse("contacts.contact_update", args=[self.joe.id]),
-                {"status": status},
-            )
+            self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), {"status": status})
 
             self.joe.refresh_from_db()
             self.assertEqual(status, self.joe.status)
-
-    @patch("temba.mailroom.client.MailroomClient.contact_modify")
-    def test_update_with_mailroom_error(self, mock_modify):
-        mock_modify.side_effect = mailroom.RequestException(
-            "", "", MockResponse(400, '{"error": "Error updating contact"}')
-        )
-
-        self.login(self.admin)
-
-        response = self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(
-                language="eng",
-                name="Muller Awesome",
-                urn__tel__0="+250781111111",
-                urn__twitter__1="blow80",
-                status=Contact.STATUS_ACTIVE,
-            ),
-        )
-
-        self.assertFormError(
-            response.context["form"], None, "An error occurred updating your contact. Please try again later."
-        )
 
     def test_update(self):
         # if new values don't differ from current values.. no modifications
