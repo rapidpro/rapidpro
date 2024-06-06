@@ -558,14 +558,33 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             object_unchanged=contact,
         )
 
-        # try to add an invalid URN
+        # try to update to an invalid URN
         mr_mocks.contact_urns({"tel:++++": "invalid path component"})
 
         self.assertUpdateSubmit(
             update_url,
             self.admin,
             {"name": "Bobby", "status": "B", "language": "spa", "groups": [testers.id], "urn__tel__0": "++++"},
-            form_errors={"urn__tel__0": "Invalid phone number. Ensure number includes country code."},
+            form_errors={"urn__tel__0": "Invalid format."},
+            object_unchanged=contact,
+        )
+
+        # try to add a new invalid phone URN
+        mr_mocks.contact_urns({"tel:123": "not a valid phone number"})
+
+        self.assertUpdateSubmit(
+            update_url,
+            self.admin,
+            {
+                "name": "Bobby",
+                "status": "B",
+                "language": "spa",
+                "groups": [testers.id],
+                "urn__tel__0": "+593979111111",
+                "new_scheme": "tel",
+                "new_path": "123",
+            },
+            form_errors={"new_path": "Invalid phone number. Ensure number includes country code."},
             object_unchanged=contact,
         )
 
@@ -627,7 +646,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                 "urn__facebook__2": "xxxxx",
             },
             form_errors={
-                "urn__tel__0": "Invalid phone number. Ensure number includes country code.",
+                "urn__tel__0": "Invalid format.",
                 "urn__facebook__2": "Invalid format.",
             },
             object_unchanged=contact,

@@ -104,7 +104,8 @@ class UpdateContactForm(forms.ModelForm):
                 if resolved.contact_id and resolved.contact_id != self.instance.id:
                     self.add_error(field, _("In use by another contact."))
                 elif resolved.error:
-                    if scheme == URN.TEL_SCHEME:
+                    # if a new phone numer is being added, it must have country code
+                    if scheme == URN.TEL_SCHEME and field == "new_path" and not resolved.e164:
                         self.add_error(field, _("Invalid phone number. Ensure number includes country code."))
                     else:
                         self.add_error(field, _("Invalid format."))
