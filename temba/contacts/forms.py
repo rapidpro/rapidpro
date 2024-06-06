@@ -20,6 +20,8 @@ class UpdateContactForm(forms.ModelForm):
         label=_("Groups"),
         widget=SelectMultipleWidget(attrs={"placeholder": _("Select groups for this contact"), "searchable": True}),
     )
+    new_scheme = forms.ChoiceField(required=False, choices=URN.SCHEME_CHOICES)
+    new_path = forms.CharField(required=False)
 
     def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -79,41 +81,34 @@ class UpdateContactForm(forms.ModelForm):
             self.fields.update(OrderedDict(urn_fields))
 
     def clean(self):
-        country = self.org.default_country_code
+        # gather up all URN values that need validated
+        urns_by_field = {}
+        for field, value in self.data.items():
+            if field.startswith("urn__") and value:
+                scheme = field.split("__")[1]
+                urns_by_field[field] = URN.from_parts(scheme, value)
 
-        def validate_urn(key, scheme, path):
-            try:
-                normalized = URN.normalize(URN.from_parts(scheme, path), country)
-                existing_urn = ContactURN.lookup(self.org, normalized, normalize=False)
+        if self.data.get("new_path"):
+            urns_by_field["new_path"] = URN.from_parts(self.data["new_scheme"], self.data["new_path"])
 
-                if existing_urn and existing_urn.contact and existing_urn.contact != self.instance:
-                    self._errors[key] = self.error_class([_("Used by another contact")])
-                    return False
-                # validate but not with country as users are allowed to enter numbers before adding a channel
-                elif not URN.validate(normalized):
-                    if scheme == URN.TEL_SCHEME:  # pragma: needs cover
-                        self._errors[key] = self.error_class(
-                            [_("Invalid number. Ensure number includes country code, e.g. +1-541-754-3010")]
-                        )
-                    else:
-                        self._errors[key] = self.error_class([_("Invalid format")])
-                    return False
-                return True
-            except ValueError:
-                self._errors[key] = self.error_class([_("Invalid input")])
-                return False
+        # let mailroom figure out which are valid or taken
+        urn_values = list(urns_by_field.values())
+        resolved = mailroom.get_client().contact_urns(self.org.id, urn_values)
+        resolved_by_value = dict(zip(urn_values, resolved))
 
-        # validate URN fields
-        for field_key, value in self.data.items():
-            if field_key.startswith("urn__") and value:
-                scheme = field_key.split("__")[1]
-                validate_urn(field_key, scheme, value)
+        for field, urn in urns_by_field.items():
+            resolved = resolved_by_value[urn]
+            scheme, path, query, display = URN.to_parts(resolved.normalized)
 
-        # validate new URN if provided
-        if self.data.get("new_path", None):
-            if validate_urn("new_path", self.data["new_scheme"], self.data["new_path"]):
-                self.cleaned_data["new_scheme"] = self.data["new_scheme"]
-                self.cleaned_data["new_path"] = self.data["new_path"]
+            if resolved.contact_id and resolved.contact_id != self.instance.id:
+                self.add_error(field, _("Used by another contact"))
+            elif resolved.error:
+                if scheme == URN.TEL_SCHEME:
+                    self.add_error(field, _("Invalid phone number. Ensure number includes country code."))
+                else:
+                    self.add_error(field, _("Invalid format."))
+
+            self.cleaned_data[field] = path
 
         return self.cleaned_data
 

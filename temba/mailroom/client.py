@@ -159,6 +159,13 @@ class StartPreview:
     total: int
 
 
+@dataclass
+class URNResult:
+    normalized: str
+    contact_id: int = None
+    error: str = None
+
+
 class MailroomClient:
     """
     Basic web client for mailroom
@@ -251,6 +258,10 @@ class MailroomClient:
             contact_ids=response["contact_ids"],
             metadata=QueryMetadata(**response.get("metadata", {})),
         )
+
+    def contact_urns(self, org_id: int, urns: list[str]):
+        response = self._request("contact/urns", {"org_id": org_id, "urns": urns})
+        return [URNResult(**ur) for ur in response["urns"]]
 
     def flow_change_language(self, flow, language):
         payload = {"flow": flow, "language": language}
