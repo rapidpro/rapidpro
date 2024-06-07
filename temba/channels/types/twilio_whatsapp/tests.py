@@ -171,7 +171,7 @@ class TwilioWhatsappTypeTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(update_url)
         self.assertEqual(
-            ["name", "allow_international", "account_sid", "auth_token", "loc"],
+            ["name", "allow_international", "account_sid", "auth_token", "messaging_service_sid", "loc"],
             list(response.context["form"].fields.keys()),
         )
 

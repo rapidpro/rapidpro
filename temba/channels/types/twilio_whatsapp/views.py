@@ -9,9 +9,9 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from temba.channels.types.twilio.views import SUPPORTED_COUNTRIES
+from temba.channels.types.twilio.views import SUPPORTED_COUNTRIES, UpdateForm as TwilioUpdateForm
 from temba.contacts.models import URN
-from temba.utils.fields import SelectWidget
+from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.uuid import uuid4
 
 from ...models import Channel
@@ -155,3 +155,19 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             del self.request.session[self.channel_type.SESSION_ACCOUNT_SID]
         if self.channel_type.SESSION_AUTH_TOKEN in self.request.session:
             del self.request.session[self.channel_type.SESSION_AUTH_TOKEN]
+
+
+class UpdateForm(TwilioUpdateForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.add_config_field(
+            "messaging_service_sid",
+            forms.CharField(
+                max_length=34,
+                label=_("Twilio Messaging Service SID"),
+                required=False,
+                widget=InputWidget(),
+            ),
+            default="",
+        )

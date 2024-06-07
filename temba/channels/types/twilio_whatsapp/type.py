@@ -6,12 +6,11 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.types.twilio.type import TwilioType
-from temba.channels.types.twilio.views import UpdateForm
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
 
 from ...models import Channel, ChannelType, ConfigUI
-from .views import ClaimView
+from .views import ClaimView, UpdateForm
 
 
 class TwilioWhatsappType(ChannelType):
