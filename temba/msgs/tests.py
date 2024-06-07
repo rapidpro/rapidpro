@@ -13,7 +13,6 @@ from django.utils import timezone
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import ChannelCount, ChannelLog
-from temba.contacts.models import ContactURN
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.msgs.models import (
@@ -235,9 +234,7 @@ class MsgTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", phone="123")
-        ContactURN.create(self.org, self.joe, "tel:789")
-
+        self.joe = self.create_contact("Joe Blow", urns=["tel:789", "tel:123"])
         self.frank = self.create_contact("Frank Blow", phone="321")
         self.kevin = self.create_contact("Kevin Durant", phone="987")
 
@@ -914,9 +911,7 @@ class MessageExportTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", phone="123")
-        ContactURN.create(self.org, self.joe, "tel:789")
-
+        self.joe = self.create_contact("Joe Blow", urns=["tel:789", "tel:123"])
         self.frank = self.create_contact("Frank Blow", phone="321")
         self.kevin = self.create_contact("Kevin Durant", phone="987")
 

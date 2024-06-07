@@ -627,10 +627,19 @@ def update_urns_locally(contact, urns: list[str]):
 
     for urn_as_string in urns:
         normalized = URN.normalize(urn_as_string, country)
+        scheme, path, query, display = URN.to_parts(normalized)
         urn = contact_urn_lookup(contact.org, normalized)
 
         if not urn:
-            urn = ContactURN.create(contact.org, contact, normalized, priority=priority)
+            urn = ContactURN.objects.create(
+                org=contact.org,
+                contact=contact,
+                identity=normalized,
+                scheme=scheme,
+                path=path,
+                display=display,
+                priority=priority,
+            )
             urns_created.append(urn)
 
         # unassigned URN or different contact

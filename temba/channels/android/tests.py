@@ -1,7 +1,6 @@
 from django.urls import reverse
 
 from temba.channels.models import Channel
-from temba.contacts.models import ContactURN
 from temba.msgs.models import Msg
 from temba.tests import TembaTest
 from temba.utils import json
@@ -41,9 +40,7 @@ class AndroidTest(TembaTest):
             self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
 
     def test_get_sync_commands(self):
-        joe = self.create_contact("Joe Blow", phone="123")
-        ContactURN.create(self.org, joe, "tel:789")
-
+        joe = self.create_contact("Joe Blow", urns=["tel:789", "tel:123"])
         frank = self.create_contact("Frank Blow", phone="321")
         kevin = self.create_contact("Kevin Durant", phone="987")
 

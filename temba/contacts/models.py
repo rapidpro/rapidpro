@@ -1296,22 +1296,6 @@ class ContactURN(models.Model):
     # auth tokens - usage is channel specific, e.g. every FCM URN has its own token, FB channels have per opt-in tokens
     auth_tokens = models.JSONField(null=True)
 
-    @classmethod
-    def create(cls, org, contact, urn_as_string, channel=None, priority=PRIORITY_HIGHEST, auth=None):
-        scheme, path, query, display = URN.to_parts(urn_as_string)
-        urn_as_string = URN.from_parts(scheme, path)
-
-        return cls.objects.create(
-            org=org,
-            contact=contact,
-            priority=priority,
-            channel=channel,
-            scheme=scheme,
-            path=path,
-            identity=urn_as_string,
-            display=display,
-        )
-
     def release(self):
         delete_in_batches(self.channel_events.all())
 
