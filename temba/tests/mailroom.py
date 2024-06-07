@@ -634,7 +634,7 @@ def update_urns_locally(contact, urns: list[str]):
             urn = ContactURN.objects.create(
                 org=contact.org,
                 contact=contact,
-                identity=normalized,
+                identity=URN.identity(normalized),
                 scheme=scheme,
                 path=path,
                 display=display,

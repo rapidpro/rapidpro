@@ -303,10 +303,6 @@ class URN:
         return cls.from_parts(cls.TEL_SCHEME, path)
 
     @classmethod
-    def from_twitterid(cls, id, screen_name=None):
-        return cls.from_parts(cls.TWITTERID_SCHEME, id, display=screen_name)
-
-    @classmethod
     def from_discord(cls, path):
         return cls.from_parts(cls.DISCORD_SCHEME, path)
 

@@ -394,7 +394,7 @@ class EndpointsTest(APITest):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", phone="0788123123")
+        self.joe = self.create_contact("Joe Blow", phone="+250788123123")
         self.frank = self.create_contact("Frank", urns=["twitter:franky"])
 
         self.twitter = self.create_channel("TWT", "Twitter Channel", "billy_bob")
@@ -1698,13 +1698,13 @@ class EndpointsTest(APITest):
         self.assertPostNotAllowed(endpoint_url)
         self.assertDeleteNotAllowed(endpoint_url)
 
-        call1 = self.create_channel_event(self.channel, "tel:0788123123", ChannelEvent.TYPE_CALL_IN_MISSED)
+        call1 = self.create_channel_event(self.channel, "tel:+250788123123", ChannelEvent.TYPE_CALL_IN_MISSED)
         call2 = self.create_channel_event(
-            self.channel, "tel:0788124124", ChannelEvent.TYPE_CALL_IN, extra=dict(duration=36)
+            self.channel, "tel:+250788124124", ChannelEvent.TYPE_CALL_IN, extra=dict(duration=36)
         )
-        call3 = self.create_channel_event(self.channel, "tel:0788124124", ChannelEvent.TYPE_CALL_OUT_MISSED)
+        call3 = self.create_channel_event(self.channel, "tel:+250788124124", ChannelEvent.TYPE_CALL_OUT_MISSED)
         call4 = self.create_channel_event(
-            self.channel, "tel:0788123123", ChannelEvent.TYPE_CALL_OUT, extra=dict(duration=15)
+            self.channel, "tel:+250788123123", ChannelEvent.TYPE_CALL_OUT, extra=dict(duration=15)
         )
 
         # no filtering
