@@ -8,13 +8,15 @@ from temba.airtime.models import AirtimeTransfer
 from temba.contacts.models import URN, ContactURN
 from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 from temba.request_logs.models import HTTPLog
+from temba.utils.views import SpaMixin
 
 
 class AirtimeCRUDL(SmartCRUDL):
     model = AirtimeTransfer
     actions = ("list", "read")
 
-    class List(OrgPermsMixin, SmartListView):
+    class List(SpaMixin, OrgPermsMixin, SmartListView):
+        menu_path = "/settings/workspace"
         title = _("Recent Airtime Transfers")
         fields = ("status", "contact", "recipient", "currency", "actual_amount", "created_on")
         field_config = {"created_on": {"label": "Time"}, "actual_amount": {"label": "Amount"}}
@@ -45,7 +47,8 @@ class AirtimeCRUDL(SmartCRUDL):
             context["org"] = self.derive_org()
             return context
 
-    class Read(OrgObjPermsMixin, SmartReadView):
+    class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
+        menu_path = "/settings/workspace"
         title = _("Airtime Transfer Details")
         fields = (
             "status",
