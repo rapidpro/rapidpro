@@ -25,6 +25,7 @@ from . import (
     Inclusions,
     QueryValidationException,
     StartPreview,
+    URNResult,
     URNValidationException,
     modifiers,
     queue_interrupt,
@@ -286,6 +287,23 @@ class MailroomClientTest(TembaTest):
                 "offset": 0,
                 "sort": "-created_on",
             },
+        )
+
+    @patch("requests.post")
+    def test_contact_urns(self, mock_post):
+        mock_post.return_value = MockJsonResponse(
+            200, {"urns": [{"normalized": "tel:+1234", "contact_id": 345}, {"normalized": "webchat:3a2ef3"}]}
+        )
+
+        response = get_client().contact_urns(self.org.id, ["tel:+1234", "webchat:3a2ef3"])
+
+        self.assertEqual(
+            [URNResult(normalized="tel:+1234", contact_id=345), URNResult(normalized="webchat:3a2ef3")], response
+        )
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/urns",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "urns": ["tel:+1234", "webchat:3a2ef3"]},
         )
 
     def test_flow_change_language(self):

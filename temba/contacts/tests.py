@@ -539,6 +539,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                 "status": "A",
                 "language": "eng",
                 "groups": [testers],
+                "new_scheme": None,
+                "new_path": None,
                 "urn__tel__0": "+593979111111",
                 "urn__tel__1": "+593979222222",
                 "urn__telegram__2": "5474754",
@@ -546,20 +548,43 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         )
 
         # try to take URN in use by another contact
+        mr_mocks.contact_urns({"tel:+593979444444": 12345678})
+
         self.assertUpdateSubmit(
             update_url,
             self.admin,
             {"name": "Bobby", "status": "B", "language": "spa", "groups": [testers.id], "urn__tel__0": "+593979444444"},
-            form_errors={"urn__tel__0": "Used by another contact"},
+            form_errors={"urn__tel__0": "In use by another contact."},
             object_unchanged=contact,
         )
 
-        # try to add an invalid URN
+        # try to update to an invalid URN
+        mr_mocks.contact_urns({"tel:++++": "invalid path component"})
+
         self.assertUpdateSubmit(
             update_url,
             self.admin,
             {"name": "Bobby", "status": "B", "language": "spa", "groups": [testers.id], "urn__tel__0": "++++"},
-            form_errors={"urn__tel__0": "Invalid input"},
+            form_errors={"urn__tel__0": "Invalid format."},
+            object_unchanged=contact,
+        )
+
+        # try to add a new invalid phone URN
+        mr_mocks.contact_urns({"tel:123": "not a valid phone number"})
+
+        self.assertUpdateSubmit(
+            update_url,
+            self.admin,
+            {
+                "name": "Bobby",
+                "status": "B",
+                "language": "spa",
+                "groups": [testers.id],
+                "urn__tel__0": "+593979111111",
+                "new_scheme": "tel",
+                "new_path": "123",
+            },
+            form_errors={"new_path": "Invalid phone number. Ensure number includes country code."},
             object_unchanged=contact,
         )
 
@@ -598,6 +623,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                 "name": "Bobby",
                 "status": "B",
                 "language": "spa",
+                "new_scheme": None,
+                "new_path": None,
                 "urn__tel__0": "+593979333333",
                 "urn__telegram__1": "78686776",
                 "urn__facebook__2": "9898989",
@@ -605,6 +632,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         )
 
         # try to update with invalid URNs
+        mr_mocks.contact_urns({"tel:456": "invalid path component", "facebook:xxxxx": "invalid path component"})
+
         self.assertUpdateSubmit(
             update_url,
             self.admin,
@@ -617,8 +646,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                 "urn__facebook__2": "xxxxx",
             },
             form_errors={
-                "urn__tel__0": "Invalid number. Ensure number includes country code, e.g. +1-541-754-3010",
-                "urn__facebook__2": "Invalid format",
+                "urn__tel__0": "Invalid format.",
+                "urn__facebook__2": "Invalid format.",
             },
             object_unchanged=contact,
         )
@@ -634,6 +663,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                 "name": "Bobby",
                 "status": "B",
                 "language": "kin",
+                "new_scheme": None,
+                "new_path": None,
                 "urn__tel__0": "+593979333333",
                 "urn__telegram__1": "78686776",
                 "urn__facebook__2": "9898989",
@@ -659,6 +690,23 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual("Bobby", contact.name)
         self.assertEqual(Contact.STATUS_ACTIVE, contact.status)
         self.assertEqual("kin", contact.language)
+
+    @mock_mailroom
+    def test_update_with_mailroom_error(self, mr_mocks):
+        mr_mocks.exception(mailroom.RequestException("", "", MockResponse(400, '{"error": "Error updating contact"}')))
+
+        contact = self.create_contact("Joe", phone="1234")
+
+        self.login(self.admin)
+
+        response = self.client.post(
+            reverse("contacts.contact_update", args=[contact.id]),
+            {"name": "Joe", "status": Contact.STATUS_ACTIVE, "language": "eng"},
+        )
+
+        self.assertFormError(
+            response.context["form"], None, "An error occurred updating your contact. Please try again later."
+        )
 
     @mock_mailroom
     def test_export(self, mr_mocks):
@@ -2683,36 +2731,10 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(Contact.STATUS_ACTIVE, self.joe.status)
 
         for status, _ in Contact.STATUS_CHOICES:
-            self.client.post(
-                reverse("contacts.contact_update", args=[self.joe.id]),
-                {"status": status},
-            )
+            self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), {"status": status})
 
             self.joe.refresh_from_db()
             self.assertEqual(status, self.joe.status)
-
-    @patch("temba.mailroom.client.MailroomClient.contact_modify")
-    def test_update_with_mailroom_error(self, mock_modify):
-        mock_modify.side_effect = mailroom.RequestException(
-            "", "", MockResponse(400, '{"error": "Error updating contact"}')
-        )
-
-        self.login(self.admin)
-
-        response = self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(
-                language="eng",
-                name="Muller Awesome",
-                urn__tel__0="+250781111111",
-                urn__twitter__1="blow80",
-                status=Contact.STATUS_ACTIVE,
-            ),
-        )
-
-        self.assertFormError(
-            response.context["form"], None, "An error occurred updating your contact. Please try again later."
-        )
 
     def test_update(self):
         # if new values don't differ from current values.. no modifications

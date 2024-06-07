@@ -17,7 +17,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import FlowRun, FlowSession
 from temba.locations.models import AdminBoundary
-from temba.mailroom.client import ContactSpec, MailroomClient
+from temba.mailroom.client import ContactSpec, MailroomClient, URNResult
 from temba.mailroom.modifiers import Modifier
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
@@ -58,6 +58,7 @@ class Mocks:
         self._contact_search = {}
         self._contact_export = []
         self._contact_export_preview = []
+        self._contact_urns = []
         self._flow_start_preview = []
         self._msg_broadcast_preview = []
         self._exceptions = []
@@ -89,6 +90,9 @@ class Mocks:
 
     def contact_export_preview(self, total: int):
         self._contact_export_preview.append({"total": total})
+
+    def contact_urns(self, urns: dict):
+        self._contact_urns.append(urns)
 
     def flow_start_preview(self, query, total):
         def mock(org):
@@ -272,6 +276,21 @@ class TestClient(MailroomClient):
 
         org = Org.objects.get(id=org_id)
         return mock(org, offset, sort)
+
+    @_client_method
+    def contact_urns(self, org_id: int, urns: list[str]):
+        results = [URNResult(normalized=urn) for urn in urns]
+
+        if self.mocks._contact_urns:
+            urn_by_id_or_err = self.mocks._contact_urns.pop(0)
+            for i, urn in enumerate(urns):
+                id_or_err = urn_by_id_or_err.get(urn)
+                if isinstance(id_or_err, int):
+                    results[i].contact_id = id_or_err
+                elif isinstance(id_or_err, str):
+                    results[i].error = id_or_err
+
+        return results
 
     @_client_method
     def flow_start_preview(self, org_id: int, flow_id: int, include, exclude):
