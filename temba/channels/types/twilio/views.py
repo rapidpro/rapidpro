@@ -355,7 +355,7 @@ class UpdateForm(UpdateChannelForm):
         self.add_config_field(
             "account_sid",
             forms.CharField(
-                max_length=128,
+                max_length=34,
                 label=_("Twilio Account SID"),
                 disabled=True,
             ),
@@ -365,7 +365,7 @@ class UpdateForm(UpdateChannelForm):
         self.add_config_field(
             "auth_token",
             forms.CharField(
-                max_length=128,
+                max_length=34,
                 label=_("Twilio Account Auth Token"),
                 required=True,
                 widget=InputWidget(),

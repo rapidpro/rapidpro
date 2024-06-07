@@ -143,25 +143,29 @@
     }
 
     onSpload(function() {
-      document.getElementById('results').addEventListener('click', function(e) {
-        if (e.target.classList.contains('phone-number')) {
-          var country = document.querySelector("#country").value; // Assuming there's a single value to fetch
-          document.getElementById("phone-number").value = e.target.getAttribute("data-number");
-          document.getElementById("claim-country").value = country;
-          document.getElementById("claim-form").submit();
-        }
-      });
+      if (document.getElementById('results')) {
+        document.getElementById('results').addEventListener('click', function(e) {
+          if (e.target.classList.contains('phone-number')) {
+            var country = document.querySelector("#country").value; // Assuming there's a single value to fetch
+            document.getElementById("phone-number").value = e.target.getAttribute("data-number");
+            document.getElementById("claim-country").value = country;
+            document.getElementById("claim-form").submit();
+          }
+        });
+      }
+      if (document.getElementById('account-numbers')) {
+        document.getElementById('account-numbers').addEventListener('click', function(e) {
+          if (e.target.classList.contains('phone-number')) {
+            document.getElementById("phone-number").value = e.target.getAttribute("data-number");
+            document.getElementById("claim-country").value = e.target.getAttribute("data-country");
+            document.getElementById("claim-form").submit();
+          }
+        });
+      }
 
-      document.getElementById('account-numbers').addEventListener('click', function(e) {
-        if (e.target.classList.contains('phone-number')) {
-          document.getElementById("phone-number").value = e.target.getAttribute("data-number");
-          document.getElementById("claim-country").value = e.target.getAttribute("data-country");
-          document.getElementById("claim-form").submit();
-        }
-      });
-
-      document.getElementById('search-form').addEventListener('submit', searchNumbers);
-
+      if (document.getElementById('search-form')) {
+        document.getElementById('search-form').addEventListener('submit', searchNumbers);
+      }
     });
   </script>
 {% endblock extra-script %}
