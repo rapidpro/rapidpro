@@ -11,7 +11,6 @@ from django.utils.translation import gettext_lazy as _
 from temba.contacts.models import URN, ContactURN
 from temba.utils.crons import cron_task
 from temba.utils.email import EmailSender
-from temba.utils.text import generate_secret
 
 from .models import Export, Invitation, Org, OrgImport, User, UserSettings
 
@@ -45,19 +44,12 @@ def send_user_verification_email(org_id, user_id):
     if r.exists(key):
         return
 
-    verification_secret = user.settings.email_verification_secret
-    if not verification_secret:
-        verification_secret = generate_secret(64)
-
-        user.settings.email_verification_secret = verification_secret
-        user.settings.save(update_fields=("email_verification_secret",))
-
     sender = EmailSender.from_email_type(org.branding, "notifications")
     sender.send(
         [user.email],
         _("%(name)s Email Verification") % org.branding,
         "orgs/email/email_verification",
-        {"org": org, "secret": verification_secret},
+        {"org": org, "secret": user.settings.email_verification_secret},
     )
 
     r.set(key, "1", ex=60 * 10)
