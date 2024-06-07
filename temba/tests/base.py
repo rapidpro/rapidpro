@@ -22,7 +22,7 @@ from django.utils import timezone
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactImport, ContactURN
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactImport
 from temba.flows.models import Flow, FlowRun, FlowSession
 from temba.ivr.models import Call
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -32,7 +32,7 @@ from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
 
-from .mailroom import create_contact_locally, resolve_destination, update_field_locally
+from .mailroom import contact_urn_lookup, create_contact_locally, resolve_destination, update_field_locally
 from .s3 import jsonlgz_encode
 
 
@@ -691,7 +691,7 @@ class TembaTest(SmartminTest):
         )
 
     def create_channel_event(self, channel, urn, event_type, occurred_on=None, optin=None, extra=None):
-        urn_obj = ContactURN.lookup(channel.org, urn, country_code=channel.country)
+        urn_obj = contact_urn_lookup(channel.org, urn)
         if urn_obj:
             contact = urn_obj.contact
         else:

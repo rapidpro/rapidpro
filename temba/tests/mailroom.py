@@ -519,6 +519,10 @@ def apply_modifiers(org, user, contacts, modifiers: list):
 PHONE_REGEX = re.compile(r"^\+?[A-Za-z0-9]{1,64}$")
 
 
+def contact_urn_lookup(org, urn: str):
+    return ContactURN.objects.filter(org=org, identity=URN.identity(urn)).first()
+
+
 def contact_resolve(org, phone: str) -> tuple:
     user = get_anonymous_user()
 
@@ -527,12 +531,12 @@ def contact_resolve(org, phone: str) -> tuple:
 
     urn = f"tel:{phone}"
 
-    contact_urn = ContactURN.lookup(org, urn)
+    contact_urn = contact_urn_lookup(org, urn)
     if contact_urn:
         contact = contact_urn.contact
     else:
         contact = create_contact_locally(org, user, name="", language="", urns=[urn], fields={}, group_uuids=[])
-        contact_urn = ContactURN.lookup(org, urn)
+        contact_urn = contact_urn_lookup(org, urn)
 
     return contact, contact_urn
 
@@ -543,7 +547,7 @@ def create_contact_locally(
     orphaned_urns = {}
 
     for i, urn in enumerate(urns):
-        existing = ContactURN.lookup(org, urn)
+        existing = contact_urn_lookup(org, urn)
         if existing:
             if existing.contact_id:
                 raise mailroom.URNValidationException(f"URN {i} in use by other contact", "taken", i)
@@ -623,7 +627,7 @@ def update_urns_locally(contact, urns: list[str]):
 
     for urn_as_string in urns:
         normalized = URN.normalize(urn_as_string, country)
-        urn = ContactURN.lookup(contact.org, normalized)
+        urn = contact_urn_lookup(contact.org, normalized)
 
         if not urn:
             urn = ContactURN.create(contact.org, contact, normalized, priority=priority)

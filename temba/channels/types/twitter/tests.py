@@ -5,12 +5,10 @@ from twython import TwythonError
 from django.contrib.auth.models import Group
 from django.urls import reverse
 
-from temba.contacts.models import URN, Contact
-from temba.tests import TembaTest, mock_mailroom
+from temba.tests import TembaTest
 
 from ...models import Channel
 from .client import TwitterClient
-from .tasks import resolve_twitter_ids
 
 
 class TwitterTypeTest(TembaTest):
@@ -142,82 +140,6 @@ class TwitterTypeTest(TembaTest):
     def test_release(self, mock_delete_webhook):
         self.channel.release(self.admin)
         mock_delete_webhook.assert_called_once_with("beta", "1234567")
-
-    @patch("twython.Twython.lookup_user")
-    @mock_mailroom
-    def test_resolve(self, mr_mocks, mock_lookup_user):
-        self.joe = self.create_contact("joe", urns=["twitter:therealjoe"])
-
-        urn = self.joe.get_urns()[0]
-
-        # test no return value, should cause joe to be stopped
-        mock_lookup_user.return_value = []
-        resolve_twitter_ids()
-
-        self.joe.refresh_from_db()
-        urn.refresh_from_db()
-        self.assertEqual(Contact.STATUS_STOPPED, self.joe.status)
-        self.assertIsNone(urn.display)
-        self.assertEqual("twitter:therealjoe", urn.identity)
-        self.assertEqual("therealjoe", urn.path)
-
-        self.joe.restore(self.admin)
-
-        # test a real return value
-        mock_lookup_user.return_value = [dict(screen_name="TheRealJoe", id="123456")]
-        resolve_twitter_ids()
-
-        urn.refresh_from_db()
-        self.assertIsNone(urn.contact)
-
-        new_urn = self.joe.get_urns()[0]
-        self.assertEqual("twitterid:123456", new_urn.identity)
-        self.assertEqual("123456", new_urn.path)
-        self.assertEqual("therealjoe", new_urn.display)
-        self.assertEqual("twitterid:123456#therealjoe", new_urn.urn)
-
-        old_fred = self.create_contact("old fred", urns=["twitter:fred"])
-        new_fred = self.create_contact("new fred", urns=[URN.from_twitterid("12345", screen_name="fred")])
-
-        mock_lookup_user.return_value = [dict(screen_name="fred", id="12345")]
-        resolve_twitter_ids()
-
-        # new fred shouldn't have any URNs anymore as he really is old_fred
-        self.assertEqual(0, len(new_fred.urns.all()))
-
-        # old fred should be unchanged
-        self.assertEqual("twitterid:12345", old_fred.urns.all()[0].identity)
-
-        self.jane = self.create_contact("jane", urns=["twitter:jane10"])
-        mock_lookup_user.side_effect = Exception(
-            "Twitter API returned a 404 (Not Found), No user matches for specified terms."
-        )
-        resolve_twitter_ids()
-
-        self.jane.refresh_from_db()
-        self.assertEqual(Contact.STATUS_STOPPED, self.jane.status)
-
-        self.sarah = self.create_contact("sarah", urns=["twitter:sarah20"])
-        mock_lookup_user.side_effect = Exception("Unable to reach API")
-        resolve_twitter_ids()
-
-        self.sarah.refresh_from_db()
-        self.assertEqual(Contact.STATUS_ACTIVE, self.sarah.status)
-
-    def test_update(self):
-        update_url = reverse("channels.channel_update", args=[self.channel.id])
-
-        self.login(self.admin)
-        response = self.client.get(update_url)
-        self.assertEqual(["name", "loc"], list(response.context["form"].fields.keys()))
-
-        # staff users see extra log policy field
-        self.login(self.customer_support, choose_org=self.org)
-        response = self.client.get(update_url)
-        self.assertEqual(
-            ["name", "log_policy", "loc"],
-            list(response.context["form"].fields.keys()),
-        )
 
 
 class TwitterClientTest(TembaTest):

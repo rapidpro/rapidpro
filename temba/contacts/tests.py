@@ -3021,26 +3021,6 @@ class ContactURNTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-    def test_get_or_create(self):
-        urn = ContactURN.create(self.org, None, "tel:1234")
-        self.assertEqual(urn.org, self.org)
-        self.assertEqual(urn.contact, None)
-        self.assertEqual(urn.identity, "tel:1234")
-        self.assertEqual(urn.scheme, "tel")
-        self.assertEqual(urn.path, "1234")
-        self.assertEqual(urn.priority, 1000)
-
-        urn = ContactURN.get_or_create(self.org, None, "twitterid:12345#fooman")
-        self.assertEqual("twitterid:12345", urn.identity)
-        self.assertEqual("fooman", urn.display)
-
-        urn2 = ContactURN.get_or_create(self.org, None, "twitter:fooman")
-        self.assertEqual(urn, urn2)
-
-        with patch("temba.contacts.models.ContactURN.lookup") as mock_lookup:
-            mock_lookup.side_effect = [None, urn]
-            ContactURN.get_or_create(self.org, None, "twitterid:12345#fooman")
-
     def test_get_display(self):
         urn = ContactURN.objects.create(
             org=self.org, scheme="tel", path="+250788383383", identity="tel:+250788383383", priority=50
