@@ -1,3 +1,10 @@
+v9.1.136 (2024-06-07)
+-------------------------
+ * Add spa mixin to transfer logs views
+ * Allow editing TWA messaging service SID
+ * Lean on mailroom for URN validation during contact update
+ * Some tidy up of the update contact form
+
 v9.1.135 (2024-06-05)
 -------------------------
  * Fix login error message styling 
