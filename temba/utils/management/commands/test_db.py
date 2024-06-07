@@ -380,11 +380,7 @@ class Command(BaseCommand):
                         external_locale="en_US",
                         namespace="",
                         components=[
-                            {   "type": "header",
-                                "name": "header",
-                                "variables":{"1": 0},
-                                "params": [{"type": "image"}]
-                            },
+                            {"type": "header", "name": "header", "variables": {"1": 0}, "params": [{"type": "image"}]},
                             {
                                 "type": "body",
                                 "name": "body",
@@ -395,20 +391,20 @@ class Command(BaseCommand):
                             {
                                 "type": "attachment",
                                 "name": "attachment",
-                                "variables":{"1": 5},
-                                "params": [{"type": "video"}]
+                                "variables": {"1": 5},
+                                "params": [{"type": "video"}],
                             },
                             {
                                 "type": "attachment",
                                 "name": "attachment",
-                                "variables":{"1": 6},
-                                "params": [{"type": "audio"}]
+                                "variables": {"1": 6},
+                                "params": [{"type": "audio"}],
                             },
                             {
                                 "type": "attachment",
                                 "name": "attachment",
-                                "variables":{"1": 7},
-                                "params": [{"type": "document"}]
+                                "variables": {"1": 7},
+                                "params": [{"type": "document"}],
                             },
                             {
                                 "type": "button/url",
@@ -453,11 +449,7 @@ class Command(BaseCommand):
                         external_locale="fr_FR",
                         namespace="",
                         components=[
-                            {   "type": "header",
-                                "name": "header",
-                                "variables":{"1":0},
-                                "params": [{"type": "image"}]
-                            },
+                            {"type": "header", "name": "header", "variables": {"1": 0}, "params": [{"type": "image"}]},
                             {
                                 "type": "body",
                                 "name": "body",
@@ -468,20 +460,20 @@ class Command(BaseCommand):
                             {
                                 "type": "attachment",
                                 "name": "attachment",
-                                "variables":{"1": 5},
-                                "params": [{"type": "video"}]
+                                "variables": {"1": 5},
+                                "params": [{"type": "video"}],
                             },
                             {
                                 "type": "attachment",
                                 "name": "attachment",
-                                "variables":{"1": 6},
-                                "params": [{"type": "audio"}]
+                                "variables": {"1": 6},
+                                "params": [{"type": "audio"}],
                             },
                             {
                                 "type": "attachment",
                                 "name": "attachment",
-                                "variables":{"1": 7},
-                                "params": [{"type": "document"}]
+                                "variables": {"1": 7},
+                                "params": [{"type": "document"}],
                             },
                             {
                                 "type": "button/url",
@@ -515,7 +507,7 @@ class Command(BaseCommand):
                             {"type": "text"},
                             {"type": "video"},
                             {"type": "audio"},
-                            {"type": "document"}
+                            {"type": "document"},
                         ],
                     )
                     TemplateTranslation.get_or_create(
