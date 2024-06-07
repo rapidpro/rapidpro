@@ -380,19 +380,42 @@ class Command(BaseCommand):
                         external_locale="en_US",
                         namespace="",
                         components=[
+                            {   "type": "header",
+                                "name": "header",
+                                "variables":{"1": 0},
+                                "params": [{"type": "image"}]
+                            },
                             {
                                 "type": "body",
                                 "name": "body",
                                 "content": "Hi there {{2}}! We are in the process of preparing our world class menu. So {{2}}, tell me, would you like {{1}} or {{3}}. Thanks, {{agent}}.",
-                                "variables": {"1": 1, "2": 0, "3": 2, "agent": 3},
+                                "variables": {"1": 2, "2": 1, "3": 3, "agent": 4},
                                 "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}, {"type": "text"}],
+                            },
+                            {
+                                "type": "attachment",
+                                "name": "attachment",
+                                "variables":{"1": 5},
+                                "params": [{"type": "video"}]
+                            },
+                            {
+                                "type": "attachment",
+                                "name": "attachment",
+                                "variables":{"1": 6},
+                                "params": [{"type": "audio"}]
+                            },
+                            {
+                                "type": "attachment",
+                                "name": "attachment",
+                                "variables":{"1": 7},
+                                "params": [{"type": "document"}]
                             },
                             {
                                 "type": "button/url",
                                 "name": "button.0",
                                 "content": "https://example.com/?wa_customer={{1}}",
                                 "display": "Dish A",
-                                "variables": {"1": 1},
+                                "variables": {"1": 2},
                                 "params": [{"type": "text"}],
                             },
                             {
@@ -400,7 +423,7 @@ class Command(BaseCommand):
                                 "name": "button.1",
                                 "content": "https://example.com/?wa_organization={{1}}",
                                 "display": "Dish B",
-                                "variables": {"1": 2},
+                                "variables": {"1": 3},
                                 "params": [{"type": "text"}],
                             },
                             {
@@ -411,10 +434,14 @@ class Command(BaseCommand):
                             },
                         ],
                         variables=[
+                            {"type": "image"},
                             {"type": "text"},
                             {"type": "text"},
                             {"type": "text"},
                             {"type": "text"},
+                            {"type": "video"},
+                            {"type": "audio"},
+                            {"type": "document"},
                         ],
                     )
                     TemplateTranslation.get_or_create(
@@ -426,19 +453,42 @@ class Command(BaseCommand):
                         external_locale="fr_FR",
                         namespace="",
                         components=[
+                            {   "type": "header",
+                                "name": "header",
+                                "variables":{"1":0},
+                                "params": [{"type": "image"}]
+                            },
                             {
                                 "type": "body",
                                 "name": "body",
                                 "content": "Bonjour {{1}}! Nous sommes en train de préparer notre menu de classe mondiale. So {{1}}, souhaitez-vous {{2}} ou {{3}}. Merci, {{agent}}.",
-                                "variables": {"1": 0, "2": 1, "3": 2, "agent": 3},
+                                "variables": {"1": 1, "2": 2, "3": 3, "agent": 4},
                                 "params": [{"type": "text"}, {"type": "text"}, {"type": "text"}],
+                            },
+                            {
+                                "type": "attachment",
+                                "name": "attachment",
+                                "variables":{"1": 5},
+                                "params": [{"type": "video"}]
+                            },
+                            {
+                                "type": "attachment",
+                                "name": "attachment",
+                                "variables":{"1": 6},
+                                "params": [{"type": "audio"}]
+                            },
+                            {
+                                "type": "attachment",
+                                "name": "attachment",
+                                "variables":{"1": 7},
+                                "params": [{"type": "document"}]
                             },
                             {
                                 "type": "button/url",
                                 "name": "button.0",
                                 "content": "https://example.com/?wa_customer={{1}}",
                                 "display": "Plat A",
-                                "variables": {"1": 1},
+                                "variables": {"1": 2},
                                 "params": [{"type": "text"}],
                             },
                             {
@@ -446,18 +496,27 @@ class Command(BaseCommand):
                                 "name": "button.1",
                                 "content": "https://example.com/?wa_organization={{1}}",
                                 "display": "Plat B",
-                                "variables": {"1": 2},
+                                "variables": {"1": 3},
                                 "params": [{"type": "text"}],
                             },
                             {
                                 "type": "button/quick_reply",
                                 "name": "button.2",
                                 "content": "Pas Faim",
-                                "variables": {"1": 4},
+                                "variables": {"1": 5},
                                 "params": [{"type": "text"}],
                             },
                         ],
-                        variables=[{"type": "text"}, {"type": "text"}, {"type": "text"}, {"type": "text"}],
+                        variables=[
+                            {"type": "image"},
+                            {"type": "text"},
+                            {"type": "text"},
+                            {"type": "text"},
+                            {"type": "text"},
+                            {"type": "video"},
+                            {"type": "audio"},
+                            {"type": "document"}
+                        ],
                     )
                     TemplateTranslation.get_or_create(
                         channel,
