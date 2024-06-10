@@ -89,9 +89,20 @@ class TwilioType(TemplateType):
                 comp_vars = add_variables(self._extract_variables(raw[content_type]["header_text"]), "text")
                 components.append(
                     {
-                        "type": "header",
+                        "type": "header/text",
                         "name": "header",
                         "content": raw[content_type]["header_text"],
+                        "variables": comp_vars,
+                    }
+                )
+
+            if raw[content_type].get("media"):
+                comp_vars = add_variables(self._extract_variables(raw[content_type]["media"][0]), "text")
+                components.append(
+                    {
+                        "type": "header/media",
+                        "name": "header",
+                        "content": raw[content_type]["media"][0],
                         "variables": comp_vars,
                     }
                 )
@@ -143,10 +154,6 @@ class TwilioType(TemplateType):
 
             if raw[content_type].get("items") or raw[content_type].get("dynamic_items"):
                 supported = False
-
-            if raw[content_type].get("media"):
-                if self._extract_variables(raw[content_type]["media"][0]):
-                    supported = False
 
             if raw[content_type].get("actions"):
 
