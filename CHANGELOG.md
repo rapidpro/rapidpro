@@ -1,3 +1,9 @@
+v9.1.138 (2024-06-10)
+-------------------------
+ * Template editor fix for empty content
+ * Tweak component types to be header/*, body/* etc
+ * Support Twilio media in templates
+
 v9.1.137 (2024-06-10)
 -------------------------
  * Support WhatsApp templates with header images
