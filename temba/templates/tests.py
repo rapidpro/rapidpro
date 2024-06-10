@@ -319,8 +319,8 @@ class TemplateTranslationCRUDLTest(CRUDLTestMixin, TembaTest):
             namespace="foo_namespace",
             components=[
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Hello {{1}}",
                     "variables": {"1": 0},
                     "params": [{"type": "text"}],
@@ -338,8 +338,8 @@ class TemplateTranslationCRUDLTest(CRUDLTestMixin, TembaTest):
             namespace="foo_namespace",
             components=[
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Goodbye {{1}}",
                     "variables": {"1": 0},
                     "params": [{"type": "text"}],
@@ -359,8 +359,8 @@ class TemplateTranslationCRUDLTest(CRUDLTestMixin, TembaTest):
             namespace="foo_namespace",
             components=[
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Goodbye {{1}}",
                     "variables": {"1": 0},
                     "params": [{"type": "text"}],

@@ -1374,7 +1374,7 @@ class OrgDeleteTest(TembaTest):
                 external_id="1234",
                 external_locale="en_US",
                 namespace="foo_namespace",
-                components=[{"type": "body", "name": "body", "content": "Hello", "variables": {}, "params": []}],
+                components=[{"name": "body", "type": "body/text", "content": "Hello", "variables": {}, "params": []}],
                 variables=[],
             )
         )

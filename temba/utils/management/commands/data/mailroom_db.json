@@ -352,8 +352,8 @@
               "external_locale": "en_US",
               "components": [
                 {
-                  "type": "body",
                   "name": "body",
+                  "type": "body/text",
                   "content": "Hi {{1}}, are you still experiencing problems with {{2}}?",
                   "variables": {"1": 0, "2": 1},
                   "params": [
@@ -377,8 +377,8 @@
               "external_locale": "fr",
               "components": [
                 {
-                  "type": "body",
                   "name": "body",
+                  "type": "body/text",
                   "content": "Bonjour {{1}}, a tu des problems avec {{2}}?",
                   "variables": {"1": 0, "2": 1},
                   "params": [
@@ -408,8 +408,8 @@
               "external_locale": "fr",
               "components": [
                 {
-                  "type": "body",
                   "name": "body",
+                  "type": "body/text",
                   "content": "Salut!",
                   "variables": {},
                   "params": []
