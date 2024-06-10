@@ -741,16 +741,6 @@ class ChannelCRUDL(SmartCRUDL):
         def derive_readonly(self):
             return self.form.Meta.readonly if hasattr(self, "form") else []
 
-        def lookup_field_label(self, context, field, default=None):
-            if field in self.form.Meta.labels:
-                return self.form.Meta.labels[field]
-            return super().lookup_field_label(context, field, default=default)
-
-        def lookup_field_help(self, field, default=None):
-            if field in self.form.Meta.helps:
-                return self.form.Meta.helps[field]
-            return super().lookup_field_help(field, default=default)
-
         def get_success_url(self):
             return reverse("channels.channel_read", args=[self.object.uuid])
 

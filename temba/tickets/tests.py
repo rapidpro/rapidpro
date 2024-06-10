@@ -770,19 +770,21 @@ class TicketExportTest(TembaTest):
         # create a contact with no urns
         nate = self.create_contact("Nathan Shelley", fields={"gender": "Male"})
 
-        # create a contact with one set of urns
-        jamie = self.create_contact("Jamie Tartt", fields={"gender": "Male", "age": 25})
-        ContactURN.create(self.org, jamie, "twitter:jamietarttshark")
+        # create a contact with one urn
+        jamie = self.create_contact(
+            "Jamie Tartt", urns=["twitter:jamietarttshark"], fields={"gender": "Male", "age": 25}
+        )
 
         # create a contact with multiple urns that have different max priority
-        roy = self.create_contact("Roy Kent", fields={"gender": "Male", "age": 41})
-        ContactURN.create(self.org, roy, "tel:+1234567890")
-        ContactURN.create(self.org, roy, "twitter:roykent")
+        roy = self.create_contact(
+            "Roy Kent", urns=["tel:+12345678900", "twitter:roykent"], fields={"gender": "Male", "age": 41}
+        )
 
         # create a contact with multiple urns that have the same max priority
-        sam = self.create_contact("Sam Obisanya", fields={"gender": "Male", "age": 22})
-        ContactURN.create(self.org, sam, "twitter:nigerianprince", priority=50)
-        ContactURN.create(self.org, sam, "tel:+9876543210", priority=50)
+        sam = self.create_contact(
+            "Sam Obisanya", urns=["twitter:nigerianprince", "tel:+9876543210"], fields={"gender": "Male", "age": 22}
+        )
+        sam.urns.update(priority=50)
 
         testers = self.create_group("Testers", contacts=[nate, roy])
 
@@ -873,7 +875,7 @@ class TicketExportTest(TembaTest):
                     ticket3.contact.uuid,
                     "Roy Kent",
                     "tel",
-                    "+1234567890",
+                    "+12345678900",
                 ],
                 [
                     ticket4.uuid,
@@ -907,7 +909,7 @@ class TicketExportTest(TembaTest):
                     ticket3.contact.uuid,
                     "Roy Kent",
                     "tel",
-                    "+1234567890",
+                    "+12345678900",
                 ],
                 [
                     ticket4.uuid,
@@ -943,7 +945,7 @@ class TicketExportTest(TembaTest):
                     ticket3.contact.uuid,
                     "Roy Kent",
                     "tel",
-                    "+1234567890",
+                    "+12345678900",
                     "41",
                     "Male",
                     True,

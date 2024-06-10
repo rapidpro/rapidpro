@@ -16,7 +16,7 @@ from smartmin.models import SmartModel
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import IntegrityError, models, transaction
+from django.db import models, transaction
 from django.db.models import Count, F, Max, Q, Sum, Value
 from django.db.models.functions import Concat, Lower
 from django.utils import timezone
@@ -301,10 +301,6 @@ class URN:
     @classmethod
     def from_tel(cls, path):
         return cls.from_parts(cls.TEL_SCHEME, path)
-
-    @classmethod
-    def from_twitterid(cls, id, screen_name=None):
-        return cls.from_parts(cls.TWITTERID_SCHEME, id, display=screen_name)
 
     @classmethod
     def from_discord(cls, path):
@@ -1295,59 +1291,6 @@ class ContactURN(models.Model):
 
     # auth tokens - usage is channel specific, e.g. every FCM URN has its own token, FB channels have per opt-in tokens
     auth_tokens = models.JSONField(null=True)
-
-    @classmethod
-    def get_or_create(cls, org, contact, urn_as_string, channel=None, priority=PRIORITY_HIGHEST):
-        urn = cls.lookup(org, urn_as_string)
-
-        # not found? create it
-        if not urn:
-            try:
-                with transaction.atomic():
-                    urn = cls.create(org, contact, urn_as_string, channel=channel, priority=priority)
-            except IntegrityError:
-                urn = cls.lookup(org, urn_as_string)
-
-        return urn
-
-    @classmethod
-    def create(cls, org, contact, urn_as_string, channel=None, priority=PRIORITY_HIGHEST, auth=None):
-        scheme, path, query, display = URN.to_parts(urn_as_string)
-        urn_as_string = URN.from_parts(scheme, path)
-
-        return cls.objects.create(
-            org=org,
-            contact=contact,
-            priority=priority,
-            channel=channel,
-            scheme=scheme,
-            path=path,
-            identity=urn_as_string,
-            display=display,
-        )
-
-    @classmethod
-    def lookup(cls, org, urn_as_string, country_code=None, normalize=True):
-        """
-        Looks up an existing URN by a formatted URN string, e.g. "tel:+250234562222"
-        """
-        if normalize:
-            urn_as_string = URN.normalize(urn_as_string, country_code)
-
-        identity = URN.identity(urn_as_string)
-        (scheme, path, query, display) = URN.to_parts(urn_as_string)
-
-        existing = cls.objects.filter(org=org, identity=identity).select_related("contact").first()
-
-        # is this a TWITTER scheme? check TWITTERID scheme by looking up by display
-        if scheme == URN.TWITTER_SCHEME:
-            twitterid_urn = (
-                cls.objects.filter(org=org, scheme=URN.TWITTERID_SCHEME, display=path).select_related("contact").first()
-            )
-            if twitterid_urn:
-                return twitterid_urn
-
-        return existing
 
     def release(self):
         delete_in_batches(self.channel_events.all())

@@ -3021,26 +3021,6 @@ class ContactURNTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-    def test_get_or_create(self):
-        urn = ContactURN.create(self.org, None, "tel:1234")
-        self.assertEqual(urn.org, self.org)
-        self.assertEqual(urn.contact, None)
-        self.assertEqual(urn.identity, "tel:1234")
-        self.assertEqual(urn.scheme, "tel")
-        self.assertEqual(urn.path, "1234")
-        self.assertEqual(urn.priority, 1000)
-
-        urn = ContactURN.get_or_create(self.org, None, "twitterid:12345#fooman")
-        self.assertEqual("twitterid:12345", urn.identity)
-        self.assertEqual("fooman", urn.display)
-
-        urn2 = ContactURN.get_or_create(self.org, None, "twitter:fooman")
-        self.assertEqual(urn, urn2)
-
-        with patch("temba.contacts.models.ContactURN.lookup") as mock_lookup:
-            mock_lookup.side_effect = [None, urn]
-            ContactURN.get_or_create(self.org, None, "twitterid:12345#fooman")
-
     def test_get_display(self):
         urn = ContactURN.objects.create(
             org=self.org, scheme="tel", path="+250788383383", identity="tel:+250788383383", priority=50
@@ -4722,7 +4702,7 @@ class ContactExportTest(TembaTest):
         group2.save()
 
         # create orphaned URN in scheme that no contacts have a URN for
-        ContactURN.create(self.org, None, "line:12345")
+        ContactURN.objects.create(org=self.org, identity="line:12345", scheme="line", path="12345")
 
         def assertReimport(export):
             filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/contact_exports/{export.uuid}.xlsx"
@@ -4861,7 +4841,7 @@ class ContactExportTest(TembaTest):
         # more contacts do not increase the queries
         contact3 = self.create_contact("Luol Deng", urns=["tel:+12078776655", "twitter:deng"])
         contact4 = self.create_contact("Stephen", urns=["tel:+12078778899", "twitter:stephen"])
-        ContactURN.create(self.org, contact, "tel:+12062233445")
+        contact.urns.create(org=self.org, identity="tel:+12062233445", scheme="tel", path="+12062233445")
 
         # but should have additional Twitter and phone columns
         with self.assertNumQueries(21):
