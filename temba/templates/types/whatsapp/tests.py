@@ -127,6 +127,33 @@ class WhatsAppTypeTest(TembaTest):
         )
         self.assertEqual([{"type": "text"}, {"type": "text"}, {"type": "text"}, {"type": "text"}], trans.variables)
 
+        # try a template with non-text header
+        trans = self.type.update_local(
+            channel,
+            {
+                "name": "order_template",
+                "components": [
+                    {
+                        "type": "HEADER",
+                        "format": "IMAGE",
+                    },
+                    {"type": "BODY", "text": "Cat facts!"},
+                ],
+                "language": "en",
+                "status": "APPROVED",
+                "rejected_reason": "NONE",
+                "category": "UTILITY",
+            },
+        )
+        self.assertEqual(
+            [
+                {"type": "header", "name": "header", "content": "", "variables": {"1": 0}},
+                {"type": "body", "name": "body", "content": "Cat facts!", "variables": {}},
+            ],
+            trans.components,
+        )
+        self.assertEqual([{"type": "image"}], trans.variables)
+
         # try unknown status - should be ignored completely
         trans = self.type.update_local(
             channel,
@@ -170,7 +197,7 @@ class WhatsAppTypeTest(TembaTest):
             channel,
             {
                 "name": "invalid_component",
-                "components": [{"type": "HEADER", "format": "IMAGE", "example": {"header_handle": ["FOO"]}}],
+                "components": [{"type": "HEADER", "format": "TIKTOK", "example": {"header_handle": ["FOO"]}}],
                 "language": "en",
                 "status": "APPROVED",
                 "category": "ISSUE_RESOLUTION",
