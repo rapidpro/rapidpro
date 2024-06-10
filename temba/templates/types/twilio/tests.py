@@ -179,19 +179,19 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(
             [
                 {
+                    "type": "header/media",
+                    "name": "header",
+                    "content": "https://example.com/images/{{1}}.jpg",
+                    "variables": {
+                        "1": 0,
+                    },
+                },
+                {
                     "type": "body",
                     "name": "body",
                     "content": "Template with media for {{2}} can have a link with variables",
                     "variables": {
-                        "2": 0,
-                    },
-                },
-                {
-                    "type": "header",
-                    "name": "header",
-                    "content": "https://example.com/images/{{1}}.jpg",
-                    "variables": {
-                        "1": 1,
+                        "2": 1,
                     },
                 },
             ],
@@ -506,7 +506,7 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(
             [
                 {
-                    "type": "header",
+                    "type": "header/text",
                     "name": "header",
                     "content": "This is a {{1}} card",
                     "variables": {"1": 0},
@@ -575,7 +575,7 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(
             [
                 {
-                    "type": "header",
+                    "type": "header/text",
                     "name": "header",
                     "content": "This is a {{1}} card",
                     "variables": {"1": 0},
