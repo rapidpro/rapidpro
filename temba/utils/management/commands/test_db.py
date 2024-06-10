@@ -376,20 +376,17 @@ class Command(BaseCommand):
                         "Dinner Menu",
                         locale="eng-US",
                         status=TemplateTranslation.STATUS_APPROVED,
-                        external_id="1234",
+                        external_id="1001",
                         external_locale="en_US",
                         namespace="",
                         components=[
-                            {"name": "header", "type": "header/media", "variables": {"1": 0}},
+                            {"name": "header", "type": "header/text", "content": "{{1}} MENU", "variables": {"1": 0}},
                             {
                                 "name": "body",
                                 "type": "body/text",
                                 "content": "Hi there {{2}}! We are in the process of preparing our world class menu. So {{2}}, tell me, would you like {{1}} or {{3}}. Thanks, {{agent}}.",
                                 "variables": {"1": 2, "2": 1, "3": 3, "agent": 4},
                             },
-                            {"name": "header.1", "type": "header/media", "variables": {"1": 5}},
-                            {"name": "header.2", "type": "header/media", "variables": {"1": 6}},
-                            {"name": "header.3", "type": "header/media", "variables": {"1": 7}},
                             {
                                 "name": "button.0",
                                 "type": "button/url",
@@ -407,14 +404,11 @@ class Command(BaseCommand):
                             {"name": "button.2", "type": "button/quick_reply", "content": "Not Hungry"},
                         ],
                         variables=[
-                            {"type": "image"},
                             {"type": "text"},
                             {"type": "text"},
                             {"type": "text"},
                             {"type": "text"},
-                            {"type": "video"},
-                            {"type": "audio"},
-                            {"type": "document"},
+                            {"type": "text"},
                         ],
                     )
                     TemplateTranslation.get_or_create(
@@ -422,20 +416,17 @@ class Command(BaseCommand):
                         "Dinner Menu",
                         locale="fra-FR",
                         status=TemplateTranslation.STATUS_APPROVED,
-                        external_id="5678",
+                        external_id="1002",
                         external_locale="fr_FR",
                         namespace="",
                         components=[
-                            {"name": "header", "type": "header/media", "variables": {"1": 0}},
+                            {"name": "header", "type": "header/text", "content": "{{1}} MENU", "variables": {"1": 0}},
                             {
                                 "name": "body",
                                 "type": "body/text",
                                 "content": "Bonjour {{1}}! Nous sommes en train de préparer notre menu de classe mondiale. So {{1}}, souhaitez-vous {{2}} ou {{3}}. Merci, {{agent}}.",
                                 "variables": {"1": 1, "2": 2, "3": 3, "agent": 4},
                             },
-                            {"name": "header.1", "type": "header/media", "variables": {"1": 5}},
-                            {"name": "header.2", "type": "header/media", "variables": {"1": 6}},
-                            {"name": "header.3", "type": "header/media", "variables": {"1": 7}},
                             {
                                 "name": "button.0",
                                 "type": "button/url",
@@ -458,22 +449,76 @@ class Command(BaseCommand):
                             },
                         ],
                         variables=[
-                            {"type": "image"},
                             {"type": "text"},
                             {"type": "text"},
                             {"type": "text"},
                             {"type": "text"},
-                            {"type": "video"},
-                            {"type": "audio"},
-                            {"type": "document"},
+                            {"type": "text"},
                         ],
+                    )
+                    TemplateTranslation.get_or_create(
+                        channel,
+                        "Cat Facts",
+                        locale="eng-US",
+                        status=TemplateTranslation.STATUS_APPROVED,
+                        external_id="1003",
+                        external_locale="en_US",
+                        namespace="",
+                        components=[
+                            {"name": "header", "type": "header/media", "variables": {"1": 0}},
+                            {
+                                "name": "body",
+                                "type": "body/text",
+                                "content": "Did you know that {{1}}?",
+                                "variables": {"1": 1},
+                            },
+                        ],
+                        variables=[{"type": "image"}, {"type": "text"}],
+                    )
+                    TemplateTranslation.get_or_create(
+                        channel,
+                        "Video Preview",
+                        locale="eng-US",
+                        status=TemplateTranslation.STATUS_APPROVED,
+                        external_id="1004",
+                        external_locale="en_US",
+                        namespace="",
+                        components=[
+                            {"name": "header", "type": "header/media", "variables": {"1": 0}},
+                            {
+                                "name": "body",
+                                "type": "body/text",
+                                "content": "This is a video of {{1}}",
+                                "variables": {"1": 1},
+                            },
+                        ],
+                        variables=[{"type": "video"}, {"type": "text"}],
+                    )
+                    TemplateTranslation.get_or_create(
+                        channel,
+                        "Poll Report",
+                        locale="eng-US",
+                        status=TemplateTranslation.STATUS_APPROVED,
+                        external_id="1005",
+                        external_locale="en_US",
+                        namespace="",
+                        components=[
+                            {"name": "header", "type": "header/media", "variables": {"1": 0}},
+                            {
+                                "name": "body",
+                                "type": "body/text",
+                                "content": "This is the report.",
+                                "variables": {},
+                            },
+                        ],
+                        variables=[{"type": "pdf"}],
                     )
                     TemplateTranslation.get_or_create(
                         channel,
                         "Reservation Confirmation",
                         locale="eng-US",
                         status=TemplateTranslation.STATUS_PENDING,
-                        external_id="6789",
+                        external_id="1006",
                         external_locale="en_US",
                         namespace="",
                         components=[
