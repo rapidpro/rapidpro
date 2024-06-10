@@ -171,7 +171,7 @@ class TwilioTypeTest(TembaTest):
 
         self.assertIsNotNone(trans)
         self.assertEqual("media_template", trans.template.name)
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, trans.status)
+        self.assertEqual(TemplateTranslation.STATUS_APPROVED, trans.status)
         self.assertEqual("", trans.namespace)
         self.assertEqual("eng", trans.locale)
         self.assertEqual("en", trans.external_locale)
@@ -185,11 +185,19 @@ class TwilioTypeTest(TembaTest):
                     "variables": {
                         "2": 0,
                     },
-                }
+                },
+                {
+                    "type": "header",
+                    "name": "header",
+                    "content": "https://example.com/images/{{1}}.jpg",
+                    "variables": {
+                        "1": 1,
+                    },
+                },
             ],
             trans.components,
         )
-        self.assertEqual([{"type": "text"}], trans.variables)
+        self.assertEqual([{"type": "text"}, {"type": "text"}], trans.variables)
 
         trans = self.type.update_local(
             channel,

@@ -145,8 +145,15 @@ class TwilioType(TemplateType):
                 supported = False
 
             if raw[content_type].get("media"):
-                if self._extract_variables(raw[content_type]["media"][0]):
-                    supported = False
+                comp_vars = add_variables(self._extract_variables(raw[content_type]["media"][0]), "text")
+                components.append(
+                    {
+                        "type": "header",
+                        "name": "header",
+                        "content": raw[content_type]["media"][0],
+                        "variables": comp_vars,
+                    }
+                )
 
             if raw[content_type].get("actions"):
 
