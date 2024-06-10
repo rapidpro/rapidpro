@@ -357,7 +357,7 @@ class UserSettings(models.Model):
     external_id = models.CharField(max_length=128, null=True)
     verification_token = models.CharField(max_length=64, null=True)
     email_status = models.CharField(max_length=1, default=STATUS_UNVERIFIED, choices=STATUS_CHOICES)
-    email_verification_secret = models.CharField(max_length=64, null=True, db_index=True)
+    email_verification_secret = models.CharField(max_length=64, db_index=True)
     avatar = models.ImageField(upload_to=UploadToIdPathAndRename("avatars/"), storage=public_file_storage, null=True)
 
 
@@ -368,7 +368,7 @@ def on_user_post_save(sender, instance: User, created: bool, *args, **kwargs):
     """
 
     if created:
-        instance.settings = UserSettings.objects.create(user=instance)
+        instance.settings = UserSettings.objects.create(user=instance, email_verification_secret=generate_secret(64))
 
 
 class OrgRole(Enum):

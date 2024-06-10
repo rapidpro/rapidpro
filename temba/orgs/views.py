@@ -60,6 +60,7 @@ from temba.utils.fields import (
     SelectWidget,
     TembaDateField,
 )
+from temba.utils.text import generate_secret
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import (
     ComponentFormMixin,
@@ -821,8 +822,10 @@ class UserCRUDL(SmartCRUDL):
 
             if obj.email != obj._prev_email:
                 obj.settings.email_status = UserSettings.STATUS_UNVERIFIED
+                obj.settings.email_verification_secret = generate_secret(64)  # make old verification links unusable
 
                 UserEmailNotificationType.create(self.request.org, self.request.user, obj._prev_email)
+
             if obj._password_changed:
                 update_session_auth_hash(self.request, self.request.user)
 
@@ -833,7 +836,7 @@ class UserCRUDL(SmartCRUDL):
                 obj.settings.language = language
 
             obj.settings.avatar = self.form.cleaned_data["avatar"]
-            obj.settings.save(update_fields=("language", "email_status", "avatar"))
+            obj.settings.save(update_fields=("language", "email_status", "email_verification_secret", "avatar"))
             return obj
 
     class SendVerificationEmail(SpaMixin, PostOnlyMixin, InferUserMixin, SmartUpdateView):

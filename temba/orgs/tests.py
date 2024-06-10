@@ -3500,6 +3500,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
             )
 
         self.admin.settings.email_status = "V"  # mark user email as verified
+        self.admin.settings.email_verification_secret = "old-email-secret"
         self.admin.settings.save()
 
         # try to submit without required fields
@@ -3533,7 +3534,8 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.admin.refresh_from_db()
         self.assertEqual("Admin User", self.admin.name)
-        self.assertTrue("V", self.admin.settings.email_status)  # unchanged
+        self.assertEqual("V", self.admin.settings.email_status)  # unchanged
+        self.assertEqual("old-email-secret", self.admin.settings.email_verification_secret)  # unchanged
         self.assertIsNotNone(self.admin.settings.avatar)
         self.assertEqual("pt-br", self.admin.settings.language)
 
@@ -3575,6 +3577,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("admin@trileet.com", self.admin.username)
         self.assertEqual("admin@trileet.com", self.admin.email)
         self.assertEqual("U", self.admin.settings.email_status)  # because email changed
+        self.assertNotEqual("old-email-secret", self.admin.settings.email_verification_secret)
 
         # should have a email changed notification using old address
         self.assertEqual({"user:email"}, set(self.admin.notifications.values_list("notification_type", flat=True)))
@@ -3685,7 +3688,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_verify_email(self):
         self.assertEqual(self.admin.settings.email_status, "U")
-        self.assertIsNone(self.admin.settings.email_verification_secret)
+        self.assertTrue(self.admin.settings.email_verification_secret)
 
         self.admin.settings.email_verification_secret = "SECRET"
         self.admin.settings.save(update_fields=("email_verification_secret",))
