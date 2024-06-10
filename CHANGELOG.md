@@ -1,3 +1,9 @@
+v9.1.137 (2024-06-10)
+-------------------------
+ * Support WhatsApp templates with header images
+ * Remove no longer used URN related code
+ * Generate email verification secret when account created, change when email changed
+
 v9.1.136 (2024-06-07)
 -------------------------
  * Add spa mixin to transfer logs views
