@@ -61,9 +61,12 @@ class WhatsAppType(TemplateType):
 
             if comp_type == "HEADER":
                 comp_vars = {}
+                header_fmt = component.get("format", "TEXT")
 
-                if component.get("format", "TEXT") == "TEXT":
+                if header_fmt == "TEXT":
                     comp_vars = add_variables(self._extract_variables(comp_text), "text")
+                elif header_fmt in ("IMAGE", "VIDEO", "DOCUMENT"):
+                    comp_vars = add_variables("1", header_fmt.lower())
                 else:
                     supported = False
 
