@@ -89,8 +89,8 @@ class TwilioType(TemplateType):
                 comp_vars = add_variables(self._extract_variables(raw[content_type]["header_text"]), "text")
                 components.append(
                     {
-                        "type": "header/text",
                         "name": "header",
+                        "type": "header/text",
                         "content": raw[content_type]["header_text"],
                         "variables": comp_vars,
                     }
@@ -100,8 +100,8 @@ class TwilioType(TemplateType):
                 comp_vars = add_variables(self._extract_variables(raw[content_type]["media"][0]), "text")
                 components.append(
                     {
-                        "type": "header/media",
                         "name": "header",
+                        "type": "header/media",
                         "content": raw[content_type]["media"][0],
                         "variables": comp_vars,
                     }
@@ -112,8 +112,8 @@ class TwilioType(TemplateType):
 
                 components.append(
                     {
-                        "type": "body",
                         "name": "body",
+                        "type": "body/text",
                         "content": raw[content_type]["body"],
                         "variables": comp_vars,
                     }
@@ -123,8 +123,8 @@ class TwilioType(TemplateType):
                 comp_vars = add_variables(self._extract_variables(raw[content_type]["footer"]), "text")
                 components.append(
                     {
-                        "type": "footer",
                         "name": "footer",
+                        "type": "footer/text",
                         "content": raw[content_type]["footer"],
                         "variables": comp_vars,
                     }
@@ -134,8 +134,8 @@ class TwilioType(TemplateType):
                 comp_vars = add_variables(self._extract_variables(raw[content_type]["title"]), "text")
                 components.append(
                     {
-                        "type": "body",
                         "name": "body",
+                        "type": "body/text",
                         "content": raw[content_type]["title"],
                         "variables": comp_vars,
                     }
@@ -145,8 +145,8 @@ class TwilioType(TemplateType):
                 comp_vars = add_variables(self._extract_variables(raw[content_type]["subtitle"]), "text")
                 components.append(
                     {
-                        "type": "footer",
                         "name": "footer",
+                        "type": "footer/text",
                         "content": raw[content_type]["subtitle"],
                         "variables": comp_vars,
                     }
@@ -165,8 +165,8 @@ class TwilioType(TemplateType):
                         button_vars = add_variables(self._extract_variables(button_text), "text")
                         components.append(
                             {
-                                "type": "button/quick_reply",
                                 "name": button_name,
+                                "type": "button/quick_reply",
                                 "content": button_text,
                                 "variables": button_vars,
                             }
@@ -178,8 +178,8 @@ class TwilioType(TemplateType):
                             button_vars = add_variables(self._extract_variables(button_url), "text")
                             components.append(
                                 {
-                                    "type": "button/url",
                                     "name": button_name,
+                                    "type": "button/url",
                                     "content": button_url,
                                     "display": button_text,
                                     "variables": button_vars,
@@ -190,8 +190,8 @@ class TwilioType(TemplateType):
                             phone_number = action["phone"]
                             components.append(
                                 {
-                                    "type": "button/phone_number",
                                     "name": button_name,
+                                    "type": "button/phone_number",
                                     "content": phone_number,
                                     "display": button_text,
                                     "variables": {},
@@ -201,8 +201,8 @@ class TwilioType(TemplateType):
                             button_vars = add_variables(self._extract_variables(button_text), "text")
                             components.append(
                                 {
-                                    "type": "button/quick_reply",
                                     "name": button_name,
+                                    "type": "button/quick_reply",
                                     "content": button_text,
                                     "variables": button_vars,
                                 }

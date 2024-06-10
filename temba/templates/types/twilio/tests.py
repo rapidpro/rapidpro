@@ -141,8 +141,8 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(
             [
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Hello {{1}}, this is text example only and can have variables replaces such as {{2}} and {{3}}",
                     "variables": {"1": 0, "2": 1, "3": 2},
                 }
@@ -179,16 +179,16 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(
             [
                 {
-                    "type": "header/media",
                     "name": "header",
+                    "type": "header/media",
                     "content": "https://example.com/images/{{1}}.jpg",
                     "variables": {
                         "1": 0,
                     },
                 },
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Template with media for {{2}} can have a link with variables",
                     "variables": {
                         "2": 1,
@@ -234,8 +234,8 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(
             [
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Call to action {{1}} and {{2}}",
                     "variables": {
                         "1": 0,
@@ -243,15 +243,15 @@ class TwilioTypeTest(TembaTest):
                     },
                 },
                 {
-                    "type": "button/phone_number",
                     "name": "button.0",
+                    "type": "button/phone_number",
                     "content": "+12538678447",
                     "display": "Call us",
                     "variables": {},
                 },
                 {
-                    "type": "button/url",
                     "name": "button.1",
+                    "type": "button/url",
                     "content": "https://example.com/?wa_customer={{3}}",
                     "display": "Check site",
                     "variables": {
@@ -296,8 +296,8 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(
             [
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Welcome {{1}}, we have new features such as {{3}}, Subscribe for more info",
                     "variables": {
                         "1": 0,
@@ -305,20 +305,20 @@ class TwilioTypeTest(TembaTest):
                     },
                 },
                 {
-                    "type": "button/quick_reply",
                     "name": "button.0",
+                    "type": "button/quick_reply",
                     "content": "Subscribe {{2}}",
                     "variables": {"2": 2},
                 },
                 {
-                    "type": "button/quick_reply",
                     "name": "button.1",
+                    "type": "button/quick_reply",
                     "content": "Stop promotions",
                     "variables": {},
                 },
                 {
-                    "type": "button/quick_reply",
                     "name": "button.2",
+                    "type": "button/quick_reply",
                     "content": "Help for {{3}}",
                     "variables": {"3": 1},
                 },
@@ -370,14 +370,14 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(
             [
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Random type",
                     "variables": {},
                 },
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "unsupported twilio/blah",
                     "variables": {},
                 },
@@ -416,8 +416,8 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(
             [
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "{{1}}",
                     "variables": {"1": 0},
                 },
@@ -457,14 +457,14 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(
             [
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Your ticket for *{{1}}*\n*Time* - {{2}}\n*Venue* - {{3}}\n*Seats* - {{4}}",
                     "variables": {"1": 0, "2": 1, "3": 2, "4": 3},
                 },
                 {
-                    "type": "footer",
                     "name": "footer",
+                    "type": "footer/text",
                     "content": "This message is from an unverified business.",
                     "variables": {},
                 },
@@ -506,33 +506,33 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(
             [
                 {
-                    "type": "header/text",
                     "name": "header",
+                    "type": "header/text",
                     "content": "This is a {{1}} card",
                     "variables": {"1": 0},
                 },
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Congratulations, you have reached Elite status! Add code {{1}} for 10% off.",
                     "variables": {"1": 0},
                 },
                 {
-                    "type": "footer",
                     "name": "footer",
+                    "type": "footer/text",
                     "content": "To unsubscribe, reply Stop",
                     "variables": {},
                 },
                 {
-                    "type": "button/url",
                     "name": "button.0",
+                    "type": "button/url",
                     "content": "https://example.com/?wa_customer={{3}}",
                     "display": "Check site",
                     "variables": {"3": 1},
                 },
                 {
-                    "type": "button/phone_number",
                     "name": "button.1",
+                    "type": "button/phone_number",
                     "content": "+15551234567",
                     "display": "Call Us",
                     "variables": {},
@@ -575,20 +575,20 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(
             [
                 {
-                    "type": "header/text",
                     "name": "header",
+                    "type": "header/text",
                     "content": "This is a {{1}} card",
                     "variables": {"1": 0},
                 },
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Congratulations, you have reached Elite status! Add code {{1}} for 10% off.",
                     "variables": {"1": 0},
                 },
                 {
-                    "type": "footer",
                     "name": "footer",
+                    "type": "footer/text",
                     "content": "To unsubscribe, reply Stop",
                     "variables": {},
                 },
@@ -654,8 +654,8 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(
             [
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Owl Air Flash Sale! Hurry! Sale ends on {{1}}!",
                     "variables": {"1": 0},
                 }
@@ -697,20 +697,20 @@ class TwilioTypeTest(TembaTest):
         self.assertEqual(
             [
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Hi, check out this menu {{1}}",
                     "variables": {"1": 0},
                 },
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "The Menu: {{2}}",
                     "variables": {"2": 1},
                 },
                 {
-                    "type": "footer",
                     "name": "footer",
+                    "type": "footer/text",
                     "content": "Great deals",
                     "variables": {},
                 },

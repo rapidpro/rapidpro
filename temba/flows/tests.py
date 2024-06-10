@@ -2611,7 +2611,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             external_id="id1",
             external_locale="en_US",
             namespace="foo_namespace",
-            components=[{"type": "body", "name": "body", "content": "Hello", "variables": {}, "params": []}],
+            components=[{"name": "body", "type": "body/text", "content": "Hello", "variables": {}, "params": []}],
             variables=[],
         )
 
