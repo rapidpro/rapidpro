@@ -1,3 +1,7 @@
+v9.1.139 (2024-06-11)
+-------------------------
+ * Fix split issue for template editor
+
 v9.1.138 (2024-06-10)
 -------------------------
  * Template editor fix for empty content
