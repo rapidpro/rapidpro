@@ -10,7 +10,7 @@ from temba.notifications.incidents.builtin import ChannelTemplatesFailedIncident
 from temba.notifications.models import Incident
 from temba.orgs.models import Org, OrgRole
 from temba.request_logs.models import HTTPLog
-from temba.tests import CRUDLTestMixin, TembaTest
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
 
 from .models import Template, TemplateTranslation
 from .tasks import refresh_templates
@@ -379,3 +379,65 @@ class TemplateTranslationCRUDLTest(CRUDLTestMixin, TembaTest):
 
         response = self.client.get(reverse("templates.templatetranslation_channel", args=["1234567890-1234"]))
         self.assertEqual(404, response.status_code)
+
+
+class TemplateComponentsTypeTest(MigrationTest):
+    app = "templates"
+    migrate_from = "0027_templatetranslation_variables"
+    migrate_to = "0028_template_component_types"
+
+    def setUpBeforeMigration(self, apps):
+        template = Template.objects.create(org=self.org, name="hello")
+
+        self.trans1 = TemplateTranslation.objects.create(
+            template=template,
+            channel=self.channel,
+            status=TemplateTranslation.STATUS_PENDING,
+            components=[
+                {"name": "header", "type": "header/text", "content": "Hello"},
+                {"name": "body", "type": "body/text", "content": "World"},
+            ],
+        )
+        self.trans2 = TemplateTranslation.objects.create(
+            template=template,
+            channel=self.channel,
+            status=TemplateTranslation.STATUS_PENDING,
+            components=[
+                {"name": "header", "type": "header", "content": "Hola"},
+                {"name": "body", "type": "body", "content": "Mundo"},
+            ],
+        )
+        self.trans3 = TemplateTranslation.objects.create(
+            template=template,
+            channel=self.channel,
+            status=TemplateTranslation.STATUS_REJECTED,
+            components={"body": "hello"},
+        )
+        self.trans4 = TemplateTranslation.objects.create(
+            template=template,
+            channel=self.channel,
+            status=TemplateTranslation.STATUS_REJECTED,
+            components=[{"no_type": True}],
+        )
+
+    def test_migration(self):
+        def assert_components(trans, expected):
+            trans.refresh_from_db()
+            self.assertEqual(expected, trans.components)
+
+        assert_components(  # unchanged
+            self.trans1,
+            [
+                {"name": "header", "type": "header/text", "content": "Hello"},
+                {"name": "body", "type": "body/text", "content": "World"},
+            ],
+        )
+        assert_components(
+            self.trans2,
+            [
+                {"name": "header", "type": "header/text", "content": "Hola"},
+                {"name": "body", "type": "body/text", "content": "Mundo"},
+            ],
+        )
+        assert_components(self.trans3, [])
+        assert_components(self.trans4, [])

@@ -247,9 +247,6 @@ INSTALLED_APPS = (
     "temba.sql",
 )
 
-# the last installed app that uses smartmin permissions
-PERMISSIONS_APP = "temba.airtime"
-
 # don't let smartmin auto create django messages for create and update submissions
 SMARTMIN_DEFAULT_MESSAGES = False
 
@@ -410,7 +407,6 @@ GROUP_PERMISSIONS = {
         "channels.channel_delete",
         "channels.channel_facebook_whitelist",
         "channels.channel_list",
-        "channels.channel_menu",
         "channels.channel_read",
         "channels.channel_update",
         "channels.channelevent_list",
@@ -419,7 +415,6 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_connect",
         "classifiers.classifier_delete",
         "classifiers.classifier_list",
-        "classifiers.classifier_menu",
         "classifiers.classifier_read",
         "classifiers.classifier_sync",
         "contacts.contact_create",
@@ -511,12 +506,10 @@ GROUP_PERMISSIONS = {
         "channels.channel_create",
         "channels.channel_delete",
         "channels.channel_list",
-        "channels.channel_menu",
         "channels.channel_read",
         "channels.channel_update",
         "channels.channelevent_list",
         "classifiers.classifier_list",
-        "classifiers.classifier_menu",
         "classifiers.classifier_read",
         "contacts.contact_create",
         "contacts.contact_delete",
@@ -584,11 +577,9 @@ GROUP_PERMISSIONS = {
         "campaigns.campaignevent_list",
         "campaigns.campaignevent_read",
         "channels.channel_list",
-        "channels.channel_menu",
         "channels.channel_read",
         "channels.channelevent_list",
         "classifiers.classifier_list",
-        "classifiers.classifier_menu",
         "classifiers.classifier_read",
         "contacts.contact_export",
         "contacts.contact_history",

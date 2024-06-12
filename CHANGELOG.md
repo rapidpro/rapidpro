@@ -1,3 +1,17 @@
+v9.1.142 (2024-06-12)
+-------------------------
+ * Add AirtimeTransfer.external_id
+ * Add data migration to cleanup template translations
+
+v9.1.141 (2024-06-12)
+-------------------------
+ * Update to latest smartmin
+ * Add uuid field to airtime transfer model
+
+v9.1.140 (2024-06-12)
+-------------------------
+ * Really actually fix template attachments for real
+
 v9.1.139 (2024-06-11)
 -------------------------
  * Fix split issue for template editor
