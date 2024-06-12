@@ -1,3 +1,8 @@
+v9.1.142 (2024-06-12)
+-------------------------
+ * Add AirtimeTransfer.external_id
+ * Add data migration to cleanup template translations
+
 v9.1.141 (2024-06-12)
 -------------------------
  * Update to latest smartmin
