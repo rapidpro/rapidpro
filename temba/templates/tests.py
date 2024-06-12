@@ -10,7 +10,7 @@ from temba.notifications.incidents.builtin import ChannelTemplatesFailedIncident
 from temba.notifications.models import Incident
 from temba.orgs.models import Org, OrgRole
 from temba.request_logs.models import HTTPLog
-from temba.tests import CRUDLTestMixin, TembaTest, MigrationTest
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
 
 from .models import Template, TemplateTranslation
 from .tasks import refresh_templates
@@ -393,19 +393,31 @@ class TemplateComponentsTypeTest(MigrationTest):
             template=template,
             channel=self.channel,
             status=TemplateTranslation.STATUS_PENDING,
-            components=[{"type": "header/text", "content": "Hello"}, {"type": "body/text", "content": "World"}],
+            components=[
+                {"name": "header", "type": "header/text", "content": "Hello"},
+                {"name": "body", "type": "body/text", "content": "World"},
+            ],
         )
         self.trans2 = TemplateTranslation.objects.create(
             template=template,
             channel=self.channel,
             status=TemplateTranslation.STATUS_PENDING,
-            components=[{"type": "header", "content": "Hola"}, {"type": "body", "content": "Mundo"}],
+            components=[
+                {"name": "header", "type": "header", "content": "Hola"},
+                {"name": "body", "type": "body", "content": "Mundo"},
+            ],
         )
         self.trans3 = TemplateTranslation.objects.create(
             template=template,
             channel=self.channel,
             status=TemplateTranslation.STATUS_REJECTED,
             components={"body": "hello"},
+        )
+        self.trans4 = TemplateTranslation.objects.create(
+            template=template,
+            channel=self.channel,
+            status=TemplateTranslation.STATUS_REJECTED,
+            components=[{"no_type": True}],
         )
 
     def test_migration(self):
@@ -414,9 +426,18 @@ class TemplateComponentsTypeTest(MigrationTest):
             self.assertEqual(expected, trans.components)
 
         assert_components(  # unchanged
-            self.trans1, [{"type": "header/text", "content": "Hello"}, {"type": "body/text", "content": "World"}]
+            self.trans1,
+            [
+                {"name": "header", "type": "header/text", "content": "Hello"},
+                {"name": "body", "type": "body/text", "content": "World"},
+            ],
         )
         assert_components(
-            self.trans2, [{"type": "header/text", "content": "Hola"}, {"type": "body/text", "content": "Mundo"}]
+            self.trans2,
+            [
+                {"name": "header", "type": "header/text", "content": "Hola"},
+                {"name": "body", "type": "body/text", "content": "Mundo"},
+            ],
         )
         assert_components(self.trans3, [])
+        assert_components(self.trans4, [])

@@ -11,10 +11,14 @@ def fix_template_component_types(apps, schema_editor):
         updated = False
 
         if isinstance(tt.components, list):
+            components = [c for c in tt.components if "name" in c and "type" in c]
+
+            updated = len(components) != len(tt.components)
+            tt.components = components
+
             for comp in tt.components:
-                comp_type = comp["type"]
-                if comp_type in ("header", "body", "footer"):
-                    comp["type"] = comp_type + "/text"
+                if comp["type"] in ("header", "body", "footer"):
+                    comp["type"] += "/text"
                     updated = True
         else:
             tt.components = []
