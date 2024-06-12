@@ -1,3 +1,9 @@
+v9.1.143 (2024-06-12)
+-------------------------
+ * Update smartmin
+ * Delete recovery tokens when new ones are created or email changed
+ * Populate airtime transfer uuids
+
 v9.1.142 (2024-06-12)
 -------------------------
  * Add AirtimeTransfer.external_id
