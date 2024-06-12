@@ -1,3 +1,8 @@
+v9.1.141 (2024-06-12)
+-------------------------
+ * Update to latest smartmin
+ * Add uuid field to airtime transfer model
+
 v9.1.140 (2024-06-12)
 -------------------------
  * Really actually fix template attachments for real
