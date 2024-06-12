@@ -13,7 +13,7 @@ from django.utils import timezone
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
-from temba.contacts.models import Contact, ContactField, ContactGroup
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import Flow
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
@@ -436,7 +436,12 @@ class Command(BaseCommand):
                 contacts = []
                 for i in range(size):
                     urn = f"tel:+250788{i:06}"
-                    contact = Contact.create(org, user, name="", language="", urns=[urn], fields={}, groups=[])
+                    urn_obj = ContactURN.objects.filter(org=org, identity=urn).first()
+                    if urn_obj and urn_obj.contact:
+                        contact = urn_obj.contact
+                    else:
+                        contact = Contact.create(org, user, name="", language="", urns=[urn], fields={}, groups=[])
+
                     contacts.append(contact)
 
                 Contact.bulk_change_group(user, contacts, group, add=True)
