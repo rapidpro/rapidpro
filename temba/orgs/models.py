@@ -282,24 +282,23 @@ class User(AuthUser):
         except ValueError:
             return None
 
-    def recover_password(self, branding: dict):
+    def send_password_recovery_email(self, branding: dict):
         """
         Generates a recovery token for this user and sends them an email with a recovery link using that token.
         """
 
-        token = generate_secret(32)
-        RecoveryToken.objects.create(token=token, user=self)
+        # delete any failed login records and previously generated recovery tokens
         FailedLogin.objects.filter(username__iexact=self.username).delete()
+        RecoveryToken.objects.filter(user=self).delete()
 
-        self.send_recovery_email(token, branding)
+        token = RecoveryToken.objects.create(token=generate_secret(32), user=self)
 
-    def send_recovery_email(self, token: str, branding: dict):
         sender = EmailSender.from_email_type(branding, "notifications")
         sender.send(
             [self.email],
             _("Password Recovery Request"),
             "orgs/email/user_forget",
-            {"user": self, "path": reverse("users.user_recover", args=[token])},
+            {"user": self, "path": reverse("users.user_recover", args=[token.token])},
         )
 
     def as_engine_ref(self) -> dict:
