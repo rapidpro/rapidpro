@@ -6,7 +6,7 @@ import iso8601
 import pyotp
 from django_redis import get_redis_connection
 from packaging.version import Version
-from smartmin.users.models import FailedLogin, PasswordHistory
+from smartmin.users.models import FailedLogin, PasswordHistory, RecoveryToken
 from smartmin.users.views import Login, UserUpdateForm
 from smartmin.views import (
     SmartCreateView,
@@ -703,15 +703,14 @@ class UserCRUDL(SmartCRUDL):
             return response
 
     class Forget(SmartFormView):
-        class ForgetForm(forms.Form):
+        class Form(forms.Form):
             email = forms.EmailField(required=True, label=_("Your Email"), widget=InputWidget())
 
             def clean_email(self):
-                email = self.cleaned_data["email"].lower().strip()
-                return email
+                return self.cleaned_data["email"].lower().strip()
 
         title = _("Password Recovery")
-        form_class = ForgetForm
+        form_class = Form
         permission = None
         success_message = _("An email has been sent to your account with further instructions.")
         success_url = "@users.user_login"
@@ -722,12 +721,12 @@ class UserCRUDL(SmartCRUDL):
             user = User.objects.filter(email__iexact=email).first()
 
             if user:
-                user.recover_password(self.request.branding)
+                user.send_password_recovery_email(self.request.branding)
             else:
-                # No user, check if we have an invite for the email and resend that
-                existing_invite = Invitation.objects.filter(is_active=True, email__iexact=email).first()
-                if existing_invite:
-                    existing_invite.send()
+                # no user, check if we have an invite for the email and resend that
+                invite = Invitation.objects.filter(is_active=True, email__iexact=email).first()
+                if invite:
+                    invite.send()
 
             return super().form_valid(form)
 
@@ -823,6 +822,8 @@ class UserCRUDL(SmartCRUDL):
             if obj.email != obj._prev_email:
                 obj.settings.email_status = UserSettings.STATUS_UNVERIFIED
                 obj.settings.email_verification_secret = generate_secret(64)  # make old verification links unusable
+
+                RecoveryToken.objects.filter(user=obj).delete()  # make old password recovery links unusable
 
                 UserEmailNotificationType.create(self.request.org, self.request.user, obj._prev_email)
 
