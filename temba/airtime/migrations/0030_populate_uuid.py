@@ -17,7 +17,7 @@ def populate_uuid(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("airtime", "0028_airtimetransfer_uuid"),
+        ("airtime", "0029_airtimetransfer_external_id"),
     ]
 
     operations = [migrations.RunPython(populate_uuid, migrations.RunPython.noop)]

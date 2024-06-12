@@ -1,8 +1,7 @@
 from django.urls import reverse
 
 from temba.airtime.models import AirtimeTransfer
-from temba.tests import CRUDLTestMixin, TembaTest
-from temba.tests.base import MigrationTest
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
 
 
 class AirtimeCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -77,8 +76,8 @@ class AirtimeCRUDLTest(TembaTest, CRUDLTestMixin):
 
 class AirtimeUUIDTest(MigrationTest):
     app = "airtime"
-    migrate_from = "0028_airtimetransfer_uuid"
-    migrate_to = "0029_populate_uuid"
+    migrate_from = "0029_airtimetransfer_external_id"
+    migrate_to = "0030_populate_uuid"
 
     def setUpBeforeMigration(self, apps):
         contact = self.create_contact("Eric", phone="+250788382382")
