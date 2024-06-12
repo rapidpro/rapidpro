@@ -1,3 +1,7 @@
+v9.1.140 (2024-06-12)
+-------------------------
+ * Really actually fix template attachments for real
+
 v9.1.139 (2024-06-11)
 -------------------------
  * Fix split issue for template editor
