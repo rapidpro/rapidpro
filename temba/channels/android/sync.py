@@ -1,6 +1,6 @@
 from datetime import datetime, timezone as tzone
 
-from pyfcm import FCMNotification
+from pyfcm.v1.fcm import FCMNotification
 
 from django.conf import settings
 
@@ -51,7 +51,7 @@ def get_channel_commands(channel, commands, sync_event=None):
 
 
 def sync_channel_fcm(registration_id, channel=None):  # pragma: no cover
-    push_service = FCMNotification(api_key=settings.FCM_API_KEY)
+    push_service = FCMNotification(service_account_file_path=settings.ANDROID_CLIENT_FIREBASE_SERVICE_ACCOUNT_FILE_PATH, project_id=settings.ANDROID_CLIENT_FIREBASE_PROJECT_ID)
     fcm_failed = False
     try:
         result = push_service.notify_single_device(registration_id=registration_id, data_message=dict(msg="sync"))
