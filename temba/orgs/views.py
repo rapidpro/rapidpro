@@ -585,6 +585,7 @@ class UserCRUDL(SmartCRUDL):
         "delete",
         "read",
         "forget",
+        "recover",
         "two_factor_enable",
         "two_factor_disable",
         "two_factor_tokens",
@@ -704,14 +705,16 @@ class UserCRUDL(SmartCRUDL):
 
     class Forget(SmartFormView):
         class Form(forms.Form):
-            email = forms.EmailField(required=True, label=_("Your Email"), widget=InputWidget())
+            email = forms.EmailField(
+                required=True, widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email address")})
+            )
 
             def clean_email(self):
                 return self.cleaned_data["email"].lower().strip()
 
-        title = _("Password Recovery")
         form_class = Form
         permission = None
+        title = _("Password Reset")
         success_message = _("An email has been sent to your account with further instructions.")
         success_url = "@users.user_login"
         fields = ("email",)
@@ -729,6 +732,70 @@ class UserCRUDL(SmartCRUDL):
                     invite.send()
 
             return super().form_valid(form)
+
+    class Recover(ComponentFormMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
+            new_password = forms.CharField(
+                validators=[validate_password],
+                widget=forms.PasswordInput(attrs={"widget_only": True, "placeholder": _("New password")}),
+                required=True,
+            )
+            confirm_password = forms.CharField(
+                widget=forms.PasswordInput(attrs={"widget_only": True, "placeholder": _("Confirm")}), required=True
+            )
+
+            def clean(self):
+                cleaned_data = super().clean()
+
+                if not self.errors:
+                    if cleaned_data.get("new_password") != cleaned_data.get("confirm_password"):
+                        raise forms.ValidationError(_("New password and confirmation don't match."))
+
+                return self.cleaned_data
+
+            class Meta:
+                model = User
+                fields = ("new_password", "confirm_password")
+
+        form_class = Form
+        permission = None
+        title = _("Password Reset")
+        success_url = "@users.user_login"
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/(?P<token>\w+)/$" % (path, action)
+
+        def pre_process(self, request, *args, **kwargs):
+            # if token is too old, redirect to forget password
+            if self.token.created_on < timezone.now() - timedelta(hours=1):
+                messages.info(
+                    request,
+                    _("This link has expired. Please reinitiate the process by entering your email here."),
+                )
+                return HttpResponseRedirect(reverse("orgs.user_forget"))
+
+            return super().pre_process(request, args, kwargs)
+
+        @cached_property
+        def token(self):
+            return get_object_or_404(RecoveryToken, token=self.kwargs["token"])
+
+        def get_object(self):
+            return self.token.user
+
+        def save(self, obj):
+            obj.set_password(self.form.cleaned_data["new_password"])
+            obj.save(update_fields=("password",))
+            return obj
+
+        def post_save(self, obj):
+            obj = super().post_save(obj)
+
+            # delete all recovery tokens for this user
+            obj.recovery_tokens.all().delete()
+
+            return obj
 
     class Edit(ComponentFormMixin, InferUserMixin, SmartUpdateView):
         class Form(forms.ModelForm):
