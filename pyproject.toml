@@ -55,6 +55,7 @@ psycopg = "^3.1.9"
 pillow = "^10.1.0"
 django-imagekit = "^5.0.0"
 iso639-lang = "^2.2.3"
+google-auth = "^2.30.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.3.0"
