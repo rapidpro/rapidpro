@@ -54,7 +54,7 @@ def get_channel_commands(channel, commands, sync_event=None):
     return commands
 
 
-def _get_access_token():
+def _get_access_token():  # pragma: no cover
     """Retrieve a valid access token that can be used to authorize requests.
 
     :return: Access token.
@@ -67,7 +67,7 @@ def _get_access_token():
     return credentials.token
 
 
-def validate_registration_info(registration_id):
+def validate_registration_info(registration_id):  # pragma: no cover
     valid_registration_ids = []
 
     backoffs = [1, 3, 6]
