@@ -298,7 +298,7 @@ class User(AuthUser):
             [self.email],
             _("Password Recovery Request"),
             "orgs/email/user_forget",
-            {"user": self, "path": reverse("users.user_recover", args=[token.token])},
+            {"user": self, "path": reverse("orgs.user_recover", args=[token.token])},
         )
 
     def as_engine_ref(self) -> dict:

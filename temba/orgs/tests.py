@@ -3613,10 +3613,9 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_forget(self):
         forget_url = reverse("orgs.user_forget")
 
-        # make sure smartmin forget view is redirecting to our forget view
+        # make sure smartmin view is redirecting to our view
         response = self.client.get(reverse("users.user_forget"))
-        self.assertEqual(301, response.status_code)
-        self.assertEqual(forget_url, response.url)
+        self.assertRedirect(response, forget_url, status_code=301)
 
         invitation = Invitation.objects.create(
             org=self.org,
@@ -3667,6 +3666,72 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(3, len(mail.outbox))
         self.assertEqual(["admin@nyaruka.com"], mail.outbox[2].recipients())
         self.assertIn(token2.token, mail.outbox[2].body)
+
+    def test_recover(self):
+        recover_url = reverse("orgs.user_recover", args=["1234567890"])
+
+        # make sure smartmin view is redirecting to our view
+        response = self.client.get(reverse("users.user_recover", args=["1234567890"]))
+        self.assertRedirect(response, recover_url, status_code=301)
+
+        # 404 if token doesn't exist
+        response = self.client.get(recover_url)
+        self.assertEqual(404, response.status_code)
+
+        # create token but too old
+        token = RecoveryToken.objects.create(
+            user=self.admin, token="1234567890", created_on=timezone.now() - timedelta(days=1)
+        )
+
+        # user will be redirected to forget password page and told to start again
+        response = self.client.get(recover_url)
+        self.assertRedirect(response, reverse("orgs.user_forget"))
+
+        token.created_on = timezone.now() - timedelta(minutes=45)
+        token.save(update_fields=("created_on",))
+
+        self.assertUpdateFetch(recover_url, [None], form_fields=("new_password", "confirm_password"))
+
+        # try submitting empty form
+        self.assertUpdateSubmit(
+            recover_url,
+            None,
+            {},
+            form_errors={"new_password": "This field is required.", "confirm_password": "This field is required."},
+            object_unchanged=self.admin,
+        )
+
+        # try to set password to something too simple
+        self.assertUpdateSubmit(
+            recover_url,
+            None,
+            {"new_password": "123", "confirm_password": "123"},
+            form_errors={"new_password": "This password is too short. It must contain at least 8 characters."},
+            object_unchanged=self.admin,
+        )
+
+        # try to set password but confirmation doesn't match
+        self.assertUpdateSubmit(
+            recover_url,
+            None,
+            {"new_password": "Qwerty123", "confirm_password": "Azerty123"},
+            form_errors={"__all__": "New password and confirmation don't match."},
+            object_unchanged=self.admin,
+        )
+
+        # on successfull password reset, user is redirected to login page
+        response = self.assertUpdateSubmit(
+            recover_url, None, {"new_password": "Azerty123", "confirm_password": "Azerty123"}
+        )
+        self.assertLoginRedirect(response)
+
+        response = self.client.get(response.url)
+        self.assertContains(response, "Your password has been updated successfully.")
+
+        # their password has been updated and recovery token deleted
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.check_password("Azerty123"))
+        self.assertEqual(0, self.admin.recovery_tokens.count())
 
     def test_token(self):
         token_url = reverse("orgs.user_token")
