@@ -682,7 +682,9 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
 
         if fcm_id is not None:
-            if getattr(settings, "FCM_API_KEY", None):
+            if getattr(settings, "ANDROID_FCM_PROJECT_ID", None) and getattr(
+                settings, "ANDROID_FCM_SERVICE_ACCOUNT_FILE", None
+            ):
                 from .tasks import sync_channel_fcm_task
 
                 if not registration_id:

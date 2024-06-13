@@ -1526,24 +1526,6 @@ openpyxl = ">=2.6.1"
 pyexcel-io = ">=0.6.2"
 
 [[package]]
-name = "pyfcm"
-version = "1.5.4"
-description = "Python client for FCM - Firebase Cloud Messaging (Android, iOS and Web)"
-optional = false
-python-versions = "*"
-files = [
-    {file = "pyfcm-1.5.4-py2-none-any.whl", hash = "sha256:82340ae9d76b5d2bccc3392a6688872016b648d3375c41641e888bc337674d76"},
-    {file = "pyfcm-1.5.4.tar.gz", hash = "sha256:aa4a391dfcabb0fffebc28ead0d79f0db113d15c03ea06334b1387804112d69c"},
-]
-
-[package.dependencies]
-requests = "*"
-urllib3 = ">=1.26.0"
-
-[package.extras]
-test = ["pytest"]
-
-[[package]]
 name = "pyjwt"
 version = "2.8.0"
 description = "JSON Web Token implementation in Python"
@@ -2427,4 +2409,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "826df7b2bba431beb92f4e629b48cda1300433896aaa422f48026ff967a59d93"
+content-hash = "a98aeeb73fb8f7a1b94a36b3492255689334540f721f055d552c8b1fd3cfe83d"

@@ -58,7 +58,7 @@ class HttpLogTest(TembaTest):
         self.assertEqual(f"http://127.0.0.1:{self.server.server_port}/foo", log.url)
         self.assertEqual(200, log.status_code)
         self.assertEqual(
-            f"GET /foo HTTP/1.1\r\nHost: 127.0.0.1:{self.server.server_port}\r\nUser-Agent: python-requests/2.31.0\r\nAccept-Encoding: gzip, deflate\r\nAccept: */*\r\nConnection: keep-alive\r\n\r\n",
+            f"GET /foo HTTP/1.1\r\nHost: 127.0.0.1:{self.server.server_port}\r\nUser-Agent: python-requests/2.32.3\r\nAccept-Encoding: gzip, deflate\r\nAccept: */*\r\nConnection: keep-alive\r\n\r\n",
             log.request,
         )
         self.assertEqual(
@@ -82,7 +82,7 @@ class HttpLogTest(TembaTest):
         self.assertEqual("http://127.0.0.1:6666/", log.url)
         self.assertEqual(0, log.status_code)
         self.assertEqual(
-            "GET / HTTP/1.1\r\nHost: 127.0.0.1:6666\r\nUser-Agent: python-requests/2.31.0\r\nAccept-Encoding: gzip, deflate\r\nAccept: */*\r\nConnection: keep-alive\r\n\r\n",
+            "GET / HTTP/1.1\r\nHost: 127.0.0.1:6666\r\nUser-Agent: python-requests/2.32.3\r\nAccept-Encoding: gzip, deflate\r\nAccept: */*\r\nConnection: keep-alive\r\n\r\n",
             log.request,
         )
         self.assertEqual(
