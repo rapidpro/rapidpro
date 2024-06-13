@@ -34,7 +34,7 @@ TEST_EXCLUDE = ("smartmin",)
 # Email
 # -----------------------------------------------------------------------------------
 
-SEND_EMAILS = False
+SEND_EMAILS = TESTING  # enable sending emails in tests
 
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_HOST_USER = "server@temba.io"

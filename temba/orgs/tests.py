@@ -119,8 +119,7 @@ class OrgContextProcessorTest(TembaTest):
 
 
 class InvitationTest(TembaTest):
-    @patch("temba.utils.email.send.send_email")
-    def test_model(self, mock_send_email):
+    def test_model(self):
         invitation = Invitation.objects.create(
             org=self.org,
             user_group="E",
@@ -132,14 +131,11 @@ class InvitationTest(TembaTest):
         self.assertEqual(OrgRole.EDITOR, invitation.role)
 
         invitation.send()
-        email_args = mock_send_email.call_args[0]  # all positional args
 
-        self.assertEqual(["invitededitor@nyaruka.com"], email_args[0])
-        self.assertEqual("RapidPro Invitation", email_args[1])
-        self.assertIn("https://app.rapidpro.io/org/join/%s/" % invitation.secret, email_args[2])
-        self.assertNotIn("{{", email_args[2])
-        self.assertIn("https://app.rapidpro.io/org/join/%s/" % invitation.secret, email_args[3])
-        self.assertNotIn("{{", email_args[3])
+        self.assertEqual(1, len(mail.outbox))
+        self.assertEqual(["invitededitor@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertEqual("RapidPro Invitation", mail.outbox[0].subject)
+        self.assertIn(f"https://app.rapidpro.io/org/join/{invitation.secret}/", mail.outbox[0].body)
 
         invitation.release()
 
@@ -1625,7 +1621,6 @@ class AnonOrgTest(TembaTest):
 
 
 class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
-    @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
         accounts_url = reverse("orgs.org_manage_accounts")
         settings_url = reverse("orgs.org_workspace")
@@ -1978,7 +1973,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             ],
         )
 
-    @override_settings(SEND_EMAILS=True)
     def test_flow_smtp(self):
         self.login(self.admin)
 
@@ -3609,7 +3603,6 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
             self.assertEqual("Andy", self.admin.first_name)
             self.assertEqual("en-us", self.admin.settings.language)
 
-    @override_settings(SEND_EMAILS=True)
     def test_forget(self):
         forget_url = reverse("orgs.user_forget")
 
@@ -3799,7 +3792,6 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.admin2.settings.refresh_from_db()
         self.assertEqual(self.admin2.settings.email_status, "U")
 
-    @override_settings(SEND_EMAILS=True)
     def test_send_verification_email(self):
         r = get_redis_connection()
         send_verification_email_url = reverse("orgs.user_send_verification_email")
@@ -4537,7 +4529,6 @@ class BulkExportTest(TembaTest):
 
 
 class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
-    @override_settings(SEND_EMAILS=True)
     def test_create(self):
         create_url = reverse("orgs.invitation_create")
 

@@ -1,7 +1,6 @@
 from datetime import date, datetime, timedelta, timezone as tzone
 
 from django.core import mail
-from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -126,7 +125,6 @@ class IncidentCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({incident4, incident2}, set(response.context["ongoing"]))
 
 
-@override_settings(SEND_EMAILS=True)
 class NotificationTest(TembaTest):
     def assert_notifications(self, *, after: datetime = None, expected_json: dict, expected_users: set, email: True):
         notifications = Notification.objects.all()
