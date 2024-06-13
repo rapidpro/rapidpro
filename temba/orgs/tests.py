@@ -3725,6 +3725,9 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertLoginRedirect(response)
 
+        response = self.client.get(response.url)
+        self.assertContains(response, "Your password has been updated successfully.")
+
         # their password has been updated and recovery token deleted
         self.admin.refresh_from_db()
         self.assertTrue(self.admin.check_password("Azerty123"))

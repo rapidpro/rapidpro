@@ -761,6 +761,7 @@ class UserCRUDL(SmartCRUDL):
         permission = None
         title = _("Password Reset")
         success_url = "@users.user_login"
+        success_message = _("Your password has been updated successfully.")
 
         @classmethod
         def derive_url_pattern(cls, path, action):

@@ -12,6 +12,9 @@
   </div>
   <form method="post">
     {% csrf_token %}
+    {% for field, errors in form.errors.items %}
+      {% if field == '__all__' %}<div class="alert alert-error my-4">{{ errors }}</div>{% endif %}
+    {% endfor %}
     {% render_field 'new_password' %}
     {% render_field 'confirm_password' %}
     <input type="submit" value="{{ _("Reset Password") }}" class="mt-4 button-primary">
