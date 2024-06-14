@@ -50,7 +50,7 @@ from temba.formax import FormaxMixin
 from temba.notifications.mixins import NotificationTargetMixin
 from temba.orgs.tasks import send_user_verification_email
 from temba.utils import analytics, get_anonymous_user, json, languages, on_transaction_commit, str_to_bool
-from temba.utils.email import parse_smtp_url
+from temba.utils.email import EmailSender, parse_smtp_url
 from temba.utils.fields import (
     ArbitraryJsonChoiceField,
     CheckboxWidget,
@@ -724,7 +724,17 @@ class UserCRUDL(SmartCRUDL):
             user = User.objects.filter(email__iexact=email).first()
 
             if user:
-                user.send_password_recovery_email(self.request.branding)
+                # delete any previously generated recovery tokens and create a new one
+                user.recovery_tokens.all().delete()
+                token = user.recovery_tokens.create(token=generate_secret(32))
+
+                sender = EmailSender.from_email_type(self.request.branding, "notifications")
+                sender.send(
+                    [user.email],
+                    _("Password Recovery Request"),
+                    "orgs/email/user_forget",
+                    {"user": user, "path": reverse("orgs.user_recover", args=[token.token])},
+                )
             else:
                 # no user, check if we have an invite for the email and resend that
                 invite = Invitation.objects.filter(is_active=True, email__iexact=email).first()
@@ -795,6 +805,9 @@ class UserCRUDL(SmartCRUDL):
 
             # delete all recovery tokens for this user
             obj.recovery_tokens.all().delete()
+
+            # delete any failed login records
+            FailedLogin.objects.filter(username__iexact=obj.username).delete()
 
             return obj
 

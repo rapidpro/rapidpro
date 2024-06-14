@@ -3610,6 +3610,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("users.user_forget"))
         self.assertRedirect(response, forget_url, status_code=301)
 
+        FailedLogin.objects.create(username="admin@nyaruka.com")
         invitation = Invitation.objects.create(
             org=self.org,
             user_group="A",
@@ -3660,8 +3661,14 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(["admin@nyaruka.com"], mail.outbox[2].recipients())
         self.assertIn(token2.token, mail.outbox[2].body)
 
+        # failed login records unaffected
+        self.assertEqual(1, FailedLogin.objects.filter(username="admin@nyaruka.com").count())
+
     def test_recover(self):
         recover_url = reverse("orgs.user_recover", args=["1234567890"])
+
+        FailedLogin.objects.create(username="admin@nyaruka.com")
+        FailedLogin.objects.create(username="editor@nyaruka.com")
 
         # make sure smartmin view is redirecting to our view
         response = self.client.get(reverse("users.user_recover", args=["1234567890"]))
@@ -3721,10 +3728,13 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(response.url)
         self.assertContains(response, "Your password has been updated successfully.")
 
-        # their password has been updated and recovery token deleted
+        # their password has been updated, recovery token deleted and any failed login records deleted
         self.admin.refresh_from_db()
         self.assertTrue(self.admin.check_password("Azerty123"))
         self.assertEqual(0, self.admin.recovery_tokens.count())
+
+        self.assertEqual(0, FailedLogin.objects.filter(username="admin@nyaruka.com").count())  # deleted
+        self.assertEqual(1, FailedLogin.objects.filter(username="editor@nyaruka.com").count())  # unaffected
 
     def test_token(self):
         token_url = reverse("orgs.user_token")
