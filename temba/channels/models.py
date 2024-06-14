@@ -678,19 +678,16 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         assert self.is_android(), "can only trigger syncs on Android channels"
 
+        from .tasks import sync_channel_fcm_task
+
         # androids sync via FCM
         fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
 
-        if fcm_id is not None:
-            if getattr(settings, "ANDROID_FCM_PROJECT_ID", None) and getattr(
-                settings, "ANDROID_FCM_SERVICE_ACCOUNT_FILE", None
-            ):
-                from .tasks import sync_channel_fcm_task
-
-                if not registration_id:
-                    registration_id = fcm_id
-                if registration_id:
-                    on_transaction_commit(lambda: sync_channel_fcm_task.delay(registration_id, channel_id=self.pk))
+        if fcm_id and settings.ANDROID_FCM_PROJECT_ID and settings.ANDROID_FCM_SERVICE_ACCOUNT_FILE:
+            if not registration_id:
+                registration_id = fcm_id
+            if registration_id:
+                on_transaction_commit(lambda: sync_channel_fcm_task.delay(registration_id, channel_id=self.id))
 
     @classmethod
     def replace_variables(cls, text, variables, content_type=CONTENT_TYPE_URLENCODED):

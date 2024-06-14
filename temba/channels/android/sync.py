@@ -1,4 +1,3 @@
-import json
 import time
 from datetime import datetime, timezone as tzone
 
@@ -55,9 +54,8 @@ def get_channel_commands(channel, commands, sync_event=None):
 
 
 def _get_access_token():  # pragma: no cover
-    """Retrieve a valid access token that can be used to authorize requests.
-
-    :return: Access token.
+    """
+    Retrieve a valid access token that can be used to authorize requests.
     """
     credentials = service_account.Credentials.from_service_account_file(
         settings.ANDROID_FCM_SERVICE_ACCOUNT_FILE, scopes=["https://www.googleapis.com/auth/firebase.messaging"]
@@ -72,13 +70,14 @@ def validate_registration_info(registration_id):  # pragma: no cover
 
     backoffs = [1, 3, 6]
     while backoffs:
-        headers = {
-            "Authorization": "Bearer " + _get_access_token(),
-            "access_token_auth": "true",
-            "Content-Type": "application/json",
-        }
         resp = requests.get(
-            f"https://iid.googleapis.com/iid/info/{registration_id}", params={"details": "true"}, headers=headers
+            f"https://iid.googleapis.com/iid/info/{registration_id}",
+            params={"details": "true"},
+            headers={
+                "Authorization": "Bearer " + _get_access_token(),
+                "access_token_auth": "true",
+                "Content-Type": "application/json",
+            },
         )
 
         if resp.status_code == 200:
@@ -94,15 +93,15 @@ def validate_registration_info(registration_id):  # pragma: no cover
 def sync_channel_fcm(registration_id, channel=None):  # pragma: no cover
     fcm_failed = False
     try:
-        FCM_URL = f"https://fcm.googleapis.com/v1/projects/{settings.ANDROID_FCM_PROJECT_ID}/messages:send"
+        resp = requests.post(
+            f"https://fcm.googleapis.com/v1/projects/{settings.ANDROID_FCM_PROJECT_ID}/messages:send",
+            json={"message": {"token": registration_id, "data": {"msg": "sync"}}},
+            headers={
+                "Authorization": "Bearer " + _get_access_token(),
+                "Content-Type": "application/json",
+            },
+        )
 
-        payload = dict(message=dict(token=registration_id, data=dict(msg="sync")))
-
-        headers = {
-            "Authorization": "Bearer " + _get_access_token(),
-            "Content-Type": "application/json",
-        }
-        resp = requests.post(FCM_URL, data=json.dumps(payload), headers=headers)
         success = 0
         if resp.status_code == 200:
             resp_json = resp.json()
