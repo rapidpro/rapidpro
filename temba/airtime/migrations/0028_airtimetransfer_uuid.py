@@ -15,6 +15,11 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="airtimetransfer",
             name="uuid",
+            field=models.UUIDField(null=True),
+        ),
+        migrations.AlterField(
+            model_name="airtimetransfer",
+            name="uuid",
             field=models.UUIDField(default=temba.utils.uuid.uuid4, null=True),
         ),
     ]
