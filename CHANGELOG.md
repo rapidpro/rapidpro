@@ -1,3 +1,9 @@
+v9.1.145 (2024-06-17)
+-------------------------
+ * Don't send forgot password email if one was sent in last 5 minutes
+ * Delete failed login records on successful password reset
+ * Make transer UUID unique field, use TembaUUIDMixin on model
+
 v9.1.144 (2024-06-14)
 -------------------------
  * Add pagination on channel templates page
