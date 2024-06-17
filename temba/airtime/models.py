@@ -3,15 +3,14 @@ from django.utils import timezone
 
 from temba.contacts.models import Contact
 from temba.orgs.models import Org
-from temba.utils.uuid import uuid4
+from temba.utils.models import TembaUUIDMixin
 
 
-class AirtimeTransfer(models.Model):
+class AirtimeTransfer(TembaUUIDMixin, models.Model):
     STATUS_SUCCESS = "S"
     STATUS_FAILED = "F"
     STATUS_CHOICES = ((STATUS_SUCCESS, "Success"), (STATUS_FAILED, "Failed"))
 
-    uuid = models.UUIDField(null=True, default=uuid4)
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="airtime_transfers")
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
     external_id = models.CharField(max_length=255, null=True)
