@@ -1,3 +1,8 @@
+v9.1.146 (2024-06-17)
+-------------------------
+ * Don't clip footer when ticket history grows
+ * Fix migration to add uuid field to airtime transfers
+
 v9.1.145 (2024-06-17)
 -------------------------
  * Don't send forgot password email if one was sent in last 5 minutes
