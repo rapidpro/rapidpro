@@ -710,7 +710,16 @@ class UserCRUDL(SmartCRUDL):
             )
 
             def clean_email(self):
-                return self.cleaned_data["email"].lower().strip()
+                email = self.cleaned_data["email"].lower().strip()
+
+                self.user = User.objects.filter(email__iexact=email).first()
+
+                # error if we've sent a recovery email to this user recently to prevent flooding
+                five_mins_ago = timezone.now() - timedelta(minutes=5)
+                if self.user and self.user.recovery_tokens.filter(created_on__gt=five_mins_ago).exists():
+                    raise forms.ValidationError(_("A recovery email was already sent to this address recently."))
+
+                return email
 
         form_class = Form
         permission = None
@@ -721,7 +730,7 @@ class UserCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             email = form.cleaned_data["email"]
-            user = User.objects.filter(email__iexact=email).first()
+            user = form.user
 
             if user:
                 # delete any previously generated recovery tokens and create a new one

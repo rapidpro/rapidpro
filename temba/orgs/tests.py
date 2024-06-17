@@ -3649,7 +3649,15 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(["admin@nyaruka.com"], mail.outbox[1].recipients())
         self.assertIn(token1.token, mail.outbox[1].body)
 
-        # try submitting again for same email address
+        # try submitting again for same email address - should error because it's too soon after last one
+        response = self.client.post(forget_url, {"email": "admin@nyaruka.com"})
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "A recovery email was already sent to this address recently.")
+
+        # make that token look older and try again
+        token1.created_on = timezone.now() - timedelta(minutes=30)
+        token1.save(update_fields=("created_on",))
+
         response = self.client.post(forget_url, {"email": "admin@nyaruka.com"})
         self.assertLoginRedirect(response)
 
