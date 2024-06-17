@@ -50,7 +50,7 @@ from temba.formax import FormaxMixin
 from temba.notifications.mixins import NotificationTargetMixin
 from temba.orgs.tasks import send_user_verification_email
 from temba.utils import analytics, get_anonymous_user, json, languages, on_transaction_commit, str_to_bool
-from temba.utils.email import parse_smtp_url
+from temba.utils.email import EmailSender, parse_smtp_url
 from temba.utils.fields import (
     ArbitraryJsonChoiceField,
     CheckboxWidget,
@@ -585,6 +585,7 @@ class UserCRUDL(SmartCRUDL):
         "delete",
         "read",
         "forget",
+        "recover",
         "two_factor_enable",
         "two_factor_disable",
         "two_factor_tokens",
@@ -704,24 +705,45 @@ class UserCRUDL(SmartCRUDL):
 
     class Forget(SmartFormView):
         class Form(forms.Form):
-            email = forms.EmailField(required=True, label=_("Your Email"), widget=InputWidget())
+            email = forms.EmailField(
+                required=True, widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email address")})
+            )
 
             def clean_email(self):
-                return self.cleaned_data["email"].lower().strip()
+                email = self.cleaned_data["email"].lower().strip()
 
-        title = _("Password Recovery")
+                self.user = User.objects.filter(email__iexact=email).first()
+
+                # error if we've sent a recovery email to this user recently to prevent flooding
+                five_mins_ago = timezone.now() - timedelta(minutes=5)
+                if self.user and self.user.recovery_tokens.filter(created_on__gt=five_mins_ago).exists():
+                    raise forms.ValidationError(_("A recovery email was already sent to this address recently."))
+
+                return email
+
         form_class = Form
         permission = None
+        title = _("Password Reset")
         success_message = _("An email has been sent to your account with further instructions.")
         success_url = "@users.user_login"
         fields = ("email",)
 
         def form_valid(self, form):
             email = form.cleaned_data["email"]
-            user = User.objects.filter(email__iexact=email).first()
+            user = form.user
 
             if user:
-                user.send_password_recovery_email(self.request.branding)
+                # delete any previously generated recovery tokens and create a new one
+                user.recovery_tokens.all().delete()
+                token = user.recovery_tokens.create(token=generate_secret(32))
+
+                sender = EmailSender.from_email_type(self.request.branding, "notifications")
+                sender.send(
+                    [user.email],
+                    _("Password Recovery Request"),
+                    "orgs/email/user_forget",
+                    {"user": user, "path": reverse("orgs.user_recover", args=[token.token])},
+                )
             else:
                 # no user, check if we have an invite for the email and resend that
                 invite = Invitation.objects.filter(is_active=True, email__iexact=email).first()
@@ -729,6 +751,74 @@ class UserCRUDL(SmartCRUDL):
                     invite.send()
 
             return super().form_valid(form)
+
+    class Recover(ComponentFormMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
+            new_password = forms.CharField(
+                validators=[validate_password],
+                widget=forms.PasswordInput(attrs={"widget_only": True, "placeholder": _("New password")}),
+                required=True,
+            )
+            confirm_password = forms.CharField(
+                widget=forms.PasswordInput(attrs={"widget_only": True, "placeholder": _("Confirm")}), required=True
+            )
+
+            def clean(self):
+                cleaned_data = super().clean()
+
+                if not self.errors:
+                    if cleaned_data.get("new_password") != cleaned_data.get("confirm_password"):
+                        raise forms.ValidationError(_("New password and confirmation don't match."))
+
+                return self.cleaned_data
+
+            class Meta:
+                model = User
+                fields = ("new_password", "confirm_password")
+
+        form_class = Form
+        permission = None
+        title = _("Password Reset")
+        success_url = "@users.user_login"
+        success_message = _("Your password has been updated successfully.")
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/(?P<token>\w+)/$" % (path, action)
+
+        def pre_process(self, request, *args, **kwargs):
+            # if token is too old, redirect to forget password
+            if self.token.created_on < timezone.now() - timedelta(hours=1):
+                messages.info(
+                    request,
+                    _("This link has expired. Please reinitiate the process by entering your email here."),
+                )
+                return HttpResponseRedirect(reverse("orgs.user_forget"))
+
+            return super().pre_process(request, args, kwargs)
+
+        @cached_property
+        def token(self):
+            return get_object_or_404(RecoveryToken, token=self.kwargs["token"])
+
+        def get_object(self):
+            return self.token.user
+
+        def save(self, obj):
+            obj.set_password(self.form.cleaned_data["new_password"])
+            obj.save(update_fields=("password",))
+            return obj
+
+        def post_save(self, obj):
+            obj = super().post_save(obj)
+
+            # delete all recovery tokens for this user
+            obj.recovery_tokens.all().delete()
+
+            # delete any failed login records
+            FailedLogin.objects.filter(username__iexact=obj.username).delete()
+
+            return obj
 
     class Edit(ComponentFormMixin, InferUserMixin, SmartUpdateView):
         class Form(forms.ModelForm):

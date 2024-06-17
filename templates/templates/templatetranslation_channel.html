@@ -8,7 +8,8 @@
   {% trans "Templates are refreshed every 15 minutes." %}
 {% endblock subtitle %}
 {% block content %}
-  <div class="card p-0 overflow-y-scroll">
+  <div class="shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+  <div class="card border-t-2 rounded-tl-none rounded-tr-none mt-0 p-0 overflow-y-scroll">
     {% for translation in object_list %}
       {% ifchanged translation.template.name %}
         <div class="p-4 font-bold max-w-6xl truncate">{{ translation.template.name }}</div>

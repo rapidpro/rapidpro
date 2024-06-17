@@ -1,3 +1,16 @@
+v9.1.144 (2024-06-14)
+-------------------------
+ * Add pagination on channel templates page
+ * Add settings config for Android clients FCM config
+ * Remove pyfcm and use google auth library to send sync messages for FCM
+ * Create our own password recovery view
+
+v9.1.143 (2024-06-12)
+-------------------------
+ * Update smartmin
+ * Delete recovery tokens when new ones are created or email changed
+ * Populate airtime transfer uuids
+
 v9.1.142 (2024-06-12)
 -------------------------
  * Add AirtimeTransfer.external_id

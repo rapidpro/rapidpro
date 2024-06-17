@@ -16,7 +16,6 @@ import pyotp
 import pytz
 from packaging.version import Version
 from smartmin.models import SmartModel
-from smartmin.users.models import FailedLogin, RecoveryToken
 from storages.backends.s3boto3 import S3Boto3Storage
 from timezone_field import TimeZoneField
 
@@ -30,7 +29,6 @@ from django.db import models, transaction
 from django.db.models import Prefetch
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.functional import cached_property
@@ -281,25 +279,6 @@ class User(AuthUser):
             return token.key
         except ValueError:
             return None
-
-    def send_password_recovery_email(self, branding: dict):
-        """
-        Generates a recovery token for this user and sends them an email with a recovery link using that token.
-        """
-
-        # delete any failed login records and previously generated recovery tokens
-        FailedLogin.objects.filter(username__iexact=self.username).delete()
-        RecoveryToken.objects.filter(user=self).delete()
-
-        token = RecoveryToken.objects.create(token=generate_secret(32), user=self)
-
-        sender = EmailSender.from_email_type(branding, "notifications")
-        sender.send(
-            [self.email],
-            _("Password Recovery Request"),
-            "orgs/email/user_forget",
-            {"user": self, "path": reverse("users.user_recover", args=[token.token])},
-        )
 
     def as_engine_ref(self) -> dict:
         return {"email": self.email, "name": self.name}
