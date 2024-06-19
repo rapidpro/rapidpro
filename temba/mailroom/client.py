@@ -92,6 +92,14 @@ class URNValidationException(Exception):
         return self.error
 
 
+class EmptyBroadcastException(Exception):
+    """
+    Request that fails because the because a the requested broadcast would have no recipients.
+    """
+
+    pass
+
+
 @dataclass
 class ContactSpec:
     """
@@ -315,6 +323,7 @@ class MailroomClient:
         contact_ids: list,
         urns: list,
         query: str,
+        node_uuid: str,
         optin_id: int,
     ):
         payload = {
@@ -326,6 +335,7 @@ class MailroomClient:
             "contact_ids": contact_ids,
             "urns": urns,
             "query": query,
+            "node_uuid": node_uuid,
             "optin_id": optin_id,
         }
 
@@ -443,6 +453,8 @@ class MailroomClient:
                 raise QueryValidationException(error, code, extra)
             elif domain == "urn":
                 raise URNValidationException(error, code, extra["index"])
+            elif domain == "broadcast":
+                raise EmptyBroadcastException()
 
         elif 400 <= response.status_code < 600:
             raise RequestException(endpoint, payload, response)

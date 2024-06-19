@@ -9,7 +9,6 @@ from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
     SmartDeleteView,
-    SmartFormView,
     SmartListView,
     SmartReadView,
     SmartTemplateView,
@@ -52,7 +51,7 @@ from temba.utils.fields import (
     SelectWidget,
 )
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import BulkActionMixin, ContentMenuMixin, PostOnlyMixin, SpaMixin, StaffOnlyMixin
+from temba.utils.views import BulkActionMixin, ContentMenuMixin, NonAtomicMixin, PostOnlyMixin, SpaMixin, StaffOnlyMixin
 from temba.utils.wizard import SmartWizardUpdateView, SmartWizardView
 
 from .models import Broadcast, Label, LabelCount, Media, MessageExport, Msg, OptIn, SystemLabel
@@ -574,17 +573,22 @@ class BroadcastCRUDL(SmartCRUDL):
                 }
             )
 
-    class ToNode(OrgPermsMixin, ModalMixin, SmartFormView):
-        class Form(Form):
+    class ToNode(NonAtomicMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
+        class Form(forms.ModelForm):
             text = forms.CharField(
                 widget=CompletionTextarea(
                     attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True, "counter": "temba-charcount"}
                 )
             )
 
+            class Meta:
+                model = Broadcast
+                fields = ("text",)
+
         permission = "msgs.broadcast_create"
         form_class = Form
         title = _("Send Message")
+        success_url = "hide"
         submit_button_name = _("Send")
 
         blockers = {
@@ -613,16 +617,18 @@ class BroadcastCRUDL(SmartCRUDL):
             return blockers
 
         def form_valid(self, form):
-            from .tasks import send_to_flow_node
-
+            translations = {"und": {"text": form.cleaned_data["text"]}}
             node_uuid = self.request.GET["node"]
-            text = form.cleaned_data["text"]
 
-            send_to_flow_node.delay(self.request.org.id, self.request.user.id, node_uuid, text)
+            try:
+                Broadcast.create_to_node(
+                    self.request.org, self.request.user, translations, base_language="und", node_uuid=node_uuid
+                )
+            except mailroom.EmptyBroadcastException:
+                self.form.add_error("__all__", _("There are no longer any contacts at this node."))
+                return self.form_invalid(form)
 
-            response = self.render_to_response(self.get_context_data())
-            response["Temba-Success"] = "hide"
-            return response
+            return self.render_modal_response(form)
 
 
 class MsgCRUDL(SmartCRUDL):

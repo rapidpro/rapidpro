@@ -2347,8 +2347,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             'To get started you need to <a href="/channels/channel/claim/">add a channel</a> to your workspace which will allow you to send messages to your contacts.',
         )
 
-    @patch("temba.mailroom.queue_broadcast")
-    def test_to_node(self, mock_queue_broadcast):
+    @mock_mailroom
+    def test_to_node(self, mr_mocks):
         to_node_url = reverse("msgs.broadcast_to_node")
 
         # give Joe a flow run that has stopped on a node
@@ -2377,21 +2377,19 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             self.admin,
             {"text": "Hurry up"},
             new_obj_query=Broadcast.objects.filter(
-                translations={"und": {"text": "Hurry up"}}, groups=None, contacts=self.joe
+                translations={"und": {"text": "Hurry up"}}, base_language="und", groups=None, contacts=self.joe
             ),
             success_status=200,
         )
-        self.assertEqual("hide", response["Temba-Success"])
-
-        broadcast = Broadcast.objects.get()
-
-        mock_queue_broadcast.assert_called_once_with(broadcast)
 
         # if there are no contacts at the given node, we don't actually create a broadcast
-        response = self.client.post(
-            f"{to_node_url}?node=4ba8fcfa-f213-4164-a8d4-daede0a02144&count=1", {"text": "Hurry up"}
+        response = self.assertCreateSubmit(
+            f"{to_node_url}?node=4ba8fcfa-f213-4164-a8d4-daede0a02144&count=1",
+            self.admin,
+            {"text": "Hurry up"},
+            form_errors={"__all__": "There are no longer any contacts at this node."},
         )
-        self.assertEqual("hide", response["Temba-Success"])
+
         self.assertEqual(1, Broadcast.objects.count())
 
         # if org has no send channel, show blocker
