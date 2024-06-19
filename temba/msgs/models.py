@@ -25,7 +25,7 @@ from temba.contacts import search
 from temba.contacts.models import Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Export, ExportType, Org
 from temba.schedules.models import Schedule
-from temba.utils import chunk_list, on_transaction_commit
+from temba.utils import chunk_list, languages, on_transaction_commit
 from temba.utils.export.models import MultiSheetExporter
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel
 from temba.utils.s3 import public_file_storage
@@ -215,7 +215,7 @@ class Broadcast(models.Model):
     is_active = models.BooleanField(null=True, default=True)
 
     @classmethod
-    def create(
+    def create_legacy(
         cls,
         org,
         user,
@@ -250,18 +250,35 @@ class Broadcast(models.Model):
         return broadcast
 
     @classmethod
-    def create_to_node(cls, org, user, translations: dict[str, dict], *, base_language: str, node_uuid: str):
+    def create(
+        cls,
+        org,
+        user,
+        translations: dict[str, dict],
+        *,
+        base_language: str,
+        groups=(),
+        contacts=(),
+        urns=(),
+        query=None,
+        node_uuid=None,
+        optin=None,
+    ):
+        assert groups or contacts or urns or query or node_uuid, "can't create broadcast without recipients"
+        assert base_language and languages.get_name(base_language), f"{base_language} is not a valid language code"
+        assert base_language in translations, "no translation for base language"
+
         response = mailroom.get_client().msg_broadcast(
             org.id,
             user.id,
             translations=translations,
             base_language=base_language,
-            group_ids=(),
-            contact_ids=(),
-            urns=(),
-            query=None,
+            group_ids=(g.id for g in groups),
+            contact_ids=(c.id for c in contacts),
+            urns=urns,
+            query=query,
             node_uuid=node_uuid,
-            optin_id=None,
+            optin_id=optin.id if optin else None,
         )
 
         return cls.objects.get(id=response["id"])

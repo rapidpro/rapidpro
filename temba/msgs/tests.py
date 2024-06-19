@@ -674,8 +674,12 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         msg4, msg3, msg2 = broadcast2.msgs.order_by("-id")
 
-        broadcast3 = Broadcast.create(self.channel.org, self.admin, {"eng": "Pending broadcast"}, contacts=[contact4])
-        broadcast4 = Broadcast.create(self.channel.org, self.admin, {"eng": "Scheduled broadcast"}, contacts=[contact4])
+        broadcast3 = Broadcast.create_legacy(
+            self.channel.org, self.admin, {"eng": "Pending broadcast"}, contacts=[contact4]
+        )
+        broadcast4 = Broadcast.create_legacy(
+            self.channel.org, self.admin, {"eng": "Scheduled broadcast"}, contacts=[contact4]
+        )
 
         broadcast4.schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
         broadcast4.save(update_fields=("schedule",))
@@ -1842,7 +1846,7 @@ class BroadcastTest(TembaTest):
 
     def test_model(self):
         schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_MONTHLY)
-        broadcast1 = Broadcast.create(
+        broadcast1 = Broadcast.create_legacy(
             self.org,
             self.user,
             {"eng": "Hello everyone", "spa": "Hola a todos", "fra": "Salut à tous"},
@@ -1884,7 +1888,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(0, Schedule.objects.count())
 
         with self.assertRaises(AssertionError):
-            Broadcast.create(self.org, self.user, {"und": {"text": "no recipients"}})
+            Broadcast.create_legacy(self.org, self.user, {"und": {"text": "no recipients"}})
 
     @mock_mailroom
     def test_preview(self, mr_mocks):
@@ -1924,7 +1928,7 @@ class BroadcastTest(TembaTest):
         spa_attachments = [attachments[1]]
         fra_attachments = [attachments[2]]
 
-        broadcast = Broadcast.create(
+        broadcast = Broadcast.create_legacy(
             self.org,
             self.user,
             translations={
@@ -2482,7 +2486,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             attachments = compose_deserialize_attachments([attachment])
 
             sends.append(
-                Broadcast.create(
+                Broadcast.create_legacy(
                     self.org,
                     self.admin,
                     translations={"eng": {"text": text, "attachments": attachments}},
@@ -2801,8 +2805,8 @@ class SystemLabelTest(TembaTest):
         self.create_incoming_msg(contact1, "Message 2")
         msg3 = self.create_incoming_msg(contact1, "Message 3")
         msg4 = self.create_incoming_msg(contact1, "Message 4")
-        Broadcast.create(self.org, self.user, {"eng": "Broadcast 2"}, contacts=[contact1, contact2])
-        Broadcast.create(
+        Broadcast.create_legacy(self.org, self.user, {"eng": "Broadcast 2"}, contacts=[contact1, contact2])
+        Broadcast.create_legacy(
             self.org,
             self.user,
             {"eng": "Broadcast 2"},
@@ -2837,7 +2841,7 @@ class SystemLabelTest(TembaTest):
         )
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
 
-        Broadcast.create(
+        Broadcast.create_legacy(
             self.org,
             self.user,
             {"eng": "Broadcast 3"},

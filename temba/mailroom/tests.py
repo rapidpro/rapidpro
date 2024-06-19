@@ -12,7 +12,7 @@ from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowRun, FlowStart
 from temba.ivr.models import Call
 from temba.mailroom.client import ContactSpec, RequestException, get_client
-from temba.msgs.models import Broadcast, Msg
+from temba.msgs.models import Msg
 from temba.tests import MockJsonResponse, MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import TicketEvent
@@ -684,15 +684,12 @@ class MailroomQueueTest(TembaTest):
     def test_queue_broadcast(self):
         jim = self.create_contact("Jim", phone="+12065551212")
         bobs = self.create_group("Bobs", [self.create_contact("Bob", phone="+12065551313")])
-
-        bcast = Broadcast.create(
-            self.org,
+        bcast = self.create_broadcast(
             self.admin,
             {"eng": {"text": "Welcome to mailroom!"}, "spa": {"text": "¡Bienvenidx a mailroom!"}},
             groups=[bobs],
             contacts=[jim],
             urns=["tel:+12065556666"],
-            base_language="eng",
         )
 
         bcast.send_async()

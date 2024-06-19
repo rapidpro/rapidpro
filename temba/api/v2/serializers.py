@@ -24,7 +24,7 @@ from temba.mailroom import modifiers
 from temba.msgs.models import Broadcast, Label, Media, Msg, OptIn
 from temba.orgs.models import Org, OrgRole
 from temba.tickets.models import Ticket, Topic
-from temba.utils import json, on_transaction_commit
+from temba.utils import json
 from temba.utils.fields import NameValidator
 
 from ..models import BulkActionFailure, Resthook, ResthookSubscriber, WebHookEvent
@@ -250,19 +250,18 @@ class BroadcastWriteSerializer(WriteSerializer):
                 # TODO update broadcast sending to allow media objects to stay as UUIDs for longer
                 translations[lang]["attachments"] = [str(m) for m in atts]
 
-        broadcast = Broadcast.create(
+        if not base_language:
+            base_language = next(iter(translations))
+
+        return Broadcast.create(
             self.context["org"],
             self.context["user"],
-            translations=translations,
+            translations,
             base_language=base_language,
             groups=self.validated_data.get("groups", []),
             contacts=self.validated_data.get("contacts", []),
             urns=self.validated_data.get("urns", []),
         )
-
-        on_transaction_commit(lambda: broadcast.send_async())
-
-        return broadcast
 
 
 class ChannelEventReadSerializer(ReadSerializer):

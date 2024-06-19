@@ -940,8 +940,8 @@ class EndpointsTest(APITest):
 
         self.assertGet(endpoint_url, [self.admin], results=[])
 
-    @patch("temba.mailroom.queue_broadcast")
-    def test_broadcasts(self, mock_queue_broadcast):
+    @mock_mailroom
+    def test_broadcasts(self, mr_mocks):
         endpoint_url = reverse("api.v2.broadcasts") + ".json"
 
         self.assertGetNotPermitted(endpoint_url, [None, self.agent])
@@ -950,28 +950,24 @@ class EndpointsTest(APITest):
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
 
-        bcast1 = Broadcast.create(self.org, self.admin, {"eng": {"text": "Hello 1"}}, urns=["twitter:franky"])
-        bcast2 = Broadcast.create(self.org, self.admin, {"eng": {"text": "Hello 2"}}, contacts=[self.joe])
-        bcast3 = Broadcast.create(self.org, self.admin, {"eng": {"text": "Hello 3"}}, contacts=[self.frank], status="S")
-        bcast4 = Broadcast.create(
-            self.org,
+        bcast1 = self.create_broadcast(self.admin, {"eng": {"text": "Hello 1"}}, urns=["twitter:franky"], status="Q")
+        bcast2 = self.create_broadcast(self.admin, {"eng": {"text": "Hello 2"}}, contacts=[self.joe], status="Q")
+        bcast3 = self.create_broadcast(self.admin, {"eng": {"text": "Hello 3"}}, contacts=[self.frank], status="S")
+        bcast4 = self.create_broadcast(
             self.admin,
             {"eng": {"text": "Hello 4"}},
             urns=["twitter:franky"],
             contacts=[self.joe],
             groups=[reporters],
+            status="F",
         )
-        Broadcast.create(
-            self.org,
+        self.create_broadcast(
             self.admin,
             {"eng": {"text": "Scheduled"}},
             contacts=[self.joe],
             schedule=Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
-        Broadcast.create(self.org2, self.admin2, {"eng": {"text": "Different org..."}}, contacts=[self.hans])
-
-        bcast4.status = "F"
-        bcast4.save(update_fields=("status",))
+        self.create_broadcast(self.admin2, {"eng": {"text": "Different org..."}}, contacts=[self.hans], org=self.org2)
 
         # no filtering
         response = self.assertGet(
@@ -1107,8 +1103,6 @@ class EndpointsTest(APITest):
         self.assertEqual(["twitter:franky"], broadcast.urns)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
         self.assertEqual({reporters}, set(broadcast.groups.all()))
-
-        mock_queue_broadcast.assert_called_once_with(broadcast)
 
         # create new broadcast without translations
         response = self.assertPost(
