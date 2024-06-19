@@ -390,7 +390,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 repeat_days_of_week = schedule_form.cleaned_data["repeat_days_of_week"]
                 schedule = Schedule.create(org, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week)
 
-            self.object = Broadcast.create(
+            self.object = Broadcast.create_legacy(
                 org,
                 user,
                 translations=translations,
@@ -621,7 +621,7 @@ class BroadcastCRUDL(SmartCRUDL):
             node_uuid = self.request.GET["node"]
 
             try:
-                Broadcast.create_to_node(
+                Broadcast.create(
                     self.request.org, self.request.user, translations, base_language="und", node_uuid=node_uuid
                 )
             except mailroom.EmptyBroadcastException:

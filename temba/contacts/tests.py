@@ -27,7 +27,7 @@ from temba.flows.models import Flow, FlowSession, FlowStart
 from temba.ivr.models import Call
 from temba.locations.models import AdminBoundary
 from temba.mailroom import QueryMetadata, SearchResults, modifiers
-from temba.msgs.models import Broadcast, Msg, SystemLabel
+from temba.msgs.models import Msg, SystemLabel
 from temba.orgs.models import Export, Org, OrgRole
 from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
@@ -2638,7 +2638,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual(0, self.joe.get_scheduled_broadcasts().count())
 
-        broadcast = Broadcast.create(self.org, self.admin, {"eng": "Hello"}, contacts=[self.frank])
+        broadcast = self.create_broadcast(self.admin, {"eng": {"text": "Hello"}}, contacts=[self.frank])
         self.assertEqual(0, self.joe.get_scheduled_broadcasts().count())
 
         broadcast.contacts.add(self.joe)

@@ -469,8 +469,9 @@ class TembaTest(SmartminTest):
         self,
         user,
         translations: dict[str, list] | str,
-        contacts=(),
         groups=(),
+        contacts=(),
+        urns=(),
         optin=None,
         status=Broadcast.STATUS_SENT,
         msg_status=Msg.STATUS_SENT,
@@ -482,12 +483,14 @@ class TembaTest(SmartminTest):
         if isinstance(translations, str):
             translations = self.create_translations(translations)
 
-        bcast = Broadcast.create(
+        bcast = Broadcast.create_legacy(
             org or self.org,
             user,
             translations=translations,
-            contacts=contacts,
+            base_language=next(iter(translations)),
             groups=groups,
+            contacts=contacts,
+            urns=urns,
             optin=optin,
             parent=parent,
             schedule=schedule,
