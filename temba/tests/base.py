@@ -452,23 +452,10 @@ class TembaTest(SmartminTest):
             log_uuids=[l.uuid for l in logs or []],
         )
 
-    def create_translations(self, text="", attachments=[], lang="und", optin=None):
-        translations = {
-            lang: {
-                "text": text,
-                "attachments": attachments,
-                "quick_replies": [],
-            }
-        }
-
-        if optin:
-            translations[lang]["optin"] = {"uuid": str(optin.uuid), "name": optin.name} if optin else None
-        return translations
-
     def create_broadcast(
         self,
         user,
-        translations: dict[str, list] | str,
+        translations: dict[str, dict],
         groups=(),
         contacts=(),
         urns=(),
@@ -480,9 +467,6 @@ class TembaTest(SmartminTest):
         created_on=None,
         org=None,
     ):
-        if isinstance(translations, str):
-            translations = self.create_translations(translations)
-
         bcast = Broadcast.create_legacy(
             org or self.org,
             user,

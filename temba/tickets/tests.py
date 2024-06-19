@@ -419,7 +419,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # give contact1 and old style broadcast message that doesn't have created_by set
         self.create_incoming_msg(contact1, "I have an issue")
-        c1_msg1 = self.create_broadcast(self.admin, "We can help", contacts=[contact1]).msgs.first()
+        c1_msg1 = self.create_broadcast(self.admin, {"eng": {"text": "We can help"}}, contacts=[contact1]).msgs.first()
         c1_msg1.created_by = None
         c1_msg1.save(update_fields=("created_by",))
 

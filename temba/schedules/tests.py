@@ -222,7 +222,7 @@ class ScheduleTest(TembaTest):
         # our view asserts that our schedule is connected to a broadcast
         self.create_broadcast(
             self.admin,
-            text,
+            {"eng": {"text": text}},
             contacts=[self.joe],
             status=Broadcast.STATUS_QUEUED,
             schedule=sched,
