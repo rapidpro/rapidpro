@@ -20,6 +20,7 @@ from temba.utils import json
 
 from . import (
     BroadcastPreview,
+    EmptyBroadcastException,
     Exclusions,
     FlowValidationException,
     Inclusions,
@@ -403,6 +404,7 @@ class MailroomClientTest(TembaTest):
                 [123, 234],
                 ["tel:1234"],
                 "age > 20",
+                "",
                 567,
             )
 
@@ -422,6 +424,7 @@ class MailroomClientTest(TembaTest):
                 "contact_ids": [123, 234],
                 "urns": ["tel:1234"],
                 "query": "age > 20",
+                "node_uuid": "",
                 "optin_id": 567,
             },
             json.loads(call[1]["data"]),
@@ -621,6 +624,13 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_errors(self, mock_post):
+        mock_post.return_value = MockJsonResponse(
+            422, {"error": "can't create broadcast with no recipients", "code": "broadcast:no_recipients"}
+        )
+
+        with self.assertRaises(EmptyBroadcastException) as e:
+            get_client().msg_broadcast(1, 2, {}, "eng", [], [], [], "", "", None)
+
         mock_post.return_value = MockJsonResponse(422, {"error": "node isn't valid", "code": "flow:invalid"})
 
         with self.assertRaises(FlowValidationException) as e:

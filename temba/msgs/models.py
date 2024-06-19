@@ -225,10 +225,9 @@ class Broadcast(models.Model):
         groups=None,
         contacts=None,
         urns: list[str] = None,
-        contact_ids: list[int] = None,
         **kwargs,
     ):
-        assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
+        assert groups or contacts or urns, "can't create broadcast without recipients"
 
         # if base language is not provided
         if not base_language:
@@ -246,9 +245,26 @@ class Broadcast(models.Model):
         )
 
         # set our recipients
-        broadcast._set_recipients(groups=groups, contacts=contacts, urns=urns, contact_ids=contact_ids)
+        broadcast._set_recipients(groups=groups, contacts=contacts, urns=urns)
 
         return broadcast
+
+    @classmethod
+    def create_to_node(cls, org, user, translations: dict[str, dict], *, base_language: str, node_uuid: str):
+        response = mailroom.get_client().msg_broadcast(
+            org.id,
+            user.id,
+            translations=translations,
+            base_language=base_language,
+            group_ids=(),
+            contact_ids=(),
+            urns=(),
+            query=None,
+            node_uuid=node_uuid,
+            optin_id=None,
+        )
+
+        return cls.objects.get(id=response["id"])
 
     @classmethod
     def get_queued(cls, org):
@@ -336,7 +352,7 @@ class Broadcast(models.Model):
 
         self._set_recipients(groups=groups, contacts=contacts, urns=urns)
 
-    def _set_recipients(self, *, groups=None, contacts=None, urns: list[str] = None, contact_ids=None):
+    def _set_recipients(self, *, groups=None, contacts=None, urns: list[str] = None):
         """
         Sets the recipients which may be contact groups, contacts or contact URNs.
         """
@@ -349,12 +365,6 @@ class Broadcast(models.Model):
         if urns:
             self.urns = urns
             self.save(update_fields=("urns",))
-
-        if contact_ids:
-            RelatedModel = self.contacts.through
-            for chunk in chunk_list(contact_ids, 1000):
-                bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
-                RelatedModel.objects.bulk_create(bulk_contacts)
 
     def __repr__(self):
         return f'<Broadcast: id={self.id} text="{self.get_translation()["text"]}">'

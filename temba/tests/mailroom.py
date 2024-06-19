@@ -17,9 +17,9 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import FlowRun, FlowSession
 from temba.locations.models import AdminBoundary
-from temba.mailroom.client import ContactSpec, MailroomClient, URNResult
+from temba.mailroom.client import ContactSpec, EmptyBroadcastException, MailroomClient, URNResult
 from temba.mailroom.modifiers import Modifier
-from temba.msgs.models import Msg
+from temba.msgs.models import Broadcast, Msg, OptIn
 from temba.orgs.models import Org
 from temba.tests.dates import parse_datetime
 from temba.tickets.models import Ticket, TicketEvent, Topic
@@ -300,6 +300,30 @@ class TestClient(MailroomClient):
         org = Org.objects.get(id=org_id)
 
         return mock(org)
+
+    @_client_method
+    def msg_broadcast(
+        self,
+        org_id: int,
+        user_id: int,
+        translations: dict,
+        base_language: str,
+        group_ids: list,
+        contact_ids: list,
+        urns: list,
+        query: str,
+        node_uuid: str,
+        optin_id: int,
+    ):
+        org = Org.objects.get(id=org_id)
+        user = User.objects.get(id=user_id)
+        contacts = org.contacts.filter(id__in=contact_ids) if contact_ids else []
+        groups = org.groups.filter(id__in=group_ids) if group_ids else []
+        optin = OptIn.objects.get(id=optin_id) if optin_id else None
+        bcast = create_broadcast(
+            org, user, translations, base_language, groups, contacts, urns, query, node_uuid, optin
+        )
+        return {"id": bcast.id}
 
     @_client_method
     def msg_broadcast_preview(self, org_id: int, include, exclude):
@@ -857,3 +881,36 @@ def send_to_contact(org, contact, text, attachments) -> Msg:
         created_on=timezone.now(),
         modified_on=timezone.now(),
     )
+
+
+def create_broadcast(
+    org, user, translations: dict, base_language: str, groups, contacts, urns: list, query: str, node_uuid: str, optin
+) -> Broadcast:
+
+    if node_uuid:
+        runs = FlowRun.objects.filter(
+            org=org, current_node_uuid=node_uuid, status__in=(FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING)
+        )
+        contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).filter(
+            id__in=runs.values_list("contact", flat=True)
+        )
+
+    if not (groups or contacts or urns or query):
+        raise EmptyBroadcastException()
+
+    bcast = Broadcast.objects.create(
+        org=org,
+        translations=translations,
+        base_language=base_language,
+        urns=urns,
+        query=query,
+        optin=optin,
+        created_by=user,
+        modified_by=user,
+    )
+    if groups:
+        bcast.groups.add(*groups)
+    if contacts:
+        bcast.contacts.add(*contacts)
+
+    return bcast
