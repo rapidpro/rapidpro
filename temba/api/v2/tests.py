@@ -4013,7 +4013,9 @@ class EndpointsTest(APITest):
         )
 
         # filter by broadcast
-        broadcast = self.create_broadcast(self.user, "A beautiful broadcast", contacts=[self.joe, self.frank])
+        broadcast = self.create_broadcast(
+            self.user, {"eng": {"text": "A beautiful broadcast"}}, contacts=[self.joe, self.frank]
+        )
         self.assertGet(
             endpoint_url + f"?broadcast={broadcast.id}",
             [self.editor],

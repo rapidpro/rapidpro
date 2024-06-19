@@ -775,11 +775,11 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # create scheduled and regular broadcasts which send to both groups
         bcast1 = self.create_broadcast(
             self.admin,
-            "Hi again",
+            {"eng": {"text": "Hi again"}},
             contacts=[contact1, contact2],
             schedule=Schedule.create(self.org, timezone.now() + timedelta(days=3), Schedule.REPEAT_DAILY),
         )
-        self.create_broadcast(self.admin, "Bye", contacts=[contact1, contact2])  # not scheduled
+        self.create_broadcast(self.admin, {"eng": {"text": "Bye"}}, contacts=[contact1, contact2])  # not scheduled
 
         # create scheduled trigger which this contact is explicitly added to
         trigger1_flow = self.create_flow("Favorites 1")
@@ -1256,8 +1256,8 @@ class ContactGroupTest(TembaTest):
 
         # create scheduled and regular broadcasts which send to both groups
         schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
-        bcast1 = self.create_broadcast(self.admin, "Hi", groups=[group1, group2], schedule=schedule)
-        bcast2 = self.create_broadcast(self.admin, "Hi", groups=[group1, group2])
+        bcast1 = self.create_broadcast(self.admin, {"eng": {"text": "Hi"}}, groups=[group1, group2], schedule=schedule)
+        bcast2 = self.create_broadcast(self.admin, {"eng": {"text": "Hi"}}, groups=[group1, group2])
         bcast2.send_async()
 
         # group still has a hard dependency so can't be released
@@ -1763,8 +1763,10 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # create scheduled and regular broadcasts which send to both contacts
         schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
-        bcast1 = self.create_broadcast(self.admin, "Test", contacts=[contact, contact2], schedule=schedule)
-        bcast2 = self.create_broadcast(self.admin, "Test", contacts=[contact, contact2])
+        bcast1 = self.create_broadcast(
+            self.admin, {"eng": {"text": "Test"}}, contacts=[contact, contact2], schedule=schedule
+        )
+        bcast2 = self.create_broadcast(self.admin, {"eng": {"text": "Test"}}, contacts=[contact, contact2])
 
         flow_nodes = msg_flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
@@ -2280,7 +2282,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.joe.created_on = timezone.now() - timedelta(days=1000)
         self.joe.save(update_fields=("created_on",))
 
-        self.create_broadcast(self.user, "A beautiful broadcast", contacts=[self.joe])
+        self.create_broadcast(self.user, {"eng": {"text": "A beautiful broadcast"}}, contacts=[self.joe])
         self.create_campaign()
 
         # add a message with some attachments

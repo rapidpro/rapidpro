@@ -1349,19 +1349,23 @@ class OrgDeleteTest(TembaTest):
         add(self.create_outgoing_msg(contact=contacts[0], text="cool story", channel=channels[0]))
         add(self.create_outgoing_msg(contact=contacts[0], text="synced", channel=channels[1]))
 
-        add(self.create_broadcast(user, "Announcement", contacts=contacts, groups=groups, org=org))
+        add(self.create_broadcast(user, {"eng": {"text": "Announcement"}}, contacts=contacts, groups=groups, org=org))
 
         scheduled = add(
             self.create_broadcast(
                 user,
-                "Reminder",
+                {"eng": {"text": "Reminder"}},
                 contacts=contacts,
                 groups=groups,
                 org=org,
                 schedule=Schedule.create(org, timezone.now(), Schedule.REPEAT_DAILY),
             )
         )
-        add(self.create_broadcast(user, "Reminder", contacts=contacts, groups=groups, org=org, parent=scheduled))
+        add(
+            self.create_broadcast(
+                user, {"eng": {"text": "Reminder"}}, contacts=contacts, groups=groups, org=org, parent=scheduled
+            )
+        )
 
         label1 = add(self.create_label("Spam", org=org))
         label2 = add(self.create_label("Important", org=org))
