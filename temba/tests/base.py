@@ -502,7 +502,7 @@ class TembaTest(SmartminTest):
         for group in bcast.groups.all():
             contacts.update(group.contacts.all())
 
-        if not schedule:
+        if not schedule and status != Broadcast.STATUS_QUEUED:
             for contact in contacts:
                 translation = bcast.get_translation(contact)
                 self._create_msg(

@@ -674,15 +674,15 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         msg4, msg3, msg2 = broadcast2.msgs.order_by("-id")
 
-        broadcast3 = Broadcast.create_legacy(
-            self.channel.org, self.admin, {"eng": "Pending broadcast"}, contacts=[contact4]
+        broadcast3 = self.create_broadcast(
+            self.admin, {"eng": {"text": "Pending broadcast"}}, contacts=[contact4], status="Q"
         )
-        broadcast4 = Broadcast.create_legacy(
-            self.channel.org, self.admin, {"eng": "Scheduled broadcast"}, contacts=[contact4]
+        self.create_broadcast(
+            self.admin,
+            {"eng": {"text": "Scheduled broadcast"}},
+            contacts=[contact4],
+            schedule=Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
-
-        broadcast4.schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
-        broadcast4.save(update_fields=("schedule",))
 
         response = self.assertListFetch(outbox_url, [self.admin], context_objects=[msg4, msg3, msg2, msg1])
 
@@ -1928,15 +1928,13 @@ class BroadcastTest(TembaTest):
         spa_attachments = [attachments[1]]
         fra_attachments = [attachments[2]]
 
-        broadcast = Broadcast.create_legacy(
-            self.org,
+        broadcast = self.create_broadcast(
             self.user,
             translations={
                 "eng": {"text": eng_text, "attachments": eng_attachments},
                 "spa": {"text": spa_text, "attachments": spa_attachments},
                 "fra": {"text": fra_text, "attachments": fra_attachments},
             },
-            base_language="eng",
             groups=[self.joe_and_frank],
             contacts=[self.kevin, self.lucy],
             schedule=Schedule.create(self.org, timezone.now(), Schedule.REPEAT_MONTHLY),
@@ -2486,8 +2484,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             attachments = compose_deserialize_attachments([attachment])
 
             sends.append(
-                Broadcast.create_legacy(
-                    self.org,
+                self.create_broadcast(
                     self.admin,
                     translations={"eng": {"text": text, "attachments": attachments}},
                     groups=[self.joe_and_frank],
@@ -2805,11 +2802,10 @@ class SystemLabelTest(TembaTest):
         self.create_incoming_msg(contact1, "Message 2")
         msg3 = self.create_incoming_msg(contact1, "Message 3")
         msg4 = self.create_incoming_msg(contact1, "Message 4")
-        Broadcast.create_legacy(self.org, self.user, {"eng": "Broadcast 2"}, contacts=[contact1, contact2])
-        Broadcast.create_legacy(
-            self.org,
+        self.create_broadcast(self.user, {"eng": {"text": "Broadcast 2"}}, contacts=[contact1, contact2], status="Q")
+        self.create_broadcast(
             self.user,
-            {"eng": "Broadcast 2"},
+            {"eng": {"text": "Broadcast 2"}},
             contacts=[contact1, contact2],
             schedule=Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
@@ -2841,10 +2837,9 @@ class SystemLabelTest(TembaTest):
         )
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
 
-        Broadcast.create_legacy(
-            self.org,
+        self.create_broadcast(
             self.user,
-            {"eng": "Broadcast 3"},
+            {"eng": {"text": "Broadcast 3"}},
             contacts=[contact1],
             schedule=Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
