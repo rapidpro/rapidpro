@@ -27,7 +27,7 @@ from temba.flows.models import Flow, FlowSession, FlowStart
 from temba.ivr.models import Call
 from temba.locations.models import AdminBoundary
 from temba.mailroom import QueryMetadata, SearchResults, modifiers
-from temba.msgs.models import Broadcast, Msg, SystemLabel
+from temba.msgs.models import Msg, SystemLabel
 from temba.orgs.models import Export, Org, OrgRole
 from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
@@ -539,6 +539,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                 "status": "A",
                 "language": "eng",
                 "groups": [testers],
+                "new_scheme": None,
+                "new_path": None,
                 "urn__tel__0": "+593979111111",
                 "urn__tel__1": "+593979222222",
                 "urn__telegram__2": "5474754",
@@ -546,20 +548,43 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         )
 
         # try to take URN in use by another contact
+        mr_mocks.contact_urns({"tel:+593979444444": 12345678})
+
         self.assertUpdateSubmit(
             update_url,
             self.admin,
             {"name": "Bobby", "status": "B", "language": "spa", "groups": [testers.id], "urn__tel__0": "+593979444444"},
-            form_errors={"urn__tel__0": "Used by another contact"},
+            form_errors={"urn__tel__0": "In use by another contact."},
             object_unchanged=contact,
         )
 
-        # try to add an invalid URN
+        # try to update to an invalid URN
+        mr_mocks.contact_urns({"tel:++++": "invalid path component"})
+
         self.assertUpdateSubmit(
             update_url,
             self.admin,
             {"name": "Bobby", "status": "B", "language": "spa", "groups": [testers.id], "urn__tel__0": "++++"},
-            form_errors={"urn__tel__0": "Invalid input"},
+            form_errors={"urn__tel__0": "Invalid format."},
+            object_unchanged=contact,
+        )
+
+        # try to add a new invalid phone URN
+        mr_mocks.contact_urns({"tel:123": "not a valid phone number"})
+
+        self.assertUpdateSubmit(
+            update_url,
+            self.admin,
+            {
+                "name": "Bobby",
+                "status": "B",
+                "language": "spa",
+                "groups": [testers.id],
+                "urn__tel__0": "+593979111111",
+                "new_scheme": "tel",
+                "new_path": "123",
+            },
+            form_errors={"new_path": "Invalid phone number. Ensure number includes country code."},
             object_unchanged=contact,
         )
 
@@ -598,6 +623,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                 "name": "Bobby",
                 "status": "B",
                 "language": "spa",
+                "new_scheme": None,
+                "new_path": None,
                 "urn__tel__0": "+593979333333",
                 "urn__telegram__1": "78686776",
                 "urn__facebook__2": "9898989",
@@ -605,6 +632,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         )
 
         # try to update with invalid URNs
+        mr_mocks.contact_urns({"tel:456": "invalid path component", "facebook:xxxxx": "invalid path component"})
+
         self.assertUpdateSubmit(
             update_url,
             self.admin,
@@ -617,8 +646,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                 "urn__facebook__2": "xxxxx",
             },
             form_errors={
-                "urn__tel__0": "Invalid number. Ensure number includes country code, e.g. +1-541-754-3010",
-                "urn__facebook__2": "Invalid format",
+                "urn__tel__0": "Invalid format.",
+                "urn__facebook__2": "Invalid format.",
             },
             object_unchanged=contact,
         )
@@ -634,6 +663,8 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                 "name": "Bobby",
                 "status": "B",
                 "language": "kin",
+                "new_scheme": None,
+                "new_path": None,
                 "urn__tel__0": "+593979333333",
                 "urn__telegram__1": "78686776",
                 "urn__facebook__2": "9898989",
@@ -659,6 +690,23 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual("Bobby", contact.name)
         self.assertEqual(Contact.STATUS_ACTIVE, contact.status)
         self.assertEqual("kin", contact.language)
+
+    @mock_mailroom
+    def test_update_with_mailroom_error(self, mr_mocks):
+        mr_mocks.exception(mailroom.RequestException("", "", MockResponse(400, '{"error": "Error updating contact"}')))
+
+        contact = self.create_contact("Joe", phone="1234")
+
+        self.login(self.admin)
+
+        response = self.client.post(
+            reverse("contacts.contact_update", args=[contact.id]),
+            {"name": "Joe", "status": Contact.STATUS_ACTIVE, "language": "eng"},
+        )
+
+        self.assertFormError(
+            response.context["form"], None, "An error occurred updating your contact. Please try again later."
+        )
 
     @mock_mailroom
     def test_export(self, mr_mocks):
@@ -727,11 +775,11 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # create scheduled and regular broadcasts which send to both groups
         bcast1 = self.create_broadcast(
             self.admin,
-            "Hi again",
+            {"eng": {"text": "Hi again"}},
             contacts=[contact1, contact2],
             schedule=Schedule.create(self.org, timezone.now() + timedelta(days=3), Schedule.REPEAT_DAILY),
         )
-        self.create_broadcast(self.admin, "Bye", contacts=[contact1, contact2])  # not scheduled
+        self.create_broadcast(self.admin, {"eng": {"text": "Bye"}}, contacts=[contact1, contact2])  # not scheduled
 
         # create scheduled trigger which this contact is explicitly added to
         trigger1_flow = self.create_flow("Favorites 1")
@@ -1208,8 +1256,8 @@ class ContactGroupTest(TembaTest):
 
         # create scheduled and regular broadcasts which send to both groups
         schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
-        bcast1 = self.create_broadcast(self.admin, "Hi", groups=[group1, group2], schedule=schedule)
-        bcast2 = self.create_broadcast(self.admin, "Hi", groups=[group1, group2])
+        bcast1 = self.create_broadcast(self.admin, {"eng": {"text": "Hi"}}, groups=[group1, group2], schedule=schedule)
+        bcast2 = self.create_broadcast(self.admin, {"eng": {"text": "Hi"}}, groups=[group1, group2])
         bcast2.send_async()
 
         # group still has a hard dependency so can't be released
@@ -1715,8 +1763,10 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # create scheduled and regular broadcasts which send to both contacts
         schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
-        bcast1 = self.create_broadcast(self.admin, "Test", contacts=[contact, contact2], schedule=schedule)
-        bcast2 = self.create_broadcast(self.admin, "Test", contacts=[contact, contact2])
+        bcast1 = self.create_broadcast(
+            self.admin, {"eng": {"text": "Test"}}, contacts=[contact, contact2], schedule=schedule
+        )
+        bcast2 = self.create_broadcast(self.admin, {"eng": {"text": "Test"}}, contacts=[contact, contact2])
 
         flow_nodes = msg_flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
@@ -2232,7 +2282,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.joe.created_on = timezone.now() - timedelta(days=1000)
         self.joe.save(update_fields=("created_on",))
 
-        self.create_broadcast(self.user, "A beautiful broadcast", contacts=[self.joe])
+        self.create_broadcast(self.user, {"eng": {"text": "A beautiful broadcast"}}, contacts=[self.joe])
         self.create_campaign()
 
         # add a message with some attachments
@@ -2590,7 +2640,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual(0, self.joe.get_scheduled_broadcasts().count())
 
-        broadcast = Broadcast.create(self.org, self.admin, {"eng": "Hello"}, contacts=[self.frank])
+        broadcast = self.create_broadcast(self.admin, {"eng": {"text": "Hello"}}, contacts=[self.frank])
         self.assertEqual(0, self.joe.get_scheduled_broadcasts().count())
 
         broadcast.contacts.add(self.joe)
@@ -2683,36 +2733,10 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(Contact.STATUS_ACTIVE, self.joe.status)
 
         for status, _ in Contact.STATUS_CHOICES:
-            self.client.post(
-                reverse("contacts.contact_update", args=[self.joe.id]),
-                {"status": status},
-            )
+            self.client.post(reverse("contacts.contact_update", args=[self.joe.id]), {"status": status})
 
             self.joe.refresh_from_db()
             self.assertEqual(status, self.joe.status)
-
-    @patch("temba.mailroom.client.MailroomClient.contact_modify")
-    def test_update_with_mailroom_error(self, mock_modify):
-        mock_modify.side_effect = mailroom.RequestException(
-            "", "", MockResponse(400, '{"error": "Error updating contact"}')
-        )
-
-        self.login(self.admin)
-
-        response = self.client.post(
-            reverse("contacts.contact_update", args=[self.joe.id]),
-            dict(
-                language="eng",
-                name="Muller Awesome",
-                urn__tel__0="+250781111111",
-                urn__twitter__1="blow80",
-                status=Contact.STATUS_ACTIVE,
-            ),
-        )
-
-        self.assertFormError(
-            response.context["form"], None, "An error occurred updating your contact. Please try again later."
-        )
 
     def test_update(self):
         # if new values don't differ from current values.. no modifications
@@ -2998,26 +3022,6 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 class ContactURNTest(TembaTest):
     def setUp(self):
         super().setUp()
-
-    def test_get_or_create(self):
-        urn = ContactURN.create(self.org, None, "tel:1234")
-        self.assertEqual(urn.org, self.org)
-        self.assertEqual(urn.contact, None)
-        self.assertEqual(urn.identity, "tel:1234")
-        self.assertEqual(urn.scheme, "tel")
-        self.assertEqual(urn.path, "1234")
-        self.assertEqual(urn.priority, 1000)
-
-        urn = ContactURN.get_or_create(self.org, None, "twitterid:12345#fooman")
-        self.assertEqual("twitterid:12345", urn.identity)
-        self.assertEqual("fooman", urn.display)
-
-        urn2 = ContactURN.get_or_create(self.org, None, "twitter:fooman")
-        self.assertEqual(urn, urn2)
-
-        with patch("temba.contacts.models.ContactURN.lookup") as mock_lookup:
-            mock_lookup.side_effect = [None, urn]
-            ContactURN.get_or_create(self.org, None, "twitterid:12345#fooman")
 
     def test_get_display(self):
         urn = ContactURN.objects.create(
@@ -4700,7 +4704,7 @@ class ContactExportTest(TembaTest):
         group2.save()
 
         # create orphaned URN in scheme that no contacts have a URN for
-        ContactURN.create(self.org, None, "line:12345")
+        ContactURN.objects.create(org=self.org, identity="line:12345", scheme="line", path="12345")
 
         def assertReimport(export):
             filename = f"{settings.MEDIA_ROOT}/test_orgs/{self.org.id}/contact_exports/{export.uuid}.xlsx"
@@ -4839,7 +4843,7 @@ class ContactExportTest(TembaTest):
         # more contacts do not increase the queries
         contact3 = self.create_contact("Luol Deng", urns=["tel:+12078776655", "twitter:deng"])
         contact4 = self.create_contact("Stephen", urns=["tel:+12078778899", "twitter:stephen"])
-        ContactURN.create(self.org, contact, "tel:+12062233445")
+        contact.urns.create(org=self.org, identity="tel:+12062233445", scheme="tel", path="+12062233445")
 
         # but should have additional Twitter and phone columns
         with self.assertNumQueries(21):

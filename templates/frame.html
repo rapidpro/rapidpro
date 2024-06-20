@@ -31,7 +31,6 @@
       <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
       <script src="{{ STATIC_URL }}croppie/croppie.js"></script>
     {% endcompress %}
-    {% if not debug and not testing %}<script src="{{ STATIC_URL }}lib/raven.min.js"></script>{% endif %}
     {% compress js %}
       <script src="{{ STATIC_URL }}js/utils.js"></script>
     {% endcompress %}

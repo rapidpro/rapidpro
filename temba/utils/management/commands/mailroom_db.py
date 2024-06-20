@@ -436,9 +436,12 @@ class Command(BaseCommand):
                 contacts = []
                 for i in range(size):
                     urn = f"tel:+250788{i:06}"
-                    contact = ContactURN.lookup(org, urn)
-                    if not contact:
+                    urn_obj = ContactURN.objects.filter(org=org, identity=urn).first()
+                    if urn_obj and urn_obj.contact:
+                        contact = urn_obj.contact
+                    else:
                         contact = Contact.create(org, user, name="", language="", urns=[urn], fields={}, groups=[])
+
                     contacts.append(contact)
 
                 Contact.bulk_change_group(user, contacts, group, add=True)

@@ -1,6 +1,9 @@
+import time
 from datetime import datetime, timezone as tzone
 
-from pyfcm import FCMNotification
+import google.auth.transport.requests
+import requests
+from google.oauth2 import service_account
 
 from django.conf import settings
 
@@ -50,18 +53,70 @@ def get_channel_commands(channel, commands, sync_event=None):
     return commands
 
 
+def _get_access_token():  # pragma: no cover
+    """
+    Retrieve a valid access token that can be used to authorize requests.
+    """
+    credentials = service_account.Credentials.from_service_account_file(
+        settings.ANDROID_FCM_SERVICE_ACCOUNT_FILE, scopes=["https://www.googleapis.com/auth/firebase.messaging"]
+    )
+    request = google.auth.transport.requests.Request()
+    credentials.refresh(request)
+    return credentials.token
+
+
+def validate_registration_info(registration_id):  # pragma: no cover
+    valid_registration_ids = []
+
+    backoffs = [1, 3, 6]
+    while backoffs:
+        resp = requests.get(
+            f"https://iid.googleapis.com/iid/info/{registration_id}",
+            params={"details": "true"},
+            headers={
+                "Authorization": "Bearer " + _get_access_token(),
+                "access_token_auth": "true",
+                "Content-Type": "application/json",
+            },
+        )
+
+        if resp.status_code == 200:
+            valid_registration_ids.append(registration_id)
+            break
+        else:
+            time.sleep(backoffs[0])
+            backoffs = backoffs[1:]
+
+    return valid_registration_ids
+
+
 def sync_channel_fcm(registration_id, channel=None):  # pragma: no cover
-    push_service = FCMNotification(api_key=settings.FCM_API_KEY)
     fcm_failed = False
     try:
-        result = push_service.notify_single_device(registration_id=registration_id, data_message=dict(msg="sync"))
-        if not result.get("success", 0):
+        resp = requests.post(
+            f"https://fcm.googleapis.com/v1/projects/{settings.ANDROID_FCM_PROJECT_ID}/messages:send",
+            json={"message": {"token": registration_id, "data": {"msg": "sync"}}},
+            headers={
+                "Authorization": "Bearer " + _get_access_token(),
+                "Content-Type": "application/json",
+            },
+        )
+
+        success = 0
+        if resp.status_code == 200:
+            resp_json = resp.json()
+            success = resp_json.get("success", 0)
+            message_id = resp_json.get("message_id", None)
+            if message_id:
+                success = 1
+        if not success:
             fcm_failed = True
     except Exception:
         fcm_failed = True
 
     if fcm_failed:
-        valid_registration_ids = push_service.clean_registration_ids([registration_id])
+        valid_registration_ids = validate_registration_info(registration_id)
+
         if registration_id not in valid_registration_ids:
             # this fcm id is invalid now, clear it out
             channel.config.pop(Channel.CONFIG_FCM_ID, None)

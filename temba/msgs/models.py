@@ -25,7 +25,7 @@ from temba.contacts import search
 from temba.contacts.models import Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Export, ExportType, Org
 from temba.schedules.models import Schedule
-from temba.utils import chunk_list, on_transaction_commit
+from temba.utils import chunk_list, languages, on_transaction_commit
 from temba.utils.export.models import MultiSheetExporter
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel
 from temba.utils.s3 import public_file_storage
@@ -215,7 +215,7 @@ class Broadcast(models.Model):
     is_active = models.BooleanField(null=True, default=True)
 
     @classmethod
-    def create(
+    def create_legacy(
         cls,
         org,
         user,
@@ -225,10 +225,9 @@ class Broadcast(models.Model):
         groups=None,
         contacts=None,
         urns: list[str] = None,
-        contact_ids: list[int] = None,
         **kwargs,
     ):
-        assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
+        assert groups or contacts or urns, "can't create broadcast without recipients"
 
         # if base language is not provided
         if not base_language:
@@ -246,9 +245,43 @@ class Broadcast(models.Model):
         )
 
         # set our recipients
-        broadcast._set_recipients(groups=groups, contacts=contacts, urns=urns, contact_ids=contact_ids)
+        broadcast._set_recipients(groups=groups, contacts=contacts, urns=urns)
 
         return broadcast
+
+    @classmethod
+    def create(
+        cls,
+        org,
+        user,
+        translations: dict[str, dict],
+        *,
+        base_language: str,
+        groups=(),
+        contacts=(),
+        urns=(),
+        query=None,
+        node_uuid=None,
+        optin=None,
+    ):
+        assert groups or contacts or urns or query or node_uuid, "can't create broadcast without recipients"
+        assert base_language and languages.get_name(base_language), f"{base_language} is not a valid language code"
+        assert base_language in translations, "no translation for base language"
+
+        response = mailroom.get_client().msg_broadcast(
+            org.id,
+            user.id,
+            translations=translations,
+            base_language=base_language,
+            group_ids=tuple(g.id for g in groups),
+            contact_ids=tuple(c.id for c in contacts),
+            urns=urns,
+            query=query,
+            node_uuid=node_uuid,
+            optin_id=optin.id if optin else None,
+        )
+
+        return cls.objects.get(id=response["id"])
 
     @classmethod
     def get_queued(cls, org):
@@ -336,7 +369,7 @@ class Broadcast(models.Model):
 
         self._set_recipients(groups=groups, contacts=contacts, urns=urns)
 
-    def _set_recipients(self, *, groups=None, contacts=None, urns: list[str] = None, contact_ids=None):
+    def _set_recipients(self, *, groups=None, contacts=None, urns: list[str] = None):
         """
         Sets the recipients which may be contact groups, contacts or contact URNs.
         """
@@ -349,12 +382,6 @@ class Broadcast(models.Model):
         if urns:
             self.urns = urns
             self.save(update_fields=("urns",))
-
-        if contact_ids:
-            RelatedModel = self.contacts.through
-            for chunk in chunk_list(contact_ids, 1000):
-                bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
-                RelatedModel.objects.bulk_create(bulk_contacts)
 
     def __repr__(self):
         return f'<Broadcast: id={self.id} text="{self.get_translation()["text"]}">'

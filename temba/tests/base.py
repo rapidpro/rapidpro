@@ -22,7 +22,7 @@ from django.utils import timezone
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactImport, ContactURN
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactImport
 from temba.flows.models import Flow, FlowRun, FlowSession
 from temba.ivr.models import Call
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -32,7 +32,7 @@ from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
 
-from .mailroom import create_contact_locally, resolve_destination, update_field_locally
+from .mailroom import contact_urn_lookup, create_contact_locally, resolve_destination, update_field_locally
 from .s3 import jsonlgz_encode
 
 
@@ -452,25 +452,13 @@ class TembaTest(SmartminTest):
             log_uuids=[l.uuid for l in logs or []],
         )
 
-    def create_translations(self, text="", attachments=[], lang="und", optin=None):
-        translations = {
-            lang: {
-                "text": text,
-                "attachments": attachments,
-                "quick_replies": [],
-            }
-        }
-
-        if optin:
-            translations[lang]["optin"] = {"uuid": str(optin.uuid), "name": optin.name} if optin else None
-        return translations
-
     def create_broadcast(
         self,
         user,
-        translations: dict[str, list] | str,
-        contacts=(),
+        translations: dict[str, dict],
         groups=(),
+        contacts=(),
+        urns=(),
         optin=None,
         status=Broadcast.STATUS_SENT,
         msg_status=Msg.STATUS_SENT,
@@ -479,15 +467,14 @@ class TembaTest(SmartminTest):
         created_on=None,
         org=None,
     ):
-        if isinstance(translations, str):
-            translations = self.create_translations(translations)
-
-        bcast = Broadcast.create(
+        bcast = Broadcast.create_legacy(
             org or self.org,
             user,
             translations=translations,
-            contacts=contacts,
+            base_language=next(iter(translations)),
             groups=groups,
+            contacts=contacts,
+            urns=urns,
             optin=optin,
             parent=parent,
             schedule=schedule,
@@ -499,7 +486,7 @@ class TembaTest(SmartminTest):
         for group in bcast.groups.all():
             contacts.update(group.contacts.all())
 
-        if not schedule:
+        if not schedule and status != Broadcast.STATUS_QUEUED:
             for contact in contacts:
                 translation = bcast.get_translation(contact)
                 self._create_msg(
@@ -691,7 +678,7 @@ class TembaTest(SmartminTest):
         )
 
     def create_channel_event(self, channel, urn, event_type, occurred_on=None, optin=None, extra=None):
-        urn_obj = ContactURN.lookup(channel.org, urn, country_code=channel.country)
+        urn_obj = contact_urn_lookup(channel.org, urn)
         if urn_obj:
             contact = urn_obj.contact
         else:

@@ -34,7 +34,7 @@ TEST_EXCLUDE = ("smartmin",)
 # Email
 # -----------------------------------------------------------------------------------
 
-SEND_EMAILS = False
+SEND_EMAILS = TESTING  # enable sending emails in tests
 
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_HOST_USER = "server@temba.io"
@@ -247,9 +247,6 @@ INSTALLED_APPS = (
     "temba.sql",
 )
 
-# the last installed app that uses smartmin permissions
-PERMISSIONS_APP = "temba.airtime"
-
 # don't let smartmin auto create django messages for create and update submissions
 SMARTMIN_DEFAULT_MESSAGES = False
 
@@ -410,7 +407,6 @@ GROUP_PERMISSIONS = {
         "channels.channel_delete",
         "channels.channel_facebook_whitelist",
         "channels.channel_list",
-        "channels.channel_menu",
         "channels.channel_read",
         "channels.channel_update",
         "channels.channelevent_list",
@@ -419,7 +415,6 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_connect",
         "classifiers.classifier_delete",
         "classifiers.classifier_list",
-        "classifiers.classifier_menu",
         "classifiers.classifier_read",
         "classifiers.classifier_sync",
         "contacts.contact_create",
@@ -511,12 +506,10 @@ GROUP_PERMISSIONS = {
         "channels.channel_create",
         "channels.channel_delete",
         "channels.channel_list",
-        "channels.channel_menu",
         "channels.channel_read",
         "channels.channel_update",
         "channels.channelevent_list",
         "classifiers.classifier_list",
-        "classifiers.classifier_menu",
         "classifiers.classifier_read",
         "contacts.contact_create",
         "contacts.contact_delete",
@@ -584,11 +577,9 @@ GROUP_PERMISSIONS = {
         "campaigns.campaignevent_list",
         "campaigns.campaignevent_read",
         "channels.channel_list",
-        "channels.channel_menu",
         "channels.channel_read",
         "channels.channelevent_list",
         "classifiers.classifier_list",
-        "classifiers.classifier_menu",
         "classifiers.classifier_read",
         "contacts.contact_export",
         "contacts.contact_history",
@@ -763,7 +754,6 @@ CELERY_BEAT_SCHEDULE = {
     "expire-invitations": {"task": "expire_invitations", "schedule": crontab(hour=0, minute=10)},
     "fail-old-messages": {"task": "fail_old_messages", "schedule": crontab(hour=0, minute=0)},
     "interrupt-flow-sessions": {"task": "interrupt_flow_sessions", "schedule": crontab(hour=23, minute=30)},
-    "resolve-twitter-ids": {"task": "resolve_twitter_ids", "schedule": timedelta(seconds=900)},
     "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": crontab(hour=6, minute=0)},
     "refresh-templates": {"task": "refresh_templates", "schedule": timedelta(seconds=900)},
     "send-notification-emails": {"task": "send_notification_emails", "schedule": timedelta(seconds=60)},
@@ -999,3 +989,7 @@ WHATSAPP_FACEBOOK_BUSINESS_ID = os.environ.get("WHATSAPP_FACEBOOK_BUSINESS_ID", 
 #
 # You need to change these to real addresses to work with these.
 IP_ADDRESSES = ("172.16.10.10", "162.16.10.20")
+
+# Android clients FCM config
+ANDROID_FCM_PROJECT_ID = os.environ.get("ANDROID_FCM_PROJECT_ID", "")
+ANDROID_FCM_SERVICE_ACCOUNT_FILE = os.environ.get("ANDROID_FCM_SERVICE_ACCOUNT_FILE", "")

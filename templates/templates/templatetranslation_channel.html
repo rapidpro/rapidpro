@@ -8,7 +8,8 @@
   {% trans "Templates are refreshed every 15 minutes." %}
 {% endblock subtitle %}
 {% block content %}
-  <div class="card p-0 overflow-y-scroll">
+  <div class="shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+  <div class="card border-t-2 rounded-tl-none rounded-tr-none mt-0 p-0 overflow-y-scroll">
     {% for translation in object_list %}
       {% ifchanged translation.template.name %}
         <div class="p-4 font-bold max-w-6xl truncate">{{ translation.template.name }}</div>
@@ -16,13 +17,21 @@
       <div max-width="100%" class="flex translation">
         <div width="70%" class="flex-grow p-4">
           {% for comp in translation.components %}
-            {% if comp.type == "header" %}
-              <div width="100%" class="my-1 text-lg font-normal">{{ comp.content }}</div>
-            {% elif comp.type == "body" %}
-              <div width="100%" class="my-1">{{ comp.content }}</div>
-            {% elif comp.type == "footer" %}
-              <div width="100%" class="my-1 text-sm">{{ comp.content }}</div>
-            {% endif %}
+            <div width="100%" class="my-1">
+              {% if comp.type == "header" or comp.type == "header/text" %}
+                <div class="text-lg font-normal">{{ comp.content }}</div>
+              {% elif comp.type == "header/media" %}
+                {% if comp.content %}
+                  <div class="text-lg font-normal">{{ comp.content }}</div>
+                {% else %}
+                  <span class="inline-block p-2 bg-gray-200 rounded-lg">{{ translation.variables.0.type|upper }}</span>
+                {% endif %}
+              {% elif comp.type == "body" or comp.type == "body/text" %}
+                <div>{{ comp.content }}</div>
+              {% elif comp.type == "footer" or comp.type == "footer/text" %}
+                <div class="text-sm">{{ comp.content }}</div>
+              {% endif %}
+            </div>
           {% endfor %}
           <div class="my-4 flex">
             {% for comp in translation.components %}

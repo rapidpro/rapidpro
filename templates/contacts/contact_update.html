@@ -96,7 +96,7 @@
     <div style="min-width:12em" class="ml-3 status">{% render_field 'status' %}</div>
   </div>
   {% for field in fields %}
-    {% if field != "name" and field != "status" %}
+    {% if field != "name" and field != "status" and field != "new_scheme" and field != "new_path" %}
       {% render_field field %}
     {% endif %}
   {% endfor %}

@@ -12,7 +12,7 @@ from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowRun, FlowStart
 from temba.ivr.models import Call
 from temba.mailroom.client import ContactSpec, RequestException, get_client
-from temba.msgs.models import Broadcast, Msg
+from temba.msgs.models import Msg
 from temba.tests import MockJsonResponse, MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import TicketEvent
@@ -20,11 +20,13 @@ from temba.utils import json
 
 from . import (
     BroadcastPreview,
+    EmptyBroadcastException,
     Exclusions,
     FlowValidationException,
     Inclusions,
     QueryValidationException,
     StartPreview,
+    URNResult,
     URNValidationException,
     modifiers,
     queue_interrupt,
@@ -288,6 +290,23 @@ class MailroomClientTest(TembaTest):
             },
         )
 
+    @patch("requests.post")
+    def test_contact_urns(self, mock_post):
+        mock_post.return_value = MockJsonResponse(
+            200, {"urns": [{"normalized": "tel:+1234", "contact_id": 345}, {"normalized": "webchat:3a2ef3"}]}
+        )
+
+        response = get_client().contact_urns(self.org.id, ["tel:+1234", "webchat:3a2ef3"])
+
+        self.assertEqual(
+            [URNResult(normalized="tel:+1234", contact_id=345), URNResult(normalized="webchat:3a2ef3")], response
+        )
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/urns",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "urns": ["tel:+1234", "webchat:3a2ef3"]},
+        )
+
     def test_flow_change_language(self):
         flow_def = {"nodes": [{"val": Decimal("1.23")}]}
 
@@ -385,6 +404,7 @@ class MailroomClientTest(TembaTest):
                 [123, 234],
                 ["tel:1234"],
                 "age > 20",
+                "",
                 567,
             )
 
@@ -404,6 +424,7 @@ class MailroomClientTest(TembaTest):
                 "contact_ids": [123, 234],
                 "urns": ["tel:1234"],
                 "query": "age > 20",
+                "node_uuid": "",
                 "optin_id": 567,
             },
             json.loads(call[1]["data"]),
@@ -603,6 +624,13 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_errors(self, mock_post):
+        mock_post.return_value = MockJsonResponse(
+            422, {"error": "can't create broadcast with no recipients", "code": "broadcast:no_recipients"}
+        )
+
+        with self.assertRaises(EmptyBroadcastException) as e:
+            get_client().msg_broadcast(1, 2, {}, "eng", [], [], [], "", "", None)
+
         mock_post.return_value = MockJsonResponse(422, {"error": "node isn't valid", "code": "flow:invalid"})
 
         with self.assertRaises(FlowValidationException) as e:
@@ -656,15 +684,12 @@ class MailroomQueueTest(TembaTest):
     def test_queue_broadcast(self):
         jim = self.create_contact("Jim", phone="+12065551212")
         bobs = self.create_group("Bobs", [self.create_contact("Bob", phone="+12065551313")])
-
-        bcast = Broadcast.create(
-            self.org,
+        bcast = self.create_broadcast(
             self.admin,
             {"eng": {"text": "Welcome to mailroom!"}, "spa": {"text": "¡Bienvenidx a mailroom!"}},
             groups=[bobs],
             contacts=[jim],
             urns=["tel:+12065556666"],
-            base_language="eng",
         )
 
         bcast.send_async()

@@ -1084,7 +1084,6 @@ class ChannelSyncTest(TembaTest):
 
 
 class ChannelIncidentsTest(TembaTest):
-    @override_settings(SEND_EMAILS=True)
     def test_disconnected(self):
         # set our last seen to a while ago
         self.channel.last_seen = timezone.now() - timedelta(minutes=40)

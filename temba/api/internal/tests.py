@@ -95,8 +95,8 @@ class EndpointsTest(APITestMixin, TembaTest):
             namespace="foo_namespace",
             components=[
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Hi {{1}}",
                     "variables": {"1": 0},
                     "params": [{"type": "text"}],
@@ -114,8 +114,8 @@ class EndpointsTest(APITestMixin, TembaTest):
             namespace="foo_namespace",
             components=[
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Bonjour {{1}}",
                     "variables": {"1": 0},
                     "params": [{"type": "text"}],
@@ -133,8 +133,8 @@ class EndpointsTest(APITestMixin, TembaTest):
             namespace="foo_namespace",
             components=[
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "This is a template translation for a deleted channel {{1}}",
                     "variables": {"1": 0},
                     "params": [{"type": "text"}],
@@ -155,8 +155,8 @@ class EndpointsTest(APITestMixin, TembaTest):
             namespace="foo_namespace",
             components=[
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Goodbye {{1}}",
                     "variables": {"1": 0},
                     "params": [{"type": "text"}],
@@ -176,8 +176,8 @@ class EndpointsTest(APITestMixin, TembaTest):
             namespace="bar_namespace",
             components=[
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Goodbye {{1}}",
                     "variables": {"1": 0},
                     "params": [{"type": "text"}],
@@ -195,8 +195,8 @@ class EndpointsTest(APITestMixin, TembaTest):
             namespace="bar_namespace",
             components=[
                 {
-                    "type": "body",
                     "name": "body",
+                    "type": "body/text",
                     "content": "Salut {{1}}",
                     "variables": {"1": 0},
                     "params": [{"type": "text"}],
@@ -224,8 +224,8 @@ class EndpointsTest(APITestMixin, TembaTest):
                             "status": "pending",
                             "components": [
                                 {
-                                    "type": "body",
                                     "name": "body",
+                                    "type": "body/text",
                                     "content": "Goodbye {{1}}",
                                     "variables": {"1": 0},
                                     "params": [{"type": "text"}],
@@ -248,8 +248,8 @@ class EndpointsTest(APITestMixin, TembaTest):
                             "status": "approved",
                             "components": [
                                 {
-                                    "type": "body",
                                     "name": "body",
+                                    "type": "body/text",
                                     "content": "Hi {{1}}",
                                     "variables": {"1": 0},
                                     "params": [{"type": "text"}],
@@ -264,8 +264,8 @@ class EndpointsTest(APITestMixin, TembaTest):
                             "status": "pending",
                             "components": [
                                 {
-                                    "type": "body",
                                     "name": "body",
+                                    "type": "body/text",
                                     "content": "Bonjour {{1}}",
                                     "variables": {"1": 0},
                                     "params": [{"type": "text"}],

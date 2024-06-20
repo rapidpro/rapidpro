@@ -16,7 +16,6 @@ import pyotp
 import pytz
 from packaging.version import Version
 from smartmin.models import SmartModel
-from smartmin.users.models import FailedLogin, RecoveryToken
 from storages.backends.s3boto3 import S3Boto3Storage
 from timezone_field import TimeZoneField
 
@@ -30,7 +29,6 @@ from django.db import models, transaction
 from django.db.models import Prefetch
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.functional import cached_property
@@ -282,26 +280,6 @@ class User(AuthUser):
         except ValueError:
             return None
 
-    def recover_password(self, branding: dict):
-        """
-        Generates a recovery token for this user and sends them an email with a recovery link using that token.
-        """
-
-        token = generate_secret(32)
-        RecoveryToken.objects.create(token=token, user=self)
-        FailedLogin.objects.filter(username__iexact=self.username).delete()
-
-        self.send_recovery_email(token, branding)
-
-    def send_recovery_email(self, token: str, branding: dict):
-        sender = EmailSender.from_email_type(branding, "notifications")
-        sender.send(
-            [self.email],
-            _("Password Recovery Request"),
-            "orgs/email/user_forget",
-            {"user": self, "path": reverse("users.user_recover", args=[token])},
-        )
-
     def as_engine_ref(self) -> dict:
         return {"email": self.email, "name": self.name}
 
@@ -357,7 +335,7 @@ class UserSettings(models.Model):
     external_id = models.CharField(max_length=128, null=True)
     verification_token = models.CharField(max_length=64, null=True)
     email_status = models.CharField(max_length=1, default=STATUS_UNVERIFIED, choices=STATUS_CHOICES)
-    email_verification_secret = models.CharField(max_length=64, null=True, db_index=True)
+    email_verification_secret = models.CharField(max_length=64, db_index=True)
     avatar = models.ImageField(upload_to=UploadToIdPathAndRename("avatars/"), storage=public_file_storage, null=True)
 
 
@@ -368,7 +346,7 @@ def on_user_post_save(sender, instance: User, created: bool, *args, **kwargs):
     """
 
     if created:
-        instance.settings = UserSettings.objects.create(user=instance)
+        instance.settings = UserSettings.objects.create(user=instance, email_verification_secret=generate_secret(64))
 
 
 class OrgRole(Enum):

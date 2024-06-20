@@ -278,17 +278,17 @@ function fetchAjax(url, options) {
       var version = response.headers.get('x-temba-version');
       var org = response.headers.get('x-temba-org');
 
-      if (version && tembaVersion != version) {
-        document.location.href = toFetch;
-        return response;
-      }
-
       if (response.type !== 'cors' && org && org != org_id) {
         if (response.redirected) {
           document.location.href = response.url;
         } else {
           document.location.href = toFetch;
         }
+        return response;
+      }
+
+      if (version && tembaVersion != version) {
+        document.location.href = toFetch;
         return response;
       }
 

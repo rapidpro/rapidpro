@@ -17,9 +17,9 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import FlowRun, FlowSession
 from temba.locations.models import AdminBoundary
-from temba.mailroom.client import ContactSpec, MailroomClient
+from temba.mailroom.client import ContactSpec, EmptyBroadcastException, MailroomClient, URNResult
 from temba.mailroom.modifiers import Modifier
-from temba.msgs.models import Msg
+from temba.msgs.models import Broadcast, Msg, OptIn
 from temba.orgs.models import Org
 from temba.tests.dates import parse_datetime
 from temba.tickets.models import Ticket, TicketEvent, Topic
@@ -58,6 +58,7 @@ class Mocks:
         self._contact_search = {}
         self._contact_export = []
         self._contact_export_preview = []
+        self._contact_urns = []
         self._flow_start_preview = []
         self._msg_broadcast_preview = []
         self._exceptions = []
@@ -89,6 +90,9 @@ class Mocks:
 
     def contact_export_preview(self, total: int):
         self._contact_export_preview.append({"total": total})
+
+    def contact_urns(self, urns: dict):
+        self._contact_urns.append(urns)
 
     def flow_start_preview(self, query, total):
         def mock(org):
@@ -274,6 +278,21 @@ class TestClient(MailroomClient):
         return mock(org, offset, sort)
 
     @_client_method
+    def contact_urns(self, org_id: int, urns: list[str]):
+        results = [URNResult(normalized=urn) for urn in urns]
+
+        if self.mocks._contact_urns:
+            urn_by_id_or_err = self.mocks._contact_urns.pop(0)
+            for i, urn in enumerate(urns):
+                id_or_err = urn_by_id_or_err.get(urn)
+                if isinstance(id_or_err, int):
+                    results[i].contact_id = id_or_err
+                elif isinstance(id_or_err, str):
+                    results[i].error = id_or_err
+
+        return results
+
+    @_client_method
     def flow_start_preview(self, org_id: int, flow_id: int, include, exclude):
         assert self.mocks._flow_start_preview, "missing flow_start_preview mock"
 
@@ -281,6 +300,30 @@ class TestClient(MailroomClient):
         org = Org.objects.get(id=org_id)
 
         return mock(org)
+
+    @_client_method
+    def msg_broadcast(
+        self,
+        org_id: int,
+        user_id: int,
+        translations: dict,
+        base_language: str,
+        group_ids: list,
+        contact_ids: list,
+        urns: list,
+        query: str,
+        node_uuid: str,
+        optin_id: int,
+    ):
+        org = Org.objects.get(id=org_id)
+        user = User.objects.get(id=user_id)
+        contacts = org.contacts.filter(id__in=contact_ids) if contact_ids else []
+        groups = org.groups.filter(id__in=group_ids) if group_ids else []
+        optin = OptIn.objects.get(id=optin_id) if optin_id else None
+        bcast = create_broadcast(
+            org, user, translations, base_language, groups, contacts, urns, query, node_uuid, optin
+        )
+        return {"id": bcast.id}
 
     @_client_method
     def msg_broadcast_preview(self, org_id: int, include, exclude):
@@ -500,6 +543,10 @@ def apply_modifiers(org, user, contacts, modifiers: list):
 PHONE_REGEX = re.compile(r"^\+?[A-Za-z0-9]{1,64}$")
 
 
+def contact_urn_lookup(org, urn: str):
+    return ContactURN.objects.filter(org=org, identity=URN.identity(urn)).first()
+
+
 def contact_resolve(org, phone: str) -> tuple:
     user = get_anonymous_user()
 
@@ -508,12 +555,12 @@ def contact_resolve(org, phone: str) -> tuple:
 
     urn = f"tel:{phone}"
 
-    contact_urn = ContactURN.lookup(org, urn)
+    contact_urn = contact_urn_lookup(org, urn)
     if contact_urn:
         contact = contact_urn.contact
     else:
         contact = create_contact_locally(org, user, name="", language="", urns=[urn], fields={}, group_uuids=[])
-        contact_urn = ContactURN.lookup(org, urn)
+        contact_urn = contact_urn_lookup(org, urn)
 
     return contact, contact_urn
 
@@ -524,7 +571,7 @@ def create_contact_locally(
     orphaned_urns = {}
 
     for i, urn in enumerate(urns):
-        existing = ContactURN.lookup(org, urn)
+        existing = contact_urn_lookup(org, urn)
         if existing:
             if existing.contact_id:
                 raise mailroom.URNValidationException(f"URN {i} in use by other contact", "taken", i)
@@ -604,10 +651,19 @@ def update_urns_locally(contact, urns: list[str]):
 
     for urn_as_string in urns:
         normalized = URN.normalize(urn_as_string, country)
-        urn = ContactURN.lookup(contact.org, normalized)
+        scheme, path, query, display = URN.to_parts(normalized)
+        urn = contact_urn_lookup(contact.org, normalized)
 
         if not urn:
-            urn = ContactURN.create(contact.org, contact, normalized, priority=priority)
+            urn = ContactURN.objects.create(
+                org=contact.org,
+                contact=contact,
+                identity=URN.identity(normalized),
+                scheme=scheme,
+                path=path,
+                display=display,
+                priority=priority,
+            )
             urns_created.append(urn)
 
         # unassigned URN or different contact
@@ -825,3 +881,36 @@ def send_to_contact(org, contact, text, attachments) -> Msg:
         created_on=timezone.now(),
         modified_on=timezone.now(),
     )
+
+
+def create_broadcast(
+    org, user, translations: dict, base_language: str, groups, contacts, urns: list, query: str, node_uuid: str, optin
+) -> Broadcast:
+
+    if node_uuid:
+        runs = FlowRun.objects.filter(
+            org=org, current_node_uuid=node_uuid, status__in=(FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING)
+        )
+        contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).filter(
+            id__in=runs.values_list("contact", flat=True)
+        )
+
+    if not (groups or contacts or urns or query):
+        raise EmptyBroadcastException()
+
+    bcast = Broadcast.objects.create(
+        org=org,
+        translations=translations,
+        base_language=base_language,
+        urns=urns,
+        query=query,
+        optin=optin,
+        created_by=user,
+        modified_by=user,
+    )
+    if groups:
+        bcast.groups.add(*groups)
+    if contacts:
+        bcast.contacts.add(*contacts)
+
+    return bcast

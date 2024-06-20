@@ -1,3 +1,78 @@
+v9.1.148 (2024-06-20)
+-------------------------
+ * Fix Broadcast.create
+
+v9.1.147 (2024-06-20)
+-------------------------
+ * Use mailroom to create broadcasts from API calls
+ * Use mailroom to send broadcasts to flow nodes
+
+v9.1.146 (2024-06-17)
+-------------------------
+ * Don't clip footer when ticket history grows
+ * Fix migration to add uuid field to airtime transfers
+
+v9.1.145 (2024-06-17)
+-------------------------
+ * Don't send forgot password email if one was sent in last 5 minutes
+ * Delete failed login records on successful password reset
+ * Make transer UUID unique field, use TembaUUIDMixin on model
+
+v9.1.144 (2024-06-14)
+-------------------------
+ * Add pagination on channel templates page
+ * Add settings config for Android clients FCM config
+ * Remove pyfcm and use google auth library to send sync messages for FCM
+ * Create our own password recovery view
+
+v9.1.143 (2024-06-12)
+-------------------------
+ * Update smartmin
+ * Delete recovery tokens when new ones are created or email changed
+ * Populate airtime transfer uuids
+
+v9.1.142 (2024-06-12)
+-------------------------
+ * Add AirtimeTransfer.external_id
+ * Add data migration to cleanup template translations
+
+v9.1.141 (2024-06-12)
+-------------------------
+ * Update to latest smartmin
+ * Add uuid field to airtime transfer model
+
+v9.1.140 (2024-06-12)
+-------------------------
+ * Really actually fix template attachments for real
+
+v9.1.139 (2024-06-11)
+-------------------------
+ * Fix split issue for template editor
+
+v9.1.138 (2024-06-10)
+-------------------------
+ * Template editor fix for empty content
+ * Tweak component types to be header/*, body/* etc
+ * Support Twilio media in templates
+
+v9.1.137 (2024-06-10)
+-------------------------
+ * Support WhatsApp templates with header images
+ * Remove no longer used URN related code
+ * Generate email verification secret when account created, change when email changed
+
+v9.1.136 (2024-06-07)
+-------------------------
+ * Add spa mixin to transfer logs views
+ * Allow editing TWA messaging service SID
+ * Lean on mailroom for URN validation during contact update
+ * Some tidy up of the update contact form
+
+v9.1.135 (2024-06-05)
+-------------------------
+ * Fix login error message styling 
+ * Remove unused JS libs
+
 v9.1.134 (2024-06-05)
 -------------------------
  * Contact API endpoint should let mailroom decide if a URN is taken

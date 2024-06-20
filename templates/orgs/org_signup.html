@@ -32,7 +32,7 @@
 {% endblock login-content %}
 {% block extra-script %}
   {{ block.super }}
-  <script src="{{ STATIC_URL }}bower/jsTimezoneDetect/jstz.js"></script>
+  <script src="{{ STATIC_URL }}lib/jsTimezoneDetect/jstz.js"></script>
   <script type="text/javascript">
     onSpload(function() {
       var timezone = jstz.determine().name();

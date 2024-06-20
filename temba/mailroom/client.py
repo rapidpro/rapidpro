@@ -92,6 +92,14 @@ class URNValidationException(Exception):
         return self.error
 
 
+class EmptyBroadcastException(Exception):
+    """
+    Request that fails because the because a the requested broadcast would have no recipients.
+    """
+
+    pass
+
+
 @dataclass
 class ContactSpec:
     """
@@ -157,6 +165,14 @@ class BroadcastPreview:
 class StartPreview:
     query: str
     total: int
+
+
+@dataclass
+class URNResult:
+    normalized: str
+    contact_id: int = None
+    error: str = None
+    e164: bool = False
 
 
 class MailroomClient:
@@ -252,6 +268,10 @@ class MailroomClient:
             metadata=QueryMetadata(**response.get("metadata", {})),
         )
 
+    def contact_urns(self, org_id: int, urns: list[str]):
+        response = self._request("contact/urns", {"org_id": org_id, "urns": urns})
+        return [URNResult(**ur) for ur in response["urns"]]
+
     def flow_change_language(self, flow, language):
         payload = {"flow": flow, "language": language}
 
@@ -303,6 +323,7 @@ class MailroomClient:
         contact_ids: list,
         urns: list,
         query: str,
+        node_uuid: str,
         optin_id: int,
     ):
         payload = {
@@ -314,6 +335,7 @@ class MailroomClient:
             "contact_ids": contact_ids,
             "urns": urns,
             "query": query,
+            "node_uuid": node_uuid,
             "optin_id": optin_id,
         }
 
@@ -431,6 +453,8 @@ class MailroomClient:
                 raise QueryValidationException(error, code, extra)
             elif domain == "urn":
                 raise URNValidationException(error, code, extra["index"])
+            elif domain == "broadcast":
+                raise EmptyBroadcastException()
 
         elif 400 <= response.status_code < 600:
             raise RequestException(endpoint, payload, response)

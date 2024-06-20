@@ -119,8 +119,7 @@ class OrgContextProcessorTest(TembaTest):
 
 
 class InvitationTest(TembaTest):
-    @patch("temba.utils.email.send.send_email")
-    def test_model(self, mock_send_email):
+    def test_model(self):
         invitation = Invitation.objects.create(
             org=self.org,
             user_group="E",
@@ -132,14 +131,11 @@ class InvitationTest(TembaTest):
         self.assertEqual(OrgRole.EDITOR, invitation.role)
 
         invitation.send()
-        email_args = mock_send_email.call_args[0]  # all positional args
 
-        self.assertEqual(["invitededitor@nyaruka.com"], email_args[0])
-        self.assertEqual("RapidPro Invitation", email_args[1])
-        self.assertIn("https://app.rapidpro.io/org/join/%s/" % invitation.secret, email_args[2])
-        self.assertNotIn("{{", email_args[2])
-        self.assertIn("https://app.rapidpro.io/org/join/%s/" % invitation.secret, email_args[3])
-        self.assertNotIn("{{", email_args[3])
+        self.assertEqual(1, len(mail.outbox))
+        self.assertEqual(["invitededitor@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertEqual("RapidPro Invitation", mail.outbox[0].subject)
+        self.assertIn(f"https://app.rapidpro.io/org/join/{invitation.secret}/", mail.outbox[0].body)
 
         invitation.release()
 
@@ -905,60 +901,6 @@ class OrgTest(TembaTest):
 
         self.assertIsNone(self.org.default_country)
 
-    @patch("temba.utils.email.send.send_email")
-    def test_user_forget(self, mock_send_email):
-        invitation = Invitation.objects.create(
-            org=self.org,
-            user_group="A",
-            email="invited@nyaruka.com",
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-
-        user = User.objects.create_user("existing@nyaruka.com", "existing@nyaruka.com")
-        user.set_password("existing@nyaruka.com")
-        user.save()
-
-        forget_url = reverse("orgs.user_forget")
-        smartmin_forget_url = reverse("users.user_forget")
-
-        # make sure smartmin forget view is redirecting to our forget view
-        response = self.client.get(smartmin_forget_url)
-        self.assertEqual(301, response.status_code)
-        self.assertEqual(response.url, forget_url)
-
-        response = self.client.get(forget_url)
-        self.assertEqual(200, response.status_code)
-
-        post_data = dict(email="invited@nyaruka.com")
-
-        response = self.client.post(forget_url, post_data, follow=True)
-        self.assertEqual(200, response.status_code)
-
-        email_args = mock_send_email.call_args[0]  # all positional args
-        self.assertEqual(email_args[0], ["invited@nyaruka.com"])
-        self.assertEqual(email_args[1], "RapidPro Invitation")
-        self.assertIn(f"https://app.rapidpro.io/org/join/{invitation.secret}/", email_args[2])
-        self.assertNotIn("{{", email_args[2])
-        self.assertIn(f"https://app.rapidpro.io/org/join/{invitation.secret}/", email_args[3])
-        self.assertNotIn("{{", email_args[3])
-
-        mock_send_email.reset_mock()
-        post_data = dict(email="existing@nyaruka.com")
-
-        response = self.client.post(forget_url, post_data, follow=True)
-        self.assertEqual(200, response.status_code)
-
-        token_obj = RecoveryToken.objects.filter(user=user).first()
-
-        email_args = mock_send_email.call_args[0]  # all positional args
-        self.assertEqual(email_args[0], ["existing@nyaruka.com"])
-        self.assertEqual(email_args[1], "Password Recovery Request")
-        self.assertIn(f"app.rapidpro.io/users/user/recover/{token_obj.token}/", email_args[2])
-        self.assertNotIn("{{", email_args[2])
-        self.assertIn(f"app.rapidpro.io/users/user/recover/{token_obj.token}/", email_args[3])
-        self.assertNotIn("{{", email_args[3])
-
     @patch("temba.flows.models.FlowStart.async_start")
     @mock_mailroom
     def test_org_flagging_and_suspending(self, mr_mocks, mock_async_start):
@@ -1374,7 +1316,7 @@ class OrgDeleteTest(TembaTest):
                 external_id="1234",
                 external_locale="en_US",
                 namespace="foo_namespace",
-                components=[{"type": "body", "name": "body", "content": "Hello", "variables": {}, "params": []}],
+                components=[{"name": "body", "type": "body/text", "content": "Hello", "variables": {}, "params": []}],
                 variables=[],
             )
         )
@@ -1407,19 +1349,23 @@ class OrgDeleteTest(TembaTest):
         add(self.create_outgoing_msg(contact=contacts[0], text="cool story", channel=channels[0]))
         add(self.create_outgoing_msg(contact=contacts[0], text="synced", channel=channels[1]))
 
-        add(self.create_broadcast(user, "Announcement", contacts=contacts, groups=groups, org=org))
+        add(self.create_broadcast(user, {"eng": {"text": "Announcement"}}, contacts=contacts, groups=groups, org=org))
 
         scheduled = add(
             self.create_broadcast(
                 user,
-                "Reminder",
+                {"eng": {"text": "Reminder"}},
                 contacts=contacts,
                 groups=groups,
                 org=org,
                 schedule=Schedule.create(org, timezone.now(), Schedule.REPEAT_DAILY),
             )
         )
-        add(self.create_broadcast(user, "Reminder", contacts=contacts, groups=groups, org=org, parent=scheduled))
+        add(
+            self.create_broadcast(
+                user, {"eng": {"text": "Reminder"}}, contacts=contacts, groups=groups, org=org, parent=scheduled
+            )
+        )
 
         label1 = add(self.create_label("Spam", org=org))
         label2 = add(self.create_label("Important", org=org))
@@ -1679,7 +1625,6 @@ class AnonOrgTest(TembaTest):
 
 
 class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
-    @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
         accounts_url = reverse("orgs.org_manage_accounts")
         settings_url = reverse("orgs.org_workspace")
@@ -2032,7 +1977,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             ],
         )
 
-    @override_settings(SEND_EMAILS=True)
     def test_flow_smtp(self):
         self.login(self.admin)
 
@@ -3482,6 +3426,9 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_edit(self):
         edit_url = reverse("orgs.user_edit")
 
+        # generate a recovery token so we can check it's deleted when email changes
+        RecoveryToken.objects.create(user=self.admin, token="1234567")
+
         # no access if anonymous
         self.assertRequestDisallowed(edit_url, [None])
 
@@ -3500,6 +3447,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
             )
 
         self.admin.settings.email_status = "V"  # mark user email as verified
+        self.admin.settings.email_verification_secret = "old-email-secret"
         self.admin.settings.save()
 
         # try to submit without required fields
@@ -3533,7 +3481,9 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.admin.refresh_from_db()
         self.assertEqual("Admin User", self.admin.name)
-        self.assertTrue("V", self.admin.settings.email_status)  # unchanged
+        self.assertEqual("V", self.admin.settings.email_status)  # unchanged
+        self.assertEqual("old-email-secret", self.admin.settings.email_verification_secret)  # unchanged
+        self.assertEqual(1, RecoveryToken.objects.filter(user=self.admin).count())  # unchanged
         self.assertIsNotNone(self.admin.settings.avatar)
         self.assertEqual("pt-br", self.admin.settings.language)
 
@@ -3575,6 +3525,8 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("admin@trileet.com", self.admin.username)
         self.assertEqual("admin@trileet.com", self.admin.email)
         self.assertEqual("U", self.admin.settings.email_status)  # because email changed
+        self.assertNotEqual("old-email-secret", self.admin.settings.email_verification_secret)
+        self.assertEqual(0, RecoveryToken.objects.filter(user=self.admin).count())
 
         # should have a email changed notification using old address
         self.assertEqual({"user:email"}, set(self.admin.notifications.values_list("notification_type", flat=True)))
@@ -3655,18 +3607,151 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
             self.assertEqual("Andy", self.admin.first_name)
             self.assertEqual("en-us", self.admin.settings.language)
 
+    def test_forget(self):
+        forget_url = reverse("orgs.user_forget")
+
+        # make sure smartmin view is redirecting to our view
+        response = self.client.get(reverse("users.user_forget"))
+        self.assertRedirect(response, forget_url, status_code=301)
+
+        FailedLogin.objects.create(username="admin@nyaruka.com")
+        invitation = Invitation.objects.create(
+            org=self.org,
+            user_group="A",
+            email="invited@nyaruka.com",
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        # no login required to access
+        response = self.client.get(forget_url)
+        self.assertEqual(200, response.status_code)
+
+        # try submitting email addess that don't exist in the system
+        response = self.client.post(forget_url, {"email": "foo@nyaruka.com"})
+        self.assertLoginRedirect(response)
+        self.assertEqual(0, len(mail.outbox))  # no emails sent
+
+        # try submitting email address that has been invited
+        response = self.client.post(forget_url, {"email": "invited@nyaruka.com"})
+        self.assertLoginRedirect(response)
+
+        # invitation email should have been resent
+        self.assertEqual(1, len(mail.outbox))
+        self.assertEqual(["invited@nyaruka.com"], mail.outbox[0].recipients())
+        self.assertIn(invitation.secret, mail.outbox[0].body)
+
+        # try submitting email address for existing user
+        response = self.client.post(forget_url, {"email": "admin@nyaruka.com"})
+        self.assertLoginRedirect(response)
+
+        # will have a recovery token
+        token1 = RecoveryToken.objects.get(user=self.admin)
+
+        # and a recovery link email sent
+        self.assertEqual(2, len(mail.outbox))
+        self.assertEqual(["admin@nyaruka.com"], mail.outbox[1].recipients())
+        self.assertIn(token1.token, mail.outbox[1].body)
+
+        # try submitting again for same email address - should error because it's too soon after last one
+        response = self.client.post(forget_url, {"email": "admin@nyaruka.com"})
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, "A recovery email was already sent to this address recently.")
+
+        # make that token look older and try again
+        token1.created_on = timezone.now() - timedelta(minutes=30)
+        token1.save(update_fields=("created_on",))
+
+        response = self.client.post(forget_url, {"email": "admin@nyaruka.com"})
+        self.assertLoginRedirect(response)
+
+        # will have a new recovery token and the previous one is deleted
+        token2 = RecoveryToken.objects.get(user=self.admin)
+        self.assertFalse(RecoveryToken.objects.filter(id=token1.id).exists())
+
+        self.assertEqual(3, len(mail.outbox))
+        self.assertEqual(["admin@nyaruka.com"], mail.outbox[2].recipients())
+        self.assertIn(token2.token, mail.outbox[2].body)
+
+        # failed login records unaffected
+        self.assertEqual(1, FailedLogin.objects.filter(username="admin@nyaruka.com").count())
+
+    def test_recover(self):
+        recover_url = reverse("orgs.user_recover", args=["1234567890"])
+
+        FailedLogin.objects.create(username="admin@nyaruka.com")
+        FailedLogin.objects.create(username="editor@nyaruka.com")
+
+        # make sure smartmin view is redirecting to our view
+        response = self.client.get(reverse("users.user_recover", args=["1234567890"]))
+        self.assertRedirect(response, recover_url, status_code=301)
+
+        # 404 if token doesn't exist
+        response = self.client.get(recover_url)
+        self.assertEqual(404, response.status_code)
+
+        # create token but too old
+        token = RecoveryToken.objects.create(
+            user=self.admin, token="1234567890", created_on=timezone.now() - timedelta(days=1)
+        )
+
+        # user will be redirected to forget password page and told to start again
+        response = self.client.get(recover_url)
+        self.assertRedirect(response, reverse("orgs.user_forget"))
+
+        token.created_on = timezone.now() - timedelta(minutes=45)
+        token.save(update_fields=("created_on",))
+
+        self.assertUpdateFetch(recover_url, [None], form_fields=("new_password", "confirm_password"))
+
+        # try submitting empty form
+        self.assertUpdateSubmit(
+            recover_url,
+            None,
+            {},
+            form_errors={"new_password": "This field is required.", "confirm_password": "This field is required."},
+            object_unchanged=self.admin,
+        )
+
+        # try to set password to something too simple
+        self.assertUpdateSubmit(
+            recover_url,
+            None,
+            {"new_password": "123", "confirm_password": "123"},
+            form_errors={"new_password": "This password is too short. It must contain at least 8 characters."},
+            object_unchanged=self.admin,
+        )
+
+        # try to set password but confirmation doesn't match
+        self.assertUpdateSubmit(
+            recover_url,
+            None,
+            {"new_password": "Qwerty123", "confirm_password": "Azerty123"},
+            form_errors={"__all__": "New password and confirmation don't match."},
+            object_unchanged=self.admin,
+        )
+
+        # on successfull password reset, user is redirected to login page
+        response = self.assertUpdateSubmit(
+            recover_url, None, {"new_password": "Azerty123", "confirm_password": "Azerty123"}
+        )
+        self.assertLoginRedirect(response)
+
+        response = self.client.get(response.url)
+        self.assertContains(response, "Your password has been updated successfully.")
+
+        # their password has been updated, recovery token deleted and any failed login records deleted
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.check_password("Azerty123"))
+        self.assertEqual(0, self.admin.recovery_tokens.count())
+
+        self.assertEqual(0, FailedLogin.objects.filter(username="admin@nyaruka.com").count())  # deleted
+        self.assertEqual(1, FailedLogin.objects.filter(username="editor@nyaruka.com").count())  # unaffected
+
     def test_token(self):
         token_url = reverse("orgs.user_token")
 
-        self.assertLoginRedirect(self.client.get(token_url))
-
-        self.login(self.user)
-
-        self.assertLoginRedirect(self.client.get(token_url))
-
-        self.login(self.agent)
-
-        self.assertLoginRedirect(self.client.get(token_url))
+        self.assertRequestDisallowed(token_url, [None, self.user, self.agent])
 
         self.login(self.editor)
 
@@ -3685,7 +3770,7 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_verify_email(self):
         self.assertEqual(self.admin.settings.email_status, "U")
-        self.assertIsNone(self.admin.settings.email_verification_secret)
+        self.assertTrue(self.admin.settings.email_verification_secret)
 
         self.admin.settings.email_verification_secret = "SECRET"
         self.admin.settings.save(update_fields=("email_verification_secret",))
@@ -3729,7 +3814,6 @@ class UserCRUDLTest(TembaTest, CRUDLTestMixin):
         self.admin2.settings.refresh_from_db()
         self.assertEqual(self.admin2.settings.email_status, "U")
 
-    @override_settings(SEND_EMAILS=True)
     def test_send_verification_email(self):
         r = get_redis_connection()
         send_verification_email_url = reverse("orgs.user_send_verification_email")
@@ -4467,7 +4551,6 @@ class BulkExportTest(TembaTest):
 
 
 class InvitationCRUDLTest(TembaTest, CRUDLTestMixin):
-    @override_settings(SEND_EMAILS=True)
     def test_create(self):
         create_url = reverse("orgs.invitation_create")
 

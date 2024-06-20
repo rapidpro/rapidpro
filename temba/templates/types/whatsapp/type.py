@@ -61,21 +61,27 @@ class WhatsAppType(TemplateType):
 
             if comp_type == "HEADER":
                 comp_vars = {}
+                header_fmt = component.get("format", "TEXT")
 
-                if component.get("format", "TEXT") == "TEXT":
+                if header_fmt == "TEXT":
+                    comp_type = "header/text"
                     comp_vars = add_variables(self._extract_variables(comp_text), "text")
+                elif header_fmt in ("IMAGE", "VIDEO", "DOCUMENT"):
+                    comp_type = "header/media"
+                    comp_vars = add_variables("1", header_fmt.lower())
                 else:
+                    comp_type = "header/unknown"
                     supported = False
 
-                components.append({"type": "header", "name": "header", "content": comp_text, "variables": comp_vars})
+                components.append({"name": "header", "type": comp_type, "content": comp_text, "variables": comp_vars})
 
             elif comp_type == "BODY":
                 comp_vars = add_variables(self._extract_variables(comp_text), "text")
 
-                components.append({"type": "body", "name": "body", "content": comp_text, "variables": comp_vars})
+                components.append({"name": "body", "type": "body/text", "content": comp_text, "variables": comp_vars})
 
             elif comp_type == "FOOTER":
-                components.append({"type": "footer", "name": "footer", "content": comp_text, "variables": {}})
+                components.append({"name": "footer", "type": "footer/text", "content": comp_text, "variables": {}})
 
             elif comp_type == "BUTTONS":
                 for idx, button in enumerate(component["buttons"]):
@@ -87,8 +93,8 @@ class WhatsAppType(TemplateType):
                         button_vars = add_variables(self._extract_variables(button_text), "text")
                         components.append(
                             {
-                                "type": "button/quick_reply",
                                 "name": button_name,
+                                "type": "button/quick_reply",
                                 "content": button_text,
                                 "variables": button_vars,
                             }
@@ -99,8 +105,8 @@ class WhatsAppType(TemplateType):
                         button_vars = add_variables(self._extract_variables(button_url), "text")
                         components.append(
                             {
-                                "type": "button/url",
                                 "name": button_name,
+                                "type": "button/url",
                                 "content": button_url,
                                 "display": button_text,
                                 "variables": button_vars,
@@ -111,8 +117,8 @@ class WhatsAppType(TemplateType):
                         phone_number = button.get("phone_number", "")
                         components.append(
                             {
-                                "type": "button/phone_number",
                                 "name": button_name,
+                                "type": "button/phone_number",
                                 "content": phone_number,
                                 "display": button_text,
                                 "variables": {},
