@@ -29,7 +29,7 @@ from temba.msgs.models import (
 from temba.msgs.views import ScheduleForm
 from temba.orgs.models import Export
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, TembaTest, mock_mailroom, mock_uuids
+from temba.tests import CRUDLTestMixin, MockJsonResponse, TembaTest, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticket
@@ -1845,7 +1845,27 @@ class BroadcastTest(TembaTest):
 
     def test_model(self):
         schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_MONTHLY)
-        broadcast1 = Broadcast.create_legacy(
+
+        # test JSON serialization of broadcast payload to mailroom
+        with patch("requests.post") as mock_post:
+
+            def mocked_post(*args, **kwargs):
+                b = self.create_broadcast(self.admin, {"eng": {"text": "Hello everyone"}}, contacts=[self.joe])
+                return MockJsonResponse(200, {"id": b.id})
+
+            mock_post.side_effect = mocked_post
+            Broadcast.create(
+                self.org,
+                self.user,
+                {"eng": {"text": "Hello everyone"}},
+                base_language="eng",
+                contacts=[self.joe],
+                groups=[self.joe_and_frank],
+            )
+
+        mock_post.assert_called_once()
+
+        bcast2 = Broadcast.create_legacy(
             self.org,
             self.user,
             {"eng": {"text": "Hello everyone"}, "spa": {"text": "Hola a todos"}, "fra": {"text": "Salut à tous"}},
@@ -1854,40 +1874,39 @@ class BroadcastTest(TembaTest):
             contacts=[self.kevin, self.lucy],
             schedule=schedule,
         )
-        self.assertEqual("Q", broadcast1.status)
-        self.assertEqual(True, broadcast1.is_active)
+        self.assertEqual("Q", bcast2.status)
+        self.assertTrue(bcast2.is_active)
 
         with patch("temba.mailroom.queue_broadcast") as mock_queue_broadcast:
-            broadcast1.send_async()
+            bcast2.send_async()
 
-            mock_queue_broadcast.assert_called_once_with(broadcast1)
+            mock_queue_broadcast.assert_called_once_with(bcast2)
 
         # create a broadcast that looks like it has been sent
-        broadcast2 = self.create_broadcast(
-            self.admin, {"eng": {"text": "Hi everyone"}}, contacts=[self.kevin, self.lucy]
-        )
+        bcast3 = self.create_broadcast(self.admin, {"eng": {"text": "Hi everyone"}}, contacts=[self.kevin, self.lucy])
 
-        self.assertEqual(2, broadcast2.msgs.count())
-        self.assertEqual(2, broadcast2.get_message_count())
+        self.assertEqual(2, bcast3.msgs.count())
+        self.assertEqual(2, bcast3.get_message_count())
 
-        self.assertEqual(2, Broadcast.objects.count())
-        self.assertEqual(2, Msg.objects.count())
+        self.assertEqual(3, Broadcast.objects.count())
+        self.assertEqual(3, Msg.objects.count())
         self.assertEqual(1, Schedule.objects.count())
 
-        broadcast1.delete(self.admin, soft=True)
+        bcast2.delete(self.admin, soft=True)
 
-        self.assertEqual(2, Broadcast.objects.count())
-        self.assertEqual(2, Msg.objects.count())
+        self.assertEqual(3, Broadcast.objects.count())
+        self.assertEqual(3, Msg.objects.count())
         self.assertEqual(0, Schedule.objects.count())  # schedule actually deleted
 
         # schedule should also be inactive
-        broadcast1.delete(self.admin, soft=False)
-        broadcast2.delete(self.admin, soft=False)
+        bcast2.delete(self.admin, soft=False)
+        bcast3.delete(self.admin, soft=False)
 
-        self.assertEqual(0, Broadcast.objects.count())
-        self.assertEqual(0, Msg.objects.count())
+        self.assertEqual(1, Broadcast.objects.count())
+        self.assertEqual(1, Msg.objects.count())
         self.assertEqual(0, Schedule.objects.count())
 
+        # can't create broadcast with no recipients
         with self.assertRaises(AssertionError):
             Broadcast.create_legacy(self.org, self.user, {"und": {"text": "no recipients"}})
 
