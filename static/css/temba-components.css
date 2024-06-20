@@ -85,7 +85,7 @@ html {
 
 
   /* Shadows */
-  --widget-box-shadow: rgba(0, 0, 0, 0.05) 0px 3px 7px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+  --widget-box-shadow: rgba(-1, -1, 0, .1) 0px 1px 7px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
   --widget-box-shadow-focused: 0 0 0 3px rgba(164, 202, 254, .45), rgba(0, 0, 0, 0.05) 0px 3px 7px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
   --widget-box-shadow-focused-error: 0 0 0 3px rgba(var(--error-rgb), 0.3);
   --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
