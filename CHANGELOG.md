@@ -1,3 +1,8 @@
+v9.1.147 (2024-06-20)
+-------------------------
+ * Use mailroom to create broadcasts from API calls
+ * Use mailroom to send broadcasts to flow nodes
+
 v9.1.146 (2024-06-17)
 -------------------------
  * Don't clip footer when ticket history grows
