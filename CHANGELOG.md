@@ -1,3 +1,7 @@
+v9.1.148 (2024-06-20)
+-------------------------
+ * Fix Broadcast.create
+
 v9.1.147 (2024-06-20)
 -------------------------
  * Use mailroom to create broadcasts from API calls
