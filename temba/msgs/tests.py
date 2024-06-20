@@ -2032,7 +2032,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             payload["schedule"] = {"send_when": send_when, "repeat_period": Schedule.REPEAT_NEVER}
         return payload
 
-    def test_create(self):
+    @mock_mailroom
+    def test_create(self, mr_mocks):
         create_url = reverse("msgs.broadcast_create")
 
         text = "I hope you are having a great day"

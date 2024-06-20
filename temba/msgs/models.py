@@ -263,6 +263,7 @@ class Broadcast(models.Model):
         query=None,
         node_uuid=None,
         optin=None,
+        schedule=None,
     ):
         assert groups or contacts or urns or query or node_uuid, "can't create broadcast without recipients"
         assert base_language and languages.get_name(base_language), f"{base_language} is not a valid language code"
@@ -279,6 +280,7 @@ class Broadcast(models.Model):
             query=query,
             node_uuid=node_uuid,
             optin_id=optin.id if optin else None,
+            schedule=schedule,
         )
 
         return cls.objects.get(id=response["id"])

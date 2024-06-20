@@ -175,6 +175,17 @@ class URNResult:
     e164: bool = False
 
 
+@dataclass
+class ScheduleSpec:
+    """
+    Describes a schedule to be created
+    """
+
+    start: str
+    repeat_period: str
+    repeat_days_of_week: str = None
+
+
 class MailroomClient:
     """
     Basic web client for mailroom
@@ -325,6 +336,7 @@ class MailroomClient:
         query: str,
         node_uuid: str,
         optin_id: int,
+        schedule: ScheduleSpec,
     ):
         payload = {
             "org_id": org_id,
@@ -337,6 +349,7 @@ class MailroomClient:
             "query": query,
             "node_uuid": node_uuid,
             "optin_id": optin_id,
+            "schedule": asdict(schedule) if schedule else None,
         }
 
         return self._request("msg/broadcast", payload, encode_json=True)

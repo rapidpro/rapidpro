@@ -17,10 +17,11 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import FlowRun, FlowSession
 from temba.locations.models import AdminBoundary
-from temba.mailroom.client import ContactSpec, EmptyBroadcastException, MailroomClient, URNResult
+from temba.mailroom.client import ContactSpec, EmptyBroadcastException, MailroomClient, ScheduleSpec, URNResult
 from temba.mailroom.modifiers import Modifier
 from temba.msgs.models import Broadcast, Msg, OptIn
 from temba.orgs.models import Org
+from temba.schedules.models import Schedule
 from temba.tests.dates import parse_datetime
 from temba.tickets.models import Ticket, TicketEvent, Topic
 from temba.utils import get_anonymous_user, json
@@ -314,6 +315,7 @@ class TestClient(MailroomClient):
         query: str,
         node_uuid: str,
         optin_id: int,
+        schedule: ScheduleSpec,
     ):
         org = Org.objects.get(id=org_id)
         user = User.objects.get(id=user_id)
@@ -321,7 +323,7 @@ class TestClient(MailroomClient):
         groups = org.groups.filter(id__in=group_ids) if group_ids else []
         optin = OptIn.objects.get(id=optin_id) if optin_id else None
         bcast = create_broadcast(
-            org, user, translations, base_language, groups, contacts, urns, query, node_uuid, optin
+            org, user, translations, base_language, groups, contacts, urns, query, node_uuid, optin, schedule
         )
         return {"id": bcast.id}
 
@@ -884,7 +886,17 @@ def send_to_contact(org, contact, text, attachments) -> Msg:
 
 
 def create_broadcast(
-    org, user, translations: dict, base_language: str, groups, contacts, urns: list, query: str, node_uuid: str, optin
+    org,
+    user,
+    translations: dict,
+    base_language: str,
+    groups,
+    contacts,
+    urns: list,
+    query: str,
+    node_uuid: str,
+    optin,
+    schedule,
 ) -> Broadcast:
 
     if node_uuid:
@@ -898,6 +910,14 @@ def create_broadcast(
     if not (groups or contacts or urns or query):
         raise EmptyBroadcastException()
 
+    if schedule:
+        schedule = Schedule.objects.create(
+            org=org,
+            repeat_period=schedule.repeat_period,
+            repeat_days_of_week=schedule.repeat_days_of_week,
+            next_fire=schedule.start,
+        )
+
     bcast = Broadcast.objects.create(
         org=org,
         translations=translations,
@@ -905,6 +925,7 @@ def create_broadcast(
         urns=urns,
         query=query,
         optin=optin,
+        schedule=schedule,
         created_by=user,
         modified_by=user,
     )

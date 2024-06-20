@@ -37,7 +37,6 @@ from temba.orgs.views import (
     OrgObjPermsMixin,
     OrgPermsMixin,
 )
-from temba.schedules.models import Schedule
 from temba.schedules.views import ScheduleFormMixin
 from temba.utils import json, languages
 from temba.utils.compose import compose_deserialize, compose_serialize
@@ -344,7 +343,7 @@ class BroadcastCRUDL(SmartCRUDL):
     class Create(OrgPermsMixin, SmartWizardView):
         form_list = [("target", TargetForm), ("compose", ComposeForm), ("schedule", ScheduleForm)]
         success_url = "@msgs.broadcast_scheduled"
-        submit_button_name = _("Create Broadcast")
+        submit_button_name = _("Create")
 
         def get_form_kwargs(self, step):
             return {"org": self.request.org}
@@ -385,24 +384,25 @@ class BroadcastCRUDL(SmartCRUDL):
             schedule = None
 
             if send_when == ScheduleForm.SEND_LATER:
-                start_time = schedule_form.cleaned_data["start_datetime"]
-                repeat_period = schedule_form.cleaned_data["repeat_period"]
-                repeat_days_of_week = schedule_form.cleaned_data["repeat_days_of_week"]
-                schedule = Schedule.create(org, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week)
+                start = schedule_form.cleaned_data["start_datetime"].astimezone(org.timezone)
+                schedule = mailroom.ScheduleSpec(
+                    start=start,
+                    repeat_period=schedule_form.cleaned_data["repeat_period"],
+                    repeat_days_of_week=schedule_form.cleaned_data["repeat_days_of_week"],
+                )
 
-            self.object = Broadcast.create_legacy(
+            self.object = Broadcast.create(
                 org,
                 user,
-                translations=translations,
-                groups=list(recipients["groups"]),
-                contacts=list(recipients["contacts"]),
-                schedule=schedule,
+                translations,
+                base_language=next(iter(translations)),
+                groups=recipients["groups"],
+                contacts=recipients["contacts"],
                 optin=optin,
+                schedule=schedule,
             )
 
-            # if we are sending now, just kick it off now
             if send_when == ScheduleForm.SEND_NOW:
-                self.object.send_async()
                 return HttpResponseRedirect(reverse("msgs.broadcast_list"))
 
             return HttpResponseRedirect(self.get_success_url())
