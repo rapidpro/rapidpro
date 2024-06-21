@@ -274,7 +274,11 @@ BRAND = {
     "hosts": ["rapidpro.io"],
     "domain": "app.rapidpro.io",
     "emails": {"notifications": "support@rapidpro.io"},
-    "logos": {"primary": "images/logo-dark.svg", "favico": "brands/rapidpro/rapidpro.ico"},
+    "logos": {
+        "primary": "images/logo-dark.svg",
+        "favico": "brands/rapidpro/rapidpro.ico",
+        "avatar": "brands/rapidpro/rapidpro-avatar.webp",
+    },
     "landing": {
         "hero": "brands/rapidpro/splash.jpg",
     },

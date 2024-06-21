@@ -13,7 +13,7 @@
               class="flex-grow -mt-2">
     <temba-tab class="chat" icon="message" name="{{ _("Chat") |escapejs }}">
       <div style="border-top-right-radius: var(--curvature);" class="flex flex-grow flex-col overflow-y-auto">
-        <temba-contact-chat contact="{{ object.uuid }}" monitor="true">
+        <temba-contact-chat contact="{{ object.uuid }}" monitor="true" avatar="{{ branding.logos.avatar }}">
         </temba-contact-chat>
       </div>
     </temba-tab>
