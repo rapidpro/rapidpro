@@ -2411,7 +2411,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
         history = response.json()["events"]
-        self.assertEqual(98, len(history))
+        self.assertEqual(96, len(history))
 
         def assertHistoryEvent(events, index, expected_type, **kwargs):
             item = events[index]
@@ -2429,15 +2429,13 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         assertHistoryEvent(history, 5, "ticket_closed", ticket__body="Question 1")
         assertHistoryEvent(history, 6, "ticket_opened", ticket__body="Question 1")
         assertHistoryEvent(history, 7, "airtime_transferred", actual_amount="100.00")
-        assertHistoryEvent(history, 8, "run_result_changed", value="green")
-        assertHistoryEvent(history, 9, "webhook_called", url="https://example.com/")
-        assertHistoryEvent(history, 10, "msg_created", msg__text="What is your favorite color?")
-        assertHistoryEvent(history, 11, "flow_entered", flow__name="Colors")
-        assertHistoryEvent(history, 12, "msg_received", msg__text="Message caption")
+        assertHistoryEvent(history, 8, "msg_created", msg__text="What is your favorite color?")
+        assertHistoryEvent(history, 9, "flow_entered", flow__name="Colors")
+        assertHistoryEvent(history, 10, "msg_received", msg__text="Message caption")
         assertHistoryEvent(
-            history, 13, "msg_created", msg__text="A beautiful broadcast", created_by__email="viewer@nyaruka.com"
+            history, 11, "msg_created", msg__text="A beautiful broadcast", created_by__email="viewer@nyaruka.com"
         )
-        assertHistoryEvent(history, 14, "campaign_fired", campaign__name="Planting Reminders")
+        assertHistoryEvent(history, 12, "campaign_fired", campaign__name="Planting Reminders")
         assertHistoryEvent(history, -1, "msg_received", msg__text="Inbound message 11")
 
         # revert back to reading only from DB
@@ -2467,8 +2465,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         response = self.fetch_protected(url + "?limit=100", self.admin)
         history = response.json()["events"]
 
-        self.assertEqual(98, len(history))
-        assertHistoryEvent(history, 10, "msg_created", msg__text="What is your favorite color?")
+        self.assertEqual(96, len(history))
+        assertHistoryEvent(history, 8, "msg_created", msg__text="What is your favorite color?")
 
         # if a new message comes in
         self.create_incoming_msg(self.joe, "Newer message")
@@ -2484,7 +2482,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         # with our recent flag on, should not see the older messages
         events = response.json()["events"]
-        self.assertEqual(15, len(events))
+        self.assertEqual(13, len(events))
         self.assertContains(response, "file.mp4")
 
         # can't view history of contact in another org
@@ -2508,7 +2506,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
 
         response = self.fetch_protected(url + "?limit=200", self.admin)
         history = response.json()["events"]
-        self.assertEqual(102, len(history))
+        self.assertEqual(100, len(history))
 
         # before date should not match our last activity, that only happens when we truncate
         resp_json = response.json()
@@ -2529,10 +2527,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         assertHistoryEvent(history, 9, "ticket_closed")
         assertHistoryEvent(history, 10, "ticket_opened")
         assertHistoryEvent(history, 11, "airtime_transferred")
-        assertHistoryEvent(history, 12, "run_result_changed")
-        assertHistoryEvent(history, 13, "webhook_called")
-        assertHistoryEvent(history, 14, "msg_created", msg__text="What is your favorite color?")
-        assertHistoryEvent(history, 15, "flow_entered")
+        assertHistoryEvent(history, 12, "msg_created", msg__text="What is your favorite color?")
+        assertHistoryEvent(history, 13, "flow_entered")
 
         # make our message event older than our planting reminder
         self.message_event.created_on = self.planting_reminder.created_on - timedelta(days=1)
@@ -2594,14 +2590,10 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(200, response.status_code)
 
         resp_json = response.json()
-        self.assertEqual(13, len(resp_json["events"]))
+        self.assertEqual(9, len(resp_json["events"]))
         self.assertEqual(
             [
                 "flow_exited",
-                "failure",
-                "error",
-                "email_sent",
-                "run_result_changed",
                 "contact_name_changed",
                 "contact_name_changed",
                 "contact_language_changed",

@@ -618,7 +618,10 @@
                     class="flex-grow">
           <temba-tab icon="message" name="{{ _("Chat") |escapejs }}">
             <div style="border-top-right-radius: var(--curvature);" class="flex flex-grow flex-col overflow-y-auto">
-              <temba-contact-chat agent="{{ request.user.email }}" monitor="true" -temba-message-sent="handleMessageSent">
+              <temba-contact-chat agent="{{ request.user.email }}"
+                                  monitor="true"
+                                  -temba-message-sent="handleMessageSent"
+                                  avatar="{{ branding.logos.avatar }}">
               </temba-contact-chat>
             </div>
           </temba-tab>

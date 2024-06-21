@@ -22,7 +22,7 @@
 {% block post-title %}
   {% if object.is_archived %}
     <div class="labels mt-2">
-      <div onclick="goto(event)" href="{% url 'campaigns.campaign_archived' %}" class="lbl linked">{% trans "Archived" %}</div>
+      <a href="{% url 'campaigns.campaign_archived' %}" class="lbl linked">{% trans "Archived" %}</a>
     </div>
   {% endif %}
 {% endblock post-title %}
@@ -45,9 +45,7 @@
         {% endifchanged %}
         <tr valign="center" data-event-id="{{ event.pk }}" class="campaign-event">
           <td class="whitespace-nowrap">
-            <span onclick="goto(event)"
-                  href="{% url 'campaigns.campaignevent_read' event.campaign.uuid event.pk %}"
-                  class="linked">{{ event.offset_display }} {{ event.relative_to.name }}</span>
+            <a href="{% url 'campaigns.campaignevent_read' event.campaign.uuid event.pk %}" class="linked">{{ event.offset_display }} {{ event.relative_to.name }}</a>
           </td>
           <td class="w-full">
             {% if event.event_type == 'M' %}
@@ -57,7 +55,7 @@
             {% else %}
               <div class="start-flow">
                 Start
-                <span onclick="goto(event)" href="{% url 'flows.flow_editor' event.flow.uuid %}" class="linked">{{ event.flow.name }}</span>
+                <a href="{% url 'flows.flow_editor' event.flow.uuid %}" class="linked">{{ event.flow.name }}</a>
               </div>
             {% endif %}
           </td>
