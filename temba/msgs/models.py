@@ -326,7 +326,7 @@ class Broadcast(models.Model):
             if self.schedule:
                 self.schedule.delete()
 
-    def update_recipients(self, *, groups=None, contacts=None, urns: list[str] = None):
+    def update_recipients(self, *, groups=None, contacts=None):
         """
         Only used to update recipients for scheduled / repeating broadcasts
         """
@@ -334,21 +334,11 @@ class Broadcast(models.Model):
         self.groups.clear()
         self.contacts.clear()
 
-        self._set_recipients(groups=groups, contacts=contacts, urns=urns)
-
-    def _set_recipients(self, *, groups=None, contacts=None, urns: list[str] = None):
-        """
-        Sets the recipients which may be contact groups, contacts or contact URNs.
-        """
-        if groups:
+        if groups:  # pragma: no cover
             self.groups.add(*groups)
 
         if contacts:
             self.contacts.add(*contacts)
-
-        if urns:
-            self.urns = urns
-            self.save(update_fields=("urns",))
 
     def __repr__(self):
         return f'<Broadcast: id={self.id} text="{self.get_translation()["text"]}">'
