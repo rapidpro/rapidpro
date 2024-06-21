@@ -910,7 +910,7 @@ def create_broadcast(
     if not (groups or contacts or urns or query):
         raise EmptyBroadcastException()
 
-    if schedule:
+    if schedule and isinstance(schedule, ScheduleSpec):
         schedule = Schedule.objects.create(
             org=org,
             repeat_period=schedule.repeat_period,

@@ -215,41 +215,6 @@ class Broadcast(models.Model):
     is_active = models.BooleanField(null=True, default=True)
 
     @classmethod
-    def create_legacy(
-        cls,
-        org,
-        user,
-        translations: dict[str, dict] = None,
-        *,
-        base_language: str = None,
-        groups=None,
-        contacts=None,
-        urns: list[str] = None,
-        **kwargs,
-    ):
-        assert groups or contacts or urns, "can't create broadcast without recipients"
-
-        # if base language is not provided
-        if not base_language:
-            base_language = next(iter(translations))
-
-        assert base_language in translations, "no translation for base language"
-
-        broadcast = cls.objects.create(
-            org=org,
-            translations=translations,
-            base_language=base_language,
-            created_by=user,
-            modified_by=user,
-            **kwargs,
-        )
-
-        # set our recipients
-        broadcast._set_recipients(groups=groups, contacts=contacts, urns=urns)
-
-        return broadcast
-
-    @classmethod
     def create(
         cls,
         org,
