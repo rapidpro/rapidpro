@@ -1,3 +1,7 @@
+v9.1.153 (2024-06-21)
+-------------------------
+ * Fix z-index issue with content menu and chat
+
 v9.1.152 (2024-06-21)
 -------------------------
  * Fix ticket switching bug
