@@ -1,3 +1,7 @@
+v9.1.154 (2024-06-21)
+-------------------------
+ * Fix z-index issue properly
+
 v9.1.153 (2024-06-21)
 -------------------------
  * Fix z-index issue with content menu and chat
