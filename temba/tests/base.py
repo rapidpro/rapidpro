@@ -32,7 +32,13 @@ from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
 
-from .mailroom import contact_urn_lookup, create_contact_locally, resolve_destination, update_field_locally
+from .mailroom import (
+    contact_urn_lookup,
+    create_broadcast,
+    create_contact_locally,
+    resolve_destination,
+    update_field_locally,
+)
 from .s3 import jsonlgz_encode
 
 
@@ -467,7 +473,7 @@ class TembaTest(SmartminTest):
         created_on=None,
         org=None,
     ):
-        bcast = Broadcast.create_legacy(
+        bcast = create_broadcast(
             org or self.org,
             user,
             translations=translations,
@@ -475,12 +481,26 @@ class TembaTest(SmartminTest):
             groups=groups,
             contacts=contacts,
             urns=urns,
+            query=None,
+            node_uuid=None,
             optin=optin,
-            parent=parent,
             schedule=schedule,
-            created_on=created_on or timezone.now(),
-            status=status,
         )
+
+        update_fields = []
+
+        if bcast.status != status:
+            bcast.status = status
+            update_fields.append("status")
+        if parent:
+            bcast.parent = parent
+            update_fields.append("parent")
+        if created_on:
+            bcast.created_on = created_on
+            update_fields.append("created_on")
+
+        if update_fields:
+            bcast.save(update_fields=update_fields)
 
         contacts = set(bcast.contacts.all())
         for group in bcast.groups.all():

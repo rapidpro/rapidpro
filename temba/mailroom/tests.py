@@ -13,6 +13,7 @@ from temba.flows.models import FlowRun, FlowStart
 from temba.ivr.models import Call
 from temba.mailroom.client import ContactSpec, RequestException, get_client
 from temba.msgs.models import Msg
+from temba.schedules.models import Schedule
 from temba.tests import MockJsonResponse, MockResponse, TembaTest, matchers
 from temba.tests.engine import MockSessionWriter
 from temba.tickets.models import TicketEvent
@@ -25,6 +26,7 @@ from . import (
     FlowValidationException,
     Inclusions,
     QueryValidationException,
+    ScheduleSpec,
     StartPreview,
     URNResult,
     URNValidationException,
@@ -406,6 +408,7 @@ class MailroomClientTest(TembaTest):
                 "age > 20",
                 "",
                 567,
+                ScheduleSpec(start="2024-06-20T16:23:30Z", repeat_period=Schedule.REPEAT_DAILY),
             )
 
             self.assertEqual({"id": 123}, resp)
@@ -426,6 +429,7 @@ class MailroomClientTest(TembaTest):
                 "query": "age > 20",
                 "node_uuid": "",
                 "optin_id": 567,
+                "schedule": {"start": "2024-06-20T16:23:30Z", "repeat_period": "D", "repeat_days_of_week": None},
             },
             json.loads(call[1]["data"]),
         )
@@ -629,7 +633,7 @@ class MailroomClientTest(TembaTest):
         )
 
         with self.assertRaises(EmptyBroadcastException) as e:
-            get_client().msg_broadcast(1, 2, {}, "eng", [], [], [], "", "", None)
+            get_client().msg_broadcast(1, 2, {}, "eng", [], [], [], "", "", None, None)
 
         mock_post.return_value = MockJsonResponse(422, {"error": "node isn't valid", "code": "flow:invalid"})
 

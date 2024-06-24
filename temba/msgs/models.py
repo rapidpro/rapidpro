@@ -216,41 +216,6 @@ class Broadcast(models.Model):
     is_active = models.BooleanField(null=True, default=True)
 
     @classmethod
-    def create_legacy(
-        cls,
-        org,
-        user,
-        translations: dict[str, dict] = None,
-        *,
-        base_language: str = None,
-        groups=None,
-        contacts=None,
-        urns: list[str] = None,
-        **kwargs,
-    ):
-        assert groups or contacts or urns, "can't create broadcast without recipients"
-
-        # if base language is not provided
-        if not base_language:
-            base_language = next(iter(translations))
-
-        assert base_language in translations, "no translation for base language"
-
-        broadcast = cls.objects.create(
-            org=org,
-            translations=translations,
-            base_language=base_language,
-            created_by=user,
-            modified_by=user,
-            **kwargs,
-        )
-
-        # set our recipients
-        broadcast._set_recipients(groups=groups, contacts=contacts, urns=urns)
-
-        return broadcast
-
-    @classmethod
     def create(
         cls,
         org,
@@ -264,6 +229,7 @@ class Broadcast(models.Model):
         query=None,
         node_uuid=None,
         optin=None,
+        schedule=None,
     ):
         assert groups or contacts or urns or query or node_uuid, "can't create broadcast without recipients"
         assert base_language and languages.get_name(base_language), f"{base_language} is not a valid language code"
@@ -280,6 +246,7 @@ class Broadcast(models.Model):
             query=query,
             node_uuid=node_uuid,
             optin_id=optin.id if optin else None,
+            schedule=schedule,
         )
 
         return cls.objects.get(id=response["id"])
@@ -361,7 +328,7 @@ class Broadcast(models.Model):
             if self.schedule:
                 self.schedule.delete()
 
-    def update_recipients(self, *, groups=None, contacts=None, urns: list[str] = None):
+    def update_recipients(self, *, groups=None, contacts=None):
         """
         Only used to update recipients for scheduled / repeating broadcasts
         """
@@ -369,21 +336,11 @@ class Broadcast(models.Model):
         self.groups.clear()
         self.contacts.clear()
 
-        self._set_recipients(groups=groups, contacts=contacts, urns=urns)
-
-    def _set_recipients(self, *, groups=None, contacts=None, urns: list[str] = None):
-        """
-        Sets the recipients which may be contact groups, contacts or contact URNs.
-        """
-        if groups:
+        if groups:  # pragma: no cover
             self.groups.add(*groups)
 
         if contacts:
             self.contacts.add(*contacts)
-
-        if urns:
-            self.urns = urns
-            self.save(update_fields=("urns",))
 
     def __repr__(self):
         return f'<Broadcast: id={self.id} text="{self.get_translation()["text"]}">'

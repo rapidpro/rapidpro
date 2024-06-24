@@ -29,7 +29,7 @@ from temba.msgs.models import (
 from temba.msgs.views import ScheduleForm
 from temba.orgs.models import Export
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, MockJsonResponse, TembaTest, mock_mailroom, mock_uuids
+from temba.tests import CRUDLTestMixin, TembaTest, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticket
@@ -1843,29 +1843,11 @@ class BroadcastTest(TembaTest):
         self.assertEqual(0, ChannelCount.get_day_count(self.twitter, ChannelCount.INCOMING_MSG_TYPE, today))
         self.assertEqual(1, ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today))
 
-    def test_model(self):
+    @mock_mailroom
+    def test_model(self, mr_mocks):
         schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_MONTHLY)
 
-        # test JSON serialization of broadcast payload to mailroom
-        with patch("requests.post") as mock_post:
-
-            def mocked_post(*args, **kwargs):
-                b = self.create_broadcast(self.admin, {"eng": {"text": "Hello everyone"}}, contacts=[self.joe])
-                return MockJsonResponse(200, {"id": b.id})
-
-            mock_post.side_effect = mocked_post
-            Broadcast.create(
-                self.org,
-                self.user,
-                {"eng": {"text": "Hello everyone"}},
-                base_language="eng",
-                contacts=[self.joe],
-                groups=[self.joe_and_frank],
-            )
-
-        mock_post.assert_called_once()
-
-        bcast2 = Broadcast.create_legacy(
+        bcast2 = Broadcast.create(
             self.org,
             self.user,
             {"eng": {"text": "Hello everyone"}, "spa": {"text": "Hola a todos"}, "fra": {"text": "Salut à tous"}},
@@ -1888,27 +1870,27 @@ class BroadcastTest(TembaTest):
         self.assertEqual(2, bcast3.msgs.count())
         self.assertEqual(2, bcast3.get_message_count())
 
-        self.assertEqual(3, Broadcast.objects.count())
-        self.assertEqual(3, Msg.objects.count())
+        self.assertEqual(2, Broadcast.objects.count())
+        self.assertEqual(2, Msg.objects.count())
         self.assertEqual(1, Schedule.objects.count())
 
         bcast2.delete(self.admin, soft=True)
 
-        self.assertEqual(3, Broadcast.objects.count())
-        self.assertEqual(3, Msg.objects.count())
+        self.assertEqual(2, Broadcast.objects.count())
+        self.assertEqual(2, Msg.objects.count())
         self.assertEqual(0, Schedule.objects.count())  # schedule actually deleted
 
         # schedule should also be inactive
         bcast2.delete(self.admin, soft=False)
         bcast3.delete(self.admin, soft=False)
 
-        self.assertEqual(1, Broadcast.objects.count())
-        self.assertEqual(1, Msg.objects.count())
+        self.assertEqual(0, Broadcast.objects.count())
+        self.assertEqual(0, Msg.objects.count())
         self.assertEqual(0, Schedule.objects.count())
 
         # can't create broadcast with no recipients
         with self.assertRaises(AssertionError):
-            Broadcast.create_legacy(self.org, self.user, {"und": {"text": "no recipients"}})
+            Broadcast.create(self.org, self.user, {"und": {"text": "no recipients"}}, base_language="und")
 
     @mock_mailroom
     def test_preview(self, mr_mocks):
@@ -2032,7 +2014,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             payload["schedule"] = {"send_when": send_when, "repeat_period": Schedule.REPEAT_NEVER}
         return payload
 
-    def test_create(self):
+    @mock_mailroom
+    def test_create(self, mr_mocks):
         create_url = reverse("msgs.broadcast_create")
 
         text = "I hope you are having a great day"
