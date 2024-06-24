@@ -1,3 +1,17 @@
+v9.1.155 (2024-06-24)
+-------------------------
+ * Fix WAC to addEventListener in OnSpload
+ * Fix horizontal scrolling for contacts list
+ * Add Broadcast.template
+
+v9.1.154 (2024-06-21)
+-------------------------
+ * Fix z-index issue properly
+
+v9.1.153 (2024-06-21)
+-------------------------
+ * Fix z-index issue with content menu and chat
+
 v9.1.152 (2024-06-21)
 -------------------------
  * Fix ticket switching bug

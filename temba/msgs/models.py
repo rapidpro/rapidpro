@@ -202,6 +202,7 @@ class Broadcast(models.Model):
     translations = models.JSONField()
     base_language = models.CharField(max_length=3)  # ISO-639-3
     optin = models.ForeignKey("msgs.OptIn", null=True, on_delete=models.PROTECT)
+    template = models.ForeignKey("templates.Template", null=True, on_delete=models.PROTECT)
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_QUEUED)
     created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_creations")
@@ -289,7 +290,8 @@ class Broadcast(models.Model):
         """
 
         def trans(d):
-            return {"text": "", "attachments": [], "quick_replies": []} | d  # ensure we always have text+attachments
+            # ensure that we have all fields
+            return {"text": "", "attachments": [], "quick_replies": [], "template_variables": []} | d
 
         if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
             if contact.language in self.translations:
