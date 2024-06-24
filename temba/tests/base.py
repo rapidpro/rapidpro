@@ -466,6 +466,7 @@ class TembaTest(SmartminTest):
         contacts=(),
         urns=(),
         optin=None,
+        exclude=None,
         status=Broadcast.STATUS_SENT,
         msg_status=Msg.STATUS_SENT,
         parent=None,
@@ -483,6 +484,7 @@ class TembaTest(SmartminTest):
             urns=urns,
             query=None,
             node_uuid=None,
+            exclude=exclude,
             optin=optin,
             schedule=schedule,
         )

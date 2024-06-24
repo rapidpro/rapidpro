@@ -197,6 +197,7 @@ class Broadcast(models.Model):
     contacts = models.ManyToManyField(Contact, related_name="addressed_broadcasts")
     urns = ArrayField(models.TextField(), null=True)
     query = models.TextField(null=True)
+    exclusions = models.JSONField(default=dict, null=True)
 
     # message content in different languages, e.g. {"eng": {"text": "Hello", "attachments": [...]}, "spa": ...}
     translations = models.JSONField()
@@ -228,6 +229,7 @@ class Broadcast(models.Model):
         urns=(),
         query=None,
         node_uuid=None,
+        exclude=None,
         optin=None,
         schedule=None,
     ):
@@ -245,6 +247,7 @@ class Broadcast(models.Model):
             urns=urns,
             query=query,
             node_uuid=node_uuid,
+            exclude=exclude,
             optin_id=optin.id if optin else None,
             schedule=schedule,
         )
