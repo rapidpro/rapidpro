@@ -141,7 +141,7 @@ def sync(request, channel_id):
                 if phone and text:
                     try:
                         msg_id = mailroom.get_client().android_message(
-                            channel.org_id, channel.id, phone, text, received_on=date
+                            channel.org, channel, phone, text, received_on=date
                         )
                         extra = dict(msg_id=msg_id)
                     except mailroom.URNValidationException:
@@ -162,8 +162,8 @@ def sync(request, channel_id):
                 if phone and call_tuple not in unique_calls and ChannelEvent.is_valid_type(cmd["type"]):
                     try:
                         mailroom.get_client().android_event(
-                            channel.org_id,
-                            channel.id,
+                            channel.org,
+                            channel,
                             phone,
                             cmd["type"],
                             extra={"duration": duration},
