@@ -6,6 +6,7 @@ import requests
 from django.conf import settings
 
 from temba.contacts.models import Contact
+from temba.msgs.models import Broadcast
 from temba.utils import json
 
 from ..modifiers import Modifier
@@ -17,15 +18,14 @@ from .exceptions import (
     URNValidationException,
 )
 from .types import (
-    BroadcastPreview,
     ContactSpec,
     Exclusions,
     Inclusions,
     ParsedQuery,
     QueryMetadata,
+    RecipientsPreview,
     ScheduleSpec,
     SearchResults,
-    StartPreview,
     URNResult,
 )
 
@@ -161,54 +161,65 @@ class MailroomClient:
 
         return self._request("flow/migrate", {"flow": definition, "to_version": to_version}, encode_json=True)
 
-    def flow_start_preview(self, org_id: int, flow_id: int, include: Inclusions, exclude: Exclusions) -> StartPreview:
-        payload = {
-            "org_id": org_id,
-            "flow_id": flow_id,
-            "include": asdict(include),
-            "exclude": asdict(exclude),
-        }
+    def flow_start_preview(self, org, flow, include: Inclusions, exclude: Exclusions) -> RecipientsPreview:
+        resp = self._request(
+            "flow/start_preview",
+            {
+                "org_id": org.id,
+                "flow_id": flow.id,
+                "include": asdict(include),
+                "exclude": asdict(exclude),
+            },
+        )
 
-        response = self._request("flow/start_preview", payload)
-        return StartPreview(query=response["query"], total=response["total"])
+        return RecipientsPreview(query=resp["query"], total=resp["total"])
 
     def msg_broadcast(
         self,
-        org_id: int,
-        user_id: int,
+        org,
+        user,
         translations: dict,
         base_language: str,
-        group_ids: list,
-        contact_ids: list,
+        groups,
+        contacts,
         urns: list,
         query: str,
         node_uuid: str,
         exclude: Exclusions,
-        optin_id: int,
+        optin,
         schedule: ScheduleSpec,
     ):
-        payload = {
-            "org_id": org_id,
-            "user_id": user_id,
-            "translations": translations,
-            "base_language": base_language,
-            "group_ids": group_ids,
-            "contact_ids": contact_ids,
-            "urns": urns,
-            "query": query,
-            "node_uuid": node_uuid,
-            "exclude": asdict(exclude) if exclude else None,
-            "optin_id": optin_id,
-            "schedule": asdict(schedule) if schedule else None,
-        }
+        resp = self._request(
+            "msg/broadcast",
+            {
+                "org_id": org.id,
+                "user_id": user.id,
+                "translations": translations,
+                "base_language": base_language,
+                "group_ids": [g.id for g in groups],
+                "contact_ids": [c.id for c in contacts],
+                "urns": urns,
+                "query": query,
+                "node_uuid": node_uuid,
+                "exclude": asdict(exclude) if exclude else None,
+                "optin_id": optin.id if optin else None,
+                "schedule": asdict(schedule) if schedule else None,
+            },
+        )
 
-        return self._request("msg/broadcast", payload)
+        return Broadcast.objects.get(id=resp["id"])
 
-    def msg_broadcast_preview(self, org_id: int, include: Inclusions, exclude: Exclusions) -> BroadcastPreview:
-        payload = {"org_id": org_id, "include": asdict(include), "exclude": asdict(exclude)}
+    def msg_broadcast_preview(self, org, include: Inclusions, exclude: Exclusions) -> RecipientsPreview:
+        resp = self._request(
+            "msg/broadcast_preview",
+            {
+                "org_id": org.id,
+                "include": asdict(include),
+                "exclude": asdict(exclude),
+            },
+        )
 
-        response = self._request("msg/broadcast_preview", payload)
-        return BroadcastPreview(query=response["query"], total=response["total"])
+        return RecipientsPreview(query=resp["query"], total=resp["total"])
 
     def msg_handle(self, org_id: int, msg_ids: list):
         payload = {"org_id": org_id, "msg_ids": msg_ids}

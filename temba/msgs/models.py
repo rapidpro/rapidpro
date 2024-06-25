@@ -21,7 +21,6 @@ from django.utils.translation import gettext_lazy as _
 
 from temba import mailroom
 from temba.channels.models import Channel, ChannelLog
-from temba.contacts import search
 from temba.contacts.models import Contact, ContactGroup, ContactURN
 from temba.orgs.models import DependencyMixin, Export, ExportType, Org
 from temba.schedules.models import Schedule
@@ -237,22 +236,20 @@ class Broadcast(models.Model):
         assert base_language and languages.get_name(base_language), f"{base_language} is not a valid language code"
         assert base_language in translations, "no translation for base language"
 
-        response = mailroom.get_client().msg_broadcast(
-            org.id,
-            user.id,
+        return mailroom.get_client().msg_broadcast(
+            org,
+            user,
             translations=translations,
             base_language=base_language,
-            group_ids=tuple(g.id for g in groups),
-            contact_ids=tuple(c.id for c in contacts),
+            groups=groups,
+            contacts=contacts,
             urns=urns,
             query=query,
             node_uuid=node_uuid,
             exclude=exclude,
-            optin_id=optin.id if optin else None,
+            optin=optin,
             schedule=schedule,
         )
-
-        return cls.objects.get(id=response["id"])
 
     @classmethod
     def get_queued(cls, org):
@@ -267,7 +264,7 @@ class Broadcast(models.Model):
         Requests a preview of the recipients of a broadcast created with the given inclusions/exclusions, returning a
         tuple of the canonical query and the total count of contacts.
         """
-        preview = search.preview_broadcast(org, include=include, exclude=exclude)
+        preview = mailroom.get_client().msg_broadcast_preview(org, include=include, exclude=exclude)
 
         return preview.query, preview.total
 

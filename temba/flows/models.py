@@ -18,7 +18,6 @@ from django.utils.translation import gettext_lazy as _
 from temba import mailroom
 from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
-from temba.contacts import search
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.msgs.models import Label, OptIn
@@ -1887,7 +1886,7 @@ class FlowStart(models.Model):
         Requests a preview of the recipients of a start created with the given inclusions/exclusions, returning a tuple
         of the canonical query and the total count of contacts.
         """
-        preview = search.preview_start(flow.org, flow, include=include, exclude=exclude)
+        preview = mailroom.get_client().flow_start_preview(flow.org, flow, include=include, exclude=exclude)
 
         return preview.query, preview.total
 

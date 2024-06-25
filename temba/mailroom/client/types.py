@@ -57,13 +57,7 @@ class SearchResults:
 
 
 @dataclass(frozen=True)
-class BroadcastPreview:
-    query: str
-    total: int
-
-
-@dataclass(frozen=True)
-class StartPreview:
+class RecipientsPreview:
     query: str
     total: int
 
