@@ -18,14 +18,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import FlowRun, FlowSession
 from temba.locations.models import AdminBoundary
-from temba.mailroom.client import (
-    ContactSpec,
-    EmptyBroadcastException,
-    Exclusions,
-    MailroomClient,
-    ScheduleSpec,
-    URNResult,
-)
+from temba.mailroom.client.client import MailroomClient
 from temba.mailroom.modifiers import Modifier
 from temba.msgs.models import Broadcast, Msg, OptIn
 from temba.orgs.models import Org
@@ -189,7 +182,7 @@ class TestClient(MailroomClient):
         return {"id": msg.id, "duplicate": False}
 
     @_client_method
-    def contact_create(self, org_id: int, user_id: int, contact: ContactSpec):
+    def contact_create(self, org_id: int, user_id: int, contact: mailroom.ContactSpec):
         org = Org.objects.get(id=org_id)
         user = User.objects.get(id=user_id)
 
@@ -288,7 +281,7 @@ class TestClient(MailroomClient):
 
     @_client_method
     def contact_urns(self, org_id: int, urns: list[str]):
-        results = [URNResult(normalized=urn) for urn in urns]
+        results = [mailroom.URNResult(normalized=urn) for urn in urns]
 
         if self.mocks._contact_urns:
             urn_by_id_or_err = self.mocks._contact_urns.pop(0)
@@ -322,9 +315,9 @@ class TestClient(MailroomClient):
         urns: list,
         query: str,
         node_uuid: str,
-        exclude: Exclusions,
+        exclude: mailroom.Exclusions,
         optin_id: int,
-        schedule: ScheduleSpec,
+        schedule: mailroom.ScheduleSpec,
     ):
         org = Org.objects.get(id=org_id)
         user = User.objects.get(id=user_id)
@@ -904,7 +897,7 @@ def create_broadcast(
     urns: list,
     query: str,
     node_uuid: str,
-    exclude: Exclusions,
+    exclude: mailroom.Exclusions,
     optin,
     schedule,
 ) -> Broadcast:
@@ -918,9 +911,9 @@ def create_broadcast(
         )
 
     if not (groups or contacts or urns or query):
-        raise EmptyBroadcastException()
+        raise mailroom.EmptyBroadcastException()
 
-    if schedule and isinstance(schedule, ScheduleSpec):
+    if schedule and isinstance(schedule, mailroom.ScheduleSpec):
         schedule = Schedule.objects.create(
             org=org,
             repeat_period=schedule.repeat_period,

@@ -1,189 +1,34 @@
 import logging
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict
 
 import requests
 
 from django.conf import settings
-from django.utils.translation import gettext_lazy as _
 
 from temba.utils import json
 
 from ..modifiers import Modifier
+from .exceptions import (
+    EmptyBroadcastException,
+    FlowValidationException,
+    QueryValidationException,
+    RequestException,
+    URNValidationException,
+)
+from .types import (
+    BroadcastPreview,
+    ContactSpec,
+    Exclusions,
+    Inclusions,
+    ParsedQuery,
+    QueryMetadata,
+    ScheduleSpec,
+    SearchResults,
+    StartPreview,
+    URNResult,
+)
 
 logger = logging.getLogger(__name__)
-
-
-class RequestException(Exception):
-    """
-    Exception for requests to mailroom that return a non-422 error status.
-    """
-
-    def __init__(self, endpoint, request, response):
-        self.endpoint = endpoint
-        self.request = request
-        self.response = response
-
-        try:
-            self.error = response.json().get("error")
-        except Exception:
-            self.error = response.content.decode("utf-8")
-
-    def __str__(self):
-        return self.error
-
-
-class FlowValidationException(Exception):
-    """
-    Request that fails because the provided flow definition is invalid.
-    """
-
-    def __init__(self, error: str):
-        self.error = error
-
-    def __str__(self):
-        return self.error
-
-
-class QueryValidationException(Exception):
-    """
-    Request that fails because the provided contact query is invalid.
-    """
-
-    messages = {
-        "syntax": _("Invalid query syntax."),
-        "invalid_number": _("Unable to convert '%(value)s' to a number."),
-        "invalid_date": _("Unable to convert '%(value)s' to a date."),
-        "invalid_language": _("'%(value)s' is not a valid language code."),
-        "invalid_flow": _("'%(value)s' is not a valid flow name."),
-        "invalid_group": _("'%(value)s' is not a valid group name."),
-        "invalid_partial_name": _("Using ~ with name requires token of at least %(min_token_length)s characters."),
-        "invalid_partial_urn": _("Using ~ with URN requires value of at least %(min_value_length)s characters."),
-        "unsupported_contains": _("Can only use ~ with name or URN values."),
-        "unsupported_comparison": _("Can only use %(operator)s with number or date values."),
-        "unsupported_setcheck": _("Can't check whether '%(property)s' is set or not set."),
-        "unknown_property": _("Can't resolve '%(property)s' to a field or URN scheme."),
-        "unknown_property_type": _("Prefixes must be 'fields' or 'urns'."),
-        "redacted_urns": _("Can't query on URNs in an anonymous workspace."),
-    }
-
-    def __init__(self, error: str, code: str, extra: dict = None):
-        self.error = error
-        self.code = code
-        self.extra = extra or {}
-
-    def __str__(self):
-        if self.code and self.code in self.messages:
-            return self.messages[self.code] % self.extra
-
-        return self.error
-
-
-class URNValidationException(Exception):
-    """
-    Request that fails because the provided contact URN is invalid or taken.
-    """
-
-    def __init__(self, error: str, code: str, index: int):
-        self.error = error
-        self.code = code
-        self.index = index
-
-    def __str__(self):
-        return self.error
-
-
-class EmptyBroadcastException(Exception):
-    """
-    Request that fails because the because a the requested broadcast would have no recipients.
-    """
-
-    pass
-
-
-@dataclass
-class ContactSpec:
-    """
-    Describes a contact to be created
-    """
-
-    name: str
-    language: str
-    urns: list[str]
-    fields: dict[str, str]
-    groups: list[str]
-
-
-@dataclass
-class Inclusions:
-    group_uuids: list = field(default_factory=list)
-    contact_uuids: list = field(default_factory=list)
-    query: str = ""
-
-
-@dataclass
-class Exclusions:
-    non_active: bool = False  # contacts who are blocked, stopped or archived
-    in_a_flow: bool = False  # contacts who are currently in a flow (including this one)
-    started_previously: bool = False  # contacts who have been in this flow in the last 90 days
-    not_seen_since_days: int = 0  # contacts who have not been seen for more than this number of days
-
-
-@dataclass(frozen=True)
-class QueryMetadata:
-    """
-    Contact query metadata
-    """
-
-    attributes: list = field(default_factory=list)
-    schemes: list = field(default_factory=list)
-    fields: list = field(default_factory=list)
-    groups: list = field(default_factory=list)
-    allow_as_group: bool = False
-
-
-@dataclass(frozen=True)
-class ParsedQuery:
-    query: str
-    metadata: QueryMetadata
-
-
-@dataclass(frozen=True)
-class SearchResults:
-    query: str
-    total: int
-    contact_ids: list
-    metadata: QueryMetadata
-
-
-@dataclass(frozen=True)
-class BroadcastPreview:
-    query: str
-    total: int
-
-
-@dataclass(frozen=True)
-class StartPreview:
-    query: str
-    total: int
-
-
-@dataclass
-class URNResult:
-    normalized: str
-    contact_id: int = None
-    error: str = None
-    e164: bool = False
-
-
-@dataclass
-class ScheduleSpec:
-    """
-    Describes a schedule to be created
-    """
-
-    start: str
-    repeat_period: str
-    repeat_days_of_week: str = None
 
 
 class MailroomClient:
@@ -475,7 +320,3 @@ class MailroomClient:
             raise RequestException(endpoint, payload, response)
 
         return resp_body
-
-
-def get_client() -> MailroomClient:
-    return MailroomClient(settings.MAILROOM_URL, settings.MAILROOM_AUTH_TOKEN)

@@ -44,39 +44,39 @@ class TicketTest(TembaTest):
         self.assertEqual(f"Ticket[uuid={ticket.uuid}, topic=General]", str(ticket))
 
         # test bulk assignment
-        with patch("temba.mailroom.client.MailroomClient.ticket_assign") as mock_assign:
+        with patch("temba.mailroom.client.client.MailroomClient.ticket_assign") as mock_assign:
             Ticket.bulk_assign(self.org, self.admin, [ticket], self.agent)
 
         mock_assign.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], self.agent.id)
         mock_assign.reset_mock()
 
         # test bulk un-assignment
-        with patch("temba.mailroom.client.MailroomClient.ticket_assign") as mock_assign:
+        with patch("temba.mailroom.client.client.MailroomClient.ticket_assign") as mock_assign:
             Ticket.bulk_assign(self.org, self.admin, [ticket], None)
 
         mock_assign.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], None)
         mock_assign.reset_mock()
 
         # test bulk adding a note
-        with patch("temba.mailroom.client.MailroomClient.ticket_add_note") as mock_add_note:
+        with patch("temba.mailroom.client.client.MailroomClient.ticket_add_note") as mock_add_note:
             Ticket.bulk_add_note(self.org, self.admin, [ticket], "please handle")
 
         mock_add_note.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], "please handle")
 
         # test bulk changing topic
-        with patch("temba.mailroom.client.MailroomClient.ticket_change_topic") as mock_change_topic:
+        with patch("temba.mailroom.client.client.MailroomClient.ticket_change_topic") as mock_change_topic:
             Ticket.bulk_change_topic(self.org, self.admin, [ticket], topic)
 
         mock_change_topic.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], topic.id)
 
         # test bulk closing
-        with patch("temba.mailroom.client.MailroomClient.ticket_close") as mock_close:
+        with patch("temba.mailroom.client.client.MailroomClient.ticket_close") as mock_close:
             Ticket.bulk_close(self.org, self.admin, [ticket], force=True)
 
         mock_close.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], force=True)
 
         # test bulk re-opening
-        with patch("temba.mailroom.client.MailroomClient.ticket_reopen") as mock_reopen:
+        with patch("temba.mailroom.client.client.MailroomClient.ticket_reopen") as mock_reopen:
             Ticket.bulk_reopen(self.org, self.admin, [ticket])
 
         mock_reopen.assert_called_once_with(self.org.id, self.admin.id, [ticket.id])
