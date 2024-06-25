@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from temba import mailroom
 from temba.campaigns.models import CampaignEvent, EventFire
-from temba.channels.models import Channel, ChannelEvent
+from temba.channels.models import ChannelEvent
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import FlowRun, FlowSession
 from temba.locations.models import AdminBoundary
@@ -88,10 +88,10 @@ class Mocks:
         self._contact_search[query] = mock
 
     def contact_export(self, contact_ids: list[int]):
-        self._contact_export.append({"contact_ids": contact_ids})
+        self._contact_export.append(contact_ids)
 
     def contact_export_preview(self, total: int):
-        self._contact_export_preview.append({"total": total})
+        self._contact_export_preview.append(total)
 
     def contact_urns(self, urns: dict):
         self._contact_urns.append(urns)
@@ -137,9 +137,7 @@ class TestClient(MailroomClient):
 
         super().__init__(settings.MAILROOM_URL, settings.MAILROOM_AUTH_TOKEN)
 
-    def android_event(self, org_id: int, channel_id: int, phone: str, event_type: str, extra: dict, occurred_on):
-        org = Org.objects.get(id=org_id)
-        channel = Channel.objects.get(id=channel_id)
+    def android_event(self, org, channel, phone: str, event_type: str, extra: dict, occurred_on):
         contact, contact_urn = contact_resolve(org, phone)
 
         event = ChannelEvent.objects.create(
@@ -153,9 +151,7 @@ class TestClient(MailroomClient):
         )
         return {"id": event.id}
 
-    def android_message(self, org_id: int, channel_id: int, phone: str, text: str, received_on):
-        org = Org.objects.get(id=org_id)
-        channel = Channel.objects.get(id=channel_id)
+    def android_message(self, org, channel, phone: str, text: str, received_on):
         contact, contact_urn = contact_resolve(org, phone)
         text = text[: Msg.MAX_TEXT_LEN]
 
@@ -182,33 +178,24 @@ class TestClient(MailroomClient):
         return {"id": msg.id, "duplicate": False}
 
     @_client_method
-    def contact_create(self, org_id: int, user_id: int, contact: mailroom.ContactSpec):
-        org = Org.objects.get(id=org_id)
-        user = User.objects.get(id=user_id)
-
-        obj = create_contact_locally(
+    def contact_create(self, org, user, contact: mailroom.ContactSpec):
+        return create_contact_locally(
             org, user, contact.name, contact.language, contact.urns, contact.fields, contact.groups
         )
 
-        return {"contact": {"id": obj.id, "uuid": str(obj.uuid), "name": obj.name}}
-
     @_client_method
-    def contact_export_preview(self, org_id: int, group_id: int, query: str):
-        if self.mocks._contact_export_preview:
-            return self.mocks._contact_export_preview.pop(0)
-
-        return {"total": ContactGroup.objects.get(id=group_id).get_member_count()}
-
-    @_client_method
-    def contact_export(self, org_id: int, group_id: int, query: str):
+    def contact_export(self, org, group, query: str) -> list[int]:
         if self.mocks._contact_export:
             return self.mocks._contact_export.pop(0)
 
-        return {
-            "contact_ids": list(
-                ContactGroup.objects.get(id=group_id).contacts.order_by("id").values_list("id", flat=True)
-            )
-        }
+        return list(group.contacts.order_by("id").values_list("id", flat=True))
+
+    @_client_method
+    def contact_export_preview(self, org, group, query: str) -> int:
+        if self.mocks._contact_export_preview:
+            return self.mocks._contact_export_preview.pop(0)
+
+        return group.get_member_count()
 
     @_client_method
     def contact_modify(self, org_id, user_id, contact_ids, modifiers: list[Modifier]):
@@ -221,9 +208,7 @@ class TestClient(MailroomClient):
         return {str(c.id): {"contact": {}, "events": []} for c in contacts}
 
     @_client_method
-    def contact_inspect(self, org_id: int, contact_ids: list[int]):
-        org = Org.objects.get(id=org_id)
-        contacts = org.contacts.filter(id__in=contact_ids)
+    def contact_inspect(self, org, contacts) -> dict:
 
         def inspect(c) -> dict:
             sendable = []
@@ -246,18 +231,16 @@ class TestClient(MailroomClient):
 
             return {"urns": sendable + unsendable}
 
-        return {str(c.id): inspect(c) for c in contacts}
+        return {c: inspect(c) for c in contacts}
 
     @_client_method
-    def contact_interrupt(self, org_id: int, user_id: int, contact_id: int):
-        contact = Contact.objects.get(id=contact_id)
-
+    def contact_interrupt(self, org, user, contact) -> int:
         # get the waiting session IDs
         session_ids = list(contact.sessions.filter(status=FlowSession.STATUS_WAITING).values_list("id", flat=True))
 
         exit_sessions(session_ids, FlowSession.STATUS_INTERRUPTED)
 
-        return {"sessions": len(session_ids)}
+        return len(session_ids)
 
     @_client_method
     def parse_query(self, org_id: int, query: str, parse_only: bool = False):

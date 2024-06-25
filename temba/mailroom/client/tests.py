@@ -37,8 +37,8 @@ class MailroomClientTest(TembaTest):
     def test_android_event(self, mock_post):
         mock_post.return_value = MockJsonResponse(200, {"id": 12345})
         response = self.client.android_event(
-            org_id=self.org.id,
-            channel_id=12,
+            org=self.org,
+            channel=self.channel,
             phone="+1234567890",
             event_type="mo_miss",
             extra={"duration": 45},
@@ -52,7 +52,7 @@ class MailroomClientTest(TembaTest):
             headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
             json={
                 "org_id": self.org.id,
-                "channel_id": 12,
+                "channel_id": self.channel.id,
                 "phone": "+1234567890",
                 "event_type": "mo_miss",
                 "extra": {"duration": 45},
@@ -64,8 +64,8 @@ class MailroomClientTest(TembaTest):
     def test_android_message(self, mock_post):
         mock_post.return_value = MockJsonResponse(200, {"id": 12345})
         response = self.client.android_message(
-            org_id=self.org.id,
-            channel_id=12,
+            org=self.org,
+            channel=self.channel,
             phone="+1234567890",
             text="hello",
             received_on=datetime(2024, 4, 1, 16, 28, 30, 0, tzone.utc),
@@ -78,7 +78,7 @@ class MailroomClientTest(TembaTest):
             headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
             json={
                 "org_id": self.org.id,
-                "channel_id": 12,
+                "channel_id": self.channel.id,
                 "phone": "+1234567890",
                 "text": "hello",
                 "received_on": "2024-04-01T16:28:30+00:00",
@@ -87,14 +87,16 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_contact_create(self, mock_post):
-        mock_post.return_value = MockJsonResponse(200, {"contact": {"id": 1234, "name": "", "language": ""}})
+        ann = self.create_contact("Ann", urns=["tel:+12340000001"])
+        bob = self.create_contact("Bob", urns=["tel:+12340000002"])
+        mock_post.return_value = MockJsonResponse(200, {"contact": {"id": ann.id, "name": "Bob", "language": ""}})
 
         # try with empty contact spec
-        response = self.client.contact_create(
-            self.org.id, self.admin.id, ContactSpec(name="", language="", urns=[], fields={}, groups=[])
+        contact = self.client.contact_create(
+            self.org, self.admin, ContactSpec(name="", language="", urns=[], fields={}, groups=[])
         )
 
-        self.assertEqual({"id": 1234, "name": "", "language": ""}, response["contact"])
+        self.assertEqual(ann, contact)
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/contact/create",
             headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
@@ -106,11 +108,11 @@ class MailroomClientTest(TembaTest):
         )
 
         mock_post.reset_mock()
-        mock_post.return_value = MockJsonResponse(200, {"contact": {"id": 1234, "name": "Bob", "language": "eng"}})
+        mock_post.return_value = MockJsonResponse(200, {"contact": {"id": bob.id, "name": "Bob", "language": "eng"}})
 
-        response = self.client.contact_create(
-            self.org.id,
-            self.admin.id,
+        contact = self.client.contact_create(
+            self.org,
+            self.admin,
             ContactSpec(
                 name="Bob",
                 language="eng",
@@ -120,7 +122,7 @@ class MailroomClientTest(TembaTest):
             ),
         )
 
-        self.assertEqual({"id": 1234, "name": "Bob", "language": "eng"}, response["contact"])
+        self.assertEqual(bob, contact)
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/contact/create",
             headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
@@ -139,54 +141,59 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_contact_export(self, mock_post):
+        group = self.create_group("Doctors", contacts=[])
         mock_post.return_value = MockJsonResponse(200, {"contact_ids": [123, 234]})
 
-        response = self.client.contact_export(self.org.id, 234, "age = 42")
+        response = self.client.contact_export(self.org, group, "age = 42")
 
-        self.assertEqual({"contact_ids": [123, 234]}, response)
+        self.assertEqual([123, 234], response)
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/contact/export",
             headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
-            json={"org_id": self.org.id, "group_id": 234, "query": "age = 42"},
+            json={"org_id": self.org.id, "group_id": group.id, "query": "age = 42"},
         )
 
     @patch("requests.post")
     def test_contact_export_preview(self, mock_post):
+        group = self.create_group("Doctors", contacts=[])
         mock_post.return_value = MockJsonResponse(200, {"total": 123})
 
-        response = self.client.contact_export_preview(self.org.id, 234, "age = 42")
+        total = self.client.contact_export_preview(self.org, group, "age = 42")
 
-        self.assertEqual({"total": 123}, response)
+        self.assertEqual(123, total)
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/contact/export_preview",
             headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
-            json={"org_id": self.org.id, "group_id": 234, "query": "age = 42"},
+            json={"org_id": self.org.id, "group_id": group.id, "query": "age = 42"},
         )
 
     @patch("requests.post")
     def test_contact_inspect(self, mock_post):
-        mock_post.return_value = MockJsonResponse(200, {"101": {}, "102": {}})
+        ann = self.create_contact("Ann", urns=["tel:+12340000001"])
+        bob = self.create_contact("Bob", urns=["tel:+12340000002"])
+        mock_post.return_value = MockJsonResponse(200, {ann.id: {}, bob.id: {}})
 
-        response = self.client.contact_inspect(self.org.id, [101, 102])
+        response = self.client.contact_inspect(self.org, [ann, bob])
 
-        self.assertEqual({"101": {}, "102": {}}, response)
+        self.assertEqual({ann: {}, bob: {}}, response)
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/contact/inspect",
             headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
-            json={"org_id": self.org.id, "contact_ids": [101, 102]},
+            json={"org_id": self.org.id, "contact_ids": [ann.id, bob.id]},
         )
 
     @patch("requests.post")
     def test_contact_interrupt(self, mock_post):
+        ann = self.create_contact("Ann", urns=["tel:+12340000001"])
         mock_post.return_value = MockJsonResponse(200, {"sessions": 1})
 
-        response = self.client.contact_interrupt(self.org.id, 3, 345)
+        response = self.client.contact_interrupt(self.org, self.admin, ann)
 
-        self.assertEqual({"sessions": 1}, response)
+        self.assertEqual(1, response)
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/contact/interrupt",
             headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
-            json={"org_id": self.org.id, "user_id": 3, "contact_id": 345},
+            json={"org_id": self.org.id, "user_id": self.admin.id, "contact_id": ann.id},
         )
 
     def test_contact_modify(self):
@@ -675,7 +682,9 @@ class MailroomClientTest(TembaTest):
 
         with self.assertRaises(URNValidationException) as e:
             self.client.contact_create(
-                1, 2, ContactSpec(name="Bob", language="eng", urns=["tel:+123456789"], fields={}, groups=[])
+                self.org,
+                self.admin,
+                ContactSpec(name="Bob", language="eng", urns=["tel:+123456789"], fields={}, groups=[]),
             )
 
         self.assertEqual("URN 1 is taken", e.exception.error)

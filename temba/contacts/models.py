@@ -605,12 +605,11 @@ class Contact(LegacyUUIDMixin, SmartModel):
         fields_by_key = {f.key: v for f, v in fields.items()}
         group_uuids = [g.uuid for g in groups]
 
-        response = mailroom.get_client().contact_create(
-            org.id,
-            user.id,
+        return mailroom.get_client().contact_create(
+            org,
+            user,
             ContactSpec(name=name, language=language, urns=urns, fields=fields_by_key, groups=group_uuids),
         )
-        return Contact.objects.get(id=response["contact"]["id"])
 
     @property
     def anon_display(self):
@@ -997,8 +996,8 @@ class Contact(LegacyUUIDMixin, SmartModel):
         Interrupts this contact's current flow
         """
         if self.current_flow:
-            sessions = mailroom.get_client().contact_interrupt(self.org.id, user.id, self.id)
-            return len(sessions) > 0
+            return mailroom.get_client().contact_interrupt(self.org, user, self) > 0
+
         return False
 
     def block(self, user):
@@ -1160,9 +1159,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         if not contacts:
             return {}
 
-        resp = mailroom.get_client().contact_inspect(contacts[0].org_id, [c.id for c in contacts])
-
-        return {c: resp[str(c.id)] for c in contacts}
+        return mailroom.get_client().contact_inspect(contacts[0].org, contacts)
 
     def get_groups(self, *, manual_only=False):
         """
@@ -1815,7 +1812,7 @@ class ContactExport(ExportType):
         include_group_memberships = bool(len(group_fields) > 0)
 
         if search:
-            contact_ids = mailroom.get_client().contact_export(export.org.id, group.id, query=search)["contact_ids"]
+            contact_ids = mailroom.get_client().contact_export(export.org, group, query=search)
         else:
             contact_ids = group.contacts.using("readonly").order_by("id").values_list("id", flat=True)
 

@@ -5,6 +5,7 @@ import requests
 
 from django.conf import settings
 
+from temba.contacts.models import Contact
 from temba.utils import json
 
 from ..modifiers import Modifier
@@ -33,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 class MailroomClient:
     """
-    Basic web client for mailroom
+    Client for mailroom HTTP endpoints
     """
 
     default_headers = {"User-Agent": "Temba"}
@@ -47,53 +48,55 @@ class MailroomClient:
     def version(self):
         return self._request("", post=False).get("version")
 
-    def android_event(self, org_id: int, channel_id: int, phone: str, event_type: str, extra: dict, occurred_on):
-        payload = {
-            "org_id": org_id,
-            "channel_id": channel_id,
-            "phone": phone,
-            "event_type": event_type,
-            "extra": extra,
-            "occurred_on": occurred_on.isoformat(),
-        }
+    def android_event(self, org, channel, phone: str, event_type: str, extra: dict, occurred_on):
+        return self._request(
+            "android/event",
+            {
+                "org_id": org.id,
+                "channel_id": channel.id,
+                "phone": phone,
+                "event_type": event_type,
+                "extra": extra,
+                "occurred_on": occurred_on.isoformat(),
+            },
+        )
 
-        return self._request("android/event", payload)
+    def android_message(self, org, channel, phone: str, text: str, received_on):
+        return self._request(
+            "android/message",
+            {
+                "org_id": org.id,
+                "channel_id": channel.id,
+                "phone": phone,
+                "text": text,
+                "received_on": received_on.isoformat(),
+            },
+        )
 
-    def android_message(self, org_id: int, channel_id: int, phone: str, text: str, received_on):
-        payload = {
-            "org_id": org_id,
-            "channel_id": channel_id,
-            "phone": phone,
-            "text": text,
-            "received_on": received_on.isoformat(),
-        }
+    def contact_create(self, org, user, contact: ContactSpec) -> Contact:
+        resp = self._request("contact/create", {"org_id": org.id, "user_id": user.id, "contact": asdict(contact)})
 
-        return self._request("android/message", payload)
+        return Contact.objects.get(id=resp["contact"]["id"])
 
-    def contact_create(self, org_id: int, user_id: int, contact: ContactSpec):
-        payload = {"org_id": org_id, "user_id": user_id, "contact": asdict(contact)}
+    def contact_export(self, org, group, query: str) -> list[int]:
+        resp = self._request("contact/export", {"org_id": org.id, "group_id": group.id, "query": query})
 
-        return self._request("contact/create", payload)
+        return resp["contact_ids"]
 
-    def contact_export(self, org_id: int, group_id: int, query: str):
-        payload = {"org_id": org_id, "group_id": group_id, "query": query}
+    def contact_export_preview(self, org, group, query: str) -> int:
+        resp = self._request("contact/export_preview", {"org_id": org.id, "group_id": group.id, "query": query})
 
-        return self._request("contact/export", payload)
+        return resp["total"]
 
-    def contact_export_preview(self, org_id: int, group_id: int, query: str):
-        payload = {"org_id": org_id, "group_id": group_id, "query": query}
+    def contact_inspect(self, org, contacts) -> dict:
+        resp = self._request("contact/inspect", {"org_id": org.id, "contact_ids": [c.id for c in contacts]})
 
-        return self._request("contact/export_preview", payload)
+        return {c: resp[str(c.id)] for c in contacts}
 
-    def contact_inspect(self, org_id: int, contact_ids: list[int]):
-        payload = {"org_id": org_id, "contact_ids": contact_ids}
+    def contact_interrupt(self, org, user, contact) -> int:
+        resp = self._request("contact/interrupt", {"org_id": org.id, "user_id": user.id, "contact_id": contact.id})
 
-        return self._request("contact/inspect", payload)
-
-    def contact_interrupt(self, org_id: int, user_id: int, contact_id: int):
-        payload = {"org_id": org_id, "user_id": user_id, "contact_id": contact_id}
-
-        return self._request("contact/interrupt", payload)
+        return resp["sessions"]
 
     def contact_modify(self, org_id: int, user_id: int, contact_ids: list[int], modifiers: list[Modifier]):
         payload = {

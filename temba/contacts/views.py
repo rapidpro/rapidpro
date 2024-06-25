@@ -300,8 +300,8 @@ class ContactCRUDL(SmartCRUDL):
                 return blocker
 
             query = self.request.GET.get("s")
-            preview = mailroom.get_client().contact_export_preview(self.request.org.id, self.group.id, query)
-            if preview["total"] > self.size_limit:
+            total = mailroom.get_client().contact_export_preview(self.request.org, self.group, query)
+            if total > self.size_limit:
                 return "too-big"
 
             return ""
