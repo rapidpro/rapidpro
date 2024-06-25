@@ -335,6 +335,7 @@ class MailroomClient:
         urns: list,
         query: str,
         node_uuid: str,
+        exclude: Exclusions,
         optin_id: int,
         schedule: ScheduleSpec,
     ):
@@ -348,6 +349,7 @@ class MailroomClient:
             "urns": urns,
             "query": query,
             "node_uuid": node_uuid,
+            "exclude": asdict(exclude) if exclude else None,
             "optin_id": optin_id,
             "schedule": asdict(schedule) if schedule else None,
         }

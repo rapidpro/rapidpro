@@ -1,6 +1,7 @@
 import functools
 import re
 from collections import defaultdict
+from dataclasses import asdict
 from datetime import timedelta
 from decimal import Decimal
 from functools import wraps
@@ -17,7 +18,14 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import FlowRun, FlowSession
 from temba.locations.models import AdminBoundary
-from temba.mailroom.client import ContactSpec, EmptyBroadcastException, MailroomClient, ScheduleSpec, URNResult
+from temba.mailroom.client import (
+    ContactSpec,
+    EmptyBroadcastException,
+    Exclusions,
+    MailroomClient,
+    ScheduleSpec,
+    URNResult,
+)
 from temba.mailroom.modifiers import Modifier
 from temba.msgs.models import Broadcast, Msg, OptIn
 from temba.orgs.models import Org
@@ -314,6 +322,7 @@ class TestClient(MailroomClient):
         urns: list,
         query: str,
         node_uuid: str,
+        exclude: Exclusions,
         optin_id: int,
         schedule: ScheduleSpec,
     ):
@@ -323,7 +332,7 @@ class TestClient(MailroomClient):
         groups = org.groups.filter(id__in=group_ids) if group_ids else []
         optin = OptIn.objects.get(id=optin_id) if optin_id else None
         bcast = create_broadcast(
-            org, user, translations, base_language, groups, contacts, urns, query, node_uuid, optin, schedule
+            org, user, translations, base_language, groups, contacts, urns, query, node_uuid, exclude, optin, schedule
         )
         return {"id": bcast.id}
 
@@ -895,6 +904,7 @@ def create_broadcast(
     urns: list,
     query: str,
     node_uuid: str,
+    exclude: Exclusions,
     optin,
     schedule,
 ) -> Broadcast:
@@ -924,6 +934,7 @@ def create_broadcast(
         base_language=base_language,
         urns=urns,
         query=query,
+        exclusions=asdict(exclude) if exclude else None,
         optin=optin,
         schedule=schedule,
         created_by=user,

@@ -407,6 +407,7 @@ class MailroomClientTest(TembaTest):
                 ["tel:1234"],
                 "age > 20",
                 "",
+                Exclusions(in_a_flow=True),
                 567,
                 ScheduleSpec(start="2024-06-20T16:23:30Z", repeat_period=Schedule.REPEAT_DAILY),
             )
@@ -428,6 +429,12 @@ class MailroomClientTest(TembaTest):
                 "urns": ["tel:1234"],
                 "query": "age > 20",
                 "node_uuid": "",
+                "exclude": {
+                    "in_a_flow": True,
+                    "non_active": False,
+                    "not_seen_since_days": 0,
+                    "started_previously": False,
+                },
                 "optin_id": 567,
                 "schedule": {"start": "2024-06-20T16:23:30Z", "repeat_period": "D", "repeat_days_of_week": None},
             },
@@ -633,7 +640,7 @@ class MailroomClientTest(TembaTest):
         )
 
         with self.assertRaises(EmptyBroadcastException) as e:
-            get_client().msg_broadcast(1, 2, {}, "eng", [], [], [], "", "", None, None)
+            get_client().msg_broadcast(1, 2, {}, "eng", [], [], [], "", "", None, None, None)
 
         mock_post.return_value = MockJsonResponse(422, {"error": "node isn't valid", "code": "flow:invalid"})
 
