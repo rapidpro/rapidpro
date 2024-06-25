@@ -20,7 +20,7 @@ from temba.flows.models import FlowRun, FlowSession
 from temba.locations.models import AdminBoundary
 from temba.mailroom.client.client import MailroomClient
 from temba.mailroom.modifiers import Modifier
-from temba.msgs.models import Broadcast, Msg, OptIn
+from temba.msgs.models import Broadcast, Msg
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests.dates import parse_datetime
@@ -98,13 +98,13 @@ class Mocks:
 
     def flow_start_preview(self, query, total):
         def mock(org):
-            return mailroom.StartPreview(query=query, total=total)
+            return mailroom.RecipientsPreview(query=query, total=total)
 
         self._flow_start_preview.append(mock)
 
     def msg_broadcast_preview(self, query, total):
         def mock(org):
-            return mailroom.BroadcastPreview(query=query, total=total)
+            return mailroom.RecipientsPreview(query=query, total=total)
 
         self._msg_broadcast_preview.append(mock)
 
@@ -278,46 +278,38 @@ class TestClient(MailroomClient):
         return results
 
     @_client_method
-    def flow_start_preview(self, org_id: int, flow_id: int, include, exclude):
+    def flow_start_preview(self, org, flow, include, exclude):
         assert self.mocks._flow_start_preview, "missing flow_start_preview mock"
 
         mock = self.mocks._flow_start_preview.pop(0)
-        org = Org.objects.get(id=org_id)
 
         return mock(org)
 
     @_client_method
     def msg_broadcast(
         self,
-        org_id: int,
-        user_id: int,
+        org,
+        user,
         translations: dict,
         base_language: str,
-        group_ids: list,
-        contact_ids: list,
+        groups,
+        contacts,
         urns: list,
         query: str,
         node_uuid: str,
         exclude: mailroom.Exclusions,
-        optin_id: int,
+        optin: int,
         schedule: mailroom.ScheduleSpec,
     ):
-        org = Org.objects.get(id=org_id)
-        user = User.objects.get(id=user_id)
-        contacts = org.contacts.filter(id__in=contact_ids) if contact_ids else []
-        groups = org.groups.filter(id__in=group_ids) if group_ids else []
-        optin = OptIn.objects.get(id=optin_id) if optin_id else None
-        bcast = create_broadcast(
+        return create_broadcast(
             org, user, translations, base_language, groups, contacts, urns, query, node_uuid, exclude, optin, schedule
         )
-        return {"id": bcast.id}
 
     @_client_method
-    def msg_broadcast_preview(self, org_id: int, include, exclude):
+    def msg_broadcast_preview(self, org, include, exclude):
         assert self.mocks._msg_broadcast_preview, "missing msg_broadcast_preview mock"
 
         mock = self.mocks._msg_broadcast_preview.pop(0)
-        org = Org.objects.get(id=org_id)
 
         return mock(org)
 
