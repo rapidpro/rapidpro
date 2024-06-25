@@ -1,3 +1,8 @@
+v9.1.157 (2024-06-25)
+-------------------------
+ * Reorg of mailroom client
+ * Add Broadcast.exclusions
+
 v9.1.156 (2024-06-24)
 -------------------------
  * Change broadcast creation from UI to use mailroom
