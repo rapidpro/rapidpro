@@ -8,7 +8,7 @@ from django.utils.translation import gettext_lazy as _
 
 from temba.utils import json
 
-from .modifiers import Modifier
+from ..modifiers import Modifier
 
 logger = logging.getLogger(__name__)
 
