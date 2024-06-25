@@ -376,15 +376,10 @@ class MailroomClientTest(TembaTest):
 
             self.assertEqual(StartPreview(query='group = "Farmers" AND status = "active"', total=2345), preview)
 
-        call = mock_post.call_args
-
-        self.assertEqual(("http://localhost:8090/mr/flow/start_preview",), call[0])
-        self.assertEqual(
-            {"User-Agent": "Temba", "Authorization": "Token sesame", "Content-Type": "application/json"},
-            call[1]["headers"],
-        )
-        self.assertEqual(
-            {
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/flow/start_preview",
+            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
+            json={
                 "org_id": self.org.id,
                 "flow_id": 12,
                 "include": {
@@ -399,7 +394,6 @@ class MailroomClientTest(TembaTest):
                     "not_seen_since_days": 30,
                 },
             },
-            json.loads(call[1]["data"]),
         )
 
     def test_msg_broadcast(self):
@@ -422,15 +416,10 @@ class MailroomClientTest(TembaTest):
 
             self.assertEqual({"id": 123}, resp)
 
-        call = mock_post.call_args
-
-        self.assertEqual(("http://localhost:8090/mr/msg/broadcast",), call[0])
-        self.assertEqual(
-            {"User-Agent": "Temba", "Authorization": "Token sesame", "Content-Type": "application/json"},
-            call[1]["headers"],
-        )
-        self.assertEqual(
-            {
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/msg/broadcast",
+            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
+            json={
                 "org_id": self.org.id,
                 "user_id": self.admin.id,
                 "translations": {"eng": {"text": "Hello"}},
@@ -449,7 +438,6 @@ class MailroomClientTest(TembaTest):
                 "optin_id": 567,
                 "schedule": {"start": "2024-06-20T16:23:30Z", "repeat_period": "D", "repeat_days_of_week": None},
             },
-            json.loads(call[1]["data"]),
         )
 
     def test_msg_broadcast_preview(self):
@@ -467,15 +455,10 @@ class MailroomClientTest(TembaTest):
 
             self.assertEqual(BroadcastPreview(query='group = "Farmers" AND status = "active"', total=2345), preview)
 
-        call = mock_post.call_args
-
-        self.assertEqual(("http://localhost:8090/mr/msg/broadcast_preview",), call[0])
-        self.assertEqual(
-            {"User-Agent": "Temba", "Authorization": "Token sesame", "Content-Type": "application/json"},
-            call[1]["headers"],
-        )
-        self.assertEqual(
-            {
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/msg/broadcast_preview",
+            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
+            json={
                 "org_id": self.org.id,
                 "include": {
                     "group_uuids": ["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
@@ -489,7 +472,6 @@ class MailroomClientTest(TembaTest):
                     "not_seen_since_days": 30,
                 },
             },
-            json.loads(call[1]["data"]),
         )
 
     @patch("requests.post")

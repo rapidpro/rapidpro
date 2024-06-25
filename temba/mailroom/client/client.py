@@ -169,7 +169,7 @@ class MailroomClient:
             "exclude": asdict(exclude),
         }
 
-        response = self._request("flow/start_preview", payload, encode_json=True)
+        response = self._request("flow/start_preview", payload)
         return StartPreview(query=response["query"], total=response["total"])
 
     def msg_broadcast(
@@ -202,12 +202,12 @@ class MailroomClient:
             "schedule": asdict(schedule) if schedule else None,
         }
 
-        return self._request("msg/broadcast", payload, encode_json=True)
+        return self._request("msg/broadcast", payload)
 
     def msg_broadcast_preview(self, org_id: int, include: Inclusions, exclude: Exclusions) -> BroadcastPreview:
         payload = {"org_id": org_id, "include": asdict(include), "exclude": asdict(exclude)}
 
-        response = self._request("msg/broadcast_preview", payload, encode_json=True)
+        response = self._request("msg/broadcast_preview", payload)
         return BroadcastPreview(query=response["query"], total=response["total"])
 
     def msg_handle(self, org_id: int, msg_ids: list):
