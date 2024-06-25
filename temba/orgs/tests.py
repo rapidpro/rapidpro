@@ -4061,7 +4061,7 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(parent.field_dependencies.all()), {age, gender})
         self.assertEqual(set(parent.group_dependencies.all()), {farmers})
 
-    @patch("temba.mailroom.client.MailroomClient.flow_inspect")
+    @patch("temba.mailroom.client.client.MailroomClient.flow_inspect")
     def test_import_flow_issues(self, mock_flow_inspect):
         mock_flow_inspect.side_effect = [
             {

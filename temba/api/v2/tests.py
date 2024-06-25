@@ -4819,8 +4819,8 @@ class EndpointsTest(APITest):
             num_queries=NUM_BASE_SESSION_QUERIES + 1,
         )
 
-    @patch("temba.mailroom.client.MailroomClient.ticket_close")
-    @patch("temba.mailroom.client.MailroomClient.ticket_reopen")
+    @patch("temba.mailroom.client.client.MailroomClient.ticket_close")
+    @patch("temba.mailroom.client.client.MailroomClient.ticket_reopen")
     def test_tickets(self, mock_ticket_reopen, mock_ticket_close):
         endpoint_url = reverse("api.v2.tickets") + ".json"
 

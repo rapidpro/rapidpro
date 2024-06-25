@@ -3170,7 +3170,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=", response.url)
 
         # check fetching the PO from the download link
-        with patch("temba.mailroom.client.MailroomClient.po_export") as mock_po_export:
+        with patch("temba.mailroom.client.client.MailroomClient.po_export") as mock_po_export:
             mock_po_export.return_value = b'msgid "Red"\nmsgstr "Roja"\n\n'
             self.assertRequestDisallowed(response.url, [None, self.user, self.agent, self.admin2])
             response = self.assertReadFetch(response.url, [self.editor, self.admin])
@@ -3185,7 +3185,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(f"/flow/download_translation/?flow={flow.id}&language=spa", response.url)
 
         # check fetching the PO from the download link
-        with patch("temba.mailroom.client.MailroomClient.po_export") as mock_po_export:
+        with patch("temba.mailroom.client.client.MailroomClient.po_export") as mock_po_export:
             mock_po_export.return_value = b'msgid "Red"\nmsgstr "Roja"\n\n'
             response = self.requestView(response.url, self.admin)
 
@@ -3306,7 +3306,7 @@ msgstr "Azul"
         self.assertEqual({"language": "spa"}, response.context["form"].initial)
 
         # confirm the import
-        with patch("temba.mailroom.client.MailroomClient.po_import") as mock_po_import:
+        with patch("temba.mailroom.client.client.MailroomClient.po_import") as mock_po_import:
             mock_po_import.return_value = {"flows": [flow.get_definition()]}
 
             response = self.requestView(step2_url, self.admin, post_data={"language": "spa"})

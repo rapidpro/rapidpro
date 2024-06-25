@@ -728,7 +728,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(sent_url + "?search=joe")
         self.assertEqual([msg1, msg2], list(response.context_data["object_list"]))
 
-    @patch("temba.mailroom.client.MailroomClient.msg_resend")
+    @patch("temba.mailroom.client.client.MailroomClient.msg_resend")
     def test_failed(self, mock_msg_resend):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")
         msg1 = self.create_outgoing_msg(contact1, "message number 1", status="F")

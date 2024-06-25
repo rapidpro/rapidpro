@@ -1694,7 +1694,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             message="Sent 7 days after planting date",
         )
 
-    @patch("temba.mailroom.client.MailroomClient.contact_modify")
+    @patch("temba.mailroom.client.client.MailroomClient.contact_modify")
     def test_block_and_stop(self, mock_contact_modify):
         mock_contact_modify.return_value = {self.joe.id: {"contact": {}, "events": []}}
 
@@ -2792,7 +2792,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             mods,
         )
 
-    @patch("temba.mailroom.client.MailroomClient.contact_modify")
+    @patch("temba.mailroom.client.client.MailroomClient.contact_modify")
     def test_bulk_modify_with_no_contacts(self, mock_contact_modify):
         mock_contact_modify.return_value = {}
 
