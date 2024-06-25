@@ -2484,7 +2484,10 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
             self.assertEqual(
                 response.json()["warnings"][0],
-                "You've selected a lot of contacts! Depending on your channel it could take days to reach everybody and could reduce response rates. Click on <b>Skip inactive contacts</b> below to limit your selection to contacts who are more likely to respond.",
+                "You've selected a lot of contacts! Depending on your channel "
+                "it could take days to reach everybody and could reduce response rates. "
+                "Filter for contacts that have sent a message recently "
+                "to limit your selection to contacts who are more likely to respond.",
             )
 
             # if we release our send channel we also can't start a regular messaging flow
@@ -5339,7 +5342,7 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "was started by admin@nyaruka.com")
         self.assertContains(response, "was started by an API call")
         self.assertContains(response, "was started by Zapier")
-        self.assertContains(response, "Skip contacts currently in a flow")
+        self.assertContains(response, "Not in a flow")
         self.assertContains(response, "<b>1,234</b> runs")
 
         response = self.assertListFetch(list_url + "?type=manual", [self.admin], context_objects=[start1])
