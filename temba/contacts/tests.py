@@ -22,11 +22,10 @@ from temba import mailroom
 from temba.airtime.models import AirtimeTransfer
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import ChannelEvent
-from temba.contacts.search import search_contacts
 from temba.flows.models import Flow, FlowSession, FlowStart
 from temba.ivr.models import Call
 from temba.locations.models import AdminBoundary
-from temba.mailroom import QueryMetadata, SearchResults, modifiers
+from temba.mailroom import modifiers
 from temba.msgs.models import Msg, SystemLabel
 from temba.orgs.models import Export, Org, OrgRole
 from temba.schedules.models import Schedule
@@ -240,7 +239,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # we re-run the search for the response, but exclude Joe
         self.assertEqual(
-            call(self.org.id, group_id=active_contacts.id, query="Joe", sort="", offset=0, exclude_ids=[joe.id]),
+            call(self.org, active_contacts, "Joe", sort="", offset=0, exclude_ids=[joe.id]),
             mr_mocks.calls["contact_search"][-1],
         )
 
@@ -1694,30 +1693,20 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             message="Sent 7 days after planting date",
         )
 
-    @patch("temba.mailroom.client.client.MailroomClient.contact_modify")
-    def test_block_and_stop(self, mock_contact_modify):
-        mock_contact_modify.return_value = {self.joe.id: {"contact": {}, "events": []}}
-
+    @mock_mailroom
+    def test_block_and_stop(self, mr_mocks):
         self.joe.block(self.admin)
-
-        mock_contact_modify.assert_called_once_with(
-            self.org.id, self.admin.id, [self.joe.id], [modifiers.Status(status="blocked")]
-        )
-        mock_contact_modify.reset_mock()
-
         self.joe.stop(self.admin)
-
-        mock_contact_modify.assert_called_once_with(
-            self.org.id, self.admin.id, [self.joe.id], [modifiers.Status(status="stopped")]
-        )
-        mock_contact_modify.reset_mock()
-
         self.joe.restore(self.admin)
 
-        mock_contact_modify.assert_called_once_with(
-            self.org.id, self.admin.id, [self.joe.id], [modifiers.Status(status="active")]
+        self.assertEqual(
+            [
+                call(self.org, self.admin, [self.joe], [modifiers.Status(status="blocked")]),
+                call(self.org, self.admin, [self.joe], [modifiers.Status(status="stopped")]),
+                call(self.org, self.admin, [self.joe], [modifiers.Status(status="active")]),
+            ],
+            mr_mocks.calls["contact_modify"],
         )
-        mock_contact_modify.reset_mock()
 
     @mock_mailroom
     def test_open_ticket(self, mock_contact_modify):
@@ -2116,9 +2105,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             Contact.bulk_inspect([self.joe, self.billy]),
         )
 
-    @patch("temba.contacts.search.omnibox.search_contacts")
     @mock_mailroom
-    def test_omnibox(self, mr_mocks, mock_search_contacts):
+    def test_omnibox(self, mr_mocks):
         # add a group with members and an empty group
         self.create_field("gender", "Gender")
         open_tickets = self.org.groups.get(name="Open Tickets")
@@ -2147,23 +2135,16 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             response = self.client.get(f"{path}?{query}")
             return response.json()["results"]
 
-        # configure mocking so we call actual search method but mailroom returns an error
+        # mock mailroom to return an error
         mr_mocks.exception(mailroom.QueryValidationException("ooh that doesn't look right", "syntax"))
-        mock_search_contacts.side_effect = search_contacts
 
         # error is swallowed and we show no results
         self.assertEqual([], omnibox_request("search=-123`213"))
 
         with self.assertNumQueries(14):
-            mock_search_contacts.side_effect = [
-                SearchResults(
-                    query="",
-                    total=4,
-                    contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
-                    metadata=QueryMetadata(),
-                ),
-                SearchResults(query="", total=3, contact_ids=[], metadata=QueryMetadata()),
-            ]
+            mr_mocks.contact_search(
+                query="name ~ null OR urn ~ null", total=4, contacts=[self.billy, self.frank, self.joe, self.voldemort]
+            )
 
             self.assertEqual(
                 [
@@ -2182,9 +2163,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             )
 
         with self.assertNumQueries(13):
-            mock_search_contacts.side_effect = [
-                SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id], metadata=QueryMetadata()),
-            ]
+            mr_mocks.contact_search(query='name ~ "250" OR urn ~ "250"', total=2, contacts=[self.billy, self.frank])
 
             self.assertEqual(
                 [
@@ -2196,9 +2175,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             )
 
         with self.assertNumQueries(14):
-            mock_search_contacts.side_effect = [
-                SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id], metadata=QueryMetadata()),
-            ]
+            mr_mocks.contact_search(query="name ~ null OR urn ~ null", total=2, contacts=[self.billy, self.frank])
 
             self.assertEqual(
                 [
@@ -2243,10 +2220,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         )
 
         with self.anonymous(self.org):
-            mock_search_contacts.side_effect = [
-                SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=QueryMetadata()),
-                SearchResults(query="", total=1, contact_ids=[self.billy.id], metadata=QueryMetadata()),
-            ]
+            mr_mocks.contact_search(query="name ~ null", total=1, contacts=[self.billy])
+
             self.assertEqual(
                 [
                     # all 4 groups A-Z
@@ -2259,6 +2234,8 @@ class ContactTest(TembaTest, CRUDLTestMixin):
                 ],
                 omnibox_request(""),
             )
+
+            mr_mocks.contact_search(query='name ~ "Billy"', total=1, contacts=[self.billy])
 
             self.assertEqual(
                 [

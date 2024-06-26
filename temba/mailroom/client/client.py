@@ -98,41 +98,43 @@ class MailroomClient:
 
         return resp["sessions"]
 
-    def contact_modify(self, org_id: int, user_id: int, contact_ids: list[int], modifiers: list[Modifier]):
-        payload = {
-            "org_id": org_id,
-            "user_id": user_id,
-            "contact_ids": contact_ids,
-            "modifiers": [asdict(m) for m in modifiers],
-        }
+    def contact_modify(self, org, user, contacts, modifiers: list[Modifier]):
+        return self._request(
+            "contact/modify",
+            {
+                "org_id": org.id,
+                "user_id": user.id,
+                "contact_ids": [c.id for c in contacts],
+                "modifiers": [asdict(m) for m in modifiers],
+            },
+        )
 
-        return self._request("contact/modify", payload)
+    def contact_search(self, org, group, query: str, sort: str, offset=0, exclude_ids=()) -> SearchResults:
+        resp = self._request(
+            "contact/search",
+            {
+                "org_id": org.id,
+                "group_id": group.id,
+                "exclude_ids": exclude_ids,
+                "query": query,
+                "sort": sort,
+                "offset": offset,
+            },
+        )
 
-    def contact_search(
-        self, org_id: int, group_id: int, query: str, sort: str, offset=0, exclude_ids=()
-    ) -> SearchResults:
-        payload = {
-            "org_id": org_id,
-            "group_id": group_id,
-            "exclude_ids": exclude_ids,
-            "query": query,
-            "sort": sort,
-            "offset": offset,
-        }
-        response = self._request("contact/search", payload)
         return SearchResults(
-            query=response["query"],
-            total=response["total"],
-            contact_ids=response["contact_ids"],
-            metadata=QueryMetadata(**response.get("metadata", {})),
+            query=resp["query"],
+            total=resp["total"],
+            contact_ids=resp["contact_ids"],
+            metadata=QueryMetadata(**resp.get("metadata", {})),
         )
 
     def contact_urns(self, org_id: int, urns: list[str]):
         response = self._request("contact/urns", {"org_id": org_id, "urns": urns})
         return [URNResult(**ur) for ur in response["urns"]]
 
-    def flow_change_language(self, flow, language):
-        payload = {"flow": flow, "language": language}
+    def flow_change_language(self, definition: dict, language):
+        payload = {"flow": definition, "language": language}
 
         return self._request("flow/change_language", payload, encode_json=True)
 
@@ -141,16 +143,16 @@ class MailroomClient:
 
         return self._request("flow/clone", payload)
 
-    def flow_inspect(self, org_id, flow):
-        payload = {"flow": flow}
+    def flow_inspect(self, org, definition: dict):
+        payload = {"flow": definition}
 
         # can't do dependency checking during tests because mailroom can't see unit test data created in a transaction
         if not settings.TESTING:
-            payload["org_id"] = org_id
+            payload["org_id"] = org.id
 
         return self._request("flow/inspect", payload, encode_json=True)
 
-    def flow_migrate(self, definition, to_version=None):
+    def flow_migrate(self, definition: dict, to_version=None):
         """
         Migrates a flow definition to the specified spec version
         """

@@ -196,71 +196,74 @@ class MailroomClientTest(TembaTest):
             json={"org_id": self.org.id, "user_id": self.admin.id, "contact_id": ann.id},
         )
 
-    def test_contact_modify(self):
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockJsonResponse(
-                200,
-                {
-                    "1": {
-                        "contact": {
-                            "uuid": "6393abc0-283d-4c9b-a1b3-641a035c34bf",
-                            "id": 1,
-                            "name": "Frank",
-                            "timezone": "America/Los_Angeles",
-                            "created_on": "2018-07-06T12:30:00.123457Z",
-                        },
-                        "events": [
-                            {
-                                "type": "contact_groups_changed",
-                                "created_on": "2018-07-06T12:30:03.123456789Z",
-                                "groups_added": [{"uuid": "c153e265-f7c9-4539-9dbc-9b358714b638", "name": "Doctors"}],
-                            }
-                        ],
-                    }
-                },
-            )
-
-            response = self.client.contact_modify(
-                1,
-                1,
-                [1],
-                [
-                    modifiers.Name(name="Bob"),
-                    modifiers.Language(language="fra"),
-                    modifiers.Field(field=modifiers.FieldRef(key="age", name="Age"), value="43"),
-                    modifiers.Status(status="blocked"),
-                    modifiers.Groups(
-                        groups=[modifiers.GroupRef(uuid="c153e265-f7c9-4539-9dbc-9b358714b638", name="Doctors")],
-                        modification="add",
-                    ),
-                    modifiers.URNs(urns=["+tel+1234567890"], modification="append"),
-                ],
-            )
-            self.assertEqual("6393abc0-283d-4c9b-a1b3-641a035c34bf", response["1"]["contact"]["uuid"])
-            mock_post.assert_called_once_with(
-                "http://localhost:8090/mr/contact/modify",
-                headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
-                json={
-                    "org_id": 1,
-                    "user_id": 1,
-                    "contact_ids": [1],
-                    "modifiers": [
-                        {"type": "name", "name": "Bob"},
-                        {"type": "language", "language": "fra"},
-                        {"type": "field", "field": {"key": "age", "name": "Age"}, "value": "43"},
-                        {"type": "status", "status": "blocked"},
+    @patch("requests.post")
+    def test_contact_modify(self, mock_post):
+        ann = self.create_contact("Ann", urns=["tel:+12340000001"])
+        mock_post.return_value = MockJsonResponse(
+            200,
+            {
+                str(ann.id): {
+                    "contact": {
+                        "uuid": str(ann.uuid),
+                        "id": ann.id,
+                        "name": "Frank",
+                        "timezone": "America/Los_Angeles",
+                        "created_on": "2018-07-06T12:30:00.123457Z",
+                    },
+                    "events": [
                         {
-                            "type": "groups",
-                            "groups": [{"uuid": "c153e265-f7c9-4539-9dbc-9b358714b638", "name": "Doctors"}],
-                            "modification": "add",
-                        },
-                        {"type": "urns", "urns": ["+tel+1234567890"], "modification": "append"},
+                            "type": "contact_groups_changed",
+                            "created_on": "2018-07-06T12:30:03.123456789Z",
+                            "groups_added": [{"uuid": "c153e265-f7c9-4539-9dbc-9b358714b638", "name": "Doctors"}],
+                        }
                     ],
-                },
-            )
+                }
+            },
+        )
+
+        response = self.client.contact_modify(
+            self.org,
+            self.admin,
+            [ann],
+            [
+                modifiers.Name(name="Bob"),
+                modifiers.Language(language="fra"),
+                modifiers.Field(field=modifiers.FieldRef(key="age", name="Age"), value="43"),
+                modifiers.Status(status="blocked"),
+                modifiers.Groups(
+                    groups=[modifiers.GroupRef(uuid="c153e265-f7c9-4539-9dbc-9b358714b638", name="Doctors")],
+                    modification="add",
+                ),
+                modifiers.URNs(urns=["+tel+1234567890"], modification="append"),
+            ],
+        )
+        self.assertEqual(str(ann.uuid), response[str(ann.id)]["contact"]["uuid"])
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/modify",
+            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
+            json={
+                "org_id": self.org.id,
+                "user_id": self.admin.id,
+                "contact_ids": [ann.id],
+                "modifiers": [
+                    {"type": "name", "name": "Bob"},
+                    {"type": "language", "language": "fra"},
+                    {"type": "field", "field": {"key": "age", "name": "Age"}, "value": "43"},
+                    {"type": "status", "status": "blocked"},
+                    {
+                        "type": "groups",
+                        "groups": [{"uuid": "c153e265-f7c9-4539-9dbc-9b358714b638", "name": "Doctors"}],
+                        "modification": "add",
+                    },
+                    {"type": "urns", "urns": ["+tel+1234567890"], "modification": "append"},
+                ],
+            },
+        )
 
     @patch("requests.post")
     def test_contact_search(self, mock_post):
+        group = self.create_group("Doctors", contacts=[])
+
         mock_post.return_value = MockJsonResponse(
             200,
             {
@@ -271,7 +274,7 @@ class MailroomClientTest(TembaTest):
                 "metadata": {"attributes": ["name"]},
             },
         )
-        response = self.client.contact_search(1, 2, "frank", "-created_on")
+        response = self.client.contact_search(self.org, group, "frank", "-created_on")
 
         self.assertEqual('name ~ "frank"', response.query)
         self.assertEqual(["name"], response.metadata.attributes)
@@ -280,8 +283,8 @@ class MailroomClientTest(TembaTest):
             headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
             json={
                 "query": "frank",
-                "org_id": 1,
-                "group_id": 2,
+                "org_id": self.org.id,
+                "group_id": group.id,
                 "exclude_ids": (),
                 "offset": 0,
                 "sort": "-created_on",
@@ -329,7 +332,7 @@ class MailroomClientTest(TembaTest):
 
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockJsonResponse(200, {"dependencies": []})
-            info = self.client.flow_inspect(self.org.id, flow_def)
+            info = self.client.flow_inspect(self.org, flow_def)
 
             self.assertEqual({"dependencies": []}, info)
 
@@ -639,6 +642,8 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_errors(self, mock_post):
+        group = self.create_group("Doctors", contacts=[])
+
         mock_post.return_value = MockJsonResponse(
             422, {"error": "can't create broadcast with no recipients", "code": "broadcast:no_recipients"}
         )
@@ -649,7 +654,7 @@ class MailroomClientTest(TembaTest):
         mock_post.return_value = MockJsonResponse(422, {"error": "node isn't valid", "code": "flow:invalid"})
 
         with self.assertRaises(FlowValidationException) as e:
-            self.client.flow_inspect(1, {})
+            self.client.flow_inspect(self.org, {})
 
         self.assertEqual("node isn't valid", e.exception.error)
         self.assertEqual("node isn't valid", str(e.exception))
@@ -659,7 +664,7 @@ class MailroomClientTest(TembaTest):
         )
 
         with self.assertRaises(QueryValidationException) as e:
-            self.client.contact_search(1, 2, "age > 10", "-created_on")
+            self.client.contact_search(self.org, group, "age > 10", "-created_on")
 
         self.assertEqual("no such field age", e.exception.error)
         self.assertEqual("unknown_property", e.exception.code)
@@ -685,14 +690,14 @@ class MailroomClientTest(TembaTest):
         mock_post.return_value = MockJsonResponse(500, {"error": "error loading fields"})
 
         with self.assertRaises(RequestException) as e:
-            self.client.contact_search(1, 2, "age > 10", "-created_on")
+            self.client.contact_search(self.org, group, "age > 10", "-created_on")
 
         self.assertEqual("error loading fields", e.exception.error)
 
         mock_post.return_value = MockResponse(502, "Bad Gateway")
 
         with self.assertRaises(RequestException) as e:
-            self.client.contact_search(1, 2, "age > 10", "-created_on")
+            self.client.contact_search(self.org, group, "age > 10", "-created_on")
 
         self.assertEqual("Bad Gateway", e.exception.error)
 

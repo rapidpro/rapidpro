@@ -8,7 +8,6 @@ from functools import wraps
 from unittest.mock import call, patch
 
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.db import connection
 from django.utils import timezone
 
@@ -198,11 +197,7 @@ class TestClient(MailroomClient):
         return group.get_member_count()
 
     @_client_method
-    def contact_modify(self, org_id, user_id, contact_ids, modifiers: list[Modifier]):
-        org = Org.objects.get(id=org_id)
-        user = User.objects.get(id=user_id)
-        contacts = org.contacts.filter(id__in=contact_ids)
-
+    def contact_modify(self, org, user, contacts, modifiers: list[Modifier]):
         apply_modifiers(org, user, contacts, modifiers)
 
         return {str(c.id): {"contact": {}, "events": []} for c in contacts}
@@ -254,12 +249,11 @@ class TestClient(MailroomClient):
         return mailroom.ParsedQuery(query=query, metadata=mock_inspect_query(org, query))
 
     @_client_method
-    def contact_search(self, org_id, group_id, query, sort, offset=0, exclude_ids=()):
+    def contact_search(self, org, group, query, sort, offset=0, exclude_ids=()):
         mock = self.mocks._contact_search.get(query or "")
 
         assert mock, f"missing contact_search mock for query '{query}'"
 
-        org = Org.objects.get(id=org_id)
         return mock(org, offset, sort)
 
     @_client_method
@@ -512,7 +506,9 @@ def apply_modifiers(org, user, contacts, modifiers: list):
 
             update_urns_locally(contacts[0], mod.urns)
 
-        contacts.update(modified_by=user, modified_on=timezone.now(), **fields)
+        Contact.objects.filter(id__in=[c.id for c in contacts]).update(
+            modified_by=user, modified_on=timezone.now(), **fields
+        )
         if clear_groups:
             for c in contacts:
                 for g in c.get_groups():

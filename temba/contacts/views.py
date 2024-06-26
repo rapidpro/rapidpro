@@ -53,7 +53,7 @@ from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMi
 
 from .forms import ContactGroupForm, UpdateContactForm
 from .models import URN, Contact, ContactExport, ContactField, ContactGroup, ContactGroupCount, ContactImport
-from .search import parse_query, search_contacts
+from .search import parse_query
 from .search.omnibox import omnibox_query, omnibox_results_to_dict
 
 logger = logging.getLogger(__name__)
@@ -138,8 +138,8 @@ class ContactListView(SpaMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
                 exclude_ids = []
 
             try:
-                results = search_contacts(
-                    org, search_query, group=self.group, sort=sort_on, offset=offset, exclude_ids=exclude_ids
+                results = mailroom.get_client().contact_search(
+                    org, self.group, search_query, sort=sort_on, offset=offset, exclude_ids=exclude_ids
                 )
                 self.parsed_query = results.query if len(results.query) > 0 else None
                 self.save_dynamic_search = results.metadata.allow_as_group
@@ -484,7 +484,9 @@ class ContactCRUDL(SmartCRUDL):
                 return JsonResponse({"total": 0, "sample": [], "fields": {}})
 
             try:
-                results = search_contacts(org, query, group=org.active_contacts_group, sort="-created_on")
+                results = mailroom.get_client().contact_search(
+                    org, org.active_contacts_group, query, sort="-created_on"
+                )
                 summary = {
                     "total": results.total,
                     "query": results.query,
