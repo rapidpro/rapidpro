@@ -26,7 +26,7 @@ class Command(BaseCommand):
                 continue
 
             try:
-                flow_info = client.flow_inspect(flow.org_id, definition)
+                flow_info = client.flow_inspect(flow.org, definition)
             except mailroom.FlowValidationException:
                 self.stdout.write(f" > flow {flow.uuid} doesn't have a valid definition")
                 num_invalid += 1

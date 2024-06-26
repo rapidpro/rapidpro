@@ -927,7 +927,7 @@ class Contact(LegacyUUIDMixin, SmartModel):
         org = contacts[0].org
         client = mailroom.get_client()
         try:
-            response = client.contact_modify(org.id, user.id, [c.id for c in contacts], mods)
+            response = client.contact_modify(org, user, contacts, mods)
         except mailroom.RequestException as e:
             logger.error(f"Contact update failed: {str(e)}", exc_info=True)
             raise e

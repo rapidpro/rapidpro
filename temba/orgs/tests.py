@@ -4118,7 +4118,7 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(parent.flow_dependencies.all()), {child2})
 
     def validate_flow_dependencies(self, definition):
-        flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
+        flow_info = mailroom.get_client().flow_inspect(self.org, definition)
         deps = flow_info["dependencies"]
 
         for dep in [d for d in deps if d["type"] == "field"]:

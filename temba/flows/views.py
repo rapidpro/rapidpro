@@ -311,7 +311,7 @@ class FlowCRUDL(SmartCRUDL):
                 definition = revision.get_migrated_definition(to_version=requested_version)
 
                 # get our metadata
-                flow_info = mailroom.get_client().flow_inspect(flow.org_id, definition)
+                flow_info = mailroom.get_client().flow_inspect(flow.org, definition)
                 return JsonResponse(
                     {
                         "definition": definition,

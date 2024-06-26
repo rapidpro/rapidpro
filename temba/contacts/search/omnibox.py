@@ -9,8 +9,6 @@ from temba import mailroom
 from temba.contacts.models import Contact, ContactGroup, ContactGroupCount
 from temba.utils.models.es import IDSliceQuerySet
 
-from . import search_contacts
-
 SEARCH_ALL_GROUPS = "g"
 SEARCH_STATIC_GROUPS = "s"
 SEARCH_CONTACTS = "c"
@@ -75,7 +73,9 @@ def omnibox_mixed_search(org, query, types):
                 search_query = f"name ~ {json.dumps(query)}"
             else:
                 search_query = f"name ~ {json.dumps(query)} OR urn ~ {json.dumps(query)}"
-            search_results = search_contacts(org, search_query, group=org.active_contacts_group, sort="name")
+            search_results = mailroom.get_client().contact_search(
+                org, org.active_contacts_group, search_query, sort="name"
+            )
             contacts = IDSliceQuerySet(
                 Contact,
                 search_results.contact_ids,

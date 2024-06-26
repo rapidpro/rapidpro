@@ -476,7 +476,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         definition = Flow.migrate_definition(definition, flow=None)
 
-        flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
+        flow_info = mailroom.get_client().flow_inspect(self.org, definition)
         dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
 
         # converts a dep ref {uuid|key, name, type, missing} to an importable partial definition {uuid|key, name}
@@ -763,7 +763,7 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
         definition[Flow.DEFINITION_EXPIRE_AFTER_MINUTES] = self.expires_after_minutes
 
         # inspect the flow (with optional validation)
-        flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
+        flow_info = mailroom.get_client().flow_inspect(self.org, definition)
         dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
         issues = flow_info[Flow.INSPECT_ISSUES]
 
