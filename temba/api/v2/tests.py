@@ -4819,9 +4819,8 @@ class EndpointsTest(APITest):
             num_queries=NUM_BASE_SESSION_QUERIES + 1,
         )
 
-    @patch("temba.mailroom.client.client.MailroomClient.ticket_close")
-    @patch("temba.mailroom.client.client.MailroomClient.ticket_reopen")
-    def test_tickets(self, mock_ticket_reopen, mock_ticket_close):
+    @mock_mailroom
+    def test_tickets(self, mr_mocks):
         endpoint_url = reverse("api.v2.tickets") + ".json"
 
         self.assertGetNotPermitted(endpoint_url, [None])

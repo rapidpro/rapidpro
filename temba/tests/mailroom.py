@@ -59,6 +59,7 @@ class Mocks:
         self._contact_parse_query = {}
         self._contact_search = {}
         self._contact_urns = []
+        self._flow_inspect = []
         self._flow_start_preview = []
         self._msg_broadcast_preview = []
         self._exceptions = []
@@ -93,6 +94,17 @@ class Mocks:
 
     def contact_urns(self, urns: dict):
         self._contact_urns.append(urns)
+
+    def flow_inspect(self, *, dependencies=(), issues=(), results=(), waiting_exits=(), parent_refs=()):
+        self._flow_inspect.append(
+            {
+                "dependencies": dependencies,
+                "issues": issues,
+                "results": results,
+                "waiting_exits": waiting_exits,
+                "parent_refs": parent_refs,
+            }
+        )
 
     def flow_start_preview(self, query, total):
         def mock(org):
@@ -266,6 +278,15 @@ class TestClient(MailroomClient):
                     results[i].error = id_or_err
 
         return results
+
+    @_client_method
+    def flow_inspect(self, org, definition: dict):
+        if self.mocks._flow_inspect:
+            return self.mocks._flow_inspect.pop(0)
+
+        # fall back to the real client - note that this why mailroom has to be running during tests
+        # and is something we might want to change in the future
+        return super().flow_inspect(org, definition)
 
     @_client_method
     def flow_start_preview(self, org, flow, include, exclude):
