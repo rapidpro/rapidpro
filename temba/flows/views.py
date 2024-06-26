@@ -31,7 +31,6 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.channels.models import Channel
 from temba.contacts.models import URN
-from temba.contacts.search import parse_query
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, FlowStart
 from temba.flows.tasks import update_session_wait_expires
 from temba.ivr.models import Call
@@ -1633,9 +1632,11 @@ class FlowCRUDL(SmartCRUDL):
 
                 if contact_search["advanced"]:
                     try:
-                        contact_search["parsed_query"] = parse_query(
-                            self.org, contact_search["query"], parse_only=True
-                        ).query
+                        contact_search["parsed_query"] = (
+                            mailroom.get_client()
+                            .contact_parse_query(self.org, contact_search["query"], parse_only=True)
+                            .query
+                        )
                     except mailroom.QueryValidationException as e:
                         raise ValidationError(str(e))
 

@@ -583,7 +583,7 @@ class Msg(models.Model):
         Queues this message to be handled. Only used for manual retries of failed handling.
         """
 
-        mailroom.get_client().msg_handle(self.org_id, [self.id])
+        mailroom.get_client().msg_handle(self.org, [self])
 
     def archive(self):
         """
@@ -643,7 +643,7 @@ class Msg(models.Model):
     @classmethod
     def apply_action_resend(cls, user, msgs):
         if msgs:
-            mailroom.get_client().msg_resend(msgs[0].org.id, [m.id for m in msgs])
+            mailroom.get_client().msg_resend(msgs[0].org, list(msgs))
 
     @classmethod
     def bulk_soft_delete(cls, msgs: list):

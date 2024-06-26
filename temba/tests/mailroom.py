@@ -20,7 +20,6 @@ from temba.locations.models import AdminBoundary
 from temba.mailroom.client.client import MailroomClient
 from temba.mailroom.modifiers import Modifier
 from temba.msgs.models import Broadcast, Msg
-from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests.dates import parse_datetime
 from temba.tickets.models import Ticket, TicketEvent, Topic
@@ -55,10 +54,10 @@ def mock_inspect_query(org, query: str, fields=None) -> mailroom.QueryMetadata:
 class Mocks:
     def __init__(self):
         self.calls = defaultdict(list)
-        self._parse_query = {}
-        self._contact_search = {}
         self._contact_export = []
         self._contact_export_preview = []
+        self._contact_parse_query = {}
+        self._contact_search = {}
         self._contact_urns = []
         self._flow_start_preview = []
         self._msg_broadcast_preview = []
@@ -66,14 +65,14 @@ class Mocks:
 
         self.queued_batch_tasks = []
 
-    def parse_query(self, query, *, cleaned=None, fields=None):
+    def contact_parse_query(self, query, *, cleaned=None, fields=None):
         def mock(org):
             return mailroom.ParsedQuery(
                 query=cleaned or query,
                 metadata=mock_inspect_query(org, cleaned or query, fields),
             )
 
-        self._parse_query[query] = mock
+        self._contact_parse_query[query] = mock
 
     def contact_search(self, query, *, cleaned=None, contacts=(), total=0, fields=()):
         def mock(org, offset, sort):
@@ -238,11 +237,8 @@ class TestClient(MailroomClient):
         return len(session_ids)
 
     @_client_method
-    def parse_query(self, org_id: int, query: str, parse_only: bool = False):
-        org = Org.objects.get(id=org_id)
-
-        # if there's a mock for this query we use that
-        mock = self.mocks._parse_query.get(query)
+    def contact_parse_query(self, org, query: str, parse_only: bool = False):
+        mock = self.mocks._contact_parse_query.get(query)
         if mock:
             return mock(org)
 
@@ -257,7 +253,7 @@ class TestClient(MailroomClient):
         return mock(org, offset, sort)
 
     @_client_method
-    def contact_urns(self, org_id: int, urns: list[str]):
+    def contact_urns(self, org, urns: list[str]):
         results = [mailroom.URNResult(normalized=urn) for urn in urns]
 
         if self.mocks._contact_urns:
@@ -308,9 +304,11 @@ class TestClient(MailroomClient):
         return mock(org)
 
     @_client_method
-    def msg_send(self, org_id: int, user_id: int, contact_id: int, text: str, attachments: list[str], ticket_id: int):
-        org = Org.objects.get(id=org_id)
-        contact = Contact.objects.get(org=org, id=contact_id)
+    def msg_resend(self, org, msgs):
+        return {"msg_ids": [m.id for m in msgs]}
+
+    @_client_method
+    def msg_send(self, org, user, contact, text: str, attachments: list[str], ticket):
         msg = send_to_contact(org, contact, text, attachments)
 
         return {

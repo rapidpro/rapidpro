@@ -53,7 +53,6 @@ from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMi
 
 from .forms import ContactGroupForm, UpdateContactForm
 from .models import URN, Contact, ContactExport, ContactField, ContactGroup, ContactGroupCount, ContactImport
-from .search import parse_query
 from .search.omnibox import omnibox_query, omnibox_results_to_dict
 
 logger = logging.getLogger(__name__)
@@ -546,7 +545,7 @@ class ContactCRUDL(SmartCRUDL):
 
             if has_contactgroup_create_perm and valid_search_condition:
                 try:
-                    parsed = parse_query(self.request.org, search)
+                    parsed = mailroom.get_client().contact_parse_query(self.request.org, search)
                     if parsed.metadata.allow_as_group:
                         menu.add_modax(
                             _("Create Smart Group"),

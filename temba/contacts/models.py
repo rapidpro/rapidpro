@@ -34,8 +34,6 @@ from temba.utils.text import decode_stream, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
 from temba.utils.uuid import uuid4
 
-from .search import parse_query
-
 logger = logging.getLogger(__name__)
 
 
@@ -1529,7 +1527,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         try:
             if not parsed:
-                parsed = parse_query(self.org, query)
+                parsed = mailroom.get_client().contact_parse_query(self.org, query)
 
             if not parsed.metadata.allow_as_group:
                 raise ValueError(f"Cannot use query '{query}' as a smart group")
@@ -1636,7 +1634,7 @@ class ContactGroup(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
             parsed_query = None
             if group_query:
-                parsed_query = parse_query(org, group_query, parse_only=True)
+                parsed_query = mailroom.get_client().contact_parse_query(org, group_query, parse_only=True)
                 for field_ref in parsed_query.metadata.fields:
                     ContactField.get_or_create(org, user, key=field_ref["key"])
 

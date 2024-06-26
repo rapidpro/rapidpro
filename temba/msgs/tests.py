@@ -1,6 +1,6 @@
 import json
 from datetime import date, datetime, timedelta, timezone as tzone
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from openpyxl import load_workbook
 
@@ -728,8 +728,8 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(sent_url + "?search=joe")
         self.assertEqual([msg1, msg2], list(response.context_data["object_list"]))
 
-    @patch("temba.mailroom.client.client.MailroomClient.msg_resend")
-    def test_failed(self, mock_msg_resend):
+    @mock_mailroom
+    def test_failed(self, mr_mocks):
         contact1 = self.create_contact("Joe Blow", phone="+250788000001")
         msg1 = self.create_outgoing_msg(contact1, "message number 1", status="F")
 
@@ -759,7 +759,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         # resend some messages
         self.client.post(failed_url, {"action": "resend", "objects": [msg2.id]})
 
-        mock_msg_resend.assert_called_once_with(self.org.id, [msg2.id])
+        self.assertEqual([call(self.org, [msg2])], mr_mocks.calls["msg_resend"])
 
         # suspended orgs don't see resend as option
         self.org.is_suspended = True

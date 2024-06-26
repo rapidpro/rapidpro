@@ -261,6 +261,26 @@ class MailroomClientTest(TembaTest):
         )
 
     @patch("requests.post")
+    def test_contact_parse_query(self, mock_post):
+        mock_post.return_value = MockJsonResponse(
+            200, {"query": 'name ~ "frank"', "metadata": {"attributes": ["name"]}}
+        )
+        parsed = self.client.contact_parse_query(self.org, "frank")
+
+        self.assertEqual('name ~ "frank"', parsed.query)
+        self.assertEqual(["name"], parsed.metadata.attributes)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/parse_query",
+            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
+            json={"query": "frank", "org_id": self.org.id, "parse_only": False},
+        )
+
+        mock_post.return_value = MockJsonResponse(400, {"error": "no such field age"})
+
+        with self.assertRaises(RequestException):
+            self.client.contact_parse_query(self.org, "age > 10")
+
+    @patch("requests.post")
     def test_contact_search(self, mock_post):
         group = self.create_group("Doctors", contacts=[])
 
@@ -297,7 +317,7 @@ class MailroomClientTest(TembaTest):
             200, {"urns": [{"normalized": "tel:+1234", "contact_id": 345}, {"normalized": "webchat:3a2ef3"}]}
         )
 
-        response = self.client.contact_urns(self.org.id, ["tel:+1234", "webchat:3a2ef3"])
+        response = self.client.contact_urns(self.org, ["tel:+1234", "webchat:3a2ef3"])
 
         self.assertEqual(
             [URNResult(normalized="tel:+1234", contact_id=345), URNResult(normalized="webchat:3a2ef3")], response
@@ -401,31 +421,31 @@ class MailroomClientTest(TembaTest):
             },
         )
 
-    def test_msg_broadcast(self):
+    @patch("requests.post")
+    def test_msg_broadcast(self, mock_post):
         ann = self.create_contact("Ann", urns=["tel:+12340000001"])
         bob = self.create_contact("Bob", urns=["tel:+12340000002"])
         group = self.create_group("Doctors", contacts=[])
         optin = self.create_optin("Cat Facts")
         bcast = self.create_broadcast(self.admin, {"eng": {"text": "Hello"}}, groups=[group])
 
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockJsonResponse(200, {"id": bcast.id})
-            result = self.client.msg_broadcast(
-                self.org,
-                self.admin,
-                {"eng": {"text": "Hello"}},
-                "eng",
-                [group],
-                [ann, bob],
-                ["tel:1234"],
-                "age > 20",
-                "",
-                Exclusions(in_a_flow=True),
-                optin,
-                ScheduleSpec(start="2024-06-20T16:23:30Z", repeat_period=Schedule.REPEAT_DAILY),
-            )
+        mock_post.return_value = MockJsonResponse(200, {"id": bcast.id})
+        result = self.client.msg_broadcast(
+            self.org,
+            self.admin,
+            {"eng": {"text": "Hello"}},
+            "eng",
+            [group],
+            [ann, bob],
+            ["tel:1234"],
+            "age > 20",
+            "",
+            Exclusions(in_a_flow=True),
+            optin,
+            ScheduleSpec(start="2024-06-20T16:23:30Z", repeat_period=Schedule.REPEAT_DAILY),
+        )
 
-            self.assertEqual(bcast, result)
+        self.assertEqual(bcast, result)
 
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/msg/broadcast",
@@ -451,20 +471,20 @@ class MailroomClientTest(TembaTest):
             },
         )
 
-    def test_msg_broadcast_preview(self):
-        with patch("requests.post") as mock_post:
-            mock_resp = {"query": 'group = "Farmers" AND status = "active"', "total": 2345}
-            mock_post.return_value = MockJsonResponse(200, mock_resp)
-            preview = self.client.msg_broadcast_preview(
-                self.org,
-                include=Inclusions(
-                    group_uuids=["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
-                    contact_uuids=["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
-                ),
-                exclude=Exclusions(non_active=True, not_seen_since_days=30),
-            )
+    @patch("requests.post")
+    def test_msg_broadcast_preview(self, mock_post):
+        mock_resp = {"query": 'group = "Farmers" AND status = "active"', "total": 2345}
+        mock_post.return_value = MockJsonResponse(200, mock_resp)
+        preview = self.client.msg_broadcast_preview(
+            self.org,
+            include=Inclusions(
+                group_uuids=["1e42a9dd-3683-477d-a3d8-19db951bcae0"],
+                contact_uuids=["ad32f9a9-e26e-4628-b39b-a54f177abea8"],
+            ),
+            exclude=Exclusions(non_active=True, not_seen_since_days=30),
+        )
 
-            self.assertEqual(RecipientsPreview(query='group = "Farmers" AND status = "active"', total=2345), preview)
+        self.assertEqual(RecipientsPreview(query='group = "Farmers" AND status = "active"', total=2345), preview)
 
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/msg/broadcast_preview",
@@ -487,36 +507,42 @@ class MailroomClientTest(TembaTest):
 
     @patch("requests.post")
     def test_msg_handle(self, mock_post):
-        mock_post.return_value = MockJsonResponse(200, {"msg_ids": [12345]})
-        response = self.client.msg_handle(org_id=self.org.id, msg_ids=[12345, 67890])
+        ann = self.create_contact("Ann", urns=["tel:+12340000001"])
+        msg1 = self.create_incoming_msg(ann, "Hi")
+        msg2 = self.create_incoming_msg(ann, "Hi again")
+        mock_post.return_value = MockJsonResponse(200, {"msg_ids": [msg1.id]})
+        response = self.client.msg_handle(self.org, [msg1, msg2])
 
-        self.assertEqual({"msg_ids": [12345]}, response)
+        self.assertEqual({"msg_ids": [msg1.id]}, response)
 
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/msg/handle",
             headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
-            json={"org_id": self.org.id, "msg_ids": [12345, 67890]},
+            json={"org_id": self.org.id, "msg_ids": [msg1.id, msg2.id]},
         )
 
     @patch("requests.post")
     def test_msg_resend(self, mock_post):
-        mock_post.return_value = MockJsonResponse(200, {"msg_ids": [12345]})
-        response = self.client.msg_resend(org_id=self.org.id, msg_ids=[12345, 67890])
+        ann = self.create_contact("Ann", urns=["tel:+12340000001"])
+        msg1 = self.create_outgoing_msg(ann, "Hi")
+        msg2 = self.create_outgoing_msg(ann, "Hi again")
+        mock_post.return_value = MockJsonResponse(200, {"msg_ids": [msg1.id]})
+        response = self.client.msg_resend(self.org, msgs=[msg1, msg2])
 
-        self.assertEqual({"msg_ids": [12345]}, response)
+        self.assertEqual({"msg_ids": [msg1.id]}, response)
 
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/msg/resend",
             headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
-            json={"org_id": self.org.id, "msg_ids": [12345, 67890]},
+            json={"org_id": self.org.id, "msg_ids": [msg1.id, msg2.id]},
         )
 
     @patch("requests.post")
     def test_msg_send(self, mock_post):
+        ann = self.create_contact("Ann", urns=["tel:+12340000001"])
+        ticket = self.create_ticket(ann, "Help")
         mock_post.return_value = MockJsonResponse(200, {"id": 12345})
-        response = self.client.msg_send(
-            org_id=self.org.id, user_id=self.admin.id, contact_id=123, text="hi", attachments=[], ticket_id=345
-        )
+        response = self.client.msg_send(self.org, self.admin, ann, "hi", [], ticket)
 
         self.assertEqual({"id": 12345}, response)
 
@@ -526,10 +552,10 @@ class MailroomClientTest(TembaTest):
             json={
                 "org_id": self.org.id,
                 "user_id": self.admin.id,
-                "contact_id": 123,
+                "contact_id": ann.id,
                 "text": "hi",
                 "attachments": [],
-                "ticket_id": 345,
+                "ticket_id": ticket.id,
             },
         )
 
@@ -559,26 +585,6 @@ class MailroomClientTest(TembaTest):
             data={"org_id": self.org.id, "flow_ids": [123, 234], "language": "spa"},
             files={"po": b'msgid "Red"\nmsgstr "Rojo"\n\n'},
         )
-
-    @patch("requests.post")
-    def test_parse_query(self, mock_post):
-        mock_post.return_value = MockJsonResponse(
-            200, {"query": 'name ~ "frank"', "metadata": {"attributes": ["name"]}}
-        )
-        parsed = self.client.parse_query(self.org.id, "frank")
-
-        self.assertEqual('name ~ "frank"', parsed.query)
-        self.assertEqual(["name"], parsed.metadata.attributes)
-        mock_post.assert_called_once_with(
-            "http://localhost:8090/mr/contact/parse_query",
-            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
-            json={"query": "frank", "org_id": self.org.id, "parse_only": False},
-        )
-
-        mock_post.return_value = MockJsonResponse(400, {"error": "no such field age"})
-
-        with self.assertRaises(RequestException):
-            self.client.parse_query(1, "age > 10")
 
     def test_ticket_assign(self):
         with patch("requests.post") as mock_post:
