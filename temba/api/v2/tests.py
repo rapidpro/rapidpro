@@ -4088,7 +4088,7 @@ class EndpointsTest(APITest):
         )
 
         self.assertEqual(
-            call(self.org.id, self.admin.id, self.joe.id, "Interesting", [], None),
+            call(self.org, self.admin, self.joe, "Interesting", [], None),
             mr_mocks.calls["msg_send"][-1],
         )
 
@@ -4115,7 +4115,7 @@ class EndpointsTest(APITest):
             endpoint_url, self.admin, {"contact": self.joe.uuid, "attachments": [str(upload.uuid)]}, status=201
         )
         self.assertEqual(  # check that was sent via mailroom
-            call(self.org.id, self.admin.id, self.joe.id, "", [f"image/jpeg:{upload.url}"], None),
+            call(self.org, self.admin, self.joe, "", [f"image/jpeg:{upload.url}"], None),
             mr_mocks.calls["msg_send"][-1],
         )
 
@@ -4127,7 +4127,7 @@ class EndpointsTest(APITest):
             status=201,
         )
         self.assertEqual(
-            call(self.org.id, self.admin.id, self.joe.id, "", [f"image/jpeg:{upload.url}"], None),
+            call(self.org, self.admin, self.joe, "", [f"image/jpeg:{upload.url}"], None),
             mr_mocks.calls["msg_send"][-1],
         )
 

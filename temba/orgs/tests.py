@@ -4166,8 +4166,8 @@ class BulkExportTest(TembaTest):
         data = self.get_import_json("cataclysm")
         del data["fields"]
 
-        mr_mocks.parse_query("facts_per_day = 1", fields=["facts_per_day"])
-        mr_mocks.parse_query("likes_cats = true", cleaned='likes_cats = "true"', fields=["likes_cats"])
+        mr_mocks.contact_parse_query("facts_per_day = 1", fields=["facts_per_day"])
+        mr_mocks.contact_parse_query("likes_cats = true", cleaned='likes_cats = "true"', fields=["likes_cats"])
 
         self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
@@ -4203,8 +4203,8 @@ class BulkExportTest(TembaTest):
         Tests importing flow definitions with groups and fields included in the export
         """
 
-        mr_mocks.parse_query("facts_per_day = 1", fields=["facts_per_day"])
-        mr_mocks.parse_query("likes_cats = true", cleaned='likes_cats = "true"', fields=["likes_cats"])
+        mr_mocks.contact_parse_query("facts_per_day = 1", fields=["facts_per_day"])
+        mr_mocks.contact_parse_query("likes_cats = true", cleaned='likes_cats = "true"', fields=["likes_cats"])
 
         self.import_file("cataclysm")
 

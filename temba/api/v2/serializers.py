@@ -1364,9 +1364,7 @@ class MsgWriteSerializer(WriteSerializer):
         attachments = [str(m) for m in self.validated_data.get("attachments", [])]
         ticket = self.validated_data.get("ticket")
 
-        resp = mailroom.get_client().msg_send(
-            org.id, user.id, contact.id, text or "", attachments, ticket.id if ticket else None
-        )
+        resp = mailroom.get_client().msg_send(org, user, contact, text or "", attachments, ticket)
 
         # to avoid fetching the new msg from the database, construct transient instances to pass to the serializer
         channel = Channel(uuid=resp["channel"]["uuid"], name=resp["channel"]["name"]) if resp.get("channel") else None

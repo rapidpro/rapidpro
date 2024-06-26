@@ -9,7 +9,6 @@ from temba.utils import languages
 from temba.utils.fields import InputWidget, SelectMultipleWidget, SelectWidget, TembaMultipleChoiceField
 
 from .models import URN, Contact, ContactGroup, ContactURN
-from .search import parse_query
 
 
 class UpdateContactForm(forms.ModelForm):
@@ -94,7 +93,7 @@ class UpdateContactForm(forms.ModelForm):
         # let mailroom figure out which are valid or taken
         if urns_by_field:
             urn_values = list(urns_by_field.values())
-            resolved = mailroom.get_client().contact_urns(self.org.id, urn_values)
+            resolved = mailroom.get_client().contact_urns(self.org, urn_values)
             resolved_by_value = dict(zip(urn_values, resolved))
 
             for field, urn in urns_by_field.items():
@@ -151,7 +150,7 @@ class ContactGroupForm(forms.ModelForm):
 
     def clean_query(self):
         try:
-            parsed = parse_query(self.org, self.cleaned_data["query"])
+            parsed = mailroom.get_client().contact_parse_query(self.org, self.cleaned_data["query"])
             if not parsed.metadata.allow_as_group:
                 raise forms.ValidationError(_('You cannot create a smart group based on "id" or "group".'))
 

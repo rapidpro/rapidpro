@@ -2657,7 +2657,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertUpdateFetch(start_url, [self.editor, self.admin], form_fields=["flow", "contact_search"])
 
         # create flow start with a query
-        mr_mocks.parse_query("frank", cleaned='name ~ "frank"')
+        mr_mocks.contact_parse_query("frank", cleaned='name ~ "frank"')
         self.assertUpdateSubmit(
             start_url,
             self.admin,
@@ -2704,7 +2704,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         query = f"uuid='{contact.uuid}'"
-        mr_mocks.parse_query(query, cleaned=query)
+        mr_mocks.contact_parse_query(query, cleaned=query)
 
         # create flow start with exclude_in_other and exclude_reruns both left unchecked
         self.assertUpdateSubmit(
@@ -2731,7 +2731,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow = self.create_flow("Background", flow_type=Flow.TYPE_BACKGROUND)
 
         # create flow start with a query
-        mr_mocks.parse_query("frank", cleaned='name ~ "frank"')
+        mr_mocks.contact_parse_query("frank", cleaned='name ~ "frank"')
 
         start_url = f"{reverse('flows.flow_start', args=[])}?flow={flow.id}"
         self.assertUpdateSubmit(

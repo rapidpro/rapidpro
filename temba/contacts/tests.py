@@ -1041,7 +1041,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(ContactGroup.STATUS_INITIALIZING, group.status)
 
         # update group query
-        mr_mocks.parse_query("age > 18 and name ~ Mary", cleaned='age > 18 AND name ~ "Mary"')
+        mr_mocks.contact_parse_query("age > 18 and name ~ Mary", cleaned='age > 18 AND name ~ "Mary"')
         group.update_query("age > 18 and name ~ Mary")
         group.refresh_from_db()
 

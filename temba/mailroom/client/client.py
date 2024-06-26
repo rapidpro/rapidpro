@@ -109,6 +109,11 @@ class MailroomClient:
             },
         )
 
+    def contact_parse_query(self, org, query: str, parse_only: bool = False) -> ParsedQuery:
+        resp = self._request("contact/parse_query", {"org_id": org.id, "query": query, "parse_only": parse_only})
+
+        return ParsedQuery(query=resp["query"], metadata=QueryMetadata(**resp.get("metadata", {})))
+
     def contact_search(self, org, group, query: str, sort: str, offset=0, exclude_ids=()) -> SearchResults:
         resp = self._request(
             "contact/search",
@@ -129,19 +134,16 @@ class MailroomClient:
             metadata=QueryMetadata(**resp.get("metadata", {})),
         )
 
-    def contact_urns(self, org_id: int, urns: list[str]):
-        response = self._request("contact/urns", {"org_id": org_id, "urns": urns})
-        return [URNResult(**ur) for ur in response["urns"]]
+    def contact_urns(self, org, urns: list[str]):
+        resp = self._request("contact/urns", {"org_id": org.id, "urns": urns})
+
+        return [URNResult(**ur) for ur in resp["urns"]]
 
     def flow_change_language(self, definition: dict, language):
-        payload = {"flow": definition, "language": language}
+        return self._request("flow/change_language", {"flow": definition, "language": language}, encode_json=True)
 
-        return self._request("flow/change_language", payload, encode_json=True)
-
-    def flow_clone(self, flow, dependency_mapping):
-        payload = {"flow": flow, "dependency_mapping": dependency_mapping}
-
-        return self._request("flow/clone", payload)
+    def flow_clone(self, definition: dict, dependency_mapping):
+        return self._request("flow/clone", {"flow": definition, "dependency_mapping": dependency_mapping})
 
     def flow_inspect(self, org, definition: dict):
         payload = {"flow": definition}
@@ -223,27 +225,24 @@ class MailroomClient:
 
         return RecipientsPreview(query=resp["query"], total=resp["total"])
 
-    def msg_handle(self, org_id: int, msg_ids: list):
-        payload = {"org_id": org_id, "msg_ids": msg_ids}
+    def msg_handle(self, org, msgs):
+        return self._request("msg/handle", {"org_id": org.id, "msg_ids": [m.id for m in msgs]})
 
-        return self._request("msg/handle", payload)
+    def msg_resend(self, org, msgs):
+        return self._request("msg/resend", {"org_id": org.id, "msg_ids": [m.id for m in msgs]})
 
-    def msg_resend(self, org_id: int, msg_ids: list):
-        payload = {"org_id": org_id, "msg_ids": msg_ids}
-
-        return self._request("msg/resend", payload)
-
-    def msg_send(self, org_id: int, user_id: int, contact_id: int, text: str, attachments: list[str], ticket_id: int):
-        payload = {
-            "org_id": org_id,
-            "user_id": user_id,
-            "contact_id": contact_id,
-            "text": text,
-            "attachments": attachments,
-            "ticket_id": ticket_id,
-        }
-
-        return self._request("msg/send", payload)
+    def msg_send(self, org, user, contact, text: str, attachments: list[str], ticket):
+        return self._request(
+            "msg/send",
+            {
+                "org_id": org.id,
+                "user_id": user.id,
+                "contact_id": contact.id,
+                "text": text,
+                "attachments": attachments,
+                "ticket_id": ticket.id if ticket else None,
+            },
+        )
 
     def po_export(self, org_id: int, flow_ids: list, language: str):
         payload = {"org_id": org_id, "flow_ids": flow_ids, "language": language}
@@ -260,12 +259,6 @@ class MailroomClient:
 
     def sim_resume(self, payload):
         return self._request("sim/resume", payload, encode_json=True)
-
-    def parse_query(self, org_id: int, query: str, parse_only: bool = False) -> ParsedQuery:
-        payload = {"org_id": org_id, "query": query, "parse_only": parse_only}
-
-        response = self._request("contact/parse_query", payload)
-        return ParsedQuery(query=response["query"], metadata=QueryMetadata(**response.get("metadata", {})))
 
     def ticket_assign(self, org_id: int, user_id: int, ticket_ids: list, assignee_id: int):
         payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids, "assignee_id": assignee_id}
