@@ -1,3 +1,9 @@
+v9.1.159 (2024-06-26)
+-------------------------
+ * Simplify some button labels and make edit a button on contact read page
+ * Don't show empty contact filter list
+ * Rework more mailroom client methods to use models instead of primitives
+
 v9.1.158 (2024-06-26)
 -------------------------
  * Add day selection when doing flow start search
