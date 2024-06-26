@@ -4061,35 +4061,21 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(parent.field_dependencies.all()), {age, gender})
         self.assertEqual(set(parent.group_dependencies.all()), {farmers})
 
-    @patch("temba.mailroom.client.client.MailroomClient.flow_inspect")
-    def test_import_flow_issues(self, mock_flow_inspect):
-        mock_flow_inspect.side_effect = [
-            {
-                # first call is during import to find dependencies to map or create
-                "dependencies": [{"key": "age", "name": "", "type": "field", "missing": False}],
-                "issues": [],
-                "results": [],
-                "waiting_exits": [],
-                "parent_refs": [],
-            },
-            {
-                # second call is in save_revision and passes org to validate dependencies, but during import those
-                # dependencies which didn't exist already are created in a transaction and mailroom can't see them
-                "dependencies": [{"key": "age", "name": "", "type": "field", "missing": True}],
-                "issues": [{"type": "missing_dependency"}],
-                "results": [],
-                "waiting_exits": [],
-                "parent_refs": [],
-            },
-            {
-                # final call is after new flows and dependencies have been committed so mailroom can see them
-                "dependencies": [{"key": "age", "name": "", "type": "field", "missing": False}],
-                "issues": [],
-                "results": [],
-                "waiting_exits": [],
-                "parent_refs": [],
-            },
-        ]
+    @mock_mailroom
+    def test_import_flow_issues(self, mr_mocks):
+        # first call is during import to find dependencies to map or create
+        mr_mocks.flow_inspect(dependencies=[{"key": "age", "name": "", "type": "field", "missing": False}])
+
+        # second call is in save_revision and passes org to validate dependencies, but during import those
+        # dependencies which didn't exist already are created in a transaction and mailroom can't see them
+        mr_mocks.flow_inspect(
+            dependencies=[{"key": "age", "name": "", "type": "field", "missing": True}],
+            issues=[{"type": "missing_dependency"}],
+        )
+
+        # final call is after new flows and dependencies have been committed so mailroom can see them
+        mr_mocks.flow_inspect(dependencies=[{"key": "age", "name": "", "type": "field", "missing": False}])
+
         self.import_file("color")
 
         flow = Flow.objects.get()

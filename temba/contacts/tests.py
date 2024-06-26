@@ -2769,12 +2769,12 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             mods,
         )
 
-    @patch("temba.mailroom.client.client.MailroomClient.contact_modify")
-    def test_bulk_modify_with_no_contacts(self, mock_contact_modify):
-        mock_contact_modify.return_value = {}
+    @mock_mailroom
+    def test_bulk_modify_with_no_contacts(self, mr_mocks):
+        Contact.bulk_modify(self.admin, [], [modifiers.Language(language="spa")])
 
         # just a NOOP
-        Contact.bulk_modify(self.admin, [], [modifiers.Language(language="spa")])
+        self.assertEqual([], mr_mocks.calls["contact_modify"])
 
     @mock_mailroom
     def test_contact_model(self, mr_mocks):
