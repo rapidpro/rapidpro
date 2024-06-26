@@ -352,6 +352,16 @@ class ContactCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             obj = self.get_object()
 
+            if self.has_org_perm("contacts.contact_update"):
+                menu.add_modax(
+                    _("Edit"),
+                    "edit-contact",
+                    f"{reverse('contacts.contact_update', args=[obj.id])}",
+                    title=_("Edit Contact"),
+                    on_submit="contactUpdated()",
+                    as_button=True,
+                )
+
             if obj.status == Contact.STATUS_ACTIVE:
                 if self.has_org_perm("flows.flow_start"):
                     menu.add_modax(
@@ -365,20 +375,8 @@ class ContactCRUDL(SmartCRUDL):
                     menu.add_modax(
                         _("Open Ticket"), "open-ticket", reverse("contacts.contact_open_ticket", args=[obj.id])
                     )
-
-                menu.new_group()
-
                 if self.has_org_perm("contacts.contact_interrupt") and obj.current_flow:
                     menu.add_url_post(_("Interrupt"), reverse("contacts.contact_interrupt", args=(obj.id,)))
-
-            if self.has_org_perm("contacts.contact_update"):
-                menu.add_modax(
-                    _("Edit"),
-                    "edit-contact",
-                    f"{reverse('contacts.contact_update', args=[obj.id])}",
-                    title=_("Edit Contact"),
-                    on_submit="contactUpdated()",
-                )
 
     class Scheduled(OrgObjPermsMixin, SmartReadView):
         """
@@ -719,7 +717,7 @@ class ContactCRUDL(SmartCRUDL):
     class Update(SpaMixin, ComponentFormMixin, NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
         success_url = "hide"
-        submit_button_name = _("Save Changes")
+        submit_button_name = _("Save")
 
         def derive_exclude(self):
             obj = self.get_object()

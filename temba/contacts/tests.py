@@ -458,16 +458,12 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertLoginRedirect(response)
 
         self.assertContentMenu(read_url, self.user, [])
-        self.assertContentMenu(read_url, self.editor, ["Start Flow", "Open Ticket", "-", "Edit"])
-        self.assertContentMenu(
-            read_url,
-            self.admin,
-            ["Start Flow", "Open Ticket", "-", "Edit"],
-        )
+        self.assertContentMenu(read_url, self.editor, ["Edit", "Start Flow", "Open Ticket"])
+        self.assertContentMenu(read_url, self.admin, ["Edit", "Start Flow", "Open Ticket"])
 
         # if there's an open ticket already, don't show open ticket option
         self.create_ticket(joe, "Help")
-        self.assertContentMenu(read_url, self.editor, ["Start Flow", "-", "Edit"])
+        self.assertContentMenu(read_url, self.editor, ["Edit", "Start Flow"])
 
         # login as viewer
         self.login(self.user)
@@ -899,7 +895,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         MockSessionWriter(other_org_contact, self.create_flow("Test", org=self.org2)).wait().save()
 
         # now it's an option
-        self.assertContentMenu(read_url, self.admin, ["Start Flow", "Open Ticket", "-", "Interrupt", "Edit"])
+        self.assertContentMenu(read_url, self.admin, ["Edit", "Start Flow", "Open Ticket", "Interrupt"])
 
         # can't interrupt if not logged in
         self.client.logout()

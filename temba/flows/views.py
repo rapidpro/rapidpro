@@ -914,7 +914,7 @@ class FlowCRUDL(SmartCRUDL):
 
             if obj.flow_type != Flow.TYPE_SURVEY and self.has_org_perm("flows.flow_start") and not obj.is_archived:
                 menu.add_modax(
-                    _("Start Flow"),
+                    _("Start"),
                     "start-flow",
                     f"{reverse('flows.flow_start', args=[])}?flow={obj.id}",
                     primary=True,
@@ -1647,7 +1647,7 @@ class FlowCRUDL(SmartCRUDL):
                 fields = ("flow", "contact_search")
 
         form_class = Form
-        submit_button_name = _("Start Flow")
+        submit_button_name = _("Start")
         success_url = "hide"
 
         def derive_initial(self):

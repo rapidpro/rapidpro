@@ -2079,7 +2079,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = AccountsForm
         success_url = "@orgs.org_manage_accounts"
-        submit_button_name = _("Save Changes")
+        submit_button_name = _("Save")
         title = _("Users")
         menu_path = "/settings/users"
 
