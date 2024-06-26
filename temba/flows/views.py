@@ -1512,7 +1512,7 @@ class FlowCRUDL(SmartCRUDL):
             "inactive_threshold": _(
                 "You've selected a lot of contacts! Depending on your channel "
                 "it could take days to reach everybody and could reduce response rates. "
-                "Click on <b>Skip inactive contacts</b> below "
+                "Filter for contacts that have sent a message recently "
                 "to limit your selection to contacts who are more likely to respond."
             ),
         }

@@ -1,6 +1,15 @@
 {% extends "utils/forms/wizard.html" %}
 {% load i18n %}
 
+{% block extra-style %}
+  {{ block.super }}
+  <style>
+    temba-compose {
+      --textarea-min-height: 6em;
+      --temba-textinput-padding: 1em 1em;
+    }
+  </style>
+{% endblock extra-style %}
 {% block pre-form %}
   {% blocktrans trimmed %}
     Enter the message you would like to send.
