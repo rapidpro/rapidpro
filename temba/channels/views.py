@@ -730,8 +730,6 @@ class ChannelCRUDL(SmartCRUDL):
             return response
 
     class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
-        submit_button_name = _("Save")
-
         def derive_title(self):
             return _("%s Channel") % self.object.type.name
 

@@ -717,7 +717,6 @@ class ContactCRUDL(SmartCRUDL):
     class Update(SpaMixin, ComponentFormMixin, NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
         success_url = "hide"
-        submit_button_name = _("Save")
 
         def derive_exclude(self):
             obj = self.get_object()

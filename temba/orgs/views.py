@@ -2079,7 +2079,6 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = AccountsForm
         success_url = "@orgs.org_manage_accounts"
-        submit_button_name = _("Save")
         title = _("Users")
         menu_path = "/settings/users"
 
@@ -2534,7 +2533,6 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Sign Up")
         form_class = SignupForm
         permission = None
-        submit_button_name = _("Save")
 
         def get_success_url(self):
             return "%s?start" % reverse("public.public_welcome")

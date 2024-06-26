@@ -560,8 +560,6 @@ class CampaignEventCRUDL(SmartCRUDL):
 
     class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
         form_class = CampaignEventForm
-        submit_button_name = _("Save")
-
         default_fields = [
             "event_type",
             "flow_to_start",
@@ -673,7 +671,6 @@ class CampaignEventCRUDL(SmartCRUDL):
         ]
         form_class = CampaignEventForm
         template_name = "campaigns/campaignevent_update.html"
-        submit_button_name = _("Save")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
