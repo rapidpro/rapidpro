@@ -2,11 +2,12 @@ from formtools.wizard.views import SessionWizardView
 from smartmin.views import SmartView, derive_single_object_url_pattern, smart_url
 
 from django.core.exceptions import ImproperlyConfigured
+from django.utils.translation import gettext_lazy as _
 from django.views.generic.detail import SingleObjectMixin
 
 
 class SmartWizardView(SmartView, SessionWizardView):
-    submit_button_name = "Submit"
+    submit_button_name = _("Submit")
 
     def __init__(self, *args, **kwargs):
         self.initial_dict = kwargs.get("initial_dict", {})
