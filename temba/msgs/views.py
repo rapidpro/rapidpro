@@ -386,7 +386,7 @@ class BroadcastCRUDL(SmartCRUDL):
             if send_when == ScheduleForm.SEND_LATER:
                 start = schedule_form.cleaned_data["start_datetime"].astimezone(org.timezone)
                 schedule = mailroom.ScheduleSpec(
-                    start=start,
+                    start=start.isoformat(),
                     repeat_period=schedule_form.cleaned_data["repeat_period"],
                     repeat_days_of_week=schedule_form.cleaned_data["repeat_days_of_week"],
                 )
