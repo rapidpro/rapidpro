@@ -1,3 +1,7 @@
+v9.1.163 (2024-06-27)
+-------------------------
+ * Change template translation syncing to enforce uniqueness over channel+locale
+
 v9.1.162 (2024-06-27)
 -------------------------
  * Make templatetranslation locale non-null
