@@ -136,10 +136,8 @@ class CampaignCRUDL(SmartCRUDL):
                         _("New Event"),
                         "event-add",
                         f"{reverse('campaigns.campaignevent_create')}?campaign={obj.id}",
+                        as_button=True,
                     )
-
-                if self.has_org_perm("orgs.org_export"):
-                    menu.add_link(_("Export"), f"{reverse('orgs.org_export')}?campaign={obj.id}")
 
                 if self.has_org_perm("campaigns.campaign_update"):
                     menu.add_modax(
@@ -148,6 +146,9 @@ class CampaignCRUDL(SmartCRUDL):
                         reverse("campaigns.campaign_update", args=[obj.id]),
                         title=_("Edit Campaign"),
                     )
+
+                if self.has_org_perm("orgs.org_export"):
+                    menu.add_link(_("Export"), f"{reverse('orgs.org_export')}?campaign={obj.id}")
 
                 if self.has_org_perm("campaigns.campaign_archive"):
                     menu.add_url_post(_("Archive"), reverse("campaigns.campaign_archive", args=[obj.id]))

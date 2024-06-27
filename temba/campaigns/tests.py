@@ -1202,7 +1202,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "Welcomes")
         self.assertContains(response, "Registered")
 
-        self.assertContentMenu(read_url, self.admin, ["New Event", "Export", "Edit", "Archive"])
+        self.assertContentMenu(read_url, self.admin, ["New Event", "Edit", "Export", "Archive"])
 
         campaign.archive(self.admin)
 
