@@ -1,3 +1,8 @@
+v9.1.162 (2024-06-27)
+-------------------------
+ * Make templatetranslation locale non-null
+ * Add migration to release translations for released channels
+
 v9.1.161 (2024-06-27)
 -------------------------
  * Fix not releasing template translations when channel released
