@@ -293,17 +293,6 @@ class OmniboxChoice(forms.Widget):
         return selected
 
 
-class OmniboxField(JSONField):
-    widget = OmniboxChoice()
-    default_country = None
-
-    def validate(self, value):
-        assert isinstance(value, list)
-
-        for item in value:
-            assert isinstance(item, dict) and "id" in item and "type" in item
-
-
 class ComposeWidget(forms.Widget):
     template_name = "utils/forms/compose.html"
     is_annotated = True
