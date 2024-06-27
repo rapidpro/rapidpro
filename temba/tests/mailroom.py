@@ -22,7 +22,7 @@ from temba.mailroom.modifiers import Modifier
 from temba.msgs.models import Broadcast, Msg
 from temba.schedules.models import Schedule
 from temba.tests.dates import parse_datetime
-from temba.tickets.models import Ticket, TicketEvent, Topic
+from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import get_anonymous_user, json
 
 event_units = {
@@ -345,81 +345,73 @@ class TestClient(MailroomClient):
         }
 
     @_client_method
-    def ticket_assign(self, org_id, user_id, ticket_ids, assignee_id):
+    def ticket_assign(self, org, user, tickets, assignee):
         now = timezone.now()
-        tickets = Ticket.objects.filter(org_id=org_id, id__in=ticket_ids).exclude(assignee_id=assignee_id)
+        tickets = Ticket.objects.filter(org=org, id__in=[t.id for t in tickets]).exclude(assignee=assignee)
+        tickets.update(assignee=assignee, modified_on=now, last_activity_on=now)
 
         for ticket in tickets:
             ticket.events.create(
-                org_id=org_id,
+                org=org,
                 contact=ticket.contact,
                 event_type=TicketEvent.TYPE_ASSIGNED,
-                assignee_id=assignee_id,
-                created_by_id=user_id,
+                assignee=assignee,
+                created_by=user,
             )
-
-        tickets.update(assignee_id=assignee_id, modified_on=now, last_activity_on=now)
 
         return {"changed_ids": [t.id for t in tickets]}
 
     @_client_method
-    def ticket_add_note(self, org_id, user_id, ticket_ids, note):
+    def ticket_add_note(self, org, user, tickets, note: str):
         now = timezone.now()
-        tickets = Ticket.objects.filter(org_id=org_id, id__in=ticket_ids)
+        tickets = Ticket.objects.filter(org=org, id__in=[t.id for t in tickets])
         tickets.update(modified_on=now, last_activity_on=now)
 
         for ticket in tickets:
             ticket.events.create(
-                org_id=org_id,
+                org=org,
                 contact=ticket.contact,
                 event_type=TicketEvent.TYPE_NOTE_ADDED,
                 note=note,
-                created_by_id=user_id,
+                created_by=user,
             )
 
         return {"changed_ids": [t.id for t in tickets]}
 
     @_client_method
-    def ticket_change_topic(self, org_id, user_id, ticket_ids, topic_id):
+    def ticket_change_topic(self, org, user, tickets, topic):
         now = timezone.now()
-        topic = Topic.objects.get(id=topic_id)
-        tickets = Ticket.objects.filter(org_id=org_id, id__in=ticket_ids)
+        tickets = Ticket.objects.filter(org=org, id__in=[t.id for t in tickets]).exclude(topic=topic)
         tickets.update(topic=topic, modified_on=now, last_activity_on=now)
 
         for ticket in tickets:
             ticket.events.create(
-                org_id=org_id,
+                org=org,
                 contact=ticket.contact,
                 event_type=TicketEvent.TYPE_TOPIC_CHANGED,
                 topic=topic,
-                created_by_id=user_id,
+                created_by=user,
             )
 
         return {"changed_ids": [t.id for t in tickets]}
 
     @_client_method
-    def ticket_close(self, org_id: int, user_id: int, ticket_ids: list, force: bool):
-        tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_OPEN, id__in=ticket_ids)
-
-        for ticket in tickets:
-            ticket.events.create(
-                org_id=org_id, contact=ticket.contact, event_type=TicketEvent.TYPE_CLOSED, created_by_id=user_id
-            )
-
+    def ticket_close(self, org, user, tickets, force: bool):
+        tickets = Ticket.objects.filter(org=org, id__in=[t.id for t in tickets], status=Ticket.STATUS_OPEN)
         tickets.update(status=Ticket.STATUS_CLOSED, closed_on=timezone.now())
 
+        for ticket in tickets:
+            ticket.events.create(org=org, contact=ticket.contact, event_type=TicketEvent.TYPE_CLOSED, created_by=user)
+
         return {"changed_ids": [t.id for t in tickets]}
 
     @_client_method
-    def ticket_reopen(self, org_id, user_id, ticket_ids):
-        tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_CLOSED, id__in=ticket_ids)
+    def ticket_reopen(self, org, user, tickets):
+        tickets = Ticket.objects.filter(org=org, id__in=[t.id for t in tickets], status=Ticket.STATUS_CLOSED)
+        tickets.update(status=Ticket.STATUS_OPEN, closed_on=None)
 
         for ticket in tickets:
-            ticket.events.create(
-                org_id=org_id, contact=ticket.contact, event_type=TicketEvent.TYPE_REOPENED, created_by_id=user_id
-            )
-
-        tickets.update(status=Ticket.STATUS_OPEN, closed_on=None)
+            ticket.events.create(org=org, contact=ticket.contact, event_type=TicketEvent.TYPE_REOPENED, created_by=user)
 
         return {"changed_ids": [t.id for t in tickets]}
 

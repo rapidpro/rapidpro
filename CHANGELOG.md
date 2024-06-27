@@ -1,3 +1,31 @@
+v9.1.165 (2024-06-27)
+-------------------------
+ * Rework remaining mailroom client methods
+ * Add unique constraint on template translations
+
+v9.1.164 (2024-06-27)
+-------------------------
+ * Add data migration to remove duplicate template translations
+
+v9.1.163 (2024-06-27)
+-------------------------
+ * Change template translation syncing to enforce uniqueness over channel+locale
+
+v9.1.162 (2024-06-27)
+-------------------------
+ * Make templatetranslation locale non-null
+ * Add migration to release translations for released channels
+
+v9.1.161 (2024-06-27)
+-------------------------
+ * Fix not releasing template translations when channel released
+
+v9.1.160 (2024-06-27)
+-------------------------
+ * Fix creating scheduled broadcasts
+ * Tweak menu on campaign read page
+ * Update to latest smartmin
+
 v9.1.159 (2024-06-26)
 -------------------------
  * Simplify some button labels and make edit a button on contact read page

@@ -245,7 +245,7 @@ class WhatsAppTypeTest(TembaTest):
         self.assertEqual("foo_namespace", trans.namespace)
         self.assertEqual("eng", trans.locale)
         self.assertEqual("en", trans.external_locale)
-        self.assertEqual("en/hello", trans.external_id)
+        self.assertIsNone(trans.external_id)
         self.assertEqual(
             [{"name": "body", "type": "body/text", "content": "Hello {{1}}", "variables": {"1": 0}}],
             trans.components,

@@ -381,63 +381,38 @@ class TemplateTranslationCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(404, response.status_code)
 
 
-class TemplateComponentsTypeTest(MigrationTest):
+class RemoveDuplicateTranslationsTest(MigrationTest):
     app = "templates"
-    migrate_from = "0027_templatetranslation_variables"
-    migrate_to = "0028_template_component_types"
+    migrate_from = "0030_alter_templatetranslation_locale"
+    migrate_to = "0031_remove_duplicate_translations"
 
     def setUpBeforeMigration(self, apps):
-        template = Template.objects.create(org=self.org, name="hello")
+        channel1 = self.create_channel("D3C", "D3C Channel", address="1234")
+        channel2 = self.create_channel("WAC", "WAC Channel", address="2345")
 
-        self.trans1 = TemplateTranslation.objects.create(
-            template=template,
-            channel=self.channel,
-            status=TemplateTranslation.STATUS_PENDING,
-            components=[
-                {"name": "header", "type": "header/text", "content": "Hello"},
-                {"name": "body", "type": "body/text", "content": "World"},
-            ],
-        )
-        self.trans2 = TemplateTranslation.objects.create(
-            template=template,
-            channel=self.channel,
-            status=TemplateTranslation.STATUS_PENDING,
-            components=[
-                {"name": "header", "type": "header", "content": "Hola"},
-                {"name": "body", "type": "body", "content": "Mundo"},
-            ],
-        )
-        self.trans3 = TemplateTranslation.objects.create(
-            template=template,
-            channel=self.channel,
-            status=TemplateTranslation.STATUS_REJECTED,
-            components={"body": "hello"},
-        )
-        self.trans4 = TemplateTranslation.objects.create(
-            template=template,
-            channel=self.channel,
-            status=TemplateTranslation.STATUS_REJECTED,
-            components=[{"no_type": True}],
-        )
+        template1 = Template.objects.create(org=self.org, name="hello")
+        template2 = Template.objects.create(org=self.org, name="goodbye")
+
+        def create_translation(template, channel, locale):
+            return TemplateTranslation.objects.create(
+                template=template, channel=channel, locale=locale, status=TemplateTranslation.STATUS_PENDING
+            )
+
+        self.should_keep = []
+        self.should_delete = []
+
+        self.should_keep.append(create_translation(template1, channel1, "eng"))
+        self.should_delete.append(create_translation(template1, channel2, "eng"))
+        self.should_keep.append(create_translation(template1, channel2, "eng"))  # duplicate
+        self.should_keep.append(create_translation(template1, channel1, "spa"))
+        self.should_delete.append(create_translation(template1, channel2, "spa"))
+        self.should_delete.append(create_translation(template1, channel2, "spa"))  # duplicate
+        self.should_keep.append(create_translation(template1, channel2, "spa"))  # duplicate
+        self.should_keep.append(create_translation(template2, channel1, "eng"))
+        self.should_keep.append(create_translation(template2, channel2, "eng"))
 
     def test_migration(self):
-        def assert_components(trans, expected):
-            trans.refresh_from_db()
-            self.assertEqual(expected, trans.components)
-
-        assert_components(  # unchanged
-            self.trans1,
-            [
-                {"name": "header", "type": "header/text", "content": "Hello"},
-                {"name": "body", "type": "body/text", "content": "World"},
-            ],
-        )
-        assert_components(
-            self.trans2,
-            [
-                {"name": "header", "type": "header/text", "content": "Hola"},
-                {"name": "body", "type": "body/text", "content": "Mundo"},
-            ],
-        )
-        assert_components(self.trans3, [])
-        assert_components(self.trans4, [])
+        for trans in self.should_keep:
+            self.assertTrue(TemplateTranslation.objects.filter(id=trans.id).exists())
+        for trans in self.should_delete:
+            self.assertFalse(TemplateTranslation.objects.filter(id=trans.id).exists())

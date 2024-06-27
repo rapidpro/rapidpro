@@ -7,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.models import Channel
 from temba.orgs.models import Org
 from temba.utils.languages import alpha2_to_alpha3
+from temba.utils.models import update_if_changed
 
 
 class TemplateType:
@@ -52,6 +53,11 @@ class Template(models.Model):
     # when this template was created
     created_on = models.DateTimeField(default=timezone.now)
 
+    @classmethod
+    def get_or_create(cls, org, name: str):
+        obj, created = cls.objects.get_or_create(org=org, name=name)
+        return obj
+
     def is_approved(self):
         """
         Returns whether this template has at least one translation and all are approved
@@ -88,12 +94,12 @@ class TemplateTranslation(models.Model):
 
     template = models.ForeignKey(Template, on_delete=models.PROTECT, related_name="translations")
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="template_translations")
+    locale = models.CharField(max_length=6)  # e.g. eng-US
 
-    namespace = models.CharField(max_length=36, default="")
-    locale = models.CharField(null=True, max_length=6)  # e.g. eng-US
     components = models.JSONField(default=list)
     variables = models.JSONField(default=list)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, null=False)
+    namespace = models.CharField(max_length=36, default="")
     external_id = models.CharField(null=True, max_length=64)
     external_locale = models.CharField(null=True, max_length=6)  # e.g. en_US
     is_active = models.BooleanField(default=True)
@@ -131,8 +137,8 @@ class TemplateTranslation(models.Model):
         cls,
         channel,
         name,
-        *,
         locale,
+        *,
         status,
         external_id,
         external_locale,
@@ -140,55 +146,47 @@ class TemplateTranslation(models.Model):
         components: list,
         variables: list,
     ):
-        existing = TemplateTranslation.objects.filter(channel=channel, external_id=external_id).first()
+        # get the template with this name
+        template = Template.get_or_create(channel.org, name)
 
-        if not existing:
-            template = Template.objects.filter(org=channel.org, name=name).first()
-            if not template:
-                template = Template.objects.create(
-                    org=channel.org, name=name, created_on=timezone.now(), modified_on=timezone.now()
-                )
-            else:
-                template.modified_on = timezone.now()
-                template.save(update_fields=["modified_on"])
+        # look for an existing translation for this channel / locale pair
+        existing = template.translations.filter(channel=channel, locale=locale).first()
 
-            existing = TemplateTranslation.objects.create(
+        if existing:
+            # update existing translation if necessary
+            changed = update_if_changed(
+                existing,
+                components=components,
+                variables=variables,
+                status=status,
+                namespace=namespace,
+                external_id=external_id,
+                external_locale=external_locale,
+            )
+        else:
+            # create new translation
+            existing = cls.objects.create(
                 template=template,
                 channel=channel,
-                namespace=namespace,
                 locale=locale,
                 components=components,
                 variables=variables,
                 status=status,
+                namespace=namespace,
                 external_id=external_id,
                 external_locale=external_locale,
             )
+            changed = True
 
-        else:
-            if existing.status != status or existing.locale != locale or existing.components != components:
-                existing.namespace = namespace
-                existing.locale = locale
-                existing.status = status
-                existing.is_active = True
-                existing.components = components
-                existing.variables = variables
-                existing.external_locale = external_locale
-                existing.save(
-                    update_fields=[
-                        "namespace",
-                        "locale",
-                        "status",
-                        "components",
-                        "variables",
-                        "external_locale",
-                        "is_active",
-                    ]
-                )
-
-                existing.template.modified_on = timezone.now()
-                existing.template.save(update_fields=["modified_on"])
+        # mark template as modified if we made translation changes
+        if changed:
+            existing.template.modified_on = timezone.now()
+            existing.template.save(update_fields=("modified_on",))
 
         return existing
 
     class Meta:
-        indexes = [models.Index(name="templatetranslations_by_ext", fields=("channel", "external_id"))]
+        constraints = [
+            # used to prevent adding duplicate translations for the same channel and locale
+            models.UniqueConstraint(name="templatetranslations_unique", fields=("template", "channel", "locale"))
+        ]

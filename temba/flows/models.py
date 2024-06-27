@@ -348,13 +348,11 @@ class Flow(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
     @classmethod
     def export_translation(cls, org, flows, language):
-        flow_ids = [f.id for f in flows]
-        return mailroom.get_client().po_export(org.id, flow_ids, language=language)
+        return mailroom.get_client().po_export(org, flows, language=language)
 
     @classmethod
     def import_translation(cls, org, flows, language, po_data):
-        flow_ids = [f.id for f in flows]
-        response = mailroom.get_client().po_import(org.id, flow_ids, language=language, po_data=po_data)
+        response = mailroom.get_client().po_import(org, flows, language=language, po_data=po_data)
         return {d["uuid"]: d for d in response["flows"]}
 
     @classmethod

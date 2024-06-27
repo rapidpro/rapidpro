@@ -244,46 +244,86 @@ class MailroomClient:
             },
         )
 
-    def po_export(self, org_id: int, flow_ids: list, language: str):
-        payload = {"org_id": org_id, "flow_ids": flow_ids, "language": language}
+    def po_export(self, org, flows, language: str):
+        return self._request(
+            "po/export",
+            {
+                "org_id": org.id,
+                "flow_ids": [f.id for f in flows],
+                "language": language,
+            },
+        )
 
-        return self._request("po/export", payload)
+    def po_import(self, org, flows, language: str, po_data):
+        return self._request(
+            "po/import",
+            {
+                "org_id": org.id,
+                "flow_ids": [f.id for f in flows],
+                "language": language,
+            },
+            files={"po": po_data},
+        )
 
-    def po_import(self, org_id, flow_ids, language, po_data):
-        payload = {"org_id": org_id, "flow_ids": flow_ids, "language": language}
-
-        return self._request("po/import", payload, files={"po": po_data})
-
-    def sim_start(self, payload):
+    def sim_start(self, payload: dict):
         return self._request("sim/start", payload, encode_json=True)
 
-    def sim_resume(self, payload):
+    def sim_resume(self, payload: dict):
         return self._request("sim/resume", payload, encode_json=True)
 
-    def ticket_assign(self, org_id: int, user_id: int, ticket_ids: list, assignee_id: int):
-        payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids, "assignee_id": assignee_id}
+    def ticket_assign(self, org, user, tickets, assignee):
+        return self._request(
+            "ticket/assign",
+            {
+                "org_id": org.id,
+                "user_id": user.id,
+                "ticket_ids": [t.id for t in tickets],
+                "assignee_id": assignee.id if assignee else None,
+            },
+        )
 
-        return self._request("ticket/assign", payload)
+    def ticket_add_note(self, org, user, tickets, note: str):
+        return self._request(
+            "ticket/add_note",
+            {
+                "org_id": org.id,
+                "user_id": user.id,
+                "ticket_ids": [t.id for t in tickets],
+                "note": note,
+            },
+        )
 
-    def ticket_add_note(self, org_id: int, user_id: int, ticket_ids: list, note: str):
-        payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids, "note": note}
+    def ticket_change_topic(self, org, user, tickets, topic):
+        return self._request(
+            "ticket/change_topic",
+            {
+                "org_id": org.id,
+                "user_id": user.id,
+                "ticket_ids": [t.id for t in tickets],
+                "topic_id": topic.id,
+            },
+        )
 
-        return self._request("ticket/add_note", payload)
+    def ticket_close(self, org, user, tickets, force: bool):
+        return self._request(
+            "ticket/close",
+            {
+                "org_id": org.id,
+                "user_id": user.id,
+                "ticket_ids": [t.id for t in tickets],
+                "force": force,
+            },
+        )
 
-    def ticket_change_topic(self, org_id: int, user_id: int, ticket_ids: list, topic_id: int):
-        payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids, "topic_id": topic_id}
-
-        return self._request("ticket/change_topic", payload)
-
-    def ticket_close(self, org_id: int, user_id: int, ticket_ids: list, force: bool):
-        payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids, "force": force}
-
-        return self._request("ticket/close", payload)
-
-    def ticket_reopen(self, org_id, user_id, ticket_ids):
-        payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids}
-
-        return self._request("ticket/reopen", payload)
+    def ticket_reopen(self, org, user, tickets):
+        return self._request(
+            "ticket/reopen",
+            {
+                "org_id": org.id,
+                "user_id": user.id,
+                "ticket_ids": [t.id for t in tickets],
+            },
+        )
 
     def _request(self, endpoint, payload=None, files=None, post=True, encode_json=False):
         if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover

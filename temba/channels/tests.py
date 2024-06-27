@@ -24,6 +24,7 @@ from temba.notifications.incidents.builtin import ChannelDisconnectedIncidentTyp
 from temba.notifications.tasks import send_notification_emails
 from temba.orgs.models import Org
 from temba.request_logs.models import HTTPLog
+from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom, override_brand
 from temba.tests.crudl import StaffRedirect
 from temba.triggers.models import Trigger
@@ -191,6 +192,17 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc="RW"),
             [1, 2],
         )
+        TemplateTranslation.get_or_create(
+            channel1,
+            "reminder",
+            locale="eng",
+            status="A",
+            external_id=None,
+            external_locale="en",
+            namespace="",
+            components=[],
+            variables=[],
+        )
 
         # and some on another channel
         self.create_outgoing_msg(contact, "Hi", channel=channel2, status="E")
@@ -199,6 +211,17 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             channel2,
             dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc="RW"),
             [1, 2],
+        )
+        TemplateTranslation.get_or_create(
+            channel2,
+            "reminder",
+            locale="eng",
+            status="A",
+            external_id=None,
+            external_locale="en",
+            namespace="",
+            components=[],
+            variables=[],
         )
         Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow, channel=channel2)
 
@@ -212,6 +235,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertNotIn(channel1, flow.channel_dependencies.all())
         self.assertEqual(0, channel1.triggers.filter(is_active=True).count())
         self.assertEqual(0, channel1.incidents.filter(ended_on=None).count())
+        self.assertEqual(0, channel1.template_translations.filter(is_active=True).count())
 
         # check that we queued a task to interrupt sessions tied to this channel
         self.assertEqual(
@@ -229,6 +253,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, channel2.sync_events.count())
         self.assertEqual(1, channel2.triggers.filter(is_active=True).count())
         self.assertEqual(1, channel2.incidents.filter(ended_on=None).count())
+        self.assertEqual(1, channel2.template_translations.filter(is_active=True).count())
 
         # now do actual delete of channel
         channel1.msgs.all().delete()

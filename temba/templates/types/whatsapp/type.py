@@ -26,14 +26,13 @@ class WhatsAppType(TemplateType):
         if not supported:
             status = TemplateTranslation.STATUS_UNSUPPORTED
 
-        missing_external_id = f"{raw['language']}/{raw['name']}"
         return TemplateTranslation.get_or_create(
             channel,
             raw["name"],
             locale=self._parse_language(raw["language"]),
             status=status,
             external_locale=raw["language"],
-            external_id=raw.get("id", missing_external_id[:64]),
+            external_id=raw.get("id"),
             namespace=raw.get("namespace", channel_namespace),
             components=components,
             variables=variables,

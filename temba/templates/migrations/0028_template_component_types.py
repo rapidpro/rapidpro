@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def fix_template_component_types(apps, schema_editor):
+def fix_template_component_types(apps, schema_editor):  # pragma: no cover
     TemplateTranslation = apps.get_model("templates", "TemplateTranslation")
     num_updated = 0
 
