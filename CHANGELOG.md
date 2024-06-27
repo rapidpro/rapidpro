@@ -1,3 +1,8 @@
+v9.1.165 (2024-06-27)
+-------------------------
+ * Rework remaining mailroom client methods
+ * Add unique constraint on template translations
+
 v9.1.164 (2024-06-27)
 -------------------------
  * Add data migration to remove duplicate template translations
