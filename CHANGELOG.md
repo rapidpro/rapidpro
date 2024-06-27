@@ -1,3 +1,8 @@
+v9.1.166 (2024-06-27)
+-------------------------
+ * Tweak logging for failure during classifier syncing
+ * Switch broadcast tests to use contact search
+
 v9.1.165 (2024-06-27)
 -------------------------
  * Rework remaining mailroom client methods
