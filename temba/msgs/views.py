@@ -17,7 +17,7 @@ from smartmin.views import (
 
 from django import forms
 from django.db.models.functions.text import Lower
-from django.forms import Form
+from django.forms import Form, ValidationError
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
@@ -26,7 +26,8 @@ from django.views.generic import RedirectView
 
 from temba import mailroom
 from temba.archives.models import Archive
-from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
+from temba.contacts.search.omnibox import omnibox_query, omnibox_results_to_dict
+from temba.mailroom.client.types import Exclusions
 from temba.orgs.models import Org
 from temba.orgs.views import (
     BaseExportView,
@@ -44,9 +45,8 @@ from temba.utils.fields import (
     CompletionTextarea,
     ComposeField,
     ComposeWidget,
+    ContactSearchWidget,
     InputWidget,
-    OmniboxChoice,
-    OmniboxField,
     SelectWidget,
 )
 from temba.utils.models import patch_queryset_count
@@ -252,25 +252,43 @@ class ScheduleForm(ScheduleFormMixin):
 
 
 class TargetForm(Form):
-    omnibox = OmniboxField(
-        label=_("Recipients"),
+
+    contact_search = forms.JSONField(
         required=True,
-        help_text=_("The contacts to send the message to."),
-        widget=OmniboxChoice(
-            attrs={"placeholder": _("Search for contacts or groups"), "groups": True, "contacts": True}
+        widget=ContactSearchWidget(
+            attrs={
+                "in_a_flow": True,
+                "not_seen_since_days": True,
+                "widget_only": True,
+                "endpoint": "/broadcast/preview/",
+                "placeholder": _("Enter contact query"),
+            }
         ),
     )
 
     def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.org = org
-        self.fields["omnibox"].default_country = org.default_country_code
 
-    def clean_omnibox(self):
-        recipients = omnibox_deserialize(self.org, self.cleaned_data["omnibox"])
-        if not (recipients["groups"] or recipients["contacts"]):
-            raise forms.ValidationError(_("At least one recipient is required."))
-        return recipients
+    def clean_contact_search(self):
+        contact_search = self.cleaned_data.get("contact_search")
+        recipients = contact_search.get("recipients", [])
+
+        if contact_search["advanced"] and ("query" not in contact_search or not contact_search["query"]):
+            raise ValidationError(_("A contact query is required."))
+
+        if not contact_search["advanced"] and len(recipients) == 0:
+            raise ValidationError(_("Contacts or groups are required."))
+
+        if contact_search["advanced"]:
+            try:
+                contact_search["parsed_query"] = (
+                    mailroom.get_client().contact_parse_query(self.org, contact_search["query"], parse_only=True).query
+                )
+            except mailroom.QueryValidationException as e:
+                raise ValidationError(str(e))
+
+        return contact_search
 
 
 class BroadcastCRUDL(SmartCRUDL):
@@ -377,7 +395,10 @@ class BroadcastCRUDL(SmartCRUDL):
             if optin:
                 optin = OptIn.objects.filter(org=org, uuid=optin.get("uuid")).first()
 
-            recipients = form_dict["target"].cleaned_data["omnibox"]
+            contact_search = form_dict["target"].cleaned_data["contact_search"]
+            recipients = contact_search.get("recipients", [])
+            contact_uuids = [_.get("id") for _ in recipients if _.get("type") == "contact"]
+            group_uuids = [_.get("id") for _ in recipients if _.get("type") == "group"]
 
             schedule_form = form_dict["schedule"]
             send_when = schedule_form.cleaned_data["send_when"]
@@ -386,7 +407,7 @@ class BroadcastCRUDL(SmartCRUDL):
             if send_when == ScheduleForm.SEND_LATER:
                 start = schedule_form.cleaned_data["start_datetime"].astimezone(org.timezone)
                 schedule = mailroom.ScheduleSpec(
-                    start=start,
+                    start=start.isoformat(),
                     repeat_period=schedule_form.cleaned_data["repeat_period"],
                     repeat_days_of_week=schedule_form.cleaned_data["repeat_days_of_week"],
                 )
@@ -396,10 +417,12 @@ class BroadcastCRUDL(SmartCRUDL):
                 user,
                 translations,
                 base_language=next(iter(translations)),
-                groups=recipients["groups"],
-                contacts=recipients["contacts"],
+                groups=(org.groups.filter(uuid__in=group_uuids)),
+                contacts=(org.contacts.filter(uuid__in=contact_uuids)),
                 optin=optin,
                 schedule=schedule,
+                query=contact_search.get("parsed_query", None),
+                exclude=Exclusions(**contact_search.get("exclusions", {})),
             )
 
             if send_when == ScheduleForm.SEND_NOW:
@@ -420,9 +443,30 @@ class BroadcastCRUDL(SmartCRUDL):
             org = self.request.org
 
             if step == "target":
-                recipients = [*self.object.groups.all(), *self.object.contacts.all()]
-                omnibox = omnibox_results_to_dict(org, recipients)
-                return {"omnibox": omnibox}
+                org = self.request.org
+                contacts = self.request.GET.get("c", "")
+                contacts = org.contacts.filter(uuid__in=contacts.split(","))
+                recipients = []
+
+                for contact in self.object.contacts.all():
+                    urn = contact.get_urn()
+                    if urn:
+                        urn = urn.get_display(org=org, international=True)
+                    recipients.append({"id": contact.uuid, "name": contact.name, "urn": urn, "type": "contact"})
+
+                for group in self.object.groups.all():
+                    recipients.append(
+                        {"id": group.uuid, "name": group.name, "count": group.get_member_count(), "type": "group"}
+                    )
+
+                return {
+                    "contact_search": {
+                        "recipients": recipients,
+                        "advanced": False,
+                        "query": self.object.query if not recipients else None,
+                        "exclusions": self.object.exclusions,
+                    }
+                }
 
             if step == "compose":
                 base_language = self.object.base_language
@@ -460,13 +504,22 @@ class BroadcastCRUDL(SmartCRUDL):
             if optin:
                 optin = OptIn.objects.filter(org=broadcast.org, uuid=optin.get("uuid")).first()
 
+            contact_search = form_dict["target"].cleaned_data["contact_search"]
+
             broadcast.translations = compose_deserialize(compose)
+            broadcast.exclusions = contact_search.get("exclusions", {})
             broadcast.optin = optin
             broadcast.save()
 
             # update recipients
-            recipients = form_dict["target"].cleaned_data["omnibox"]
-            broadcast.update_recipients(**recipients)
+            recipients = contact_search.get("recipients", [])
+            contact_uuids = [_.get("id") for _ in recipients if _.get("type") == "contact"]
+            group_uuids = [_.get("id") for _ in recipients if _.get("type") == "group"]
+
+            org = broadcast.org
+            groups = org.groups.filter(uuid__in=group_uuids)
+            contacts = org.contacts.filter(uuid__in=contact_uuids)
+            broadcast.update_recipients(groups=groups, contacts=contacts)
 
             # finally, update schedule
             schedule_form = form_dict["schedule"]
