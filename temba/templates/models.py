@@ -186,4 +186,7 @@ class TemplateTranslation(models.Model):
         return existing
 
     class Meta:
-        indexes = [models.Index(name="templatetranslations_by_ext", fields=("channel", "external_id"))]
+        constraints = [
+            # used to prevent adding duplicate translations for the same channel and locale
+            models.UniqueConstraint(name="templatetranslations_unique", fields=("template", "channel", "locale"))
+        ]
