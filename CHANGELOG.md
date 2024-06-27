@@ -1,3 +1,7 @@
+v9.1.161 (2024-06-27)
+-------------------------
+ * Fix not releasing template translations when channel released
+
 v9.1.160 (2024-06-27)
 -------------------------
  * Fix creating scheduled broadcasts
