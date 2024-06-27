@@ -9,7 +9,7 @@ from temba.contacts.models import Contact
 from temba.flows.models import Flow
 from temba.tests import TembaTest
 
-from .base import delete_in_batches, patch_queryset_count
+from .base import delete_in_batches, patch_queryset_count, update_if_changed
 from .es import IDSliceQuerySet
 from .fields import JSONAsTextField
 
@@ -50,6 +50,37 @@ class ModelsTest(TembaTest):
 
         self.assertTrue(Group.objects.filter(id=to_keep.id).exists())
         self.assertEqual(4, Group.objects.filter(id__in=[g.id for g in to_delete]).count())
+
+    def test_update_if_changed(self):
+        with self.assertNumQueries(1):
+            changed = update_if_changed(self.admin, first_name="Andrew", last_name="McAdmin")  # all fields changing
+
+        self.assertTrue(changed)
+        self.assertEqual("Andrew", self.admin.first_name)
+        self.assertEqual("McAdmin", self.admin.last_name)
+        self.admin.refresh_from_db()
+        self.assertEqual("Andrew", self.admin.first_name)
+        self.assertEqual("McAdmin", self.admin.last_name)
+
+        with self.assertNumQueries(1):
+            changed = update_if_changed(self.admin, first_name="Andy", last_name="McAdmin")  # one field changing
+
+        self.assertTrue(changed)
+        self.assertEqual("Andy", self.admin.first_name)
+        self.assertEqual("McAdmin", self.admin.last_name)
+        self.admin.refresh_from_db()
+        self.assertEqual("Andy", self.admin.first_name)
+        self.assertEqual("McAdmin", self.admin.last_name)
+
+        with self.assertNumQueries(0):
+            changed = update_if_changed(self.admin, first_name="Andy", last_name="McAdmin")  # no fields changing
+
+        self.assertFalse(changed)
+        self.assertEqual("Andy", self.admin.first_name)
+        self.assertEqual("McAdmin", self.admin.last_name)
+        self.admin.refresh_from_db()
+        self.assertEqual("Andy", self.admin.first_name)
+        self.assertEqual("McAdmin", self.admin.last_name)
 
 
 class IDSliceQuerySetTest(TembaTest):
