@@ -381,63 +381,32 @@ class TemplateTranslationCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(404, response.status_code)
 
 
-class TemplateComponentsTypeTest(MigrationTest):
+class ReleaseTranslationsForReleasedChannelsTest(MigrationTest):
     app = "templates"
-    migrate_from = "0027_templatetranslation_variables"
-    migrate_to = "0028_template_component_types"
+    migrate_from = "0028_template_component_types"
+    migrate_to = "0029_release_translations_for_released_orgs"
 
     def setUpBeforeMigration(self, apps):
+        channel2 = self.create_channel("D3C", "360Dialog channel", address="1234")
+        channel2.is_active = False
+        channel2.save(update_fields=("is_active",))
+
         template = Template.objects.create(org=self.org, name="hello")
 
         self.trans1 = TemplateTranslation.objects.create(
             template=template,
             channel=self.channel,
             status=TemplateTranslation.STATUS_PENDING,
-            components=[
-                {"name": "header", "type": "header/text", "content": "Hello"},
-                {"name": "body", "type": "body/text", "content": "World"},
-            ],
         )
         self.trans2 = TemplateTranslation.objects.create(
             template=template,
-            channel=self.channel,
+            channel=channel2,
             status=TemplateTranslation.STATUS_PENDING,
-            components=[
-                {"name": "header", "type": "header", "content": "Hola"},
-                {"name": "body", "type": "body", "content": "Mundo"},
-            ],
-        )
-        self.trans3 = TemplateTranslation.objects.create(
-            template=template,
-            channel=self.channel,
-            status=TemplateTranslation.STATUS_REJECTED,
-            components={"body": "hello"},
-        )
-        self.trans4 = TemplateTranslation.objects.create(
-            template=template,
-            channel=self.channel,
-            status=TemplateTranslation.STATUS_REJECTED,
-            components=[{"no_type": True}],
         )
 
     def test_migration(self):
-        def assert_components(trans, expected):
-            trans.refresh_from_db()
-            self.assertEqual(expected, trans.components)
+        self.trans1.refresh_from_db()
+        self.trans2.refresh_from_db()
 
-        assert_components(  # unchanged
-            self.trans1,
-            [
-                {"name": "header", "type": "header/text", "content": "Hello"},
-                {"name": "body", "type": "body/text", "content": "World"},
-            ],
-        )
-        assert_components(
-            self.trans2,
-            [
-                {"name": "header", "type": "header/text", "content": "Hola"},
-                {"name": "body", "type": "body/text", "content": "Mundo"},
-            ],
-        )
-        assert_components(self.trans3, [])
-        assert_components(self.trans4, [])
+        self.assertTrue(self.trans1.is_active)
+        self.assertFalse(self.trans2.is_active)
