@@ -1,5 +1,5 @@
 from datetime import date, datetime, timedelta, timezone as tzone
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from openpyxl import load_workbook
 
@@ -29,7 +29,8 @@ from .tasks import squash_ticket_counts
 
 
 class TicketTest(TembaTest):
-    def test_model(self):
+    @mock_mailroom
+    def test_model(self, mr_mocks):
         topic = Topic.create(self.org, self.admin, "Sales")
         contact = self.create_contact("Bob", urns=["twitter:bobby"])
 
@@ -44,42 +45,38 @@ class TicketTest(TembaTest):
         self.assertEqual(f"Ticket[uuid={ticket.uuid}, topic=General]", str(ticket))
 
         # test bulk assignment
-        with patch("temba.mailroom.client.client.MailroomClient.ticket_assign") as mock_assign:
-            Ticket.bulk_assign(self.org, self.admin, [ticket], self.agent)
-
-        mock_assign.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], self.agent.id)
-        mock_assign.reset_mock()
+        Ticket.bulk_assign(self.org, self.admin, [ticket], self.agent)
 
         # test bulk un-assignment
-        with patch("temba.mailroom.client.client.MailroomClient.ticket_assign") as mock_assign:
-            Ticket.bulk_assign(self.org, self.admin, [ticket], None)
+        Ticket.bulk_assign(self.org, self.admin, [ticket], None)
 
-        mock_assign.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], None)
-        mock_assign.reset_mock()
+        self.assertEqual(
+            [
+                call(self.org, self.admin, [ticket], self.agent),
+                call(self.org, self.admin, [ticket], None),
+            ],
+            mr_mocks.calls["ticket_assign"],
+        )
 
         # test bulk adding a note
-        with patch("temba.mailroom.client.client.MailroomClient.ticket_add_note") as mock_add_note:
-            Ticket.bulk_add_note(self.org, self.admin, [ticket], "please handle")
+        Ticket.bulk_add_note(self.org, self.admin, [ticket], "please handle")
 
-        mock_add_note.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], "please handle")
+        self.assertEqual([call(self.org, self.admin, [ticket], "please handle")], mr_mocks.calls["ticket_add_note"])
 
         # test bulk changing topic
-        with patch("temba.mailroom.client.client.MailroomClient.ticket_change_topic") as mock_change_topic:
-            Ticket.bulk_change_topic(self.org, self.admin, [ticket], topic)
+        Ticket.bulk_change_topic(self.org, self.admin, [ticket], topic)
 
-        mock_change_topic.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], topic.id)
+        self.assertEqual([call(self.org, self.admin, [ticket], topic)], mr_mocks.calls["ticket_change_topic"])
 
         # test bulk closing
-        with patch("temba.mailroom.client.client.MailroomClient.ticket_close") as mock_close:
-            Ticket.bulk_close(self.org, self.admin, [ticket], force=True)
+        Ticket.bulk_close(self.org, self.admin, [ticket], force=True)
 
-        mock_close.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], force=True)
+        self.assertEqual([call(self.org, self.admin, [ticket], force=True)], mr_mocks.calls["ticket_close"])
 
         # test bulk re-opening
-        with patch("temba.mailroom.client.client.MailroomClient.ticket_reopen") as mock_reopen:
-            Ticket.bulk_reopen(self.org, self.admin, [ticket])
+        Ticket.bulk_reopen(self.org, self.admin, [ticket])
 
-        mock_reopen.assert_called_once_with(self.org.id, self.admin.id, [ticket.id])
+        self.assertEqual([call(self.org, self.admin, [ticket])], mr_mocks.calls["ticket_reopen"])
 
     def test_allowed_assignees(self):
         self.assertEqual({self.admin, self.editor, self.agent}, set(Ticket.get_allowed_assignees(self.org)))

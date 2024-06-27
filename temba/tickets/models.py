@@ -118,29 +118,23 @@ class Ticket(models.Model):
 
     @classmethod
     def bulk_assign(cls, org, user: User, tickets: list, assignee: User):
-        ticket_ids = [t.id for t in tickets]
-        assignee_id = assignee.id if assignee else None
-        return mailroom.get_client().ticket_assign(org.id, user.id, ticket_ids, assignee_id)
+        return mailroom.get_client().ticket_assign(org, user, tickets, assignee)
 
     @classmethod
     def bulk_add_note(cls, org, user: User, tickets: list, note: str):
-        ticket_ids = [t.id for t in tickets]
-        return mailroom.get_client().ticket_add_note(org.id, user.id, ticket_ids, note)
+        return mailroom.get_client().ticket_add_note(org, user, tickets, note)
 
     @classmethod
     def bulk_change_topic(cls, org, user: User, tickets: list, topic: Topic):
-        ticket_ids = [t.id for t in tickets]
-        return mailroom.get_client().ticket_change_topic(org.id, user.id, ticket_ids, topic.id)
+        return mailroom.get_client().ticket_change_topic(org, user, tickets, topic)
 
     @classmethod
     def bulk_close(cls, org, user, tickets, *, force: bool = False):
-        ticket_ids = [t.id for t in tickets]
-        return mailroom.get_client().ticket_close(org.id, user.id, ticket_ids, force=force)
+        return mailroom.get_client().ticket_close(org, user, tickets, force=force)
 
     @classmethod
     def bulk_reopen(cls, org, user, tickets):
-        ticket_ids = [t.id for t in tickets]
-        return mailroom.get_client().ticket_reopen(org.id, user.id, ticket_ids)
+        return mailroom.get_client().ticket_reopen(org, user, tickets)
 
     @classmethod
     def get_allowed_assignees(cls, org):

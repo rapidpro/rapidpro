@@ -6,6 +6,7 @@ from django.test import override_settings
 
 from temba.schedules.models import Schedule
 from temba.tests import MockJsonResponse, MockResponse, TembaTest
+from temba.tickets.models import Topic
 from temba.utils import json
 
 from .. import modifiers
@@ -560,91 +561,147 @@ class MailroomClientTest(TembaTest):
         )
 
     def test_po_export(self):
+        flow1 = self.create_flow("Flow 1")
+        flow2 = self.create_flow("Flow 2")
+
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, 'msgid "Red"\nmsgstr "Rojo"\n\n')
-            response = self.client.po_export(self.org.id, [123, 234], "spa")
+            response = self.client.po_export(self.org, [flow1, flow2], "spa")
 
-            self.assertEqual(b'msgid "Red"\nmsgstr "Rojo"\n\n', response)
+        self.assertEqual(b'msgid "Red"\nmsgstr "Rojo"\n\n', response)
 
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/po/export",
             headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
-            json={"org_id": self.org.id, "flow_ids": [123, 234], "language": "spa"},
+            json={"org_id": self.org.id, "flow_ids": [flow1.id, flow2.id], "language": "spa"},
         )
 
     def test_po_import(self):
+        flow1 = self.create_flow("Flow 1")
+        flow2 = self.create_flow("Flow 2")
+
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockJsonResponse(200, {"flows": []})
-            response = self.client.po_import(self.org.id, [123, 234], "spa", b'msgid "Red"\nmsgstr "Rojo"\n\n')
+            response = self.client.po_import(self.org, [flow1, flow2], "spa", b'msgid "Red"\nmsgstr "Rojo"\n\n')
 
-            self.assertEqual({"flows": []}, response)
+        self.assertEqual({"flows": []}, response)
 
         mock_post.assert_called_once_with(
             "http://localhost:8090/mr/po/import",
             headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
-            data={"org_id": self.org.id, "flow_ids": [123, 234], "language": "spa"},
+            data={"org_id": self.org.id, "flow_ids": [flow1.id, flow2.id], "language": "spa"},
             files={"po": b'msgid "Red"\nmsgstr "Rojo"\n\n'},
         )
 
-    def test_ticket_assign(self):
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockJsonResponse(200, {"changed_ids": [123]})
-            response = self.client.ticket_assign(1, 12, [123, 345], 4)
+    @patch("requests.post")
+    def test_ticket_assign(self, mock_post):
+        ann = self.create_contact("Ann", urns=["tel:+12340000001"])
+        bob = self.create_contact("Bob", urns=["tel:+12340000002"])
+        ticket1 = self.create_ticket(ann, "Help")
+        ticket2 = self.create_ticket(bob, "Help")
 
-            self.assertEqual({"changed_ids": [123]}, response)
-            mock_post.assert_called_once_with(
-                "http://localhost:8090/mr/ticket/assign",
-                headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
-                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345], "assignee_id": 4},
-            )
+        mock_post.return_value = MockJsonResponse(200, {"changed_ids": [ticket1.id]})
+        response = self.client.ticket_assign(self.org, self.admin, [ticket1, ticket2], self.agent)
 
-    def test_ticket_add_note(self):
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockJsonResponse(200, {"changed_ids": [123]})
-            response = self.client.ticket_add_note(1, 12, [123, 345], "please handle")
+        self.assertEqual({"changed_ids": [ticket1.id]}, response)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/ticket/assign",
+            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
+            json={
+                "org_id": self.org.id,
+                "user_id": self.admin.id,
+                "ticket_ids": [ticket1.id, ticket2.id],
+                "assignee_id": self.agent.id,
+            },
+        )
 
-            self.assertEqual({"changed_ids": [123]}, response)
-            mock_post.assert_called_once_with(
-                "http://localhost:8090/mr/ticket/add_note",
-                headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
-                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345], "note": "please handle"},
-            )
+    @patch("requests.post")
+    def test_ticket_add_note(self, mock_post):
+        ann = self.create_contact("Ann", urns=["tel:+12340000001"])
+        bob = self.create_contact("Bob", urns=["tel:+12340000002"])
+        ticket1 = self.create_ticket(ann, "Help")
+        ticket2 = self.create_ticket(bob, "Help")
 
-    def test_ticket_change_topic(self):
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockJsonResponse(200, {"changed_ids": [123]})
-            response = self.client.ticket_change_topic(1, 12, [123, 345], 67)
+        mock_post.return_value = MockJsonResponse(200, {"changed_ids": [ticket1.id]})
+        response = self.client.ticket_add_note(self.org, self.admin, [ticket1, ticket2], "please handle")
 
-            self.assertEqual({"changed_ids": [123]}, response)
-            mock_post.assert_called_once_with(
-                "http://localhost:8090/mr/ticket/change_topic",
-                headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
-                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345], "topic_id": 67},
-            )
+        self.assertEqual({"changed_ids": [ticket1.id]}, response)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/ticket/add_note",
+            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
+            json={
+                "org_id": self.org.id,
+                "user_id": self.admin.id,
+                "ticket_ids": [ticket1.id, ticket2.id],
+                "note": "please handle",
+            },
+        )
 
-    def test_ticket_close(self):
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockJsonResponse(200, {"changed_ids": [123]})
-            response = self.client.ticket_close(1, 12, [123, 345], force=True)
+    @patch("requests.post")
+    def test_ticket_change_topic(self, mock_post):
+        ann = self.create_contact("Ann", urns=["tel:+12340000001"])
+        bob = self.create_contact("Bob", urns=["tel:+12340000002"])
+        ticket1 = self.create_ticket(ann, "Help")
+        ticket2 = self.create_ticket(bob, "Help")
+        topic = Topic.create(self.org, self.admin, "Support")
 
-            self.assertEqual({"changed_ids": [123]}, response)
-            mock_post.assert_called_once_with(
-                "http://localhost:8090/mr/ticket/close",
-                headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
-                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345], "force": True},
-            )
+        mock_post.return_value = MockJsonResponse(200, {"changed_ids": [ticket1.id]})
+        response = self.client.ticket_change_topic(self.org, self.admin, [ticket1, ticket2], topic)
 
-    def test_ticket_reopen(self):
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockJsonResponse(200, {"changed_ids": [123]})
-            response = self.client.ticket_reopen(1, 12, [123, 345])
+        self.assertEqual({"changed_ids": [ticket1.id]}, response)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/ticket/change_topic",
+            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
+            json={
+                "org_id": self.org.id,
+                "user_id": self.admin.id,
+                "ticket_ids": [ticket1.id, ticket2.id],
+                "topic_id": topic.id,
+            },
+        )
 
-            self.assertEqual({"changed_ids": [123]}, response)
-            mock_post.assert_called_once_with(
-                "http://localhost:8090/mr/ticket/reopen",
-                headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
-                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345]},
-            )
+    @patch("requests.post")
+    def test_ticket_close(self, mock_post):
+        ann = self.create_contact("Ann", urns=["tel:+12340000001"])
+        bob = self.create_contact("Bob", urns=["tel:+12340000002"])
+        ticket1 = self.create_ticket(ann, "Help")
+        ticket2 = self.create_ticket(bob, "Help")
+
+        mock_post.return_value = MockJsonResponse(200, {"changed_ids": [ticket1.id]})
+        response = self.client.ticket_close(self.org, self.admin, [ticket1, ticket2], force=True)
+
+        self.assertEqual({"changed_ids": [ticket1.id]}, response)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/ticket/close",
+            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
+            json={
+                "org_id": self.org.id,
+                "user_id": self.admin.id,
+                "ticket_ids": [ticket1.id, ticket2.id],
+                "force": True,
+            },
+        )
+
+    @patch("requests.post")
+    def test_ticket_reopen(self, mock_post):
+        ann = self.create_contact("Ann", urns=["tel:+12340000001"])
+        bob = self.create_contact("Bob", urns=["tel:+12340000002"])
+        ticket1 = self.create_ticket(ann, "Help")
+        ticket2 = self.create_ticket(bob, "Help")
+
+        mock_post.return_value = MockJsonResponse(200, {"changed_ids": [ticket1.id]})
+        response = self.client.ticket_reopen(self.org, self.admin, [ticket1, ticket2])
+
+        self.assertEqual({"changed_ids": [ticket1.id]}, response)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/ticket/reopen",
+            headers={"User-Agent": "Temba", "Authorization": "Token sesame"},
+            json={
+                "org_id": self.org.id,
+                "user_id": self.admin.id,
+                "ticket_ids": [ticket1.id, ticket2.id],
+            },
+        )
 
     @patch("requests.post")
     def test_errors(self, mock_post):
