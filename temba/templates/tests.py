@@ -381,32 +381,38 @@ class TemplateTranslationCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertEqual(404, response.status_code)
 
 
-class ReleaseTranslationsForReleasedChannelsTest(MigrationTest):
+class RemoveDuplicateTranslationsTest(MigrationTest):
     app = "templates"
-    migrate_from = "0028_template_component_types"
-    migrate_to = "0029_release_translations_for_released_orgs"
+    migrate_from = "0030_alter_templatetranslation_locale"
+    migrate_to = "0031_remove_duplicate_translations"
 
     def setUpBeforeMigration(self, apps):
-        channel2 = self.create_channel("D3C", "360Dialog channel", address="1234")
-        channel2.is_active = False
-        channel2.save(update_fields=("is_active",))
+        channel1 = self.create_channel("D3C", "D3C Channel", address="1234")
+        channel2 = self.create_channel("WAC", "WAC Channel", address="2345")
 
-        template = Template.objects.create(org=self.org, name="hello")
+        template1 = Template.objects.create(org=self.org, name="hello")
+        template2 = Template.objects.create(org=self.org, name="goodbye")
 
-        self.trans1 = TemplateTranslation.objects.create(
-            template=template,
-            channel=self.channel,
-            status=TemplateTranslation.STATUS_PENDING,
-        )
-        self.trans2 = TemplateTranslation.objects.create(
-            template=template,
-            channel=channel2,
-            status=TemplateTranslation.STATUS_PENDING,
-        )
+        def create_translation(template, channel, locale):
+            return TemplateTranslation.objects.create(
+                template=template, channel=channel, locale=locale, status=TemplateTranslation.STATUS_PENDING
+            )
+
+        self.should_keep = []
+        self.should_delete = []
+
+        self.should_keep.append(create_translation(template1, channel1, "eng"))
+        self.should_delete.append(create_translation(template1, channel2, "eng"))
+        self.should_keep.append(create_translation(template1, channel2, "eng"))  # duplicate
+        self.should_keep.append(create_translation(template1, channel1, "spa"))
+        self.should_delete.append(create_translation(template1, channel2, "spa"))
+        self.should_delete.append(create_translation(template1, channel2, "spa"))  # duplicate
+        self.should_keep.append(create_translation(template1, channel2, "spa"))  # duplicate
+        self.should_keep.append(create_translation(template2, channel1, "eng"))
+        self.should_keep.append(create_translation(template2, channel2, "eng"))
 
     def test_migration(self):
-        self.trans1.refresh_from_db()
-        self.trans2.refresh_from_db()
-
-        self.assertTrue(self.trans1.is_active)
-        self.assertFalse(self.trans2.is_active)
+        for trans in self.should_keep:
+            self.assertTrue(TemplateTranslation.objects.filter(id=trans.id).exists())
+        for trans in self.should_delete:
+            self.assertFalse(TemplateTranslation.objects.filter(id=trans.id).exists())
