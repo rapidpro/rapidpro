@@ -26,7 +26,6 @@ from django.views.generic import RedirectView
 
 from temba import mailroom
 from temba.archives.models import Archive
-from temba.contacts.search.omnibox import omnibox_query, omnibox_results_to_dict
 from temba.mailroom.client.types import Exclusions
 from temba.orgs.models import Org
 from temba.orgs.views import (
@@ -367,16 +366,23 @@ class BroadcastCRUDL(SmartCRUDL):
             return {"org": self.request.org}
 
         def get_form_initial(self, step):
-            initial = {}
-            contact_uuids = [_ for _ in self.request.GET.get("c", "").split(",") if _]
-            if contact_uuids:
-                params = {}
-                if len(contact_uuids) > 0:
-                    params["c"] = ",".join(contact_uuids)
 
-                results = omnibox_query(self.request.org, **params)
-                initial["omnibox"] = omnibox_results_to_dict(self.request.org, results)
-                return initial
+            if step == "target":
+                initial = {}
+                org = self.request.org
+                contact_uuids = [_ for _ in self.request.GET.get("c", "").split(",") if _]
+                contacts = org.contacts.filter(uuid__in=contact_uuids)
+                if contact_uuids:
+                    params = {}
+                    if len(contact_uuids) > 0:
+                        params["c"] = ",".join(contact_uuids)
+                    initial["contact_search"] = {
+                        "recipients": ContactSearchWidget.get_recipients(contacts),
+                        "advanced": False,
+                        "query": None,
+                        "exclusions": {},
+                    }
+                    return initial
             return super().get_form_initial(step)
 
         def done(self, form_list, form_dict, **kwargs):
@@ -443,22 +449,7 @@ class BroadcastCRUDL(SmartCRUDL):
             org = self.request.org
 
             if step == "target":
-                org = self.request.org
-                contacts = self.request.GET.get("c", "")
-                contacts = org.contacts.filter(uuid__in=contacts.split(","))
-                recipients = []
-
-                for contact in self.object.contacts.all():
-                    urn = contact.get_urn()
-                    if urn:
-                        urn = urn.get_display(org=org, international=True)
-                    recipients.append({"id": contact.uuid, "name": contact.name, "urn": urn, "type": "contact"})
-
-                for group in self.object.groups.all():
-                    recipients.append(
-                        {"id": group.uuid, "name": group.name, "count": group.get_member_count(), "type": "group"}
-                    )
-
+                recipients = ContactSearchWidget.get_recipients(self.object.contacts.all(), self.object.groups.all())
                 return {
                     "contact_search": {
                         "recipients": recipients,

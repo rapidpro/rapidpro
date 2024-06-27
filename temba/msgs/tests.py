@@ -12,7 +12,6 @@ from django.utils import timezone
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import ChannelCount, ChannelLog
-from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.msgs.models import (
     Attachment,
@@ -35,6 +34,7 @@ from temba.tests.s3 import MockS3Client, jsonlgz_encode
 from temba.tickets.models import Ticket
 from temba.utils import s3
 from temba.utils.compose import compose_deserialize_attachments, compose_serialize
+from temba.utils.fields import ContactSearchWidget
 from temba.utils.views import TEMBA_MENU_SELECTION
 
 from .tasks import fail_old_messages, squash_msg_counts
@@ -1995,8 +1995,11 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             first_lang = next(iter(translations))
             translations[first_lang]["optin"] = {"uuid": str(optin.uuid), "name": optin.name} if optin else None
 
+        recipients = ContactSearchWidget.get_recipients(contacts)
+        contact_search = {"recipients": recipients, "advanced": False, "query": None, "exclusions": {}}
+
         payload = {
-            "target": {"omnibox": omnibox_serialize(org, groups=[], contacts=contacts, json_encode=True)},
+            "target": {"contact_search": json.dumps(contact_search)},
             "compose": {"compose": compose_serialize(translations, json_encode=True)} if translations else None,
             "schedule": (
                 {
@@ -2027,14 +2030,29 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         self.assertRequestDisallowed(create_url, [None, self.user, self.agent])
-        self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=("omnibox",))
+        self.assertCreateFetch(create_url, [self.editor, self.admin], form_fields=("contact_search",))
 
         # initialize form based on a contact
         response = self.client.get(f"{create_url}?c={self.joe.uuid}")
-        omnibox = response.context["form"]["omnibox"]
+        contact_search = response.context["form"]["contact_search"]
+
         self.assertEqual(
-            [{"id": str(self.joe.uuid), "name": "Joe Blow", "type": "contact", "urn": "(202) 555-0149"}],
-            omnibox.value(),
+            json.dumps(
+                {
+                    "recipients": [
+                        {
+                            "id": self.joe.uuid,
+                            "name": "Joe Blow",
+                            "urn": "+1 202-555-0149",
+                            "type": "contact",
+                        }
+                    ],
+                    "advanced": False,
+                    "query": None,
+                    "exclusions": {},
+                }
+            ),
+            contact_search.value(),
         )
 
         # missing text
@@ -2068,7 +2086,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.process_wizard(
             "create", create_url, self._form_data(self.org, translations={"eng": {"text": text}})
         )
-        self.assertFormError(response.context["form"], "omnibox", ["At least one recipient is required."])
+        self.assertFormError(response.context["form"], "contact_search", ["Contacts or groups are required."])
 
         # missing start time
         response = self.process_wizard(
@@ -2148,7 +2166,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         update_url = reverse("msgs.broadcast_update", args=[broadcast.id])
 
         self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
-        self.assertUpdateFetch(update_url, [self.editor, self.admin], form_fields=("omnibox",))
+        self.assertUpdateFetch(update_url, [self.editor, self.admin], form_fields=("contact_search",))
         self.login(self.admin)
 
         response = self.process_wizard(
