@@ -88,12 +88,12 @@ class TemplateTranslation(models.Model):
 
     template = models.ForeignKey(Template, on_delete=models.PROTECT, related_name="translations")
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="template_translations")
+    locale = models.CharField(max_length=6)  # e.g. eng-US
 
-    namespace = models.CharField(max_length=36, default="")
-    locale = models.CharField(null=True, max_length=6)  # e.g. eng-US
     components = models.JSONField(default=list)
     variables = models.JSONField(default=list)
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, null=False)
+    namespace = models.CharField(max_length=36, default="")
     external_id = models.CharField(null=True, max_length=64)
     external_locale = models.CharField(null=True, max_length=6)  # e.g. en_US
     is_active = models.BooleanField(default=True)
