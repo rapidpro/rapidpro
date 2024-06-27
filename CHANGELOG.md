@@ -1,3 +1,7 @@
+v9.1.164 (2024-06-27)
+-------------------------
+ * Add data migration to remove duplicate template translations
+
 v9.1.163 (2024-06-27)
 -------------------------
  * Change template translation syncing to enforce uniqueness over channel+locale
