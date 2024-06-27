@@ -1,3 +1,9 @@
+v9.1.160 (2024-06-27)
+-------------------------
+ * Fix creating scheduled broadcasts
+ * Tweak menu on campaign read page
+ * Update to latest smartmin
+
 v9.1.159 (2024-06-26)
 -------------------------
  * Simplify some button labels and make edit a button on contact read page
