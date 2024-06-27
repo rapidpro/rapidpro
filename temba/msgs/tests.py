@@ -1984,6 +1984,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         *,
         translations,
         contacts=(),
+        advanced=False,
+        query=None,
         optin=None,
         send_when=ScheduleForm.SEND_LATER,
         start_datetime="",
@@ -1996,7 +1998,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             translations[first_lang]["optin"] = {"uuid": str(optin.uuid), "name": optin.name} if optin else None
 
         recipients = ContactSearchWidget.get_recipients(contacts)
-        contact_search = {"recipients": recipients, "advanced": False, "query": None, "exclusions": {}}
+        contact_search = {"recipients": recipients, "advanced": advanced, "query": query, "exclusions": {}}
 
         payload = {
             "target": {"contact_search": json.dumps(contact_search)},
@@ -2087,6 +2089,21 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             "create", create_url, self._form_data(self.org, translations={"eng": {"text": text}})
         )
         self.assertFormError(response.context["form"], "contact_search", ["Contacts or groups are required."])
+
+        # empty query
+        response = self.process_wizard(
+            "create", create_url, self._form_data(self.org, advanced=True, translations={"eng": {"text": text}})
+        )
+        self.assertFormError(response.context["form"], "contact_search", ["A contact query is required."])
+
+        # invalid query
+        mr_mocks.exception(mailroom.QueryValidationException("Invalid query.", "syntax"))
+        response = self.process_wizard(
+            "create",
+            create_url,
+            self._form_data(self.org, advanced=True, translations={"eng": {"text": text}}, query="invalid"),
+        )
+        self.assertFormError(response.context["form"], "contact_search", ["Invalid query syntax."])
 
         # missing start time
         response = self.process_wizard(
