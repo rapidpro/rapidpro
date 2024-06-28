@@ -19,12 +19,10 @@
       {% for obj in object_list %}
         <tr class="{% if obj.is_error %}warning{% endif %}">
           <td class="w-full clickable">
-            <div onclick="goto(event, this)" href="{% url "request_logs.httplog_read" obj.id %}" class="linked">{{ obj.get_log_type_display }}</div>
+            <a href="{% url "request_logs.httplog_read" obj.id %}" class="linked">{{ obj.get_log_type_display }}</a>
           </td>
           <td class="clickable">
-            <div onclick="goto(event, this)"
-                 href="{% url "request_logs.httplog_read" obj.id %}"
-                 class="linked whitespace-nowrap">{{ obj.status_code|default:"--" }}</div>
+            <a href="{% url "request_logs.httplog_read" obj.id %}" class="linked whitespace-nowrap">{{ obj.status_code|default:"--" }}</a>
           </td>
           <td class="whitespace-nowrap">
             {% if obj.request_time %}

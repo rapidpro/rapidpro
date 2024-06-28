@@ -6,14 +6,13 @@
     <div class="flex items-center">
       <div class="flex-grow mr-4">{% trans "Connected to your DT One account." %}</div>
       <div class="buttons">
-        <div onclick="goto(event)" href="{% url "airtime.airtimetransfer_list" %}" class="button-light">{% trans "Transfer Log" %}</div>
+        <a href="{% url "airtime.airtimetransfer_list" %}" class="button-light">{% trans "Transfer Log" %}</a>
       </div>
     </div>
   {% else %}
     {% trans "Connect your DT One account." %}
   {% endif %}
 {% endblock summary %}
-
 {% block pre-form %}
   <div class="mb-4">
     {% if not integration_connected %}
@@ -24,7 +23,6 @@
   {% endif %}
 </div>
 {% endblock pre-form %}
-
 {% block fields %}
   {% if not integration_connected %}
     {% render_field 'api_key' %}
@@ -36,7 +34,6 @@
   </div>
 {% endif %}
 {% endblock fields %}
-
 {% block post-form %}
   {% if integration_connected %}
     <div class="mt-4">{% trans "Your account is connected to a DT One account." %}</div>

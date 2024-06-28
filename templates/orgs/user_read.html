@@ -9,7 +9,7 @@
       <div class="p-4">
         {% for org in object.get_orgs %}
           <div class="member">
-            <div onclick="goto(event, this)" href="{% url 'orgs.org_read' org.id %}" class="linked">{{ org.name }}</div>
+            <a href="{% url 'orgs.org_read' org.id %}" class="linked">{{ org.name }}</a>
           </div>
         {% endfor %}
       </div>

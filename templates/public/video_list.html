@@ -58,7 +58,7 @@
 {% block content %}
   {% if perms.public.video_create or request.user.is_superuser %}
     <div class="text-right -mt-12 mb-12">
-      <div href="{% url "public.video_create" %}" onclick="goto(event)" class="inline button-primary">{% trans "Add Video" %}</div>
+      <a href="{% url "public.video_create" %}" class="inline button-primary">{% trans "Add Video" %}</a>
     </div>
   {% endif %}
   {% blocktrans with brand=branding.name %}

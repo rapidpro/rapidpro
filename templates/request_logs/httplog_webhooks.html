@@ -16,13 +16,13 @@
       {% for obj in object_list %}
         <tr class="{% if obj.is_error %}warning{% endif %}">
           <td class="clickable">
-            <div onclick="goto(event, this)" href="{% url "flows.flow_editor" obj.flow.uuid %}" class="linked">{{ obj.flow.name }}</div>
+            <a href="{% url "flows.flow_editor" obj.flow.uuid %}" class="linked">{{ obj.flow.name }}</a>
           </td>
           <td class="clickable">
-            <div onclick="goto(event, this)" href="{% url "request_logs.httplog_read" obj.id %}" class="linked">{{ obj.url|truncatechars:128 }}</div>
+            <a href="{% url "request_logs.httplog_read" obj.id %}" class="linked">{{ obj.url|truncatechars:128 }}</a>
           </td>
           <td class="clickable">
-            <div onclick="goto(event, this)" href="{% url "request_logs.httplog_read" obj.id %}" class="linked">{{ obj.status_code|default:"--" }}</div>
+            <a href="{% url "request_logs.httplog_read" obj.id %}" class="linked">{{ obj.status_code|default:"--" }}</a>
           </td>
           <td class="whitespace-nowrap">
             {% if obj.request_time %}

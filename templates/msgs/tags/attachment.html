@@ -73,13 +73,10 @@
 {% endif %}
 {% if category != 'geo' and not thumb %}
   <div>
-    <div onclick="goto(event, this)"
-         href="{{ url }}"
-         download="true"
-         class="flex-grow attachment-download rounded-l-none button-light">
+    <a href="{{ url }}" download="true" class="flex-grow attachment-download rounded-l-none button-light">
       <temba-icon name="download" onclick="downloadFile(event, '{{ url }}')">
       </temba-icon>
-    </div>
+    </a>
   </div>
 {% endif %}
 </div>

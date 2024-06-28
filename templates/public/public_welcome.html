@@ -39,7 +39,6 @@
     }
   </style>
 {% endblock extra-style %}
-
 {% block content %}
   {% if 'success' in request.GET.keys %}
     {% blocktrans with name=branding.name %}
@@ -142,18 +141,16 @@
           {% endblocktrans %}
         </div>
         <div class="mt-6">
-          <div href="{% url 'contacts.contactimport_create' %}"
-               onclick="goto(event)"
-               class="button-primary lift inline-block mr-1 mb-1">{% trans "Import Contacts" %}</div>
+          <a href="{% url 'contacts.contactimport_create' %}" class="button-primary lift inline-block mr-1 mb-1">{% trans "Import Contacts" %}</a>
           <temba-modax endpoint="{% url 'contacts.contact_create' %}"
                        header="{{ _("Create Contact") |escapejs }}"
                        class="inline-block mb-1">
-            <div href="{% url 'contacts.contact_list' %}#contact" class="button-light lift inline-block mr-1">{% trans "Create Contact" %}</div>
+            <div class="button-light lift inline-block mr-1">{% trans "Create Contact" %}</div>
           </temba-modax>
           <temba-modax endpoint="{% url 'contacts.contactgroup_create' %}"
                        header="{{ _("Create Group") |escapejs }}"
                        class="inline-block mb-1">
-            <div href="{% url 'contacts.contact_list' %}#group" class="button-light lift inline-block mr-1 mb-1">{% trans "Create Group" %}</div>
+            <div class="button-light lift inline-block mr-1 mb-1">{% trans "Create Group" %}</div>
           </temba-modax>
         </div>
       </div>
@@ -220,7 +217,7 @@
         <div class="mt-6">
           {% block account-details %}
           {% endblock account-details %}
-          <div href="{% url 'api' %}" onclick="goto(event)" class="button-light lift inline-block">{% trans "API Documentation" %}</div>
+          <a href="{% url 'api' %}" class="button-light lift inline-block">{% trans "API Documentation" %}</a>
         </div>
       </div>
     </div>
