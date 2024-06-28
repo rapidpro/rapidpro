@@ -578,9 +578,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const ele = path.find((ele) => ele.tagName === 'A');
 
     if (ele) {
+      const url = new URL(ele.href);
       event.preventDefault();
       event.stopPropagation();
-      spaGet(ele.href);
+
+      // if we are working within the app, use spaGet
+      if (url.host === window.location.host) {
+        spaGet(ele.href);
+      } else {
+        // otherwise open a new tab
+        window.open(ele.href, '_blank');
+      }
     }
   });
 });

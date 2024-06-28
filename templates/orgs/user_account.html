@@ -16,7 +16,7 @@
           <div class="flex-grow mr-4">
             {% trans "Two factor authentication is currently <b>enabled</b>." %}
           </div>
-          <div onclick="goto(event)" href="{% url "orgs.user_two_factor_tokens" %}" class="button-light">{% trans "Backup Tokens" %}</div>
+          <a href="{% url "orgs.user_two_factor_tokens" %}" class="button-light">{% trans "Backup Tokens" %}</a>
         {% else %}
           <div class="flex-grow mr-4">
             {% trans "Two factor authentication is currently <b>not enabled</b>." %}

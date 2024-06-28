@@ -9,7 +9,7 @@
       {% endblocktrans %}
     </div>
     <div class="buttons">
-      <div onclick="goto(event)" href="{% url 'api.v2.root' %}" class="button-light">{% trans "API Docs" %}</div>
+      <a onclick="goto(event)" href="{% url 'api.v2.root' %}" class="button-light">{% trans "API Docs" %}</a>
     </div>
   </div>
 {% endblock summary %}

@@ -12,7 +12,7 @@
     {% else %}
       <div class="start-flow">
         {% trans "Start" %}
-        <span onclick="goto(event)" href="{% url 'flows.flow_editor' object.flow.uuid %}" class="linked">{{ object.flow.name }}</span>
+        <a href="{% url 'flows.flow_editor' object.flow.uuid %}" class="linked">{{ object.flow.name }}</a>
       </div>
     {% endif %}
   </div>
@@ -42,9 +42,7 @@
         {% for fire in scheduled_event_fires %}
           <tr class="event_fire">
             <td>
-              <div onclick="goto(event)"
-                   href="{% url 'contacts.contact_read' fire.contact.uuid %}"
-                   class="name linked">{{ fire.contact|name_or_urn:user_org }}</div>
+              <a href="{% url 'contacts.contact_read' fire.contact.uuid %}" class="name linked">{{ fire.contact|name_or_urn:user_org }}</a>
               <div class="relative-to">
                 <div class="flex">
                   {{ object.relative_to }}&nbsp;
@@ -92,9 +90,7 @@
         {% for fire in fired_event_fires %}
           <tr class="event_fire">
             <td>
-              <div onclick="goto(event)"
-                   href="{% url 'contacts.contact_read' fire.contact.uuid %}"
-                   class="name linked">{{ fire.contact.name }}</div>
+              <a href="{% url 'contacts.contact_read' fire.contact.uuid %}" class="name linked">{{ fire.contact.name }}</a>
               <div class="relative-to">{{ object.relative_to }}</div>
             </td>
             <td class="event_date">{{ fire.fired|duration }}</td>

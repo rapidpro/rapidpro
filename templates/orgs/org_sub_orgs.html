@@ -79,16 +79,14 @@
           <tr>
             <td>
               {% if org.id == user_org.id %}
-                <div onclick="goto(event)" href="{% url 'orgs.org_manage_accounts' %}" class="linked">{{ org.name }}</div>
+                <a href="{% url 'orgs.org_manage_accounts' %}" class="linked">{{ org.name }}</a>
               {% else %}
                 <div onclick="editWorkspace(event)" data-id="{{ org.id }}" class="linked">{{ org.name }}</div>
               {% endif %}
             </td>
             <td style="text-align:right">
               {% if manage_users %}
-                <div onclick="goto(event)"
-                     href="{% url 'orgs.org_manage_accounts_sub_org' %}?org={{ org.id }}"
-                     class="linked">{{ org.users.all|length }}</div>
+                <a href="{% url 'orgs.org_manage_accounts_sub_org' %}?org={{ org.id }}" class="linked">{{ org.users.all|length }}</a>
               {% else %}
                 {{ org.users.all|length }}
               {% endif %}
