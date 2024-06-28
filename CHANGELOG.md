@@ -1,3 +1,8 @@
+v9.1.168 (2024-06-28)
+-------------------------
+ * Don't sync classifiers in suspended orgs
+ * Fix empty contact search with query present
+
 v9.1.167 (2024-06-28)
 -------------------------
  * Disallow empty recipient targeting
