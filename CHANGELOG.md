@@ -1,3 +1,8 @@
+v9.1.167 (2024-06-28)
+-------------------------
+ * Disallow empty recipient targeting
+ * Fix external links within spa container
+
 v9.1.166 (2024-06-27)
 -------------------------
  * Tweak logging for failure during classifier syncing
