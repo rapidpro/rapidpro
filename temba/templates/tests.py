@@ -306,79 +306,46 @@ class TemplateTest(TembaTest):
             self.assertEqual("Error refreshing whatsapp templates: boom", mock_log_error.call_args[0][0])
 
 
-class TemplateTranslationCRUDLTest(CRUDLTestMixin, TembaTest):
-    def test_channel(self):
+class TemplateCRUDLTest(CRUDLTestMixin, TembaTest):
+    def test_list(self):
         channel = self.create_channel("D3C", "360Dialog channel", address="1234", country="BR")
-        tt1 = TemplateTranslation.get_or_create(
-            channel,
-            "hello",
-            locale="eng-US",
-            status=TemplateTranslation.STATUS_APPROVED,
-            external_id="1234",
-            external_locale="en_US",
-            namespace="foo_namespace",
-            components=[
-                {
-                    "name": "body",
-                    "type": "body/text",
-                    "content": "Hello {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
-            ],
-            variables=[{"type": "text"}],
+        template1 = Template.objects.create(org=self.org, name="hello")
+        template2 = Template.objects.create(org=self.org, name="goodbye")
+
+        TemplateTranslation.objects.create(
+            template=template1, channel=channel, locale="eng-US", status=TemplateTranslation.STATUS_APPROVED
         )
-        tt2 = TemplateTranslation.get_or_create(
-            channel,
-            "goodbye",
-            locale="eng-US",
+        TemplateTranslation.objects.create(
+            template=template1, channel=channel, locale="spa", status=TemplateTranslation.STATUS_APPROVED
+        )
+        TemplateTranslation.objects.create(
+            template=template2, channel=channel, locale="eng", status=TemplateTranslation.STATUS_PENDING
+        )
+        TemplateTranslation.objects.create(
+            template=template1, channel=self.channel, locale="eng-US", status=TemplateTranslation.STATUS_PENDING
+        )
+
+        # add template and translation in other org
+        channel_other_org = self.create_channel("D3C", "360Dialog channel", address="2345", org=self.org2)
+        template_other_org = Template.objects.create(org=self.org2, name="hello")
+        TemplateTranslation.objects.create(
+            template=template_other_org,
+            channel=channel_other_org,
+            locale="eng",
             status=TemplateTranslation.STATUS_PENDING,
-            external_id="2345",
-            external_locale="en_US",
-            namespace="foo_namespace",
-            components=[
-                {
-                    "name": "body",
-                    "type": "body/text",
-                    "content": "Goodbye {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
-            ],
-            variables=[{"type": "text"}],
         )
 
-        # and one for another channel
-        TemplateTranslation.get_or_create(
-            self.channel,
-            "hello",
-            locale="eng-US",
-            status=TemplateTranslation.STATUS_PENDING,
-            external_id="5678",
-            external_locale="en_US",
-            namespace="foo_namespace",
-            components=[
-                {
-                    "name": "body",
-                    "type": "body/text",
-                    "content": "Goodbye {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
-            ],
-            variables=[{"type": "text"}],
+        list_url = reverse("templates.template_list")
+
+        self.assertRequestDisallowed(list_url, [None, self.agent])
+        response = self.assertListFetch(
+            list_url, [self.user, self.editor, self.admin], context_objects=[template2, template1]
         )
 
-        channel_url = reverse("templates.templatetranslation_channel", args=[channel.uuid])
-
-        self.assertRequestDisallowed(channel_url, [None, self.agent, self.admin2])
-        response = self.assertListFetch(channel_url, [self.user, self.editor, self.admin], context_objects=[tt2, tt1])
-
-        self.assertContains(response, "Hello")
-        self.assertContentMenu(channel_url, self.admin, ["Sync Logs"])
-
-        response = self.client.get(reverse("templates.templatetranslation_channel", args=["1234567890-1234"]))
-        self.assertEqual(404, response.status_code)
+        self.assertContains(response, "goodbye")
+        self.assertContains(response, "1 translation,")
+        self.assertContains(response, "hello")
+        self.assertContains(response, "3 translations,")
 
 
 class RemoveDuplicateTranslationsTest(MigrationTest):
