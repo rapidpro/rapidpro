@@ -162,7 +162,6 @@ class HTTPLogCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertRequestDisallowed(list_url, [None, self.user, self.editor, self.agent, self.admin2])
         self.assertListFetch(list_url, [self.admin], context_objects=[l2, l1])
-        self.assertContentMenu(list_url, self.admin, ["Message Templates"])
 
     def test_classifier(self):
         c1 = Classifier.create(self.org, self.admin, WitType.slug, "Booker", {}, sync=False)

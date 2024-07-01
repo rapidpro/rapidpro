@@ -308,7 +308,9 @@ class TemplateTest(TembaTest):
 
 class TemplateCRUDLTest(CRUDLTestMixin, TembaTest):
     def test_list(self):
-        channel = self.create_channel("D3C", "360Dialog channel", address="1234", country="BR")
+        list_url = reverse("templates.template_list")
+
+        channel = self.create_channel("D3C", "360Dialog channel", address="1234")
         template1 = Template.objects.create(org=self.org, name="hello")
         template2 = Template.objects.create(org=self.org, name="goodbye")
 
@@ -335,8 +337,6 @@ class TemplateCRUDLTest(CRUDLTestMixin, TembaTest):
             status=TemplateTranslation.STATUS_PENDING,
         )
 
-        list_url = reverse("templates.template_list")
-
         self.assertRequestDisallowed(list_url, [None, self.agent])
         response = self.assertListFetch(
             list_url, [self.user, self.editor, self.admin], context_objects=[template2, template1]
@@ -346,6 +346,74 @@ class TemplateCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContains(response, "1 translation,")
         self.assertContains(response, "hello")
         self.assertContains(response, "3 translations,")
+
+    def test_read(self):
+        channel = self.create_channel("D3C", "360Dialog channel", address="1234")
+        template1 = Template.objects.create(org=self.org, name="hello")
+
+        TemplateTranslation.objects.create(
+            template=template1,
+            channel=channel,
+            locale="eng-US",
+            status=TemplateTranslation.STATUS_PENDING,
+            components=[
+                {
+                    "name": "body",
+                    "type": "body/text",
+                    "content": "Hello {{1}}",
+                    "variables": {"1": 0},
+                    "params": [{"type": "text"}],
+                }
+            ],
+            variables=[{"type": "text"}],
+        )
+        TemplateTranslation.objects.create(
+            template=template1,
+            channel=channel,
+            locale="spa",
+            status=TemplateTranslation.STATUS_APPROVED,
+            components=[
+                {
+                    "name": "body",
+                    "type": "body/text",
+                    "content": "Hola {{1}}",
+                    "variables": {"1": 0},
+                    "params": [{"type": "text"}],
+                }
+            ],
+            variables=[{"type": "text"}],
+        )
+        TemplateTranslation.objects.create(
+            template=template1,
+            channel=self.channel,
+            locale="eng-US",
+            status=TemplateTranslation.STATUS_REJECTED,
+            components=[
+                {
+                    "name": "body",
+                    "type": "body/text",
+                    "content": "Hello {{1}}",
+                    "variables": {"1": 0},
+                    "params": [{"type": "text"}],
+                }
+            ],
+            variables=[{"type": "text"}],
+        )
+
+        # create translation for other template
+        template2 = Template.objects.create(org=self.org, name="goodbye")
+        TemplateTranslation.objects.create(
+            template=template2, channel=channel, locale="eng", status=TemplateTranslation.STATUS_PENDING
+        )
+
+        read_url = reverse("templates.template_read", args=[template1.uuid])
+
+        self.assertRequestDisallowed(read_url, [None, self.agent, self.admin2])
+        response = self.assertReadFetch(read_url, [self.user, self.editor, self.admin], context_object=template1)
+
+        self.assertContains(response, "Hello <code>{{1}}</code>")
+        self.assertContains(response, "Hola <code>{{1}}</code>")
+        self.assertNotContains(response, "Goodbye")
 
 
 class RemoveDuplicateTranslationsTest(MigrationTest):

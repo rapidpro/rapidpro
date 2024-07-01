@@ -640,6 +640,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_workspace",
         "orgs.user_list",
         "templates.template_list",
+        "templates.template_read",
         "tickets.ticket_export",
         "tickets.ticket_list",
         "tickets.ticket_menu",
