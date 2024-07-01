@@ -16,33 +16,11 @@ ACTIVE_PATTERN = "%s:active"
 
 class BatchTask(Enum):
     START_FLOW = "start_flow"
-    SEND_BROADCAST = "send_broadcast"
     INTERRUPT_SESSIONS = "interrupt_sessions"
     POPULATE_DYNAMIC_GROUP = "populate_dynamic_group"
     SCHEDULE_CAMPAIGN_EVENT = "schedule_campaign_event"
     IMPORT_CONTACT_BATCH = "import_contact_batch"
     INTERRUPT_CHANNEL = "interrupt_channel"
-
-
-def queue_broadcast(broadcast):
-    """
-    Queues the passed in broadcast for sending by mailroom
-    """
-
-    task = {
-        "translations": broadcast.translations,
-        "template_state": "unevaluated",
-        "base_language": broadcast.base_language,
-        "optin_id": broadcast.optin_id,
-        "urns": broadcast.urns or [],
-        "contact_ids": list(broadcast.contacts.values_list("id", flat=True)),
-        "group_ids": list(broadcast.groups.values_list("id", flat=True)),
-        "broadcast_id": broadcast.id,
-        "org_id": broadcast.org_id,
-        "created_by_id": broadcast.created_by_id,
-    }
-
-    _queue_batch_task(broadcast.org_id, BatchTask.SEND_BROADCAST, task, HIGH_PRIORITY)
 
 
 def queue_populate_dynamic_group(group):

@@ -1859,11 +1859,6 @@ class BroadcastTest(TembaTest):
         self.assertEqual("Q", bcast2.status)
         self.assertTrue(bcast2.is_active)
 
-        with patch("temba.mailroom.queue_broadcast") as mock_queue_broadcast:
-            bcast2.send_async()
-
-            mock_queue_broadcast.assert_called_once_with(bcast2)
-
         # create a broadcast that looks like it has been sent
         bcast3 = self.create_broadcast(self.admin, {"eng": {"text": "Hi everyone"}}, contacts=[self.kevin, self.lucy])
 

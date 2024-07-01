@@ -268,12 +268,6 @@ class Broadcast(models.Model):
 
         return preview.query, preview.total
 
-    def send_async(self):
-        """
-        Queues this broadcast for sending by mailroom
-        """
-        mailroom.queue_broadcast(self)
-
     def has_pending_fire(self):  # pragma: needs cover
         return self.schedule and self.schedule.next_fire is not None
 

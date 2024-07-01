@@ -19,43 +19,6 @@ from .events import Event
 
 
 class MailroomQueueTest(TembaTest):
-    def test_queue_broadcast(self):
-        jim = self.create_contact("Jim", phone="+12065551212")
-        bobs = self.create_group("Bobs", [self.create_contact("Bob", phone="+12065551313")])
-        bcast = self.create_broadcast(
-            self.admin,
-            {"eng": {"text": "Welcome to mailroom!"}, "spa": {"text": "¡Bienvenidx a mailroom!"}},
-            groups=[bobs],
-            contacts=[jim],
-            urns=["tel:+12065556666"],
-        )
-
-        bcast.send_async()
-
-        self.assert_org_queued(self.org, "batch")
-        self.assert_queued_batch_task(
-            self.org,
-            {
-                "type": "send_broadcast",
-                "task": {
-                    "translations": {
-                        "eng": {"text": "Welcome to mailroom!"},
-                        "spa": {"text": "\u00a1Bienvenidx a mailroom!"},
-                    },
-                    "template_state": "unevaluated",
-                    "base_language": "eng",
-                    "optin_id": None,
-                    "urns": ["tel:+12065556666"],
-                    "contact_ids": [jim.id],
-                    "group_ids": [bobs.id],
-                    "broadcast_id": bcast.id,
-                    "org_id": self.org.id,
-                    "created_by_id": self.admin.id,
-                },
-                "queued_on": matchers.ISODate(),
-            },
-        )
-
     def test_queue_flow_start(self):
         flow = self.get_flow("favorites")
         jim = self.create_contact("Jim", phone="+12065551212")
