@@ -2,7 +2,6 @@ import regex
 
 from django.conf import settings
 from django.db import models
-from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
 from temba.orgs.models import DependencyMixin, Org
@@ -56,10 +55,6 @@ class Global(TembaModel, DependencyMixin):
     @classmethod
     def is_valid_name(cls, name):
         return regex.match(r"^[A-Za-z0-9_\- ]+$", name, regex.V0) and len(name) <= cls.MAX_NAME_LEN
-
-    @classmethod
-    def annotate_usage(cls, queryset):
-        return queryset.annotate(usage_count=Count("dependent_flows", distinct=True))
 
     def release(self, user):
         super().release(user)
