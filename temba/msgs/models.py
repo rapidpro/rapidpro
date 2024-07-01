@@ -198,11 +198,12 @@ class Broadcast(models.Model):
     query = models.TextField(null=True)
     exclusions = models.JSONField(default=dict, null=True)
 
-    # message content in different languages, e.g. {"eng": {"text": "Hello", "attachments": [...]}, "spa": ...}
-    translations = models.JSONField()
+    # message content
+    translations = models.JSONField()  # text, attachments and quick replies by language
     base_language = models.CharField(max_length=3)  # ISO-639-3
     optin = models.ForeignKey("msgs.OptIn", null=True, on_delete=models.PROTECT)
     template = models.ForeignKey("templates.Template", null=True, on_delete=models.PROTECT)
+    template_variables = ArrayField(models.TextField(), null=True)
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_QUEUED)
     created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_creations")
@@ -291,7 +292,7 @@ class Broadcast(models.Model):
 
         def trans(d):
             # ensure that we have all fields
-            return {"text": "", "attachments": [], "quick_replies": [], "template_variables": []} | d
+            return {"text": "", "attachments": [], "quick_replies": []} | d
 
         if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
             if contact.language in self.translations:
