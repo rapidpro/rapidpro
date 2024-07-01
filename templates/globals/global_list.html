@@ -36,7 +36,7 @@
   {% endblock pre-table %}
   <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
   <div class="flex-grow overflow-y-auto shadow">
-    <table class="{% if org_perms.contacts.contact_update %}selectable{% endif %} list lined scrolled">
+    <table class="list lined scrolled">
       <tbody>
         {% for obj in object_list %}
           <tr onclick="showUpdateGlobalModal({{ obj.id }})" class="hover-linked update">
@@ -48,16 +48,17 @@
             <td class="w-12">
               <div class="flex text-center">
                 {% with usage_count=obj.usage_count %}
-                  {% if usage_count %}{% endif %}
-                  <div onclick="event.stopPropagation(); showGlobalUsagesModal('{{ obj.uuid }}');" class="uses">
-                    <div class="lbl linked">
-                      {% blocktrans trimmed count counter=usage_count %}
-                        {{ counter }} Use
-                      {% plural %}
-                        {{ counter }} Uses
-                      {% endblocktrans %}
+                  {% if usage_count %}
+                    <div onclick="event.stopPropagation(); showGlobalUsagesModal('{{ obj.uuid }}');" class="uses">
+                      <div class="lbl linked">
+                        {% blocktrans trimmed count counter=usage_count %}
+                          {{ counter }} use
+                        {% plural %}
+                          {{ counter }} uses
+                        {% endblocktrans %}
+                      </div>
                     </div>
-                  </div>
+                  {% endif %}
                 {% endwith %}
               </div>
             </td>

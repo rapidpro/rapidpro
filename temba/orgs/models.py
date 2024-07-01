@@ -26,7 +26,7 @@ from django.contrib.postgres.validators import ArrayMinLengthValidator
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.db import models, transaction
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -60,6 +60,10 @@ class DependencyMixin:
 
     def get_dependents(self):
         return {"flow": self.dependent_flows.filter(is_active=True)}
+
+    @classmethod
+    def annotate_usage(cls, queryset):
+        return queryset.annotate(usage_count=Count("dependent_flows", distinct=True))
 
     def release(self, user):
         """
