@@ -85,8 +85,9 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.flow = self.create_flow("Color Flow")
         self.flow.global_dependencies.add(self.global1)
 
-    def test_list_views(self):
+    def test_list_and_unused(self):
         list_url = reverse("globals.global_list")
+        unused_url = reverse("globals.global_unused")
 
         self.assertRequestDisallowed(list_url, [None, self.agent])
         response = self.assertListFetch(
@@ -94,12 +95,10 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         self.assertContains(response, "Acme Ltd")
         self.assertContains(response, "23464373")
-        self.assertContains(response, "1 Use")
+        self.assertContains(response, "1 use")
 
         response = self.client.get(list_url + "?search=access")
         self.assertEqual(list(response.context["object_list"]), [self.global2])
-
-        unused_url = reverse("globals.global_unused")
 
         self.assertListFetch(unused_url, [self.user, self.editor, self.admin], context_objects=[self.global2])
         self.assertContentMenu(list_url, self.admin, ["New Global"])
