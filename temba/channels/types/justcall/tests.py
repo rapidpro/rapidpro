@@ -32,7 +32,7 @@ class JustCallTypeTest(TembaTest):
         # try once with an error
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(400, '{ "message": "Failed try again later." }')
-            with self.assertRaisesRegexp(ValidationError, "Unable to add webhook to JustCall: Failed try again later."):
+            with self.assertRaisesRegex(ValidationError, "Unable to add webhook to JustCall: Failed try again later."):
                 response = self.client.post(url, post_data)
             self.assertFalse(Channel.objects.all())
 
@@ -41,7 +41,7 @@ class JustCallTypeTest(TembaTest):
                 MockResponse(200, '{""}'),
                 MockResponse(400, '{ "message": "Failed try again later." }'),
             ]
-            with self.assertRaisesRegexp(ValidationError, "Unable to add webhook to JustCall: Failed try again later."):
+            with self.assertRaisesRegex(ValidationError, "Unable to add webhook to JustCall: Failed try again later."):
                 response = self.client.post(url, post_data)
             self.assertFalse(Channel.objects.all())
 

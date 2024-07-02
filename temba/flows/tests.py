@@ -2174,7 +2174,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual([flow2], list(response.context["object_list"]))
 
         response = self.client.get(reverse("flows.flow_filter", args=[label2.uuid]))
-        self.assertEquals(f"/flow/labels/{label2.uuid}", response.headers.get(TEMBA_MENU_SELECTION))
+        self.assertEqual(f"/flow/labels/{label2.uuid}", response.headers.get(TEMBA_MENU_SELECTION))
 
     def test_get_definition(self):
         flow = self.get_flow("color_v13")
@@ -2583,7 +2583,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             content_type="application/json",
         )
 
-        self.assertEquals(
+        self.assertEqual(
             response.json()["warnings"],
             ["The message template affirmation does not exist on your account and cannot be sent."],
         )
@@ -2601,7 +2601,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             content_type="application/json",
         )
 
-        self.assertEquals(
+        self.assertEqual(
             response.json()["warnings"], ["Your message template affirmation is not approved and cannot be sent."]
         )
 
@@ -2628,7 +2628,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             content_type="application/json",
         )
 
-        self.assertEquals(
+        self.assertEqual(
             response.json()["warnings"], ["Your message template affirmation is not approved and cannot be sent."]
         )
 
@@ -2645,7 +2645,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             content_type="application/json",
         )
 
-        self.assertEquals(response.json()["warnings"], [])
+        self.assertEqual(response.json()["warnings"], [])
 
     @mock_mailroom
     def test_start(self, mr_mocks):
