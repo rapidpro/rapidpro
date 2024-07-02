@@ -755,6 +755,11 @@ class MsgCRUDL(SmartCRUDL):
                         name=_("Broadcasts"),
                         href=reverse("msgs.broadcast_list"),
                     ),
+                    self.create_menu_item(
+                        menu_id="templates",
+                        name=_("Templates"),
+                        href=reverse("templates.template_list"),
+                    ),
                     self.create_divider(),
                     self.create_menu_item(
                         menu_id="calls",

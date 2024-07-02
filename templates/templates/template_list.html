@@ -1,0 +1,77 @@
+{% extends "smartmin/list.html" %}
+{% load i18n %}
+
+{% block content %}
+  <div class="mb-4">
+    {% blocktrans trimmed %}
+      Templates are refreshed from supporting channels every 15 minutes.
+    {% endblocktrans %}
+  </div>
+  {% block pre-table %}
+    <temba-modax header="{{ _("Usages") |escapejs }}" id="usages-template">
+    </temba-modax>
+  {% endblock pre-table %}
+  <div class="mt-4 shadow rounded-lg rounded-bl-none rounded-br-none bg-white">{% include "includes/short_pagination.html" %}</div>
+  <div class="flex-grow overflow-y-auto shadow">
+    <table class="list lined scrolled">
+      <tbody>
+        {% for obj in object_list %}
+          <tr onclick="goto(event)" href="{% url 'templates.template_read' obj.uuid %}" class="hover-linked">
+            <td style="min-width: 50px">{{ obj.name }}</td>
+            <td>
+              {# djlint:off #}
+              {% blocktrans trimmed count counter=obj.translation_count %}{{ counter }} translation{% plural %}{{ counter }} translations{% endblocktrans %},
+              {# djlint:on #}
+              {% blocktrans trimmed count counter=obj.channel_count %}
+                {{ counter }} channel
+              {% plural %}
+                {{ counter }} channels
+              {% endblocktrans %}
+            </td>
+            <td class="w-12">
+              <div class="flex text-right">
+                {% with usage_count=obj.usage_count %}
+                  {% if usage_count %}
+                    <div onclick="event.stopPropagation(); showTemplateUsagesModal('{{ obj.uuid }}');" class="uses">
+                      <div class="lbl linked">
+                        {% blocktrans trimmed count counter=usage_count %}
+                          {{ counter }} use
+                        {% plural %}
+                          {{ counter }} uses
+                        {% endblocktrans %}
+                      </div>
+                    </div>
+                  {% endif %}
+                {% endwith %}
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr class="empty_list">
+            <td colspan="99">{% trans "No templates have been fetched yet." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}
+{% block extra-script %}
+  {{ block.super }}
+  <script>
+    function showTemplateUsagesModal(uuid) {
+      var modax = document.querySelector('#usages-template');
+      modax.endpoint = `/template/usages/${uuid}/`
+      modax.open = true;
+    }
+  </script>
+{% endblock extra-script %}
+{% block extra-style %}
+  {{ block.super }}
+  <style type="text/css">
+    td.dependencies {
+      text-align: right;
+      white-space: nowrap;
+      width: 3em;
+    }
+  </style>
+{% endblock extra-style %}

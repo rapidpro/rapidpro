@@ -64,8 +64,6 @@ class TwilioWhatsappType(ChannelType):
         ],
     )
 
-    menu_items = [dict(label=_("Message Templates"), view_name="templates.templatetranslation_channel")]
-
     def get_error_ref_url(self, channel, code: str) -> str:
         return f"https://www.twilio.com/docs/api/errors/{code}"
 

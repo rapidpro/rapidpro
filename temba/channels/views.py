@@ -496,6 +496,9 @@ class ChannelCRUDL(SmartCRUDL):
 
             menu.add_link(_("Logs"), reverse("channels.channellog_list", args=[obj.uuid]))
 
+            if obj.type.template_type:
+                menu.add_link(_("Template Logs"), reverse("request_logs.httplog_channel", args=[obj.uuid]))
+
             if self.has_org_perm("channels.channel_update"):
                 menu.add_modax(
                     _("Edit"),

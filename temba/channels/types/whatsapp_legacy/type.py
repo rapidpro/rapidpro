@@ -47,8 +47,6 @@ class WhatsAppLegacyType(ChannelType):
 
     config_ui = ConfigUI()  # has own template
 
-    menu_items = [dict(label=_("Message Templates"), view_name="templates.templatetranslation_channel")]
-
     def get_urls(self):
         return [
             self.get_claim_url(),

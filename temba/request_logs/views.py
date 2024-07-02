@@ -83,12 +83,7 @@ class HTTPLogCRUDL(SmartCRUDL):
     class Channel(ContentMenuMixin, BaseObjLogsView):
         source_field = "channel"
         source_url = "uuid@channels.channel_read"
-        title = _("Sync History")
-
-        def build_content_menu(self, menu):
-            menu.add_link(
-                _("Message Templates"), reverse("templates.templatetranslation_channel", args=[self.source.uuid])
-            )
+        title = _("Template Fetch Logs")
 
         def derive_menu_path(self):
             return f"/settings/channels/{self.source.uuid}"

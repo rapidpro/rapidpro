@@ -1,3 +1,3 @@
-from .views import TemplateTranslationCRUDL
+from .views import TemplateCRUDL
 
-urlpatterns = TemplateTranslationCRUDL().as_urlpatterns()
+urlpatterns = TemplateCRUDL().as_urlpatterns()
