@@ -1,3 +1,10 @@
+v9.1.169 (2024-07-02)
+-------------------------
+ * Use python 3.11.x
+ * Add Broadcast.template_variables
+ * Add new template list and read pages and remove old channel specific ones
+ * Fix globals list template
+
 v9.1.168 (2024-06-28)
 -------------------------
  * Don't sync classifiers in suspended orgs
