@@ -42,7 +42,7 @@ class WhatsAppUtilsTest(TembaTest):
         mock_health.assert_called_with(channel)
 
         channel.refresh_from_db()
-        self.assertDictContainsSubset({"version": "v2.35.2"}, channel.config)
+        self.assertEqual("v2.35.2", channel.config.get("version"))
 
         self.assertEqual(0, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_CHECK_HEALTH).count())
         mock_health.side_effect = [requests.RequestException(response=MockResponse(401, "{}"))]
@@ -69,7 +69,7 @@ class WhatsAppUtilsTest(TembaTest):
         mock_health.assert_called_with(channel)
 
         channel.refresh_from_db()
-        self.assertDictContainsSubset({"version": "v2.35.4"}, channel.config)
+        self.assertEqual("v2.35.4", channel.config.get("version"))
 
         self.assertEqual(0, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_CHECK_HEALTH).count())
         mock_health.side_effect = [requests.RequestException(response=MockResponse(401, "{}"))]
