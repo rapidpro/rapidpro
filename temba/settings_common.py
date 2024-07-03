@@ -770,7 +770,6 @@ CELERY_BEAT_SCHEDULE = {
     "squash-notification-counts": {"task": "squash_notification_counts", "schedule": timedelta(seconds=60)},
     "squash-ticket-counts": {"task": "squash_ticket_counts", "schedule": timedelta(seconds=60)},
     "sync-classifier-intents": {"task": "sync_classifier_intents", "schedule": timedelta(seconds=300)},
-    "sync-old-seen-channels": {"task": "sync_old_seen_channels", "schedule": timedelta(seconds=600)},
     "track-org-channel-counts": {"task": "track_org_channel_counts", "schedule": crontab(hour=4, minute=0)},
     "trim-channel-events": {"task": "trim_channel_events", "schedule": crontab(hour=3, minute=0)},
     "trim-channel-logs": {"task": "trim_channel_logs", "schedule": crontab(hour=3, minute=0)},
