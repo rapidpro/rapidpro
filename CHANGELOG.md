@@ -1,3 +1,9 @@
+v9.1.170 (2024-07-03)
+-------------------------
+ * Remove no longer needed task to sync stale Android relayers
+ * Don't allow template localization
+ * Update dependencies
+
 v9.1.169 (2024-07-02)
 -------------------------
  * Use python 3.11.x
