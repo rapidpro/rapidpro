@@ -198,9 +198,9 @@ class ComposeForm(Form):
                 if attachments and len(attachments) > Msg.MAX_ATTACHMENTS:
                     raise forms.ValidationError(_(f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files."))
 
-        primaryValues = compose.get(primary_language or base_language)
-        template = primaryValues.get("template")
-        locale = primaryValues.get("locale")
+        primaryValues = compose.get(primary_language or base_language, {})
+        template = primaryValues.get("template", None)
+        locale = primaryValues.get("locale", None)
         variables = primaryValues.get("variables", [])
 
         if template:
