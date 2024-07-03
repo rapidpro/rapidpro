@@ -36,7 +36,6 @@ from .models import Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
 from .tasks import (
     check_android_channels,
     squash_channel_counts,
-    sync_old_seen_channels,
     track_org_channel_counts,
     trim_channel_events,
     trim_channel_logs,
@@ -1084,28 +1083,6 @@ class SyncEventTest(SmartminTest):
 
         # we shouldn't update country once the relayer is claimed
         self.assertEqual("RW", self.tel_channel.country)
-
-
-class ChannelSyncTest(TembaTest):
-    @patch("temba.channels.models.Channel.trigger_sync")
-    def test_sync_old_seen_chaanels(self, mock_trigger_sync):
-        self.channel.last_seen = timezone.now() - timedelta(days=40)
-        self.channel.save()
-
-        sync_old_seen_channels()
-        self.assertFalse(mock_trigger_sync.called)
-
-        self.channel.last_seen = timezone.now() - timedelta(minutes=5)
-        self.channel.save()
-
-        sync_old_seen_channels()
-        self.assertFalse(mock_trigger_sync.called)
-
-        self.channel.last_seen = timezone.now() - timedelta(hours=3)
-        self.channel.save()
-
-        sync_old_seen_channels()
-        self.assertTrue(mock_trigger_sync.called)
 
 
 class ChannelIncidentsTest(TembaTest):
