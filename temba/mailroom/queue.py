@@ -31,15 +31,18 @@ def queue_broadcast(broadcast):
 
     task = {
         "translations": broadcast.translations,
-        "template_state": "unevaluated",
         "base_language": broadcast.base_language,
+        "expressions": True,
         "optin_id": broadcast.optin_id,
+        "template_id": broadcast.template_id,
+        "template_variables": broadcast.template_variables or [],
         "urns": broadcast.urns or [],
         "contact_ids": list(broadcast.contacts.values_list("id", flat=True)),
         "group_ids": list(broadcast.groups.values_list("id", flat=True)),
         "broadcast_id": broadcast.id,
         "org_id": broadcast.org_id,
         "created_by_id": broadcast.created_by_id,
+        "template_state": "unevaluated",  # deprecated
     }
 
     _queue_batch_task(broadcast.org_id, BatchTask.SEND_BROADCAST, task, HIGH_PRIORITY)
