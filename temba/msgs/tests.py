@@ -2181,11 +2181,12 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_update(self):
         optin = self.create_optin("Daily Polls")
-        updated_text = {"und": {"text": "Updated broadcast"}}
+        language = self.org.flow_languages[0]
+        updated_text = {language: {"text": "Updated broadcast"}}
 
         broadcast = self.create_broadcast(
             self.admin,
-            {"und": {"text": "Please update this broadcast when you get a chance."}},
+            {language: {"text": "Please update this broadcast when you get a chance."}},
             groups=[self.joe_and_frank],
             contacts=[self.joe],
             schedule=Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY),
@@ -2204,16 +2205,16 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
                 {
                     "name": "body",
                     "type": "body/text",
-                    "content": "Hello World! {{1}}",
+                    "content": "Hello {{1}}",
                     "variables": {"1": 1},
                 },
             ],
             variables=[{"type": "image"}, {"type": "text"}],
         )
 
-        broadcast.template = translation.template
-        broadcast.template_variables = ["image/jpeg:http://domain/meow.jpg"]
-        broadcast.save()
+        # broadcast.template = translation.template
+        # broadcast.template_variables = ["image/jpeg:http://domain/meow.jpg", "World"]
+        # broadcast.save()
 
         update_url = reverse("msgs.broadcast_update", args=[broadcast.id])
 
@@ -2227,22 +2228,59 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             self._form_data(
                 self.org,
                 translations=updated_text,
-                optin=optin,
+                template=translation.template,
+                variables=["", "World"],
                 contacts=[self.joe],
                 start_datetime="2021-06-24 12:00",
                 repeat_period="W",
                 repeat_days_of_week=["M", "F"],
             ),
         )
+
+        # requires an attachment
+        self.assertFormError(
+            response.context["form"], "compose", ["The attachment for the WhatsApp template is required."]
+        )
+
+        # now with the attachment
+        response = self.process_wizard(
+            "update",
+            update_url,
+            self._form_data(
+                self.org,
+                translations=updated_text,
+                template=translation.template,
+                variables=["image/jpeg:http://domain/meow.jpg", "World"],
+                contacts=[self.joe],
+                start_datetime="2021-06-24 12:00",
+                repeat_period="W",
+                repeat_days_of_week=["M", "F"],
+            ),
+        )
+
         self.assertEqual(302, response.status_code)
 
-        broadcast.refresh_from_db()
+        # now lets remove the template
+        response = self.process_wizard(
+            "update",
+            update_url,
+            self._form_data(
+                self.org,
+                translations={language: {"text": "Updated broadcast"}},
+                contacts=[self.joe],
+                optin=optin,
+                start_datetime="2021-06-24 12:00",
+                repeat_period="W",
+                repeat_days_of_week=["M", "F"],
+            ),
+        )
 
+        broadcast.refresh_from_db()
         # Update should have cleared our template
         self.assertIsNone(broadcast.template)
 
         # optin should be extracted from the translations form data and saved on the broadcast itself
-        self.assertEqual({"und": {"text": "Updated broadcast", "attachments": []}}, broadcast.translations)
+        self.assertEqual({language: {"text": "Updated broadcast", "attachments": []}}, broadcast.translations)
         self.assertEqual(optin, broadcast.optin)
 
         # now lets unset the optin from the broadcast

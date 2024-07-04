@@ -202,7 +202,6 @@ class ComposeForm(Form):
         template = primaryValues.get("template", None)
         locale = primaryValues.get("locale", None)
         variables = primaryValues.get("variables", [])
-
         if template:
             translation = TemplateTranslation.objects.filter(
                 template__org=self.org, template__uuid=template, locale=locale
