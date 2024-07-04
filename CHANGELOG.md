@@ -1,3 +1,8 @@
+v9.1.172 (2024-07-04)
+-------------------------
+ * Add templates to broadcasts (hidden for now)
+ * Remove deprecated broadcast.template_state field on mailroom queue payload
+
 v9.1.171 (2024-07-03)
 -------------------------
  * Update payload for queueing a bradocast
