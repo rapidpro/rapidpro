@@ -65,8 +65,9 @@ class EndpointsTest(APITestMixin, TembaTest):
         # but not aliases in other orgs
         self.assertGet(endpoint_url + "?level=state&query=Chigali", [self.agent], results=[])
 
-        # invalid level, no results
+        # missing or invalid level, no results
         self.assertGet(endpoint_url + "?level=hood", [self.agent], results=[])
+        self.assertGet(endpoint_url, [self.agent], results=[])
 
     def test_notifications(self):
         endpoint_url = reverse("api.internal.notifications") + ".json"

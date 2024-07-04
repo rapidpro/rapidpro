@@ -2298,19 +2298,19 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         # optin should be gone now
         self.assertIsNone(broadcast.optin)
 
-        # now update the scheduled broadcast to send now
+        # post the first two forms
         response = self.process_wizard(
             "update",
             update_url,
-            self._form_data(self.org, translations=updated_text, contacts=[self.joe], send_when=ScheduleForm.SEND_NOW),
+            self._form_data(
+                self.org,
+                translations=updated_text,
+                contacts=[self.joe],
+            ),
         )
 
-        # when a scheduled broadcast is updated to send now, it'll redirect to broadcast list
-        self.assertRedirect(response, reverse("msgs.broadcast_list"))
-        broadcast.refresh_from_db()
-
-        # shouldn't have a schedule now
-        self.assertEqual(None, broadcast.schedule)
+        # Update broadcast should not have the option to send now
+        self.assertNotContains(response, "Send Now")
 
     def test_localization(self):
         # create a broadcast without a language

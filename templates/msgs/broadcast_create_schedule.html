@@ -65,6 +65,8 @@
   </script>
 {% endblock extra-script %}
 {% block fields %}
-  {% render_field 'send_when' %}
+  {% if not object.id %}
+    {% render_field 'send_when' %}
+  {% endif %}
   <div id="schedule_fields">{% include "includes/schedule_fields.html" with form=form %}</div>
 {% endblock fields %}
