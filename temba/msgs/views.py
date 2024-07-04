@@ -499,7 +499,6 @@ class BroadcastCRUDL(SmartCRUDL):
             if step == "schedule":
                 schedule = self.object.schedule
                 return {
-                    "send_when": ScheduleForm.SEND_LATER if schedule.next_fire else ScheduleForm.SEND_NOW,
                     "start_datetime": schedule.next_fire,
                     "repeat_period": schedule.repeat_period,
                     "repeat_days_of_week": list(schedule.repeat_days_of_week) if schedule.repeat_days_of_week else [],
@@ -544,20 +543,11 @@ class BroadcastCRUDL(SmartCRUDL):
 
             # finally, update schedule
             schedule_form = form_dict["schedule"]
-            send_when = schedule_form.cleaned_data["send_when"]
-
-            if send_when == ScheduleForm.SEND_LATER:
-                start_time = schedule_form.cleaned_data["start_datetime"]
-                repeat_period = schedule_form.cleaned_data["repeat_period"]
-                repeat_days_of_week = schedule_form.cleaned_data["repeat_days_of_week"]
-                schedule.update_schedule(start_time, repeat_period, repeat_days_of_week=repeat_days_of_week)
-                broadcast.save()
-            else:
-                broadcast.schedule = None
-                broadcast.save()
-                schedule.delete()
-                self.object.send_async()
-                return HttpResponseRedirect(reverse("msgs.broadcast_list"))
+            start_time = schedule_form.cleaned_data["start_datetime"]
+            repeat_period = schedule_form.cleaned_data["repeat_period"]
+            repeat_days_of_week = schedule_form.cleaned_data["repeat_days_of_week"]
+            schedule.update_schedule(start_time, repeat_period, repeat_days_of_week=repeat_days_of_week)
+            broadcast.save()
 
             return HttpResponseRedirect(self.get_success_url())
 
