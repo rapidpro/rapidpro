@@ -38,6 +38,7 @@ from temba.orgs.views import (
     OrgPermsMixin,
 )
 from temba.schedules.views import ScheduleFormMixin
+from temba.templates.models import Template, TemplateTranslation
 from temba.utils import json, languages
 from temba.utils.compose import compose_deserialize, compose_serialize
 from temba.utils.fields import (
@@ -161,6 +162,8 @@ class ComposeForm(Form):
                 "completion": True,
                 "quickreplies": True,
                 "optins": True,
+                # flip this when we are ready for templates
+                "templates": False,
             }
         ),
     )
@@ -194,6 +197,21 @@ class ComposeForm(Form):
                     raise forms.ValidationError(_(f"Maximum allowed text is {Msg.MAX_TEXT_LEN} characters."))
                 if attachments and len(attachments) > Msg.MAX_ATTACHMENTS:
                     raise forms.ValidationError(_(f"Maximum allowed attachments is {Msg.MAX_ATTACHMENTS} files."))
+
+        primaryValues = compose.get(primary_language or base_language, {})
+        template = primaryValues.get("template", None)
+        locale = primaryValues.get("locale", None)
+        variables = primaryValues.get("variables", [])
+        if template:
+            translation = TemplateTranslation.objects.filter(
+                template__org=self.org, template__uuid=template, locale=locale
+            ).first()
+            if translation:
+                for idx, param in enumerate(translation.variables):
+                    # non text variables are required
+                    if param.get("type") != "text":
+                        if idx >= len(variables) or not variables[idx]:
+                            raise forms.ValidationError(_("The attachment for the WhatsApp template is required."))
 
         return compose
 
@@ -472,6 +490,10 @@ class BroadcastCRUDL(SmartCRUDL):
                     if iso != base_language and iso not in org.flow_languages:
                         del compose[iso]
 
+                if self.object.template:
+                    compose[base_language]["template"] = str(self.object.template.uuid)
+                    compose[base_language]["variables"] = self.object.template_variables
+
                 return {"compose": compose, "optin": self.object.optin, "base_language": base_language}
 
             if step == "schedule":
@@ -489,17 +511,25 @@ class BroadcastCRUDL(SmartCRUDL):
 
             # update message
             compose = form_dict["compose"].cleaned_data["compose"]
+            composeBase = compose[broadcast.base_language]
 
             # extract our optin if it is set
-            optin = compose[broadcast.base_language].pop("optin", None)
+            optin = composeBase.pop("optin", None)
             if optin:
                 optin = OptIn.objects.filter(org=broadcast.org, uuid=optin.get("uuid")).first()
 
             contact_search = form_dict["target"].cleaned_data["contact_search"]
 
+            template = composeBase.pop("template", None)
+            template_variables = composeBase.pop("variables", [])
+            if template:
+                template = Template.objects.filter(org=broadcast.org, uuid=template).first()
+
             broadcast.translations = compose_deserialize(compose)
             broadcast.exclusions = contact_search.get("exclusions", {})
             broadcast.optin = optin
+            broadcast.template = template
+            broadcast.template_variables = template_variables
             broadcast.save()
 
             # update recipients
