@@ -12,6 +12,62 @@ NUM_BASE_QUERIES = 4  # number of queries required for any request (internal API
 
 
 class EndpointsTest(APITestMixin, TembaTest):
+    def test_locations(self):
+        endpoint_url = reverse("api.internal.locations") + ".json"
+
+        self.assertGetNotPermitted(endpoint_url, [None])
+        self.assertPostNotAllowed(endpoint_url)
+        self.assertDeleteNotAllowed(endpoint_url)
+
+        # no country, no results
+        self.assertGet(endpoint_url + "?level=state", [self.agent], results=[])
+
+        self.setUpLocations()
+
+        self.assertGet(
+            endpoint_url + "?level=state",
+            [self.agent],
+            results=[
+                {"osm_id": "171591", "name": "Eastern Province", "path": "Rwanda > Eastern Province"},
+                {"osm_id": "1708283", "name": "Kigali City", "path": "Rwanda > Kigali City"},
+            ],
+        )
+        self.assertGet(
+            endpoint_url + "?level=district",
+            [self.user],
+            results=[
+                {"osm_id": "R1711131", "name": "Gatsibo", "path": "Rwanda > Eastern Province > Gatsibo"},
+                {"osm_id": "1711163", "name": "Kayônza", "path": "Rwanda > Eastern Province > Kayônza"},
+                {"osm_id": "3963734", "name": "Nyarugenge", "path": "Rwanda > Kigali City > Nyarugenge"},
+                {"osm_id": "1711142", "name": "Rwamagana", "path": "Rwanda > Eastern Province > Rwamagana"},
+            ],
+        )
+
+        # can query on name
+        self.assertGet(
+            endpoint_url + "?level=district&query=ga",
+            [self.editor],
+            results=[
+                {"osm_id": "R1711131", "name": "Gatsibo", "path": "Rwanda > Eastern Province > Gatsibo"},
+                {"osm_id": "1711142", "name": "Rwamagana", "path": "Rwanda > Eastern Province > Rwamagana"},
+            ],
+        )
+
+        # or alias
+        self.assertGet(
+            endpoint_url + "?level=state&query=kigari",
+            [self.admin],
+            results=[
+                {"osm_id": "1708283", "name": "Kigali City", "path": "Rwanda > Kigali City"},
+            ],
+        )
+
+        # but not aliases in other orgs
+        self.assertGet(endpoint_url + "?level=state&query=Chigali", [self.agent], results=[])
+
+        # invalid level, no results
+        self.assertGet(endpoint_url + "?level=hood", [self.agent], results=[])
+
     def test_notifications(self):
         endpoint_url = reverse("api.internal.notifications") + ".json"
 

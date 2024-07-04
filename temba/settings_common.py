@@ -650,6 +650,7 @@ GROUP_PERMISSIONS = {
     ),
     "Agents": (
         "contacts.contact_history",
+        "locations.adminboundary_list",
         "notifications.notification_list",
         "orgs.org_languages",
         "orgs.org_menu",
