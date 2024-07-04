@@ -63,7 +63,7 @@ class LocationsEndpoint(ListAPIMixin, BaseEndpoint):
         if query:
             qs = qs.filter(Q(name__icontains=query) | Q(aliases__org=org, aliases__name__icontains=query))
 
-        return qs
+        return qs.only("osm_id", "name", "path")
 
 
 class NotificationsEndpoint(ListAPIMixin, BaseEndpoint):

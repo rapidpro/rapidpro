@@ -31,6 +31,7 @@ class EndpointsTest(APITestMixin, TembaTest):
                 {"osm_id": "171591", "name": "Eastern Province", "path": "Rwanda > Eastern Province"},
                 {"osm_id": "1708283", "name": "Kigali City", "path": "Rwanda > Kigali City"},
             ],
+            num_queries=NUM_BASE_QUERIES + 2,
         )
         self.assertGet(
             endpoint_url + "?level=district",
