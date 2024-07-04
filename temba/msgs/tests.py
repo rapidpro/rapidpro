@@ -28,6 +28,7 @@ from temba.msgs.models import (
 from temba.msgs.views import ScheduleForm
 from temba.orgs.models import Export
 from temba.schedules.models import Schedule
+from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, TembaTest, mock_mailroom, mock_uuids
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client, jsonlgz_encode
@@ -1987,6 +1988,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         advanced=False,
         query=None,
         optin=None,
+        template=None,
+        variables=[],
         send_when=ScheduleForm.SEND_LATER,
         start_datetime="",
         repeat_period="",
@@ -1996,6 +1999,13 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         if translations:
             first_lang = next(iter(translations))
             translations[first_lang]["optin"] = {"uuid": str(optin.uuid), "name": optin.name} if optin else None
+
+        if template:
+            translation = template.translations.all().first()
+            first_lang = next(iter(translations))
+            translations[first_lang]["template"] = str(template.uuid)
+            translations[first_lang]["variables"] = variables
+            translations[first_lang]["locale"] = translation.locale
 
         recipients = ContactSearchWidget.get_recipients(contacts)
         contact_search = {"recipients": recipients, "advanced": advanced, "query": query, "exclusions": {}}
@@ -2180,6 +2190,31 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             contacts=[self.joe],
             schedule=Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
+
+        translation = TemplateTranslation.get_or_create(
+            self.channel,
+            "Hello World",
+            locale="eng-US",
+            status=TemplateTranslation.STATUS_APPROVED,
+            external_id="1003",
+            external_locale="en_US",
+            namespace="",
+            components=[
+                {"name": "header", "type": "header/media", "variables": {"1": 0}},
+                {
+                    "name": "body",
+                    "type": "body/text",
+                    "content": "Hello World! {{1}}",
+                    "variables": {"1": 1},
+                },
+            ],
+            variables=[{"type": "image"}, {"type": "text"}],
+        )
+
+        broadcast.template = translation.template
+        broadcast.template_variables = ["image/jpeg:http://domain/meow.jpg"]
+        broadcast.save()
+
         update_url = reverse("msgs.broadcast_update", args=[broadcast.id])
 
         self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
@@ -2202,6 +2237,9 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(302, response.status_code)
 
         broadcast.refresh_from_db()
+
+        # Update should have cleared our template
+        self.assertIsNone(broadcast.template)
 
         # optin should be extracted from the translations form data and saved on the broadcast itself
         self.assertEqual({"und": {"text": "Updated broadcast", "attachments": []}}, broadcast.translations)
@@ -2239,6 +2277,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # shouldn't have a schedule now
         self.assertEqual(None, broadcast.schedule)
+
+        update_url = reverse("msgs.broadcast_update", args=[broadcast.id])
 
     def test_localization(self):
         # create a broadcast without a language
