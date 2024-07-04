@@ -2212,10 +2212,6 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             variables=[{"type": "image"}, {"type": "text"}],
         )
 
-        # broadcast.template = translation.template
-        # broadcast.template_variables = ["image/jpeg:http://domain/meow.jpg", "World"]
-        # broadcast.save()
-
         update_url = reverse("msgs.broadcast_update", args=[broadcast.id])
 
         self.assertRequestDisallowed(update_url, [None, self.user, self.agent, self.admin2])
@@ -2315,8 +2311,6 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # shouldn't have a schedule now
         self.assertEqual(None, broadcast.schedule)
-
-        update_url = reverse("msgs.broadcast_update", args=[broadcast.id])
 
     def test_localization(self):
         # create a broadcast without a language
