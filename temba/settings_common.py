@@ -650,7 +650,6 @@ GROUP_PERMISSIONS = {
     ),
     "Agents": (
         "contacts.contact_history",
-        "locations.adminboundary_list",
         "notifications.notification_list",
         "orgs.org_languages",
         "orgs.org_menu",
@@ -673,6 +672,7 @@ API_PERMISSIONS = {
         "contacts.contact_update",
         "contacts.contactfield_list",
         "contacts.contactgroup_list",
+        "locations.adminboundary_list",
         "msgs.media_create",
         "msgs.msg_create",
         "orgs.org_read",
