@@ -1253,7 +1253,6 @@ class ContactGroupTest(TembaTest):
         schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
         bcast1 = self.create_broadcast(self.admin, {"eng": {"text": "Hi"}}, groups=[group1, group2], schedule=schedule)
         bcast2 = self.create_broadcast(self.admin, {"eng": {"text": "Hi"}}, groups=[group1, group2])
-        bcast2.send_async()
 
         # group still has a hard dependency so can't be released
         with self.assertRaises(AssertionError):
