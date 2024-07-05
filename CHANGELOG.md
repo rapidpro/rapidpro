@@ -1,3 +1,7 @@
+v9.1.175 (2024-07-05)
+-------------------------
+ * Make send_when optional when updating broadcasts
+
 v9.1.174 (2024-07-05)
 -------------------------
  * Fix updating scheduled broadcasts
