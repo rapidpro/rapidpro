@@ -471,7 +471,7 @@ class ChannelReadSerializer(ReadSerializer):
         return str(obj.country) if obj.country else None
 
     def get_device(self, obj):
-        if not obj.is_android():
+        if not obj.is_android:
             return None
 
         return {
