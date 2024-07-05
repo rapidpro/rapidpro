@@ -1,3 +1,8 @@
+v9.1.174 (2024-07-05)
+-------------------------
+ * Fix updating scheduled broadcasts
+ * Remove old unused code for queueing broadcasts
+
 v9.1.173 (2024-07-05)
 -------------------------
  * Add Msg.is_android field
