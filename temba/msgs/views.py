@@ -255,13 +255,17 @@ class ScheduleForm(ScheduleFormMixin):
 
     def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         self.fields["start_datetime"].required = False
         self.set_org(org)
 
     def clean(self):
-        start_datetime = self.data.get("schedule-start_datetime", None)
-        if self.data["schedule-send_when"] == ScheduleForm.SEND_LATER and not start_datetime:
+        send_when = self.data.get("schedule-send_when", ScheduleForm.SEND_LATER)  # doesn't exist for updates
+        start_datetime = self.data.get("schedule-start_datetime")
+
+        if send_when == ScheduleForm.SEND_LATER and not start_datetime:
             raise forms.ValidationError(_("Select when you would like the broadcast to be sent"))
+
         return super().clean()
 
     class Meta:
