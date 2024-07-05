@@ -443,6 +443,7 @@ class TembaTest(SmartminTest):
             status=status or (Msg.STATUS_PENDING if direction == Msg.DIRECTION_IN else Msg.STATUS_INITIALIZING),
             msg_type=msg_type,
             visibility=visibility,
+            is_android=channel and channel.is_android,
             external_id=external_id,
             high_priority=high_priority,
             created_on=created_on or timezone.now(),

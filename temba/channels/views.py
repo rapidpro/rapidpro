@@ -524,7 +524,7 @@ class ChannelCRUDL(SmartCRUDL):
             context["msg_count"] = channel.get_msg_count()
             context["ivr_count"] = channel.get_ivr_count()
 
-            if channel.is_android():
+            if channel.is_android:
                 context["latest_sync_events"] = channel.sync_events.order_by("-created_on")[:10]
 
             if not channel.is_new():
