@@ -22,7 +22,7 @@ from temba.contacts.models import URN, Contact, ContactField, ContactGroup, Cont
 from temba.globals.models import Global
 from temba.orgs.integrations.dtone import DTOneType
 from temba.orgs.models import Export
-from temba.templates.models import Template, TemplateTranslation
+from temba.templates.models import TemplateTranslation
 from temba.tests import CRUDLTestMixin, MockJsonResponse, TembaTest, matchers, mock_mailroom, override_brand
 from temba.tests.base import get_contact_search
 from temba.tests.engine import MockSessionWriter
@@ -2589,7 +2589,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # create the template, but no translations
-        Template.objects.create(org=self.org, name="affirmation", uuid="f712e05c-bbed-40f1-b3d9-671bb9b60775")
+        self.create_template("affirmation", uuid="f712e05c-bbed-40f1-b3d9-671bb9b60775")
 
         # will be warned again
         mr_mocks.flow_start_preview(query="age > 30", total=2)
