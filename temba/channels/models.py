@@ -659,8 +659,8 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         for incident in self.incidents.filter(ended_on=None):
             incident.end()
 
-        # any template translations for this channel are marked inactive
-        self.template_translations.filter(is_active=True).update(is_active=False)
+        # delete template translations for this channel
+        self.template_translations.all().delete()
 
     def delete(self):
         for trigger in self.triggers.all():

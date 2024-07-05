@@ -83,21 +83,6 @@ class TemplateTest(TembaTest):
         self.assertEqual(3, TemplateTranslation.objects.filter(channel=channel1).count())
         self.assertEqual(1, TemplateTranslation.objects.filter(channel=channel2).count())
 
-        # trim them
-        TemplateTranslation.trim(channel1, [hello_eng, hello_fra])
-
-        # non-included translations should be inactive now
-        hello_eng.refresh_from_db()
-        self.assertTrue(hello_eng.is_active)
-        hello_fra.refresh_from_db()
-        self.assertTrue(hello_fra.is_active)
-        goodbye_fra.refresh_from_db()
-        self.assertFalse(goodbye_fra.is_active)
-
-        # but not for other channels
-        goodbye_fra_other_channel.refresh_from_db()
-        self.assertTrue(hello_eng.is_active)
-
     def test_update_local(self):
         channel = self.create_channel("WA", "Channel 1", "1234")
 
@@ -145,8 +130,7 @@ class TemplateTest(TembaTest):
         )
 
         self.assertEqual({"hello", "goodbye"}, set(Template.objects.values_list("name", flat=True)))
-        self.assertEqual(1, TemplateTranslation.objects.filter(channel=channel, is_active=True).count())
-        self.assertEqual(2, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
+        self.assertEqual(1, channel.template_translations.count())
 
     @patch("temba.templates.models.TemplateTranslation.update_local")
     @patch("temba.channels.types.twilio_whatsapp.TwilioWhatsappType.fetch_templates")

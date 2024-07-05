@@ -119,6 +119,7 @@ class TemplateTranslation(models.Model):
         """
         Updates the local translations against the fetched raw templates from the given channel
         """
+
         refreshed = []
         for raw_template in raw_templates:
             translation = channel.template_type.update_local(channel, raw_template)
@@ -126,21 +127,11 @@ class TemplateTranslation(models.Model):
             if translation:
                 refreshed.append(translation)
 
-        # trim any translations we didn't keep
-        cls.trim(channel, refreshed)
+        # delete any template translations we didn't see
+        channel.template_translations.exclude(id__in=[tt.id for tt in refreshed]).delete()
 
-    @classmethod
-    def trim(cls, channel, existing):
-        """
-        Trims what channel templates exist for this channel based on the set of templates passed in
-        """
-        ids = [tc.id for tc in existing]
-
-        # mark any that weren't included as inactive
-        cls.objects.filter(channel=channel).exclude(id__in=ids).update(is_active=False)
-
-        # Make sure the seen one are active
-        cls.objects.filter(channel=channel, id__in=ids, is_active=False).update(is_active=True)
+        # TODO remove this once inactive translations are all hard deleted
+        cls.objects.filter(channel=channel, id__in=[tc.id for tc in refreshed], is_active=False).update(is_active=True)
 
     @classmethod
     def get_or_create(

@@ -1307,18 +1307,16 @@ class OrgDeleteTest(TembaTest):
 
         add(WebHookEvent.objects.create(org=org, resthook=resthook, data={}))
 
-        template_trans1 = add(
-            TemplateTranslation.get_or_create(
-                channels[0],
-                "hello",
-                locale="eng-US",
-                status=TemplateTranslation.STATUS_APPROVED,
-                external_id="1234",
-                external_locale="en_US",
-                namespace="foo_namespace",
-                components=[{"name": "body", "type": "body/text", "content": "Hello", "variables": {}, "params": []}],
-                variables=[],
-            )
+        template_trans1 = TemplateTranslation.get_or_create(
+            channels[0],
+            "hello",
+            locale="eng-US",
+            status=TemplateTranslation.STATUS_APPROVED,
+            external_id="1234",
+            external_locale="en_US",
+            namespace="foo_namespace",
+            components=[{"name": "body", "type": "body/text", "content": "Hello", "variables": {}, "params": []}],
+            variables=[],
         )
         add(template_trans1.template)
         flow1.template_dependencies.add(template_trans1.template)

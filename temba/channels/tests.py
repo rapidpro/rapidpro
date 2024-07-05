@@ -234,7 +234,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertNotIn(channel1, flow.channel_dependencies.all())
         self.assertEqual(0, channel1.triggers.filter(is_active=True).count())
         self.assertEqual(0, channel1.incidents.filter(ended_on=None).count())
-        self.assertEqual(0, channel1.template_translations.filter(is_active=True).count())
+        self.assertEqual(0, channel1.template_translations.count())
 
         # check that we queued a task to interrupt sessions tied to this channel
         self.assertEqual(
