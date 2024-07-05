@@ -251,7 +251,9 @@ class ScheduleForm(ScheduleFormMixin):
         (SEND_LATER, _("Schedule for later")),
     )
 
-    send_when = forms.ChoiceField(choices=SEND_CHOICES, widget=forms.RadioSelect(attrs={"widget_only": True}))
+    send_when = forms.ChoiceField(
+        choices=SEND_CHOICES, widget=forms.RadioSelect(attrs={"widget_only": True}), required=False
+    )
 
     def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
