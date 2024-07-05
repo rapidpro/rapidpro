@@ -28,6 +28,25 @@
               {{ reply }}
             </temba-label>
           {% endfor %}
+          {% if broadcast.optin or broadcast.template %}
+            <div class="flex flex-row">
+              <div class="flex-grow"></div>
+              {% if broadcast.optin %}
+                <div class="flex items-center bg-gray-100 px-2 py-1 m-1 rounded">
+                  <temba-icon class="mr-1" name="channel_fb">
+                  </temba-icon>
+                  <div>{{ broadcast.optin.name }}</div>
+                </div>
+              {% endif %}
+              {% if broadcast.template %}
+                <div class="flex items-center bg-gray-100 px-2 py-1 m-1 rounded">
+                  <temba-icon class="mr-1" name="channel_wa">
+                  </temba-icon>
+                  <div>{{ broadcast.template.name }}</div>
+                </div>
+              {% endif %}
+            </div>
+          {% endif %}
         </div>
       </div>
       <div class="attachments  ml-2 flex-wrap">
@@ -51,30 +70,26 @@
         </div>
       </div>
     {% else %}
-      <div class="flex flex-row px-4 py-2 bg-gray-100 text-sm schedule align-bottom">
-        <div class="text-gray-700">
-          {% if broadcast.optin %}
-            {% blocktrans trimmed %}
-              Sends with opt-in
-            {% endblocktrans %}
-            {{ broadcast.optin.name }}.
-          {% endif %}
+      <div class="flex flex-row pr-4 bg-gray-100 text-sm schedule">
+        <div class="text-gray-700 flex flex-wrap items-center" style="min-height:2em">
           {% if broadcast.schedule and broadcast.schedule.repeat_period != "O" %}
-            {% if broadcast.schedule.repeat_period == 'M' %}
-              {% blocktrans trimmed with date=broadcast.schedule.repeat_day_of_month|ordinal %}
-                Repeats every <b>month</b> on the {{ date }}.
-              {% endblocktrans %}
-            {% elif broadcast.schedule.repeat_period == 'W' %}
-              {% blocktrans trimmed %}
-                Repeats every <b>week</b> on
-              {% endblocktrans %}
-              {% for day in broadcast.schedule.get_repeat_days_display %}<b>{{ day }}</b>{{ forloop|oxford }}{% endfor %}
-              {% blocktrans trimmed %}
-                at around the same time.
-              {% endblocktrans %}
-            {% elif broadcast.schedule.repeat_period == 'D' %}
-              Repeats <b>daily</b> at around the same time.
-            {% endif %}
+            <div class="px-2 py-1">
+              {% if broadcast.schedule.repeat_period == 'M' %}
+                {% blocktrans trimmed with date=broadcast.schedule.repeat_day_of_month|ordinal %}
+                  Repeats every <b>month</b> on the {{ date }}.
+                {% endblocktrans %}
+              {% elif broadcast.schedule.repeat_period == 'W' %}
+                {% blocktrans trimmed %}
+                  Repeats every <b>week</b> on
+                {% endblocktrans %}
+                {% for day in broadcast.schedule.get_repeat_days_display %}<b>{{ day }}</b>{{ forloop|oxford }}{% endfor %}
+                {% blocktrans trimmed %}
+                  at around the same time.
+                {% endblocktrans %}
+              {% elif broadcast.schedule.repeat_period == 'D' %}
+                Repeats <b>daily</b> at around the same time.
+              {% endif %}
+            </div>
           {% endif %}
         </div>
         {% if broadcast.schedule %}

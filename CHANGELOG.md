@@ -1,3 +1,25 @@
+v9.1.172 (2024-07-04)
+-------------------------
+ * Add templates to broadcasts (hidden for now)
+ * Remove deprecated broadcast.template_state field on mailroom queue payload
+
+v9.1.171 (2024-07-03)
+-------------------------
+ * Update payload for queueing a bradocast
+
+v9.1.170 (2024-07-03)
+-------------------------
+ * Remove no longer needed task to sync stale Android relayers
+ * Don't allow template localization
+ * Update dependencies
+
+v9.1.169 (2024-07-02)
+-------------------------
+ * Use python 3.11.x
+ * Add Broadcast.template_variables
+ * Add new template list and read pages and remove old channel specific ones
+ * Fix globals list template
+
 v9.1.168 (2024-06-28)
 -------------------------
  * Don't sync classifiers in suspended orgs

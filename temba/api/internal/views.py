@@ -1,16 +1,18 @@
 from rest_framework import status
+from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
 
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 
 from temba.channels.models import Channel
+from temba.locations.models import AdminBoundary
 from temba.notifications.models import Notification
 from temba.templates.models import Template, TemplateTranslation
 
 from ..models import APIPermission, SSLPermission
 from ..support import APISessionAuthentication, CreatedOnCursorPagination, ModifiedOnCursorPagination
 from ..views import BaseAPIView, ListAPIMixin
-from .serializers import ModelAsJsonSerializer, TemplateReadSerializer
+from . import serializers
 
 
 class BaseEndpoint(BaseAPIView):
@@ -27,10 +29,47 @@ class BaseEndpoint(BaseAPIView):
 # ============================================================
 
 
+class LocationsEndpoint(ListAPIMixin, BaseEndpoint):
+    """
+    Admin boundaries searchable by name at a specified level.
+    """
+
+    LEVELS = {
+        "state": AdminBoundary.LEVEL_STATE,
+        "district": AdminBoundary.LEVEL_DISTRICT,
+        "ward": AdminBoundary.LEVEL_WARD,
+    }
+
+    class Pagination(CursorPagination):
+        ordering = ("name", "id")
+        offset_cutoff = 100000
+
+    model = AdminBoundary
+    serializer_class = serializers.LocationReadSerializer
+    pagination_class = Pagination
+
+    def derive_queryset(self):
+        org = self.request.org
+        level = self.LEVELS.get(self.request.query_params.get("level"))
+        query = self.request.query_params.get("query")
+
+        if not org.country or not level:
+            return AdminBoundary.objects.none()
+
+        qs = AdminBoundary.objects.filter(
+            path__startswith=f"{org.country.name} {AdminBoundary.PATH_SEPARATOR}", level=level
+        )
+
+        if query:
+            qs = qs.filter(Q(name__icontains=query) | Q(aliases__org=org, aliases__name__icontains=query))
+
+        return qs.only("osm_id", "name", "path")
+
+
 class NotificationsEndpoint(ListAPIMixin, BaseEndpoint):
     model = Notification
     pagination_class = CreatedOnCursorPagination
-    serializer_class = ModelAsJsonSerializer
+    serializer_class = serializers.ModelAsJsonSerializer
 
     def get_queryset(self):
         return (
@@ -52,7 +91,7 @@ class TemplatesEndpoint(ListAPIMixin, BaseEndpoint):
     """
 
     model = Template
-    serializer_class = TemplateReadSerializer
+    serializer_class = serializers.TemplateReadSerializer
     pagination_class = ModifiedOnCursorPagination
 
     def filter_queryset(self, queryset):

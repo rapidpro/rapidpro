@@ -34,8 +34,6 @@ class Dialog360LegacyType(ChannelType):
 
     config_ui = ConfigUI()  # has own template
 
-    menu_items = [dict(label=_("Message Templates"), view_name="templates.templatetranslation_channel")]
-
     def get_headers(self, channel):
         return {"D360-API-KEY": channel.config[Channel.CONFIG_AUTH_TOKEN], "Content-Type": "application/json"}
 

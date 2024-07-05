@@ -2,12 +2,19 @@ from datetime import timezone as tzone
 
 from rest_framework import serializers
 
+from temba.locations.models import AdminBoundary
 from temba.templates.models import Template, TemplateTranslation
 
 
 class ModelAsJsonSerializer(serializers.BaseSerializer):
     def to_representation(self, instance):
         return instance.as_json()
+
+
+class LocationReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdminBoundary
+        fields = ("osm_id", "name", "path")
 
 
 class TemplateReadSerializer(serializers.ModelSerializer):

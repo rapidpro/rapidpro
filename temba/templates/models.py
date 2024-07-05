@@ -1,11 +1,12 @@
 import uuid
 
 from django.db import models
+from django.db.models import Count, Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from temba.channels.models import Channel
-from temba.orgs.models import Org
+from temba.orgs.models import DependencyMixin, Org
 from temba.utils.languages import alpha2_to_alpha3
 from temba.utils.models import update_if_changed
 
@@ -32,7 +33,7 @@ class TemplateType:
         return f"{language}-{country}" if country else language
 
 
-class Template(models.Model):
+class Template(models.Model, DependencyMixin):
     """
     Templates represent messages that can be used in flows and have template variables substituted into them. These
     are currently only used for WhatsApp channels.
@@ -71,6 +72,15 @@ class Template(models.Model):
                 return False
 
         return True
+
+    @classmethod
+    def annotate_usage(cls, queryset):
+        qs = super().annotate_usage(queryset)
+
+        return qs.annotate(
+            translation_count=Count("translations", filter=Q(translations__is_active=True)),
+            channel_count=Count("translations__channel", filter=Q(translations__is_active=True), distinct=True),
+        )
 
     class Meta:
         unique_together = ("org", "name")

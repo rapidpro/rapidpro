@@ -1253,7 +1253,6 @@ class ContactGroupTest(TembaTest):
         schedule = Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY)
         bcast1 = self.create_broadcast(self.admin, {"eng": {"text": "Hi"}}, groups=[group1, group2], schedule=schedule)
         bcast2 = self.create_broadcast(self.admin, {"eng": {"text": "Hi"}}, groups=[group1, group2])
-        bcast2.send_async()
 
         # group still has a hard dependency so can't be released
         with self.assertRaises(AssertionError):
@@ -3744,7 +3743,7 @@ class URNTest(TembaTest):
 class ContactImportTest(TembaTest):
     def test_parse_errors(self):
         # try to open an import that is completely empty
-        with self.assertRaisesRegexp(ValidationError, "Import file appears to be empty."):
+        with self.assertRaisesRegex(ValidationError, "Import file appears to be empty."):
             ContactImport.try_to_parse(self.org, io.BytesIO(b""), "foo.csv")
 
         def try_to_parse(name):
@@ -3754,12 +3753,12 @@ class ContactImportTest(TembaTest):
 
         # try to open an import that exceeds the record limit
         with patch("temba.contacts.models.ContactImport.MAX_RECORDS", 2):
-            with self.assertRaisesRegexp(ValidationError, r"Import files can contain a maximum of 2 records\."):
+            with self.assertRaisesRegex(ValidationError, r"Import files can contain a maximum of 2 records\."):
                 try_to_parse("simple.xlsx")
 
         with patch("pyexcel.iget_array") as mock_iget_array:
             mock_iget_array.side_effect = xlrd.XLRDError("error")
-            with self.assertRaisesRegexp(
+            with self.assertRaisesRegex(
                 ValidationError, r"Import file appears to be corrupted. Please save again in Excel and try again."
             ):
                 try_to_parse("simple.csv")
@@ -4359,7 +4358,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         imp = ContactImport.objects.get()
         self.assertEqual(self.org, imp.org)
         self.assertEqual(3, imp.num_records)
-        self.assertRegexpMatches(imp.file.name, rf"test_orgs/{self.org.id}/contact_imports/[\w-]{{36}}.xlsx$")
+        self.assertRegex(imp.file.name, rf"test_orgs/{self.org.id}/contact_imports/[\w-]{{36}}.xlsx$")
         self.assertEqual("simple.xlsx", imp.original_filename)
         self.assertIsNone(imp.started_on)
         self.assertIsNone(imp.group)
