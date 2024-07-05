@@ -1,3 +1,9 @@
+v9.1.173 (2024-07-05)
+-------------------------
+ * Add Msg.is_android field
+ * Add internal API endpoint for searching locations by level and name
+ * Remove option to send now on broadcast update
+
 v9.1.172 (2024-07-04)
 -------------------------
  * Add templates to broadcasts (hidden for now)
