@@ -1,5 +1,3 @@
-import uuid
-
 from django.db import models
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -8,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from temba.channels.models import Channel
 from temba.orgs.models import DependencyMixin, Org
 from temba.utils.languages import alpha2_to_alpha3
-from temba.utils.models import update_if_changed
+from temba.utils.models import TembaModel, update_if_changed
 
 
 class TemplateType:
@@ -33,30 +31,20 @@ class TemplateType:
         return f"{language}-{country}" if country else language
 
 
-class Template(models.Model, DependencyMixin):
+class Template(TembaModel, DependencyMixin):
     """
     Templates represent messages that can be used in flows and have template variables substituted into them. These
     are currently only used for WhatsApp channels.
     """
 
-    # the uuid for this template
-    uuid = models.UUIDField(default=uuid.uuid4)
-
-    # the name of this template
-    name = models.CharField(max_length=512)
-
-    # the organization this template is used in
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="templates")
-
-    # when this template was last modified
-    modified_on = models.DateTimeField(default=timezone.now)
-
-    # when this template was created
-    created_on = models.DateTimeField(default=timezone.now)
+    name = models.CharField(max_length=512)  # overridden to be longer
 
     @classmethod
     def get_or_create(cls, org, name: str):
-        obj, created = cls.objects.get_or_create(org=org, name=name)
+        obj, created = cls.objects.get_or_create(
+            org=org, name=name, defaults={"created_by": org.created_by, "modified_by": org.created_by}
+        )
         return obj
 
     def is_approved(self):
