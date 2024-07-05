@@ -810,7 +810,7 @@ class EndpointsTest(APITest):
     def test_boundaries(self):
         endpoint_url = reverse("api.v2.boundaries") + ".json"
 
-        self.assertGetNotPermitted(endpoint_url, [None, self.agent])
+        self.assertGetNotPermitted(endpoint_url, [None])
         self.assertPostNotAllowed(endpoint_url)
         self.assertDeleteNotAllowed(endpoint_url)
 

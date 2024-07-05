@@ -141,6 +141,7 @@ class TembaTest(SmartminTest):
         self.ward3 = AdminBoundary.create(osm_id="VMN.49.1_1", name="Bukure", level=3, parent=self.district4)
 
         BoundaryAlias.create(self.org, self.admin, self.state1, "Kigari")
+        BoundaryAlias.create(self.org2, self.admin2, self.state1, "Chigali")
 
         self.country.update_path()
 

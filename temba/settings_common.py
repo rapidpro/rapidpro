@@ -672,6 +672,7 @@ API_PERMISSIONS = {
         "contacts.contact_update",
         "contacts.contactfield_list",
         "contacts.contactgroup_list",
+        "locations.adminboundary_list",
         "msgs.media_create",
         "msgs.msg_create",
         "orgs.org_read",
