@@ -1,3 +1,8 @@
+v9.1.176 (2024-07-08)
+-------------------------
+ * Update Template to a TembaModel
+ * Hard delete template translations that no longer exist on the channel side
+
 v9.1.175 (2024-07-05)
 -------------------------
  * Make send_when optional when updating broadcasts
