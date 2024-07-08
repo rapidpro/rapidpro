@@ -1,3 +1,7 @@
+v9.1.177 (2024-07-08)
+-------------------------
+ * Hard delete remaining soft-deleted template translations
+
 v9.1.176 (2024-07-08)
 -------------------------
  * Update Template to a TembaModel
