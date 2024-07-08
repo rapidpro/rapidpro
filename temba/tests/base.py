@@ -28,6 +28,7 @@ from temba.ivr.models import Call
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg, OptIn
 from temba.orgs.models import Org, OrgRole, User
+from temba.templates.models import Template
 from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
@@ -718,6 +719,15 @@ class TembaTest(SmartminTest):
             event_type=event_type,
             optin=optin,
             extra=extra,
+        )
+
+    def create_template(self, name: str, org=None, uuid=None):
+        return Template.objects.create(
+            uuid=uuid or uuid4(),
+            org=org or self.org,
+            name=name,
+            created_by=self.admin,
+            modified_by=self.admin,
         )
 
     def create_ticket(

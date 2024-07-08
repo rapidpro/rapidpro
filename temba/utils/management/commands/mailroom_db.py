@@ -393,7 +393,9 @@ class Command(BaseCommand):
         self._log(f"Creating {len(spec['templates'])} templates... ")
 
         for t in spec["templates"]:
-            Template.objects.create(org=org, uuid=t["uuid"], name=t["name"])
+            Template.objects.create(
+                org=org, uuid=t["uuid"], name=t["name"], created_by=org.created_by, modified_by=org.modified_by
+            )
             for tt in t["translations"]:
                 channel = Channel.objects.get(uuid=tt["channel_uuid"])
                 TemplateTranslation.get_or_create(

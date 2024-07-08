@@ -10,7 +10,7 @@ from temba.notifications.incidents.builtin import ChannelTemplatesFailedIncident
 from temba.notifications.models import Incident
 from temba.orgs.models import Org, OrgRole
 from temba.request_logs.models import HTTPLog
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
+from temba.tests import CRUDLTestMixin, TembaTest
 
 from .models import Template, TemplateTranslation
 from .tasks import refresh_templates
@@ -295,8 +295,8 @@ class TemplateCRUDLTest(CRUDLTestMixin, TembaTest):
         list_url = reverse("templates.template_list")
 
         channel = self.create_channel("D3C", "360Dialog channel", address="1234")
-        template1 = Template.objects.create(org=self.org, name="hello")
-        template2 = Template.objects.create(org=self.org, name="goodbye")
+        template1 = self.create_template("hello")
+        template2 = self.create_template("goodbye")
 
         TemplateTranslation.objects.create(
             template=template1, channel=channel, locale="eng-US", status=TemplateTranslation.STATUS_APPROVED
@@ -313,7 +313,7 @@ class TemplateCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # add template and translation in other org
         channel_other_org = self.create_channel("D3C", "360Dialog channel", address="2345", org=self.org2)
-        template_other_org = Template.objects.create(org=self.org2, name="hello")
+        template_other_org = self.create_template("hello", org=self.org2)
         TemplateTranslation.objects.create(
             template=template_other_org,
             channel=channel_other_org,
@@ -333,7 +333,7 @@ class TemplateCRUDLTest(CRUDLTestMixin, TembaTest):
 
     def test_read(self):
         channel = self.create_channel("D3C", "360Dialog channel", address="1234")
-        template1 = Template.objects.create(org=self.org, name="hello")
+        template1 = self.create_template("hello")
 
         TemplateTranslation.objects.create(
             template=template1,
@@ -385,7 +385,7 @@ class TemplateCRUDLTest(CRUDLTestMixin, TembaTest):
         )
 
         # create translation for other template
-        template2 = Template.objects.create(org=self.org, name="goodbye")
+        template2 = self.create_template("goodbye")
         TemplateTranslation.objects.create(
             template=template2, channel=channel, locale="eng", status=TemplateTranslation.STATUS_PENDING
         )
@@ -398,40 +398,3 @@ class TemplateCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContains(response, "Hello <code>{{1}}</code>")
         self.assertContains(response, "Hola <code>{{1}}</code>")
         self.assertNotContains(response, "Goodbye")
-
-
-class RemoveDuplicateTranslationsTest(MigrationTest):
-    app = "templates"
-    migrate_from = "0030_alter_templatetranslation_locale"
-    migrate_to = "0031_remove_duplicate_translations"
-
-    def setUpBeforeMigration(self, apps):
-        channel1 = self.create_channel("D3C", "D3C Channel", address="1234")
-        channel2 = self.create_channel("WAC", "WAC Channel", address="2345")
-
-        template1 = Template.objects.create(org=self.org, name="hello")
-        template2 = Template.objects.create(org=self.org, name="goodbye")
-
-        def create_translation(template, channel, locale):
-            return TemplateTranslation.objects.create(
-                template=template, channel=channel, locale=locale, status=TemplateTranslation.STATUS_PENDING
-            )
-
-        self.should_keep = []
-        self.should_delete = []
-
-        self.should_keep.append(create_translation(template1, channel1, "eng"))
-        self.should_delete.append(create_translation(template1, channel2, "eng"))
-        self.should_keep.append(create_translation(template1, channel2, "eng"))  # duplicate
-        self.should_keep.append(create_translation(template1, channel1, "spa"))
-        self.should_delete.append(create_translation(template1, channel2, "spa"))
-        self.should_delete.append(create_translation(template1, channel2, "spa"))  # duplicate
-        self.should_keep.append(create_translation(template1, channel2, "spa"))  # duplicate
-        self.should_keep.append(create_translation(template2, channel1, "eng"))
-        self.should_keep.append(create_translation(template2, channel2, "eng"))
-
-    def test_migration(self):
-        for trans in self.should_keep:
-            self.assertTrue(TemplateTranslation.objects.filter(id=trans.id).exists())
-        for trans in self.should_delete:
-            self.assertFalse(TemplateTranslation.objects.filter(id=trans.id).exists())

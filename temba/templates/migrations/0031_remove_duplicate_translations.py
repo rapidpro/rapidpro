@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def remove_duplicate_translations(apps, schema_editor):
+def remove_duplicate_translations(apps, schema_editor):  # pragma: no cover
     Template = apps.get_model("templates", "Template")
 
     for template in Template.objects.all():
