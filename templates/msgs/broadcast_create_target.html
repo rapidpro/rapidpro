@@ -2,28 +2,28 @@
 {% load smartmin i18n %}
 
 {% block extra-style %}
-    {{ block.super }}
-    <style>
-      .field_contact_search {
-        margin-bottom: 0 !important;
-      }
-    </style>
+  {{ block.super }}
+  <style>
+    .field_contact_search {
+      margin-bottom: 0 !important;
+    }
+  </style>
 {% endblock extra-style %}
 {% block extra-script %}
-    {{ block.super }}
-    <script type="text/javascript">
-      {
-        const modax = getModax();
-        const modalBody = modax.shadowRoot;
-        const queryWidget = modalBody.querySelector("temba-contact-search");
+  {{ block.super }}
+  <script type="text/javascript">
+    {
+      const modax = getModax();
+      const modalBody = modax.shadowRoot;
+      const queryWidget = modalBody.querySelector("temba-contact-search");
 
-        queryWidget.addEventListener("temba-content-changed", function(e) {
-          if (e.detail.reset || (e.detail.blockers && e.detail.blockers.length > 0)) {
-            modax.disabled = true;
-          } else if (e.detail.query) {
-            modax.disabled = e.detail.total == 0;
-          }
-        });
-      }
-    </script>
+      queryWidget.addEventListener("temba-content-changed", function(e) {
+        if (e.detail.reset || (e.detail.blockers && e.detail.blockers.length > 0)) {
+          modax.disabled = true;
+        } else if (e.detail.query) {
+          modax.disabled = false;
+        }
+      });
+    }
+  </script>
 {% endblock extra-script %}
