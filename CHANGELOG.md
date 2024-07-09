@@ -1,3 +1,7 @@
+v9.1.178 (2024-07-09)
+-------------------------
+ * Allow broadcast creation with zero matches
+
 v9.1.177 (2024-07-08)
 -------------------------
  * Hard delete remaining soft-deleted template translations
