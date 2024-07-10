@@ -112,9 +112,6 @@ class TemplateTranslation(models.Model):
     external_id = models.CharField(null=True, max_length=64)
     external_locale = models.CharField(null=True, max_length=6)  # e.g. en_US
 
-    # TODO remove
-    is_active = models.BooleanField(null=True)
-
     @classmethod
     def update_local(cls, channel, raw_templates: list):
         """

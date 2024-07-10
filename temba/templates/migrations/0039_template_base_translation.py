@@ -6,9 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("templates", "0037_alter_templatetranslation_is_active"),
-    ]
+    dependencies = [("templates", "0038_remove_templatetranslation_is_active")]
 
     operations = [
         migrations.AddField(
