@@ -1,3 +1,9 @@
+v9.1.180 (2024-07-10)
+-------------------------
+ * Drop no longer used is_active field from TemplateTranslation
+ * Tweak wording on template list page
+ * Add db constraint to ensure contact status is valid
+
 v9.1.179 (2024-07-10)
 -------------------------
  * Keep FCM ID in channel config when soft deleting the channel
