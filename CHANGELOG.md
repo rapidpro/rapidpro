@@ -1,3 +1,9 @@
+v9.1.181 (2024-07-10)
+-------------------------
+ * Add Template.base_translation
+ * Fix dashboard workspace data
+ * Allow creation of contacts with non-active statuses
+
 v9.1.180 (2024-07-10)
 -------------------------
  * Drop no longer used is_active field from TemplateTranslation
