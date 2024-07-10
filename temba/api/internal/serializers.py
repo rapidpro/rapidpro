@@ -25,25 +25,30 @@ class TemplateReadSerializer(serializers.ModelSerializer):
         TemplateTranslation.STATUS_UNSUPPORTED: "unsupported",
     }
 
-    translations = serializers.SerializerMethodField()
+    base_translation = serializers.SerializerMethodField()
     modified_on = serializers.DateTimeField(default_timezone=tzone.utc)
     created_on = serializers.DateTimeField(default_timezone=tzone.utc)
+    translations = serializers.SerializerMethodField()  # deprecated
+
+    def get_base_translation(self, obj):
+        return self._translation(obj.base_translation) if obj.base_translation else None
 
     def get_translations(self, obj):
         translations = []
         for trans in obj.translations.all():
-            translations.append(
-                {
-                    "channel": {"uuid": str(trans.channel.uuid), "name": trans.channel.name},
-                    "namespace": trans.namespace,
-                    "locale": trans.locale,
-                    "status": self.STATUSES[trans.status],
-                    "components": trans.components,
-                    "variables": trans.variables,
-                }
-            )
+            translations.append(self._translation(trans))
         return translations
+
+    def _translation(self, trans):
+        return {
+            "channel": {"uuid": str(trans.channel.uuid), "name": trans.channel.name},
+            "namespace": trans.namespace,
+            "locale": trans.locale,
+            "status": self.STATUSES[trans.status],
+            "components": trans.components,
+            "variables": trans.variables,
+        }
 
     class Meta:
         model = Template
-        fields = ("uuid", "name", "translations", "created_on", "modified_on")
+        fields = ("uuid", "name", "base_translation", "translations", "created_on", "modified_on")

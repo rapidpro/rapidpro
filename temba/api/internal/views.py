@@ -100,4 +100,4 @@ class TemplatesEndpoint(ListAPIMixin, BaseEndpoint):
             Prefetch("translations", TemplateTranslation.objects.order_by("locale")),
             Prefetch("translations__channel", Channel.objects.only("uuid", "name")),
         )
-        return self.filter_before_after(queryset, "modified_on")
+        return self.filter_before_after(queryset, "modified_on").select_related("base_translation__channel")
