@@ -114,7 +114,7 @@ class TemplateTest(TembaTest):
         )
 
         self.assertEqual({"hello", "goodbye"}, set(Template.objects.values_list("name", flat=True)))
-        self.assertEqual(3, TemplateTranslation.objects.filter(channel=channel, is_active=True).count())
+        self.assertEqual(3, channel.template_translations.count())
 
         TemplateTranslation.update_local(
             channel,

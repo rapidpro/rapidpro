@@ -252,7 +252,7 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, channel2.sync_events.count())
         self.assertEqual(1, channel2.triggers.filter(is_active=True).count())
         self.assertEqual(1, channel2.incidents.filter(ended_on=None).count())
-        self.assertEqual(1, channel2.template_translations.filter(is_active=True).count())
+        self.assertEqual(1, channel2.template_translations.count())
 
         # now do actual delete of channel
         channel1.msgs.all().delete()

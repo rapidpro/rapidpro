@@ -97,7 +97,7 @@ class TemplatesEndpoint(ListAPIMixin, BaseEndpoint):
     def filter_queryset(self, queryset):
         org = self.request.org
         queryset = org.templates.exclude(translations=None).prefetch_related(
-            Prefetch("translations", TemplateTranslation.objects.filter(is_active=True).order_by("locale")),
+            Prefetch("translations", TemplateTranslation.objects.order_by("locale")),
             Prefetch("translations__channel", Channel.objects.only("uuid", "name")),
         )
         return self.filter_before_after(queryset, "modified_on")

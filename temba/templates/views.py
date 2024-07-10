@@ -17,7 +17,7 @@ class TemplateCRUDL(SmartCRUDL):
             return "/msg/templates"
 
         def get_queryset(self, **kwargs):
-            return Template.annotate_usage(super().get_queryset(**kwargs).filter(org=self.request.org))
+            return Template.annotate_usage(super().get_queryset(**kwargs).filter(org=self.request.org, is_active=True))
 
     class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
