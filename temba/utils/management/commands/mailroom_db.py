@@ -421,7 +421,16 @@ class Command(BaseCommand):
             values = {fields_by_key[key]: val for key, val in c.get("fields", {}).items()}
             groups = list(ContactGroup.objects.filter(org=org, name__in=c.get("groups", [])))
 
-            contact = Contact.create(org, user, c["name"], language="", urns=c["urns"], fields=values, groups=groups)
+            contact = Contact.create(
+                org,
+                user,
+                c["name"],
+                language="",
+                status=Contact.STATUS_ACTIVE,
+                urns=c["urns"],
+                fields=values,
+                groups=groups,
+            )
             contact.uuid = c["uuid"]
             contact.created_on = c["created_on"]
             contact.save(update_fields=("uuid", "created_on"))
@@ -443,7 +452,16 @@ class Command(BaseCommand):
                     if urn_obj and urn_obj.contact:
                         contact = urn_obj.contact
                     else:
-                        contact = Contact.create(org, user, name="", language="", urns=[urn], fields={}, groups=[])
+                        contact = Contact.create(
+                            org,
+                            user,
+                            name="",
+                            language="",
+                            status=Contact.STATUS_ACTIVE,
+                            urns=[urn],
+                            fields={},
+                            groups=[],
+                        )
 
                     contacts.append(contact)
 

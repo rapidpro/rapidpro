@@ -698,11 +698,12 @@ class ContactWriteSerializer(WriteSerializer):
             self.instance = Contact.create(
                 self.context["org"],
                 self.context["user"],
-                name,
-                language,
-                urns or [],
-                custom_fields or {},
-                groups or [],
+                name=name,
+                language=language,
+                status=Contact.STATUS_ACTIVE,
+                urns=urns or [],
+                fields=custom_fields or {},
+                groups=groups or [],
             )
 
         return self.instance

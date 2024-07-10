@@ -566,6 +566,12 @@ class Contact(LegacyUUIDMixin, SmartModel):
         (STATUS_STOPPED, "Stopped"),
         (STATUS_ARCHIVED, "Archived"),
     )
+    ENGINE_STATUSES = {
+        STATUS_ACTIVE: "active",
+        STATUS_BLOCKED: "blocked",
+        STATUS_STOPPED: "stopped",
+        STATUS_ARCHIVED: "archived",
+    }
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contacts")
 
@@ -598,15 +604,27 @@ class Contact(LegacyUUIDMixin, SmartModel):
 
     @classmethod
     def create(
-        cls, org, user, name: str, language: str, urns: list[str], fields: dict[ContactField, str], groups: list
+        cls,
+        org,
+        user,
+        *,
+        name: str,
+        language: str,
+        status: str,
+        urns: list[str],
+        fields: dict[ContactField, str],
+        groups: list,
     ):
+        engine_status = cls.ENGINE_STATUSES[status]
         fields_by_key = {f.key: v for f, v in fields.items()}
         group_uuids = [g.uuid for g in groups]
 
         return mailroom.get_client().contact_create(
             org,
             user,
-            ContactSpec(name=name, language=language, urns=urns, fields=fields_by_key, groups=group_uuids),
+            ContactSpec(
+                name=name, language=language, status=engine_status, urns=urns, fields=fields_by_key, groups=group_uuids
+            ),
         )
 
     @property
