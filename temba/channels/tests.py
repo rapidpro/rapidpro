@@ -276,8 +276,9 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
         # should be a rel cmd to instruct app to reset
         self.assertEqual({"cmds": [{"cmd": "rel", "relayer_id": str(android.id)}]}, response.json())
 
-        # and FCM ID now cleared
-        self.assertIsNone(android.config.get(Channel.CONFIG_FCM_ID))
+        self.assertFalse(android.is_active)
+        # and FCM ID now kept
+        self.assertEqual("FCM111", android.config.get(Channel.CONFIG_FCM_ID))
 
     def sync(self, channel, *, cmds, signature=None, auto_add_fcm=True):
         # prepend FCM command if not included
