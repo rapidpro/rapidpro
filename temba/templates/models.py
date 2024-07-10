@@ -96,11 +96,13 @@ class TemplateTranslation(models.Model):
 
     components = models.JSONField(default=list)
     variables = models.JSONField(default=list)
-    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING, null=False)
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_PENDING)
     namespace = models.CharField(max_length=36, default="")
     external_id = models.CharField(null=True, max_length=64)
     external_locale = models.CharField(null=True, max_length=6)  # e.g. en_US
-    is_active = models.BooleanField(default=True)
+
+    # TODO remove
+    is_active = models.BooleanField(null=True)
 
     @classmethod
     def update_local(cls, channel, raw_templates: list):
@@ -117,9 +119,6 @@ class TemplateTranslation(models.Model):
 
         # delete any template translations we didn't see
         channel.template_translations.exclude(id__in=[tt.id for tt in refreshed]).delete()
-
-        # TODO remove this once inactive translations are all hard deleted
-        cls.objects.filter(channel=channel, id__in=[tc.id for tc in refreshed], is_active=False).update(is_active=True)
 
     @classmethod
     def get_or_create(
