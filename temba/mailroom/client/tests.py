@@ -94,7 +94,7 @@ class MailroomClientTest(TembaTest):
 
         # try with empty contact spec
         result = self.client.contact_create(
-            self.org, self.admin, ContactSpec(name="", language="", urns=[], fields={}, groups=[])
+            self.org, self.admin, ContactSpec(name="", language="", status="", urns=[], fields={}, groups=[])
         )
 
         self.assertEqual(ann, result)
@@ -104,7 +104,7 @@ class MailroomClientTest(TembaTest):
             json={
                 "org_id": self.org.id,
                 "user_id": self.admin.id,
-                "contact": {"name": "", "language": "", "urns": [], "fields": {}, "groups": []},
+                "contact": {"name": "", "language": "", "status": "", "urns": [], "fields": {}, "groups": []},
             },
         )
 
@@ -117,6 +117,7 @@ class MailroomClientTest(TembaTest):
             ContactSpec(
                 name="Bob",
                 language="eng",
+                status="active",
                 urns=["tel:+123456789"],
                 fields={"age": "39", "gender": "M"},
                 groups=["d5b1770f-0fb6-423b-86a0-b4d51096b99a"],
@@ -133,6 +134,7 @@ class MailroomClientTest(TembaTest):
                 "contact": {
                     "name": "Bob",
                     "language": "eng",
+                    "status": "active",
                     "urns": ["tel:+123456789"],
                     "fields": {"age": "39", "gender": "M"},
                     "groups": ["d5b1770f-0fb6-423b-86a0-b4d51096b99a"],
@@ -742,7 +744,7 @@ class MailroomClientTest(TembaTest):
             self.client.contact_create(
                 self.org,
                 self.admin,
-                ContactSpec(name="Bob", language="eng", urns=["tel:+123456789"], fields={}, groups=[]),
+                ContactSpec(name="Bob", language="eng", status="active", urns=["tel:+123456789"], fields={}, groups=[]),
             )
 
         self.assertEqual("URN 1 is taken", e.exception.error)

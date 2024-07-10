@@ -706,7 +706,16 @@ class ContactCRUDL(SmartCRUDL):
             urns = ["tel:" + phone] if phone else []
 
             try:
-                Contact.create(self.request.org, self.request.user, name, language="", urns=urns, fields={}, groups=[])
+                Contact.create(
+                    self.request.org,
+                    self.request.user,
+                    name=name,
+                    language="",
+                    status=Contact.STATUS_ACTIVE,
+                    urns=urns,
+                    fields={},
+                    groups=[],
+                )
             except mailroom.URNValidationException as e:
                 error = _("In use by another contact.") if e.code == "taken" else _("Not a valid phone number.")
                 self.form.add_error("phone", error)

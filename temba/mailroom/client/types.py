@@ -9,6 +9,7 @@ class ContactSpec:
 
     name: str
     language: str
+    status: str
     urns: list[str]
     fields: dict[str, str]
     groups: list[str]

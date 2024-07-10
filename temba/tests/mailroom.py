@@ -189,8 +189,16 @@ class TestClient(MailroomClient):
 
     @_client_method
     def contact_create(self, org, user, contact: mailroom.ContactSpec):
+        status = {v: k for k, v in Contact.ENGINE_STATUSES.items()}[contact.status]
         return create_contact_locally(
-            org, user, contact.name, contact.language, contact.urns, contact.fields, contact.groups
+            org,
+            user,
+            name=contact.name,
+            language=contact.language,
+            status=status,
+            urns=contact.urns,
+            fields=contact.fields,
+            group_uuids=contact.groups,
         )
 
     @_client_method
