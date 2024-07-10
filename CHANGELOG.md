@@ -1,3 +1,8 @@
+v9.1.179 (2024-07-10)
+-------------------------
+ * Keep FCM ID in channel config when soft deleting the channel
+ * Stop using TemplateTranslation.is_active and make nullable
+
 v9.1.178 (2024-07-09)
 -------------------------
  * Allow broadcast creation with zero matches
