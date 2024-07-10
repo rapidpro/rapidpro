@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -66,8 +66,7 @@ class Template(TembaModel, DependencyMixin):
         qs = super().annotate_usage(queryset)
 
         return qs.annotate(
-            translation_count=Count("translations", filter=Q(translations__is_active=True)),
-            channel_count=Count("translations__channel", filter=Q(translations__is_active=True), distinct=True),
+            translation_count=Count("translations"), channel_count=Count("translations__channel", distinct=True)
         )
 
     class Meta:

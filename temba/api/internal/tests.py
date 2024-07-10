@@ -181,27 +181,6 @@ class EndpointsTest(APITestMixin, TembaTest):
             ],
             variables=[{"type": "text"}],
         )
-        tt = TemplateTranslation.get_or_create(
-            self.channel,
-            "hello",
-            locale="afr-ZA",
-            status=TemplateTranslation.STATUS_APPROVED,
-            external_id="9012",
-            external_locale="af_ZA",
-            namespace="foo_namespace",
-            components=[
-                {
-                    "name": "body",
-                    "type": "body/text",
-                    "content": "This is a template translation for a deleted channel {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
-            ],
-            variables=[{"type": "text"}],
-        )
-        tt.is_active = False
-        tt.save()
 
         tpl2 = TemplateTranslation.get_or_create(
             self.channel,
