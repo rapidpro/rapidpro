@@ -123,10 +123,11 @@ class TemplateTranslation(models.Model):
 
         for raw_template in raw_templates:
             translation = channel.template_type.update_local(channel, raw_template)
-            seen_ids.append(translation.id)
+            if translation:
+                seen_ids.append(translation.id)
 
-            if not translation.template.base_translation:
-                baseless_templates.add(translation.template)
+                if not translation.template.base_translation:
+                    baseless_templates.add(translation.template)
 
         # delete any template translations we didn't see
         channel.template_translations.exclude(id__in=seen_ids).delete()

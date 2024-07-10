@@ -1,3 +1,8 @@
+v9.1.182 (2024-07-10)
+-------------------------
+ * Locations API endpoint should allow searching on the path
+ * Fix template syncing when channel gives us invalid template data
+
 v9.1.181 (2024-07-10)
 -------------------------
  * Add Template.base_translation
