@@ -1244,6 +1244,9 @@ class Contact(LegacyUUIDMixin, SmartModel):
             # for indexing modified contacts
             models.Index(name="contacts_modified", fields=("modified_on",)),
         ]
+        constraints = [
+            models.CheckConstraint(check=Q(status__in=("A", "B", "S", "V")), name="contact_status_valid"),
+        ]
 
 
 class ContactURN(models.Model):
