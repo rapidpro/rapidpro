@@ -39,6 +39,9 @@ class Template(TembaModel, DependencyMixin):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="templates")
     name = models.CharField(max_length=512)  # overridden to be longer
+    base_translation = models.OneToOneField(
+        "templates.TemplateTranslation", on_delete=models.SET_NULL, related_name="base_template", null=True
+    )
 
     @classmethod
     def get_or_create(cls, org, name: str):
@@ -68,6 +71,15 @@ class Template(TembaModel, DependencyMixin):
         return qs.annotate(
             translation_count=Count("translations"), channel_count=Count("translations__channel", distinct=True)
         )
+
+    def get_translation(self, channel, lang: str):
+        """
+        Get the best match translation for the given channel and language
+        """
+        if trans := self.translations.filter(channel=channel, locale__startswith=lang).first():
+            return trans
+
+        return self.translations.filter(channel=channel).order_by("id").first()
 
     class Meta:
         unique_together = ("org", "name")
@@ -106,15 +118,23 @@ class TemplateTranslation(models.Model):
         Updates the local translations against the fetched raw templates from the given channel
         """
 
-        refreshed = []
+        seen_ids = []
+        baseless_templates = set()
+
         for raw_template in raw_templates:
             translation = channel.template_type.update_local(channel, raw_template)
+            seen_ids.append(translation.id)
 
-            if translation:
-                refreshed.append(translation)
+            if not translation.template.base_translation:
+                baseless_templates.add(translation.template)
 
         # delete any template translations we didn't see
-        channel.template_translations.exclude(id__in=[tt.id for tt in refreshed]).delete()
+        channel.template_translations.exclude(id__in=seen_ids).delete()
+
+        # update base translations for templates that don't yet have one
+        for template in baseless_templates:
+            template.base_translation = template.get_translation(channel, template.org.flow_languages[0])
+            template.save(update_fields=("base_translation",))
 
     @classmethod
     def get_or_create(

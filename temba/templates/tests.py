@@ -106,14 +106,20 @@ class TemplateTest(TembaTest):
                 {
                     "name": "goodbye",
                     "components": [{"type": "BODY", "text": "Goodbye"}],
-                    "language": "en",
+                    "language": "fr",
                     "status": "PENDING",
                     "id": "3456",
                 },
             ],
         )
 
-        self.assertEqual({"hello", "goodbye"}, set(Template.objects.values_list("name", flat=True)))
+        hello, goodbye = self.org.templates.order_by("id")
+        self.assertEqual("hello", hello.name)
+        self.assertEqual("eng", hello.base_translation.locale)
+        self.assertEqual(2, hello.translations.count())
+        self.assertEqual("goodbye", goodbye.name)
+        self.assertEqual("fra", goodbye.base_translation.locale)
+        self.assertEqual(1, goodbye.translations.count())
         self.assertEqual(3, channel.template_translations.count())
 
         TemplateTranslation.update_local(
@@ -129,7 +135,11 @@ class TemplateTest(TembaTest):
             ],
         )
 
-        self.assertEqual({"hello", "goodbye"}, set(Template.objects.values_list("name", flat=True)))
+        hello, goodbye = self.org.templates.order_by("id")
+        self.assertEqual("eng", hello.base_translation.locale)
+        self.assertEqual(1, hello.translations.count())
+        self.assertIsNone(goodbye.base_translation)
+        self.assertEqual(0, goodbye.translations.count())
         self.assertEqual(1, channel.template_translations.count())
 
     @patch("temba.templates.models.TemplateTranslation.update_local")
