@@ -637,18 +637,14 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         # delay mailroom task for 5 seconds, so mailroom assets cache expires
         interrupt_channel_task.apply_async((self.id,), countdown=5)
 
-        # save the FCM id before clearing
-        registration_id = self.config.get(Channel.CONFIG_FCM_ID)
-
         # make the channel inactive
-        self.config.pop(Channel.CONFIG_FCM_ID, None)
         self.modified_by = user
         self.is_active = False
-        self.save(update_fields=("is_active", "config", "modified_by", "modified_on"))
+        self.save(update_fields=("is_active", "modified_by", "modified_on"))
 
         # trigger the orphaned channel
-        if trigger_sync and self.is_android and registration_id:
-            self.trigger_sync(registration_id)
+        if trigger_sync and self.is_android:
+            self.trigger_sync()
 
         # any triggers associated with our channel get archived and released
         for trigger in self.triggers.filter(is_active=True):
@@ -675,7 +671,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
 
         super().delete()
 
-    def trigger_sync(self, registration_id=None):  # pragma: no cover
+    def trigger_sync(self):  # pragma: no cover
         """
         Sends a FCM command to trigger a sync on the client
         """
@@ -688,10 +684,7 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
         fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
 
         if fcm_id and settings.ANDROID_FCM_PROJECT_ID and settings.ANDROID_FCM_SERVICE_ACCOUNT_FILE:
-            if not registration_id:
-                registration_id = fcm_id
-            if registration_id:
-                on_transaction_commit(lambda: sync_channel_fcm_task.delay(registration_id, channel_id=self.id))
+            on_transaction_commit(lambda: sync_channel_fcm_task.delay(fcm_id, channel_id=self.id))
 
     @classmethod
     def replace_variables(cls, text, variables, content_type=CONTENT_TYPE_URLENCODED):
