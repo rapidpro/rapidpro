@@ -156,7 +156,7 @@ class WorkspaceStats(OrgPermsMixin, SmartTemplateView):
         if orgs or not self.request.user.is_support:
             daily_counts = daily_counts.filter(channel__org__in=orgs)
 
-        categories = [org.name for org in orgs]
+        categories = []
 
         inbound = []
         outbound = []
@@ -168,6 +168,9 @@ class WorkspaceStats(OrgPermsMixin, SmartTemplateView):
                 .order_by("count_type")
                 .annotate(count_sum=Sum("count"))
             )
+
+            if len(org_daily_counts) > 0:
+                categories.append(org.name)
 
             for count in org_daily_counts:
                 if count["count_type"] == ChannelCount.INCOMING_MSG_TYPE:
@@ -184,6 +187,9 @@ class WorkspaceStats(OrgPermsMixin, SmartTemplateView):
                     inbound.append(0)
                 elif outbound_count < inbound_count:
                     outbound.append(0)
+
+        assert len(categories) == len(inbound), "mismatch number of workspaces and inbound stats"
+        assert len(categories) == len(outbound), "mismatch number of workspaces and outbound stats"
 
         return JsonResponse(
             dict(
