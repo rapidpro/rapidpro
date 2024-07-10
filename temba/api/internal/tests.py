@@ -44,27 +44,16 @@ class EndpointsTest(APITestMixin, TembaTest):
             ],
         )
 
-        # can query on name
+        # can query on path
         self.assertGet(
             endpoint_url + "?level=district&query=ga",
             [self.editor],
             results=[
                 {"osm_id": "R1711131", "name": "Gatsibo", "path": "Rwanda > Eastern Province > Gatsibo"},
+                {"osm_id": "3963734", "name": "Nyarugenge", "path": "Rwanda > Kigali City > Nyarugenge"},
                 {"osm_id": "1711142", "name": "Rwamagana", "path": "Rwanda > Eastern Province > Rwamagana"},
             ],
         )
-
-        # or alias
-        self.assertGet(
-            endpoint_url + "?level=state&query=kigari",
-            [self.admin],
-            results=[
-                {"osm_id": "1708283", "name": "Kigali City", "path": "Rwanda > Kigali City"},
-            ],
-        )
-
-        # but not aliases in other orgs
-        self.assertGet(endpoint_url + "?level=state&query=Chigali", [self.agent], results=[])
 
         # missing or invalid level, no results
         self.assertGet(endpoint_url + "?level=hood", [self.agent], results=[])
