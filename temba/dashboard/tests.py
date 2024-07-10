@@ -1,14 +1,12 @@
+from datetime import timezone as tzone
+
 from django.urls import reverse
 
+from temba.orgs.models import Org
 from temba.tests import TembaTest
 
 
 class DashboardTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        self.user = self.create_user("tito")
-
     def create_activity(self):
         # and some message and call activity
         joe = self.create_contact("Joe", phone="+593979099111")
@@ -56,18 +54,22 @@ class DashboardTest(TembaTest):
         self.assertEqual(2, response[1]["data"][0][1])
 
     def test_workspace_stats(self):
-        url = reverse("dashboard.dashboard_workspace_stats")
+        stats_url = reverse("dashboard.dashboard_workspace_stats")
+
+        self.create_activity()
+
+        # create child with no activity
+        self.org.features += [Org.FEATURE_CHILD_ORGS]
+        self.org.create_new(self.admin, "Test Org", tzone.utc, as_child=True)
 
         # visit this page without authenticating
-        response = self.client.get(url, follow=True)
+        response = self.client.get(stats_url)
+        self.assertLoginRedirect(response)
 
-        # nope!
-        self.assertRedirects(response, "/users/login/?next=%s" % url)
+        self.login(self.admin, choose_org=self.org)
+        response = self.client.get(stats_url).json()
 
-        self.login(self.admin)
-        self.create_activity()
-        response = self.client.get(url).json()
-
+        self.assertEqual(["Nyaruka"], response["categories"])
         self.assertEqual(2, len(response["series"]))
         self.assertEqual(1, response["series"][0]["data"][0])  # incoming
         self.assertEqual(2, response["series"][1]["data"][0])  # outgoing

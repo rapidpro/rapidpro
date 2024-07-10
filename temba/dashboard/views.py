@@ -157,7 +157,6 @@ class WorkspaceStats(OrgPermsMixin, SmartTemplateView):
             daily_counts = daily_counts.filter(channel__org__in=orgs)
 
         categories = []
-
         inbound = []
         outbound = []
 
@@ -169,34 +168,27 @@ class WorkspaceStats(OrgPermsMixin, SmartTemplateView):
                 .annotate(count_sum=Sum("count"))
             )
 
-            if len(org_daily_counts) > 0:
-                categories.append(org.name)
+            # ignore orgs with no activity in this period
+            if not org_daily_counts:
+                continue
+
+            inbound_count, outbound_count = 0, 0
 
             for count in org_daily_counts:
                 if count["count_type"] == ChannelCount.INCOMING_MSG_TYPE:
-                    inbound.append(count["count_sum"])
+                    inbound_count = count["count_sum"]
                 elif count["count_type"] == ChannelCount.OUTGOING_MSG_TYPE:
-                    outbound.append(count["count_sum"])
+                    outbound_count = count["count_sum"]
 
-            # make sure inbound and outbound lengths remain the same in case
-            # we catch a window where there is an outbound without an inbound, etc
-            inbound_count = len(inbound)
-            outbound_count = len(outbound)
-            if inbound_count != outbound_count:  # pragma: no cover
-                if inbound_count < outbound_count:
-                    inbound.append(0)
-                elif outbound_count < inbound_count:
-                    outbound.append(0)
-
-        assert len(categories) == len(inbound), "mismatch number of workspaces and inbound stats"
-        assert len(categories) == len(outbound), "mismatch number of workspaces and outbound stats"
+            categories.append(org.name)
+            inbound.append(inbound_count)
+            outbound.append(outbound_count)
 
         return JsonResponse(
-            dict(
-                series=[{"name": "Incoming", "data": inbound}, {"name": "Outgoing", "data": outbound}],
-                categories=categories,
-            ),
-            safe=False,
+            {
+                "series": [{"name": "Incoming", "data": inbound}, {"name": "Outgoing", "data": outbound}],
+                "categories": categories,
+            }
         )
 
 
