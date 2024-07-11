@@ -1,4 +1,4 @@
-import telegram
+import requests
 from smartmin.views import SmartFormView
 
 from django import forms
@@ -24,10 +24,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 if channel.config["auth_token"] == value:
                     raise ValidationError(_("A telegram channel for this bot already exists on your account."))
 
-            try:
-                bot = telegram.Bot(token=value)
-                bot.get_me()
-            except telegram.TelegramError:
+            response = requests.get(f"https://api.telegram.org/bot{value}/getMe")
+            response_json = response.json()
+
+            if response.status_code != 200 or not response_json["ok"]:
                 raise ValidationError(_("Your authentication token is invalid, please check and try again"))
 
             return value
@@ -38,8 +38,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         org = self.request.org
         auth_token = self.form.cleaned_data["auth_token"]
 
-        bot = telegram.Bot(auth_token)
-        me = bot.get_me()
+        response = requests.get(f"https://api.telegram.org/bot{auth_token}/getMe")
+        response_json = response.json()
+
         channel_config = {
             Channel.CONFIG_AUTH_TOKEN: auth_token,
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
@@ -50,8 +51,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             self.request.user,
             None,
             self.channel_type,
-            name=me.first_name,
-            address=me.username,
+            name=response_json.get("result", {}).get("first_name"),
+            address=response_json.get("result", {}).get("username"),
             config=channel_config,
         )
 

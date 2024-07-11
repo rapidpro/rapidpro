@@ -1,4 +1,4 @@
-import telegram
+import requests
 
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -33,13 +33,18 @@ class TelegramType(ChannelType):
 
     def activate(self, channel):
         config = channel.config
-        bot = telegram.Bot(config["auth_token"])
-        bot.set_webhook("https://" + channel.callback_domain + reverse("courier.tg", args=[channel.uuid]))
+
+        response = requests.post(
+            f"https://api.telegram.org/bot{config['auth_token']}/setWebhook",
+            data={"url": "https://" + channel.callback_domain + reverse("courier.tg", args=[channel.uuid])},
+        )
+        response.raise_for_status()
 
     def deactivate(self, channel):
         config = channel.config
-        bot = telegram.Bot(config["auth_token"])
-        bot.delete_webhook()
+
+        response = requests.post(f"https://api.telegram.org/bot{config['auth_token']}/deleteWebhook")
+        response.raise_for_status()
 
     def get_error_ref_url(self, channel, code: str) -> str:
         return "https://core.telegram.org/api/errors"
