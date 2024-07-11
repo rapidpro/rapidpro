@@ -40,7 +40,7 @@ class Template(TembaModel, DependencyMixin):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="templates")
     name = models.CharField(max_length=512)  # overridden to be longer
     base_translation = models.OneToOneField(
-        "templates.TemplateTranslation", on_delete=models.SET_NULL, related_name="base_template", null=True
+        "templates.TemplateTranslation", on_delete=models.PROTECT, related_name="base_template", null=True
     )
 
     @classmethod
@@ -72,14 +72,22 @@ class Template(TembaModel, DependencyMixin):
             translation_count=Count("translations"), channel_count=Count("translations__channel", distinct=True)
         )
 
-    def get_translation(self, channel, lang: str):
+    def update_base(self, exclude=None):
         """
-        Get the best match translation for the given channel and language
+        Tries to set a new base translation for this template from its available translations.
         """
-        if trans := self.translations.filter(channel=channel, locale__startswith=lang).first():
-            return trans
+        candidates = self.translations.exclude(id=exclude.id) if exclude else self.translations.all()
 
-        return self.translations.filter(channel=channel).order_by("id").first()
+        # try to find one in the org's primary language
+        new_base = candidates.filter(locale__startswith=self.org.flow_languages[0]).first()
+        if not new_base:
+            # if not fallback to oldest
+            new_base = candidates.order_by("id").first()
+
+        if self.base_translation != new_base:
+            self.base_translation = new_base
+            self.modified_on = timezone.now()
+            self.save(update_fields=("base_translation", "modified_on"))
 
     class Meta:
         unique_together = ("org", "name")
@@ -119,23 +127,22 @@ class TemplateTranslation(models.Model):
         """
 
         seen_ids = []
-        baseless_templates = set()
+        templates = set()
 
         for raw_template in raw_templates:
             translation = channel.template_type.update_local(channel, raw_template)
             if translation:
                 seen_ids.append(translation.id)
-
-                if not translation.template.base_translation:
-                    baseless_templates.add(translation.template)
+                templates.add(translation.template)
 
         # delete any template translations we didn't see
-        channel.template_translations.exclude(id__in=seen_ids).delete()
+        for gone in channel.template_translations.exclude(id__in=seen_ids):
+            gone.delete()
 
-        # update base translations for templates that don't yet have one
-        for template in baseless_templates:
-            template.base_translation = template.get_translation(channel, template.org.flow_languages[0])
-            template.save(update_fields=("base_translation",))
+        # if any templates don't have a base translation update them
+        for template in templates:
+            if not template.base_translation:
+                template.update_base()
 
     @classmethod
     def get_or_create(
@@ -189,6 +196,18 @@ class TemplateTranslation(models.Model):
             existing.template.save(update_fields=("modified_on",))
 
         return existing
+
+    def delete(self):
+        """
+        Overriden so that if this translation is the base translation for a template, we find a new base for that template
+        """
+
+        try:
+            self.base_template.update_base(exclude=self)
+        except Template.DoesNotExist:
+            pass
+
+        super().delete()
 
     class Meta:
         constraints = [

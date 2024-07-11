@@ -656,7 +656,8 @@ class Channel(LegacyUUIDMixin, TembaModel, DependencyMixin):
             incident.end()
 
         # delete template translations for this channel
-        self.template_translations.all().delete()
+        for trans in self.template_translations.all():
+            trans.delete()
 
     def delete(self):
         for trigger in self.triggers.all():
