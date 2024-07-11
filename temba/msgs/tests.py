@@ -2179,24 +2179,28 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             schedule=Schedule.create(self.org, timezone.now(), Schedule.REPEAT_DAILY),
         )
 
-        translation = TemplateTranslation.get_or_create(
-            self.channel,
+        template = self.create_template(
             "Hello World",
-            locale="eng-US",
-            status=TemplateTranslation.STATUS_APPROVED,
-            external_id="1003",
-            external_locale="en_US",
-            namespace="",
-            components=[
-                {"name": "header", "type": "header/media", "variables": {"1": 0}},
-                {
-                    "name": "body",
-                    "type": "body/text",
-                    "content": "Hello {{1}}",
-                    "variables": {"1": 1},
-                },
+            [
+                TemplateTranslation(
+                    channel=self.channel,
+                    locale="eng-US",
+                    status=TemplateTranslation.STATUS_APPROVED,
+                    external_id="1003",
+                    external_locale="en_US",
+                    namespace="",
+                    components=[
+                        {"name": "header", "type": "header/media", "variables": {"1": 0}},
+                        {
+                            "name": "body",
+                            "type": "body/text",
+                            "content": "Hello {{1}}",
+                            "variables": {"1": 1},
+                        },
+                    ],
+                    variables=[{"type": "image"}, {"type": "text"}],
+                )
             ],
-            variables=[{"type": "image"}, {"type": "text"}],
         )
 
         update_url = reverse("msgs.broadcast_update", args=[broadcast.id])
@@ -2210,7 +2214,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             update_url,
             self._form_data(
                 translations=updated_text,
-                template=translation.template,
+                template=template,
                 variables=["", "World"],
                 contacts=[self.joe],
                 start_datetime="2021-06-24 12:00",
@@ -2230,7 +2234,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             update_url,
             self._form_data(
                 translations=updated_text,
-                template=translation.template,
+                template=template,
                 variables=["image/jpeg:http://domain/meow.jpg", "World"],
                 contacts=[self.joe],
                 start_datetime="2021-06-24 12:00",

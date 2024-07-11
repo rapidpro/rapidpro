@@ -191,16 +191,18 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc="RW"),
             [1, 2],
         )
-        TemplateTranslation.get_or_create(
-            channel1,
+        self.create_template(
             "reminder",
-            locale="eng",
-            status="A",
-            external_id=None,
-            external_locale="en",
-            namespace="",
-            components=[],
-            variables=[],
+            [
+                TemplateTranslation(
+                    channel=channel1,
+                    locale="eng",
+                    status="A",
+                    external_locale="en",
+                    components=[],
+                    variables=[],
+                )
+            ],
         )
 
         # and some on another channel
@@ -211,16 +213,18 @@ class ChannelTest(TembaTest, CRUDLTestMixin):
             dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc="RW"),
             [1, 2],
         )
-        TemplateTranslation.get_or_create(
-            channel2,
-            "reminder",
-            locale="eng",
-            status="A",
-            external_id=None,
-            external_locale="en",
-            namespace="",
-            components=[],
-            variables=[],
+        self.create_template(
+            "reminder2",
+            [
+                TemplateTranslation(
+                    channel=channel2,
+                    locale="eng",
+                    status="A",
+                    external_locale="en",
+                    components=[],
+                    variables=[],
+                )
+            ],
         )
         Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow, channel=channel2)
 

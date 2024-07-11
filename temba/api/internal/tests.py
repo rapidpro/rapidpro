@@ -195,48 +195,31 @@ class EndpointsTest(APITestMixin, TembaTest):
             ],
         )
 
-        # templates on other org to test filtering
-        TemplateTranslation.get_or_create(
-            org2channel,
+        # template on other org to test filtering
+        self.create_template(
             "goodbye",
-            locale="eng-US",
-            status=TemplateTranslation.STATUS_APPROVED,
-            external_id="1234",
-            external_locale="en_US",
-            namespace="bar_namespace",
-            components=[
-                {
-                    "name": "body",
-                    "type": "body/text",
-                    "content": "Goodbye {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
+            [
+                TemplateTranslation(
+                    channel=self.channel,
+                    locale="eng-US",
+                    status=TemplateTranslation.STATUS_PENDING,
+                    external_id="6789",
+                    external_locale="en_US",
+                    namespace="foo_namespace",
+                    components=[
+                        {
+                            "name": "body",
+                            "type": "body/text",
+                            "content": "Goodbye {{1}}",
+                            "variables": {"1": 0},
+                            "params": [{"type": "text"}],
+                        }
+                    ],
+                    variables=[{"type": "text"}],
+                )
             ],
-            variables=[{"type": "text"}],
+            org=self.org2,
         )
-        TemplateTranslation.get_or_create(
-            org2channel,
-            "goodbye",
-            locale="fra-FR",
-            status=TemplateTranslation.STATUS_PENDING,
-            external_id="5678",
-            external_locale="fr_FR",
-            namespace="bar_namespace",
-            components=[
-                {
-                    "name": "body",
-                    "type": "body/text",
-                    "content": "Salut {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
-            ],
-            variables=[{"type": "text"}],
-        )
-
-        tpl1.refresh_from_db()
-        tpl2.refresh_from_db()
 
         # no filtering
         self.assertGet(
