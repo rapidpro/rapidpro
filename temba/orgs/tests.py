@@ -1966,6 +1966,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             [
                 "Nyaruka",
                 "Workspaces (1)",
+                "Dashboard",
                 "Account",
                 "Users (5)",
                 "Resthooks",
