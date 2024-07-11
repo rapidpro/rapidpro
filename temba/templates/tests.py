@@ -305,30 +305,31 @@ class TemplateCRUDLTest(CRUDLTestMixin, TembaTest):
         list_url = reverse("templates.template_list")
 
         channel = self.create_channel("D3C", "360Dialog channel", address="1234")
-        template1 = self.create_template("hello")
-        template2 = self.create_template("goodbye")
-
-        TemplateTranslation.objects.create(
-            template=template1, channel=channel, locale="eng-US", status=TemplateTranslation.STATUS_APPROVED
+        template1 = self.create_template(
+            "hello",
+            [
+                TemplateTranslation(channel=channel, locale="eng-US", status=TemplateTranslation.STATUS_APPROVED),
+                TemplateTranslation(channel=channel, locale="spa", status=TemplateTranslation.STATUS_APPROVED),
+                TemplateTranslation(channel=self.channel, locale="eng-US", status=TemplateTranslation.STATUS_PENDING),
+            ],
         )
-        TemplateTranslation.objects.create(
-            template=template1, channel=channel, locale="spa", status=TemplateTranslation.STATUS_APPROVED
+        template2 = self.create_template(
+            "goodbye", [TemplateTranslation(channel=channel, locale="eng", status=TemplateTranslation.STATUS_PENDING)]
         )
-        TemplateTranslation.objects.create(
-            template=template2, channel=channel, locale="eng", status=TemplateTranslation.STATUS_PENDING
-        )
-        TemplateTranslation.objects.create(
-            template=template1, channel=self.channel, locale="eng-US", status=TemplateTranslation.STATUS_PENDING
-        )
+        self.create_template("empty", [])  # templates with no translations shouldn't appear
 
         # add template and translation in other org
         channel_other_org = self.create_channel("D3C", "360Dialog channel", address="2345", org=self.org2)
-        template_other_org = self.create_template("hello", org=self.org2)
-        TemplateTranslation.objects.create(
-            template=template_other_org,
-            channel=channel_other_org,
-            locale="eng",
-            status=TemplateTranslation.STATUS_PENDING,
+        self.create_template(
+            "hello",
+            [
+                TemplateTranslation(
+                    channel=channel_other_org,
+                    locale="eng",
+                    status=TemplateTranslation.STATUS_PENDING,
+                )
+            ],
+            org=self.org2,
         )
 
         self.assertRequestDisallowed(list_url, [None, self.agent])
@@ -337,67 +338,66 @@ class TemplateCRUDLTest(CRUDLTestMixin, TembaTest):
         )
 
         self.assertContains(response, "goodbye")
-        self.assertContains(response, "1 translation,")
+        self.assertContains(response, "1 language,")
         self.assertContains(response, "hello")
-        self.assertContains(response, "3 translations,")
+        self.assertContains(response, "2 languages,")
 
     def test_read(self):
         channel = self.create_channel("D3C", "360Dialog channel", address="1234")
-        template1 = self.create_template("hello")
-
-        TemplateTranslation.objects.create(
-            template=template1,
-            channel=channel,
-            locale="eng-US",
-            status=TemplateTranslation.STATUS_PENDING,
-            components=[
-                {
-                    "name": "body",
-                    "type": "body/text",
-                    "content": "Hello {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
+        template1 = self.create_template(
+            "hello",
+            [
+                TemplateTranslation(
+                    channel=channel,
+                    locale="eng-US",
+                    status=TemplateTranslation.STATUS_PENDING,
+                    components=[
+                        {
+                            "name": "body",
+                            "type": "body/text",
+                            "content": "Hello {{1}}",
+                            "variables": {"1": 0},
+                            "params": [{"type": "text"}],
+                        }
+                    ],
+                    variables=[{"type": "text"}],
+                ),
+                TemplateTranslation(
+                    channel=channel,
+                    locale="spa",
+                    status=TemplateTranslation.STATUS_APPROVED,
+                    components=[
+                        {
+                            "name": "body",
+                            "type": "body/text",
+                            "content": "Hola {{1}}",
+                            "variables": {"1": 0},
+                            "params": [{"type": "text"}],
+                        }
+                    ],
+                    variables=[{"type": "text"}],
+                ),
+                TemplateTranslation(
+                    channel=self.channel,
+                    locale="eng-US",
+                    status=TemplateTranslation.STATUS_REJECTED,
+                    components=[
+                        {
+                            "name": "body",
+                            "type": "body/text",
+                            "content": "Hello {{1}}",
+                            "variables": {"1": 0},
+                            "params": [{"type": "text"}],
+                        }
+                    ],
+                    variables=[{"type": "text"}],
+                ),
             ],
-            variables=[{"type": "text"}],
-        )
-        TemplateTranslation.objects.create(
-            template=template1,
-            channel=channel,
-            locale="spa",
-            status=TemplateTranslation.STATUS_APPROVED,
-            components=[
-                {
-                    "name": "body",
-                    "type": "body/text",
-                    "content": "Hola {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
-            ],
-            variables=[{"type": "text"}],
-        )
-        TemplateTranslation.objects.create(
-            template=template1,
-            channel=self.channel,
-            locale="eng-US",
-            status=TemplateTranslation.STATUS_REJECTED,
-            components=[
-                {
-                    "name": "body",
-                    "type": "body/text",
-                    "content": "Hello {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
-            ],
-            variables=[{"type": "text"}],
         )
 
         # create translation for other template
-        template2 = self.create_template("goodbye")
-        TemplateTranslation.objects.create(
-            template=template2, channel=channel, locale="eng", status=TemplateTranslation.STATUS_PENDING
+        self.create_template(
+            "goodbye", [TemplateTranslation(channel=channel, locale="eng", status=TemplateTranslation.STATUS_PENDING)]
         )
 
         read_url = reverse("templates.template_read", args=[template1.uuid])

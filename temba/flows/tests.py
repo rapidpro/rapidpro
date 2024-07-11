@@ -2589,7 +2589,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # create the template, but no translations
-        self.create_template("affirmation", uuid="f712e05c-bbed-40f1-b3d9-671bb9b60775")
+        self.create_template("affirmation", [], uuid="f712e05c-bbed-40f1-b3d9-671bb9b60775")
 
         # will be warned again
         mr_mocks.flow_start_preview(query="age > 30", total=2)
