@@ -1,3 +1,10 @@
+v9.1.185 (2024-07-11)
+-------------------------
+ * Update deps
+ * Replace telegram library by requests use
+ * Fix dashboard menu link permission
+ * Expose Template.base_translation on API endpoint
+
 v9.1.184 (2024-07-11)
 -------------------------
  * Use dropdowns for location fields
