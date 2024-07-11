@@ -36,6 +36,7 @@ class WhatsAppType(TemplateType):
             namespace=raw.get("namespace", channel_namespace),
             components=components,
             variables=variables,
+            is_supported=supported,
         )
 
     def _extract_components(self, raw: list) -> tuple:

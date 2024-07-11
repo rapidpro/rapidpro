@@ -77,18 +77,33 @@ class Template(TembaModel, DependencyMixin):
         """
         Tries to set a new base translation for this template from its available translations.
         """
-        candidates = self.translations.exclude(id=exclude.id) if exclude else self.translations.all()
+        translations = self.translations.exclude(id=exclude.id) if exclude else self.translations.all()
 
         # try to find one in the org's primary language
-        new_base = candidates.filter(locale__startswith=self.org.flow_languages[0]).first()
+        new_base = translations.filter(locale__startswith=self.org.flow_languages[0]).first()
         if not new_base:
             # if not fallback to oldest
-            new_base = candidates.order_by("id").first()
+            new_base = translations.order_by("id").first()
 
         if self.base_translation != new_base:
             self.base_translation = new_base
             self.modified_on = timezone.now()
             self.save(update_fields=("base_translation", "modified_on"))
+
+            self.rebase()
+
+    def rebase(self):
+        if self.base_translation:
+            self.base_translation.refresh_from_db()
+
+        # update translations compatibility with the base variable list
+        for trans in self.translations.all():
+            trans.is_compatible = trans.variables == self.variables
+            trans.save(update_fields=("is_compatible",))
+
+    @property
+    def variables(self):
+        return self.base_translation.variables if self.base_translation else []
 
     class Meta:
         unique_together = ("org", "name")
@@ -102,7 +117,7 @@ class TemplateTranslation(models.Model):
     STATUS_APPROVED = "A"
     STATUS_PENDING = "P"
     STATUS_REJECTED = "R"
-    STATUS_UNSUPPORTED = "X"
+    STATUS_UNSUPPORTED = "X"  # deprecated
     STATUS_CHOICES = (
         (STATUS_APPROVED, _("Approved")),
         (STATUS_PENDING, _("Pending")),
@@ -120,12 +135,16 @@ class TemplateTranslation(models.Model):
     namespace = models.CharField(max_length=36, default="")
     external_id = models.CharField(null=True, max_length=64)
     external_locale = models.CharField(null=True, max_length=6)  # e.g. en_US
+    is_supported = models.BooleanField(default=True)  # whether all components are supported
+    is_compatible = models.BooleanField(default=True)  # whether parameters match those of template base translation
 
     @classmethod
     def update_local(cls, channel, raw_templates: list):
         """
         Updates the local translations against the fetched raw templates from the given channel
         """
+
+        # breakpoint()
 
         seen_ids = []
         templates = set()
@@ -158,6 +177,7 @@ class TemplateTranslation(models.Model):
         namespace: str,
         components: list,
         variables: list,
+        is_supported: bool,
     ):
         # get the template with this name
         template = Template.get_or_create(channel.org, name)
@@ -175,6 +195,8 @@ class TemplateTranslation(models.Model):
                 namespace=namespace,
                 external_id=external_id,
                 external_locale=external_locale,
+                is_supported=is_supported,
+                is_compatible=existing.is_base() or template.variables == variables,
             )
         else:
             # create new translation
@@ -188,6 +210,8 @@ class TemplateTranslation(models.Model):
                 namespace=namespace,
                 external_id=external_id,
                 external_locale=external_locale,
+                is_supported=is_supported,
+                is_compatible=template.variables == variables,
             )
             changed = True
 
@@ -196,7 +220,13 @@ class TemplateTranslation(models.Model):
             existing.template.modified_on = timezone.now()
             existing.template.save(update_fields=("modified_on",))
 
+            if existing.is_base():
+                existing.template.rebase()
+
         return existing
+
+    def is_base(self):
+        return self.template.base_translation == self
 
     def delete(self):
         """
@@ -209,6 +239,9 @@ class TemplateTranslation(models.Model):
             pass
 
         super().delete()
+
+    def __repr__(self):  # pragma: no cover
+        return f'<TemplateTranslation: channel="{self.channel.name}" locale="{self.locale}">'
 
     class Meta:
         constraints = [
