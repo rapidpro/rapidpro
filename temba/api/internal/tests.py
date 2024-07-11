@@ -130,71 +130,70 @@ class EndpointsTest(APITestMixin, TembaTest):
         self.assertDeleteNotAllowed(endpoint_url)
 
         org2channel = self.create_channel("A", "Org2Channel", "123456", country="RW", org=self.org2)
-        tpl1 = self.create_template("hello")
-        tpl2 = self.create_template("goodbye")
-
-        # create some templates
-        tpl1.base_translation = TemplateTranslation.get_or_create(
-            self.channel,
+        tpl1 = self.create_template(
             "hello",
-            locale="eng-US",
-            status=TemplateTranslation.STATUS_APPROVED,
-            external_id="1234",
-            external_locale="en_US",
-            namespace="foo_namespace",
-            components=[
-                {
-                    "name": "body",
-                    "type": "body/text",
-                    "content": "Hi {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
+            [
+                TemplateTranslation(
+                    channel=self.channel,
+                    locale="eng-US",
+                    status=TemplateTranslation.STATUS_APPROVED,
+                    external_id="1234",
+                    external_locale="en_US",
+                    namespace="foo_namespace",
+                    components=[
+                        {
+                            "name": "body",
+                            "type": "body/text",
+                            "content": "Hi {{1}}",
+                            "variables": {"1": 0},
+                            "params": [{"type": "text"}],
+                        }
+                    ],
+                    variables=[{"type": "text"}],
+                ),
+                TemplateTranslation(
+                    channel=self.channel,
+                    locale="fra-FR",
+                    status=TemplateTranslation.STATUS_PENDING,
+                    external_id="5678",
+                    external_locale="fr_FR",
+                    namespace="foo_namespace",
+                    components=[
+                        {
+                            "name": "body",
+                            "type": "body/text",
+                            "content": "Bonjour {{1}}",
+                            "variables": {"1": 0},
+                            "params": [{"type": "text"}],
+                        }
+                    ],
+                    variables=[{"type": "text"}],
+                ),
             ],
-            variables=[{"type": "text"}],
         )
-        tpl1.save(update_fields=("base_translation",))
-
-        TemplateTranslation.get_or_create(
-            self.channel,
-            "hello",
-            locale="fra-FR",
-            status=TemplateTranslation.STATUS_PENDING,
-            external_id="5678",
-            external_locale="fr_FR",
-            namespace="foo_namespace",
-            components=[
-                {
-                    "name": "body",
-                    "type": "body/text",
-                    "content": "Bonjour {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
-            ],
-            variables=[{"type": "text"}],
-        )
-
-        tpl2.base_translation = TemplateTranslation.get_or_create(
-            self.channel,
+        tpl2 = self.create_template(
             "goodbye",
-            locale="eng-US",
-            status=TemplateTranslation.STATUS_PENDING,
-            external_id="6789",
-            external_locale="en_US",
-            namespace="foo_namespace",
-            components=[
-                {
-                    "name": "body",
-                    "type": "body/text",
-                    "content": "Goodbye {{1}}",
-                    "variables": {"1": 0},
-                    "params": [{"type": "text"}],
-                }
+            [
+                TemplateTranslation(
+                    channel=self.channel,
+                    locale="eng-US",
+                    status=TemplateTranslation.STATUS_PENDING,
+                    external_id="6789",
+                    external_locale="en_US",
+                    namespace="foo_namespace",
+                    components=[
+                        {
+                            "name": "body",
+                            "type": "body/text",
+                            "content": "Goodbye {{1}}",
+                            "variables": {"1": 0},
+                            "params": [{"type": "text"}],
+                        }
+                    ],
+                    variables=[{"type": "text"}],
+                )
             ],
-            variables=[{"type": "text"}],
         )
-        tpl2.save(update_fields=("base_translation",))
 
         # templates on other org to test filtering
         TemplateTranslation.get_or_create(

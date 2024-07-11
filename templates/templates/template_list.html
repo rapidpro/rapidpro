@@ -5,7 +5,7 @@
   <div class="mb-4">
     {% blocktrans trimmed %}
       Templates are refreshed from supporting channels every 15 minutes and templates with the same name will be merged
-      into a single template with multiple translations.
+      into a single multi-lingual template.
     {% endblocktrans %}
   </div>
   {% block pre-table %}
@@ -21,7 +21,7 @@
             <td style="min-width: 50px">{{ obj.name }}</td>
             <td>
               {# djlint:off #}
-              {% blocktrans trimmed count counter=obj.translation_count %}{{ counter }} translation{% plural %}{{ counter }} translations{% endblocktrans %},
+              {% blocktrans trimmed count counter=obj.locale_count %}{{ counter }} language{% plural %}{{ counter }} languages{% endblocktrans %},
               {# djlint:on #}
               {% blocktrans trimmed count counter=obj.channel_count %}
                 {{ counter }} channel

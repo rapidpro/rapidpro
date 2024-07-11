@@ -721,14 +721,21 @@ class TembaTest(SmartminTest):
             extra=extra,
         )
 
-    def create_template(self, name: str, org=None, uuid=None):
-        return Template.objects.create(
+    def create_template(self, name: str, translations: list, org=None, uuid=None):
+        template = Template.objects.create(
             uuid=uuid or uuid4(),
             org=org or self.org,
             name=name,
             created_by=self.admin,
             modified_by=self.admin,
         )
+        for trans in translations:
+            trans.template = template
+            trans.save()
+
+        template.update_base()
+
+        return template
 
     def create_ticket(
         self,

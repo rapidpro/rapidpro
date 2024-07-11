@@ -69,7 +69,8 @@ class Template(TembaModel, DependencyMixin):
         qs = super().annotate_usage(queryset)
 
         return qs.annotate(
-            translation_count=Count("translations"), channel_count=Count("translations__channel", distinct=True)
+            locale_count=Count("translations__locale", distinct=True),
+            channel_count=Count("translations__channel", distinct=True),
         )
 
     def update_base(self, exclude=None):

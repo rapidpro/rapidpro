@@ -17,7 +17,12 @@ class TemplateCRUDL(SmartCRUDL):
             return "/msg/templates"
 
         def get_queryset(self, **kwargs):
-            return Template.annotate_usage(super().get_queryset(**kwargs).filter(org=self.request.org, is_active=True))
+            return Template.annotate_usage(
+                super()
+                .get_queryset(**kwargs)
+                .filter(org=self.request.org, is_active=True)
+                .exclude(base_translation=None)  # don't show "empty" templates
+            )
 
     class Read(SpaMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
@@ -33,7 +38,13 @@ class TemplateCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["translations"] = context["object"].translations.order_by("locale", "channel")
+
+            base_trans = context["object"].base_translation
+            all_trans = context["object"].translations.order_by("locale", "channel")
+            other_trans = all_trans.exclude(id=base_trans.id) if base_trans else all_trans
+
+            context["base_translation"] = base_trans
+            context["other_translations"] = other_trans
             context["status_icons"] = self.status_icons
             return context
 
