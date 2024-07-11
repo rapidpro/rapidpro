@@ -1,3 +1,9 @@
+v9.1.186 (2024-07-11)
+-------------------------
+ * Fix handling of POSTs to API docs
+ * Exclude empty templates from list, and show base translation apart on read page
+ * Ensure we choose a new base for a template whenever an existing base translation is deleted
+
 v9.1.185 (2024-07-11)
 -------------------------
  * Update deps
