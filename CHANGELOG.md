@@ -1,3 +1,7 @@
+v9.1.184 (2024-07-11)
+-------------------------
+ * Use dropdowns for location fields
+
 v9.1.183 (2024-07-11)
 -------------------------
  * Use dropdowns for location fields
