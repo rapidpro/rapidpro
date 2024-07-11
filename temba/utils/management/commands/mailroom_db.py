@@ -393,14 +393,14 @@ class Command(BaseCommand):
         self._log(f"Creating {len(spec['templates'])} templates... ")
 
         for t in spec["templates"]:
-            Template.objects.create(
+            template = Template.objects.create(
                 org=org, uuid=t["uuid"], name=t["name"], created_by=org.created_by, modified_by=org.modified_by
             )
             for tt in t["translations"]:
                 channel = Channel.objects.get(uuid=tt["channel_uuid"])
-                TemplateTranslation.get_or_create(
-                    channel,
-                    t["name"],
+                TemplateTranslation.objects.create(
+                    template=template,
+                    channel=channel,
                     locale=tt["locale"],
                     status=tt["status"],
                     external_id=tt["external_id"],
@@ -409,6 +409,7 @@ class Command(BaseCommand):
                     components=tt["components"],
                     variables=tt["variables"],
                 )
+            template.update_base()
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
