@@ -1,10 +1,8 @@
 from unittest.mock import patch
 
-import telegram
-
 from django.urls import reverse
 
-from temba.tests import TembaTest
+from temba.tests import MockResponse, TembaTest
 
 from ...models import Channel
 from .type import TelegramType
@@ -21,9 +19,9 @@ class TelegramTypeTest(TembaTest):
             config={"auth_token": "123456789:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8"},
         )
 
-    @patch("telegram.Bot.get_me")
-    @patch("telegram.Bot.set_webhook")
-    def test_claim(self, mock_set_webhook, mock_get_me):
+    @patch("requests.post")
+    @patch("requests.get")
+    def test_claim(self, mock_get, mock_post):
         url = reverse("channels.types.telegram.claim")
 
         self.login(self.admin)
@@ -37,7 +35,7 @@ class TelegramTypeTest(TembaTest):
         self.assertContains(response, "Connect Telegram")
 
         # claim with an invalid token
-        mock_get_me.side_effect = telegram.TelegramError("Boom")
+        mock_get.side_effect = [MockResponse(404, '{"ok": false, "error_code": 404,"description": "Not Found"}')]
         response = self.client.post(url, {"auth_token": "invalid"})
         self.assertEqual(200, response.status_code)
         self.assertEqual(
@@ -45,13 +43,17 @@ class TelegramTypeTest(TembaTest):
             response.context["form"].errors["auth_token"][0],
         )
 
-        user = telegram.User(123, "Rapid", True)
-        user.last_name = "Bot"
-        user.username = "rapidbot"
-
-        mock_get_me.side_effect = None
-        mock_get_me.return_value = user
-        mock_set_webhook.return_value = ""
+        mock_get.side_effect = [
+            MockResponse(
+                200,
+                '{"ok": true, "result": {"id": 123, "is_bot": true, "first_name": "Rapid", "last_name": "Bot", "username":"rapidbot"} }',
+            ),
+            MockResponse(
+                200,
+                '{"ok": true, "result": {"id": 123, "is_bot": true, "first_name": "Rapid", "last_name": "Bot", "username":"rapidbot"} }',
+            ),
+        ]
+        mock_post.return_value = MockResponse(200, '{"ok": true, "result": "SUCCESS"}')
 
         response = self.client.post(url, {"auth_token": "184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8"})
         channel = Channel.objects.get(address="rapidbot")
@@ -78,11 +80,13 @@ class TelegramTypeTest(TembaTest):
         self.assertIsNotNone(send_channel)
         self.assertEqual(send_channel.channel_type, "TG")
 
-    @patch("telegram.Bot.delete_webhook")
-    def test_release(self, mock_delete_webhook):
+    @patch("requests.post")
+    def test_release(self, mock_post):
         self.channel.release(self.admin)
 
-        mock_delete_webhook.assert_called_once_with()
+        mock_post.assert_called_once_with(
+            f"https://api.telegram.org/bot{self.channel.config['auth_token']}/deleteWebhook"
+        )
 
     def test_get_error_ref_url(self):
         self.assertEqual("https://core.telegram.org/api/errors", TelegramType().get_error_ref_url(None, "420"))
