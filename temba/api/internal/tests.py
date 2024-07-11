@@ -130,9 +130,11 @@ class EndpointsTest(APITestMixin, TembaTest):
         self.assertDeleteNotAllowed(endpoint_url)
 
         org2channel = self.create_channel("A", "Org2Channel", "123456", country="RW", org=self.org2)
+        tpl1 = self.create_template("hello")
+        tpl2 = self.create_template("goodbye")
 
         # create some templates
-        tpl1 = TemplateTranslation.get_or_create(
+        tpl1.base_translation = TemplateTranslation.get_or_create(
             self.channel,
             "hello",
             locale="eng-US",
@@ -150,7 +152,9 @@ class EndpointsTest(APITestMixin, TembaTest):
                 }
             ],
             variables=[{"type": "text"}],
-        ).template
+        )
+        tpl1.save(update_fields=("base_translation",))
+
         TemplateTranslation.get_or_create(
             self.channel,
             "hello",
@@ -171,7 +175,7 @@ class EndpointsTest(APITestMixin, TembaTest):
             variables=[{"type": "text"}],
         )
 
-        tpl2 = TemplateTranslation.get_or_create(
+        tpl2.base_translation = TemplateTranslation.get_or_create(
             self.channel,
             "goodbye",
             locale="eng-US",
@@ -189,7 +193,8 @@ class EndpointsTest(APITestMixin, TembaTest):
                 }
             ],
             variables=[{"type": "text"}],
-        ).template
+        )
+        tpl2.save(update_fields=("base_translation",))
 
         # templates on other org to test filtering
         TemplateTranslation.get_or_create(
@@ -240,8 +245,24 @@ class EndpointsTest(APITestMixin, TembaTest):
             [self.user, self.editor],
             results=[
                 {
-                    "name": "goodbye",
                     "uuid": str(tpl2.uuid),
+                    "name": "goodbye",
+                    "base_translation": {
+                        "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
+                        "locale": "eng-US",
+                        "namespace": "foo_namespace",
+                        "status": "pending",
+                        "components": [
+                            {
+                                "name": "body",
+                                "type": "body/text",
+                                "content": "Goodbye {{1}}",
+                                "variables": {"1": 0},
+                                "params": [{"type": "text"}],
+                            }
+                        ],
+                        "variables": [{"type": "text"}],
+                    },
                     "translations": [
                         {
                             "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
@@ -264,8 +285,24 @@ class EndpointsTest(APITestMixin, TembaTest):
                     "modified_on": matchers.ISODate(),
                 },
                 {
-                    "name": "hello",
                     "uuid": str(tpl1.uuid),
+                    "name": "hello",
+                    "base_translation": {
+                        "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
+                        "locale": "eng-US",
+                        "namespace": "foo_namespace",
+                        "status": "approved",
+                        "components": [
+                            {
+                                "name": "body",
+                                "type": "body/text",
+                                "content": "Hi {{1}}",
+                                "variables": {"1": 0},
+                                "params": [{"type": "text"}],
+                            }
+                        ],
+                        "variables": [{"type": "text"}],
+                    },
                     "translations": [
                         {
                             "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
