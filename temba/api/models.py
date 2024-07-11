@@ -48,9 +48,6 @@ class APIPermission(BasePermission):
         codes that the user is required to have.
         """
 
-        if view.is_docs():  # no permission required to view docs
-            return None
-
         if hasattr(view, "permission"):
             return view.permission
 
@@ -63,37 +60,37 @@ class APIPermission(BasePermission):
         }
 
     def has_permission(self, request, view):
+        # viewing docs is always allowed
+        if view.is_docs():
+            return request.method == "GET"
+
         permission = self.get_required_permission(request, view)
 
-        if permission:
-            # no anon access to API endpoints
-            if request.user.is_anonymous:
+        # no anon access to API endpoints
+        if request.user.is_anonymous:
+            return False
+
+        org = request.org
+
+        if request.auth:
+            # check that user is still allowed to use the token's role
+            if not request.auth.is_valid():
                 return False
 
-            org = request.org
-
-            if request.auth:
-                # check that user is still allowed to use the token's role
-                if not request.auth.is_valid():
-                    return False
-
-                role = OrgRole.from_group(request.auth.role)
-            elif org:
-                # user may not have used token authentication
-                role = org.get_user_role(request.user)
-            else:
-                return False
-
-            has_perm = role.has_api_perm(permission)
-
-            # viewers can only ever get from the API
-            if role == OrgRole.VIEWER:
-                return has_perm and request.method == "GET"
-
-            return has_perm
-
+            role = OrgRole.from_group(request.auth.role)
+        elif org:
+            # user may not have used token authentication
+            role = org.get_user_role(request.user)
         else:
-            return True
+            return False
+
+        has_perm = role.has_api_perm(permission)
+
+        # viewers can only ever get from the API
+        if role == OrgRole.VIEWER:
+            return has_perm and request.method == "GET"
+
+        return has_perm
 
 
 class SSLPermission(BasePermission):  # pragma: no cover

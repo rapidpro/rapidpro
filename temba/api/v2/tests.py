@@ -562,6 +562,10 @@ class EndpointsTest(APITest):
         response = self.client.get(root_url)
         self.assertContains(response, "We provide a RESTful JSON API")
 
+        # POSTing just returns the docs with a 405
+        response = self.client.post(root_url, {})
+        self.assertContains(response, "We provide a RESTful JSON API", status_code=405)
+
         # same thing if user navigates to just /api
         response = self.client.get(reverse("api"), follow=True)
         self.assertContains(response, "We provide a RESTful JSON API")
@@ -571,6 +575,22 @@ class EndpointsTest(APITest):
         self.assertEqual(200, response.status_code)
         self.assertIsInstance(response.json(), dict)
         self.assertEqual(response.json()["runs"], "http://testserver/api/v2/runs")  # endpoints are listed
+
+    def test_docs(self):
+        messages_url = reverse("api.v2.messages")
+
+        # test fetching docs anonymously
+        response = self.client.get(messages_url)
+        self.assertContains(response, "This endpoint allows you to list messages in your account.")
+
+        # you can also post to docs endpoints tho it just returns the docs with a 403
+        response = self.client.post(messages_url, {})
+        self.assertContains(response, "This endpoint allows you to list messages in your account.", status_code=403)
+
+        # test fetching docs logged in
+        self.login(self.editor)
+        response = self.client.get(messages_url)
+        self.assertContains(response, "This endpoint allows you to list messages in your account.")
 
     def test_explorer(self):
         explorer_url = reverse("api.v2.explorer")
@@ -796,16 +816,6 @@ class EndpointsTest(APITest):
         self.login(self.non_org_user)
         response = self.client.get(endpoint_url)
         self.assertEqual(403, response.status_code)
-
-        # test fetching docs anonymously
-        self.client.logout()
-        response = self.client.get(reverse("api.v2.archives"))
-        self.assertContains(response, "This endpoint allows you to list")
-
-        # and logged in
-        self.login(self.editor)
-        response = self.client.get(reverse("api.v2.archives"))
-        self.assertContains(response, "This endpoint allows you to list")
 
     def test_boundaries(self):
         endpoint_url = reverse("api.v2.boundaries") + ".json"
