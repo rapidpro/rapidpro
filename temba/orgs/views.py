@@ -1358,6 +1358,7 @@ class OrgCRUDL(SmartCRUDL):
                             name=_("Dashboard"),
                             icon="dashboard",
                             href="dashboard.dashboard_home",
+                            perm="orgs.org_dashboard",
                         )
                     )
 
