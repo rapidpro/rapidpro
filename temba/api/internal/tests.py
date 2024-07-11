@@ -129,7 +129,6 @@ class EndpointsTest(APITestMixin, TembaTest):
         self.assertPostNotAllowed(endpoint_url)
         self.assertDeleteNotAllowed(endpoint_url)
 
-        org2channel = self.create_channel("A", "Org2Channel", "123456", country="RW", org=self.org2)
         tpl1 = self.create_template(
             "hello",
             [
@@ -196,11 +195,12 @@ class EndpointsTest(APITestMixin, TembaTest):
         )
 
         # template on other org to test filtering
+        org2channel = self.create_channel("A", "Org2Channel", "123456", country="RW", org=self.org2)
         self.create_template(
             "goodbye",
             [
                 TemplateTranslation(
-                    channel=self.channel,
+                    channel=org2channel,
                     locale="eng-US",
                     status=TemplateTranslation.STATUS_PENDING,
                     external_id="6789",
