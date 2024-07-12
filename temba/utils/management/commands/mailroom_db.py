@@ -425,7 +425,7 @@ class Command(BaseCommand):
             contact = Contact.create(
                 org,
                 user,
-                c["name"],
+                name=c["name"],
                 language="",
                 status=Contact.STATUS_ACTIVE,
                 urns=c["urns"],
