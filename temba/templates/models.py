@@ -77,13 +77,13 @@ class Template(TembaModel, DependencyMixin):
         """
         Tries to set a new base translation for this template from its available translations.
         """
-        translations = self.translations.exclude(id=exclude.id) if exclude else self.translations.all()
+        candidates = self.translations.exclude(id=exclude.id) if exclude else self.translations.all()
 
         # try to find one in the org's primary language
-        new_base = translations.filter(locale__startswith=self.org.flow_languages[0]).first()
+        new_base = candidates.filter(locale__startswith=self.org.flow_languages[0]).first()
         if not new_base:
             # if not fallback to oldest
-            new_base = translations.order_by("id").first()
+            new_base = candidates.order_by("id").first()
 
         if self.base_translation != new_base:
             self.base_translation = new_base
@@ -143,8 +143,6 @@ class TemplateTranslation(models.Model):
         """
         Updates the local translations against the fetched raw templates from the given channel
         """
-
-        # breakpoint()
 
         seen_ids = []
         templates = set()
