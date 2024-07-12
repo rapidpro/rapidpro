@@ -1,3 +1,7 @@
+v9.1.188 (2024-07-12)
+-------------------------
+ * Add new boolean fields to TemplateTranslation model to determine whether it's usable
+
 v9.1.187 (2024-07-12)
 -------------------------
  * Add templates to broadcasts
