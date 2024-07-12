@@ -1,3 +1,7 @@
+v9.1.187 (2024-07-12)
+-------------------------
+ * Add templates to broadcasts
+
 v9.1.186 (2024-07-11)
 -------------------------
  * Fix handling of POSTs to API docs
