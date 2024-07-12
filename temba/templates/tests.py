@@ -10,7 +10,7 @@ from temba.notifications.incidents.builtin import ChannelTemplatesFailedIncident
 from temba.notifications.models import Incident
 from temba.orgs.models import Org, OrgRole
 from temba.request_logs.models import HTTPLog
-from temba.tests import CRUDLTestMixin, TembaTest
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest
 
 from .models import Template, TemplateTranslation
 from .tasks import refresh_templates
@@ -453,3 +453,87 @@ class TemplateCRUDLTest(CRUDLTestMixin, TembaTest):
         self.assertContains(response, "Hello <code>{{1}}</code>")
         self.assertContains(response, "Hola <code>{{1}}</code>")
         self.assertNotContains(response, "Goodbye")
+
+
+class PopulateIsSupportedAndIsCompatibleTest(MigrationTest):
+    app = "templates"
+    migrate_from = "0041_templatetranslation_is_compatible_and_more"
+    migrate_to = "0042_populate_translation_is_supported_compatible"
+
+    def setUpBeforeMigration(self, apps):
+        self.template1 = self.create_template(
+            "hello",
+            [
+                TemplateTranslation(
+                    channel=self.channel,
+                    locale="eng",
+                    status=TemplateTranslation.STATUS_APPROVED,
+                    variables=[{"type": "text"}],
+                    is_supported=True,
+                    is_compatible=True,
+                ),
+                TemplateTranslation(
+                    channel=self.channel,
+                    locale="kin",
+                    status=TemplateTranslation.STATUS_APPROVED,
+                    variables=[{"type": "text"}],
+                    is_supported=True,
+                    is_compatible=True,
+                ),
+                TemplateTranslation(
+                    channel=self.channel,
+                    locale="spa",
+                    status=TemplateTranslation.STATUS_UNSUPPORTED,
+                    variables=[{"type": "text"}],
+                    is_supported=True,
+                    is_compatible=True,
+                ),
+                TemplateTranslation(
+                    channel=self.channel,
+                    locale="fra",
+                    status=TemplateTranslation.STATUS_APPROVED,
+                    variables=[],
+                    is_supported=True,
+                    is_compatible=True,
+                ),
+            ],
+        )
+        self.template1.translations.filter(locale="fra").update(is_compatible=True)  # even tho it isn't
+
+        # create a template with translations but base_translation not set
+        self.template2 = self.create_template(
+            "goodbye",
+            [
+                TemplateTranslation(
+                    channel=self.channel,
+                    locale="eng",
+                    status=TemplateTranslation.STATUS_APPROVED,
+                    variables=[{"type": "text"}],
+                ),
+                TemplateTranslation(
+                    channel=self.channel,
+                    locale="kin",
+                    status=TemplateTranslation.STATUS_APPROVED,
+                    variables=[{"type": "text"}],
+                ),
+            ],
+        )
+        self.template2.base_translation = None
+        self.template2.save()
+
+        self.template3 = self.create_template("empty", [])  # will be ignored
+
+    def test_migration(self):
+        def assert_translation(template, locale, is_supported, is_compatible):
+            trans = template.translations.get(locale=locale)
+            self.assertEqual(is_supported, trans.is_supported)
+            self.assertEqual(is_compatible, trans.is_compatible)
+
+        assert_translation(self.template1, "eng", True, True)
+        assert_translation(self.template1, "kin", True, True)
+        assert_translation(self.template1, "spa", False, True)
+        assert_translation(self.template1, "fra", True, False)
+
+        self.template2.refresh_from_db()
+        self.assertIsNotNone(self.template2.base_translation)
+        self.assertEqual("eng", self.template2.base_translation.locale)
