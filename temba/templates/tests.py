@@ -31,6 +31,7 @@ class TemplateTest(TembaTest):
             namespace="",
             components=[],
             variables=[],
+            is_supported=True,
         )
         self.assertIsNotNone(hello_eng.template)  # should have a template with name hello
         self.assertEqual("hello", hello_eng.template.name)
@@ -47,6 +48,7 @@ class TemplateTest(TembaTest):
             namespace="",
             components=[],
             variables=[],
+            is_supported=True,
         )
         self.assertEqual(hello_fra.template, hello_fra.template)
         self.assertGreater(hello_fra.template.modified_on, modified_on)  # should be updated
@@ -61,6 +63,7 @@ class TemplateTest(TembaTest):
             namespace="foo_namespace",
             components=[],
             variables=[],
+            is_supported=True,
         )
         self.assertNotEqual(hello_fra.template, goodbye_fra.template)
         self.assertTrue("goodbye", goodbye_fra.template.name)
@@ -75,6 +78,7 @@ class TemplateTest(TembaTest):
             namespace="foo_namespace",
             components=[],
             variables=[],
+            is_supported=True,
         )
         self.assertNotEqual(goodbye_fra, goodbye_fra_other_channel)
         self.assertEqual(goodbye_fra.template, goodbye_fra_other_channel.template)
@@ -94,21 +98,28 @@ class TemplateTest(TembaTest):
                     "components": [{"type": "BODY", "text": "Hello"}],
                     "language": "en",
                     "status": "APPROVED",
-                    "id": "1234",
+                    "id": "1001",
                 },
                 {
                     "name": "hello",
                     "components": [{"type": "BODY", "text": "Hola"}],
                     "language": "es",
                     "status": "PENDING",
-                    "id": "2345",
+                    "id": "1002",
+                },
+                {
+                    "name": "hello",
+                    "components": [{"type": "BODY", "text": "Bonjour {{1}}"}],
+                    "language": "fr",
+                    "status": "REJECTED",
+                    "id": "1003",
                 },
                 {
                     "name": "goodbye",
                     "components": [{"type": "BODY", "text": "Goodbye"}],
                     "language": "fr",
                     "status": "PENDING",
-                    "id": "3456",
+                    "id": "2001",
                 },
             ],
         )
@@ -116,31 +127,65 @@ class TemplateTest(TembaTest):
         hello, goodbye = self.org.templates.order_by("id")
         self.assertEqual("hello", hello.name)
         self.assertEqual("eng", hello.base_translation.locale)
-        self.assertEqual(2, hello.translations.count())
+        self.assertEqual(3, hello.translations.count())
+
+        hello_eng, hello_spa, hello_fra = hello.translations.order_by("id")
+        self.assertEqual("eng", hello_eng.locale)
+        self.assertEqual(TemplateTranslation.STATUS_APPROVED, hello_eng.status)
+        self.assertTrue(hello_eng.is_supported)
+        self.assertTrue(hello_eng.is_compatible)
+        self.assertEqual("spa", hello_spa.locale)
+        self.assertEqual(TemplateTranslation.STATUS_PENDING, hello_spa.status)
+        self.assertTrue(hello_spa.is_supported)
+        self.assertTrue(hello_spa.is_compatible)
+        self.assertEqual("fra", hello_fra.locale)
+        self.assertEqual(TemplateTranslation.STATUS_REJECTED, hello_fra.status)
+        self.assertTrue(hello_fra.is_supported)
+        self.assertFalse(hello_fra.is_compatible)  # because of parameter mismatch
+
         self.assertEqual("goodbye", goodbye.name)
         self.assertEqual("fra", goodbye.base_translation.locale)
         self.assertEqual(1, goodbye.translations.count())
-        self.assertEqual(3, channel.template_translations.count())
+        self.assertEqual(4, channel.template_translations.count())
 
+        # update again, no more fra translation, and parameter added to eng, so spa should become incompatible
         TemplateTranslation.update_local(
             channel,
             [
                 {
                     "name": "hello",
-                    "components": [{"type": "BODY", "text": "Hello"}],
+                    "components": [{"type": "BODY", "text": "Hello {{1}}"}],
                     "language": "en",
                     "status": "APPROVED",
                     "id": "1234",
-                }
+                },
+                {
+                    "name": "hello",
+                    "components": [{"type": "BODY", "text": "Hola"}],
+                    "language": "es",
+                    "status": "APPROVED",
+                    "id": "1002",
+                },
             ],
         )
 
         hello, goodbye = self.org.templates.order_by("id")
         self.assertEqual("eng", hello.base_translation.locale)
-        self.assertEqual(1, hello.translations.count())
+        self.assertEqual(2, hello.translations.count())
+
+        hello_eng, hello_spa = hello.translations.order_by("id")
+        self.assertEqual("eng", hello_eng.locale)
+        self.assertEqual(TemplateTranslation.STATUS_APPROVED, hello_eng.status)
+        self.assertTrue(hello_eng.is_supported)
+        self.assertTrue(hello_eng.is_compatible)
+        self.assertEqual("spa", hello_spa.locale)
+        self.assertEqual(TemplateTranslation.STATUS_APPROVED, hello_spa.status)
+        self.assertTrue(hello_spa.is_supported)
+        self.assertFalse(hello_spa.is_compatible)
+
         self.assertIsNone(goodbye.base_translation)
         self.assertEqual(0, goodbye.translations.count())
-        self.assertEqual(1, channel.template_translations.count())
+        self.assertEqual(2, channel.template_translations.count())
 
     @patch("temba.templates.models.TemplateTranslation.update_local")
     @patch("temba.channels.types.twilio_whatsapp.TwilioWhatsappType.fetch_templates")

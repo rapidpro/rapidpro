@@ -385,6 +385,7 @@ class TwilioTypeTest(TembaTest):
             trans.components,
         )
         self.assertEqual([], trans.variables)
+        self.assertFalse(trans.is_supported)
 
         # not supported whatsapp authentication
         trans = self.type.update_local(
@@ -425,6 +426,7 @@ class TwilioTypeTest(TembaTest):
             trans.components,
         )
         self.assertEqual([{"type": "text"}], trans.variables)
+        self.assertFalse(trans.is_supported)
 
         # twilio card
         trans = self.type.update_local(
@@ -663,6 +665,7 @@ class TwilioTypeTest(TembaTest):
             trans.components,
         )
         self.assertEqual([{"type": "text"}], trans.variables)
+        self.assertFalse(trans.is_supported)
 
         # twilio catalog
         trans = self.type.update_local(
@@ -718,3 +721,4 @@ class TwilioTypeTest(TembaTest):
             trans.components,
         )
         self.assertEqual([{"type": "text"}, {"type": "text"}], trans.variables)
+        self.assertFalse(trans.is_supported)

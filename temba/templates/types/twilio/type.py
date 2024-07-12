@@ -62,6 +62,7 @@ class TwilioType(TemplateType):
             namespace="",
             components=components,
             variables=variables,
+            is_supported=supported,
         )
 
     def _extract_types(self, raw: list) -> tuple:
