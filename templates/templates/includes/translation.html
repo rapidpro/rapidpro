@@ -1,4 +1,4 @@
-{% load smartmin templates %}
+{% load i18n smartmin templates %}
 
 <div max-width="100%" class="flex translation">
   <div width="70%" class="flex-grow p-4">
@@ -27,15 +27,29 @@
       {% endfor %}
     </div>
   </div>
-  <div class="p-4 whitespace-nowrap">
-    {# djlint:off #}
-    <a href="{% url 'channels.channel_read' translation.channel.uuid %}" onclick="goto(event, this)"><temba-label icon="{{ translation.channel.type.icon }}" clickable class="mr-1 mb-1">{{ translation.channel }}</temba-label></a>
-    {# djlint:on #}
-    <temba-label icon="language">
-      {{ translation.locale }}
-    </temba-label>
-    <temba-label icon="{{ status_icons|field:translation.status }}" class="ml-2">
-      {{ translation.get_status_display }}
-    </temba-label>
+  <div class="p-4">
+    <div class="mb-2 whitespace-nowrap text-right">
+      {# djlint:off #}
+      <a href="{% url 'channels.channel_read' translation.channel.uuid %}" onclick="goto(event, this)"><temba-label icon="{{ translation.channel.type.icon }}" clickable class="mr-1 mb-1">{{ translation.channel }}</temba-label></a>
+      {# djlint:on #}
+      <temba-label icon="language">
+        {{ translation.locale }}
+      </temba-label>
+      <temba-label icon="{{ status_icons|field:translation.status }}" class="ml-2">
+        {{ translation.get_status_display }}
+      </temba-label>
+    </div>
+    {% if not translation.is_supported or not translation.is_compatible %}
+      <div class="alert alert-error form-errors">
+        <ul class="errorlist nonfield">
+          {% if not translation.is_supported %}
+            <li>{% trans "Uses unsupported component types." %}</li>
+          {% endif %}
+          {% if not translation.is_compatible %}
+            <li>{% trans "Variable parameters don't match." %}</li>
+          {% endif %}
+        </ul>
+      </div>
+    {% endif %}
   </div>
 </div>
