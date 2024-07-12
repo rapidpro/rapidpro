@@ -2027,6 +2027,30 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create(self, mr_mocks):
         create_url = reverse("msgs.broadcast_create")
 
+        template = self.create_template(
+            "Hello World",
+            [
+                TemplateTranslation(
+                    channel=self.channel,
+                    locale="eng-US",
+                    status=TemplateTranslation.STATUS_APPROVED,
+                    external_id="1003",
+                    external_locale="en_US",
+                    namespace="",
+                    components=[
+                        {"name": "header", "type": "header/media", "variables": {"1": 0}},
+                        {
+                            "name": "body",
+                            "type": "body/text",
+                            "content": "Hello {{1}}",
+                            "variables": {"1": 1},
+                        },
+                    ],
+                    variables=[{"type": "image"}, {"type": "text"}],
+                )
+            ],
+        )
+
         text = "I hope you are having a great day"
         media = Media.from_upload(
             self.org,
@@ -2136,6 +2160,8 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             "create",
             create_url,
             self._form_data(
+                template=template,
+                variables=["image/jpeg:http://domain/meow.jpg", "World"],
                 translations={"eng": {"text": text}},
                 contacts=[self.joe],
                 optin=optin,
@@ -2150,6 +2176,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         broadcast = Broadcast.objects.filter(translations__icontains=text).first()
         self.assertEqual("W", broadcast.schedule.repeat_period)
         self.assertEqual(optin, broadcast.optin)
+        self.assertEqual(template, broadcast.template)
 
         # send a broadcast right away
         response = self.process_wizard(

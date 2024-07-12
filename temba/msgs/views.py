@@ -162,8 +162,7 @@ class ComposeForm(Form):
                 "completion": True,
                 "quickreplies": True,
                 "optins": True,
-                # flip this when we are ready for templates
-                "templates": False,
+                "templates": True,
             }
         ),
     )
@@ -415,6 +414,8 @@ class BroadcastCRUDL(SmartCRUDL):
 
             compose = form_dict["compose"].cleaned_data["compose"]
             translations = compose_deserialize(compose)
+            base_language = next(iter(translations))
+
             optin = None
 
             # extract our optin if it is set
@@ -446,7 +447,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 org,
                 user,
                 translations,
-                base_language=next(iter(translations)),
+                base_language=base_language,
                 groups=(org.groups.filter(uuid__in=group_uuids)),
                 contacts=(org.contacts.filter(uuid__in=contact_uuids)),
                 optin=optin,
@@ -454,6 +455,13 @@ class BroadcastCRUDL(SmartCRUDL):
                 query=contact_search.get("parsed_query", None),
                 exclude=Exclusions(**contact_search.get("exclusions", {})),
             )
+
+            composeBase = compose[self.object.base_language]
+            template_uuid = composeBase.pop("template", None)
+            if template_uuid:
+                self.object.template = Template.objects.filter(org=org, uuid=template_uuid).first()
+                self.object.template_variables = composeBase.pop("variables", [])
+                self.object.save(update_fields=["template", "template_variables"])
 
             if send_when == ScheduleForm.SEND_NOW:
                 return HttpResponseRedirect(reverse("msgs.broadcast_list"))
