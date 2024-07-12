@@ -1,3 +1,8 @@
+v9.1.189 (2024-07-12)
+-------------------------
+ * Fix mailroom_db
+ * Data migration to populate TemplateTranslation.is_supported and is_compatible
+
 v9.1.188 (2024-07-12)
 -------------------------
  * Add new boolean fields to TemplateTranslation model to determine whether it's usable
