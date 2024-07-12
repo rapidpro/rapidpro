@@ -145,7 +145,6 @@ class EndpointsTest(APITestMixin, TembaTest):
                             "type": "body/text",
                             "content": "Hi {{1}}",
                             "variables": {"1": 0},
-                            "params": [{"type": "text"}],
                         }
                     ],
                     variables=[{"type": "text"}],
@@ -163,7 +162,6 @@ class EndpointsTest(APITestMixin, TembaTest):
                             "type": "body/text",
                             "content": "Bonjour {{1}}",
                             "variables": {"1": 0},
-                            "params": [{"type": "text"}],
                         }
                     ],
                     variables=[{"type": "text"}],
@@ -186,7 +184,6 @@ class EndpointsTest(APITestMixin, TembaTest):
                             "type": "body/text",
                             "content": "Goodbye {{1}}",
                             "variables": {"1": 0},
-                            "params": [{"type": "text"}],
                         }
                     ],
                     variables=[{"type": "text"}],
@@ -212,7 +209,6 @@ class EndpointsTest(APITestMixin, TembaTest):
                             "type": "body/text",
                             "content": "Goodbye {{1}}",
                             "variables": {"1": 0},
-                            "params": [{"type": "text"}],
                         }
                     ],
                     variables=[{"type": "text"}],
@@ -240,29 +236,12 @@ class EndpointsTest(APITestMixin, TembaTest):
                                 "type": "body/text",
                                 "content": "Goodbye {{1}}",
                                 "variables": {"1": 0},
-                                "params": [{"type": "text"}],
                             }
                         ],
                         "variables": [{"type": "text"}],
+                        "supported": True,
+                        "compatible": True,
                     },
-                    "translations": [
-                        {
-                            "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
-                            "locale": "eng-US",
-                            "namespace": "foo_namespace",
-                            "status": "pending",
-                            "components": [
-                                {
-                                    "name": "body",
-                                    "type": "body/text",
-                                    "content": "Goodbye {{1}}",
-                                    "variables": {"1": 0},
-                                    "params": [{"type": "text"}],
-                                }
-                            ],
-                            "variables": [{"type": "text"}],
-                        },
-                    ],
                     "created_on": matchers.ISODate(),
                     "modified_on": matchers.ISODate(),
                 },
@@ -280,45 +259,12 @@ class EndpointsTest(APITestMixin, TembaTest):
                                 "type": "body/text",
                                 "content": "Hi {{1}}",
                                 "variables": {"1": 0},
-                                "params": [{"type": "text"}],
                             }
                         ],
                         "variables": [{"type": "text"}],
+                        "supported": True,
+                        "compatible": True,
                     },
-                    "translations": [
-                        {
-                            "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
-                            "locale": "eng-US",
-                            "namespace": "foo_namespace",
-                            "status": "approved",
-                            "components": [
-                                {
-                                    "name": "body",
-                                    "type": "body/text",
-                                    "content": "Hi {{1}}",
-                                    "variables": {"1": 0},
-                                    "params": [{"type": "text"}],
-                                }
-                            ],
-                            "variables": [{"type": "text"}],
-                        },
-                        {
-                            "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
-                            "locale": "fra-FR",
-                            "namespace": "foo_namespace",
-                            "status": "pending",
-                            "components": [
-                                {
-                                    "name": "body",
-                                    "type": "body/text",
-                                    "content": "Bonjour {{1}}",
-                                    "variables": {"1": 0},
-                                    "params": [{"type": "text"}],
-                                }
-                            ],
-                            "variables": [{"type": "text"}],
-                        },
-                    ],
                     "created_on": matchers.ISODate(),
                     "modified_on": matchers.ISODate(),
                 },
