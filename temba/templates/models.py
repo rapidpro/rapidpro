@@ -120,7 +120,6 @@ class TemplateTranslation(models.Model):
     STATUS_PAUSED = "U"
     STATUS_DISABLED = "D"
     STATUS_IN_APPEAL = "I"
-    STATUS_UNSUPPORTED = "X"  # deprecated
     STATUS_CHOICES = (
         (STATUS_PENDING, _("Pending")),
         (STATUS_APPROVED, _("Approved")),
@@ -128,7 +127,6 @@ class TemplateTranslation(models.Model):
         (STATUS_PAUSED, _("Paused")),
         (STATUS_DISABLED, _("Disabled")),
         (STATUS_IN_APPEAL, _("In Appeal")),
-        (STATUS_UNSUPPORTED, _("Unsupported")),
     )
 
     template = models.ForeignKey(Template, on_delete=models.PROTECT, related_name="translations")
