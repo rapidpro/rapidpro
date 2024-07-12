@@ -150,6 +150,7 @@ class TwilioTypeTest(TembaTest):
             trans.components,
         )
         self.assertEqual([{"type": "text"}, {"type": "text"}, {"type": "text"}], trans.variables)
+        self.assertTrue(trans.is_supported)
 
         trans = self.type.update_local(
             channel,
@@ -198,6 +199,7 @@ class TwilioTypeTest(TembaTest):
             trans.components,
         )
         self.assertEqual([{"type": "text"}, {"type": "text"}], trans.variables)
+        self.assertTrue(trans.is_supported)
 
         trans = self.type.update_local(
             channel,
@@ -262,6 +264,7 @@ class TwilioTypeTest(TembaTest):
             trans.components,
         )
         self.assertEqual([{"type": "text"}, {"type": "text"}, {"type": "text"}], trans.variables)
+        self.assertTrue(trans.is_supported)
 
         # template sharing variables between components
         trans = self.type.update_local(
@@ -326,6 +329,7 @@ class TwilioTypeTest(TembaTest):
             trans.components,
         )
         self.assertEqual([{"type": "text"}, {"type": "text"}, {"type": "text"}], trans.variables)
+        self.assertTrue(trans.is_supported)
 
         # not supported components parts
         trans = self.type.update_local(
@@ -362,7 +366,7 @@ class TwilioTypeTest(TembaTest):
         )
         self.assertIsNotNone(trans)
         self.assertEqual("quick_reply_template_not_supported", trans.template.name)
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, trans.status)
+        self.assertEqual(TemplateTranslation.STATUS_APPROVED, trans.status)
         self.assertEqual("", trans.namespace)
         self.assertEqual("eng", trans.locale)
         self.assertEqual("en", trans.external_locale)
@@ -409,7 +413,7 @@ class TwilioTypeTest(TembaTest):
         )
         self.assertIsNotNone(trans)
         self.assertEqual("whatsapp_authentication_template", trans.template.name)
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, trans.status)
+        self.assertEqual(TemplateTranslation.STATUS_APPROVED, trans.status)
         self.assertEqual("", trans.namespace)
         self.assertEqual("eng", trans.locale)
         self.assertEqual("en", trans.external_locale)
@@ -648,7 +652,7 @@ class TwilioTypeTest(TembaTest):
         )
         self.assertIsNotNone(trans)
         self.assertEqual("list_picker_template", trans.template.name)
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, trans.status)
+        self.assertEqual(TemplateTranslation.STATUS_APPROVED, trans.status)
         self.assertEqual("", trans.namespace)
         self.assertEqual("eng", trans.locale)
         self.assertEqual("en", trans.external_locale)
@@ -692,7 +696,7 @@ class TwilioTypeTest(TembaTest):
 
         self.assertIsNotNone(trans)
         self.assertEqual("twilio_catalog_template", trans.template.name)
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, trans.status)
+        self.assertEqual(TemplateTranslation.STATUS_APPROVED, trans.status)
         self.assertEqual("", trans.namespace)
         self.assertEqual("eng", trans.locale)
         self.assertEqual("en", trans.external_locale)

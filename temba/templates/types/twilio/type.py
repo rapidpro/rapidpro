@@ -19,7 +19,9 @@ class TwilioType(TemplateType):
         "PENDING": TemplateTranslation.STATUS_PENDING,
         "APPROVED": TemplateTranslation.STATUS_APPROVED,
         "REJECTED": TemplateTranslation.STATUS_REJECTED,
-        "UNSUBMITTED": TemplateTranslation.STATUS_PENDING,
+        "PAUSED": TemplateTranslation.STATUS_PAUSED,
+        "DISABLED": TemplateTranslation.STATUS_DISABLED,
+        "IN_APPEAL": TemplateTranslation.STATUS_IN_APPEAL,
     }
 
     def update_local(self, channel, raw: dict):
@@ -37,20 +39,16 @@ class TwilioType(TemplateType):
             HTTPLog.from_response(
                 HTTPLog.WHATSAPP_TEMPLATES_SYNCED, response, approval_start, timezone.now(), channel=channel
             )
-            template_status = response.json()["whatsapp"]["status"]
+            raw_status = response.json()["whatsapp"]["status"].upper()
+            if raw_status not in self.STATUS_MAPPING:  # we handle statuses of DELETED or PENDING_DELETION by deleting
+                return None
+
+            status = self.STATUS_MAPPING[raw_status]
         except Exception as e:
             HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, e, approval_start, channel=channel)
-            template_status = "unsubmitted"
-
-        template_status = template_status.upper()
-        if template_status not in self.STATUS_MAPPING:  # ignore if this is a status we don't know about
-            return None
+            status = TemplateTranslation.STATUS_PENDING
 
         components, variables, supported = self._extract_types(raw["types"])
-
-        status = self.STATUS_MAPPING[template_status]
-        if not supported:
-            status = TemplateTranslation.STATUS_UNSUPPORTED
 
         return TemplateTranslation.get_or_create(
             channel,

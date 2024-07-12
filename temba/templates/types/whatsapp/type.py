@@ -11,20 +11,20 @@ class WhatsAppType(TemplateType):
         "PENDING": TemplateTranslation.STATUS_PENDING,
         "APPROVED": TemplateTranslation.STATUS_APPROVED,
         "REJECTED": TemplateTranslation.STATUS_REJECTED,
+        "PAUSED": TemplateTranslation.STATUS_PAUSED,
+        "DISABLED": TemplateTranslation.STATUS_DISABLED,
+        "IN_APPEAL": TemplateTranslation.STATUS_IN_APPEAL,
     }
 
     def update_local(self, channel, raw: dict):
         channel_namespace = channel.config.get("fb_namespace", "")
 
-        template_status = raw["status"].upper()
-        if template_status not in self.STATUS_MAPPING:  # ignore if this is a status we don't know about
+        raw_status = raw["status"].upper()
+        if raw_status not in self.STATUS_MAPPING:  # we handle statuses of DELETED or PENDING_DELETION by deleting
             return None
 
+        status = self.STATUS_MAPPING[raw_status]
         components, variables, supported = self._extract_components(raw["components"])
-
-        status = self.STATUS_MAPPING[template_status]
-        if not supported:
-            status = TemplateTranslation.STATUS_UNSUPPORTED
 
         return TemplateTranslation.get_or_create(
             channel,

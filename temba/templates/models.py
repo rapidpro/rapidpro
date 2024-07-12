@@ -114,14 +114,20 @@ class TemplateTranslation(models.Model):
     TemplateTranslation represents a translation for a template and channel pair.
     """
 
-    STATUS_APPROVED = "A"
     STATUS_PENDING = "P"
+    STATUS_APPROVED = "A"
     STATUS_REJECTED = "R"
+    STATUS_PAUSED = "U"
+    STATUS_DISABLED = "D"
+    STATUS_IN_APPEAL = "I"
     STATUS_UNSUPPORTED = "X"  # deprecated
     STATUS_CHOICES = (
-        (STATUS_APPROVED, _("Approved")),
         (STATUS_PENDING, _("Pending")),
+        (STATUS_APPROVED, _("Approved")),
         (STATUS_REJECTED, _("Rejected")),
+        (STATUS_PAUSED, _("Paused")),
+        (STATUS_DISABLED, _("Disabled")),
+        (STATUS_IN_APPEAL, _("In Appeal")),
         (STATUS_UNSUPPORTED, _("Unsupported")),
     )
 
