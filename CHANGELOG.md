@@ -1,3 +1,9 @@
+v9.1.194 (2024-07-15)
+-------------------------
+ * Add Broadcast.node_uuid field
+ * Remove old code for getting message created_by from broadcasts
+ * Make some exception clauses more specific
+
 v9.1.193 (2024-07-15)
 -------------------------
  * Replace TemplateTranslation.STATUS_UNSUPPORTED completely
