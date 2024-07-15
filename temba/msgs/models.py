@@ -196,6 +196,7 @@ class Broadcast(models.Model):
     contacts = models.ManyToManyField(Contact, related_name="addressed_broadcasts")
     urns = ArrayField(models.TextField(), null=True)
     query = models.TextField(null=True)
+    node_uuid = models.UUIDField(null=True)
     exclusions = models.JSONField(default=dict, null=True)
 
     # message content
