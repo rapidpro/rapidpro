@@ -105,7 +105,7 @@ class WhatsAppLegacyType(ChannelType):
 
                 templates.extend(response.json()["data"])
                 url = response.json().get("paging", {}).get("next", None)
-            except Exception as e:
+            except requests.RequestException as e:
                 HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, e, start, channel=channel)
                 raise e
 

@@ -111,7 +111,7 @@ def sync_channel_fcm(registration_id, channel=None):  # pragma: no cover
                 success = 1
         if not success:
             fcm_failed = True
-    except Exception:
+    except requests.RequestException:
         fcm_failed = True
 
     if fcm_failed:
