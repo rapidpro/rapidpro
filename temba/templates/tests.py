@@ -421,6 +421,7 @@ class TemplateCRUDLTest(CRUDLTestMixin, TembaTest):
                         }
                     ],
                     variables=[{"type": "text"}],
+                    is_supported=False,
                 ),
                 TemplateTranslation(
                     channel=self.channel,
@@ -432,10 +433,10 @@ class TemplateCRUDLTest(CRUDLTestMixin, TembaTest):
                             "type": "body/text",
                             "content": "Hello {{1}}",
                             "variables": {"1": 0},
-                            "params": [{"type": "text"}],
+                            "params": [{"type": "text"}, {"type": "text"}],
                         }
                     ],
-                    variables=[{"type": "text"}],
+                    variables=[{"type": "text"}, {"type": "text"}],
                 ),
             ],
         )
@@ -452,6 +453,8 @@ class TemplateCRUDLTest(CRUDLTestMixin, TembaTest):
 
         self.assertContains(response, "Hello <code>{{1}}</code>")
         self.assertContains(response, "Hola <code>{{1}}</code>")
+        self.assertContains(response, "Uses unsupported component types.")
+        self.assertContains(response, "Variable parameters don't match.")
         self.assertNotContains(response, "Goodbye")
 
 
