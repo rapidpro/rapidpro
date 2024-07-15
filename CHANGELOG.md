@@ -1,3 +1,7 @@
+v9.1.190 (2024-07-12)
+-------------------------
+ * Fix padding for broadcast schedule update
+
 v9.1.189 (2024-07-12)
 -------------------------
  * Fix mailroom_db
