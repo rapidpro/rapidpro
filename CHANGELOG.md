@@ -1,3 +1,9 @@
+v9.1.191 (2024-07-15)
+-------------------------
+ * Fix deactivating a legacy WhatsApp channel
+ * Update format of templates on API endpoint
+ * Show template translation problems as errors on template read page
+
 v9.1.190 (2024-07-12)
 -------------------------
  * Fix padding for broadcast schedule update
