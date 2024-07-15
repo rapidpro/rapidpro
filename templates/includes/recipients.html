@@ -17,7 +17,7 @@
 {% endfor %}
 {% with groups|inactive_count as num_deleted_groups %}
   {% if num_deleted_groups %}
-    <div class="item deleted-contacts lbl mr-2 mb-2">
+    <div class="item deleted-contacts lbl mr-1 mb-1">
       {% blocktrans count count=num_deleted_groups %}
         {{ count }} deleted group
       {% plural %}
@@ -29,7 +29,7 @@
 {% endwith %}
 {% with contacts|inactive_count as num_deleted_contacts %}
   {% if num_deleted_contacts %}
-    <div class="item deleted-contacts lbl mr-2 mb-2">
+    <div class="item deleted-contacts lbl mr-1 mb-1">
       {% blocktrans count count=num_deleted_contacts %}
         {{ count }} deleted contact
       {% plural %}
@@ -39,11 +39,16 @@
     </div>
   {% endif %}
 {% endwith %}
-{% for urn in urns %}<div class="item urn lbl mr-2 mb-2">{{ urn|format_urn:user_org }}</div>{% endfor %}
+{% for urn in urns %}<div class="item urn lbl mr-1 mb-1">{{ urn|format_urn:user_org }}</div>{% endfor %}
 {% if query %}
   <a href="{% url 'contacts.contact_list' %}?search={{ query|urlencode }}" onclick="goto(event, this)">
-    <temba-label icon="search" clickable>
+    <temba-label icon="search" class="mr-1 mb-1" clickable>
       {{ query }}
     </temba-label>
   </a>
+{% endif %}
+{% if node_uuid %}
+  <temba-label icon="flow" class="mr-1 mb-1">
+    {% trans "to a flow node" %}
+  </temba-label>
 {% endif %}
