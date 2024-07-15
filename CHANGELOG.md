@@ -1,3 +1,7 @@
+v9.1.193 (2024-07-15)
+-------------------------
+ * Replace TemplateTranslation.STATUS_UNSUPPORTED completely
+
 v9.1.192 (2024-07-15)
 -------------------------
  * Add new template statuses and stop using fake "unsupported" status
