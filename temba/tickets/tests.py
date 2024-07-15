@@ -408,17 +408,13 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(open_url)
         assert_tickets(response, [])
 
-        # contact 1 has two open tickets
+        # contact 1 has two open tickets and some messages
         c1_t1 = self.create_ticket(contact1, "Question 1")
         # assign it
         c1_t1.assign(self.admin, assignee=self.admin)
         c1_t2 = self.create_ticket(contact1, "Question 2")
-
-        # give contact1 and old style broadcast message that doesn't have created_by set
         self.create_incoming_msg(contact1, "I have an issue")
-        c1_msg1 = self.create_broadcast(self.admin, {"eng": {"text": "We can help"}}, contacts=[contact1]).msgs.first()
-        c1_msg1.created_by = None
-        c1_msg1.save(update_fields=("created_by",))
+        self.create_outgoing_msg(contact1, "We can help", created_by=self.admin)
 
         # contact 2 has an open ticket and a closed ticket
         c2_t1 = self.create_ticket(contact2, "Question 3")
