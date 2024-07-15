@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def populate_translation_is_supported_compatible(apps, schema_editor):
+def populate_translation_is_supported_compatible(apps, schema_editor):  # pragma: no cover
     Template = apps.get_model("templates", "Template")
     templates_updated = 0
     translations_updated = 0

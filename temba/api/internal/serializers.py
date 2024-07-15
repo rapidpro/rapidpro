@@ -25,7 +25,6 @@ class TemplateReadSerializer(serializers.ModelSerializer):
         TemplateTranslation.STATUS_PAUSED: "paused",
         TemplateTranslation.STATUS_DISABLED: "disabled",
         TemplateTranslation.STATUS_IN_APPEAL: "in_appeal",
-        TemplateTranslation.STATUS_UNSUPPORTED: "unsupported",  # deprecated
     }
 
     base_translation = serializers.SerializerMethodField()

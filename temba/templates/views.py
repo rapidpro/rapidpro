@@ -33,7 +33,6 @@ class TemplateCRUDL(SmartCRUDL):
             TemplateTranslation.STATUS_PAUSED: "template_rejected",
             TemplateTranslation.STATUS_DISABLED: "template_rejected",
             TemplateTranslation.STATUS_IN_APPEAL: "template_pending",
-            TemplateTranslation.STATUS_UNSUPPORTED: "template_unsupported",  # deprecated
         }
 
         def derive_menu_path(self):
