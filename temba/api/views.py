@@ -132,7 +132,7 @@ class ListAPIMixin(mixins.ListModelMixin):
             try:
                 before = iso8601.parse_date(before)
                 queryset = queryset.filter(**{field + "__lte": before})
-            except Exception:
+            except ValueError:
                 queryset = queryset.filter(pk=-1)
 
         after = self.request.query_params.get("after")
@@ -140,7 +140,7 @@ class ListAPIMixin(mixins.ListModelMixin):
             try:
                 after = iso8601.parse_date(after)
                 queryset = queryset.filter(**{field + "__gte": after})
-            except Exception:
+            except ValueError:
                 queryset = queryset.filter(pk=-1)
 
         return queryset

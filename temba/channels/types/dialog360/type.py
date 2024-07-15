@@ -59,7 +59,7 @@ class Dialog360Type(ChannelType):
             response = requests.get(templates_url, headers=self.get_headers(channel))
             response.raise_for_status()
             HTTPLog.from_response(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, response, start, timezone.now(), channel=channel)
-        except Exception as e:
+        except requests.RequestException as e:
             HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, e, start, channel=channel)
             raise e
 

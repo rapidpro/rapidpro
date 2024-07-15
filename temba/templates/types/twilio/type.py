@@ -44,7 +44,7 @@ class TwilioType(TemplateType):
                 return None
 
             status = self.STATUS_MAPPING[raw_status]
-        except Exception as e:
+        except requests.RequestException as e:
             HTTPLog.from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, e, approval_start, channel=channel)
             status = TemplateTranslation.STATUS_PENDING
 
