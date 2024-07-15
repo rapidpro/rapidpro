@@ -347,9 +347,7 @@ class TicketCRUDL(SmartCRUDL):
             # get the last message for each contact that these tickets belong to
             contact_ids = {t.contact_id for t in tickets}
             last_msg_ids = Msg.objects.filter(contact_id__in=contact_ids).values("contact").annotate(last_msg=Max("id"))
-            last_msgs = Msg.objects.filter(id__in=[m["last_msg"] for m in last_msg_ids]).select_related(
-                "created_by", "broadcast__created_by"  # TODO remove broadcast__created_by once msgs have created_by
-            )
+            last_msgs = Msg.objects.filter(id__in=[m["last_msg"] for m in last_msg_ids]).select_related("created_by")
 
             context["last_msgs"] = {m.contact: m for m in last_msgs}
             return context
@@ -362,18 +360,12 @@ class TicketCRUDL(SmartCRUDL):
                 return {"id": u.id, "first_name": u.first_name, "last_name": u.last_name, "email": u.email}
 
             def msg_as_json(m):
-                sender = None
-                if m.created_by:
-                    sender = {"id": m.created_by.id, "email": m.created_by.email}
-                elif m.broadcast and m.broadcast.created_by:
-                    sender = {"id": m.broadcast.created_by.id, "email": m.broadcast.created_by.email}
-
                 return {
                     "text": m.text,
                     "direction": m.direction,
                     "type": m.msg_type,
                     "created_on": m.created_on,
-                    "sender": sender,
+                    "sender": {"id": m.created_by.id, "email": m.created_by.email} if m.created_by else None,
                     "attachments": m.attachments,
                 }
 
