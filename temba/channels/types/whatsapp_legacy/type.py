@@ -11,7 +11,6 @@ from temba.channels.models import Channel
 from temba.channels.types.whatsapp_legacy.views import ClaimView
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
-from temba.templates.models import TemplateTranslation
 from temba.utils.whatsapp import update_api_version
 from temba.utils.whatsapp.views import RefreshView
 
@@ -52,10 +51,6 @@ class WhatsAppLegacyType(ChannelType):
             self.get_claim_url(),
             re_path(r"^(?P<uuid>[a-z0-9\-]+)/refresh$", RefreshView.as_view(channel_type=self), name="refresh"),
         ]
-
-    def deactivate(self, channel):
-        # deactivate all translations associated with us
-        TemplateTranslation.trim(channel, [])
 
     def get_api_headers(self, channel):
         return {"Authorization": "Bearer %s" % channel.config[Channel.CONFIG_AUTH_TOKEN]}
