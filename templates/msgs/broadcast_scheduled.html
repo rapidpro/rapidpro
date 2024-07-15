@@ -32,7 +32,7 @@
     {% if forloop.first %}
       <div class="mt-4 mb-4 shadow rounded-lg bg-white">{% include "includes/short_pagination.html" %}</div>
     {% endif %}
-    {% include "msgs/broadcast.html" with broadcast=object %}
+    {% include "msgs/includes/broadcast.html" with broadcast=object %}
   {% empty %}
     {% blocktrans trimmed %}
       <div class="mt-4">Create your first scheduled broadcast to get started.</div>
