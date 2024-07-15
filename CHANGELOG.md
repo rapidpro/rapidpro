@@ -1,3 +1,7 @@
+v9.1.192 (2024-07-15)
+-------------------------
+ * Add new template statuses and stop using fake "unsupported" status
+
 v9.1.191 (2024-07-15)
 -------------------------
  * Fix deactivating a legacy WhatsApp channel
