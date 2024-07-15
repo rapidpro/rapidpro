@@ -471,7 +471,6 @@ class BroadcastCRUDL(SmartCRUDL):
     class Update(OrgObjPermsMixin, SmartWizardUpdateView):
         form_list = [("target", TargetForm), ("compose", ComposeForm), ("schedule", ScheduleForm)]
         success_url = "@msgs.broadcast_scheduled"
-        template_name = "msgs/broadcast_create.html"
         submit_button_name = _("Save")
 
         def get_form_kwargs(self, step):
