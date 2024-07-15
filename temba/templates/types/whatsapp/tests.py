@@ -37,6 +37,7 @@ class WhatsAppTypeTest(TembaTest):
             trans.components,
         )
         self.assertEqual([{"type": "text"}], trans.variables)
+        self.assertTrue(trans.is_supported)
 
         # try a template with multiple components
         trans = self.type.update_local(
@@ -126,6 +127,7 @@ class WhatsAppTypeTest(TembaTest):
             trans.components,
         )
         self.assertEqual([{"type": "text"}, {"type": "text"}, {"type": "text"}, {"type": "text"}], trans.variables)
+        self.assertTrue(trans.is_supported)
 
         # try a template with non-text header
         trans = self.type.update_local(
@@ -153,6 +155,7 @@ class WhatsAppTypeTest(TembaTest):
             trans.components,
         )
         self.assertEqual([{"type": "image"}], trans.variables)
+        self.assertTrue(trans.is_supported)
 
         # try unknown status - should be ignored completely
         trans = self.type.update_local(
@@ -178,12 +181,13 @@ class WhatsAppTypeTest(TembaTest):
                 "id": "1233",
             },
         )
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, trans.status)
+        self.assertEqual(TemplateTranslation.STATUS_APPROVED, trans.status)
         self.assertEqual(
             [{"name": "body", "type": "body/text", "content": "Hello {{1}}", "variables": {"1": 0}}],
             trans.components,
         )
         self.assertEqual([{"type": "text"}], trans.variables)
+        self.assertFalse(trans.is_supported)
 
         # try non-text format header
         trans = self.type.update_local(
@@ -197,11 +201,12 @@ class WhatsAppTypeTest(TembaTest):
                 "id": "1233",
             },
         )
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, trans.status)
+        self.assertEqual(TemplateTranslation.STATUS_APPROVED, trans.status)
         self.assertEqual(
             [{"name": "header", "type": "header/unknown", "content": "", "variables": {}}], trans.components
         )
         self.assertEqual([], trans.variables)
+        self.assertFalse(trans.is_supported)
 
         # try unsupported button type
         trans = self.type.update_local(
@@ -218,9 +223,10 @@ class WhatsAppTypeTest(TembaTest):
                 "id": "9030",
             },
         )
-        self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED, trans.status)
+        self.assertEqual(TemplateTranslation.STATUS_APPROVED, trans.status)
         self.assertEqual([{"name": "body", "type": "body/text", "content": "Hello", "variables": {}}], trans.components)
         self.assertEqual([], trans.variables)
+        self.assertFalse(trans.is_supported)
 
     def test_update_local_d3(self):
         # no namespace in channel config

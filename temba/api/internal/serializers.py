@@ -19,10 +19,13 @@ class LocationReadSerializer(serializers.ModelSerializer):
 
 class TemplateReadSerializer(serializers.ModelSerializer):
     STATUSES = {
-        TemplateTranslation.STATUS_APPROVED: "approved",
         TemplateTranslation.STATUS_PENDING: "pending",
+        TemplateTranslation.STATUS_APPROVED: "approved",
         TemplateTranslation.STATUS_REJECTED: "rejected",
-        TemplateTranslation.STATUS_UNSUPPORTED: "unsupported",
+        TemplateTranslation.STATUS_PAUSED: "paused",
+        TemplateTranslation.STATUS_DISABLED: "disabled",
+        TemplateTranslation.STATUS_IN_APPEAL: "in_appeal",
+        TemplateTranslation.STATUS_UNSUPPORTED: "unsupported",  # deprecated
     }
 
     base_translation = serializers.SerializerMethodField()
