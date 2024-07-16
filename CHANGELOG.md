@@ -1,3 +1,9 @@
+v9.1.196 (2024-07-16)
+-------------------------
+ * Add __repr__ to more models and tweak existing ones for consistency
+ * Fix rendering of flow starts for deleted flows
+ * Add data migration to trim old broadcasts to nodes that resulted in very large contact lists
+
 v9.1.195 (2024-07-16)
 -------------------------
  * Remove special error handling for broadcast to node that resolves to no recipients
