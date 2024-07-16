@@ -422,7 +422,7 @@ class Trigger(SmartModel):
             schedule.delete()
 
     def __repr__(self):
-        return f"<Trigger: type={self.trigger_type} flow={self.flow.name}>"
+        return f'<Trigger: id={self.id} type={self.trigger_type} flow="{self.flow.name}">'
 
     class Meta:
         verbose_name = _("Trigger")

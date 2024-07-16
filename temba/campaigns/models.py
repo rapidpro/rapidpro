@@ -514,7 +514,7 @@ class CampaignEvent(TembaUUIDMixin, SmartModel):
         super().delete()
 
     def __repr__(self):
-        return f'<Event: relative_to={self.relative_to.key} offset={self.offset} flow="{self.flow.name}">'
+        return f'<Event: id={self.id} relative_to={self.relative_to.key} offset={self.offset} flow="{self.flow.name}">'
 
     class Meta:
         verbose_name = _("Campaign Event")

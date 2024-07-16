@@ -260,7 +260,7 @@ class TembaModel(TembaUUIDMixin, TembaNameMixin, SmartModel):
         """
         How the shell will render this object
         """
-        return f'<{self.__class__.__name__}: uuid={self.uuid} name="{self.name}">'
+        return f'<{self.__class__.__name__}: id={self.id} name="{self.name}">'
 
     class Meta:
         abstract = True
