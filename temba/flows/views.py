@@ -1683,14 +1683,13 @@ class FlowCRUDL(SmartCRUDL):
             analytics.track(self.request.user, "temba.flow_start", contact_search)
 
             recipients = contact_search.get("recipients", [])
-            contact_uuids = [_.get("id") for _ in recipients if _.get("type") == "contact"]
-            group_uuids = [_.get("id") for _ in recipients if _.get("type") == "group"]
+            groups, contacts = ContactSearchWidget.parse_recipients(self.request.org, recipients)
 
             # queue the flow start to be started by mailroom
             flow.async_start(
                 self.request.user,
-                groups=(self.request.org.groups.filter(uuid__in=group_uuids)),
-                contacts=(self.request.org.contacts.filter(uuid__in=contact_uuids)),
+                groups=groups,
+                contacts=contacts,
                 query=contact_search["parsed_query"] if "parsed_query" in contact_search else None,
                 exclusions=contact_search.get("exclusions", {}),
             )

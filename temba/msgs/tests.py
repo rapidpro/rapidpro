@@ -2496,17 +2496,13 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
             self.admin,
             {"text": "Hurry up"},
             new_obj_query=Broadcast.objects.filter(
-                translations={"und": {"text": "Hurry up"}}, base_language="und", groups=None, contacts=self.joe
+                translations={"und": {"text": "Hurry up"}},
+                base_language="und",
+                groups=None,
+                contacts=None,
+                node_uuid=color_split["uuid"],
             ),
             success_status=200,
-        )
-
-        # if there are no contacts at the given node, we don't actually create a broadcast
-        response = self.assertCreateSubmit(
-            f"{to_node_url}?node=4ba8fcfa-f213-4164-a8d4-daede0a02144&count=1",
-            self.admin,
-            {"text": "Hurry up"},
-            form_errors={"__all__": "There are no longer any contacts at this node."},
         )
 
         self.assertEqual(1, Broadcast.objects.count())

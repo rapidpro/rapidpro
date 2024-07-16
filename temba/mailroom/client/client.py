@@ -191,6 +191,8 @@ class MailroomClient:
         node_uuid: str,
         exclude: Exclusions,
         optin,
+        template,
+        template_variables: list,
         schedule: ScheduleSpec,
     ):
         resp = self._request(
@@ -207,6 +209,8 @@ class MailroomClient:
                 "node_uuid": node_uuid,
                 "exclude": asdict(exclude) if exclude else None,
                 "optin_id": optin.id if optin else None,
+                "template_id": template.id if template else None,
+                "template_variables": template_variables,
                 "schedule": asdict(schedule) if schedule else None,
             },
         )

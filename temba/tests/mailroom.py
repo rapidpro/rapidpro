@@ -317,11 +317,26 @@ class TestClient(MailroomClient):
         query: str,
         node_uuid: str,
         exclude: mailroom.Exclusions,
-        optin: int,
+        optin,
+        template,
+        template_variables: list,
         schedule: mailroom.ScheduleSpec,
     ):
         return create_broadcast(
-            org, user, translations, base_language, groups, contacts, urns, query, node_uuid, exclude, optin, schedule
+            org,
+            user,
+            translations=translations,
+            base_language=base_language,
+            groups=groups,
+            contacts=contacts,
+            urns=urns,
+            query=query,
+            node_uuid=node_uuid,
+            exclude=exclude,
+            optin=optin,
+            template=template,
+            template_variables=template_variables,
+            schedule=schedule,
         )
 
     @_client_method
@@ -880,6 +895,7 @@ def send_to_contact(org, contact, text, attachments) -> Msg:
 def create_broadcast(
     org,
     user,
+    *,
     translations: dict,
     base_language: str,
     groups,
@@ -889,18 +905,12 @@ def create_broadcast(
     node_uuid: str,
     exclude: mailroom.Exclusions,
     optin,
+    template,
+    template_variables: list,
     schedule,
 ) -> Broadcast:
 
-    if node_uuid:
-        runs = FlowRun.objects.filter(
-            org=org, current_node_uuid=node_uuid, status__in=(FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING)
-        )
-        contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).filter(
-            id__in=runs.values_list("contact", flat=True)
-        )
-
-    if not (groups or contacts or urns or query):
+    if not (groups or contacts or urns or query or node_uuid):
         raise mailroom.EmptyBroadcastException()
 
     if schedule and isinstance(schedule, mailroom.ScheduleSpec):
@@ -917,8 +927,11 @@ def create_broadcast(
         base_language=base_language,
         urns=urns,
         query=query,
+        node_uuid=node_uuid,
         exclusions=asdict(exclude) if exclude else None,
         optin=optin,
+        template=template,
+        template_variables=template_variables,
         schedule=schedule,
         created_by=user,
         modified_by=user,

@@ -233,7 +233,7 @@ class ContactSearchWidget(forms.Widget):
     is_annotated = True
 
     @classmethod
-    def get_recipients(cls, contacts=[], groups=[]):
+    def get_recipients(cls, contacts=[], groups=[]) -> list:
         recipients = []
         for contact in contacts:
             urn = contact.get_urn()
@@ -246,6 +246,15 @@ class ContactSearchWidget(forms.Widget):
                 {"id": group.uuid, "name": group.name, "count": group.get_member_count(), "type": "group"}
             )
         return recipients
+
+    @classmethod
+    def parse_recipients(cls, org, recipients: list) -> tuple:
+        group_uuids = [r.get("id") for r in recipients if r.get("type") == "group"]
+        contact_uuids = [r.get("id") for r in recipients if r.get("type") == "contact"]
+        return (
+            org.groups.filter(uuid__in=group_uuids),
+            org.contacts.filter(uuid__in=contact_uuids),
+        )
 
     def render(self, name, value, attrs=None, renderer=None):
         if value:

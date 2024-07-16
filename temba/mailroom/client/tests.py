@@ -431,6 +431,7 @@ class MailroomClientTest(TembaTest):
         group = self.create_group("Doctors", contacts=[])
         optin = self.create_optin("Cat Facts")
         bcast = self.create_broadcast(self.admin, {"eng": {"text": "Hello"}}, groups=[group])
+        template = self.create_template("reminder", [])
 
         mock_post.return_value = MockJsonResponse(200, {"id": bcast.id})
         result = self.client.msg_broadcast(
@@ -445,6 +446,8 @@ class MailroomClientTest(TembaTest):
             "",
             Exclusions(in_a_flow=True),
             optin,
+            template,
+            ["@contact"],
             ScheduleSpec(start="2024-06-20T16:23:30Z", repeat_period=Schedule.REPEAT_DAILY),
         )
 
@@ -470,6 +473,8 @@ class MailroomClientTest(TembaTest):
                     "started_previously": False,
                 },
                 "optin_id": optin.id,
+                "template_id": template.id,
+                "template_variables": ["@contact"],
                 "schedule": {"start": "2024-06-20T16:23:30Z", "repeat_period": "D", "repeat_days_of_week": None},
             },
         )
@@ -714,7 +719,7 @@ class MailroomClientTest(TembaTest):
         )
 
         with self.assertRaises(EmptyBroadcastException) as e:
-            self.client.msg_broadcast(self.org, self.admin, {}, "eng", [], [], [], "", "", None, None, None)
+            self.client.msg_broadcast(self.org, self.admin, {}, "eng", [], [], [], "", "", None, None, None, [], None)
 
         mock_post.return_value = MockJsonResponse(422, {"error": "node isn't valid", "code": "flow:invalid"})
 

@@ -232,6 +232,8 @@ class Broadcast(models.Model):
         node_uuid=None,
         exclude=None,
         optin=None,
+        template=None,
+        template_variables=(),
         schedule=None,
     ):
         assert groups or contacts or urns or query or node_uuid, "can't create broadcast without recipients"
@@ -250,6 +252,8 @@ class Broadcast(models.Model):
             node_uuid=node_uuid,
             exclude=exclude,
             optin=optin,
+            template=template,
+            template_variables=template_variables,
             schedule=schedule,
         )
 
