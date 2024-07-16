@@ -1,3 +1,11 @@
+v9.1.195 (2024-07-16)
+-------------------------
+ * Remove special error handling for broadcast to node that resolves to no recipients
+ * Fix setting a template on a new broadcast
+ * Fix query broadcast creation and update
+ * Add rendering of exclusions on broadcasts
+ * Fix not showing query on broadcast recipients list and add node_uuid
+
 v9.1.194 (2024-07-15)
 -------------------------
  * Add Broadcast.node_uuid field
