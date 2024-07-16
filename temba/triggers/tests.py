@@ -54,12 +54,12 @@ class TriggerTest(TembaTest):
         )
 
         self.assertEqual("Keyword[join] → Test Flow", keyword1.name)
-        self.assertEqual("<Trigger: type=K flow=Test Flow>", repr(keyword1))
+        self.assertEqual(f'<Trigger: id={keyword1.id} type=K flow="Test Flow">', repr(keyword1))
         self.assertEqual(2, keyword1.priority)
         self.assertEqual(3, keyword2.priority)
 
         self.assertEqual("Catch All → Test Flow", catchall1.name)
-        self.assertEqual("<Trigger: type=C flow=Test Flow>", repr(catchall1))
+        self.assertEqual(f'<Trigger: id={catchall1.id} type=C flow="Test Flow">', repr(catchall1))
         self.assertEqual(0, catchall1.priority)
         self.assertEqual(4, catchall2.priority)
 

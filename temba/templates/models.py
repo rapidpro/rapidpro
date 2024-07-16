@@ -243,7 +243,7 @@ class TemplateTranslation(models.Model):
         super().delete()
 
     def __repr__(self):  # pragma: no cover
-        return f'<TemplateTranslation: channel="{self.channel.name}" locale="{self.locale}">'
+        return f'<TemplateTranslation: id={self.id} channel="{self.channel.name}" locale="{self.locale}">'
 
     class Meta:
         constraints = [

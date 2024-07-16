@@ -704,7 +704,7 @@ class OrgTest(TembaTest):
         self.assertEqual("D", new_org.date_format)
         self.assertEqual(str(new_org.timezone), "Africa/Kigali")
         self.assertIn(self.admin, self.org.get_admins())
-        self.assertEqual('<Org: name="Cool Stuff">', repr(new_org))
+        self.assertEqual(f'<Org: id={new_org.id} name="Cool Stuff">', repr(new_org))
 
         # if timezone is US, should get MMDDYYYY dates
         new_org = Org.create(self.admin, "Cool Stuff", ZoneInfo("America/Los_Angeles"))

@@ -1398,7 +1398,7 @@ class Org(SmartModel):
         }
 
     def __repr__(self):
-        return f'<Org: name="{self.name}">'
+        return f'<Org: id={self.id} name="{self.name}">'
 
     def __str__(self):
         return self.name
@@ -1813,3 +1813,6 @@ class Export(TembaUUIDMixin, models.Model):
             default_storage.delete(self.path)
 
         super().delete()
+
+    def __repr__(self):  # pragma: no cover
+        return f'<Export: id={self.id} type="{self.export_type}">'

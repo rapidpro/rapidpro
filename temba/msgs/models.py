@@ -684,8 +684,8 @@ class Msg(models.Model):
 
         cls.objects.filter(id__in=[m.id for m in msgs]).delete()
 
-    def __str__(self):  # pragma: needs cover
-        return self.text
+    def __repr__(self):  # pragma: no cover
+        return f'<Msg: id={self.id} text="{self.text}">'
 
     class Meta:
         indexes = [

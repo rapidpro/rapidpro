@@ -1035,7 +1035,7 @@ class TopicTest(TembaTest):
 
         self.assertEqual("Sales", topic1.name)
         self.assertEqual("Sales", str(topic1))
-        self.assertEqual(f'<Topic: uuid={topic1.uuid} name="Sales">', repr(topic1))
+        self.assertEqual(f'<Topic: id={topic1.id} name="Sales">', repr(topic1))
 
         # try to create with invalid name
         with self.assertRaises(AssertionError):
@@ -1170,7 +1170,7 @@ class TeamTest(TembaTest):
 
         self.assertEqual("Sales", team1.name)
         self.assertEqual("Sales", str(team1))
-        self.assertEqual(f'<Team: uuid={team1.uuid} name="Sales">', repr(team1))
+        self.assertEqual(f'<Team: id={team1.id} name="Sales">', repr(team1))
 
         self.assertEqual({self.admin, self.agent}, set(team1.get_users()))
 

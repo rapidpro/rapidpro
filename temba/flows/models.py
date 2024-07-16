@@ -1019,8 +1019,8 @@ class FlowSession(models.Model):
 
         super().delete()
 
-    def __str__(self):  # pragma: no cover
-        return str(self.contact)
+    def __repr__(self):  # pragma: no cover
+        return f"<FlowSession: id={self.id} contact={self.contact.id}>"
 
     class Meta:
         indexes = [
@@ -1172,8 +1172,8 @@ class FlowRun(models.Model):
 
             super().delete()
 
-    def __str__(self):  # pragma: no cover
-        return f"FlowRun[uuid={self.uuid}, flow={self.flow.uuid}]"
+    def __repr__(self):  # pragma: no cover
+        return f"<FlowRun: id={self.id} flow={self.flow.name}>"
 
     class Meta:
         indexes = [

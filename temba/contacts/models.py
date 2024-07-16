@@ -1250,6 +1250,9 @@ class Contact(LegacyUUIDMixin, SmartModel):
     def __str__(self):
         return self.get_display()
 
+    def __repr__(self):  # pragma: no cover
+        return f'<Contact: id={self.id} name="{self.name}">'
+
     class Meta:
         indexes = [
             # for API endpoint access
