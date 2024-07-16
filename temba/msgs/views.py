@@ -276,7 +276,6 @@ class ScheduleForm(ScheduleFormMixin):
 class TargetForm(Form):
 
     contact_search = forms.JSONField(
-        required=True,
         widget=ContactSearchWidget(
             attrs={
                 "in_a_flow": True,
@@ -443,17 +442,27 @@ class BroadcastCRUDL(SmartCRUDL):
                     repeat_days_of_week=schedule_form.cleaned_data["repeat_days_of_week"],
                 )
 
+            groups = []
+            contacts = []
+            exclude = {}
+            query = contact_search.get("parsed_query", None)
+            if not contact_search.get("advanced"):
+                exclude = Exclusions(**contact_search.get("exclusions", {}))
+                groups = org.groups.filter(uuid__in=group_uuids)
+                contacts = org.contacts.filter(uuid__in=contact_uuids)
+                query = None
+
             self.object = Broadcast.create(
                 org,
                 user,
                 translations,
                 base_language=base_language,
-                groups=(org.groups.filter(uuid__in=group_uuids)),
-                contacts=(org.contacts.filter(uuid__in=contact_uuids)),
+                groups=groups,
+                contacts=contacts,
                 optin=optin,
                 schedule=schedule,
-                query=contact_search.get("parsed_query", None),
-                exclude=Exclusions(**contact_search.get("exclusions", {})),
+                query=query,
+                exclude=exclude,
             )
 
             composeBase = compose[self.object.base_language]
@@ -481,11 +490,12 @@ class BroadcastCRUDL(SmartCRUDL):
 
             if step == "target":
                 recipients = ContactSearchWidget.get_recipients(self.object.contacts.all(), self.object.groups.all())
+                query = self.object.query if not recipients else None
                 return {
                     "contact_search": {
                         "recipients": recipients,
-                        "advanced": False,
-                        "query": self.object.query if not recipients else None,
+                        "advanced": True if query else False,
+                        "query": query,
                         "exclusions": self.object.exclusions,
                     }
                 }
@@ -520,6 +530,7 @@ class BroadcastCRUDL(SmartCRUDL):
         def done(self, form_list, form_dict, **kwargs):
             broadcast = self.object
             schedule = broadcast.schedule
+            org = broadcast.org
 
             # update message
             compose = form_dict["compose"].cleaned_data["compose"]
@@ -537,21 +548,30 @@ class BroadcastCRUDL(SmartCRUDL):
             if template:
                 template = Template.objects.filter(org=broadcast.org, uuid=template).first()
 
+            # determine our new recipients
+            recipients = contact_search.get("recipients", [])
+            contact_uuids = [_.get("id") for _ in recipients if _.get("type") == "contact"]
+            group_uuids = [_.get("id") for _ in recipients if _.get("type") == "group"]
+
+            groups = []
+            contacts = []
+            exclude = {}
+            query = contact_search.get("parsed_query", None)
+            if not contact_search.get("advanced"):
+                exclude = Exclusions(**contact_search.get("exclusions", {}))
+                groups = org.groups.filter(uuid__in=group_uuids)
+                contacts = org.contacts.filter(uuid__in=contact_uuids)
+                query = None
+
             broadcast.translations = compose_deserialize(compose)
             broadcast.exclusions = contact_search.get("exclusions", {})
             broadcast.optin = optin
             broadcast.template = template
             broadcast.template_variables = template_variables
+            broadcast.query = query
+            broadcast.exclude = exclude
             broadcast.save()
 
-            # update recipients
-            recipients = contact_search.get("recipients", [])
-            contact_uuids = [_.get("id") for _ in recipients if _.get("type") == "contact"]
-            group_uuids = [_.get("id") for _ in recipients if _.get("type") == "group"]
-
-            org = broadcast.org
-            groups = org.groups.filter(uuid__in=group_uuids)
-            contacts = org.contacts.filter(uuid__in=contact_uuids)
             broadcast.update_recipients(groups=groups, contacts=contacts)
 
             # finally, update schedule

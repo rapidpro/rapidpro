@@ -48,8 +48,10 @@
     }
 
     {% if form.send_when.value != "later" %}
-    sendNow.click();
-    scheduleFields.classList.add("disabled");
+    if (sendNow) {
+      sendNow.click();
+      scheduleFields.classList.add("disabled");
+    }
     {% endif %}
 
     if (repeatPeriod) {

@@ -16,6 +16,7 @@
       const modax = getModax();
       const modalBody = modax.shadowRoot;
       const queryWidget = modalBody.querySelector("temba-contact-search");
+      modax.disabled = true;
 
       queryWidget.addEventListener("temba-content-changed", function(e) {
         if (e.detail.reset || (e.detail.blockers && e.detail.blockers.length > 0)) {
