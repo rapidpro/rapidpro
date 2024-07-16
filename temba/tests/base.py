@@ -489,6 +489,8 @@ class TembaTest(SmartminTest):
             node_uuid=None,
             exclude=exclude,
             optin=optin,
+            template=None,
+            template_variables=None,
             schedule=schedule,
         )
 

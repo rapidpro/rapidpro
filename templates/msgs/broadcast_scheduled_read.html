@@ -2,7 +2,7 @@
 {% load smartmin sms temba i18n humanize %}
 
 {% block content %}
-  {% include "msgs/broadcast.html" with broadcast=object %}
+  {% include "msgs/includes/broadcast.html" with broadcast=object %}
   {% if send_history %}
     <div class="shadow-lg bg-white rounded-t-lg px-4 py-3 border-b bg-gray-300 font-normal text-gray-600">{% trans "Send History" %}</div>
     <div class="shadow overflow-y-auto rounded-b-lg">

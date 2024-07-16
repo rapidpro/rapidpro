@@ -1,29 +1,25 @@
 {% load i18n %}
 
-{% for exclusion in exclusions %}
-  {% if exclusion == 'in_a_flow' %}
-    <temba-label icon="filter" backgroundcolor="#fff" textcolor="#999" style="--widget-shadow:none">
-      {% trans "Not in a flow" %}
-    </temba-label>
-  {% elif exclusion == 'started_previously' %}
-    <temba-label icon="filter" backgroundcolor="#fff" textcolor="#999" style="--widget-shadow:none">
-      {% trans "No recent runs" %}
-    </temba-label>
-  {% elif exclusion == 'not_seen_since_days' %}
-    <temba-label icon="filter" backgroundcolor="#fff" textcolor="#999" style="--widget-shadow:none">
-      {% if exclusions.not_seen_since_days == 365 %}
-        {% blocktrans trimmed %}
-          Active in the last year
-        {% endblocktrans %}
-      {% else %}
-        {% blocktrans trimmed with days=exclusions.not_seen_since_days %}
-          Active in the last {{ days }} days
-        {% endblocktrans %}
-      {% endif %}
-    </temba-label>
-  {% else %}
-    <temba-label icon="filter" backgroundcolor="#fff" textcolor="#999" style="--widget-shadow:none">
-      {{ exclusion }}
-    </temba-label>
-  {% endif %}
-{% endfor %}
+{% if exclusions.in_a_flow %}
+  <temba-label icon="filter" backgroundcolor="#fff" textcolor="#999" style="--widget-shadow:none">
+    {% trans "Not in a flow" %}
+  </temba-label>
+{% endif %}
+{% if exclusions.started_previously %}
+  <temba-label icon="filter" backgroundcolor="#fff" textcolor="#999" style="--widget-shadow:none">
+    {% trans "No recent runs" %}
+  </temba-label>
+{% endif %}
+{% if exclusion.not_seen_since_days %}
+  <temba-label icon="filter" backgroundcolor="#fff" textcolor="#999" style="--widget-shadow:none">
+    {% if exclusions.not_seen_since_days == 365 %}
+      {% blocktrans trimmed %}
+        Active in the last year
+      {% endblocktrans %}
+    {% else %}
+      {% blocktrans trimmed with days=exclusions.not_seen_since_days %}
+        Active in the last {{ days }} days
+      {% endblocktrans %}
+    {% endif %}
+  </temba-label>
+{% endif %}

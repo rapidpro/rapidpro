@@ -276,7 +276,6 @@ class ScheduleForm(ScheduleFormMixin):
 class TargetForm(Form):
 
     contact_search = forms.JSONField(
-        required=True,
         widget=ContactSearchWidget(
             attrs={
                 "in_a_flow": True,
@@ -411,26 +410,23 @@ class BroadcastCRUDL(SmartCRUDL):
         def done(self, form_list, form_dict, **kwargs):
             user = self.request.user
             org = self.request.org
-
             compose = form_dict["compose"].cleaned_data["compose"]
             translations = compose_deserialize(compose)
             base_language = next(iter(translations))
-
             optin = None
+            template = None
+            template_variables = []
 
-            # extract our optin if it is set
-            for value in compose.values():
-                if "optin" in value:
-                    optin = value.pop("optin", None)
-                    break
-            if optin:
-                optin = OptIn.objects.filter(org=org, uuid=optin.get("uuid")).first()
+            # extract template and optin which are packed into the base translation
+            for trans in compose.values():
+                if trans.get("optin"):
+                    optin_ref = trans.pop("optin")
+                    optin = OptIn.objects.filter(org=org, uuid=optin_ref["uuid"]).first()
+                if trans.get("template"):
+                    template = Template.objects.filter(org=org, uuid=trans.pop("template")).first()
+                    template_variables = trans.pop("variables", [])
 
             contact_search = form_dict["target"].cleaned_data["contact_search"]
-            recipients = contact_search.get("recipients", [])
-            contact_uuids = [_.get("id") for _ in recipients if _.get("type") == "contact"]
-            group_uuids = [_.get("id") for _ in recipients if _.get("type") == "group"]
-
             schedule_form = form_dict["schedule"]
             send_when = schedule_form.cleaned_data["send_when"]
             schedule = None
@@ -443,25 +439,32 @@ class BroadcastCRUDL(SmartCRUDL):
                     repeat_days_of_week=schedule_form.cleaned_data["repeat_days_of_week"],
                 )
 
+            if contact_search.get("advanced"):  # pragma: needs cover
+                groups = []
+                contacts = []
+                query = contact_search.get("parsed_query")
+                exclude = Exclusions()
+            else:
+                groups, contacts = ContactSearchWidget.parse_recipients(
+                    self.request.org, contact_search.get("recipients", [])
+                )
+                query = None
+                exclude = Exclusions(**contact_search.get("exclusions", {}))
+
             self.object = Broadcast.create(
                 org,
                 user,
                 translations,
                 base_language=base_language,
-                groups=(org.groups.filter(uuid__in=group_uuids)),
-                contacts=(org.contacts.filter(uuid__in=contact_uuids)),
+                groups=groups,
+                contacts=contacts,
+                query=query,
+                exclude=exclude,
                 optin=optin,
+                template=template,
+                template_variables=template_variables,
                 schedule=schedule,
-                query=contact_search.get("parsed_query", None),
-                exclude=Exclusions(**contact_search.get("exclusions", {})),
             )
-
-            composeBase = compose[self.object.base_language]
-            template_uuid = composeBase.pop("template", None)
-            if template_uuid:
-                self.object.template = Template.objects.filter(org=org, uuid=template_uuid).first()
-                self.object.template_variables = composeBase.pop("variables", [])
-                self.object.save(update_fields=["template", "template_variables"])
 
             if send_when == ScheduleForm.SEND_NOW:
                 return HttpResponseRedirect(reverse("msgs.broadcast_list"))
@@ -481,11 +484,12 @@ class BroadcastCRUDL(SmartCRUDL):
 
             if step == "target":
                 recipients = ContactSearchWidget.get_recipients(self.object.contacts.all(), self.object.groups.all())
+                query = self.object.query if not recipients else None
                 return {
                     "contact_search": {
                         "recipients": recipients,
-                        "advanced": False,
-                        "query": self.object.query if not recipients else None,
+                        "advanced": bool(query),
+                        "query": query,
                         "exclusions": self.object.exclusions,
                     }
                 }
@@ -537,21 +541,27 @@ class BroadcastCRUDL(SmartCRUDL):
             if template:
                 template = Template.objects.filter(org=broadcast.org, uuid=template).first()
 
+            # determine our new recipients
+            if contact_search.get("advanced"):  # pragma: needs cover
+                groups = []
+                contacts = []
+                query = contact_search.get("parsed_query")
+                exclusions = {}
+            else:
+                groups, contacts = ContactSearchWidget.parse_recipients(
+                    self.request.org, contact_search.get("recipients", [])
+                )
+                query = None
+                exclusions = contact_search.get("exclusions", {})
+
             broadcast.translations = compose_deserialize(compose)
-            broadcast.exclusions = contact_search.get("exclusions", {})
+            broadcast.query = query
+            broadcast.exclusions = exclusions
             broadcast.optin = optin
             broadcast.template = template
             broadcast.template_variables = template_variables
             broadcast.save()
 
-            # update recipients
-            recipients = contact_search.get("recipients", [])
-            contact_uuids = [_.get("id") for _ in recipients if _.get("type") == "contact"]
-            group_uuids = [_.get("id") for _ in recipients if _.get("type") == "group"]
-
-            org = broadcast.org
-            groups = org.groups.filter(uuid__in=group_uuids)
-            contacts = org.contacts.filter(uuid__in=contact_uuids)
             broadcast.update_recipients(groups=groups, contacts=contacts)
 
             # finally, update schedule
@@ -697,13 +707,9 @@ class BroadcastCRUDL(SmartCRUDL):
             translations = {"und": {"text": form.cleaned_data["text"]}}
             node_uuid = self.request.GET["node"]
 
-            try:
-                Broadcast.create(
-                    self.request.org, self.request.user, translations, base_language="und", node_uuid=node_uuid
-                )
-            except mailroom.EmptyBroadcastException:
-                self.form.add_error("__all__", _("There are no longer any contacts at this node."))
-                return self.form_invalid(form)
+            Broadcast.create(
+                self.request.org, self.request.user, translations, base_language="und", node_uuid=node_uuid
+            )
 
             return self.render_modal_response(form)
 
