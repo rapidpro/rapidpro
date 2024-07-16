@@ -439,7 +439,7 @@ class BroadcastCRUDL(SmartCRUDL):
                     repeat_days_of_week=schedule_form.cleaned_data["repeat_days_of_week"],
                 )
 
-            if contact_search.get("advanced"):
+            if contact_search.get("advanced"):  # pragma: needs cover
                 groups = []
                 contacts = []
                 query = contact_search.get("parsed_query")
@@ -542,25 +542,24 @@ class BroadcastCRUDL(SmartCRUDL):
                 template = Template.objects.filter(org=broadcast.org, uuid=template).first()
 
             # determine our new recipients
-            if contact_search.get("advanced"):
+            if contact_search.get("advanced"):  # pragma: needs cover
                 groups = []
                 contacts = []
                 query = contact_search.get("parsed_query")
-                exclude = Exclusions()
+                exclusions = {}
             else:
                 groups, contacts = ContactSearchWidget.parse_recipients(
                     self.request.org, contact_search.get("recipients", [])
                 )
                 query = None
-                exclude = Exclusions(**contact_search.get("exclusions", {}))
+                exclusions = contact_search.get("exclusions", {})
 
             broadcast.translations = compose_deserialize(compose)
-            broadcast.exclusions = contact_search.get("exclusions", {})
+            broadcast.query = query
+            broadcast.exclusions = exclusions
             broadcast.optin = optin
             broadcast.template = template
             broadcast.template_variables = template_variables
-            broadcast.query = query
-            broadcast.exclude = exclude
             broadcast.save()
 
             broadcast.update_recipients(groups=groups, contacts=contacts)

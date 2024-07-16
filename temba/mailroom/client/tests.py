@@ -11,12 +11,7 @@ from temba.utils import json
 
 from .. import modifiers
 from .client import MailroomClient
-from .exceptions import (
-    FlowValidationException,
-    QueryValidationException,
-    RequestException,
-    URNValidationException,
-)
+from .exceptions import FlowValidationException, QueryValidationException, RequestException, URNValidationException
 from .types import ContactSpec, Exclusions, Inclusions, RecipientsPreview, ScheduleSpec, URNResult
 
 

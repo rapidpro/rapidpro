@@ -2067,22 +2067,20 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         contact_search = response.context["form"]["contact_search"]
 
         self.assertEqual(
-            json.dumps(
-                {
-                    "recipients": [
-                        {
-                            "id": self.joe.uuid,
-                            "name": "Joe Blow",
-                            "urn": "+1 202-555-0149",
-                            "type": "contact",
-                        }
-                    ],
-                    "advanced": False,
-                    "query": None,
-                    "exclusions": {},
-                }
-            ),
-            contact_search.value(),
+            {
+                "recipients": [
+                    {
+                        "id": self.joe.uuid,
+                        "name": "Joe Blow",
+                        "urn": "+1 202-555-0149",
+                        "type": "contact",
+                    }
+                ],
+                "advanced": False,
+                "query": None,
+                "exclusions": {},
+            },
+            json.loads(contact_search.value()),
         )
 
         # missing text
