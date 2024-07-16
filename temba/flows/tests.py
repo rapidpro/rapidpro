@@ -5319,14 +5319,18 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_list(self):
         list_url = reverse("flows.flowstart_list")
 
-        flow = self.get_flow("color_v13")
+        flow1 = self.create_flow("Test Flow 1")
+        flow2 = self.create_flow("Test 2")
+
         contact = self.create_contact("Bob", phone="+1234567890")
         group = self.create_group("Testers", contacts=[contact])
-        start1 = FlowStart.create(flow, self.admin, contacts=[contact])
+        start1 = FlowStart.create(flow1, self.admin, contacts=[contact])
         start2 = FlowStart.create(
-            flow, self.admin, query="name ~ Bob", start_type="A", exclusions={"started_previously": True}
+            flow1, self.admin, query="name ~ Bob", start_type="A", exclusions={"started_previously": True}
         )
-        start3 = FlowStart.create(flow, self.admin, groups=[group], start_type="Z", exclusions={"in_a_flow": True})
+        start3 = FlowStart.create(flow2, self.admin, groups=[group], start_type="Z", exclusions={"in_a_flow": True})
+
+        flow2.release(self.admin)
 
         FlowStartCount.objects.create(start=start3, count=1000)
         FlowStartCount.objects.create(start=start3, count=234)
@@ -5339,6 +5343,9 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
             list_url, [self.user, self.editor, self.admin], context_objects=[start3, start2, start1]
         )
 
+        self.assertContains(response, "Test Flow 1")
+        self.assertNotContains(response, "Test Flow 2")
+        self.assertContains(response, "A deleted flow")
         self.assertContains(response, "was started by admin@nyaruka.com")
         self.assertContains(response, "was started by an API call")
         self.assertContains(response, "was started by Zapier")

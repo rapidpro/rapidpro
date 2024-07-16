@@ -44,9 +44,11 @@
             {% endif %}
           </td>
           <td>
-            <div onclick="goto(event, this)"
-                 href="{% url 'flows.flow_editor' obj.flow.uuid %}"
-                 class="linked inline">{{ obj.flow.name }}</div>
+            {% if obj.flow.is_active %}
+              <a href="{% url 'flows.flow_editor' obj.flow.uuid %}">{{ obj.flow.name }}</a>
+            {% else %}
+              {% trans "A deleted flow" %}
+            {% endif %}
             {% if obj.start_type == "M" %}
               {% blocktrans trimmed with user=obj.created_by %}
                 was started by {{ user }}
