@@ -10,13 +10,7 @@ from temba.msgs.models import Broadcast
 from temba.utils import json
 
 from ..modifiers import Modifier
-from .exceptions import (
-    EmptyBroadcastException,
-    FlowValidationException,
-    QueryValidationException,
-    RequestException,
-    URNValidationException,
-)
+from .exceptions import FlowValidationException, QueryValidationException, RequestException, URNValidationException
 from .types import (
     ContactSpec,
     Exclusions,
@@ -366,8 +360,6 @@ class MailroomClient:
                 raise QueryValidationException(error, code, extra)
             elif domain == "urn":
                 raise URNValidationException(error, code, extra["index"])
-            elif domain == "broadcast":
-                raise EmptyBroadcastException()
 
         elif 400 <= response.status_code < 600:
             raise RequestException(endpoint, payload, response)

@@ -78,11 +78,3 @@ class URNValidationException(Exception):
 
     def __str__(self):
         return self.error
-
-
-class EmptyBroadcastException(Exception):
-    """
-    Request that fails because the because a the requested broadcast would have no recipients.
-    """
-
-    pass

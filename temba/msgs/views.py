@@ -708,13 +708,9 @@ class BroadcastCRUDL(SmartCRUDL):
             translations = {"und": {"text": form.cleaned_data["text"]}}
             node_uuid = self.request.GET["node"]
 
-            try:
-                Broadcast.create(
-                    self.request.org, self.request.user, translations, base_language="und", node_uuid=node_uuid
-                )
-            except mailroom.EmptyBroadcastException:
-                self.form.add_error("__all__", _("There are no longer any contacts at this node."))
-                return self.form_invalid(form)
+            Broadcast.create(
+                self.request.org, self.request.user, translations, base_language="und", node_uuid=node_uuid
+            )
 
             return self.render_modal_response(form)
 

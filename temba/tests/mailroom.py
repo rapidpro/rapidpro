@@ -910,9 +910,6 @@ def create_broadcast(
     schedule,
 ) -> Broadcast:
 
-    if not (groups or contacts or urns or query or node_uuid):
-        raise mailroom.EmptyBroadcastException()
-
     if schedule and isinstance(schedule, mailroom.ScheduleSpec):
         schedule = Schedule.objects.create(
             org=org,

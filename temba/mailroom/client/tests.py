@@ -12,7 +12,6 @@ from temba.utils import json
 from .. import modifiers
 from .client import MailroomClient
 from .exceptions import (
-    EmptyBroadcastException,
     FlowValidationException,
     QueryValidationException,
     RequestException,
@@ -713,13 +712,6 @@ class MailroomClientTest(TembaTest):
     @patch("requests.post")
     def test_errors(self, mock_post):
         group = self.create_group("Doctors", contacts=[])
-
-        mock_post.return_value = MockJsonResponse(
-            422, {"error": "can't create broadcast with no recipients", "code": "broadcast:no_recipients"}
-        )
-
-        with self.assertRaises(EmptyBroadcastException) as e:
-            self.client.msg_broadcast(self.org, self.admin, {}, "eng", [], [], [], "", "", None, None, None, [], None)
 
         mock_post.return_value = MockJsonResponse(422, {"error": "node isn't valid", "code": "flow:invalid"})
 
