@@ -1,3 +1,7 @@
+v9.1.198 (2024-07-17)
+-------------------------
+ * Allow template image variables to be text with expressions
+
 v9.1.196 (2024-07-16)
 -------------------------
  * Add __repr__ to more models and tweak existing ones for consistency
