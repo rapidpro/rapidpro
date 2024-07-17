@@ -3766,10 +3766,10 @@ class ContactImportTest(TembaTest):
         bad_files = [
             ("empty.csv", "Import file doesn't contain any records."),
             ("empty_header.xls", "Import file contains an empty header."),
-            ("duplicate_urn.xlsx", "Import file contains duplicated contact URN 'tel:+250788382382'."),
+            ("duplicate_urn.xlsx", "Import file contains duplicated contact URN 'tel:+250788382382' on row 4."),
             (
                 "duplicate_uuid.xlsx",
-                "Import file contains duplicated contact UUID 'f519ca1f-8513-49ba-8896-22bf0420dec7'.",
+                "Import file contains duplicated contact UUID 'f519ca1f-8513-49ba-8896-22bf0420dec7' on row 4.",
             ),
             ("invalid_scheme.xlsx", "Header 'URN:XXX' is not a valid URN type."),
             ("invalid_field_key.xlsx", "Header 'Field: #$^%' is not a valid field name."),
