@@ -143,13 +143,13 @@ class MsgListView(ContentMenuMixin, BulkActionMixin, SystemLabelView):
     def build_content_menu(self, menu):
         if self.has_org_perm("msgs.broadcast_create"):
             menu.add_modax(
-                _("New Broadcast"), "send-message", reverse("msgs.broadcast_create"), title=_("New Broadcast")
+                _("Send"), "send-message", reverse("msgs.broadcast_create"), title=_("New Broadcast"), as_button=True
             )
         if self.has_org_perm("msgs.label_create"):
             menu.add_modax(_("New Label"), "new-msg-label", reverse("msgs.label_create"), title=_("New Label"))
 
         if self.allow_export and self.has_org_perm("msgs.msg_export"):
-            menu.add_modax(_("Download"), "export-messages", self.derive_export_url(), title=_("Download Messages"))
+            menu.add_modax(_("Export"), "export-messages", self.derive_export_url(), title=_("Export Messages"))
 
 
 class ComposeForm(Form):
@@ -342,7 +342,7 @@ class BroadcastCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             if self.has_org_perm("msgs.broadcast_create"):
                 menu.add_modax(
-                    _("New Broadcast"),
+                    _("Send"),
                     "new-scheduled",
                     reverse("msgs.broadcast_create"),
                     title=_("New Broadcast"),
@@ -363,7 +363,7 @@ class BroadcastCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             if self.has_org_perm("msgs.broadcast_create"):
                 menu.add_modax(
-                    _("New Broadcast"),
+                    _("Send"),
                     "new-scheduled",
                     reverse("msgs.broadcast_create"),
                     title=_("New Broadcast"),
@@ -987,11 +987,6 @@ class MsgCRUDL(SmartCRUDL):
                     title="Edit Label",
                 )
 
-            if self.has_org_perm("msgs.msg_export"):
-                menu.add_modax(_("Download"), "export-messages", self.derive_export_url(), title=_("Download Messages"))
-
-            menu.add_modax(_("Usages"), "label-usages", reverse("msgs.label_usages", args=[self.label.uuid]))
-
             if self.has_org_perm("msgs.label_delete"):
                 menu.add_modax(
                     _("Delete"),
@@ -999,6 +994,13 @@ class MsgCRUDL(SmartCRUDL):
                     reverse("msgs.label_delete", args=[self.label.uuid]),
                     title="Delete Label",
                 )
+
+            menu.new_group()
+
+            if self.has_org_perm("msgs.msg_export"):
+                menu.add_modax(_("Export"), "export-messages", self.derive_export_url(), title=_("Export Messages"))
+
+            menu.add_modax(_("Usages"), "label-usages", reverse("msgs.label_usages", args=[self.label.uuid]))
 
         @classmethod
         def derive_url_pattern(cls, path, action):

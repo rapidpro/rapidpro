@@ -2081,7 +2081,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, response.context["folders"][0]["count"])
         self.assertEqual(2, response.context["folders"][1]["count"])
 
-        self.assertEqual(("archive", "label", "download-results"), response.context["actions"])
+        self.assertEqual(("archive", "label", "export-results"), response.context["actions"])
 
         # but does appear in archived list
         response = self.client.get(reverse("flows.flow_archived"))
@@ -2168,7 +2168,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("flows.flow_filter", args=[label1.uuid]))
         self.assertEqual([flow2, flow1], list(response.context["object_list"]))
         self.assertEqual(2, len(response.context["labels"]))
-        self.assertEqual(("label", "download-results"), response.context["actions"])
+        self.assertEqual(("label", "export-results"), response.context["actions"])
 
         response = self.client.get(reverse("flows.flow_filter", args=[label2.uuid]))
         self.assertEqual([flow2], list(response.context["object_list"]))

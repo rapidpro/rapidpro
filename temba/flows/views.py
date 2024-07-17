@@ -800,7 +800,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class List(BaseList):
         title = _("Active")
-        bulk_actions = ("archive", "label", "download-results")
+        bulk_actions = ("archive", "label", "export-results")
         menu_path = "/flow/active"
 
         def derive_queryset(self, *args, **kwargs):
@@ -810,7 +810,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class Filter(BaseList, OrgObjPermsMixin):
         add_button = True
-        bulk_actions = ("label", "download-results")
+        bulk_actions = ("label", "export-results")
         slug_url_kwarg = "uuid"
 
         def derive_menu_path(self):
@@ -1374,10 +1374,10 @@ class FlowCRUDL(SmartCRUDL):
 
             if self.has_org_perm("flows.flow_export_results"):
                 menu.add_modax(
-                    _("Download"),
-                    "download-results",
+                    _("Export"),
+                    "export-results",
                     f"{reverse('flows.flow_export_results')}?ids={obj.id}",
-                    title=_("Download Results"),
+                    title=_("Export Results"),
                 )
 
             if self.has_org_perm("flows.flow_editor"):
