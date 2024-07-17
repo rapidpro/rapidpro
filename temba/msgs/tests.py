@@ -571,8 +571,8 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         msg1.refresh_from_db()
         self.assertEqual({label1, label3}, set(msg1.labels.all()))
 
-        self.assertContentMenu(inbox_url, self.user, ["Download"])
-        self.assertContentMenu(inbox_url, self.admin, ["New Broadcast", "New Label", "Download"])
+        self.assertContentMenu(inbox_url, self.user, ["Export"])
+        self.assertContentMenu(inbox_url, self.admin, ["Send", "New Label", "Export"])
 
     def test_flows(self):
         flow = self.create_flow("Test")
@@ -804,7 +804,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(f"/msg/labels/{label3.uuid}", response.headers[TEMBA_MENU_SELECTION])
         self.assertEqual(200, response.status_code)
         self.assertEqual(("label",), response.context["actions"])
-        self.assertContentMenu(label3_url, self.user, ["Download", "Usages"])  # no update or delete
+        self.assertContentMenu(label3_url, self.user, ["Export", "Usages"])  # no update or delete
 
         # check that non-visible messages are excluded, and messages and ordered newest to oldest
         self.assertEqual([msg6, msg3, msg2, msg1], list(response.context["object_list"]))
@@ -814,7 +814,7 @@ class MsgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({msg1, msg6}, set(response.context_data["object_list"]))
 
         # check admin users see edit and delete options for labels
-        self.assertContentMenu(label1_url, self.admin, ["Edit", "Download", "Usages", "Delete"])
+        self.assertContentMenu(label1_url, self.admin, ["Edit", "Delete", "-", "Export", "Usages"])
 
     def test_export(self):
         export_url = reverse("msgs.msg_export")
@@ -2517,7 +2517,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRequestDisallowed(list_url, [None, self.agent])
         self.assertListFetch(list_url, [self.user, self.editor, self.admin], context_objects=[])
         self.assertContentMenu(list_url, self.user, [])
-        self.assertContentMenu(list_url, self.admin, ["New Broadcast"])
+        self.assertContentMenu(list_url, self.admin, ["Send"])
 
         broadcast = self.create_broadcast(
             self.admin,
@@ -2533,7 +2533,7 @@ class BroadcastCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRequestDisallowed(scheduled_url, [None, self.agent])
         self.assertListFetch(scheduled_url, [self.user, self.editor, self.admin], context_objects=[])
         self.assertContentMenu(scheduled_url, self.user, [])
-        self.assertContentMenu(scheduled_url, self.admin, ["New Broadcast"])
+        self.assertContentMenu(scheduled_url, self.admin, ["Send"])
 
         bc1 = self.create_broadcast(
             self.admin,
