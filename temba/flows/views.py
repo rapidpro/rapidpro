@@ -223,6 +223,7 @@ class FlowCRUDL(SmartCRUDL):
                     name=_("Archived"),
                     icon="archive",
                     href="flows.flow_archived",
+                    perm="flows.flow_list",
                 )
             )
 
@@ -238,6 +239,7 @@ class FlowCRUDL(SmartCRUDL):
                         menu_id=label.uuid,
                         name=label.name,
                         href=reverse("flows.flow_filter", args=[label.uuid]),
+                        perm="flows.flow_list",
                         count=label.get_flow_count(),
                     )
                 )
@@ -274,6 +276,7 @@ class FlowCRUDL(SmartCRUDL):
         Used by the editor for the rollover of recent contacts coming out of a split
         """
 
+        permission = "flows.flow_editor"
         slug_url_kwarg = "uuid"
 
         @classmethod
@@ -290,6 +293,7 @@ class FlowCRUDL(SmartCRUDL):
         Used by the editor for fetching and saving flow definitions
         """
 
+        permission = "flows.flow_editor"  # POSTs explicitly check for flows.flow_update
         slug_url_kwarg = "uuid"
 
         @classmethod
@@ -676,6 +680,7 @@ class FlowCRUDL(SmartCRUDL):
                     )
 
     class BaseList(SpaMixin, OrgFilterMixin, OrgPermsMixin, BulkActionMixin, ContentMenuMixin, SmartListView):
+        permission = "flows.flow_list"
         title = _("Flows")
         refresh = 10000
         fields = ("name", "modified_on")
@@ -953,14 +958,13 @@ class FlowCRUDL(SmartCRUDL):
 
             # limit PO export/import to non-archived flows since mailroom doesn't know about archived flows
             if not obj.is_archived:
-                if self.has_org_perm("flows.flow_export_translation"):
-                    menu.add_modax(
-                        _("Export Translation"),
-                        "export-translation",
-                        reverse("flows.flow_export_translation", args=[obj.id]),
-                    )
+                menu.add_modax(
+                    _("Export Translation"),
+                    "export-translation",
+                    reverse("flows.flow_export_translation", args=[obj.id]),
+                )
 
-                if self.has_org_perm("flows.flow_import_translation"):
+                if self.has_org_perm("flows.flow_update"):
                     menu.add_link(_("Import Translation"), reverse("flows.flow_import_translation", args=[obj.id]))
 
     class ChangeLanguage(OrgObjPermsMixin, SmartUpdateView):
@@ -979,6 +983,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 return data
 
+        permission = "flows.flow_update"
         form_class = Form
         success_url = "uuid@flows.flow_editor"
 
@@ -1011,6 +1016,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 self.fields["language"].choices += languages.choices(codes=org.flow_languages)
 
+        permission = "flows.flow_editor"
         form_class = Form
         submit_button_name = _("Export")
         success_url = "@flows.flow_list"
@@ -1036,6 +1042,8 @@ class FlowCRUDL(SmartCRUDL):
         """
         Download link for PO translation files extracted from flows by mailroom
         """
+
+        permission = "flows.flow_editor"
 
         def get(self, request, *args, **kwargs):
             org = self.request.org
@@ -1105,6 +1113,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 self.fields["language"].choices = languages.choices(codes=lang_codes)
 
+        permission = "flows.flow_update"
         title = _("Import Translation")
         submit_button_name = _("Import")
         success_url = "uuid@flows.flow_editor"
@@ -1188,6 +1197,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 self.fields["flows"].queryset = Flow.objects.filter(org=org, is_active=True)
 
+        permission = "flows.flow_results"
         form_class = Form
         export_type = ResultsExport
         success_url = "@flows.flow_list"
@@ -1223,6 +1233,8 @@ class FlowCRUDL(SmartCRUDL):
 
         # the min number of responses to show the period charts
         PERIOD_MIN = 0
+
+        permission = "flows.flow_results"
 
         def render_to_response(self, context, **response_kwargs):
             total_responses = 0
@@ -1358,9 +1370,14 @@ class FlowCRUDL(SmartCRUDL):
             )
 
     class ActivityChart(SpaMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
-        pass
+        permission = "flows.flow_results"
 
     class CategoryCounts(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+        """
+        Used by the editor for the counts on split exits
+        """
+
+        permission = "flows.flow_editor"
         slug_url_kwarg = "uuid"
 
         def render_to_response(self, context, **response_kwargs):
@@ -1372,7 +1389,7 @@ class FlowCRUDL(SmartCRUDL):
         def build_content_menu(self, menu):
             obj = self.get_object()
 
-            if self.has_org_perm("flows.flow_export_results"):
+            if self.has_org_perm("flows.flow_results"):
                 menu.add_modax(
                     _("Export"),
                     "export-results",
@@ -1400,6 +1417,11 @@ class FlowCRUDL(SmartCRUDL):
             return context
 
     class Activity(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+        """
+        Used by the editor for the counts on paths between nodes
+        """
+
+        permission = "flows.flow_editor"
         slug_url_kwarg = "uuid"
 
         def get(self, request, *args, **kwargs):
@@ -1409,6 +1431,8 @@ class FlowCRUDL(SmartCRUDL):
             return JsonResponse(dict(nodes=active, segments=visited, is_starting=flow.is_starting()))
 
     class Simulate(OrgObjPermsMixin, SmartReadView):
+        permission = "flows.flow_editor"
+
         @csrf_exempt
         def dispatch(self, *args, **kwargs):
             return super().dispatch(*args, **kwargs)

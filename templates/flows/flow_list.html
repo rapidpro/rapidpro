@@ -2,9 +2,11 @@
 {% load smartmin sms temba compress i18n humanize %}
 
 {% block content %}
-  {% if org_perms.flows.flow_update %}
+  {% if org_perms.flows.flow_results %}
     <temba-modax header="{% trans "Export Results" %}" id="export-results">
     </temba-modax>
+  {% endif %}
+  {% if org_perms.flows.flowlabel_create %}
     <temba-modax header="{% trans "Create Label" %}"
                  endpoint="{% url 'flows.flowlabel_create' %}"
                  -temba-loaded="handleCreateLabelModalLoaded"
