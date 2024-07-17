@@ -583,7 +583,7 @@ document.addEventListener('DOMContentLoaded', function () {
       event.stopPropagation();
 
       // if we are working within the app, use spaGet
-      if (url.host === window.location.host) {
+      if (url.host === window.location.host && !event.metaKey) {
         spaGet(ele.href);
       } else {
         // otherwise open a new tab
