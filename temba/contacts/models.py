@@ -1995,7 +1995,7 @@ class ContactImport(SmartModel):
 
             try:
                 raw_row = next(data)
-            except xlrd.XLDateError:
+            except xlrd.XLDateError:  # pragma: needs cover
                 raise ValidationError(_("Import file contains invalid date on row %(row)s."), params={"row": row_num})
             except StopIteration:
                 break
