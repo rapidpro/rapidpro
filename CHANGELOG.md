@@ -1,3 +1,8 @@
+v9.2.0 (2024-07-17)
+-------------------------
+ * Simplify permissions in flows app
+ * Tweak menu items for msg views and flow results
+
 v9.1.198 (2024-07-17)
 -------------------------
  * Allow template image variables to be text with expressions
