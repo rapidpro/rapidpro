@@ -3164,8 +3164,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow = self.get_flow("favorites")
         export_url = reverse("flows.flow_export_translation", args=[flow.id])
 
-        self.assertRequestDisallowed(export_url, [None, self.user, self.agent, self.admin2])
-        self.assertUpdateFetch(export_url, [self.editor, self.admin], form_fields=["language"])
+        self.assertRequestDisallowed(export_url, [None, self.agent, self.admin2])
+        self.assertUpdateFetch(export_url, [self.user, self.editor, self.admin], form_fields=["language"])
 
         # submit with no language
         response = self.assertUpdateSubmit(export_url, self.admin, {})
@@ -3175,8 +3175,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # check fetching the PO from the download link
         with patch("temba.mailroom.client.client.MailroomClient.po_export") as mock_po_export:
             mock_po_export.return_value = b'msgid "Red"\nmsgstr "Roja"\n\n'
-            self.assertRequestDisallowed(response.url, [None, self.user, self.agent, self.admin2])
-            response = self.assertReadFetch(response.url, [self.editor, self.admin])
+            self.assertRequestDisallowed(response.url, [None, self.agent, self.admin2])
+            response = self.assertReadFetch(response.url, [self.user, self.editor, self.admin])
 
             self.assertEqual(b'msgid "Red"\nmsgstr "Roja"\n\n', response.content)
             self.assertEqual('attachment; filename="favorites.po"', response["Content-Disposition"])
