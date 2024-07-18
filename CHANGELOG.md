@@ -1,3 +1,9 @@
+v9.2.1 (2024-07-18)
+-------------------------
+ * Catch errors from xlrd reading import rows and return errors with row numbers
+ * Update xlrd
+ * Honor meta key keyboard press inside contact chat
+
 v9.2.0 (2024-07-17)
 -------------------------
  * Simplify permissions in flows app
