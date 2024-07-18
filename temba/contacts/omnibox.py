@@ -20,7 +20,7 @@ def omnibox_query(org, **kwargs):
     # determine what type of group/contact/URN lookup is being requested
     contact_uuids = kwargs.get("c", None)  # contacts with ids
     group_uuids = kwargs.get("g", None)  # groups with ids
-    search = kwargs.get("search", None)  # search of groups, contacts and URNs
+    search = kwargs.get("search", "")  # search of groups, contacts
     types = list(kwargs.get("types", ""))  # limit search to types (g | s | c)
 
     if contact_uuids:
@@ -31,10 +31,10 @@ def omnibox_query(org, **kwargs):
         return ContactGroup.get_groups(org).filter(uuid__in=group_uuids.split(",")).order_by(Lower("name"))
 
     # searching returns something which acts enough like a queryset to be paged
-    return _omnibox_mixed_search(org, search, types)
+    return _omnibox_mixed_search(org, search.strip(), types)
 
 
-def _omnibox_mixed_search(org, query: str, types: str):
+def _omnibox_mixed_search(org, search: str, types: str):
     """
     Performs a mixed group and contact search, returning the first N matches of each type.
     """
@@ -45,28 +45,26 @@ def _omnibox_mixed_search(org, query: str, types: str):
 
     if SEARCH_ALL_GROUPS in search_types or SEARCH_STATIC_GROUPS in search_types:
         groups = ContactGroup.get_groups(org, ready_only=True)
-        query_terms = query.split(" ") if query else ()
 
         # exclude dynamic groups if not searching all groups
         if SEARCH_ALL_GROUPS not in search_types:
             groups = groups.filter(query=None)
 
-        for query_term in query_terms:
-            groups = groups.filter(name__icontains=query_term)
+        if search:
+            groups = groups.filter(name__icontains=search)
 
         results += list(groups.order_by(Lower("name"))[:per_type_limit])
 
-    if SEARCH_CONTACTS in search_types:
-        if query:
-            search_query = f"name ~ {json.dumps(query)}"
-            if not org.is_anon:
-                search_query += f" OR urn ~ {json.dumps(query)}"
-        else:
-            search_query = ""
+    # listing contacts without any filtering isn't very useful for a typical workspaces and contactql requires name
+    # terms be at least 2 chars and URN terms 3 chars
+    if SEARCH_CONTACTS in search_types and len(search) >= 3:
+        query = f"name ~ {json.dumps(search)}"
+        if not org.is_anon:
+            query += f" OR urn ~ {json.dumps(search)}"
 
         try:
             search_results = mailroom.get_client().contact_search(
-                org, org.active_contacts_group, search_query, sort="name", limit=per_type_limit
+                org, org.active_contacts_group, query, sort="name", limit=per_type_limit
             )
         except mailroom.QueryValidationException:
             return results
@@ -80,7 +78,6 @@ def _omnibox_mixed_search(org, query: str, types: str):
                 only=("id", "uuid", "name", "org_id"),
             ).prefetch_related("org")
         )
-
         Contact.bulk_urn_cache_initialize(contacts)
         results += contacts
 
