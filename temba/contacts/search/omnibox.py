@@ -1,11 +1,13 @@
 import json
+import operator
+from functools import reduce
 
-from django.db.models.functions import Lower
+from django.db.models import Q
+from django.db.models.functions import Upper
 
 from temba import mailroom
+from temba.contacts.models import Contact, ContactGroup, ContactGroupCount
 from temba.utils.models.es import IDSliceQuerySet
-
-from .models import Contact, ContactGroup, ContactGroupCount
 
 SEARCH_ALL_GROUPS = "g"
 SEARCH_STATIC_GROUPS = "s"
@@ -16,7 +18,6 @@ def omnibox_query(org, **kwargs):
     """
     Performs a omnibox query based on the given arguments
     """
-
     # determine what type of group/contact/URN lookup is being requested
     contact_uuids = kwargs.get("c", None)  # contacts with ids
     group_uuids = kwargs.get("g", None)  # groups with ids
@@ -24,63 +25,70 @@ def omnibox_query(org, **kwargs):
     types = list(kwargs.get("types", ""))  # limit search to types (g | s | c)
 
     if contact_uuids:
-        return org.contacts.filter(
-            uuid__in=contact_uuids.split(","), status=Contact.STATUS_ACTIVE, is_active=True
-        ).order_by(Lower("name"))
+        return Contact.objects.filter(
+            org=org, status=Contact.STATUS_ACTIVE, is_active=True, uuid__in=contact_uuids.split(",")
+        ).order_by("name")
     elif group_uuids:
-        return ContactGroup.get_groups(org).filter(uuid__in=group_uuids.split(",")).order_by(Lower("name"))
+        return ContactGroup.get_groups(org).filter(uuid__in=group_uuids.split(",")).order_by("name")
 
     # searching returns something which acts enough like a queryset to be paged
-    return _omnibox_mixed_search(org, search, types)
+    return omnibox_mixed_search(org, search, types)
 
 
-def _omnibox_mixed_search(org, query: str, types: str):
+def term_search(queryset, fields, terms):
+    term_queries = []
+    for term in terms:
+        field_queries = []
+        for field in fields:
+            field_queries.append(Q(**{field: term}))
+        term_queries.append(reduce(operator.or_, field_queries))
+
+    return queryset.filter(reduce(operator.and_, term_queries))
+
+
+def omnibox_mixed_search(org, query, types):
     """
     Performs a mixed group and contact search, returning the first N matches of each type.
     """
-
+    query_terms = query.split(" ") if query else None
     search_types = types or (SEARCH_ALL_GROUPS, SEARCH_CONTACTS)
     per_type_limit = 25
     results = []
 
     if SEARCH_ALL_GROUPS in search_types or SEARCH_STATIC_GROUPS in search_types:
         groups = ContactGroup.get_groups(org, ready_only=True)
-        query_terms = query.split(" ") if query else ()
 
         # exclude dynamic groups if not searching all groups
         if SEARCH_ALL_GROUPS not in search_types:
             groups = groups.filter(query=None)
 
-        for query_term in query_terms:
-            groups = groups.filter(name__icontains=query_term)
+        if query:
+            groups = term_search(groups, ("name__icontains",), query_terms)
 
-        results += list(groups.order_by(Lower("name"))[:per_type_limit])
+        results += list(groups.order_by(Upper("name"))[:per_type_limit])
 
     if SEARCH_CONTACTS in search_types:
-        if query:
-            search_query = f"name ~ {json.dumps(query)}"
-            if not org.is_anon:
-                search_query += f" OR urn ~ {json.dumps(query)}"
-        else:
-            search_query = ""
-
         try:
+            if org.is_anon:
+                search_query = f"name ~ {json.dumps(query)}"
+            else:
+                search_query = f"name ~ {json.dumps(query)} OR urn ~ {json.dumps(query)}"
             search_results = mailroom.get_client().contact_search(
-                org, org.active_contacts_group, search_query, sort="name", limit=per_type_limit
+                org, org.active_contacts_group, search_query, sort="name"
             )
+            contacts = IDSliceQuerySet(
+                Contact,
+                search_results.contact_ids,
+                offset=0,
+                total=len(search_results.contact_ids),
+                only=("id", "uuid", "name", "org_id"),
+            ).prefetch_related("org")
+
+            results += list(contacts[:per_type_limit])
+            Contact.bulk_urn_cache_initialize(contacts=results)
+
         except mailroom.QueryValidationException:
-            return results
-
-        contacts = IDSliceQuerySet(
-            Contact,
-            search_results.contact_ids,
-            offset=0,
-            total=len(search_results.contact_ids),
-            only=("id", "uuid", "name", "org_id"),
-        ).prefetch_related("org")
-
-        Contact.bulk_urn_cache_initialize(contacts=results)
-        results += list(contacts)
+            pass
 
     return results
 
