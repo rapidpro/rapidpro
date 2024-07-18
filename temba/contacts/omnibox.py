@@ -71,16 +71,18 @@ def _omnibox_mixed_search(org, query: str, types: str):
         except mailroom.QueryValidationException:
             return results
 
-        contacts = IDSliceQuerySet(
-            Contact,
-            search_results.contact_ids,
-            offset=0,
-            total=len(search_results.contact_ids),
-            only=("id", "uuid", "name", "org_id"),
-        ).prefetch_related("org")
+        contacts = list(
+            IDSliceQuerySet(
+                Contact,
+                search_results.contact_ids,
+                offset=0,
+                total=len(search_results.contact_ids),
+                only=("id", "uuid", "name", "org_id"),
+            ).prefetch_related("org")
+        )
 
-        Contact.bulk_urn_cache_initialize(contacts=results)
-        results += list(contacts)
+        Contact.bulk_urn_cache_initialize(contacts)
+        results += contacts
 
     return results
 
