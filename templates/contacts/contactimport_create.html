@@ -5,7 +5,7 @@
   {% trans "Import Contacts" %}
 {% endblock title %}
 {% block content %}
-  <div style="min-height:41px" class="flex mb-4 flex-col">
+  <div>
     {% blocktrans trimmed %}
       You can import contacts from an Excel spreadsheet or comma separated values file.
     {% endblocktrans %}
@@ -75,18 +75,18 @@
         </td>
       </tr>
     </table>
-    <p>
+    <div class="mb-4">
       {% blocktrans trimmed with sample_url=STATIC_URL|add:"examples/sample_import.xlsx" code=explicit_clear max=max_records|intcomma %}
         You can download <a href="{{ sample_url }}">this Excel template</a> as a sample. Imports files can contain a
         maximum of {{ max }} records. Note that blank values will be ignored. If you want to explicitly clear values
         use <tt>{{ code }}</tt>.
       {% endblocktrans %}
-    </p>
+    </div>
     <form method="post" enctype="multipart/form-data" id="import-form" class="mb-4">
       {% csrf_token %}
-      {% if form.non_field_errors %}<div class="text-error py-2">{{ form.non_field_errors }}</div>{% endif %}
+      {% if form.non_field_errors %}<div class="alert alert-danger form-errors mb-2">{{ form.non_field_errors }}</div>{% endif %}
       {% block fields %}
-        <div class="mt-4 mb-6 text-error">{{ form.file.errors }}</div>
+        {% if form.file.errors %}<div class="alert alert-danger form-errors mb-2">{{ form.file.errors }}</div>{% endif %}
         <div id="file-upload">
           <input type="file" name="file" onchange="onFileChange()" id="import-file">
         </div>

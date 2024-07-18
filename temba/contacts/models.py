@@ -1988,20 +1988,32 @@ class ContactImport(SmartModel):
         seen_uuids = set()
         seen_urns = set()
         num_records = 0
+        row_num = 1
 
-        for raw_row in data:
+        while True:
+            row_num += 1
+
+            try:
+                raw_row = next(data)
+            except xlrd.XLDateError:  # pragma: needs cover
+                raise ValidationError(_("Import file contains invalid date on row %(row)s."), params={"row": row_num})
+            except StopIteration:
+                break
+
             row = cls._parse_row(raw_row, len(mappings))
             uuid, urns = cls._extract_uuid_and_urns(row, mappings)
             if uuid:
                 if uuid in seen_uuids:
                     raise ValidationError(
-                        _("Import file contains duplicated contact UUID '%(uuid)s'."), params={"uuid": uuid}
+                        _("Import file contains duplicated contact UUID '%(uuid)s' on row %(row)s."),
+                        params={"uuid": uuid, "row": row_num},
                     )
                 seen_uuids.add(uuid)
             for urn in urns:
                 if urn in seen_urns:
                     raise ValidationError(
-                        _("Import file contains duplicated contact URN '%(urn)s'."), params={"urn": urn}
+                        _("Import file contains duplicated contact URN '%(urn)s' on row %(row)s."),
+                        params={"urn": urn, "row": row_num},
                     )
                 seen_urns.add(urn)
 
