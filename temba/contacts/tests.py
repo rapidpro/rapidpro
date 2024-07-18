@@ -2137,9 +2137,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         self.assertEqual([], omnibox_request("search=-123`213"))
 
         with self.assertNumQueries(14):
-            mr_mocks.contact_search(
-                query="name ~ null OR urn ~ null", total=4, contacts=[self.billy, self.frank, self.joe, self.voldemort]
-            )
+            mr_mocks.contact_search(query="", total=4, contacts=[self.billy, self.frank, self.joe, self.voldemort])
 
             self.assertEqual(
                 [
@@ -2170,7 +2168,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
             )
 
         with self.assertNumQueries(14):
-            mr_mocks.contact_search(query="name ~ null OR urn ~ null", total=2, contacts=[self.billy, self.frank])
+            mr_mocks.contact_search(query="", total=2, contacts=[self.billy, self.frank])
 
             self.assertEqual(
                 [
@@ -2215,7 +2213,7 @@ class ContactTest(TembaTest, CRUDLTestMixin):
         )
 
         with self.anonymous(self.org):
-            mr_mocks.contact_search(query="name ~ null", total=1, contacts=[self.billy])
+            mr_mocks.contact_search(query="", total=1, contacts=[self.billy])
 
             self.assertEqual(
                 [

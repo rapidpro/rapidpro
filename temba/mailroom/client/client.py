@@ -108,7 +108,7 @@ class MailroomClient:
 
         return ParsedQuery(query=resp["query"], metadata=QueryMetadata(**resp.get("metadata", {})))
 
-    def contact_search(self, org, group, query: str, sort: str, offset=0, exclude_ids=()) -> SearchResults:
+    def contact_search(self, org, group, query: str, sort: str, offset=0, limit=50, exclude_ids=()) -> SearchResults:
         resp = self._request(
             "contact/search",
             {
@@ -118,6 +118,7 @@ class MailroomClient:
                 "query": query,
                 "sort": sort,
                 "offset": offset,
+                "limit": limit,
             },
         )
 
