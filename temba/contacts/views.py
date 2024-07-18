@@ -53,7 +53,7 @@ from temba.utils.views import BulkActionMixin, ComponentFormMixin, ContentMenuMi
 
 from .forms import ContactGroupForm, UpdateContactForm
 from .models import URN, Contact, ContactExport, ContactField, ContactGroup, ContactGroupCount, ContactImport
-from .search.omnibox import omnibox_query, omnibox_results_to_dict
+from .omnibox import omnibox_query, omnibox_results_to_dict
 
 logger = logging.getLogger(__name__)
 
@@ -331,9 +331,7 @@ class ContactCRUDL(SmartCRUDL):
 
             results = omnibox_results_to_dict(org, object_list)
 
-            json_result = {"results": results, "more": page.has_next(), "total": len(results), "err": "nil"}
-
-            return HttpResponse(json.dumps(json_result), content_type="application/json")
+            return JsonResponse({"results": results, "more": page.has_next(), "total": len(results), "err": "nil"})
 
     class Read(SpaMixin, OrgObjPermsMixin, ContentMenuMixin, SmartReadView):
         slug_url_kwarg = "uuid"
